@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-
 const servidorSchema = new mongoose.Schema({
     guildId: { 
         type: String, 
@@ -10,6 +9,11 @@ const servidorSchema = new mongoose.Schema({
     canalTicketsId: { 
         type: String, 
         required: true 
+    },
+    // NUEVO: La lista de opciones que saldrán en el menú desplegable
+    motivos: {
+        type: [String],
+        default: ['Fallo Técnico', 'Reportar Usuario', 'Duda de Pago'] // Unos por defecto
     }
 });
 

@@ -1,11 +1,17 @@
-const moongoose = require('mongoose');
+const mongoose = require('mongoose');
 
-const mensajeSchema = new moongoose.Schema({
-    ticketId: { type: String, required: true }, // La ID del ticket al que pertenece este mensaje
-    usuarioId: { type: String, required: true }, // La ID del usuario que envió el mensaje
-    usuario: { type: String, required: true }, // El nombre del usuario (para la web)
-    contenido: { type: String, required: true }, // El contenido del mensaje
-    fecha: { type: Date, default: Date.now } // La fecha en que se envió el mensaje
+const mensajeSchema = new mongoose.Schema({
+    ticketId: String,
+    usuarioId: String,
+    usuario: String,
+    contenido: String,
+    
+    //Los mensajes también caducan a los 7 días
+    fechaCreacion: { 
+        type: Date, 
+        default: Date.now, 
+        expires: 604800 // 7 días en segundos
+    }
 });
 
-module.exports = moongoose.model('Mensaje', mensajeSchema);
+module.exports = mongoose.model('Mensaje', mensajeSchema);
