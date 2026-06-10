@@ -13,7 +13,7 @@ const servidorSchema = new mongoose.Schema({
     // NUEVO: La lista de opciones que saldrán en el menú desplegable
     motivos: {
         type: [String],
-        default: ['Fallo Técnico', 'Reportar Usuario', 'Duda de Pago'] // Unos por defecto
+        default: ['Fallo Técnico', 'Reportar Usuario', 'Duda de Pago'] // Unos por defectorgba(0, 0, 0, 0.57)
     }
 });
 

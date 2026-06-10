@@ -1,7 +1,7 @@
 module.exports = {
-    
-    // Función para tirar un dado
-    tirarDado: async (message) => {
+    name: 'dado',
+    description: 'Tira un dado de 6 caras con rima incluida',
+    async execute(message, args, client) {
         const resultado = Math.floor(Math.random() * 6) + 1;
 
         switch (resultado) {
@@ -24,12 +24,5 @@ module.exports = {
                 await message.reply('🎲 Has sacado un 5, por el culo te la hinco');
                 break;
         } 
-    }, 
-
-    // Función para jugar a cara o cruz
-    caraCruz: async (message) => {
-        const opciones = ['Cara 🪙', 'Cruz 🦅'];
-        const eleccion = Math.floor(Math.random() * 2); 
-        await message.reply(`La moneda está en el aire... ¡Ha salido **${opciones[eleccion]}**!`);
     }
 };
