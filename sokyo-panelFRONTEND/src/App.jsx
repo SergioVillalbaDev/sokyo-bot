@@ -42,7 +42,7 @@ function App() {
     let intervalo;
     if (ticketSeleccionado && activeTab === 'tickets-gestion') {
       intervalo = setInterval(() => {
-        fetch(`http://localhost:3000/api/mensajes/${ticketSeleccionado.canalId}`)
+        fetch(`http://192.168.1.168:3000/api/mensajes/${ticketSeleccionado.canalId}`)
           .then((respuesta) => respuesta.json())
           .then((datos) => setMensajes(datos))
           .catch((error) => console.error('[Error 1006]', error));
