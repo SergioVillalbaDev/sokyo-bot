@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const Log = require('./models/Log.js');
 
 const client = new Client({
     intents: [

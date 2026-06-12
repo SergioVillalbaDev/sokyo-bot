@@ -1,0 +1,24 @@
+const { Events } = require('discord.js');
+const Log = require('../models/Log.js');
+
+module.exports = {
+    name: Events.MessageUpdate,
+    async execute(oldMessage, newMessage) {
+        if (newMessage.author?.bot) return;
+        if (oldMessage.content === newMessage.content) return; // Evita registrar cuando solo se carga un enlace/imagen
+        
+        try {
+            const viejo = oldMessage.content ? oldMessage.content : '*(Sin caché)*';
+            const nuevo = newMessage.content ? newMessage.content : '*(Sin caché)*';
+            
+            await Log.create({
+                guildId: newMessage.guildId,
+                categoria: 'Mensajes Editados',
+                accion: '✏️ Mensaje Editado',
+                usuario: newMessage.author?.username || 'Desconocido',
+                detalles: `Canal: <#${newMessage.channelId}>\n**Antes:** ${viejo}\n**Después:** ${nuevo}`,
+                color: '#f1c40f'
+            });
+        } catch (error) { console.error('Error guardando log Update:', error); }
+    }
+};

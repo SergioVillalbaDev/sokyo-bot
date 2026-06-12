@@ -3,6 +3,7 @@ const cors = require('cors');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
+const Log = require('../models/Log.js');
 
 module.exports = (client) => {
     const app = express();
@@ -36,37 +37,72 @@ module.exports = (client) => {
         res.json(await Mensaje.find({ ticketId: req.params.ticketId }).sort({ fecha: 1 }));
     });
 
-    // Estadísticas de usuarios para el Registro
-        app.get('/api/usuarios/stats', async (req, res) => {
-        try {
-            const stats = await Ticket.aggregate([
-                {
-                    $group: {
-                        _id: "$creadorId",
-                        nombre: { $first: "$creadorNombre" },
-                        totalTickets: { $sum: 1 },
-                        
-                        // FÓRMULA MEJORADA: Solo calcula la media de los tickets que SÍ tienen una valoración guardada (mayor que 0)
-                        ratingMedio: { 
-                            $avg: { 
-                                $cond: [ { $gt: ["$valoracionCSAT", 0] }, "$valoracionCSAT", null ] 
-                            } 
-                        },
-                        
-                        ticketsAbiertos: {
-                            $sum: { $cond: [{ $eq: ["$estado", "Abierto"] }, 1, 0] }
-                        },
-                        ultimoTicket: { $max: "$fechaCreacion" } 
-                    }
-                },
-                { $sort: { totalTickets: -1 } } 
-            ]);
-            res.json(stats);
-        } catch (error) {
-            console.error('Error al calcular estadísticas:', error);
-            res.status(500).json({ error: 'Fallo interno' });
-        }
-    });
+
+// --- RUTA PARA ESTADÍSTICAS DE USUARIOS ---
+app.get('/api/usuarios/stats', async (req, res) => {
+    try {
+        const stats = await Ticket.aggregate([
+            // 1. PRIMERO ordenamos los tickets del más nuevo al más viejo
+            { $sort: { fechaCreacion: -1 } },
+            // 2. LUEGO agrupamos por usuario
+            {
+                $group: {
+                    _id: "$creadorId",
+                    nombre: { $first: "$creadorNombre" },
+                    // Como está ordenado, $first coge la foto de tu ticket MÁS RECIENTE
+                    avatar: { $first: "$creadorAvatar" }, 
+                    totalTickets: { $sum: 1 },
+                    ticketsAbiertos: {
+                        $sum: { $cond: [{ $eq: ["$estado", "Abierto"] }, 1, 0] }
+                    },
+                    ratingTotal: { $sum: "$valoracionCSAT" },
+                    ratingCount: {
+                        $sum: { $cond: [{ $gt: ["$valoracionCSAT", 0] }, 1, 0] }
+                    },
+                    ultimoTicket: { $first: "$fechaCreacion" } 
+                }
+            },
+            {
+                $project: {
+                    nombre: 1,
+                    avatar: 1, 
+                    totalTickets: 1,
+                    ticketsAbiertos: 1,
+                    ratingMedio: {
+                        $cond: [{ $eq: ["$ratingCount", 0] }, null, { $divide: ["$ratingTotal", "$ratingCount"] }]
+                    },
+                    ultimoTicket: 1
+                }
+            },
+            { $sort: { totalTickets: -1 } }
+        ]);
+        res.json(stats);
+    } catch (error) {
+        console.error('Error en stats:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+// --- RUTA PARA OBTENER LOS LOGS (CON LÍMITES FREE/PREMIUM) ---
+app.get('/api/logs', async (req, res) => {
+    try {
+        // Buscamos la configuración del servidor
+        const ServidorConfig = require('../models/ServidorConfig.js');
+        const config = await ServidorConfig.findOne();
+        
+        // Si tienes un campo 'isPremium' en el futuro, lo leerá de aquí. Por ahora asume 'false' (Gratis)
+        const esPremium = config && config.isPremium === true; 
+        const limiteLogs = esPremium ? 150 : 50;
+
+        // Devuelve los logs respetando el límite
+        const logs = await Log.find().sort({ fecha: -1 }).limit(limiteLogs);
+        
+        // Enviamos los logs y también los datos del límite para pintarlos en la web
+        res.json({ logs: logs, limite: limiteLogs, esPremium: esPremium });
+    } catch (error) {
+        console.error('Error al obtener logs:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
 
     app.post('/api/mensajes/:ticketId', async (req, res) => {
         try {

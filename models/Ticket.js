@@ -1,35 +1,28 @@
 const mongoose = require('mongoose');
 
-const TicketSchema = new mongoose.Schema({
+const ticketSchema = new mongoose.Schema({
+    guildId: { type: String, required: true },
     canalId: { type: String, required: true, unique: true },
     creadorId: { type: String, required: true },
     creadorNombre: { type: String, required: true },
+    creadorAvatar: { type: String, default: null },
     
-    // --- AQUÍ ESTÁ EL CAMPO QUE FALTABA ---
     motivo: { type: String, default: 'Sin especificar' }, 
+    titulo: { type: String, default: 'Ticket de Soporte' },
+    descripcion: { type: String, default: 'Sin descripción' },
     
-    fechaCreacion: { type: Date, default: Date.now },
+    // --- NUEVO: LISTA DE IMPLICADOS ---
+    participantes: { type: Array, default: [] }, 
+
+    prioridad: { type: String, default: 'Normal' },
     estado: { type: String, default: 'Abierto' },
-    visibleWeb: { type: Boolean, default: true },
-    
-    // 1. ASIGNACIÓN (CLAIMING)
     asignadoA: { type: String, default: null },
     asignadoNombre: { type: String, default: null },
-
-    // 2. PRIORIDADES Y SLAs 
-    prioridad: { type: String, default: 'Normal' }, 
-    ultimaInteractStaff: { type: Date, default: Date.now },
-
-    // 3. NOTAS INTERNAS
-    notasInternas: [{
-        contenido: String,
-        autor: String,
-        fecha: { type: Date, default: Date.now }
-    }],
-
-    // 4. ENCUESTA DE SATISFACCIÓN (CSAT)
-    valoracionCSAT: { type: Number, default: null },
-    comentarioCSAT: { type: String, default: null }
+    fechaCreacion: { type: Date, default: Date.now },
+    ultimaInteractStaff: { type: Date, default: null },
+    notasInternas: { type: Array, default: [] },
+    visibleWeb: { type: Boolean, default: true },
+    valoracionCSAT: { type: Number, default: null } 
 });
 
-module.exports = mongoose.model('Ticket', TicketSchema);
+module.exports = mongoose.model('Ticket', ticketSchema);

@@ -1,4 +1,4 @@
-const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, AttachmentBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js'); 
@@ -10,7 +10,7 @@ module.exports = {
         // --- LÓGICA DE BOTONES ---
         if (interaction.isButton()) {
             
-            // EL USUARIO PULSA "ABRIR TICKET"
+            // ABRIR TICKET (Muestra el menú de motivos)
             if (interaction.customId === 'create_ticket') {
                 try {
                     let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
@@ -48,7 +48,7 @@ module.exports = {
                 }
             }
 
-            // --- LÓGICA PARA RECLAMAR EL TICKET ---
+            // RECLAMAR TICKET (Guarda al staff en los implicados)
             if (interaction.customId === 'reclamar_ticket') {
                 if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
                     return await interaction.reply({ content: '❌ Solo el equipo de soporte puede reclamar este ticket.', ephemeral: true });
@@ -57,12 +57,14 @@ module.exports = {
                 const canalId = interaction.channel.id;
                 const ticket = await Ticket.findOne({ canalId: canalId });
 
-                if (!ticket) {
-                    return await interaction.reply({ content: '❌ No se encontró este ticket en la base de datos.', ephemeral: true });
-                }
+                if (!ticket) return await interaction.reply({ content: '❌ No se encontró este ticket en la base de datos.', ephemeral: true });
+                if (ticket.asignadoA) return await interaction.reply({ content: `⚠️ Este ticket ya está siendo atendido por **${ticket.asignadoNombre}**.`, ephemeral: true });
 
-                if (ticket.asignadoA) {
-                    return await interaction.reply({ content: `⚠️ Este ticket ya está siendo atendido por **${ticket.asignadoNombre}**.`, ephemeral: true });
+                const staffAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
+                
+                if (!ticket.participantes) ticket.participantes = [];
+                if (!ticket.participantes.some(p => p.id === interaction.user.id)) {
+                    ticket.participantes.push({ id: interaction.user.id, username: interaction.user.username, avatar: staffAvatar, rol: 'Staff' });
                 }
 
                 ticket.asignadoA = interaction.user.id;
@@ -71,8 +73,7 @@ module.exports = {
                 await ticket.save();
 
                 const embedOriginal = interaction.message.embeds[0];
-                const embedModificado = EmbedBuilder.from(embedOriginal)
-                    .addFields({ name: '👀 Atendido por', value: `🙋‍♂️ ${interaction.user.username}`, inline: true });
+                const embedModificado = EmbedBuilder.from(embedOriginal).addFields({ name: '👀 Atendido por', value: `🙋‍♂️ ${interaction.user.username}`, inline: true });
 
                 const filaOriginal = interaction.message.components[0];
                 const filaModificada = ActionRowBuilder.from(filaOriginal);
@@ -82,35 +83,33 @@ module.exports = {
                 await interaction.followUp({ content: `📢 El agente de soporte **${interaction.user.username}** se ha hecho cargo de este ticket.` });
             }
 
-            // --- LÓGICA PARA CERRAR EL TICKET (TRANSCRIPT + CSAT) ---
+            // AÑADIR USUARIO AL TICKET
+            if (interaction.customId === 'add_user_prompt') {
+                if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+                    return await interaction.reply({ content: '❌ Solo el equipo de soporte puede invitar a otras personas.', ephemeral: true });
+                }
+
+                const userSelect = new UserSelectMenuBuilder().setCustomId('add_user_select').setPlaceholder('🔍 Busca y selecciona a un usuario...').setMinValues(1).setMaxValues(1);
+                const row = new ActionRowBuilder().addComponents(userSelect);
+                await interaction.reply({ content: 'Elige al usuario que quieres invitar a participar en este ticket:', components: [row], ephemeral: true });
+            }
+
+            // CERRAR TICKET Y CSAT
             if (interaction.customId === 'close_ticket') {
                 const canal = interaction.channel;
-
-                if (!canal) {
-                    return await interaction.reply({ content: '❌ No se ha podido encontrar el canal.', ephemeral: true });
-                }
+                if (!canal) return await interaction.reply({ content: '❌ No se ha podido encontrar el canal.', ephemeral: true });
 
                 await interaction.reply({ content: 'Generando copia de seguridad y cerrando el ticket...', ephemeral: true });
                 
                 try {
-                    const ticket = await Ticket.findOneAndUpdate(
-                        { canalId: canal.id }, 
-                        { estado: 'Cerrado' },
-                        { returnDocument: 'after' }
-                    );
+                    const ticket = await Ticket.findOneAndUpdate({ canalId: canal.id }, { estado: 'Cerrado' }, { returnDocument: 'after' });
 
                     if (ticket) {
                         const historial = await Mensaje.find({ ticketId: canal.id }).sort({ fecha: 1 });
-                        
-                        let transcriptTexto = `=== TRANSCRIPCIÓN DEL TICKET ===\n`;
-                        transcriptTexto += `Usuario: ${ticket.creadorNombre}\n`;
-                        transcriptTexto += `Motivo: ${ticket.motivo}\n`;
-                        transcriptTexto += `Fecha de cierre: ${new Date().toLocaleString('es-ES')}\n`;
-                        transcriptTexto += `=================================\n\n`;
+                        let transcriptTexto = `=== TRANSCRIPCIÓN DEL TICKET ===\nUsuario: ${ticket.creadorNombre}\nMotivo: ${ticket.motivo}\nFecha de cierre: ${new Date().toLocaleString('es-ES')}\n=================================\n\n`;
 
-                        if (historial.length === 0) {
-                            transcriptTexto += `(No se registraron mensajes en la base de datos)\n`;
-                        } else {
+                        if (historial.length === 0) transcriptTexto += `(No se registraron mensajes)\n`;
+                        else {
                             historial.forEach(msg => {
                                 const fecha = msg.fecha ? new Date(msg.fecha).toLocaleTimeString('es-ES') : '';
                                 transcriptTexto += `[${fecha}] ${msg.usuario}: ${msg.contenido}\n`;
@@ -120,11 +119,7 @@ module.exports = {
                         const buffer = Buffer.from(transcriptTexto, 'utf-8');
                         const attachment = new AttachmentBuilder(buffer, { name: `transcript-${ticket.creadorNombre}.txt` });
 
-                        const embedCSAT = new EmbedBuilder()
-                            .setColor('#f1c40f')
-                            .setTitle('📊 ¡Tu ticket ha sido cerrado!')
-                            .setDescription(`Hola **${ticket.creadorNombre}**, adjunto tienes una copia de la conversación de tu ticket por el motivo: *${ticket.motivo}*.\n\nPor favor, **valora la atención recibida** pulsando en las estrellas de abajo. ¡Nos ayuda a mejorar!`)
-                            .setFooter({ text: 'Sistema de Gestión Sokyo' });
+                        const embedCSAT = new EmbedBuilder().setColor('#f1c40f').setTitle('📊 ¡Tu ticket ha sido cerrado!').setDescription(`Hola **${ticket.creadorNombre}**, adjunto tienes una copia de la conversación de tu ticket.\n\nPor favor, **valora la atención recibida** pulsando en las estrellas de abajo. ¡Nos ayuda a mejorar!`);
 
                         const filaEstrellas = new ActionRowBuilder().addComponents(
                             new ButtonBuilder().setCustomId(`csat_1_${canal.id}`).setLabel('⭐').setStyle(ButtonStyle.Secondary),
@@ -137,157 +132,111 @@ module.exports = {
                         try {
                             const usuario = await client.users.fetch(ticket.creadorId);
                             await usuario.send({ embeds: [embedCSAT], components: [filaEstrellas], files: [attachment] });
-                        } catch (errMD) {
-                            console.log(`[AVISO] No se pudo enviar MD a ${ticket.creadorNombre}. Puede que tenga los MD cerrados.`);
-                        }
+                        } catch (e) {}
                     }
-
-                    setTimeout(() => {
-                        canal.delete().catch(console.error);
-                    }, 4000);
-
-                } catch (error) {
-                    console.error('Error al cerrar el ticket:', error);
-                }
+                    setTimeout(() => canal.delete().catch(console.error), 4000);
+                } catch (error) { console.error('Error al cerrar:', error); }
             }
 
-            // --- LÓGICA DE VALORACIÓN (CSAT) POR MD ---
             if (interaction.customId.startsWith('csat_')) {
                 const partes = interaction.customId.split('_');
                 const valoracion = parseInt(partes[1]);
-                const canalId = partes[2];
-
                 try {
-                    await Ticket.findOneAndUpdate(
-                        { canalId: canalId }, 
-                        { valoracionCSAT: valoracion }
-                    );
-
-                    const embedGracias = new EmbedBuilder()
-                        .setColor('#2ecc71')
-                        .setTitle('💖 ¡Gracias por tu valoración!')
-                        .setDescription(`Has valorado la atención recibida con **${valoracion} estrellas**.\n¡Seguiremos trabajando para darte el mejor servicio!`)
-                        .setFooter({ text: 'Sistema de Gestión Sokyo' });
-
+                    await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion });
+                    const embedGracias = new EmbedBuilder().setColor('#2ecc71').setTitle('💖 ¡Gracias por tu valoración!').setDescription(`Has valorado la atención recibida con **${valoracion} estrellas**.`);
                     await interaction.update({ embeds: [embedGracias], components: [] });
-
-                } catch (error) {
-                    console.error('Error al guardar CSAT:', error);
-                    await interaction.reply({ content: 'Hubo un error al guardar tu valoración.', ephemeral: true });
-                }
+                } catch (e) { await interaction.reply({ content: 'Error al guardar.', ephemeral: true }); }
             }
         }
 
-        // --- LÓGICA DE MENÚS DESPLEGABLES ---
-        if (interaction.isStringSelectMenu()) {
-            
-            // EL USUARIO ELIGE UN MOTIVO (Se crea el canal)
-            if (interaction.customId === 'seleccionar_motivo_ticket') {
-                // 1. Ocultamos el menú al instante y ponemos mensaje de carga
-                await interaction.update({ content: '⏳ Creando tu ticket, por favor espera...', components: [] }); 
+        // --- LÓGICA DE SELECCIÓN DE USUARIO (Guardar en DB) ---
+        if (interaction.isUserSelectMenu() && interaction.customId === 'add_user_select') {
+            const userIdToAdd = interaction.values[0];
+            const canal = interaction.channel;
+
+            try {
+                await canal.permissionOverwrites.edit(userIdToAdd, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
+                await interaction.update({ content: `✅ Permisos concedidos.`, components: [] });
+                await canal.send({ content: `👋 El usuario <@${userIdToAdd}> ha sido añadido a la conversación por <@${interaction.user.id}>.` });
+
+                const addedUser = await client.users.fetch(userIdToAdd);
+                const addedAvatar = addedUser.displayAvatarURL({ extension: 'png', size: 128 });
+                const ticket = await Ticket.findOne({ canalId: canal.id });
                 
-                const motivoSeleccionado = interaction.values[0];
-
-                try {
-                    let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
-                    
-                    const listaMotivos = (config && config.motivos && config.motivos.length > 0) 
-                        ? config.motivos 
-                        : [
-                            { nombre: 'Fallo Técnico', urgencia: 'Normal' },
-                            { nombre: 'Reportar Usuario', urgencia: 'Alta' },
-                            { nombre: 'Duda de Pago', urgencia: 'Baja' }
-                          ];
-
-                    const listaUrgencias = (config && config.urgencias && config.urgencias.length > 0)
-                        ? config.urgencias
-                        : [
-                            { nombre: 'Urgente', color: '#e74c3c', nivel: 4 },
-                            { nombre: 'Alta', color: '#e67e22', nivel: 3 },
-                            { nombre: 'Normal', color: '#3498db', nivel: 2 },
-                            { nombre: 'Baja', color: '#95a5a6', nivel: 1 }
-                          ];
-
-                    const motivoConfig = listaMotivos.find(m => m.nombre === motivoSeleccionado);
-                    const urgenciaAsignada = motivoConfig ? motivoConfig.urgencia : 'Normal';
-
-                    const urgData = listaUrgencias.find(u => u.nombre === urgenciaAsignada);
-                    const colorHex = urgData ? urgData.color : '#3498db'; 
-
-                    const nivelesNum = listaUrgencias.map(u => u.nivel || 0);
-                    const maxNivelEnServidor = nivelesNum.length > 0 ? Math.max(...nivelesNum) : 0;
-                    const esPrioridadMaxima = urgData && urgData.nivel === maxNivelEnServidor;
-
-                    const canalTicket = await interaction.guild.channels.create({
-                        name: `ticket-${interaction.user.username}`,
-                        type: ChannelType.GuildText,
-                        permissionOverwrites: [
-                            {
-                                id: interaction.guild.id,
-                                deny: [PermissionsBitField.Flags.ViewChannel],
-                            },
-                            {
-                                id: interaction.user.id,
-                                allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
-                            }
-                        ]
-                    });
-
-                    await Ticket.create({
-                        guildId: interaction.guild.id,
-                        canalId: canalTicket.id,
-                        creadorId: interaction.user.id,
-                        creadorNombre: interaction.user.username,
-                        motivo: motivoSeleccionado,
-                        prioridad: urgenciaAsignada, 
-                        estado: 'Abierto',
-                        visibleWeb: true
-                    });
-
-                    const embedBienvenida = new EmbedBuilder()
-                        .setTitle(`🎫 Ticket de Soporte: ${motivoSeleccionado}`)
-                        .setDescription(`¡Gracias por contactar con soporte!\n\nPor favor, describe tu consulta detalladamente.\nUn miembro del equipo lo revisará en breve.`)
-                        .setColor(colorHex) 
-                        .addFields(
-                            { name: '🚨 Urgencia del Caso', value: `**${urgenciaAsignada}**`, inline: true }
-                        );
-
-                    const rowBotones = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('reclamar_ticket')
-                            .setLabel('🙋‍♂️ Reclamar Ticket')
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setCustomId('close_ticket') 
-                            .setLabel('🔒 Cerrar Ticket')
-                            .setStyle(ButtonStyle.Danger)
-                    );
-                    
-                    const contenidoMensaje = esPrioridadMaxima 
-                        ? `⚠️ **¡ATENCIÓN STAFF! ¡Ticket de ALERTA MÁXIMA [${urgenciaAsignada}] abierto por <@${interaction.user.id}>!**` 
-                        : `¡Hola <@${interaction.user.id}>! Necesitamos un poco más de información. 👇`;
-
-                    await canalTicket.send({ 
-                        content: contenidoMensaje,
-                        embeds: [embedBienvenida],
-                        components: [rowBotones] 
-                    });
-
-                    // 2. Editamos el mensaje de carga para confirmar la creación
-                    await interaction.editReply({ 
-                        content: `✅ Tu ticket ha sido creado exitosamente: <#${canalTicket.id}>\n*(Este mensaje desaparecerá en 5 segundos)*`
-                    });
-
-                    // 3. Autodestrucción del mensaje a los 5 segundos
-                    setTimeout(() => {
-                        interaction.deleteReply().catch(console.error);
-                    }, 5000);
-
-                } catch (error) {
-                    console.error('Error al crear el ticket desde el menú:', error);
-                    await interaction.editReply({ content: '❌ Hubo un error al crear el ticket en el servidor.' });
+                if (ticket) {
+                    if (!ticket.participantes) ticket.participantes = [];
+                    if (!ticket.participantes.some(p => p.id === userIdToAdd)) {
+                        ticket.participantes.push({ id: userIdToAdd, username: addedUser.username, avatar: addedAvatar, rol: 'Invitado' });
+                        await ticket.save();
+                    }
                 }
-            }
+            } catch (error) { console.error(error); }
+        }
+
+        // --- MENÚ DESPLEGABLE A MODAL ---
+        if (interaction.isStringSelectMenu() && interaction.customId === 'seleccionar_motivo_ticket') {
+            const modal = new ModalBuilder().setCustomId(`modal_abrir_ticket_${interaction.values[0]}`).setTitle(`Ticket: ${interaction.values[0]}`);
+            const asuntoInput = new TextInputBuilder().setCustomId('asuntoInput').setLabel("Asunto del Ticket").setPlaceholder("Ej: Problema con la base de datos").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100);
+            const descripcionInput = new TextInputBuilder().setCustomId('descripcionInput').setLabel("Describe tu problema detalladamente").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000);
+            modal.addComponents(new ActionRowBuilder().addComponents(asuntoInput), new ActionRowBuilder().addComponents(descripcionInput));
+            await interaction.showModal(modal);
+            setTimeout(() => interaction.message.delete().catch(() => {}), 1000);
+        }
+
+        // --- CREACIÓN DEL TICKET DESDE EL MODAL ---
+        if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_abrir_ticket_')) {
+            const motivo = interaction.customId.replace('modal_abrir_ticket_', '');
+            const asunto = interaction.fields.getTextInputValue('asuntoInput');
+            const descripcion = interaction.fields.getTextInputValue('descripcionInput');
+
+            await interaction.reply({ content: '⏳ Procesando tu solicitud y creando el canal...', ephemeral: true });
+
+            try {
+                let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
+                const listaMotivos = (config && config.motivos && config.motivos.length > 0) ? config.motivos : [];
+                const listaUrgencias = (config && config.urgencias && config.urgencias.length > 0) ? config.urgencias : [];
+                const urgencia = listaMotivos.find(m => m.nombre === motivo)?.urgencia || 'Normal';
+                const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db'; 
+
+                const canalTicket = await interaction.guild.channels.create({
+                    name: `ticket-${interaction.user.username}`,
+                    type: ChannelType.GuildText,
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+                    ]
+                });
+
+                // AQUÍ ES DONDE DEBE IR LA FOTO:
+                const creadorAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
+
+                await Ticket.create({
+                    guildId: interaction.guild.id,
+                    canalId: canalTicket.id,
+                    creadorId: interaction.user.id,
+                    creadorNombre: interaction.user.username,
+                    creadorAvatar: creadorAvatar, // FOTO GUARDADA CORRECTAMENTE EN LA BASE DE DATOS
+                    motivo: motivo,
+                    titulo: asunto,
+                    descripcion: descripcion,
+                    prioridad: urgencia, 
+                    estado: 'Abierto',
+                    participantes: [{ id: interaction.user.id, username: interaction.user.username, avatar: creadorAvatar, rol: 'Creador' }],
+                    visibleWeb: true
+                });
+
+                const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(`**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*Un miembro del equipo lo revisará en breve.*`).setColor(colorHex).addFields({ name: '🚨 Urgencia', value: `**${urgencia}**`, inline: true });
+                const rowBotones = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Reclamar Ticket').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Añadir Usuario').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Cerrar Ticket').setStyle(ButtonStyle.Danger)
+                );
+                
+                await canalTicket.send({ content: `¡Hola <@${interaction.user.id}>! Aquí tienes tu ticket. 👇`, embeds: [embedBienvenida], components: [rowBotones] });
+                await interaction.editReply({ content: `✅ Tu ticket ha sido creado exitosamente: <#${canalTicket.id}>` });
+                setTimeout(() => interaction.deleteReply().catch(console.error), 5000);
+
+            } catch (error) { console.error(error); await interaction.editReply({ content: '❌ Hubo un error.' }); }
         }
     }
 };
