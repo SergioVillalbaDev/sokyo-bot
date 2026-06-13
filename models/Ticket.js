@@ -19,6 +19,7 @@ const ticketSchema = new mongoose.Schema({
     asignadoA: { type: String, default: null },
     asignadoNombre: { type: String, default: null },
     fechaCreacion: { type: Date, default: Date.now },
+    fechaCierre: { type: Date, default: null },
     ultimaInteractStaff: { type: Date, default: null },
     notasInternas: { type: Array, default: [] },
     visibleWeb: { type: Boolean, default: true },

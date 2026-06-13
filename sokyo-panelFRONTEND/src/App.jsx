@@ -2,6 +2,19 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 
+// URL base de la API del bot. Cambia este valor (o define VITE_API_URL en el .env)
+// para apuntar al servidor donde corre el bot, p. ej. 'http://192.168.1.168:3000'.
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+// Clave de la API: debe coincidir con API_KEY del .env del bot. Se define en VITE_API_KEY.
+const API_KEY = import.meta.env.VITE_API_KEY || '';
+
+// Wrapper de fetch que añade la cabecera de autenticación a todas las llamadas.
+const apiFetch = (path, options = {}) => fetch(`${API_URL}${path}`, {
+  ...options,
+  headers: { ...(options.headers || {}), 'x-api-key': API_KEY }
+});
+
 function App() {
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState('tickets-gestion'); 
@@ -41,6 +54,16 @@ function App() {
   const [limiteLogs, setLimiteLogs] = useState(50);
   const [esPremium, setEsPremium] = useState(false);
 
+  // Mensaje de error de conexión con la API (se muestra como banner)
+  const [errorConexion, setErrorConexion] = useState('');
+
+  // Comprueba la respuesta y lanza un error legible si algo va mal
+  const procesarRespuesta = async (res) => {
+    if (res.status === 401) throw new Error('401 No autorizado: la VITE_API_KEY del panel no coincide con la API_KEY del bot.');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
@@ -56,7 +79,7 @@ function App() {
     let intervalo;
     if (ticketSeleccionado && activeTab === 'tickets-gestion') {
       intervalo = setInterval(() => {
-        fetch(`http://192.168.1.168:3000/api/mensajes/${ticketSeleccionado.canalId}`)
+        apiFetch(`/api/mensajes/${ticketSeleccionado.canalId}`)
           .then(res => res.json())
           .then(datos => setMensajes(datos))
           .catch(err => console.error(err));
@@ -65,62 +88,82 @@ function App() {
     return () => clearInterval(intervalo);
   }, [ticketSeleccionado, activeTab]);
 
-  const cargarTickets = () => fetch('http://localhost:3000/api/tickets').then(res => res.json()).then(datos => setTicketsReales(datos));
-  const cargarUsuariosStats = () => fetch('http://localhost:3000/api/usuarios/stats').then(res => res.json()).then(datos => setUsuariosStats(datos));
-  
+  const reportarError = (contexto) => (err) => {
+    console.error(`Error ${contexto}:`, err);
+    setErrorConexion(`No se pudo conectar con la API en ${API_URL} — ${err.message}`);
+  };
+
+  const cargarTickets = () => apiFetch(`/api/tickets`).then(procesarRespuesta).then(datos => { setTicketsReales(datos); setErrorConexion(''); }).catch(reportarError('cargando tickets'));
+  const cargarUsuariosStats = () => apiFetch(`/api/usuarios/stats`).then(procesarRespuesta).then(datos => { setUsuariosStats(datos); setErrorConexion(''); }).catch(reportarError('cargando usuarios'));
+
   const cargarLogs = () => {
-    fetch('http://localhost:3000/api/logs')
-      .then(res => res.json())
+    apiFetch(`/api/logs`)
+      .then(procesarRespuesta)
       .then(datos => {
           setLogsRegistrados(datos.logs || []);
           setLimiteLogs(datos.limite || 50);
           setEsPremium(datos.esPremium || false);
+          setErrorConexion('');
       })
-      .catch(err => console.error(err));
+      .catch(reportarError('cargando logs'));
   };
 
   const verMensajes = (ticket) => {
-    fetch(`http://localhost:3000/api/mensajes/${ticket.canalId}`).then(res => res.json()).then(datos => { setMensajes(datos); setTicketSeleccionado(ticket); });
+    apiFetch(`/api/mensajes/${ticket.canalId}`).then(res => res.json()).then(datos => { setMensajes(datos); setTicketSeleccionado(ticket); });
   };
 
   const cerrarMensajes = () => { setTicketSeleccionado(null); setMensajes([]); cargarTickets(); };
 
   const enviarMensaje = () => {
     if (nuevoMensaje.trim() === '') return; 
-    fetch(`http://localhost:3000/api/mensajes/${ticketSeleccionado.canalId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario: 'Sokyo', contenido: nuevoMensaje }) }).then(() => setNuevoMensaje(''));
+    apiFetch(`/api/mensajes/${ticketSeleccionado.canalId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario: 'Sokyo', contenido: nuevoMensaje }) }).then(() => setNuevoMensaje(''));
   };
 
   const agregarNotaInterna = async () => {
     if (nuevaNota.trim() === '') return;
     try {
-        const res = await fetch(`http://localhost:3000/api/tickets/${ticketSeleccionado.canalId}/notas`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contenido: nuevaNota, autor: 'Admin' }) });
+        const res = await apiFetch(`/api/tickets/${ticketSeleccionado.canalId}/notas`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contenido: nuevaNota, autor: 'Admin' }) });
         const data = await res.json();
         if (data.success) { setTicketSeleccionado(data.ticket); setTicketsReales(ticketsReales.map(t => t.canalId === data.ticket.canalId ? data.ticket : t)); setNuevaNota(''); }
     } catch (error) { console.error(error); }
   };
 
   const handleCerrarTicket = async (canalId, e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     if (!window.confirm('¿Cerrar ticket en Discord?')) return;
-    const res = await fetch(`http://localhost:3000/api/tickets/${canalId}/cerrar`, { method: 'PUT' });
-    if (res.ok) setTicketsReales(ticketsReales.map(t => t.canalId === canalId ? { ...t, estado: 'Cerrado' } : t));
+    const res = await apiFetch(`/api/tickets/${canalId}/cerrar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autor: 'Admin' }) });
+    if (res.ok) {
+      setTicketsReales(ticketsReales.map(t => t.canalId === canalId ? { ...t, estado: 'Cerrado' } : t));
+      if (ticketSeleccionado?.canalId === canalId) setTicketSeleccionado({ ...ticketSeleccionado, estado: 'Cerrado' });
+    }
+  };
+
+  const handleReabrirTicket = async (canalId, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm('¿Reabrir este ticket en Discord?')) return;
+    const res = await apiFetch(`/api/tickets/${canalId}/reabrir`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autor: 'Admin' }) });
+    if (res.ok) {
+      setTicketsReales(ticketsReales.map(t => t.canalId === canalId ? { ...t, estado: 'Abierto' } : t));
+      if (ticketSeleccionado?.canalId === canalId) setTicketSeleccionado({ ...ticketSeleccionado, estado: 'Abierto' });
+    }
   };
 
   const handleOcultarTicket = async (canalId, e) => {
     e.stopPropagation();
     if (!window.confirm('¿Ocultar del panel web?')) return;
-    const res = await fetch(`http://localhost:3000/api/tickets/${canalId}/ocultar`, { method: 'PUT' });
+    const res = await apiFetch(`/api/tickets/${canalId}/ocultar`, { method: 'PUT' });
     if (res.ok) { setTicketsReales(ticketsReales.filter(t => t.canalId !== canalId)); if (ticketSeleccionado?.canalId === canalId) cerrarMensajes(); }
   };
 
   const cargarConfiguracion = () => {
-    fetch('http://localhost:3000/api/servidores').then(res => res.json()).then(datos => {
+    apiFetch(`/api/servidores`).then(procesarRespuesta).then(datos => {
+        setErrorConexion('');
         if (datos && datos.length > 0) {
           setConfigServidor(datos[0]); setMotivos(datos[0].motivos || []);
           setUrgencias(datos[0].urgencias || [{ nombre: 'Urgente', color: '#e74c3c', nivel: 4 }, { nombre: 'Alta', color: '#e67e22', nivel: 3 }, { nombre: 'Normal', color: '#3498db', nivel: 2 }, { nombre: 'Baja', color: '#95a5a6', nivel: 1 }]);
           setTituloMensaje(datos[0].mensajeSoporteTitulo || '🎫 Soporte Técnico Activo'); setDescripcionMensaje(datos[0].mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.'); setFooterMensaje(datos[0].footerPersonalizado || 'Sistema de Gestión Sokyo');
         }
-    });
+    }).catch(reportarError('cargando configuración'));
   };
 
   const agregarUrgencia = () => { if (nuevaUrgNombre.trim() !== '' && !urgencias.some(u => u.nombre.toLowerCase() === nuevaUrgNombre.trim().toLowerCase())) { setUrgencias([...urgencias, { nombre: nuevaUrgNombre.trim(), color: nuevaUrgColor, nivel: Number(nuevaUrgNivel) }]); setNuevaUrgNombre(''); setNuevaUrgNivel(1); } };
@@ -131,14 +174,14 @@ function App() {
   const guardarCambiosConfig = async () => {
     if (!configServidor) return;
     const motivosFormateados = motivos.map(m => typeof m === 'string' ? { nombre: m, urgencia: 'Normal' } : m);
-    await fetch(`http://localhost:3000/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
-    await fetch(`http://localhost:3000/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
+    await apiFetch(`/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
+    await apiFetch(`/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
     alert('✅ ¡Sistema de Tickets actualizado en Discord exitosamente!'); setMotivos(motivosFormateados);
   };
 
   const guardarTextosConfig = async () => {
     if (!configServidor) return;
-    const res = await fetch(`http://localhost:3000/api/config/${configServidor.guildId}/textos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: tituloMensaje, descripcion: descripcionMensaje, footer: footerMensaje }) });
+    const res = await apiFetch(`/api/config/${configServidor.guildId}/textos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: tituloMensaje, descripcion: descripcionMensaje, footer: footerMensaje }) });
     if (res.ok) alert('✅ Textos actualizados!');
   };
 
@@ -158,6 +201,7 @@ function App() {
 
   const obtenerLogsFiltrados = () => {
       if (activeTab === 'logs-todos') return logsRegistrados;
+      if (activeTab === 'logs-tickets') return logsRegistrados.filter(log => log.categoria === 'Tickets');
       if (activeTab === 'logs-borrados') return logsRegistrados.filter(log => log.categoria === 'Mensajes Borrados');
       if (activeTab === 'logs-editados') return logsRegistrados.filter(log => log.categoria === 'Mensajes Editados');
       if (activeTab === 'logs-entradas') return logsRegistrados.filter(log => log.categoria === 'Entradas');
@@ -191,6 +235,7 @@ function App() {
             {isLogsMenuOpen && (
               <div className="nav-submenu" style={{ paddingLeft: '15px', marginTop: '5px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 <div className={`nav-item ${activeTab === 'logs-todos' ? 'active' : ''}`} onClick={() => setActiveTab('logs-todos')}>🌐 Todos los eventos</div>
+                <div className={`nav-item ${activeTab === 'logs-tickets' ? 'active' : ''}`} onClick={() => setActiveTab('logs-tickets')}>🎫 Actividad de Tickets</div>
                 <div className={`nav-item ${activeTab === 'logs-borrados' ? 'active' : ''}`} onClick={() => setActiveTab('logs-borrados')}>🗑️ Mensajes Eliminados</div>
                 <div className={`nav-item ${activeTab === 'logs-editados' ? 'active' : ''}`} onClick={() => setActiveTab('logs-editados')}>✏️ Mensajes Editados</div>
                 <div className={`nav-item ${activeTab === 'logs-entradas' ? 'active' : ''}`} onClick={() => setActiveTab('logs-entradas')}>👋 Entradas al Servidor</div>
@@ -237,6 +282,15 @@ function App() {
           <button className="theme-toggle" onClick={() => setIsDark(!isDark)}>{isDark ? '☀️ Claro' : '🌙 Oscuro'}</button>
         </header>
 
+        {errorConexion && (
+          <div style={{ backgroundColor: 'rgba(231, 76, 60, 0.12)', border: '1px solid #e74c3c', color: '#e74c3c', padding: '15px 20px', borderRadius: '10px', marginBottom: '20px', fontWeight: '600' }}>
+            ⚠️ {errorConexion}
+            <div style={{ fontWeight: '400', fontSize: '0.85em', marginTop: '6px', opacity: 0.85 }}>
+              Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que las claves coincidan. (Abre la consola con F12 para más detalles.)
+            </div>
+          </div>
+        )}
+
         {/* --- VISTA: GESTIÓN DE TICKETS --- */}
         {activeTab === 'tickets-gestion' && !ticketSeleccionado && (
           <div className="tickets-grid">
@@ -268,7 +322,9 @@ function App() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <button className="btn-view" onClick={() => verMensajes(ticket)} style={{ width: '100%', padding: '8px', borderRadius: '5px' }}>💬 Ver Conversación</button>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        {ticket.estado !== 'Cerrado' && <button onClick={(e) => handleCerrarTicket(ticket.canalId, e)} style={{ flex: 1, backgroundColor: '#e74c3c', color: 'white', padding: '8px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🔒 Cerrar</button>}
+                        {ticket.estado !== 'Cerrado'
+                          ? <button onClick={(e) => handleCerrarTicket(ticket.canalId, e)} style={{ flex: 1, backgroundColor: '#e74c3c', color: 'white', padding: '8px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🔒 Cerrar</button>
+                          : <button onClick={(e) => handleReabrirTicket(ticket.canalId, e)} style={{ flex: 1, backgroundColor: '#2ecc71', color: 'white', padding: '8px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🔓 Reabrir</button>}
                         <button onClick={(e) => handleOcultarTicket(ticket.canalId, e)} style={{ flex: 1, backgroundColor: '#34495e', color: 'white', padding: '8px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>🗑️ Ocultar</button>
                     </div>
                   </div>
@@ -283,7 +339,9 @@ function App() {
            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
              <div className="hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '15px', borderBottom: '1px solid var(--border-color)' }}>
                  <div><button onClick={cerrarMensajes} style={{ padding: '8px 15px', cursor: 'pointer', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-primary)', fontWeight: 'bold', marginRight: '15px' }}>⬅ Volver</button><span style={{ fontSize: '1.2em', fontWeight: 'bold' }}>Ticket: {ticketSeleccionado.titulo || ticketSeleccionado.creadorNombre}</span></div>
-                 {ticketSeleccionado.estado !== 'Cerrado' && <button onClick={(e) => handleCerrarTicket(ticketSeleccionado.canalId, e)} style={{ backgroundColor: '#e74c3c', color: 'white', padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>🔒 Cerrar Ticket</button>}
+                 {ticketSeleccionado.estado !== 'Cerrado'
+                   ? <button onClick={(e) => handleCerrarTicket(ticketSeleccionado.canalId, e)} style={{ backgroundColor: '#e74c3c', color: 'white', padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>🔒 Cerrar Ticket</button>
+                   : <button onClick={(e) => handleReabrirTicket(ticketSeleccionado.canalId, e)} style={{ backgroundColor: '#2ecc71', color: 'white', padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>🔓 Reabrir Ticket</button>}
              </div>
              <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch', flexWrap: 'wrap' }}>
                  <div className="hide-on-print" style={{ flex: '1 1 20%', minWidth: '220px', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

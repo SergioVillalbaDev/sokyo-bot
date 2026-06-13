@@ -1,7 +1,7 @@
-const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, AttachmentBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
+const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
-const Mensaje = require('../models/Mensaje.js'); 
+const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js');
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -72,6 +72,8 @@ module.exports = {
                 ticket.ultimaInteractStaff = new Date();
                 await ticket.save();
 
+                await registrarLogTicket(ticket, '🙋 Ticket Reclamado', '#3498db', interaction.user.username);
+
                 const embedOriginal = interaction.message.embeds[0];
                 const embedModificado = EmbedBuilder.from(embedOriginal).addFields({ name: '👀 Atendido por', value: `🙋‍♂️ ${interaction.user.username}`, inline: true });
 
@@ -94,55 +96,29 @@ module.exports = {
                 await interaction.reply({ content: 'Elige al usuario que quieres invitar a participar en este ticket:', components: [row], ephemeral: true });
             }
 
-            // CERRAR TICKET Y CSAT
+            // CERRAR TICKET (transcript + CSAT + archivado, vía módulo compartido)
             if (interaction.customId === 'close_ticket') {
                 const canal = interaction.channel;
                 if (!canal) return await interaction.reply({ content: '❌ No se ha podido encontrar el canal.', ephemeral: true });
 
-                await interaction.reply({ content: 'Generando copia de seguridad y cerrando el ticket...', ephemeral: true });
-                
+                await interaction.reply({ content: '🔒 Generando copia de seguridad y cerrando el ticket...', ephemeral: true });
+
                 try {
-                    const ticket = await Ticket.findOneAndUpdate({ canalId: canal.id }, { estado: 'Cerrado' }, { returnDocument: 'after' });
-
-                    if (ticket) {
-                        const historial = await Mensaje.find({ ticketId: canal.id }).sort({ fecha: 1 });
-                        let transcriptTexto = `=== TRANSCRIPCIÓN DEL TICKET ===\nUsuario: ${ticket.creadorNombre}\nMotivo: ${ticket.motivo}\nFecha de cierre: ${new Date().toLocaleString('es-ES')}\n=================================\n\n`;
-
-                        if (historial.length === 0) transcriptTexto += `(No se registraron mensajes)\n`;
-                        else {
-                            historial.forEach(msg => {
-                                const fecha = msg.fecha ? new Date(msg.fecha).toLocaleTimeString('es-ES') : '';
-                                transcriptTexto += `[${fecha}] ${msg.usuario}: ${msg.contenido}\n`;
-                            });
-                        }
-
-                        const buffer = Buffer.from(transcriptTexto, 'utf-8');
-                        const attachment = new AttachmentBuilder(buffer, { name: `transcript-${ticket.creadorNombre}.txt` });
-
-                        const embedCSAT = new EmbedBuilder().setColor('#f1c40f').setTitle('📊 ¡Tu ticket ha sido cerrado!').setDescription(`Hola **${ticket.creadorNombre}**, adjunto tienes una copia de la conversación de tu ticket.\n\nPor favor, **valora la atención recibida** pulsando en las estrellas de abajo. ¡Nos ayuda a mejorar!`);
-
-                        const filaEstrellas = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId(`csat_1_${canal.id}`).setLabel('⭐').setStyle(ButtonStyle.Secondary),
-                            new ButtonBuilder().setCustomId(`csat_2_${canal.id}`).setLabel('⭐⭐').setStyle(ButtonStyle.Secondary),
-                            new ButtonBuilder().setCustomId(`csat_3_${canal.id}`).setLabel('⭐⭐⭐').setStyle(ButtonStyle.Secondary),
-                            new ButtonBuilder().setCustomId(`csat_4_${canal.id}`).setLabel('⭐⭐⭐⭐').setStyle(ButtonStyle.Secondary),
-                            new ButtonBuilder().setCustomId(`csat_5_${canal.id}`).setLabel('⭐⭐⭐⭐⭐').setStyle(ButtonStyle.Secondary)
-                        );
-
-                        try {
-                            const usuario = await client.users.fetch(ticket.creadorId);
-                            await usuario.send({ embeds: [embedCSAT], components: [filaEstrellas], files: [attachment] });
-                        } catch (e) {}
-                    }
-                    setTimeout(() => canal.delete().catch(console.error), 4000);
-                } catch (error) { console.error('Error al cerrar:', error); }
+                    const res = await cerrarTicket(client, canal.id, { autor: interaction.user.username });
+                    if (!res.ok) return await interaction.editReply({ content: '❌ No se encontró este ticket en la base de datos.' });
+                    await interaction.editReply({ content: '✅ Ticket cerrado y archivado correctamente.' });
+                } catch (error) {
+                    console.error('Error al cerrar:', error);
+                    await interaction.editReply({ content: '❌ Hubo un error al cerrar el ticket.' }).catch(() => {});
+                }
             }
 
             if (interaction.customId.startsWith('csat_')) {
                 const partes = interaction.customId.split('_');
                 const valoracion = parseInt(partes[1]);
                 try {
-                    await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion });
+                    const ticket = await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion }, { new: true });
+                    if (ticket) await registrarLogTicket(ticket, `⭐ Ticket Valorado (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
                     const embedGracias = new EmbedBuilder().setColor('#2ecc71').setTitle('💖 ¡Gracias por tu valoración!').setDescription(`Has valorado la atención recibida con **${valoracion} estrellas**.`);
                     await interaction.update({ embeds: [embedGracias], components: [] });
                 } catch (e) { await interaction.reply({ content: 'Error al guardar.', ephemeral: true }); }
@@ -180,7 +156,7 @@ module.exports = {
             const descripcionInput = new TextInputBuilder().setCustomId('descripcionInput').setLabel("Describe tu problema detalladamente").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000);
             modal.addComponents(new ActionRowBuilder().addComponents(asuntoInput), new ActionRowBuilder().addComponents(descripcionInput));
             await interaction.showModal(modal);
-            setTimeout(() => interaction.message.delete().catch(() => {}), 1000);
+            // El menú efímero se limpia al enviar el modal (interaction.update en el handler del modal).
         }
 
         // --- CREACIÓN DEL TICKET DESDE EL MODAL ---
@@ -189,7 +165,13 @@ module.exports = {
             const asunto = interaction.fields.getTextInputValue('asuntoInput');
             const descripcion = interaction.fields.getTextInputValue('descripcionInput');
 
-            await interaction.reply({ content: '⏳ Procesando tu solicitud y creando el canal...', ephemeral: true });
+            // El modal proviene del menú efímero de categorías; update() edita ese mensaje
+            // y elimina el desplegable de "selecciona una categoría".
+            if (interaction.isFromMessage()) {
+                await interaction.update({ content: '⏳ Procesando tu solicitud y creando el canal...', components: [], embeds: [] });
+            } else {
+                await interaction.reply({ content: '⏳ Procesando tu solicitud y creando el canal...', ephemeral: true });
+            }
 
             try {
                 let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
@@ -210,7 +192,7 @@ module.exports = {
                 // AQUÍ ES DONDE DEBE IR LA FOTO:
                 const creadorAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
 
-                await Ticket.create({
+                const nuevoTicket = await Ticket.create({
                     guildId: interaction.guild.id,
                     canalId: canalTicket.id,
                     creadorId: interaction.user.id,
@@ -219,11 +201,13 @@ module.exports = {
                     motivo: motivo,
                     titulo: asunto,
                     descripcion: descripcion,
-                    prioridad: urgencia, 
+                    prioridad: urgencia,
                     estado: 'Abierto',
                     participantes: [{ id: interaction.user.id, username: interaction.user.username, avatar: creadorAvatar, rol: 'Creador' }],
                     visibleWeb: true
                 });
+
+                await registrarLogTicket(nuevoTicket, '🎫 Ticket Abierto', '#2ecc71', interaction.user.username);
 
                 const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(`**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*Un miembro del equipo lo revisará en breve.*`).setColor(colorHex).addFields({ name: '🚨 Urgencia', value: `**${urgencia}**`, inline: true });
                 const rowBotones = new ActionRowBuilder().addComponents(

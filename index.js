@@ -2,15 +2,17 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const Log = require('./models/Log.js');
+const { Client, GatewayIntentBits, Collection, Partials } = require('discord.js');
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers,   // Necesario para logs de entradas/salidas (intent privilegiado)
         GatewayIntentBits.MessageContent
-    ]
+    ],
+    // Permite que los eventos de editar/borrar se disparen también con mensajes que no están en caché
+    partials: [Partials.Message, Partials.Channel]
 });
 
 // 1. Cargador de Comandos

@@ -4,13 +4,28 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
+const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
 
 module.exports = (client) => {
     const app = express();
     const port = process.env.PORT || 3000;
-    
+    const API_KEY = process.env.API_KEY;
+
     app.use(cors());
     app.use(express.json());
+
+    if (!API_KEY) {
+        console.warn('⚠️  API_KEY no está definida en el .env: la API queda SIN protección. Define API_KEY para protegerla.');
+    }
+
+    // --- AUTENTICACIÓN: exige cabecera x-api-key (o "Authorization: Bearer <key>") ---
+    app.use('/api', (req, res, next) => {
+        if (req.path === '/estado') return next();          // health check público
+        if (!API_KEY) return next();                        // sin key configurada: no se aplica (ver aviso de arranque)
+        const enviada = req.headers['x-api-key'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+        if (enviada !== API_KEY) return res.status(401).json({ error: 'No autorizado' });
+        next();
+    });
 
     // --- RUTAS API ---
     app.get('/api/estado', (req, res) => res.json({ message: 'Sokyo Bot está operativo' }));
@@ -86,11 +101,10 @@ app.get('/api/usuarios/stats', async (req, res) => {
 app.get('/api/logs', async (req, res) => {
     try {
         // Buscamos la configuración del servidor
-        const ServidorConfig = require('../models/ServidorConfig.js');
         const config = await ServidorConfig.findOne();
-        
-        // Si tienes un campo 'isPremium' en el futuro, lo leerá de aquí. Por ahora asume 'false' (Gratis)
-        const esPremium = config && config.isPremium === true; 
+
+        // El campo del modelo es 'esPremium' (ServidorConfig.js)
+        const esPremium = config && config.esPremium === true;
         const limiteLogs = esPremium ? 150 : 50;
 
         // Devuelve los logs respetando el límite
@@ -149,27 +163,29 @@ app.get('/api/logs', async (req, res) => {
 
     app.put('/api/tickets/:canalId/cerrar', async (req, res) => {
         try {
-            const { canalId } = req.params;
-
-            const ticketActualizado = await Ticket.findOneAndUpdate(
-                { canalId: canalId },
-                { estado: 'Cerrado' },
-                { new: true }
-            );
-
-            const canal = client.channels.cache.get(canalId);
-            if (canal) {
-                await canal.send('🔒 **Este ticket ha sido cerrado de forma remota desde el panel de control web.**\nEl canal se eliminará en 5 segundos.');
-                
-                setTimeout(() => {
-                    canal.delete().catch(console.error);
-                }, 5000);
-            }
-
-            res.json({ success: true, ticket: ticketActualizado });
+            // Mismo comportamiento que el botón de Discord: transcript + CSAT + log + archivado.
+            const resultado = await cerrarTicket(client, req.params.canalId, {
+                autor: req.body?.autor || 'Panel Web',
+                avisarCanal: true
+            });
+            if (!resultado.ok) return res.status(404).json({ error: resultado.error });
+            res.json({ success: true, ticket: resultado.ticket });
         } catch (error) {
             console.error('Error al cerrar ticket desde la API:', error);
             res.status(500).json({ error: 'Fallo interno al cerrar el ticket' });
+        }
+    });
+
+    app.put('/api/tickets/:canalId/reabrir', async (req, res) => {
+        try {
+            const resultado = await reabrirTicket(client, req.params.canalId, {
+                autor: req.body?.autor || 'Panel Web'
+            });
+            if (!resultado.ok) return res.status(404).json({ error: resultado.error });
+            res.json({ success: true, ticket: resultado.ticket });
+        } catch (error) {
+            console.error('Error al reabrir ticket desde la API:', error);
+            res.status(500).json({ error: 'Fallo interno al reabrir el ticket' });
         }
     });
 

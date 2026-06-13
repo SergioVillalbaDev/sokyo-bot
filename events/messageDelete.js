@@ -7,12 +7,13 @@ module.exports = {
         if (message.author?.bot) return;
         try {
             const contenido = message.content ? `"${message.content}"` : '*(Mensaje antiguo/sin caché)*';
+            const nombreCanal = message.channel?.name ? `#${message.channel.name}` : `Canal ${message.channelId}`;
             await Log.create({
                 guildId: message.guildId,
                 categoria: 'Mensajes Borrados',
                 accion: '🗑️ Mensaje Borrado',
                 usuario: message.author?.username || 'Desconocido',
-                detalles: `Canal: <#${message.channelId}>\nContenido: ${contenido}`,
+                detalles: `Canal: ${nombreCanal}\nContenido: ${contenido}`,
                 color: '#e74c3c'
             });
         } catch (error) { console.error('Error guardando log Delete:', error); }
