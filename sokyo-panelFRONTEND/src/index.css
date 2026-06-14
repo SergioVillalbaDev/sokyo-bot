@@ -1,253 +1,186 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap');
+@import 'tailwindcss';
 
+/*
+  ============================================================================
+  SOKYO BOT — SISTEMA DE TEMAS
+  ----------------------------------------------------------------------------
+  El tema se controla con data-theme="<nombre>" en <html>.
+  Cada bloque define el MISMO contrato de variables, así que cambiar de tema
+  re-pinta toda la app (landing + dashboard) sin tocar componentes.
+
+  FREE (3):     light · dark · lima
+  PREMIUM (8):  lavanda · esmeralda · oceano · atardecer · synthwave · cereza · ambar · pizarra
+
+  Contrato de cada tema:
+    --bg-main/secondary/card/sidebar/elevated  -> superficies
+    --text-primary/secondary                   -> texto
+    --border-color                             -> bordes
+    --accent-color/accent-hover                -> acento (texto/iconos/enlaces)
+    --brand-from/brand-to                      -> gradiente de marca (botones)
+    --on-brand                                 -> texto/iconos ENCIMA del acento
+
+  // TODO: DESIGN TEAM — para rebrandear, editad los hex de cada bloque.
+  ============================================================================
+*/
+
+/* :root = valores por defecto (coinciden con el tema claro) */
 :root {
-  --bg-main: #f3f4f6;
-  --bg-sidebar: #ffffff;
-  --bg-card: #ffffff;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --accent-color: #5865F2; 
-  --accent-hover: #4752c4;
-  --border-color: #e5e7eb;
-  --success-bg: #d1fae5;
-  --success-text: #065f46;
+  --bg-main: #f6f7f9; --bg-secondary: #ffffff; --bg-card: #ffffff; --bg-sidebar: #ffffff; --bg-elevated: #eef0f3;
+  --text-primary: #0f172a; --text-secondary: #64748b; --border-color: #e5e7eb;
+  --accent-color: #111827; --accent-hover: #000000; --brand-from: #374151; --brand-to: #111827; --on-brand: #ffffff;
+  --success: #16a34a; --warning: #d97706; --danger: #dc2626; --ring: rgba(17,24,39,.22); --shadow-color: rgba(15,23,42,.08);
 }
 
+/* Semántica más brillante en fondos oscuros (compartida por todos los temas oscuros) */
+[data-theme='dark'], [data-theme='lima'], [data-theme='esmeralda'], [data-theme='oceano'],
+[data-theme='atardecer'], [data-theme='synthwave'], [data-theme='ambar'], [data-theme='pizarra'] {
+  --success: #4ade80; --warning: #fbbf24; --danger: #f87171; --shadow-color: rgba(0,0,0,.55);
+}
+
+/* ---------------------- FREE ---------------------- */
+
+/* Claro — monocromo elegante */
+[data-theme='light'] {
+  --bg-main: #f6f7f9; --bg-secondary: #ffffff; --bg-card: #ffffff; --bg-sidebar: #ffffff; --bg-elevated: #eef0f3;
+  --text-primary: #0f172a; --text-secondary: #64748b; --border-color: #e5e7eb;
+  --accent-color: #111827; --accent-hover: #000000; --brand-from: #374151; --brand-to: #111827; --on-brand: #ffffff; --ring: rgba(17,24,39,.22);
+}
+
+/* Oscuro — monocromo invertido */
 [data-theme='dark'] {
-  --bg-main: #2b2d31; 
-  --bg-sidebar: #1e1f22;
-  --bg-card: #313338;
-  --text-primary: #f2f3f5;
-  --text-secondary: #b5bac1;
-  --border-color: #1e1f22;
-  --success-bg: #1e4620;
-  --success-text: #4ade80;
+  --bg-main: #0b0c0e; --bg-secondary: #131417; --bg-card: #16181c; --bg-sidebar: #0e0f12; --bg-elevated: #1e2126;
+  --text-primary: #f4f4f5; --text-secondary: #a1a1aa; --border-color: #26282e;
+  --accent-color: #fafafa; --accent-hover: #ffffff; --brand-from: #e4e4e7; --brand-to: #fafafa; --on-brand: #0b0c0e; --ring: rgba(250,250,250,.22);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', sans-serif;
+/* Acid (lima) — el favorito */
+[data-theme='lima'] {
+  --bg-main: #070807; --bg-secondary: #0d0f0c; --bg-card: #101310; --bg-sidebar: #090a08; --bg-elevated: #181c15;
+  --text-primary: #e9ebe3; --text-secondary: #969a8c; --border-color: #232818;
+  --accent-color: #a3e635; --accent-hover: #bef264; --brand-from: #bef264; --brand-to: #84cc16; --on-brand: #0a0c08; --ring: rgba(163,230,53,.45);
 }
 
+/* --------------------- PREMIUM --------------------- */
+
+/* Lavanda — crema + malva (estilo de la referencia) */
+[data-theme='lavanda'] {
+  --bg-main: #efeaf4; --bg-secondary: #faf7fd; --bg-card: #fbf9fc; --bg-sidebar: #f3eef8; --bg-elevated: #ece5f3;
+  --text-primary: #2e2640; --text-secondary: #7c7391; --border-color: #e6ddf0;
+  --accent-color: #7c5cbf; --accent-hover: #6b4ba8; --brand-from: #a78bda; --brand-to: #7c5cbf; --on-brand: #ffffff; --ring: rgba(124,92,191,.3); --shadow-color: rgba(124,92,191,.14);
+}
+
+/* Esmeralda */
+[data-theme='esmeralda'] {
+  --bg-main: #06120d; --bg-secondary: #0a1a13; --bg-card: #0c1f17; --bg-sidebar: #07140e; --bg-elevated: #11291e;
+  --text-primary: #e6f4ec; --text-secondary: #8fb3a3; --border-color: #163a2a;
+  --accent-color: #34d399; --accent-hover: #6ee7b7; --brand-from: #6ee7b7; --brand-to: #10b981; --on-brand: #052e1a; --ring: rgba(52,211,153,.4);
+}
+
+/* Océano */
+[data-theme='oceano'] {
+  --bg-main: #060c18; --bg-secondary: #0a1426; --bg-card: #0c1830; --bg-sidebar: #07101f; --bg-elevated: #122544;
+  --text-primary: #e3edff; --text-secondary: #8aa0c4; --border-color: #16294a;
+  --accent-color: #38bdf8; --accent-hover: #7dd3fc; --brand-from: #67e8f9; --brand-to: #0ea5e9; --on-brand: #04121f; --ring: rgba(56,189,248,.4);
+}
+
+/* Atardecer */
+[data-theme='atardecer'] {
+  --bg-main: #140a0c; --bg-secondary: #1f0f12; --bg-card: #241115; --bg-sidebar: #170a0d; --bg-elevated: #341a1f;
+  --text-primary: #ffeee8; --text-secondary: #c79a93; --border-color: #43222a;
+  --accent-color: #fb7185; --accent-hover: #fda4af; --brand-from: #fdba74; --brand-to: #fb7185; --on-brand: #2a0d10; --ring: rgba(251,113,133,.4);
+}
+
+/* Synthwave */
+[data-theme='synthwave'] {
+  --bg-main: #0a0712; --bg-secondary: #120a22; --bg-card: #160c2a; --bg-sidebar: #0c0718; --bg-elevated: #221141;
+  --text-primary: #f3e8ff; --text-secondary: #a78bcc; --border-color: #2a1750;
+  --accent-color: #e879f9; --accent-hover: #f0abfc; --brand-from: #c084fc; --brand-to: #22d3ee; --on-brand: #190726; --ring: rgba(232,121,249,.4);
+}
+
+/* Cereza — claro rosa */
+[data-theme='cereza'] {
+  --bg-main: #fdf2f5; --bg-secondary: #ffffff; --bg-card: #ffffff; --bg-sidebar: #fef5f8; --bg-elevated: #fbe7ed;
+  --text-primary: #3d1220; --text-secondary: #9b6675; --border-color: #f6d9e1;
+  --accent-color: #e11d48; --accent-hover: #be123c; --brand-from: #fb7185; --brand-to: #e11d48; --on-brand: #ffffff; --ring: rgba(225,29,72,.28); --shadow-color: rgba(225,29,72,.12);
+}
+
+/* Ámbar — café/oro */
+[data-theme='ambar'] {
+  --bg-main: #120d06; --bg-secondary: #1d150a; --bg-card: #22190c; --bg-sidebar: #150f07; --bg-elevated: #322412;
+  --text-primary: #f7eedd; --text-secondary: #c2a981; --border-color: #3c2c14;
+  --accent-color: #f59e0b; --accent-hover: #fbbf24; --brand-from: #fcd34d; --brand-to: #f59e0b; --on-brand: #221705; --ring: rgba(245,158,11,.4);
+}
+
+/* Pizarra — azul acero */
+[data-theme='pizarra'] {
+  --bg-main: #0b1120; --bg-secondary: #131c30; --bg-card: #16203a; --bg-sidebar: #0d1424; --bg-elevated: #1f2c48;
+  --text-primary: #e2e8f0; --text-secondary: #94a3b8; --border-color: #25324d;
+  --accent-color: #7dd3fc; --accent-hover: #bae6fd; --brand-from: #a5b4fc; --brand-to: #38bdf8; --on-brand: #07101f; --ring: rgba(125,211,252,.35);
+}
+
+/* Exponer variables a Tailwind como tokens */
+@theme inline {
+  --color-bg: var(--bg-main);
+  --color-surface: var(--bg-secondary);
+  --color-card: var(--bg-card);
+  --color-sidebar: var(--bg-sidebar);
+  --color-elevated: var(--bg-elevated);
+  --color-fg: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-line: var(--border-color);
+  --color-brand: var(--accent-color);
+  --color-brand-hover: var(--accent-hover);
+  --color-on-brand: var(--on-brand);
+  --color-ok: var(--success);
+  --color-warn: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
+  margin: 0;
   background-color: var(--bg-main);
   color: var(--text-primary);
-  transition: background-color 0.3s, color 0.3s;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.app-container {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
-.sidebar {
-  width: 260px;
-  background-color: var(--bg-sidebar);
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem 1rem;
-  transition: background-color 0.3s;
+/* Utilidades */
+@utility text-gradient-brand {
+  background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-
-.brand {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 2rem;
-  padding-left: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+@utility bg-gradient-brand { background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to)); }
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, var(--border-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-color) 1px, transparent 1px);
+  background-size: 44px 44px;
 }
-
-.nav-menu {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+@utility glow-brand {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-to) 40%, transparent),
+              0 8px 30px -8px color-mix(in srgb, var(--brand-from) 60%, transparent);
 }
+/* Sombra suave reutilizable (estilo "soft dashboard") */
+@utility shadow-soft { box-shadow: 0 10px 30px -12px var(--shadow-color); }
 
-.nav-item {
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: all 0.2s;
-}
-
-.nav-item:hover {
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-}
-
-.nav-item.active {
-  background-color: var(--accent-color);
-  color: white;
-}
-
-.main-content {
-  flex: 1;
-  padding: 2rem;
-  overflow-y: auto;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.theme-toggle {
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.theme-toggle:hover {
-  background-color: var(--bg-card);
-}
-
-.tickets-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.ticket-card {
-  background-color: var(--bg-card);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border-color);
-  transition: transform 0.2s, background-color 0.3s;
-}
-
-.ticket-card:hover {
-  transform: translateY(-2px);
-}
-
-.ticket-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.ticket-id {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.status-badge {
-  background-color: var(--success-bg);
-  color: var(--success-text);
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.ticket-user {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-}
-
-.btn-view {
-  width: 100%;
-  padding: 0.5rem;
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.btn-view:hover {
-  background-color: var(--accent-hover);
-}
-
-/* --- VISTA DE MENSAJES (CHAT) --- */
-.btn-back {
-  background: none;
-  border: none;
-  color: var(--accent-color);
-  cursor: pointer;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: color 0.2s;
-}
-
-.btn-back:hover {
-  color: var(--accent-hover);
-  text-decoration: underline;
-}
-
+/* Clase que sigue usando el Portal del Cliente (Portal.jsx) */
 .chat-box {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-top: 1rem;
-  min-height: 400px;
-  max-height: 60vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 12px; display: flex; flex-direction: column;
 }
 
-.mensaje {
-  padding: 0.8rem 1.2rem;
-  border-radius: 8px;
-  max-width: 80%;
-  line-height: 1.5;
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-color);
-  align-self: flex-start;
-}
-
-.mensaje.mod {
-  background-color: rgba(88, 101, 242, 0.1); 
-  border-color: rgba(88, 101, 242, 0.3);
-}
-
-.mensaje-autor {
-  display: block;
-  font-size: 0.85rem;
-  font-weight: 700;
-  margin-bottom: 0.3rem;
-  color: var(--accent-color);
-}
-
-.mensaje-contenido {
-  color: var(--text-primary);
-}
-
-.chat-vacio {
-  text-align: center;
-  color: var(--text-secondary);
-  margin: auto;
-  font-style: italic;
-}
+@keyframes sokyo-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }

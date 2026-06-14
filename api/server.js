@@ -249,6 +249,57 @@ app.get('/api/logs', async (req, res) => {
     }
 });
 
+// --- RUTA: USO DE MEMORIA DEL PLAN + DATOS DEL SERVIDOR (para el dashboard) ---
+app.get('/api/stats/uso', async (req, res) => {
+    try {
+        const config = await ServidorConfig.findOne();
+        const esPremium = !!(config && config.esPremium === true);
+
+        // Conteos de documentos (proxy de actividad)
+        const [tickets, mensajes, logs] = await Promise.all([
+            Ticket.estimatedDocumentCount(),
+            Mensaje.estimatedDocumentCount(),
+            Log.estimatedDocumentCount()
+        ]);
+
+        // Memoria real consumida por la base de datos (bytes) vs cuota del plan.
+        const cuotaMB = esPremium ? 5120 : 512; // 5 GB premium · 512 MB free
+        let dataSizeMB = 0;
+        try {
+            const dbStats = await require('mongoose').connection.db.stats();
+            dataSizeMB = (dbStats.dataSize || 0) / (1024 * 1024);
+        } catch (e) {
+            // Fallback si el proveedor no permite dbStats: estimación por documentos.
+            dataSizeMB = ((tickets * 1.5) + (mensajes * 0.8) + (logs * 0.5)) / 1024;
+        }
+        const porcentajeMemoria = Math.min(100, Math.round((dataSizeMB / cuotaMB) * 100));
+
+        // Datos del servidor de Discord (nombre + icono) para el panel.
+        let serverName = 'Mi Servidor';
+        let serverIcon = null;
+        const guild = config && config.guildId ? client.guilds.cache.get(config.guildId) : null;
+        if (guild) {
+            serverName = guild.name;
+            serverIcon = guild.iconURL({ size: 128 }) || null;
+        }
+
+        res.json({
+            esPremium,
+            plan: esPremium ? 'Premium' : 'Free',
+            memoria: {
+                usadoMB: Math.round(dataSizeMB * 10) / 10,
+                cuotaMB,
+                porcentaje: porcentajeMemoria
+            },
+            conteos: { tickets, mensajes, logs },
+            servidor: { nombre: serverName, icono: serverIcon }
+        });
+    } catch (error) {
+        console.error('Error en /api/stats/uso:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
     app.post('/api/mensajes/:ticketId', async (req, res) => {
         try {
             const { ticketId } = req.params;

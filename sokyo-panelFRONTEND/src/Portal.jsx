@@ -17,7 +17,9 @@ function Portal() {
   // Tema oscuro fijo para el portal
   useEffect(() => { document.documentElement.setAttribute('data-theme', 'dark'); }, []);
 
-  // Al cargar: capturar token de la URL (vuelta del login) o errores
+  // Al cargar: capturar token de la URL (vuelta del login) o errores.
+  // Efecto solo-en-montaje: el setState aquí es intencional (leer la URL una vez).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get('token');
@@ -49,6 +51,7 @@ function Portal() {
       .catch(() => { setError('Tu sesión ha caducado. Vuelve a entrar.'); logout(); })
       .finally(() => setCargando(false));
   }, [token]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Refresco del chat abierto cada 4s
   useEffect(() => {
