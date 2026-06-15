@@ -1,9 +1,11 @@
 // Vista de gestión de tickets — grid avanzado de tarjetas tipo Kanban.
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox } from 'lucide-react';
 import { Avatar, Badge, Stars, Card } from '../../ui/primitives';
 
 export default function TicketsView({ dash }) {
+  const { t } = useTranslation();
   const {
     getTicketsOrdenados, getColorUrgencia, verMensajes,
     handleCerrarTicket, handleReabrirTicket, handleOcultarTicket, query,
@@ -21,8 +23,8 @@ export default function TicketsView({ dash }) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line py-24 text-center">
         <Inbox size={48} className="text-muted/50" />
-        <p className="mt-4 text-lg font-semibold text-fg">No hay tickets activos</p>
-        <p className="mt-1 text-sm text-muted">Cuando un usuario abra un ticket en Discord, aparecerá aquí.</p>
+        <p className="mt-4 text-lg font-semibold text-fg">{t('dashboard.tickets_v.empty')}</p>
+        <p className="mt-1 text-sm text-muted">{t('dashboard.tickets_v.emptyDesc')}</p>
       </div>
     );
   }
@@ -63,10 +65,10 @@ export default function TicketsView({ dash }) {
 
               {/* Asignación */}
               <div className="mt-3 flex items-center gap-1.5 border-b border-dashed border-line pb-3 text-xs text-muted">
-                <ShieldCheck size={13} /> Atendido por:{' '}
+                <ShieldCheck size={13} /> {t('dashboard.tickets_v.attendedBy')}{' '}
                 {ticket.asignadoNombre
                   ? <span className="font-semibold text-brand">{ticket.asignadoNombre}</span>
-                  : <span className="italic opacity-70">Sin reclamar</span>}
+                  : <span className="italic opacity-70">{t('dashboard.tickets_v.unclaimed')}</span>}
               </div>
 
               {ticket.descripcion && (
@@ -80,7 +82,7 @@ export default function TicketsView({ dash }) {
 
               {cerrado && (
                 <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2">
-                  <span className="text-xs font-bold text-amber-400">VALORACIÓN</span>
+                  <span className="text-xs font-bold text-amber-400">{t('dashboard.tickets_v.rating')}</span>
                   <Stars value={ticket.valoracionCSAT} />
                 </div>
               )}
@@ -91,7 +93,7 @@ export default function TicketsView({ dash }) {
                   onClick={() => verMensajes(ticket)}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-brand py-2 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.02]"
                 >
-                  <MessageSquare size={15} /> Ver Conversación
+                  <MessageSquare size={15} /> {t('dashboard.tickets_v.view')}
                 </button>
                 <div className="flex gap-2">
                   {!cerrado ? (
@@ -99,21 +101,21 @@ export default function TicketsView({ dash }) {
                       onClick={(e) => handleCerrarTicket(ticket.canalId, e)}
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-danger/15 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/25"
                     >
-                      <Lock size={14} /> Cerrar
+                      <Lock size={14} /> {t('dashboard.tickets_v.close')}
                     </button>
                   ) : (
                     <button
                       onClick={(e) => handleReabrirTicket(ticket.canalId, e)}
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-ok/15 py-2 text-sm font-semibold text-ok transition-colors hover:bg-ok/25"
                     >
-                      <Unlock size={14} /> Reabrir
+                      <Unlock size={14} /> {t('dashboard.tickets_v.reopen')}
                     </button>
                   )}
                   <button
                     onClick={(e) => handleOcultarTicket(ticket.canalId, e)}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-elevated py-2 text-sm font-semibold text-muted transition-colors hover:text-fg"
                   >
-                    <EyeOff size={14} /> Ocultar
+                    <EyeOff size={14} /> {t('dashboard.tickets_v.hide')}
                   </button>
                 </div>
               </div>

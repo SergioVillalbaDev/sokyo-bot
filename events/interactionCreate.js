@@ -3,6 +3,15 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js');
 
+// ¿El miembro puede gestionar tickets? (rol de staff configurado O permiso de
+// gestionar canales / administrador). Si no hay rol configurado, se mantiene el
+// comportamiento anterior (solo el permiso ManageChannels).
+function esStaff(interaction, config) {
+    const tienePerm = interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
+    const tieneRol = config && config.rolStaffId ? interaction.member.roles.cache.has(config.rolStaffId) : false;
+    return tienePerm || tieneRol;
+}
+
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
@@ -50,7 +59,8 @@ module.exports = {
 
             // RECLAMAR TICKET (Guarda al staff en los implicados)
             if (interaction.customId === 'reclamar_ticket') {
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+                const configStaff = await ServidorConfig.findOne({ guildId: interaction.guildId });
+                if (!esStaff(interaction, configStaff)) {
                     return await interaction.reply({ content: '❌ Solo el equipo de soporte puede reclamar este ticket.', ephemeral: true });
                 }
 
@@ -87,7 +97,8 @@ module.exports = {
 
             // AÑADIR USUARIO AL TICKET
             if (interaction.customId === 'add_user_prompt') {
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+                const configAdd = await ServidorConfig.findOne({ guildId: interaction.guildId });
+                if (!esStaff(interaction, configAdd)) {
                     return await interaction.reply({ content: '❌ Solo el equipo de soporte puede invitar a otras personas.', ephemeral: true });
                 }
 
@@ -100,6 +111,14 @@ module.exports = {
             if (interaction.customId === 'close_ticket') {
                 const canal = interaction.channel;
                 if (!canal) return await interaction.reply({ content: '❌ No se ha podido encontrar el canal.', ephemeral: true });
+
+                // Puede cerrar: el staff (rol/permiso) o el propio creador del ticket.
+                const configClose = await ServidorConfig.findOne({ guildId: interaction.guildId });
+                const ticketClose = await Ticket.findOne({ canalId: canal.id });
+                const esCreador = ticketClose && ticketClose.creadorId === interaction.user.id;
+                if (!esStaff(interaction, configClose) && !esCreador) {
+                    return await interaction.reply({ content: '❌ No tienes permiso para cerrar este ticket.', ephemeral: true });
+                }
 
                 await interaction.reply({ content: '🔒 Generando copia de seguridad y cerrando el ticket...', ephemeral: true });
 
@@ -178,11 +197,25 @@ module.exports = {
                 const listaMotivos = (config && config.motivos && config.motivos.length > 0) ? config.motivos : [];
                 const listaUrgencias = (config && config.urgencias && config.urgencias.length > 0) ? config.urgencias : [];
                 const urgencia = listaMotivos.find(m => m.nombre === motivo)?.urgencia || 'Normal';
-                const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db'; 
+                const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db';
+
+                // Límite de tickets abiertos por usuario (0 = sin límite).
+                const maxAbiertos = (config && config.maxTicketsAbiertos) || 0;
+                if (maxAbiertos > 0) {
+                    const abiertos = await Ticket.countDocuments({ guildId: interaction.guild.id, creadorId: interaction.user.id, estado: 'Abierto' });
+                    if (abiertos >= maxAbiertos) {
+                        return await interaction.editReply({ content: `❌ Has alcanzado el límite de **${maxAbiertos}** ticket(s) abierto(s) a la vez. Cierra alguno antes de abrir otro.` });
+                    }
+                }
+
+                // Categoría de Discord donde se crea el ticket (si está configurada y existe).
+                const parentId = (config && config.categoriaTicketsId && interaction.guild.channels.cache.get(config.categoriaTicketsId))
+                    ? config.categoriaTicketsId : null;
 
                 const canalTicket = await interaction.guild.channels.create({
                     name: `ticket-${interaction.user.username}`,
                     type: ChannelType.GuildText,
+                    ...(parentId ? { parent: parentId } : {}),
                     permissionOverwrites: [
                         { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                         { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
@@ -209,7 +242,8 @@ module.exports = {
 
                 await registrarLogTicket(nuevoTicket, '🎫 Ticket Abierto', '#2ecc71', interaction.user.username);
 
-                const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(`**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*Un miembro del equipo lo revisará en breve.*`).setColor(colorHex).addFields({ name: '🚨 Urgencia', value: `**${urgencia}**`, inline: true });
+                const notaBienvenida = (config && config.mensajeBienvenida) || 'Un miembro del equipo lo revisará en breve.';
+                const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(`**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*${notaBienvenida}*`).setColor(colorHex).addFields({ name: '🚨 Urgencia', value: `**${urgencia}**`, inline: true });
                 const rowBotones = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Reclamar Ticket').setStyle(ButtonStyle.Primary),
                     new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Añadir Usuario').setStyle(ButtonStyle.Secondary),
@@ -217,6 +251,15 @@ module.exports = {
                 );
                 
                 await canalTicket.send({ content: `¡Hola <@${interaction.user.id}>! Aquí tienes tu ticket. 👇`, embeds: [embedBienvenida], components: [rowBotones] });
+
+                // Aviso opcional al rol de soporte (configurable desde el panel).
+                if (config && config.pingSoporte && config.rolSoporteId) {
+                    await canalTicket.send({
+                        content: `🔔 <@&${config.rolSoporteId}> nuevo ticket de **${interaction.user.username}** (${motivo}).`,
+                        allowedMentions: { roles: [config.rolSoporteId] }
+                    }).catch(() => {});
+                }
+
                 await interaction.editReply({ content: `✅ Tu ticket ha sido creado exitosamente: <#${canalTicket.id}>` });
                 setTimeout(() => interaction.deleteReply().catch(console.error), 5000);
 

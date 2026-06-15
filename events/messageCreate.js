@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
+const { getConfigCached } = require('../utils/config.js');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -41,10 +42,12 @@ module.exports = {
             } 
         }
 
-        // 2. Ejecutar comandos (Si empieza por !)
-        if (!message.content.startsWith('!')) return;
+        // 2. Ejecutar comandos (según el prefijo configurado, por defecto "!")
+        const cfg = await getConfigCached(message.guildId);
+        const prefijo = (cfg && cfg.prefijo) || '!';
+        if (!message.content.startsWith(prefijo)) return;
 
-        const args = message.content.slice(1).trim().split(/ +/);
+        const args = message.content.slice(prefijo.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
 
         const command = client.commands.get(commandName);

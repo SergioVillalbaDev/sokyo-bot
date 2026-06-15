@@ -24,14 +24,14 @@ module.exports = {
             const embedPanel = new EmbedBuilder()
                 .setTitle(config.mensajeSoporteTitulo || '🎫 Soporte Técnico Activo')
                 .setDescription(config.mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.')
-                .setColor('#5865F2') // Color Blurple oficial de Discord (o el que tú quieras corporativo)
+                .setColor(config.colorEmbed || '#5865F2') // Color configurable desde el panel
                 .setFooter({ text: config.footerPersonalizado || 'Sistema de Gestión Sokyo' })
                 .setTimestamp();
 
             // 4. Creamos el botón interactivo que dispara el evento "create_ticket"
             const botonAbrir = new ButtonBuilder()
                 .setCustomId('create_ticket')
-                .setLabel('📩 Abrir Ticket')
+                .setLabel(config.textoBoton || '📩 Abrir Ticket')
                 .setStyle(ButtonStyle.Primary);
 
             const filaComponentes = new ActionRowBuilder().addComponents(botonAbrir);

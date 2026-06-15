@@ -1,14 +1,17 @@
-// Header superior del dashboard — saludo + buscador + selector de temas.
+// Header superior del dashboard — saludo + buscador + idioma + tema.
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Search, Bell } from 'lucide-react';
-import { metaForTab } from './navConfig';
+import { metaKey } from './navConfig';
 import ThemePicker from './ThemePicker';
+import LanguageSwitcher from '../LanguageSwitcher';
 
 export default function Header({ dash }) {
+  const { t } = useTranslation();
   const { activeTab, theme, setTheme, esPremium, servidorInfo, query, setQuery, ticketsReales } = dash;
-  const meta = metaForTab(activeTab);
-  const ticketsAbiertos = ticketsReales.filter((t) => t.estado !== 'Cerrado').length;
+  const ticketsAbiertos = ticketsReales.filter((tk) => tk.estado !== 'Cerrado').length;
   const enInicio = activeTab === 'inicio';
+  const mk = metaKey(activeTab);
 
   return (
     <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-line bg-bg/80 px-6 py-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-8">
@@ -16,31 +19,29 @@ export default function Header({ dash }) {
         {enInicio ? (
           <>
             <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-[1.7rem]">
-              ¡Hola, <span className="text-gradient-brand">{servidorInfo?.nombre || 'servidor'}</span>! 👋
+              {t('dashboard.header.greeting', { name: servidorInfo?.nombre || 'servidor' })}
             </h1>
-            <p className="mt-0.5 text-sm text-muted">Este es el estado de tu sistema de soporte hoy.</p>
+            <p className="mt-0.5 text-sm text-muted">{t('dashboard.header.greetingSub')}</p>
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-extrabold tracking-tight text-fg">{meta.title}</h1>
-            <p className="mt-0.5 text-sm text-muted">{meta.subtitle}</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-fg">{t(`dashboard.meta.${mk}.title`)}</h1>
+            <p className="mt-0.5 text-sm text-muted">{t(`dashboard.meta.${mk}.subtitle`)}</p>
           </>
         )}
       </motion.div>
 
       <div className="flex items-center gap-3">
-        {/* Buscador (filtra la rejilla de tickets) */}
         <div className="relative hidden md:block">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar tickets..."
+            placeholder={t('dashboard.header.search')}
             className="w-52 rounded-full border border-line bg-card py-2.5 pl-10 pr-4 text-sm text-fg outline-none transition-all focus:w-64 focus:ring-2 focus:ring-brand/30"
           />
         </div>
 
-        {/* Campana con nº de tickets abiertos */}
         <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated" aria-label="Notificaciones">
           <Bell size={17} />
           {ticketsAbiertos > 0 && (
@@ -50,6 +51,7 @@ export default function Header({ dash }) {
           )}
         </button>
 
+        <LanguageSwitcher />
         <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} />
       </div>
     </header>

@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const Log = require('../models/Log.js');
+const { getConfig, logActivo } = require('../utils/config.js');
 
 module.exports = {
     name: Events.MessageUpdate,
@@ -11,6 +12,9 @@ module.exports = {
             }
 
             if (newMessage.author?.bot) return;
+
+            const cfg = await getConfig(newMessage.guildId);
+            if (!logActivo(cfg, 'mensajesEditados')) return;
 
             // Evita registrar cuando solo se carga un enlace/imagen (mismo contenido).
             // Si el mensaje viejo era partial no tenemos su contenido, así que dejamos pasar.

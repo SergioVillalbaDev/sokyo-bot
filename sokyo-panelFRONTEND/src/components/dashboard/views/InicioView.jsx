@@ -2,6 +2,7 @@
 // Izquierda: widgets del bot (equipo, actividad, tickets recientes).
 // Derecha: gauges de memoria del plan y otras estadísticas.
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Ticket, Inbox, Activity, Users2, ArrowRight, HardDrive, ScrollText, Smile, ChevronRight } from 'lucide-react';
 import { Avatar, Badge } from '../../ui/primitives';
 import { CircularGauge } from '../../ui/CircularGauge';
@@ -9,6 +10,7 @@ import { CircularGauge } from '../../ui/CircularGauge';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
 export default function InicioView({ dash }) {
+  const { t } = useTranslation();
   const {
     ticketsReales, logsRegistrados, limiteLogs, usoStats, esPremium,
     getColorUrgencia, verMensajes, setActiveTab,
@@ -29,13 +31,13 @@ export default function InicioView({ dash }) {
   // Equipo de soporte (staff que ha participado / reclamado)
   const staff = [];
   const visto = new Set();
-  ticketsReales.forEach((t) => {
-    (t.participantes || []).forEach((p) => {
+  ticketsReales.forEach((tk) => {
+    (tk.participantes || []).forEach((p) => {
       if (p.rol === 'Staff' && p.id && !visto.has(p.id)) { visto.add(p.id); staff.push(p); }
     });
-    if (t.asignadoNombre && !visto.has(t.asignadoNombre)) {
-      visto.add(t.asignadoNombre);
-      staff.push({ id: t.asignadoNombre, username: t.asignadoNombre, avatar: null, rol: 'Agente' });
+    if (tk.asignadoNombre && !visto.has(tk.asignadoNombre)) {
+      visto.add(tk.asignadoNombre);
+      staff.push({ id: tk.asignadoNombre, username: tk.asignadoNombre, avatar: null, rol: t('dashboard.inicio_v.agent') });
     }
   });
 
@@ -45,10 +47,10 @@ export default function InicioView({ dash }) {
   const abrirTicket = (ticket) => { setActiveTab('tickets-gestion'); verMensajes(ticket); };
 
   const quickStats = [
-    { label: 'Tickets totales', value: total, icon: Ticket, color: 'var(--accent-color)' },
-    { label: 'Abiertos', value: abiertos, icon: Inbox, color: 'var(--danger)' },
-    { label: 'Cerrados', value: cerrados, icon: Activity, color: 'var(--success)' },
-    { label: 'Agentes', value: staff.length, icon: Users2, color: 'var(--warning)' },
+    { id: 'total', label: t('dashboard.inicio_v.stTotal'), value: total, icon: Ticket, color: 'var(--accent-color)' },
+    { id: 'open', label: t('dashboard.inicio_v.stOpen'), value: abiertos, icon: Inbox, color: 'var(--danger)' },
+    { id: 'closed', label: t('dashboard.inicio_v.stClosed'), value: cerrados, icon: Activity, color: 'var(--success)' },
+    { id: 'agents', label: t('dashboard.inicio_v.stAgents'), value: staff.length, icon: Users2, color: 'var(--warning)' },
   ];
 
   return (
@@ -59,7 +61,7 @@ export default function InicioView({ dash }) {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {quickStats.map((s, i) => (
             <motion.div
-              key={s.label}
+              key={s.id}
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: i * 0.05 }}
               className="rounded-3xl border border-line bg-card p-4 shadow-soft"
             >
@@ -75,13 +77,13 @@ export default function InicioView({ dash }) {
         {/* Equipo de soporte */}
         <div className={card}>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 font-bold text-fg"><Users2 size={18} className="text-brand" /> Equipo de soporte</h3>
+            <h3 className="flex items-center gap-2 font-bold text-fg"><Users2 size={18} className="text-brand" /> {t('dashboard.inicio_v.team')}</h3>
             <button onClick={() => setActiveTab('tickets-usuarios')} className="flex items-center gap-1 text-xs font-semibold text-muted transition-colors hover:text-fg">
-              Ver usuarios <ChevronRight size={13} />
+              {t('dashboard.inicio_v.seeUsers')} <ChevronRight size={13} />
             </button>
           </div>
           {staff.length === 0 ? (
-            <p className="py-4 text-center text-sm italic text-muted">Aún no hay agentes asignados a tickets.</p>
+            <p className="py-4 text-center text-sm italic text-muted">{t('dashboard.inicio_v.noTeam')}</p>
           ) : (
             <div className="flex flex-wrap gap-3">
               {staff.slice(0, 8).map((p, i) => (
@@ -89,7 +91,7 @@ export default function InicioView({ dash }) {
                   <Avatar src={p.avatar} name={p.username} size={32} />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-fg">{p.username}</p>
-                    <p className="text-[11px] text-muted">{p.rol || 'Agente'}</p>
+                    <p className="text-[11px] text-muted">{p.rol || t('dashboard.inicio_v.agent')}</p>
                   </div>
                 </div>
               ))}
@@ -100,13 +102,13 @@ export default function InicioView({ dash }) {
         {/* Tickets recientes */}
         <div className={card}>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 font-bold text-fg"><Ticket size={18} className="text-brand" /> Tickets recientes</h3>
+            <h3 className="flex items-center gap-2 font-bold text-fg"><Ticket size={18} className="text-brand" /> {t('dashboard.inicio_v.recentTickets')}</h3>
             <button onClick={() => setActiveTab('tickets-gestion')} className="flex items-center gap-1 text-xs font-semibold text-muted transition-colors hover:text-fg">
-              Ver todos <ChevronRight size={13} />
+              {t('dashboard.inicio_v.seeAll')} <ChevronRight size={13} />
             </button>
           </div>
           {recientes.length === 0 ? (
-            <p className="py-4 text-center text-sm italic text-muted">No hay tickets todavía.</p>
+            <p className="py-4 text-center text-sm italic text-muted">{t('dashboard.inicio_v.noTickets')}</p>
           ) : (
             <div className="space-y-2.5">
               {recientes.map((t, i) => {
@@ -134,13 +136,13 @@ export default function InicioView({ dash }) {
         {/* Actividad reciente */}
         <div className={card}>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 font-bold text-fg"><Activity size={18} className="text-brand" /> Actividad reciente</h3>
+            <h3 className="flex items-center gap-2 font-bold text-fg"><Activity size={18} className="text-brand" /> {t('dashboard.inicio_v.activity')}</h3>
             <button onClick={() => setActiveTab('logs-todos')} className="flex items-center gap-1 text-xs font-semibold text-muted transition-colors hover:text-fg">
-              Ver logs <ChevronRight size={13} />
+              {t('dashboard.inicio_v.seeLogs')} <ChevronRight size={13} />
             </button>
           </div>
           {actividad.length === 0 ? (
-            <p className="py-4 text-center text-sm italic text-muted">Sin eventos registrados.</p>
+            <p className="py-4 text-center text-sm italic text-muted">{t('dashboard.inicio_v.noActivity')}</p>
           ) : (
             <div className="space-y-2">
               {actividad.map((log, i) => (
@@ -160,35 +162,33 @@ export default function InicioView({ dash }) {
         {/* Memoria del plan */}
         <div className={`${card} flex flex-col items-center text-center`}>
           <div className="mb-1 flex w-full items-center justify-between">
-            <h3 className="flex items-center gap-1.5 text-sm font-bold text-fg"><HardDrive size={15} className="text-brand" /> Memoria del plan</h3>
-            <Badge color={esPremium ? 'var(--warning)' : undefined}>{usoStats?.plan || (esPremium ? 'Premium' : 'Free')}</Badge>
+            <h3 className="flex items-center gap-1.5 text-sm font-bold text-fg"><HardDrive size={15} className="text-brand" /> {t('dashboard.inicio_v.memory')}</h3>
+            <Badge color={esPremium ? 'var(--warning)' : undefined}>{esPremium ? t('dashboard.plan.premiumShort') : t('dashboard.plan.freeShort')}</Badge>
           </div>
           <div className="my-3">
             <CircularGauge value={memoria.porcentaje} color="var(--accent-color)">
               <span className="text-2xl font-extrabold text-fg">{memoria.porcentaje}%</span>
-              <span className="text-[11px] text-muted">usado</span>
+              <span className="text-[11px] text-muted">{t('dashboard.inicio_v.used')}</span>
             </CircularGauge>
           </div>
-          <p className="text-xs text-muted">
-            <strong className="text-fg">{memoria.usadoMB}</strong> MB de <strong className="text-fg">{memoria.cuotaMB}</strong> MB
-          </p>
+          <p className="text-xs text-muted">{t('dashboard.inicio_v.memoryOf', { used: memoria.usadoMB, quota: memoria.cuotaMB })}</p>
         </div>
 
         {/* Capacidad de logs */}
         <div className={`${card} flex flex-col items-center text-center`}>
-          <h3 className="mb-1 flex w-full items-center gap-1.5 text-sm font-bold text-fg"><ScrollText size={15} className="text-emerald-400" /> Capacidad de Logs</h3>
+          <h3 className="mb-1 flex w-full items-center gap-1.5 text-sm font-bold text-fg"><ScrollText size={15} className="text-emerald-400" /> {t('dashboard.inicio_v.logsCap')}</h3>
           <div className="my-3">
             <CircularGauge value={logsPct} color="#34d399">
               <span className="text-2xl font-extrabold text-fg">{logsRegistrados.length}</span>
-              <span className="text-[11px] text-muted">de {limiteLogs}</span>
+              <span className="text-[11px] text-muted">{t('dashboard.inicio_v.of', { limit: limiteLogs })}</span>
             </CircularGauge>
           </div>
-          <p className="text-xs text-muted">Registros de auditoría almacenados</p>
+          <p className="text-xs text-muted">{t('dashboard.inicio_v.logsStored')}</p>
         </div>
 
         {/* Satisfacción CSAT */}
         <div className={`${card} flex flex-col items-center text-center`}>
-          <h3 className="mb-1 flex w-full items-center gap-1.5 text-sm font-bold text-fg"><Smile size={15} className="text-amber-400" /> Satisfacción</h3>
+          <h3 className="mb-1 flex w-full items-center gap-1.5 text-sm font-bold text-fg"><Smile size={15} className="text-amber-400" /> {t('dashboard.inicio_v.satisfaction')}</h3>
           <div className="my-3">
             <CircularGauge value={csatPct} color="#fbbf24">
               <span className="text-2xl font-extrabold text-fg">{csatMedio ? csatMedio.toFixed(1) : '–'}</span>
@@ -196,7 +196,7 @@ export default function InicioView({ dash }) {
             </CircularGauge>
           </div>
           <button onClick={() => setActiveTab('tickets-usuarios')} className="flex items-center gap-1 text-xs font-semibold text-brand transition-opacity hover:opacity-80">
-            Ver más <ArrowRight size={13} />
+            {t('dashboard.inicio_v.seeMore')} <ArrowRight size={13} />
           </button>
         </div>
       </div>

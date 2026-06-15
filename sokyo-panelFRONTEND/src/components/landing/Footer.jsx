@@ -1,15 +1,10 @@
-// Pie de página de la landing — enlaces legales y redes.
-// Nota: lucide-react eliminó los iconos de marca (Github/Twitter/Discord) en
-// versiones recientes. Usamos iconos genéricos. // TODO: DESIGN TEAM — si
-// queréis logos de marca reales, importadlos de 'simple-icons' o como SVG.
+// Pie de página. Textos vía i18n.
+import { useTranslation } from 'react-i18next';
 import { Send, AtSign, MessageCircle } from 'lucide-react';
 
 export default function Footer() {
-  const cols = [
-    { title: 'Producto', links: ['Funciones', 'Precios', 'Panel', 'Estado del servicio'] },
-    { title: 'Recursos', links: ['Documentación', 'Guía de inicio', 'Comandos', 'Soporte'] },
-    { title: 'Legal', links: ['Términos de servicio', 'Política de privacidad', 'Cookies', 'Aviso legal'] },
-  ];
+  const { t } = useTranslation();
+  const columns = t('landing.footer.columns', { returnObjects: true });
 
   return (
     <footer className="border-t border-line bg-sidebar">
@@ -19,33 +14,25 @@ export default function Footer() {
             <div className="flex items-center gap-2.5">
               {/* // TODO: DESIGN TEAM — logo oficial */}
               <img src="/assets/logo-placeholder.svg" alt="Sokyo" className="h-9 w-9" />
-              <span className="text-lg font-extrabold text-fg">Sokyo Bot</span>
+              <span className="text-lg font-extrabold text-fg">{t('landing.nav.brand')}</span>
             </div>
-            <p className="mt-4 max-w-xs text-sm text-muted">
-              El sistema de soporte definitivo para tu comunidad de Discord. Profesional, rápido y personalizable.
-            </p>
+            <p className="mt-4 max-w-xs text-sm text-muted">{t('landing.footer.brandDesc')}</p>
             <div className="mt-5 flex gap-3">
               {/* // TODO: DESIGN TEAM — URLs reales de redes sociales */}
               {[MessageCircle, AtSign, Send].map((Icon, i) => (
-                <a
-                  key={i}
-                  href="#"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-fg"
-                >
+                <a key={i} href="#" className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-fg">
                   <Icon size={17} />
                 </a>
               ))}
             </div>
           </div>
 
-          {cols.map((col) => (
+          {columns.map((col) => (
             <div key={col.title}>
               <h4 className="text-sm font-semibold text-fg">{col.title}</h4>
               <ul className="mt-4 flex flex-col gap-2.5">
                 {col.links.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="text-sm text-muted transition-colors hover:text-fg">{l}</a>
-                  </li>
+                  <li key={l}><a href="#" className="text-sm text-muted transition-colors hover:text-fg">{l}</a></li>
                 ))}
               </ul>
             </div>
@@ -53,8 +40,8 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">
-          <p className="text-sm text-muted">© {new Date().getFullYear()} Sokyo Bot. Todos los derechos reservados.</p>
-          <p className="text-xs text-muted">Hecho con 💜 para la comunidad de Discord.</p>
+          <p className="text-sm text-muted">© {new Date().getFullYear()} {t('landing.footer.copyright')}</p>
+          <p className="text-xs text-muted">{t('landing.footer.madeWith')}</p>
         </div>
       </div>
     </footer>

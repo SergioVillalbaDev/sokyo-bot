@@ -1,9 +1,11 @@
 // Vista de conversación de un ticket — 3 columnas: Implicados | Chat | Notas.
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Lock, Unlock, Send, Users, StickyNote, Plus } from 'lucide-react';
 import { Avatar, Card } from '../../ui/primitives';
 
 export default function ChatView({ dash }) {
+  const { t } = useTranslation();
   const {
     ticketSeleccionado: ticket, mensajes, nuevoMensaje, setNuevoMensaje, enviarMensaje,
     nuevaNota, setNuevaNota, agregarNotaInterna, obtenerParticipantes,
@@ -22,7 +24,7 @@ export default function ChatView({ dash }) {
             onClick={cerrarMensajes}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
           >
-            <ArrowLeft size={16} /> Volver
+            <ArrowLeft size={16} /> {t('dashboard.chat_v.back')}
           </button>
           <span className="text-lg font-bold text-fg">
             {ticket.titulo || ticket.creadorNombre}
@@ -33,14 +35,14 @@ export default function ChatView({ dash }) {
             onClick={(e) => handleCerrarTicket(ticket.canalId, e)}
             className="flex items-center gap-1.5 rounded-lg bg-danger/15 px-4 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/25"
           >
-            <Lock size={15} /> Cerrar Ticket
+            <Lock size={15} /> {t('dashboard.chat_v.close')}
           </button>
         ) : (
           <button
             onClick={(e) => handleReabrirTicket(ticket.canalId, e)}
             className="flex items-center gap-1.5 rounded-lg bg-ok/15 px-4 py-2 text-sm font-semibold text-ok transition-colors hover:bg-ok/25"
           >
-            <Unlock size={15} /> Reabrir Ticket
+            <Unlock size={15} /> {t('dashboard.chat_v.reopen')}
           </button>
         )}
       </div>
@@ -50,7 +52,7 @@ export default function ChatView({ dash }) {
         <Card className="flex flex-col overflow-hidden">
           <div className="flex items-center gap-2 border-b border-line bg-brand/10 px-4 py-3.5">
             <Users size={18} className="text-brand" />
-            <h3 className="font-bold text-brand">Implicados</h3>
+            <h3 className="font-bold text-brand">{t('dashboard.chat_v.involved')}</h3>
           </div>
           <div className="flex flex-col gap-3 overflow-y-auto p-4">
             {obtenerParticipantes(ticket).map((p, i) => (
@@ -69,7 +71,7 @@ export default function ChatView({ dash }) {
         <div className="flex min-w-0 flex-col">
           {ticket.descripcion && (
             <Card className="mb-4 p-4" style={{ borderLeft: '4px solid var(--accent-color)' }}>
-              <p className="mb-1 text-sm font-bold text-brand">Asunto Inicial</p>
+              <p className="mb-1 text-sm font-bold text-brand">{t('dashboard.chat_v.subject')}</p>
               <p className="text-sm italic leading-relaxed text-muted">{ticket.descripcion}</p>
             </Card>
           )}
@@ -77,7 +79,7 @@ export default function ChatView({ dash }) {
           <Card className="flex flex-1 flex-col overflow-hidden">
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5" style={{ minHeight: 360, maxHeight: '52vh' }}>
               {mensajes.length === 0 ? (
-                <p className="m-auto text-center text-sm italic text-muted">No hay mensajes registrados en este ticket.</p>
+                <p className="m-auto text-center text-sm italic text-muted">{t('dashboard.chat_v.noMessages')}</p>
               ) : (
                 mensajes.map((msg, i) => {
                   const mine = esStaff(msg.usuario);
@@ -97,7 +99,7 @@ export default function ChatView({ dash }) {
                         }`}
                       >
                         <p className={`mb-1 text-xs font-semibold ${mine ? 'text-on-brand/70' : 'text-brand'}`}>
-                          {msg.usuario || 'Usuario Desconocido'}
+                          {msg.usuario || t('dashboard.chat_v.unknownUser')}
                         </p>
                         {msg.contenido && <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.contenido}</p>}
                         {msg.imagenes && msg.imagenes.map((url, j) => (
@@ -113,7 +115,7 @@ export default function ChatView({ dash }) {
             {/* Caja de envío */}
             <div className="border-t border-line p-3">
               {cerrado ? (
-                <p className="py-2 text-center text-sm text-muted">Este ticket está cerrado.</p>
+                <p className="py-2 text-center text-sm text-muted">{t('dashboard.chat_v.closedNote')}</p>
               ) : (
                 <div className="flex gap-2">
                   <input
@@ -121,14 +123,14 @@ export default function ChatView({ dash }) {
                     value={nuevoMensaje}
                     onChange={(e) => setNuevoMensaje(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && enviarMensaje()}
-                    placeholder="Escribe una respuesta al ticket..."
+                    placeholder={t('dashboard.chat_v.reply')}
                     className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-fg outline-none transition-shadow focus:ring-2 focus:ring-brand/40"
                   />
                   <button
                     onClick={enviarMensaje}
                     className="flex items-center gap-1.5 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.03]"
                   >
-                    <Send size={15} /> Enviar
+                    <Send size={15} /> {t('dashboard.chat_v.send')}
                   </button>
                 </div>
               )}
@@ -141,9 +143,9 @@ export default function ChatView({ dash }) {
           <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3.5">
             <div className="flex items-center gap-2">
               <StickyNote size={18} className="text-amber-500" />
-              <h3 className="font-bold text-amber-500">Notas Internas</h3>
+              <h3 className="font-bold text-amber-500">{t('dashboard.chat_v.notes')}</h3>
             </div>
-            <p className="mt-1 text-xs text-muted">Visibles solo para el Staff web.</p>
+            <p className="mt-1 text-xs text-muted">{t('dashboard.chat_v.notesSub')}</p>
           </div>
 
           <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-4" style={{ minHeight: 180 }}>
@@ -158,7 +160,7 @@ export default function ChatView({ dash }) {
                 </div>
               ))
             ) : (
-              <p className="mt-6 text-center text-sm italic text-muted">No hay anotaciones privadas.</p>
+              <p className="mt-6 text-center text-sm italic text-muted">{t('dashboard.chat_v.noNotes')}</p>
             )}
           </div>
 
@@ -166,14 +168,14 @@ export default function ChatView({ dash }) {
             <textarea
               value={nuevaNota}
               onChange={(e) => setNuevaNota(e.target.value)}
-              placeholder="Añade un apunte secreto..."
+              placeholder={t('dashboard.chat_v.addNote')}
               className="min-h-[70px] w-full resize-y rounded-xl border border-line bg-card px-3 py-2.5 text-sm text-fg outline-none transition-shadow focus:ring-2 focus:ring-amber-500/40"
             />
             <button
               onClick={agregarNotaInterna}
               className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
             >
-              <Plus size={15} /> Guardar Nota
+              <Plus size={15} /> {t('dashboard.chat_v.saveNote')}
             </button>
           </div>
         </Card>

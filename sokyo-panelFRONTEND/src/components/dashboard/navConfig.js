@@ -1,56 +1,45 @@
-// Estructura de navegación del dashboard. Cada "tab" coincide EXACTAMENTE con
-// los valores de activeTab que espera la lógica (useDashboard).
+// Estructura de navegación del dashboard (solo estructura + iconos).
+// Los TEXTOS salen de i18n: dashboard.nav.groups.<id>, dashboard.nav.items.<tab>
+// y dashboard.meta.<key>. Cada `tab` coincide con los valores de activeTab.
 import {
   Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
-  Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid,
+  Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck,
 } from 'lucide-react';
 
 export const navGroups = [
   {
     id: 'tickets',
-    label: 'Sistema de Tickets',
     icon: Ticket,
     items: [
-      { tab: 'tickets-gestion', label: 'Gestión', icon: LayoutGrid },
-      { tab: 'tickets-usuarios', label: 'Registro de usuarios', icon: Users },
-      { tab: 'tickets-config', label: 'Ajustes de Incidencias', icon: SlidersHorizontal },
+      { tab: 'tickets-gestion', icon: LayoutGrid },
+      { tab: 'tickets-usuarios', icon: Users },
+      { tab: 'tickets-config', icon: SlidersHorizontal },
     ],
   },
   {
     id: 'logs',
-    label: 'Logs del Bot',
     icon: ScrollText,
     items: [
-      { tab: 'logs-todos', label: 'Todos los eventos', icon: Globe },
-      { tab: 'logs-tickets', label: 'Actividad de Tickets', icon: Ticket },
-      { tab: 'logs-borrados', label: 'Mensajes Eliminados', icon: Trash2 },
-      { tab: 'logs-editados', label: 'Mensajes Editados', icon: Pencil },
-      { tab: 'logs-entradas', label: 'Entradas al Servidor', icon: LogIn },
-      { tab: 'logs-salidas', label: 'Salidas del Servidor', icon: LogOut },
+      { tab: 'logs-todos', icon: Globe },
+      { tab: 'logs-tickets', icon: Ticket },
+      { tab: 'logs-borrados', icon: Trash2 },
+      { tab: 'logs-editados', icon: Pencil },
+      { tab: 'logs-entradas', icon: LogIn },
+      { tab: 'logs-salidas', icon: LogOut },
     ],
   },
   {
     id: 'config',
-    label: 'Configuración',
     icon: Settings,
     items: [
-      { tab: 'config-textos', label: 'Configuración de Textos', icon: Type },
-      { tab: 'config', label: 'Módulos del Bot', icon: Plug },
+      { tab: 'config-comportamiento', icon: SlidersVertical },
+      { tab: 'config-reglas', icon: ShieldCheck },
+      { tab: 'config-textos', icon: Type },
+      { tab: 'config', icon: Plug },
     ],
   },
 ];
 
-// Título + subtítulo del header según la pestaña activa.
-export const tabMeta = {
-  'inicio': { title: 'Inicio', subtitle: 'Resumen de tu sistema de soporte.' },
-  'tickets-gestion': { title: 'Gestión de Tickets', subtitle: 'Administra las solicitudes activas de tu servidor.' },
-  'tickets-usuarios': { title: 'Registro de Usuarios', subtitle: 'Estadísticas y recuento global de los usuarios en tu servidor.' },
-  'tickets-config': { title: 'Ajustes de Incidencias', subtitle: 'Configura las reglas, prioridades y motivos de los tickets.' },
-  'config-textos': { title: 'Configuración de Textos', subtitle: 'Personaliza los títulos y descripciones de marca blanca para el bot.' },
-  'config': { title: 'Configuración General', subtitle: 'Activa o desactiva módulos globales del bot.' },
-};
-
-export const metaForTab = (tab) => {
-  if (tab.startsWith('logs')) return { title: 'Registro de Auditoría', subtitle: 'Supervisa el funcionamiento interno y eventos clave del servidor.' };
-  return tabMeta[tab] || { title: 'Panel', subtitle: '' };
-};
+// Clave de i18n para el título/subtítulo del header según la pestaña activa.
+// Los logs (logs-todos, logs-tickets…) comparten la misma cabecera "logs".
+export const metaKey = (tab) => (tab.startsWith('logs') ? 'logs' : tab);

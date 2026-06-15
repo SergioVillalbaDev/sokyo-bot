@@ -1,4 +1,5 @@
 const { Events, ActivityType } = require('discord.js');
+const { iniciarAutoCierre } = require('../utils/autoClose.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -10,5 +11,8 @@ module.exports = {
             activities: [{ name: '🎫 tickets de soporte', type: ActivityType.Watching }],
             status: 'online'
         });
+
+        // Arranca el barrido de auto-cierre por inactividad (configurable por servidor).
+        iniciarAutoCierre(client);
     },
 };

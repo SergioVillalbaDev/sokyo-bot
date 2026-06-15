@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { ChannelType } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
@@ -422,26 +423,124 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    // --- NUEVA RUTA: Actualizar textos de Marca Blanca ---
+    // --- NUEVA RUTA: Actualizar textos de Marca Blanca + personalización (Fase 2) ---
     app.put('/api/config/:guildId/textos', async (req, res) => {
         try {
             const { guildId } = req.params;
-            const { titulo, descripcion, footer } = req.body; 
+            const { titulo, descripcion, footer, colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados } = req.body;
+
+            // Solo escribimos los campos que llegan (evita pisar con undefined).
+            const cambios = {};
+            if (titulo !== undefined) cambios.mensajeSoporteTitulo = titulo;
+            if (descripcion !== undefined) cambios.mensajeSoporteDescripcion = descripcion;
+            if (footer !== undefined) cambios.footerPersonalizado = footer;
+            if (colorEmbed !== undefined) cambios.colorEmbed = colorEmbed;
+            if (textoBoton !== undefined) cambios.textoBoton = textoBoton;
+            if (mensajeBienvenida !== undefined) cambios.mensajeBienvenida = mensajeBienvenida;
+            if (prefijo !== undefined) cambios.prefijo = (prefijo || '!').trim() || '!';
+            if (categoriaArchivados !== undefined) cambios.categoriaArchivados = categoriaArchivados;
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId: guildId },
-                { 
-                    mensajeSoporteTitulo: titulo,
-                    mensajeSoporteDescripcion: descripcion,
-                    footerPersonalizado: footer
-                },
-                { returnDocument: 'after' } 
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true }
             );
 
             res.json({ success: true, config: configActualizada });
         } catch (error) {
             console.error('Error al actualizar textos personalizados:', error);
             res.status(500).json({ error: 'Fallo interno al actualizar los textos' });
+        }
+    });
+
+    // --- NUEVA RUTA: Ajustes de comportamiento (Fase 1) ---
+    app.put('/api/config/:guildId/comportamiento', async (req, res) => {
+        try {
+            const { guildId } = req.params;
+            const { ratingActivo, enviarTranscript, avisoCierreCanal, pingSoporte, rolSoporteId, logsActivos } = req.body;
+
+            // Construimos solo con los campos que llegan (evita pisar con undefined).
+            const cambios = {};
+            if (ratingActivo !== undefined) cambios.ratingActivo = !!ratingActivo;
+            if (enviarTranscript !== undefined) cambios.enviarTranscript = !!enviarTranscript;
+            if (avisoCierreCanal !== undefined) cambios.avisoCierreCanal = !!avisoCierreCanal;
+            if (pingSoporte !== undefined) cambios.pingSoporte = !!pingSoporte;
+            if (rolSoporteId !== undefined) cambios.rolSoporteId = rolSoporteId || null;
+            if (logsActivos && typeof logsActivos === 'object') {
+                ['entradas', 'salidas', 'mensajesBorrados', 'mensajesEditados', 'tickets'].forEach((k) => {
+                    if (logsActivos[k] !== undefined) cambios[`logsActivos.${k}`] = !!logsActivos[k];
+                });
+            }
+
+            const configActualizada = await ServidorConfig.findOneAndUpdate(
+                { guildId },
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true }
+            );
+
+            res.json({ success: true, config: configActualizada });
+        } catch (error) {
+            console.error('Error al actualizar comportamiento:', error);
+            res.status(500).json({ error: 'Fallo interno al actualizar el comportamiento' });
+        }
+    });
+
+    // --- NUEVA RUTA: Reglas y control (Fase 3) ---
+    app.put('/api/config/:guildId/reglas', async (req, res) => {
+        try {
+            const { guildId } = req.params;
+            const { rolStaffId, categoriaTicketsId, maxTicketsAbiertos, autoCierreDias } = req.body;
+
+            const cambios = {};
+            if (rolStaffId !== undefined) cambios.rolStaffId = rolStaffId || null;
+            if (categoriaTicketsId !== undefined) cambios.categoriaTicketsId = categoriaTicketsId || null;
+            if (maxTicketsAbiertos !== undefined) cambios.maxTicketsAbiertos = Math.max(0, parseInt(maxTicketsAbiertos, 10) || 0);
+            if (autoCierreDias !== undefined) cambios.autoCierreDias = Math.max(0, parseInt(autoCierreDias, 10) || 0);
+
+            const configActualizada = await ServidorConfig.findOneAndUpdate(
+                { guildId },
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true }
+            );
+
+            res.json({ success: true, config: configActualizada });
+        } catch (error) {
+            console.error('Error al actualizar reglas:', error);
+            res.status(500).json({ error: 'Fallo interno al actualizar las reglas' });
+        }
+    });
+
+    // --- NUEVA RUTA: Categorías del servidor (para el selector de categoría) ---
+    app.get('/api/servidor/categorias', async (req, res) => {
+        try {
+            const config = await ServidorConfig.findOne();
+            const guild = config && config.guildId ? client.guilds.cache.get(config.guildId) : null;
+            if (!guild) return res.json([]);
+            const categorias = guild.channels.cache
+                .filter((c) => c.type === ChannelType.GuildCategory)
+                .sort((a, b) => a.position - b.position)
+                .map((c) => ({ id: c.id, nombre: c.name }));
+            res.json(categorias);
+        } catch (error) {
+            console.error('Error al obtener categorías:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- NUEVA RUTA: Roles del servidor (para el selector de rol de soporte) ---
+    app.get('/api/servidor/roles', async (req, res) => {
+        try {
+            const config = await ServidorConfig.findOne();
+            const guild = config && config.guildId ? client.guilds.cache.get(config.guildId) : null;
+            if (!guild) return res.json([]);
+            const roles = guild.roles.cache
+                .filter((r) => r.name !== '@everyone' && !r.managed)
+                .sort((a, b) => b.position - a.position)
+                .map((r) => ({ id: r.id, nombre: r.name, color: r.hexColor }));
+            res.json(roles);
+        } catch (error) {
+            console.error('Error al obtener roles:', error);
+            res.status(500).json({ error: 'Error del servidor' });
         }
     });
 

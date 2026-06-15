@@ -1,17 +1,19 @@
 // Vista de registro de usuarios — tabla de estadísticas.
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Users } from 'lucide-react';
 import { Avatar, Stars, Card } from '../../ui/primitives';
 
 export default function UsersView({ dash }) {
+  const { t } = useTranslation();
   const { usuariosStats } = dash;
 
   if (usuariosStats.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line py-24 text-center">
         <Users size={48} className="text-muted/50" />
-        <p className="mt-4 text-lg font-semibold text-fg">Sin datos de usuarios</p>
-        <p className="mt-1 text-sm text-muted">Aún no hay actividad registrada en tu servidor.</p>
+        <p className="mt-4 text-lg font-semibold text-fg">{t('dashboard.users_v.empty')}</p>
+        <p className="mt-1 text-sm text-muted">{t('dashboard.users_v.emptyDesc')}</p>
       </div>
     );
   }
@@ -22,11 +24,11 @@ export default function UsersView({ dash }) {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-line bg-bg text-xs uppercase tracking-wide text-muted">
-              <th className="px-6 py-4 font-semibold">Usuario</th>
-              <th className="px-6 py-4 font-semibold">Total Tickets</th>
-              <th className="px-6 py-4 font-semibold">Abiertos</th>
-              <th className="px-6 py-4 font-semibold">Rating Medio</th>
-              <th className="px-6 py-4 font-semibold">Última Actividad</th>
+              <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.user')}</th>
+              <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.total')}</th>
+              <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.open')}</th>
+              <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.rating')}</th>
+              <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.lastActivity')}</th>
             </tr>
           </thead>
           <tbody>
@@ -51,9 +53,9 @@ export default function UsersView({ dash }) {
                 </td>
                 <td className="px-6 py-4">
                   {user.ticketsAbiertos > 0 ? (
-                    <span className="font-semibold text-danger">{user.ticketsAbiertos} abierto(s)</span>
+                    <span className="font-semibold text-danger">{t('dashboard.users_v.openCount', { count: user.ticketsAbiertos })}</span>
                   ) : (
-                    <span className="text-ok">Todo cerrado</span>
+                    <span className="text-ok">{t('dashboard.users_v.allClosed')}</span>
                   )}
                 </td>
                 <td className="px-6 py-4">
@@ -65,7 +67,7 @@ export default function UsersView({ dash }) {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-muted">
-                  {user.ultimoTicket ? new Date(user.ultimoTicket).toLocaleDateString() : 'Desconocida'}
+                  {user.ultimoTicket ? new Date(user.ultimoTicket).toLocaleDateString() : t('dashboard.users_v.unknown')}
                 </td>
               </motion.tr>
             ))}

@@ -1,11 +1,14 @@
 const { Events } = require('discord.js');
 const Log = require('../models/Log.js');
+const { getConfig, logActivo } = require('../utils/config.js');
 
 module.exports = {
     name: Events.MessageDelete,
     async execute(message) {
         if (message.author?.bot) return;
         try {
+            const cfg = await getConfig(message.guildId);
+            if (!logActivo(cfg, 'mensajesBorrados')) return;
             const contenido = message.content ? `"${message.content}"` : '*(Mensaje antiguo/sin caché)*';
             const nombreCanal = message.channel?.name ? `#${message.channel.name}` : `Canal ${message.channelId}`;
             await Log.create({

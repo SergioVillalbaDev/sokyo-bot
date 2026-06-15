@@ -1,12 +1,14 @@
 // Sidebar lateral persistente y colapsable — con tarjeta del SERVIDOR de Discord.
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronLeft, ChevronRight, Home, LayoutDashboard, LogOut, Crown } from 'lucide-react';
 import { navGroups } from './navConfig';
 import { Avatar } from '../ui/primitives';
 import { cn } from '../../lib/cn';
 
 export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, onExitToLanding, servidorInfo, esPremium }) {
+  const { t } = useTranslation();
   const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
 
   const toggleGroup = (id) => {
@@ -53,7 +55,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
               <p className="truncate text-sm font-bold text-fg">{servidorInfo?.nombre || 'Mi Servidor'}</p>
               <p className="flex items-center gap-1 text-xs text-muted">
-                {esPremium ? <><Crown size={11} className="text-amber-400" /> Plan Premium</> : 'Plan Free'}
+                {esPremium ? <><Crown size={11} className="text-amber-400" /> {t('dashboard.plan.premium')}</> : t('dashboard.plan.free')}
               </p>
             </motion.div>
           )}
@@ -70,10 +72,10 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
             inicioActivo ? 'bg-gradient-brand text-on-brand shadow-md' : 'text-muted hover:bg-elevated hover:text-fg',
             collapsed && 'justify-center'
           )}
-          title={collapsed ? 'Inicio' : undefined}
+          title={collapsed ? t('dashboard.inicio') : undefined}
         >
           <LayoutDashboard size={19} className="shrink-0" />
-          {!collapsed && <span>Inicio</span>}
+          {!collapsed && <span>{t('dashboard.inicio')}</span>}
         </button>
 
         {navGroups.map((group) => {
@@ -88,10 +90,10 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                   groupActive ? 'text-fg' : 'text-muted hover:bg-elevated hover:text-fg',
                   collapsed && 'justify-center'
                 )}
-                title={collapsed ? group.label : undefined}
+                title={collapsed ? t(`dashboard.nav.groups.${group.id}`) : undefined}
               >
                 <group.icon size={19} className={cn('shrink-0', groupActive && 'text-brand')} />
-                {!collapsed && <span className="flex-1 text-left">{group.label}</span>}
+                {!collapsed && <span className="flex-1 text-left">{t(`dashboard.nav.groups.${group.id}`)}</span>}
                 {!collapsed && <ChevronDown size={16} className={cn('transition-transform', open && 'rotate-180')} />}
               </button>
 
@@ -114,7 +116,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                             )}
                           >
                             <item.icon size={16} className="shrink-0" />
-                            <span className="truncate">{item.label}</span>
+                            <span className="truncate">{t(`dashboard.nav.items.${item.tab}`)}</span>
                           </button>
                         );
                       })}
@@ -134,9 +136,9 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg',
           collapsed && 'justify-center'
         )}
-        title={collapsed ? 'Salir' : undefined}
+        title={collapsed ? t('dashboard.back') : undefined}
       >
-        {collapsed ? <LogOut size={18} className="shrink-0" /> : <><Home size={18} className="shrink-0" /> <span>Volver al inicio</span></>}
+        {collapsed ? <LogOut size={18} className="shrink-0" /> : <><Home size={18} className="shrink-0" /> <span>{t('dashboard.back')}</span></>}
       </button>
     </motion.aside>
   );

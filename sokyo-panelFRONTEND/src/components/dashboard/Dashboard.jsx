@@ -2,6 +2,7 @@
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
 import Sidebar from './Sidebar';
@@ -11,11 +12,14 @@ import TicketsView from './views/TicketsView';
 import ChatView from './views/ChatView';
 import UsersView from './views/UsersView';
 import TextsView from './views/TextsView';
+import ComportamientoView from './views/ComportamientoView';
+import RulesView from './views/RulesView';
 import IncidentsView from './views/IncidentsView';
 import LogsView from './views/LogsView';
 import ModulesView from './views/ModulesView';
 
 export default function Dashboard({ onExitToLanding }) {
+  const { t } = useTranslation();
   const dash = useDashboard();
   const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium } = dash;
 
@@ -38,6 +42,8 @@ export default function Dashboard({ onExitToLanding }) {
     if (activeTab === 'tickets-usuarios') return <UsersView dash={dash} />;
     if (activeTab === 'tickets-config') return <IncidentsView dash={dash} />;
     if (activeTab === 'config-textos') return <TextsView dash={dash} />;
+    if (activeTab === 'config-comportamiento') return <ComportamientoView dash={dash} />;
+    if (activeTab === 'config-reglas') return <RulesView dash={dash} />;
     if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
     return <InicioView dash={dash} />;
@@ -66,10 +72,7 @@ export default function Dashboard({ onExitToLanding }) {
               <p className="flex items-center gap-2 font-semibold text-danger">
                 <AlertTriangle size={18} /> {errorConexion}
               </p>
-              <p className="mt-1.5 text-sm text-danger/80">
-                Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que las claves
-                coincidan. (Abre la consola con F12 para más detalles.)
-              </p>
+              <p className="mt-1.5 text-sm text-danger/80">{t('dashboard.error.detail')}</p>
             </div>
           )}
 

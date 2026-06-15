@@ -34,6 +34,12 @@ export function useDashboard() {
   const [tituloMensaje, setTituloMensaje] = useState('');
   const [descripcionMensaje, setDescripcionMensaje] = useState('');
   const [footerMensaje, setFooterMensaje] = useState('');
+  // Personalización / marca (Fase 2)
+  const [colorEmbed, setColorEmbed] = useState('#5865F2');
+  const [textoBoton, setTextoBoton] = useState('📩 Abrir Ticket');
+  const [mensajeBienvenida, setMensajeBienvenida] = useState('Un miembro del equipo lo revisará en breve.');
+  const [prefijo, setPrefijo] = useState('!');
+  const [categoriaArchivados, setCategoriaArchivados] = useState('🗄️ Tickets Archivados');
 
   // Estados de Incidencias
   const [motivos, setMotivos] = useState([]);
@@ -54,6 +60,10 @@ export function useDashboard() {
   // Uso de memoria del plan + datos del servidor de Discord (vista Inicio)
   const [usoStats, setUsoStats] = useState(null);
   const [servidorInfo, setServidorInfo] = useState({ nombre: 'Mi Servidor', icono: null });
+
+  // Roles y categorías del servidor (para los selectores de Comportamiento/Reglas)
+  const [roles, setRoles] = useState([]);
+  const [categorias, setCategorias] = useState([]);
 
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
@@ -77,6 +87,35 @@ export function useDashboard() {
     if (typeof datos.esPremium === 'boolean') setEsPremium(datos.esPremium);
     setErrorConexion('');
   }).catch(reportarError('cargando uso'));
+
+  const cargarRoles = () => apiFetch(`/api/servidor/roles`).then(procesarRespuesta).then((datos) => setRoles(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando roles'));
+  const cargarCategorias = () => apiFetch(`/api/servidor/categorias`).then(procesarRespuesta).then((datos) => setCategorias(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando categorías'));
+
+  // Guarda reglas (rol staff, categoría, límite, auto-cierre) y refresca la config.
+  const guardarReglas = async (cambios) => {
+    if (!configServidor) return;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/reglas`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando reglas:', error); }
+    return false;
+  };
+
+  // Guarda los ajustes de comportamiento y refresca la config en memoria.
+  const guardarComportamiento = async (cambios) => {
+    if (!configServidor) return;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/comportamiento`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando comportamiento:', error); }
+    return false;
+  };
 
   const cargarTickets = () => apiFetch(`/api/tickets`).then(procesarRespuesta).then((datos) => { setTicketsReales(datos); setErrorConexion(''); }).catch(reportarError('cargando tickets'));
   const cargarUsuariosStats = () => apiFetch(`/api/usuarios/stats`).then(procesarRespuesta).then((datos) => { setUsuariosStats(datos); setErrorConexion(''); }).catch(reportarError('cargando usuarios'));
@@ -147,6 +186,11 @@ export function useDashboard() {
         setConfigServidor(datos[0]); setMotivos(datos[0].motivos || []);
         setUrgencias(datos[0].urgencias || [{ nombre: 'Urgente', color: '#e74c3c', nivel: 4 }, { nombre: 'Alta', color: '#e67e22', nivel: 3 }, { nombre: 'Normal', color: '#3498db', nivel: 2 }, { nombre: 'Baja', color: '#95a5a6', nivel: 1 }]);
         setTituloMensaje(datos[0].mensajeSoporteTitulo || '🎫 Soporte Técnico Activo'); setDescripcionMensaje(datos[0].mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.'); setFooterMensaje(datos[0].footerPersonalizado || 'Sistema de Gestión Sokyo');
+        setColorEmbed(datos[0].colorEmbed || '#5865F2');
+        setTextoBoton(datos[0].textoBoton || '📩 Abrir Ticket');
+        setMensajeBienvenida(datos[0].mensajeBienvenida || 'Un miembro del equipo lo revisará en breve.');
+        setPrefijo(datos[0].prefijo || '!');
+        setCategoriaArchivados(datos[0].categoriaArchivados || '🗄️ Tickets Archivados');
       }
     }).catch(reportarError('cargando configuración'));
   };
@@ -166,8 +210,14 @@ export function useDashboard() {
 
   const guardarTextosConfig = async () => {
     if (!configServidor) return;
-    const res = await apiFetch(`/api/config/${configServidor.guildId}/textos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: tituloMensaje, descripcion: descripcionMensaje, footer: footerMensaje }) });
-    if (res.ok) alert('✅ Textos actualizados!');
+    const res = await apiFetch(`/api/config/${configServidor.guildId}/textos`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titulo: tituloMensaje, descripcion: descripcionMensaje, footer: footerMensaje,
+        colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados,
+      }),
+    });
+    if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(data.config); alert('✅ Personalización actualizada!'); }
   };
 
   const getTicketsOrdenados = () => [...ticketsReales].sort((a, b) => (urgencias.find((u) => u.nombre === b.prioridad)?.nivel || 0) - (urgencias.find((u) => u.nombre === a.prioridad)?.nivel || 0));
@@ -211,6 +261,8 @@ export function useDashboard() {
   useEffect(() => {
     if (activeTab === 'inicio') { cargarUso(); cargarTickets(); cargarLogs(); cargarUsuariosStats(); }
     else if (activeTab === 'tickets-gestion') cargarTickets();
+    else if (activeTab === 'config-comportamiento') { cargarConfiguracion(); cargarRoles(); }
+    else if (activeTab === 'config-reglas') { cargarConfiguracion(); cargarRoles(); cargarCategorias(); }
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
     else if (activeTab.startsWith('logs-')) cargarLogs();
@@ -237,12 +289,18 @@ export function useDashboard() {
     query, setQuery,
     // uso de memoria / servidor
     usoStats, servidorInfo,
+    // comportamiento (Fase 1)
+    roles, guardarComportamiento,
+    // reglas (Fase 3)
+    categorias, guardarReglas,
     // tickets
     ticketsReales, ticketSeleccionado, setTicketSeleccionado,
     // chat / notas
     mensajes, nuevoMensaje, setNuevoMensaje, nuevaNota, setNuevaNota,
     // config textos
     configServidor, tituloMensaje, setTituloMensaje, descripcionMensaje, setDescripcionMensaje, footerMensaje, setFooterMensaje,
+    // personalización (Fase 2)
+    colorEmbed, setColorEmbed, textoBoton, setTextoBoton, mensajeBienvenida, setMensajeBienvenida, prefijo, setPrefijo, categoriaArchivados, setCategoriaArchivados,
     // incidencias
     motivos, nuevoMotivo, setNuevoMotivo, nuevaUrgencia, setNuevaUrgencia,
     urgencias, nuevaUrgNombre, setNuevaUrgNombre, nuevaUrgColor, setNuevaUrgColor, nuevaUrgNivel, setNuevaUrgNivel,
