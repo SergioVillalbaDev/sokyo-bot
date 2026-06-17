@@ -14,14 +14,15 @@ import UsersView from './views/UsersView';
 import TextsView from './views/TextsView';
 import ComportamientoView from './views/ComportamientoView';
 import RulesView from './views/RulesView';
+import MacrosView from './views/MacrosView';
 import IncidentsView from './views/IncidentsView';
 import LogsView from './views/LogsView';
 import ModulesView from './views/ModulesView';
 
-export default function Dashboard({ onExitToLanding }) {
+export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
   const dash = useDashboard();
-  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium } = dash;
+  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId } = dash;
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sokyoSidebarCollapsed') === '1');
   const toggleCollapsed = (value) => {
@@ -44,6 +45,7 @@ export default function Dashboard({ onExitToLanding }) {
     if (activeTab === 'config-textos') return <TextsView dash={dash} />;
     if (activeTab === 'config-comportamiento') return <ComportamientoView dash={dash} />;
     if (activeTab === 'config-reglas') return <RulesView dash={dash} />;
+    if (activeTab === 'config-macros') return <MacrosView dash={dash} />;
     if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
     return <InicioView dash={dash} />;
@@ -61,6 +63,10 @@ export default function Dashboard({ onExitToLanding }) {
         onExitToLanding={onExitToLanding}
         servidorInfo={servidorInfo}
         esPremium={esPremium}
+        servidores={servidores}
+        guildId={guildId}
+        setGuildId={setGuildId}
+        onLogout={onLogout}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

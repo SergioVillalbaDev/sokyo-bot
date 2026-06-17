@@ -1,8 +1,10 @@
 // Vista de gestión de tickets — grid avanzado de tarjetas tipo Kanban.
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox } from 'lucide-react';
 import { Avatar, Badge, Stars, Card } from '../../ui/primitives';
+import { cn } from '../../../lib/cn';
 
 export default function TicketsView({ dash }) {
   const { t } = useTranslation();
@@ -11,26 +13,53 @@ export default function TicketsView({ dash }) {
     handleCerrarTicket, handleReabrirTicket, handleOcultarTicket, query,
   } = dash;
 
+  const [tagFiltro, setTagFiltro] = useState(null);
+
   const q = (query || '').trim().toLowerCase();
-  const tickets = getTicketsOrdenados().filter((t) =>
+  const ordenados = getTicketsOrdenados().filter((t) =>
     !q ||
     (t.titulo || '').toLowerCase().includes(q) ||
     (t.motivo || '').toLowerCase().includes(q) ||
     (t.creadorNombre || '').toLowerCase().includes(q)
   );
 
-  if (tickets.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line py-24 text-center">
-        <Inbox size={48} className="text-muted/50" />
-        <p className="mt-4 text-lg font-semibold text-fg">{t('dashboard.tickets_v.empty')}</p>
-        <p className="mt-1 text-sm text-muted">{t('dashboard.tickets_v.emptyDesc')}</p>
-      </div>
-    );
-  }
+  // Todas las etiquetas existentes (para la barra de filtro)
+  const allTags = [...new Set(ordenados.flatMap((tk) => tk.etiquetas || []))];
+  const tickets = tagFiltro ? ordenados.filter((tk) => (tk.etiquetas || []).includes(tagFiltro)) : ordenados;
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="flex flex-col gap-5">
+      {/* Barra de filtro por etiqueta */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setTagFiltro(null)}
+            className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+              !tagFiltro ? 'bg-gradient-brand text-on-brand' : 'border border-line bg-card text-muted hover:text-fg')}
+          >
+            <Tag size={12} /> {t('dashboard.tickets_v.allTags')}
+          </button>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setTagFiltro(tag)}
+              className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                tagFiltro === tag ? 'bg-gradient-brand text-on-brand' : 'border border-line bg-card text-muted hover:text-fg')}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tickets.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line py-24 text-center">
+          <Inbox size={48} className="text-muted/50" />
+          <p className="mt-4 text-lg font-semibold text-fg">{t('dashboard.tickets_v.empty')}</p>
+          <p className="mt-1 text-sm text-muted">{t('dashboard.tickets_v.emptyDesc')}</p>
+        </div>
+      ) : (
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
       {tickets.map((ticket, index) => {
         const color = getColorUrgencia(ticket.prioridad);
         const cerrado = ticket.estado === 'Cerrado';
@@ -70,6 +99,16 @@ export default function TicketsView({ dash }) {
                   ? <span className="font-semibold text-brand">{ticket.asignadoNombre}</span>
                   : <span className="italic opacity-70">{t('dashboard.tickets_v.unclaimed')}</span>}
               </div>
+
+              {ticket.etiquetas && ticket.etiquetas.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {ticket.etiquetas.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-semibold text-brand">
+                      <Tag size={10} /> {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {ticket.descripcion && (
                 <p
@@ -123,6 +162,8 @@ export default function TicketsView({ dash }) {
           </motion.div>
         );
       })}
+      </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,7 @@ const ticketSchema = new mongoose.Schema({
     fechaCierre: { type: Date, default: null },
     ultimaInteractStaff: { type: Date, default: null },
     notasInternas: { type: Array, default: [] },
+    etiquetas: { type: [String], default: [] },
     visibleWeb: { type: Boolean, default: true },
     valoracionCSAT: { type: Number, default: null } 
 });

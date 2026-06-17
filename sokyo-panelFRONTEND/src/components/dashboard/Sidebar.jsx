@@ -6,10 +6,18 @@ import { ChevronDown, ChevronLeft, ChevronRight, Home, LayoutDashboard, LogOut, 
 import { navGroups } from './navConfig';
 import { Avatar } from '../ui/primitives';
 import { cn } from '../../lib/cn';
+import { getStaffSession } from '../../lib/api';
 
-export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, onExitToLanding, servidorInfo, esPremium }) {
+const esOwner = !!getStaffSession()?.owner;
+
+export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, onExitToLanding, servidorInfo, esPremium, servidores = [], guildId, setGuildId, onLogout }) {
   const { t } = useTranslation();
   const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
+
+  // Servidor seleccionado (de la lista) con fallback a la info del endpoint de uso.
+  const seleccionado = servidores.find((s) => s.id === guildId);
+  const nombreServidor = seleccionado?.nombre || servidorInfo?.nombre || 'Mi Servidor';
+  const iconoServidor = seleccionado?.icono || servidorInfo?.icono;
 
   const toggleGroup = (id) => {
     if (collapsed) { setCollapsed(false); setOpenGroups((g) => ({ ...g, [id]: true })); return; }
@@ -47,15 +55,27 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
-      {/* Tarjeta del SERVIDOR (sustituye a la foto de perfil) */}
+      {/* Tarjeta + SELECTOR del SERVIDOR */}
       <div className={cn('mt-4 flex items-center gap-3 rounded-2xl border border-line bg-card p-3 shadow-soft', collapsed && 'justify-center px-0')}>
-        <Avatar src={servidorInfo?.icono} name={servidorInfo?.nombre || 'Servidor'} size={collapsed ? 36 : 42} />
+        <Avatar src={iconoServidor} name={nombreServidor} size={collapsed ? 36 : 42} />
         <AnimatePresence>
           {!collapsed && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
-              <p className="truncate text-sm font-bold text-fg">{servidorInfo?.nombre || 'Mi Servidor'}</p>
-              <p className="flex items-center gap-1 text-xs text-muted">
-                {esPremium ? <><Crown size={11} className="text-amber-400" /> {t('dashboard.plan.premium')}</> : t('dashboard.plan.free')}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0 flex-1">
+              {servidores.length > 1 ? (
+                <select
+                  value={guildId || ''}
+                  onChange={(e) => setGuildId(e.target.value)}
+                  className="w-full truncate rounded-md border border-line bg-bg px-1.5 py-1 text-sm font-bold text-fg outline-none focus:ring-2 focus:ring-brand/40"
+                >
+                  {servidores.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                </select>
+              ) : (
+                <p className="truncate text-sm font-bold text-fg">{nombreServidor}</p>
+              )}
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+                {esOwner
+                  ? <span className="flex items-center gap-1 font-bold text-amber-400"><Crown size={11} /> {t('dashboard.plan.owner')}</span>
+                  : esPremium ? <><Crown size={11} className="text-amber-400" /> {t('dashboard.plan.premium')}</> : t('dashboard.plan.free')}
               </p>
             </motion.div>
           )}
@@ -138,8 +158,23 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         )}
         title={collapsed ? t('dashboard.back') : undefined}
       >
-        {collapsed ? <LogOut size={18} className="shrink-0" /> : <><Home size={18} className="shrink-0" /> <span>{t('dashboard.back')}</span></>}
+        {collapsed ? <Home size={18} className="shrink-0" /> : <><Home size={18} className="shrink-0" /> <span>{t('dashboard.back')}</span></>}
       </button>
+
+      {/* Cerrar sesión (solo si hay sesión de staff) */}
+      {onLogout && (
+        <button
+          onClick={onLogout}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10',
+            collapsed && 'justify-center'
+          )}
+          title={collapsed ? t('dashboard.auth.logout') : undefined}
+        >
+          <LogOut size={18} className="shrink-0" />
+          {!collapsed && <span>{t('dashboard.auth.logout')}</span>}
+        </button>
+      )}
     </motion.aside>
   );
 }

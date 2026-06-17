@@ -38,6 +38,14 @@ const ServidorConfigSchema = new mongoose.Schema({
     categoriaTicketsId: { type: String, default: null },      // categoría de Discord donde se crean los tickets
     maxTicketsAbiertos: { type: Number, default: 0 },         // máx. tickets abiertos por usuario (0 = sin límite)
     autoCierreDias: { type: Number, default: 0 },             // cierre automático por inactividad (0 = desactivado)
+    autoAsignar: { type: Boolean, default: false },           // repartir tickets nuevos entre el rol de soporte (round-robin)
+    autoAsignarIndex: { type: Number, default: 0 },           // puntero interno del round-robin
+
+    // --- PRODUCTIVIDAD DEL STAFF ---
+    respuestasRapidas: {                                      // macros: plantillas de respuesta reutilizables
+        type: [{ titulo: String, contenido: String }],
+        default: [],
+    },
 
     // --- AJUSTES DE COMPORTAMIENTO (Fase 1) ---
     // Todos los defaults reproducen el comportamiento que tenía el bot antes.

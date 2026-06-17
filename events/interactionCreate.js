@@ -260,6 +260,30 @@ module.exports = {
                     }).catch(() => {});
                 }
 
+                // Asignación automática (round-robin) entre los miembros del rol de soporte.
+                if (config && config.autoAsignar && config.rolStaffId) {
+                    try {
+                        const miembros = await interaction.guild.members.fetch();
+                        const agentes = [...miembros.values()].filter(m => !m.user.bot && m.roles.cache.has(config.rolStaffId));
+                        if (agentes.length > 0) {
+                            const idx = (config.autoAsignarIndex || 0) % agentes.length;
+                            const agente = agentes[idx];
+                            await ServidorConfig.updateOne({ guildId: interaction.guildId }, { $set: { autoAsignarIndex: idx + 1 } });
+
+                            const avatarAgente = agente.user.displayAvatarURL({ extension: 'png', size: 128 });
+                            nuevoTicket.asignadoA = agente.id;
+                            nuevoTicket.asignadoNombre = agente.user.username;
+                            nuevoTicket.ultimaInteractStaff = new Date();
+                            if (!nuevoTicket.participantes.some(p => p.id === agente.id)) {
+                                nuevoTicket.participantes.push({ id: agente.id, username: agente.user.username, avatar: avatarAgente, rol: 'Staff' });
+                            }
+                            await nuevoTicket.save();
+                            await registrarLogTicket(nuevoTicket, '🤖 Asignado automáticamente', '#3498db', agente.user.username);
+                            await canalTicket.send({ content: `🙋 Asignado automáticamente a <@${agente.id}>.`, allowedMentions: { users: [agente.id] } }).catch(() => {});
+                        }
+                    } catch (e) { console.error('Error en auto-asignación:', e); }
+                }
+
                 await interaction.editReply({ content: `✅ Tu ticket ha sido creado exitosamente: <#${canalTicket.id}>` });
                 setTimeout(() => interaction.deleteReply().catch(console.error), 5000);
 

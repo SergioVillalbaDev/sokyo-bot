@@ -18,6 +18,13 @@ export function useDashboard() {
   });
   const [activeTab, setActiveTab] = useState('inicio');
 
+  // Servidor (guild) seleccionado en el panel + lista de servidores del bot.
+  const [guildId, setGuildIdState] = useState(() => localStorage.getItem('sokyoGuild') || '');
+  const [servidores, setServidores] = useState([]);
+  const setGuildId = (id) => { setGuildIdState(id); localStorage.setItem('sokyoGuild', id || ''); };
+  // Sufijo de query con el servidor activo (para filtrar las llamadas a la API).
+  const gp = () => (guildId ? `?guildId=${guildId}` : '');
+
   // Texto del buscador del header (filtra la rejilla de tickets)
   const [query, setQuery] = useState('');
 
@@ -81,15 +88,42 @@ export function useDashboard() {
     setErrorConexion(`No se pudo conectar con la API en ${API_URL} — ${err.message}`);
   };
 
-  const cargarUso = () => apiFetch(`/api/stats/uso`).then(procesarRespuesta).then((datos) => {
+  const cargarUso = () => apiFetch(`/api/stats/uso${gp()}`).then(procesarRespuesta).then((datos) => {
     setUsoStats(datos);
     if (datos.servidor) setServidorInfo(datos.servidor);
     if (typeof datos.esPremium === 'boolean') setEsPremium(datos.esPremium);
     setErrorConexion('');
   }).catch(reportarError('cargando uso'));
 
-  const cargarRoles = () => apiFetch(`/api/servidor/roles`).then(procesarRespuesta).then((datos) => setRoles(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando roles'));
-  const cargarCategorias = () => apiFetch(`/api/servidor/categorias`).then(procesarRespuesta).then((datos) => setCategorias(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando categorías'));
+  const cargarRoles = () => apiFetch(`/api/servidor/roles${gp()}`).then(procesarRespuesta).then((datos) => setRoles(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando roles'));
+  const cargarCategorias = () => apiFetch(`/api/servidor/categorias${gp()}`).then(procesarRespuesta).then((datos) => setCategorias(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando categorías'));
+
+  // Guarda las etiquetas de un ticket y refresca la lista + el ticket abierto.
+  const guardarEtiquetas = async (canalId, etiquetas) => {
+    try {
+      const res = await apiFetch(`/api/tickets/${canalId}/etiquetas`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ etiquetas }),
+      });
+      const data = await res.json();
+      if (data.success && data.ticket) {
+        setTicketsReales(ticketsReales.map((t) => t.canalId === canalId ? data.ticket : t));
+        if (ticketSeleccionado?.canalId === canalId) setTicketSeleccionado(data.ticket);
+      }
+    } catch (error) { console.error('Error guardando etiquetas:', error); }
+  };
+
+  // Guarda las respuestas rápidas (macros) y refresca la config.
+  const guardarMacros = async (respuestasRapidas) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/macros`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ respuestasRapidas }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando macros:', error); }
+    return false;
+  };
 
   // Guarda reglas (rol staff, categoría, límite, auto-cierre) y refresca la config.
   const guardarReglas = async (cambios) => {
@@ -117,11 +151,12 @@ export function useDashboard() {
     return false;
   };
 
-  const cargarTickets = () => apiFetch(`/api/tickets`).then(procesarRespuesta).then((datos) => { setTicketsReales(datos); setErrorConexion(''); }).catch(reportarError('cargando tickets'));
-  const cargarUsuariosStats = () => apiFetch(`/api/usuarios/stats`).then(procesarRespuesta).then((datos) => { setUsuariosStats(datos); setErrorConexion(''); }).catch(reportarError('cargando usuarios'));
+  const cargarServidores = () => apiFetch(`/api/guilds`).then(procesarRespuesta).then((datos) => setServidores(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando servidores'));
+  const cargarTickets = () => apiFetch(`/api/tickets${gp()}`).then(procesarRespuesta).then((datos) => { setTicketsReales(datos); setErrorConexion(''); }).catch(reportarError('cargando tickets'));
+  const cargarUsuariosStats = () => apiFetch(`/api/usuarios/stats${gp()}`).then(procesarRespuesta).then((datos) => { setUsuariosStats(datos); setErrorConexion(''); }).catch(reportarError('cargando usuarios'));
 
   const cargarLogs = () => {
-    apiFetch(`/api/logs`)
+    apiFetch(`/api/logs${gp()}`)
       .then(procesarRespuesta)
       .then((datos) => {
         setLogsRegistrados(datos.logs || []);
@@ -180,7 +215,7 @@ export function useDashboard() {
   };
 
   const cargarConfiguracion = () => {
-    apiFetch(`/api/servidores`).then(procesarRespuesta).then((datos) => {
+    apiFetch(`/api/servidores${gp()}`).then(procesarRespuesta).then((datos) => {
       setErrorConexion('');
       if (datos && datos.length > 0) {
         setConfigServidor(datos[0]); setMotivos(datos[0].motivos || []);
@@ -248,7 +283,14 @@ export function useDashboard() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Carga la lista de servidores del bot una vez al montar.
+  useEffect(() => {
+    cargarServidores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Si el tema guardado es premium y el plan deja de serlo, vuelve a 'lima'.
+  // Si aún no hay servidor elegido, selecciona el primero disponible.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isPremiumTheme(theme) && !esPremium) {
@@ -256,18 +298,23 @@ export function useDashboard() {
       localStorage.setItem('sokyoTheme', 'lima');
     }
   }, [esPremium, theme]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (activeTab === 'inicio') { cargarUso(); cargarTickets(); cargarLogs(); cargarUsuariosStats(); }
-    else if (activeTab === 'tickets-gestion') cargarTickets();
+    if (!guildId && servidores.length > 0) setGuildId(servidores[0].id);
+  }, [servidores, guildId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Recarga los datos de la pestaña activa (también al cambiar de servidor).
+  useEffect(() => {
+    if (activeTab === 'inicio') { cargarUso(); cargarTickets(); cargarLogs(); cargarUsuariosStats(); cargarConfiguracion(); }
+    else if (activeTab === 'tickets-gestion') { cargarTickets(); cargarConfiguracion(); }
     else if (activeTab === 'config-comportamiento') { cargarConfiguracion(); cargarRoles(); }
     else if (activeTab === 'config-reglas') { cargarConfiguracion(); cargarRoles(); cargarCategorias(); }
-    else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos') cargarConfiguracion();
+    else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
     else if (activeTab.startsWith('logs-')) cargarLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, guildId]);
 
   useEffect(() => {
     let intervalo;
@@ -285,6 +332,8 @@ export function useDashboard() {
   return {
     // estado tema / navegación
     theme, setTheme, activeTab, setActiveTab,
+    // multi-servidor
+    guildId, setGuildId, servidores,
     // buscador
     query, setQuery,
     // uso de memoria / servidor
@@ -293,6 +342,8 @@ export function useDashboard() {
     roles, guardarComportamiento,
     // reglas (Fase 3)
     categorias, guardarReglas,
+    // productividad: macros + etiquetas
+    guardarMacros, guardarEtiquetas,
     // tickets
     ticketsReales, ticketSeleccionado, setTicketSeleccionado,
     // chat / notas

@@ -3,7 +3,7 @@
 // y dashboard.meta.<key>. Cada `tab` coincide con los valores de activeTab.
 import {
   Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
-  Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck,
+  Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap,
 } from 'lucide-react';
 
 export const navGroups = [
@@ -34,6 +34,7 @@ export const navGroups = [
     items: [
       { tab: 'config-comportamiento', icon: SlidersVertical },
       { tab: 'config-reglas', icon: ShieldCheck },
+      { tab: 'config-macros', icon: Zap },
       { tab: 'config-textos', icon: Type },
       { tab: 'config', icon: Plug },
     ],

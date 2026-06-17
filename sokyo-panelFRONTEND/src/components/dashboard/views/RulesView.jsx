@@ -1,8 +1,8 @@
 // Vista de Reglas y control (Fase 3) — rol de staff, categoría, límites y auto-cierre.
 // Selectores: guardado automático. Campos numéricos: se guardan al salir (blur).
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, FolderTree, Hash, Clock, Info } from 'lucide-react';
-import { Card } from '../../ui/primitives';
+import { ShieldCheck, FolderTree, Hash, Clock, Info, UserCheck } from 'lucide-react';
+import { Card, Toggle } from '../../ui/primitives';
 
 export default function RulesView({ dash }) {
   const { t } = useTranslation();
@@ -107,6 +107,23 @@ export default function RulesView({ dash }) {
             />
             <span className="text-sm text-muted">{r('days')}</span>
           </div>
+        </div>
+      </Card>
+
+      {/* Asignación automática (round-robin) */}
+      <Card className="p-6 shadow-soft">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-brand"><UserCheck size={18} /></span>
+            <div>
+              <p className="text-sm font-semibold text-fg">{r('autoAssign')}</p>
+              <p className="text-xs text-muted">{r('autoAssignDesc')}</p>
+            </div>
+          </div>
+          <Toggle
+            checked={!!c.autoAsignar}
+            onChange={(v) => guardarReglas({ autoAsignar: v })}
+          />
         </div>
       </Card>
     </div>
