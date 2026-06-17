@@ -62,6 +62,14 @@ const ServidorConfigSchema = new mongoose.Schema({
         tickets: { type: Boolean, default: true },
     },
 
+    // --- SISTEMA DE ROLES: autorol al entrar ---
+    autoRoles: { type: [String], default: [] },       // roles que se asignan a una PERSONA al entrar
+    autoRolesBots: { type: [String], default: [] },   // roles que se asignan a un BOT al entrar
+
+    // --- MODERACIÓN ---
+    canalModLogId: { type: String, default: null },   // canal donde se registran las sanciones
+    dmSancion: { type: Boolean, default: true },       // avisar por MD al usuario sancionado
+
     esPremium: { type: Boolean, default: false },
     premiumHasta: { type: Date, default: null }
 });

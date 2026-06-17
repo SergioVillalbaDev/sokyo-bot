@@ -66,11 +66,25 @@ export function useDashboard() {
 
   // Uso de memoria del plan + datos del servidor de Discord (vista Inicio)
   const [usoStats, setUsoStats] = useState(null);
+  const [ping, setPing] = useState(null);
   const [servidorInfo, setServidorInfo] = useState({ nombre: 'Mi Servidor', icono: null });
 
   // Roles y categorías del servidor (para los selectores de Comportamiento/Reglas)
   const [roles, setRoles] = useState([]);
   const [categorias, setCategorias] = useState([]);
+
+  // Gestión de roles (panel mejorado): lista detallada + catálogo de permisos.
+  const [rolesDetalle, setRolesDetalle] = useState([]);
+  const [permisosCatalogo, setPermisosCatalogo] = useState([]);
+  // Paneles de autoasignación de roles + canales y emojis del servidor.
+  const [paneles, setPaneles] = useState([]);
+  const [canales, setCanales] = useState([]);
+  const [emojisServidor, setEmojisServidor] = useState([]);
+
+  // Moderación (Centro de Mando).
+  const [tiposSancion, setTiposSancion] = useState([]);
+  const [sanciones, setSanciones] = useState([]);
+  const [statsSancion, setStatsSancion] = useState(null);
 
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
@@ -95,8 +109,254 @@ export function useDashboard() {
     setErrorConexion('');
   }).catch(reportarError('cargando uso'));
 
+  const cargarPing = () => apiFetch('/api/ping')
+  .then(procesarRespuesta)
+  .then((datos) => setPing(datos.ping))
+  .catch(() => setPing(null));
+ 
   const cargarRoles = () => apiFetch(`/api/servidor/roles${gp()}`).then(procesarRespuesta).then((datos) => setRoles(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando roles'));
   const cargarCategorias = () => apiFetch(`/api/servidor/categorias${gp()}`).then(procesarRespuesta).then((datos) => setCategorias(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando categorías'));
+
+  // --- Gestión de roles (panel mejorado) ---
+  const cargarRolesDetalle = () => apiFetch(`/api/roles${gp()}`).then(procesarRespuesta).then((datos) => { setRolesDetalle(Array.isArray(datos) ? datos : []); setErrorConexion(''); }).catch(reportarError('cargando roles'));
+  const cargarPermisosCatalogo = () => apiFetch('/api/roles/catalogo').then(procesarRespuesta).then((datos) => setPermisosCatalogo(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando catálogo de permisos'));
+
+  // Crea un rol y refresca la lista. Devuelve true/false según el resultado.
+  const crearRol = async ({ nombre, color, permisos }) => {
+    try {
+      const res = await apiFetch('/api/roles', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId, nombre, color, permisos }),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarRolesDetalle(); return true; }
+    } catch (error) { console.error('Error creando rol:', error); }
+    return false;
+  };
+
+  // Edita un rol existente (nombre / color / permisos) y refresca la lista.
+  const editarRol = async (roleId, { nombre, color, permisos }) => {
+    try {
+      const res = await apiFetch(`/api/roles/${roleId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId, nombre, color, permisos }),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarRolesDetalle(); return true; }
+    } catch (error) { console.error('Error editando rol:', error); }
+    return false;
+  };
+
+  // Elimina un rol (con confirmación previa) y refresca la lista.
+  const eliminarRol = async (roleId) => {
+    try {
+      const res = await apiFetch(`/api/roles/${roleId}${gp()}`, { method: 'DELETE' });
+      if (res.ok) { await cargarRolesDetalle(); return true; }
+    } catch (error) { console.error('Error eliminando rol:', error); }
+    return false;
+  };
+
+  // Miembros que tienen un rol concreto (para el desplegable). Devuelve un array.
+  const listarMiembrosRol = async (roleId) => {
+    try {
+      const res = await apiFetch(`/api/roles/${roleId}/miembros${gp()}`);
+      const datos = await res.json();
+      return Array.isArray(datos) ? datos : [];
+    } catch (error) { console.error('Error listando miembros del rol:', error); return []; }
+  };
+
+  // Busca miembros del servidor por nombre (para elegir a quién asignar). Devuelve un array.
+  const buscarMiembros = async (q) => {
+    try {
+      const sep = gp() ? '&' : '?';
+      const res = await apiFetch(`/api/servidor/miembros${gp()}${sep}q=${encodeURIComponent(q || '')}`);
+      const datos = await res.json();
+      return Array.isArray(datos) ? datos : [];
+    } catch (error) { console.error('Error buscando miembros:', error); return []; }
+  };
+
+  // Asigna un rol a un miembro y refresca los contadores de la lista.
+  const asignarRolMiembro = async (roleId, userId) => {
+    try {
+      const res = await apiFetch(`/api/roles/${roleId}/miembros`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId, userId }),
+      });
+      if (res.ok) { await cargarRolesDetalle(); return true; }
+    } catch (error) { console.error('Error asignando rol:', error); }
+    return false;
+  };
+
+  // Quita un rol a un miembro y refresca los contadores de la lista.
+  const quitarRolMiembro = async (roleId, userId) => {
+    try {
+      const res = await apiFetch(`/api/roles/${roleId}/miembros/${userId}${gp()}`, { method: 'DELETE' });
+      if (res.ok) { await cargarRolesDetalle(); return true; }
+    } catch (error) { console.error('Error quitando rol:', error); }
+    return false;
+  };
+
+  // Guarda el autorol al entrar (personas + bots) y refresca la config.
+  const guardarAutoRoles = async ({ autoRoles, autoRolesBots }) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/autoroles`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoRoles, autoRolesBots }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando autoroles:', error); }
+    return false;
+  };
+
+  // --- Paneles de autoasignación de roles ---
+  const cargarPaneles = () => apiFetch(`/api/paneles${gp()}`).then(procesarRespuesta).then((datos) => setPaneles(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando paneles'));
+  const cargarCanales = () => apiFetch(`/api/servidor/canales${gp()}`).then(procesarRespuesta).then((datos) => setCanales(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando canales'));
+  const cargarEmojisServidor = () => apiFetch(`/api/servidor/emojis${gp()}`).then(procesarRespuesta).then((datos) => setEmojisServidor(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando emojis'));
+
+  // Crea un panel (el backend lo publica si trae canal). Refresca la lista.
+  const crearPanel = async (datos) => {
+    try {
+      const res = await apiFetch('/api/paneles', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId, ...datos }),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarPaneles(); return data; }
+    } catch (error) { console.error('Error creando panel:', error); }
+    return null;
+  };
+
+  // Edita un panel existente y lo republica. Refresca la lista.
+  const editarPanel = async (id, datos) => {
+    try {
+      const res = await apiFetch(`/api/paneles/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarPaneles(); return data; }
+    } catch (error) { console.error('Error editando panel:', error); }
+    return null;
+  };
+
+  // Publica / republica un panel (opcionalmente con un canal nuevo).
+  const publicarPanel = async (id, channelId) => {
+    try {
+      const res = await apiFetch(`/api/paneles/${id}/publicar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelId }),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarPaneles(); return true; }
+      return data;
+    } catch (error) { console.error('Error publicando panel:', error); }
+    return null;
+  };
+
+  // Sube una imagen/gif (dataURL base64) para un panel. Devuelve { archivo, url } o { error }.
+  const subirImagenPanel = async (dataUrl) => {
+    try {
+      const res = await apiFetch('/api/paneles/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datos: dataUrl }),
+      });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'Fallo al subir' };
+    } catch (error) { console.error('Error subiendo imagen:', error); return { error: 'Fallo al subir' }; }
+  };
+
+  // Elimina un panel (y su mensaje publicado). Refresca la lista.
+  const eliminarPanel = async (id) => {
+    try {
+      const res = await apiFetch(`/api/paneles/${id}`, { method: 'DELETE' });
+      if (res.ok) { await cargarPaneles(); return true; }
+    } catch (error) { console.error('Error eliminando panel:', error); }
+    return false;
+  };
+
+  // --- MODERACIÓN (Centro de Mando) ---
+  const cargarTiposSancion = () => apiFetch(`/api/sanciones/tipos${gp()}`).then(procesarRespuesta).then((datos) => setTiposSancion(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando tipos de sanción'));
+  const cargarSanciones = () => apiFetch(`/api/sanciones${gp()}`).then(procesarRespuesta).then((datos) => setSanciones(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando registro'));
+  const cargarStatsSancion = () => apiFetch(`/api/sanciones/stats${gp()}`).then(procesarRespuesta).then((datos) => setStatsSancion(datos)).catch(reportarError('cargando estadísticas'));
+
+  // CRUD de tipos de sanción.
+  const crearTipoSancion = async (datos) => {
+    try {
+      const res = await apiFetch('/api/sanciones/tipos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...datos }) });
+      const data = await res.json();
+      if (data.success) { await cargarTiposSancion(); return true; }
+    } catch (error) { console.error('Error creando tipo de sanción:', error); }
+    return false;
+  };
+  const editarTipoSancion = async (id, datos) => {
+    try {
+      const res = await apiFetch(`/api/sanciones/tipos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const data = await res.json();
+      if (data.success) { await cargarTiposSancion(); return true; }
+    } catch (error) { console.error('Error editando tipo de sanción:', error); }
+    return false;
+  };
+  const eliminarTipoSancion = async (id) => {
+    try {
+      const res = await apiFetch(`/api/sanciones/tipos/${id}`, { method: 'DELETE' });
+      if (res.ok) { await cargarTiposSancion(); return true; }
+    } catch (error) { console.error('Error eliminando tipo de sanción:', error); }
+    return false;
+  };
+
+  // Ficha de un miembro (para el Centro de Mando). Devuelve el objeto o null.
+  const cargarMiembro = async (userId) => {
+    try {
+      const res = await apiFetch(`/api/servidor/miembro/${userId}${gp()}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) { console.error('Error cargando miembro:', error); return null; }
+  };
+
+  // Aplica una sanción a un usuario (por tipoId guardado o por acción rápida).
+  // Devuelve { success, sancion } o { error }.
+  const aplicarSancion = async (payload) => {
+    try {
+      const res = await apiFetch('/api/sanciones/aplicar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { cargarStatsSancion(); return data; }
+      return { error: data.error || 'No se pudo aplicar' };
+    } catch (error) { console.error('Error aplicando sanción:', error); return { error: 'Fallo de conexión' }; }
+  };
+
+  // Revoca una sanción (desbanea / quita aislamiento).
+  const revocarSancion = async (id) => {
+    try {
+      const res = await apiFetch(`/api/sanciones/${id}/revocar`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) { await cargarSanciones(); cargarStatsSancion(); return true; }
+    } catch (error) { console.error('Error revocando sanción:', error); }
+    return false;
+  };
+
+  // Guarda los ajustes de moderación (canal de registro + aviso por MD) y refresca la config.
+  const guardarModLog = async (cambios) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/modlog`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando ajustes de moderación:', error); }
+    return false;
+  };
+
+  // Sube una imagen de prueba (dataURL). Devuelve { archivo, url } o { error }.
+  const subirPrueba = async (dataUrl) => {
+    try {
+      const res = await apiFetch('/api/sanciones/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datos: dataUrl }) });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'Fallo al subir' };
+    } catch (error) { console.error('Error subiendo prueba:', error); return { error: 'Fallo al subir' }; }
+  };
 
   // Guarda las etiquetas de un ticket y refresca la lista + el ticket abierto.
   const guardarEtiquetas = async (canalId, etiquetas) => {
@@ -306,10 +566,16 @@ export function useDashboard() {
 
   // Recarga los datos de la pestaña activa (también al cambiar de servidor).
   useEffect(() => {
-    if (activeTab === 'inicio') { cargarUso(); cargarTickets(); cargarLogs(); cargarUsuariosStats(); cargarConfiguracion(); }
+    if (activeTab === 'inicio') { cargarUso(); cargarTickets(); cargarLogs(); cargarUsuariosStats(); cargarConfiguracion(); cargarPing(); }
     else if (activeTab === 'tickets-gestion') { cargarTickets(); cargarConfiguracion(); }
     else if (activeTab === 'config-comportamiento') { cargarConfiguracion(); cargarRoles(); }
     else if (activeTab === 'config-reglas') { cargarConfiguracion(); cargarRoles(); cargarCategorias(); }
+    else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); }
+    else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
+    else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
+    else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
+    else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
+    else if (activeTab === 'mod-registro') { cargarSanciones(); cargarTiposSancion(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
     else if (activeTab.startsWith('logs-')) cargarLogs();
@@ -342,6 +608,17 @@ export function useDashboard() {
     roles, guardarComportamiento,
     // reglas (Fase 3)
     categorias, guardarReglas,
+    // gestión de roles (panel mejorado)
+    rolesDetalle, permisosCatalogo, crearRol, editarRol, eliminarRol,
+    listarMiembrosRol, buscarMiembros, asignarRolMiembro, quitarRolMiembro,
+    // sistema de roles: autorol + paneles
+    guardarAutoRoles,
+    paneles, canales, emojisServidor, crearPanel, editarPanel, publicarPanel, eliminarPanel, subirImagenPanel,
+    // moderación (Centro de Mando)
+    tiposSancion, sanciones, statsSancion,
+    cargarTiposSancion, cargarSanciones, cargarStatsSancion,
+    crearTipoSancion, editarTipoSancion, eliminarTipoSancion,
+    cargarMiembro, aplicarSancion, revocarSancion, subirPrueba, guardarModLog,
     // productividad: macros + etiquetas
     guardarMacros, guardarEtiquetas,
     // tickets
@@ -360,7 +637,7 @@ export function useDashboard() {
     // logs
     logsRegistrados, limiteLogs, esPremium,
     // errores
-    errorConexion,
+    errorConexion, ping,
     // acciones
     verMensajes, cerrarMensajes, enviarMensaje, agregarNotaInterna,
     handleCerrarTicket, handleReabrirTicket, handleOcultarTicket,

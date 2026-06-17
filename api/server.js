@@ -1,11 +1,18 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const { ChannelType, PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
+const RolePanel = require('../models/RolePanel.js');
+const TipoSancion = require('../models/TipoSancion.js');
+const Sancion = require('../models/Sancion.js');
 const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
+const { publicarPanel } = require('../utils/rolePanelManager.js');
+const { aplicarSancion, revocarSancion } = require('../utils/moderationManager.js');
 const { firmarToken, verificarToken } = require('../utils/auth.js');
 
 module.exports = (client) => {
@@ -25,7 +32,12 @@ module.exports = (client) => {
     const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 
     app.use(cors());
-    app.use(express.json());
+    app.use(express.json({ limit: '12mb' })); // suficiente para imágenes/gifs en base64
+
+    // Carpeta donde se guardan las imágenes subidas para los paneles, servida públicamente.
+    const uploadsDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    app.use('/uploads', express.static(uploadsDir));
 
     if (!API_KEY) {
         console.warn('⚠️  API_KEY no está definida en el .env: la API queda SIN protección. Define API_KEY para protegerla.');
@@ -69,7 +81,8 @@ module.exports = (client) => {
             const guildIds = sesion.guilds || [];
             const enQuery = req.query.guildId;
             const enRuta = (req.path.match(/^\/config\/([^/]+)/) || [])[1];
-            const objetivo = enQuery || enRuta;
+            const enBody = req.body && req.body.guildId; // p. ej. crear rol/panel o asignar miembro
+            const objetivo = enQuery || enRuta || enBody;
             if (objetivo && !guildIds.includes(objetivo)) {
                 return res.status(403).json({ error: 'No tienes acceso a ese servidor' });
             }
@@ -111,6 +124,82 @@ module.exports = (client) => {
         }
     };
 
+    // --- Endurecimiento: acota las acciones por panel (por su id). El panel debe
+    // pertenecer a uno de los servidores del staff. El dueño/API key no aplica. ---
+    const scopePanel = async (req, res, next) => {
+        if (!req.staff || req.staff.owner) return next();
+        try {
+            const panel = await RolePanel.findById(req.params.id).select('guildId');
+            if (!panel || !(req.staff.guilds || []).includes(panel.guildId)) {
+                return res.status(403).json({ error: 'No tienes acceso a este panel' });
+            }
+            next();
+        } catch (e) {
+            console.error('Error verificando acceso al panel:', e);
+            res.status(500).json({ error: 'Error de verificación' });
+        }
+    };
+
+    // Versión genérica del acotado por recurso (mismo patrón) para cualquier modelo
+    // con campo guildId, identificado por :id en la ruta.
+    const scopeRecurso = (Modelo, etiqueta) => async (req, res, next) => {
+        if (!req.staff || req.staff.owner) return next();
+        try {
+            const doc = await Modelo.findById(req.params.id).select('guildId');
+            if (!doc || !(req.staff.guilds || []).includes(doc.guildId)) {
+                return res.status(403).json({ error: `No tienes acceso a este ${etiqueta}` });
+            }
+            next();
+        } catch (e) {
+            console.error('Error verificando acceso al recurso:', e);
+            res.status(500).json({ error: 'Error de verificación' });
+        }
+    };
+
+    // ¿El solicitante puede MODERAR en este servidor? Dueño del bot / API key: sí.
+    // Staff: necesita permiso de Discord (banear/expulsar/aislar o administrador) en ESE servidor.
+    async function puedeModerar(req, guildId) {
+        if (!req.staff || req.staff.owner) return true;
+        if (!guildId) return false;
+        try {
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) return false;
+            const member = await guild.members.fetch(req.staff.id);
+            const P = PermissionsBitField.Flags;
+            return member.permissions.has(P.Administrator) || member.permissions.has(P.BanMembers)
+                || member.permissions.has(P.KickMembers) || member.permissions.has(P.ModerateMembers);
+        } catch { return false; }
+    }
+
+    // Middleware: exige permiso de moderación (el guildId va en query o body).
+    const exigeModerador = async (req, res, next) => {
+        const guildId = (req.body && req.body.guildId) || req.query.guildId;
+        if (!guildId) {
+            if (!req.staff || req.staff.owner) return next(); // dueño/API key sin servidor concreto
+            return res.status(400).json({ error: 'Indica un servidor' });
+        }
+        if (await puedeModerar(req, guildId)) return next();
+        return res.status(403).json({ error: 'Necesitas permiso de moderación en este servidor' });
+    };
+
+    // Como scopeRecurso pero además exige permiso de moderación sobre el guild del recurso.
+    const scopeModRecurso = (Modelo, etiqueta) => async (req, res, next) => {
+        if (!req.staff || req.staff.owner) return next();
+        try {
+            const doc = await Modelo.findById(req.params.id).select('guildId');
+            if (!doc || !(req.staff.guilds || []).includes(doc.guildId)) {
+                return res.status(403).json({ error: `No tienes acceso a este ${etiqueta}` });
+            }
+            if (!(await puedeModerar(req, doc.guildId))) {
+                return res.status(403).json({ error: 'Necesitas permiso de moderación en este servidor' });
+            }
+            next();
+        } catch (e) {
+            console.error('Error verificando moderación del recurso:', e);
+            res.status(500).json({ error: 'Error de verificación' });
+        }
+    };
+
     // ===================== PORTAL DEL CLIENTE (OAuth Discord) =====================
 
     // 1. Inicio del login: redirige a Discord
@@ -127,6 +216,8 @@ module.exports = (client) => {
         });
         res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
     });
+
+    
 
     // 2. Callback: intercambia el code, obtiene el usuario y emite la sesión
     app.get('/api/auth/discord/callback', async (req, res) => {
@@ -256,6 +347,11 @@ module.exports = (client) => {
         }
     });
 
+    app.get('/api/ping', (req, res) => {
+
+        res.json({ ping: Math.round(client.ws.ping) });
+    });
+
     // Config de servidores. Con ?guildId= devuelve solo ese (creándolo si no existe).
     app.get('/api/servidores', async (req, res) => {
         const { guildId } = req.query;
@@ -263,6 +359,10 @@ module.exports = (client) => {
             let cfg = await ServidorConfig.findOne({ guildId });
             if (!cfg) cfg = await ServidorConfig.create({ guildId });
             return res.json([cfg]);
+        }
+        // Sin guildId: el staff (no dueño) solo ve la config de SUS servidores.
+        if (req.staff && !req.staff.owner) {
+            return res.json(await ServidorConfig.find({ guildId: { $in: req.staff.guilds || [] } }));
         }
         res.json(await ServidorConfig.find());
     });
@@ -667,10 +767,7 @@ app.get('/api/stats/uso', async (req, res) => {
     // --- NUEVA RUTA: Categorías del servidor (para el selector de categoría) ---
     app.get('/api/servidor/categorias', async (req, res) => {
         try {
-            const { guildId } = req.query;
-            const config = guildId ? null : await ServidorConfig.findOne();
-            const gid = guildId || (config && config.guildId);
-            const guild = gid ? client.guilds.cache.get(gid) : null;
+            const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.json([]);
             const categorias = guild.channels.cache
                 .filter((c) => c.type === ChannelType.GuildCategory)
@@ -710,10 +807,7 @@ app.get('/api/stats/uso', async (req, res) => {
     // --- NUEVA RUTA: Roles del servidor (para el selector de rol de soporte) ---
     app.get('/api/servidor/roles', async (req, res) => {
         try {
-            const { guildId } = req.query;
-            const config = guildId ? null : await ServidorConfig.findOne();
-            const gid = guildId || (config && config.guildId);
-            const guild = gid ? client.guilds.cache.get(gid) : null;
+            const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.json([]);
             const roles = guild.roles.cache
                 .filter((r) => r.name !== '@everyone' && !r.managed)
@@ -722,6 +816,636 @@ app.get('/api/stats/uso', async (req, res) => {
             res.json(roles);
         } catch (error) {
             console.error('Error al obtener roles:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- MODERACIÓN: ajustes (canal de registro + aviso por MD) ---
+    app.put('/api/config/:guildId/modlog', async (req, res) => {
+        try {
+            const cambios = {};
+            if (req.body.canalModLogId !== undefined) cambios.canalModLogId = req.body.canalModLogId || null;
+            if (req.body.dmSancion !== undefined) cambios.dmSancion = !!req.body.dmSancion;
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar ajustes de moderación:', error);
+            res.status(500).json({ error: 'No se pudieron guardar los ajustes' });
+        }
+    });
+
+    // --- SISTEMA DE ROLES: guardar autorol al entrar (personas / bots) ---
+    app.put('/api/config/:guildId/autoroles', async (req, res) => {
+        try {
+            const { guildId } = req.params;
+            const { autoRoles, autoRolesBots } = req.body;
+            const cambios = {};
+            if (Array.isArray(autoRoles)) cambios.autoRoles = autoRoles.filter(Boolean);
+            if (Array.isArray(autoRolesBots)) cambios.autoRolesBots = autoRolesBots.filter(Boolean);
+
+            const configActualizada = await ServidorConfig.findOneAndUpdate(
+                { guildId },
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true }
+            );
+            res.json({ success: true, config: configActualizada });
+        } catch (error) {
+            console.error('Error al actualizar autoroles:', error);
+            res.status(500).json({ error: 'Fallo interno al actualizar los autoroles' });
+        }
+    });
+
+    // ===================== GESTIÓN DE ROLES (panel mejorado) =====================
+
+    // Catálogo curado de permisos: solo los más útiles, agrupados para el panel.
+    // La clave es el flag real de Discord (PermissionsBitField.Flags).
+    const PERMISOS_CATALOGO = [
+        { grupo: 'General', permisos: ['Administrator', 'ViewChannel', 'ManageGuild'] },
+        { grupo: 'Texto', permisos: ['SendMessages', 'ManageMessages', 'MentionEveryone'] },
+        { grupo: 'Voz', permisos: ['Connect', 'Speak', 'MoveMembers'] },
+        { grupo: 'Moderación', permisos: ['KickMembers', 'BanMembers', 'ModerateMembers'] },
+    ];
+
+    // Resuelve el guild a partir de ?guildId=. Si no se indica: un staff (no dueño)
+    // cae a SU primer servidor (nunca al de otro); el dueño/API key, al primero de la BD.
+    async function resolverGuild(guildId, staff) {
+        let gid = guildId;
+        if (!gid) {
+            if (staff && !staff.owner) {
+                gid = (staff.guilds || [])[0] || null;
+            } else {
+                const config = await ServidorConfig.findOne();
+                gid = config && config.guildId;
+            }
+        }
+        return gid ? client.guilds.cache.get(gid) : null;
+    }
+
+    // Pasa un rol de Discord al formato que consume el frontend.
+    function serializarRol(rol) {
+        return {
+            id: rol.id,
+            nombre: rol.name,
+            color: rol.hexColor,
+            miembros: rol.members.size,
+            posicion: rol.position,
+            gestionable: rol.editable,           // ¿el bot puede tocarlo? (jerarquía)
+            permisos: rol.permissions.toArray(), // lista de flags activos
+        };
+    }
+
+    // Catálogo de permisos para que el panel pinte los toggles.
+    app.get('/api/roles/catalogo', (req, res) => res.json(PERMISOS_CATALOGO));
+
+    // Lista detallada de roles (con nº de miembros y permisos) para el panel.
+    app.get('/api/roles', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            const roles = guild.roles.cache
+                .filter((r) => r.name !== '@everyone' && !r.managed)
+                .sort((a, b) => b.position - a.position)
+                .map(serializarRol);
+            res.json(roles);
+        } catch (error) {
+            console.error('Error al listar roles:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // Crear un rol nuevo.
+    app.post('/api/roles', async (req, res) => {
+        try {
+            const { guildId, nombre, color, permisos } = req.body;
+            const guild = await resolverGuild(guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
+
+            const rol = await guild.roles.create({
+                name: nombre.trim(),
+                color: color || '#99AAB5',
+                permissions: Array.isArray(permisos) ? permisos : [],
+            });
+            res.json({ success: true, rol: serializarRol(rol) });
+        } catch (error) {
+            console.error('Error al crear rol:', error);
+            res.status(500).json({ error: 'No se pudo crear el rol' });
+        }
+    });
+
+    // Editar un rol (nombre / color / permisos).
+    app.put('/api/roles/:roleId', async (req, res) => {
+        try {
+            const { guildId, nombre, color, permisos } = req.body;
+            const guild = await resolverGuild(guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+
+            const rol = guild.roles.cache.get(req.params.roleId);
+            if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
+            if (!rol.editable) return res.status(403).json({ error: 'El bot no puede editar este rol (jerarquía)' });
+
+            const cambios = {};
+            if (nombre !== undefined) cambios.name = String(nombre).trim();
+            if (color !== undefined) cambios.color = color;
+            if (Array.isArray(permisos)) cambios.permissions = permisos;
+
+            await rol.edit(cambios);
+            res.json({ success: true, rol: serializarRol(rol) });
+        } catch (error) {
+            console.error('Error al editar rol:', error);
+            res.status(500).json({ error: 'No se pudo editar el rol' });
+        }
+    });
+
+    // Eliminar un rol.
+    app.delete('/api/roles/:roleId', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+
+            const rol = guild.roles.cache.get(req.params.roleId);
+            if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
+            if (!rol.editable) return res.status(403).json({ error: 'El bot no puede eliminar este rol (jerarquía)' });
+
+            await rol.delete();
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al eliminar rol:', error);
+            res.status(500).json({ error: 'No se pudo eliminar el rol' });
+        }
+    });
+
+    // Pasa un miembro de Discord al formato que consume el frontend.
+    function serializarMiembro(member) {
+        return {
+            id: member.id,
+            username: member.user.username,
+            displayName: member.displayName,
+            avatar: member.user.displayAvatarURL({ size: 64 }),
+        };
+    }
+
+    // Asegura la caché de miembros de un servidor pidiéndola a Discord UNA sola
+    // vez (memorizada por guildId). Tras el primer fetch, discord.js mantiene la
+    // caché al día con los eventos de entrada/salida, así que no volvemos a
+    // tocar el gateway (evita el rate limit del opcode 8).
+    const miembrosCargados = new Map(); // guildId -> Promise
+    function asegurarMiembros(guild) {
+        if (!miembrosCargados.has(guild.id)) {
+            const p = guild.members.fetch().catch((e) => { miembrosCargados.delete(guild.id); throw e; });
+            miembrosCargados.set(guild.id, p);
+        }
+        return miembrosCargados.get(guild.id);
+    }
+
+    // Miembros que TIENEN un rol concreto (para el desplegable del panel).
+    app.get('/api/roles/:roleId/miembros', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            const rol = guild.roles.cache.get(req.params.roleId);
+            if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
+
+            await asegurarMiembros(guild);
+            const miembros = rol.members.map(serializarMiembro);
+            res.json(miembros);
+        } catch (error) {
+            console.error('Error al listar miembros del rol:', error);
+            res.status(500).json({ error: 'No se pudieron obtener los miembros' });
+        }
+    });
+
+    // Buscador de miembros del servidor (para elegir a quién asignar el rol).
+    // Filtra sobre la caché local (no pega al gateway en cada pulsación).
+    app.get('/api/servidor/miembros', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            await asegurarMiembros(guild);
+
+            const q = (req.query.q || '').toString().trim().toLowerCase();
+            const coincide = (m) =>
+                !q || m.user.username.toLowerCase().includes(q) || m.displayName.toLowerCase().includes(q);
+
+            const miembros = guild.members.cache
+                .filter((m) => !m.user.bot && coincide(m))
+                .first(10)
+                .map(serializarMiembro);
+            res.json(miembros);
+        } catch (error) {
+            console.error('Error al buscar miembros:', error);
+            res.status(500).json({ error: 'No se pudieron buscar los miembros' });
+        }
+    });
+
+    // Asignar un rol a un miembro.
+    app.post('/api/roles/:roleId/miembros', async (req, res) => {
+        try {
+            const { guildId, userId } = req.body;
+            const guild = await resolverGuild(guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const rol = guild.roles.cache.get(req.params.roleId);
+            if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
+            if (!rol.editable) return res.status(403).json({ error: 'El bot no puede asignar este rol (jerarquía)' });
+
+            const member = await guild.members.fetch(userId);
+            await member.roles.add(rol);
+            res.json({ success: true, miembro: serializarMiembro(member) });
+        } catch (error) {
+            console.error('Error al asignar rol:', error);
+            res.status(500).json({ error: 'No se pudo asignar el rol' });
+        }
+    });
+
+    // Quitar un rol a un miembro.
+    app.delete('/api/roles/:roleId/miembros/:userId', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const rol = guild.roles.cache.get(req.params.roleId);
+            if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
+            if (!rol.editable) return res.status(403).json({ error: 'El bot no puede quitar este rol (jerarquía)' });
+
+            const member = await guild.members.fetch(req.params.userId);
+            await member.roles.remove(rol);
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al quitar rol:', error);
+            res.status(500).json({ error: 'No se pudo quitar el rol' });
+        }
+    });
+
+    // ===================== PANELES DE AUTOASIGNACIÓN DE ROLES =====================
+
+    // Saneamos el cuerpo de un panel que llega del frontend (campos permitidos).
+    function limpiarPanel(body) {
+        const out = {};
+        if (body.tipo !== undefined) out.tipo = ['boton', 'menu', 'reaccion', 'verificacion'].includes(body.tipo) ? body.tipo : 'boton';
+        if (body.titulo !== undefined) out.titulo = String(body.titulo).slice(0, 256);
+        if (body.descripcion !== undefined) out.descripcion = String(body.descripcion).slice(0, 2000);
+        if (body.color !== undefined) out.color = body.color;
+        if (body.imagen !== undefined) out.imagen = (body.imagen && /^https?:\/\//i.test(body.imagen)) ? String(body.imagen).slice(0, 500) : null;
+        if (body.imagenArchivo !== undefined) out.imagenArchivo = body.imagenArchivo ? String(body.imagenArchivo).slice(0, 200) : null;
+        if (body.channelId !== undefined) out.channelId = body.channelId || null;
+        if (body.exclusivo !== undefined) out.exclusivo = !!body.exclusivo;
+        if (body.maxRoles !== undefined) out.maxRoles = Math.max(0, parseInt(body.maxRoles, 10) || 0);
+        if (body.permitirQuitar !== undefined) out.permitirQuitar = !!body.permitirQuitar;
+        if (Array.isArray(body.items)) {
+            const vistos = new Set();
+            out.items = body.items
+                .filter((it) => it && it.roleId)
+                .filter((it) => { if (vistos.has(it.roleId)) return false; vistos.add(it.roleId); return true; }) // sin roles repetidos
+                .slice(0, 25)
+                .map((it) => ({
+                    roleId: String(it.roleId),
+                    emoji: it.emoji ? String(it.emoji).slice(0, 64) : null,
+                    label: it.label ? String(it.label).slice(0, 80) : null,
+                    descripcion: it.descripcion ? String(it.descripcion).slice(0, 100) : null,
+                    duracionMin: Math.max(0, parseInt(it.duracionMin, 10) || 0),
+                    estilo: ['primary', 'secondary', 'success', 'danger'].includes(it.estilo) ? it.estilo : 'secondary',
+                }));
+        }
+        return out;
+    }
+
+    // Subir una imagen/gif para un panel (llega como dataURL base64). Se guarda
+    // en /uploads y se devuelve el nombre del archivo + su URL para previsualizar.
+    app.post('/api/paneles/upload', (req, res) => {
+        try {
+            const { datos } = req.body;
+            const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(datos || '');
+            if (!m) return res.status(400).json({ error: 'Formato no válido (solo png, jpg, gif o webp)' });
+            const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
+            const buffer = Buffer.from(m[3], 'base64');
+            if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera el máximo de 8 MB' });
+            const archivo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+            fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
+            res.json({ success: true, archivo, url: `/uploads/${archivo}` });
+        } catch (error) {
+            console.error('Error al subir imagen del panel:', error);
+            res.status(500).json({ error: 'No se pudo subir la imagen' });
+        }
+    });
+
+    // Lista de paneles del servidor.
+    app.get('/api/paneles', async (req, res) => {
+        try {
+            const { guildId } = req.query;
+            const filtro = guildId ? { guildId } : (req.staff && !req.staff.owner ? { guildId: { $in: req.staff.guilds || [] } } : {});
+            res.json(await RolePanel.find(filtro).sort({ createdAt: -1 }));
+        } catch (error) {
+            console.error('Error al listar paneles:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // Crear un panel (y publicarlo si trae canal).
+    app.post('/api/paneles', async (req, res) => {
+        try {
+            const { guildId } = req.body;
+            if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
+            const panel = await RolePanel.create({ guildId, ...limpiarPanel(req.body) });
+            if (panel.channelId) {
+                try { await publicarPanel(client, panel); }
+                catch (e) { return res.json({ success: true, panel, aviso: `Panel guardado pero no se pudo publicar: ${e.message}` }); }
+            }
+            res.json({ success: true, panel });
+        } catch (error) {
+            console.error('Error al crear panel:', error);
+            res.status(500).json({ error: 'No se pudo crear el panel' });
+        }
+    });
+
+    // Editar un panel (y republicarlo).
+    app.put('/api/paneles/:id', scopePanel, async (req, res) => {
+        try {
+            const panel = await RolePanel.findByIdAndUpdate(req.params.id, { $set: limpiarPanel(req.body) }, { new: true });
+            if (!panel) return res.status(404).json({ error: 'Panel no encontrado' });
+            if (panel.channelId) {
+                try { await publicarPanel(client, panel); }
+                catch (e) { return res.json({ success: true, panel, aviso: `Guardado pero no se pudo publicar: ${e.message}` }); }
+            }
+            res.json({ success: true, panel });
+        } catch (error) {
+            console.error('Error al editar panel:', error);
+            res.status(500).json({ error: 'No se pudo editar el panel' });
+        }
+    });
+
+    // Publicar / republicar manualmente.
+    app.post('/api/paneles/:id/publicar', scopePanel, async (req, res) => {
+        try {
+            const panel = await RolePanel.findById(req.params.id);
+            if (!panel) return res.status(404).json({ error: 'Panel no encontrado' });
+            if (req.body.channelId) { panel.channelId = req.body.channelId; await panel.save(); }
+            if (!panel.channelId) return res.status(400).json({ error: 'Elige un canal donde publicar' });
+            await publicarPanel(client, panel);
+            res.json({ success: true, panel });
+        } catch (error) {
+            console.error('Error al publicar panel:', error);
+            res.status(500).json({ error: `No se pudo publicar: ${error.message}` });
+        }
+    });
+
+    // Eliminar un panel (intenta borrar también el mensaje publicado).
+    app.delete('/api/paneles/:id', scopePanel, async (req, res) => {
+        try {
+            const panel = await RolePanel.findById(req.params.id);
+            if (!panel) return res.status(404).json({ error: 'Panel no encontrado' });
+            if (panel.channelId && panel.messageId) {
+                const guild = client.guilds.cache.get(panel.guildId);
+                const canal = guild && guild.channels.cache.get(panel.channelId);
+                if (canal) {
+                    const msg = await canal.messages.fetch(panel.messageId).catch(() => null);
+                    if (msg) await msg.delete().catch(() => {});
+                }
+            }
+            await panel.deleteOne();
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al eliminar panel:', error);
+            res.status(500).json({ error: 'No se pudo eliminar el panel' });
+        }
+    });
+
+    // Emojis personalizados del servidor (para el selector de emojis del panel).
+    app.get('/api/servidor/emojis', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            const emojis = guild.emojis.cache.map((e) => ({
+                id: e.id,
+                nombre: e.name,
+                animado: e.animated,
+                // Código que se inserta en el mensaje y que el bot sabe interpretar.
+                codigo: `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`,
+                url: e.imageURL({ size: 32 }),
+            }));
+            res.json(emojis);
+        } catch (error) {
+            console.error('Error al obtener emojis:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // Canales de texto del servidor (para elegir dónde publicar el panel).
+    app.get('/api/servidor/canales', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            const canales = guild.channels.cache
+                .filter((c) => c.type === ChannelType.GuildText)
+                .sort((a, b) => a.position - b.position)
+                .map((c) => ({ id: c.id, nombre: c.name }));
+            res.json(canales);
+        } catch (error) {
+            console.error('Error al obtener canales:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // ===================== MODERACIÓN (Centro de Mando) =====================
+
+    // Moderador que ejecuta la acción (sesión de staff) o null (API key del dueño).
+    const moderadorDe = (req) => (req.staff ? { id: req.staff.id, tag: req.staff.username } : null);
+
+    // --- Tipos de sanción (plantillas) ---
+    app.get('/api/sanciones/tipos', exigeModerador, async (req, res) => {
+        try {
+            const { guildId } = req.query;
+            const filtro = guildId ? { guildId } : (req.staff && !req.staff.owner ? { guildId: { $in: req.staff.guilds || [] } } : {});
+            res.json(await TipoSancion.find(filtro).sort({ orden: 1, createdAt: 1 }));
+        } catch (error) {
+            console.error('Error al listar tipos de sanción:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    function limpiarTipo(body) {
+        const out = {};
+        if (body.nombre !== undefined) out.nombre = String(body.nombre).slice(0, 80);
+        if (body.accion !== undefined) out.accion = ['aviso', 'timeout', 'expulsion', 'ban'].includes(body.accion) ? body.accion : 'aviso';
+        if (body.duracionMin !== undefined) out.duracionMin = Math.max(0, parseInt(body.duracionMin, 10) || 0);
+        if (body.borrarMensajesHoras !== undefined) out.borrarMensajesHoras = Math.min(168, Math.max(0, parseInt(body.borrarMensajesHoras, 10) || 0));
+        if (body.color !== undefined) out.color = body.color;
+        if (body.emoji !== undefined) out.emoji = body.emoji ? String(body.emoji).slice(0, 64) : null;
+        if (body.descripcion !== undefined) out.descripcion = body.descripcion ? String(body.descripcion).slice(0, 200) : null;
+        if (body.orden !== undefined) out.orden = parseInt(body.orden, 10) || 0;
+        return out;
+    }
+
+    app.post('/api/sanciones/tipos', exigeModerador, async (req, res) => {
+        try {
+            const { guildId } = req.body;
+            if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
+            const tipo = await TipoSancion.create({ guildId, ...limpiarTipo(req.body) });
+            res.json({ success: true, tipo });
+        } catch (error) {
+            console.error('Error al crear tipo de sanción:', error);
+            res.status(500).json({ error: 'No se pudo crear el tipo' });
+        }
+    });
+
+    app.put('/api/sanciones/tipos/:id', scopeModRecurso(TipoSancion, 'tipo'), async (req, res) => {
+        try {
+            const tipo = await TipoSancion.findByIdAndUpdate(req.params.id, { $set: limpiarTipo(req.body) }, { new: true });
+            if (!tipo) return res.status(404).json({ error: 'Tipo no encontrado' });
+            res.json({ success: true, tipo });
+        } catch (error) {
+            console.error('Error al editar tipo de sanción:', error);
+            res.status(500).json({ error: 'No se pudo editar el tipo' });
+        }
+    });
+
+    app.delete('/api/sanciones/tipos/:id', scopeModRecurso(TipoSancion, 'tipo'), async (req, res) => {
+        try {
+            await TipoSancion.findByIdAndDelete(req.params.id);
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al eliminar tipo de sanción:', error);
+            res.status(500).json({ error: 'No se pudo eliminar el tipo' });
+        }
+    });
+
+    // --- Aplicar una sanción a un usuario ---
+    app.post('/api/sanciones/aplicar', async (req, res) => {
+        try {
+            const { guildId, usuarioId, tipoId, accion, duracionMin, borrarMensajesHoras, motivo, pruebas } = req.body;
+            if (!guildId || !usuarioId) return res.status(400).json({ error: 'Faltan datos (servidor o usuario)' });
+
+            // Por tipo guardado (tipoId) o acción rápida sin tipo (accion suelta).
+            let tipo;
+            if (tipoId) {
+                tipo = await TipoSancion.findById(tipoId);
+                if (!tipo || tipo.guildId !== guildId) return res.status(404).json({ error: 'Tipo de sanción no válido' });
+            } else if (['aviso', 'timeout', 'expulsion', 'ban'].includes(accion)) {
+                tipo = {
+                    nombre: null,
+                    accion,
+                    duracionMin: Math.max(0, parseInt(duracionMin, 10) || 0),
+                    borrarMensajesHoras: Math.min(168, Math.max(0, parseInt(borrarMensajesHoras, 10) || 0)),
+                };
+            } else {
+                return res.status(400).json({ error: 'Indica un tipo de sanción o una acción' });
+            }
+
+            // Permiso de Discord ESPECÍFICO según la acción (el staff debe tenerlo en este servidor).
+            if (req.staff && !req.staff.owner) {
+                const guild = client.guilds.cache.get(guildId);
+                const member = guild ? await guild.members.fetch(req.staff.id).catch(() => null) : null;
+                const P = PermissionsBitField.Flags;
+                const requerido = { timeout: P.ModerateMembers, expulsion: P.KickMembers, ban: P.BanMembers, aviso: P.ModerateMembers }[tipo.accion];
+                const ok = member && (member.permissions.has(P.Administrator) || member.permissions.has(requerido));
+                if (!ok) return res.status(403).json({ error: 'No tienes el permiso de Discord necesario para esta acción' });
+            }
+
+            const sancion = await aplicarSancion(client, {
+                guildId, usuarioId, tipo, motivo: motivo || '',
+                pruebas: Array.isArray(pruebas) ? pruebas : [],
+                moderador: moderadorDe(req),
+            });
+            res.json({ success: true, sancion });
+        } catch (error) {
+            console.error('Error al aplicar sanción:', error);
+            res.status(400).json({ error: error.message || 'No se pudo aplicar la sanción' });
+        }
+    });
+
+    // --- Subir una prueba (imagen) ---
+    app.post('/api/sanciones/upload', (req, res) => {
+        try {
+            const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(req.body?.datos || '');
+            if (!m) return res.status(400).json({ error: 'Formato no válido (solo imagen)' });
+            const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
+            const buffer = Buffer.from(m[3], 'base64');
+            if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 8 MB' });
+            const archivo = `prueba-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+            fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
+            res.json({ success: true, archivo, url: `/uploads/${archivo}` });
+        } catch (error) {
+            console.error('Error al subir prueba:', error);
+            res.status(500).json({ error: 'No se pudo subir la prueba' });
+        }
+    });
+
+    // --- Estadísticas para el panel (tarjetas del centro de mando) ---
+    app.get('/api/sanciones/stats', exigeModerador, async (req, res) => {
+        try {
+            const { guildId } = req.query;
+            const base = guildId ? { guildId } : (req.staff && !req.staff.owner ? { guildId: { $in: req.staff.guilds || [] } } : {});
+            const hace7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const [total, porAccionAgg, bansActivos, recientes7d] = await Promise.all([
+                Sancion.countDocuments(base),
+                Sancion.aggregate([{ $match: base }, { $group: { _id: '$accion', n: { $sum: 1 } } }]),
+                Sancion.countDocuments({ ...base, accion: 'ban', activa: true }),
+                Sancion.countDocuments({ ...base, fecha: { $gte: hace7d } }),
+            ]);
+            const porAccion = { aviso: 0, timeout: 0, expulsion: 0, ban: 0 };
+            porAccionAgg.forEach((a) => { if (a._id in porAccion) porAccion[a._id] = a.n; });
+            res.json({ total, porAccion, bansActivos, recientes7d });
+        } catch (error) {
+            console.error('Error en stats de sanciones:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- Registro de sanciones (con filtros opcionales) ---
+    app.get('/api/sanciones', exigeModerador, async (req, res) => {
+        try {
+            const { guildId, usuarioId, accion } = req.query;
+            const filtro = {};
+            if (guildId) filtro.guildId = guildId;
+            else if (req.staff && !req.staff.owner) filtro.guildId = { $in: req.staff.guilds || [] };
+            if (usuarioId) filtro.usuarioId = usuarioId;
+            if (accion) filtro.accion = accion;
+            res.json(await Sancion.find(filtro).sort({ fecha: -1 }).limit(200));
+        } catch (error) {
+            console.error('Error al listar sanciones:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- Revocar una sanción (desbanear / quitar aislamiento) ---
+    app.post('/api/sanciones/:id/revocar', scopeModRecurso(Sancion, 'registro'), async (req, res) => {
+        try {
+            const sancion = await revocarSancion(client, req.params.id, moderadorDe(req));
+            res.json({ success: true, sancion });
+        } catch (error) {
+            console.error('Error al revocar sanción:', error);
+            res.status(400).json({ error: error.message || 'No se pudo revocar' });
+        }
+    });
+
+    // --- Ficha de un miembro (para el Centro de Mando) ---
+    app.get('/api/servidor/miembro/:userId', exigeModerador, async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const member = await guild.members.fetch(req.params.userId).catch(() => null);
+            const user = member ? member.user : await client.users.fetch(req.params.userId).catch(() => null);
+            if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+            const ban = await guild.bans.fetch(req.params.userId).catch(() => null);
+
+            res.json({
+                id: user.id,
+                tag: user.username,
+                displayName: member ? member.displayName : user.username,
+                avatar: user.displayAvatarURL({ size: 128 }),
+                enServidor: !!member,
+                baneado: !!ban,
+                creadoTimestamp: user.createdTimestamp,
+                entradaTimestamp: member ? member.joinedTimestamp : null,
+                esDueño: guild.ownerId === user.id,
+                roles: member
+                    ? member.roles.cache.filter((r) => r.name !== '@everyone').sort((a, b) => b.position - a.position).map((r) => ({ id: r.id, nombre: r.name, color: r.hexColor }))
+                    : [],
+            });
+        } catch (error) {
+            console.error('Error al obtener miembro:', error);
             res.status(500).json({ error: 'Error del servidor' });
         }
     });

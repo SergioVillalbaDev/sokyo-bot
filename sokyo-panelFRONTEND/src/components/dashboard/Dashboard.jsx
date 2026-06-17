@@ -18,6 +18,12 @@ import MacrosView from './views/MacrosView';
 import IncidentsView from './views/IncidentsView';
 import LogsView from './views/LogsView';
 import ModulesView from './views/ModulesView';
+import RolesView from './views/RolesView';
+import AutoRolView from './views/AutoRolView';
+import PanelesView from './views/PanelesView';
+import CentroMandoView from './views/CentroMandoView';
+import TiposSancionView from './views/TiposSancionView';
+import RegistroSancionesView from './views/RegistroSancionesView';
 
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
@@ -46,6 +52,12 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'config-comportamiento') return <ComportamientoView dash={dash} />;
     if (activeTab === 'config-reglas') return <RulesView dash={dash} />;
     if (activeTab === 'config-macros') return <MacrosView dash={dash} />;
+    if (activeTab === 'roles-gestion') return <RolesView dash={dash} />;
+    if (activeTab === 'roles-autorol') return <AutoRolView dash={dash} />;
+    if (activeTab === 'roles-paneles') return <PanelesView dash={dash} />;
+    if (activeTab === 'mod-centro') return <CentroMandoView dash={dash} />;
+    if (activeTab === 'mod-tipos') return <TiposSancionView dash={dash} />;
+    if (activeTab === 'mod-registro') return <RegistroSancionesView dash={dash} />;
     if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
     return <InicioView dash={dash} />;

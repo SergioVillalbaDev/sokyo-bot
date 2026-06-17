@@ -3,7 +3,7 @@
 // Derecha: gauges de memoria del plan y otras estadísticas.
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Ticket, Inbox, Activity, Users2, ArrowRight, HardDrive, ScrollText, Smile, ChevronRight } from 'lucide-react';
+import { Ticket, Inbox, Activity, Users2, ArrowRight, HardDrive, ScrollText, Smile, ChevronRight, Wifi } from 'lucide-react';
 import { Avatar, Badge } from '../../ui/primitives';
 import { CircularGauge } from '../../ui/CircularGauge';
 
@@ -13,7 +13,7 @@ export default function InicioView({ dash }) {
   const { t } = useTranslation();
   const {
     ticketsReales, logsRegistrados, limiteLogs, usoStats, esPremium,
-    getColorUrgencia, verMensajes, setActiveTab,
+    getColorUrgencia, verMensajes, setActiveTab, ping,
   } = dash;
 
   // --- Métricas derivadas ---
@@ -199,6 +199,17 @@ export default function InicioView({ dash }) {
             {t('dashboard.inicio_v.seeMore')} <ArrowRight size={13} />
           </button>
         </div>
+
+        {/* Latencia del bot */}
+<div className={`${card} flex flex-col items-center text-center`}>
+  <h3 className="mb-3 flex w-full items-center gap-1.5 text-sm font-bold text-fg">
+    <Wifi size={15} className="text-brand" /> Latencia del bot
+  </h3>
+  <p className="text-4xl font-extrabold text-fg">
+    {ping !== null ? `${ping} ms` : '–'}
+  </p>
+  <p className="mt-1 text-xs text-muted">ms (WebSocket)</p>
+</div>
       </div>
     </div>
   );

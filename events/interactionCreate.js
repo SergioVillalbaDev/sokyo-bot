@@ -1,7 +1,53 @@
 const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
+const RolePanel = require('../models/RolePanel.js');
 const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js');
+const { toggleRol, aplicarSeleccionMenu } = require('../utils/rolePanelManager.js');
+
+// --- Paneles de roles: botón de rol o de verificación ---
+async function manejarBotonRol(interaction) {
+    try {
+        const [tipo, panelId, roleId] = interaction.customId.split(':');
+        const panel = await RolePanel.findById(panelId);
+        if (!panel) return interaction.reply({ content: '❌ Este panel ya no existe.', ephemeral: true });
+
+        // Verificación: simplemente concede el rol (no se quita).
+        if (tipo === 'rp_verify') {
+            const rid = panel.items[0]?.roleId;
+            if (!rid) return interaction.reply({ content: '❌ Este panel no tiene rol configurado.', ephemeral: true });
+            if (interaction.member.roles.cache.has(rid)) return interaction.reply({ content: '✅ Ya estás verificado.', ephemeral: true });
+            await interaction.member.roles.add(rid).catch(() => {});
+            return interaction.reply({ content: '✅ ¡Verificado! Ya tienes acceso al servidor.', ephemeral: true });
+        }
+
+        const estado = await toggleRol(interaction.member, panel, roleId);
+        const rol = interaction.guild.roles.cache.get(roleId);
+        const nombre = rol ? rol.name : 'rol';
+        const msg = estado === 'añadido' ? `✅ Te has asignado **${nombre}**.`
+            : estado === 'quitado' ? `➖ Se te ha quitado **${nombre}**.`
+            : estado === 'limite' ? '⚠️ Has alcanzado el máximo de roles de este panel.'
+            : `Ya tienes **${nombre}**.`;
+        return interaction.reply({ content: msg, ephemeral: true });
+    } catch (e) {
+        console.error('Error en botón de rol:', e);
+        if (!interaction.replied) interaction.reply({ content: '❌ Ha ocurrido un error.', ephemeral: true }).catch(() => {});
+    }
+}
+
+// --- Paneles de roles: menú desplegable ---
+async function manejarMenuRol(interaction) {
+    try {
+        const panelId = interaction.customId.split(':')[1];
+        const panel = await RolePanel.findById(panelId);
+        if (!panel) return interaction.reply({ content: '❌ Este panel ya no existe.', ephemeral: true });
+        const { puestos, quitados } = await aplicarSeleccionMenu(interaction.member, panel, interaction.values);
+        return interaction.reply({ content: `✅ Roles actualizados — ${puestos} añadido(s), ${quitados} quitado(s).`, ephemeral: true });
+    } catch (e) {
+        console.error('Error en menú de rol:', e);
+        if (!interaction.replied) interaction.reply({ content: '❌ Ha ocurrido un error.', ephemeral: true }).catch(() => {});
+    }
+}
 
 // ¿El miembro puede gestionar tickets? (rol de staff configurado O permiso de
 // gestionar canales / administrador). Si no hay rol configurado, se mantiene el
@@ -15,7 +61,15 @@ function esStaff(interaction, config) {
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
-        
+
+        // --- SISTEMA DE ROLES: paneles de autoasignación (se gestionan aparte) ---
+        if (interaction.isButton() && (interaction.customId.startsWith('rp_btn:') || interaction.customId.startsWith('rp_verify:'))) {
+            return manejarBotonRol(interaction);
+        }
+        if (interaction.isStringSelectMenu() && interaction.customId.startsWith('rp_menu:')) {
+            return manejarMenuRol(interaction);
+        }
+
         // --- LÓGICA DE BOTONES ---
         if (interaction.isButton()) {
             

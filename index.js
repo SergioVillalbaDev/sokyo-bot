@@ -8,11 +8,12 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers,   // Necesario para logs de entradas/salidas (intent privilegiado)
+        GatewayIntentBits.GuildMembers,        // Necesario para logs de entradas/salidas (intent privilegiado)
+        GatewayIntentBits.GuildMessageReactions, // Necesario para los roles por reacción
         GatewayIntentBits.MessageContent
     ],
-    // Permite que los eventos de editar/borrar se disparen también con mensajes que no están en caché
-    partials: [Partials.Message, Partials.Channel]
+    // Partials: permite reaccionar/editar/borrar también en mensajes que no están en caché
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.User]
 });
 
 // 1. Cargador de Comandos
