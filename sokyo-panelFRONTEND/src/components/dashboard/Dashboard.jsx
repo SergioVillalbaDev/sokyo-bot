@@ -24,6 +24,7 @@ import PanelesView from './views/PanelesView';
 import CentroMandoView from './views/CentroMandoView';
 import TiposSancionView from './views/TiposSancionView';
 import RegistroSancionesView from './views/RegistroSancionesView';
+import AutomodView from './views/AutomodView';
 import AccesoView from './views/AccesoView';
 import ExpresionesView from './views/ExpresionesView';
 import NivelesView from './views/NivelesView';
@@ -63,6 +64,7 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'roles-paneles') return <PanelesView dash={dash} />;
     if (activeTab === 'mod-centro') return <CentroMandoView dash={dash} />;
     if (activeTab === 'mod-tipos') return <TiposSancionView dash={dash} />;
+    if (activeTab === 'mod-automod') return <AutomodView dash={dash} />;
     if (activeTab === 'mod-registro') return <RegistroSancionesView dash={dash} />;
     if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;

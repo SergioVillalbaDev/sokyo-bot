@@ -1017,6 +1017,104 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- AUTOMODERADOR: filtros automáticos de mensajes ---
+    app.put('/api/config/:guildId/automod', async (req, res) => {
+        try {
+            const ACC = ['borrar', 'aviso', 'timeout', 'expulsion', 'ban'];
+            const accion = (a, def) => (ACC.includes(a) ? a : def);
+            const num = (v, def, min = 0) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= min ? n : def; };
+            const arr = (v) => (Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter(Boolean) : []);
+            const b = req.body.automod || req.body || {};
+
+            const ACC_MIEMBRO = ['alerta', 'timeout', 'kick', 'ban'];
+            const accionMiembro = (a, def) => (ACC_MIEMBRO.includes(a) ? a : def);
+            const am = {
+                activo: !!b.activo,
+                preset: typeof b.preset === 'string' ? b.preset.slice(0, 40) : '',
+                rolesExentos: arr(b.rolesExentos),
+                canalesExentos: arr(b.canalesExentos),
+                avisarEnCanal: b.avisarEnCanal !== false,
+                canalAlertasId: b.canalAlertasId ? String(b.canalAlertasId) : null,
+                palabras: {
+                    activo: !!(b.palabras && b.palabras.activo),
+                    lista: arr(b.palabras && b.palabras.lista).map((s) => s.slice(0, 100)).slice(0, 200),
+                    accion: accion(b.palabras && b.palabras.accion, 'borrar'),
+                    timeoutMin: num(b.palabras && b.palabras.timeoutMin, 10, 1),
+                },
+                invitaciones: {
+                    activo: !!(b.invitaciones && b.invitaciones.activo),
+                    accion: accion(b.invitaciones && b.invitaciones.accion, 'borrar'),
+                    timeoutMin: num(b.invitaciones && b.invitaciones.timeoutMin, 10, 1),
+                },
+                enlaces: {
+                    activo: !!(b.enlaces && b.enlaces.activo),
+                    accion: accion(b.enlaces && b.enlaces.accion, 'borrar'),
+                    timeoutMin: num(b.enlaces && b.enlaces.timeoutMin, 10, 1),
+                    listaBlanca: arr(b.enlaces && b.enlaces.listaBlanca).map((s) => s.slice(0, 100)).slice(0, 100),
+                },
+                spam: {
+                    activo: !!(b.spam && b.spam.activo),
+                    accion: accion(b.spam && b.spam.accion, 'timeout'),
+                    timeoutMin: num(b.spam && b.spam.timeoutMin, 5, 1),
+                    maxMensajes: num(b.spam && b.spam.maxMensajes, 5, 2),
+                    enSegundos: num(b.spam && b.spam.enSegundos, 5, 1),
+                    repetidos: !(b.spam && b.spam.repetidos === false),
+                },
+                menciones: {
+                    activo: !!(b.menciones && b.menciones.activo),
+                    accion: accion(b.menciones && b.menciones.accion, 'borrar'),
+                    timeoutMin: num(b.menciones && b.menciones.timeoutMin, 10, 1),
+                    max: num(b.menciones && b.menciones.max, 5, 1),
+                    bloquearEveryone: !(b.menciones && b.menciones.bloquearEveryone === false),
+                },
+                mayusculas: {
+                    activo: !!(b.mayusculas && b.mayusculas.activo),
+                    accion: accion(b.mayusculas && b.mayusculas.accion, 'borrar'),
+                    timeoutMin: num(b.mayusculas && b.mayusculas.timeoutMin, 5, 1),
+                    porcentaje: Math.min(100, num(b.mayusculas && b.mayusculas.porcentaje, 70, 1)),
+                    minLongitud: num(b.mayusculas && b.mayusculas.minLongitud, 10, 1),
+                },
+                estafas: {
+                    activo: !!(b.estafas && b.estafas.activo),
+                    accion: accion(b.estafas && b.estafas.accion, 'ban'),
+                    timeoutMin: num(b.estafas && b.estafas.timeoutMin, 60, 1),
+                    palabrasClave: arr(b.estafas && b.estafas.palabrasClave).map((s) => s.slice(0, 100)).slice(0, 200),
+                    conEnlace: !(b.estafas && b.estafas.conEnlace === false),
+                    conImagen: !(b.estafas && b.estafas.conImagen === false),
+                    nitroFalso: !(b.estafas && b.estafas.nitroFalso === false),
+                    borrarHoras: Math.min(168, num(b.estafas && b.estafas.borrarHoras, 1, 0)),
+                },
+                antiRaid: {
+                    activo: !!(b.antiRaid && b.antiRaid.activo),
+                    uniones: num(b.antiRaid && b.antiRaid.uniones, 8, 2),
+                    enSegundos: num(b.antiRaid && b.antiRaid.enSegundos, 10, 1),
+                    accion: ['kick', 'ban', 'timeout'].includes(b.antiRaid && b.antiRaid.accion) ? b.antiRaid.accion : 'kick',
+                    timeoutMin: num(b.antiRaid && b.antiRaid.timeoutMin, 60, 1),
+                    edadMinHoras: num(b.antiRaid && b.antiRaid.edadMinHoras, 0, 0),
+                    lockdownMin: num(b.antiRaid && b.antiRaid.lockdownMin, 10, 1),
+                },
+                cuentasNuevas: {
+                    activo: !!(b.cuentasNuevas && b.cuentasNuevas.activo),
+                    edadMinHoras: num(b.cuentasNuevas && b.cuentasNuevas.edadMinHoras, 72, 1),
+                    sinAvatar: !(b.cuentasNuevas && b.cuentasNuevas.sinAvatar === false),
+                    accion: accionMiembro(b.cuentasNuevas && b.cuentasNuevas.accion, 'alerta'),
+                    timeoutMin: num(b.cuentasNuevas && b.cuentasNuevas.timeoutMin, 60, 1),
+                    asignarRolId: (b.cuentasNuevas && b.cuentasNuevas.asignarRolId) ? String(b.cuentasNuevas.asignarRolId) : null,
+                },
+            };
+
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: { automod: am } },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar automod:', error);
+            res.status(500).json({ error: 'No se pudo guardar el automoderador' });
+        }
+    });
+
     // --- ACCESO Y PERMISOS: roles que entran al panel + roles de moderación ---
     app.put('/api/config/:guildId/acceso', async (req, res) => {
         try {

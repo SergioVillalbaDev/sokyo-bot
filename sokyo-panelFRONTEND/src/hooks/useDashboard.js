@@ -430,6 +430,19 @@ export function useDashboard() {
     return false;
   };
 
+  // Guarda la configuración del automoderador y refresca la config.
+  const guardarAutomod = async (automod) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/automod`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ automod }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando automod:', error); }
+    return false;
+  };
+
   // Carga qué secciones puede ver el usuario actual en el servidor seleccionado.
   const cargarMisPermisos = () => apiFetch(`/api/mis-permisos${gp()}`).then(procesarRespuesta).then((d) => setMisPermisos(d && d.areas ? d.areas : null)).catch(() => setMisPermisos(null));
 
@@ -682,6 +695,7 @@ export function useDashboard() {
     else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
     else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
+    else if (activeTab === 'mod-automod') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
     else if (activeTab === 'mod-registro') { cargarSanciones(); cargarTiposSancion(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
@@ -726,6 +740,8 @@ export function useDashboard() {
     cargarTiposSancion, cargarSanciones, cargarStatsSancion,
     crearTipoSancion, editarTipoSancion, eliminarTipoSancion,
     cargarMiembro, cargarActividad, cargarMensajesUsuario, aplicarSancion, revocarSancion, subirPrueba, guardarModLog,
+    // automoderador
+    guardarAutomod,
     // acceso y permisos
     guardarAcceso, misPermisos,
     // emojis y stickers

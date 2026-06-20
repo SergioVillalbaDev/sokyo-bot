@@ -70,6 +70,94 @@ const ServidorConfigSchema = new mongoose.Schema({
     canalModLogId: { type: String, default: null },   // canal donde se registran las sanciones
     dmSancion: { type: Boolean, default: true },       // avisar por MD al usuario sancionado
 
+    // --- AUTOMODERADOR ---
+    // Cada filtro tiene su propio `activo`, `accion` (borrar | aviso | timeout | expulsion | ban)
+    // y `timeoutMin` (minutos de aislamiento si la acción es timeout). "borrar" solo elimina el
+    // mensaje; cualquier otra acción además registra una sanción por el motor de moderación.
+    automod: {
+        activo: { type: Boolean, default: false },          // interruptor general del automod
+        preset: { type: String, default: '' },               // id del preset aplicado (informativo)
+        rolesExentos: { type: [String], default: [] },      // roles que ignoran TODOS los filtros
+        canalesExentos: { type: [String], default: [] },    // canales donde el automod no actúa
+        avisarEnCanal: { type: Boolean, default: true },     // mandar aviso efímero al usuario en el canal
+        canalAlertasId: { type: String, default: null },     // canal donde el automod publica alertas (raids, etc.)
+        // Filtro: palabras prohibidas
+        palabras: {
+            activo: { type: Boolean, default: false },
+            lista: { type: [String], default: [] },
+            accion: { type: String, default: 'borrar' },
+            timeoutMin: { type: Number, default: 10 },
+        },
+        // Filtro: invitaciones a otros servidores de Discord
+        invitaciones: {
+            activo: { type: Boolean, default: false },
+            accion: { type: String, default: 'borrar' },
+            timeoutMin: { type: Number, default: 10 },
+        },
+        // Filtro: enlaces externos (con lista blanca de dominios permitidos)
+        enlaces: {
+            activo: { type: Boolean, default: false },
+            accion: { type: String, default: 'borrar' },
+            timeoutMin: { type: Number, default: 10 },
+            listaBlanca: { type: [String], default: [] },   // dominios permitidos (ej. "youtube.com")
+        },
+        // Filtro: anti-spam / flood
+        spam: {
+            activo: { type: Boolean, default: false },
+            accion: { type: String, default: 'timeout' },
+            timeoutMin: { type: Number, default: 5 },
+            maxMensajes: { type: Number, default: 5 },       // nº de mensajes...
+            enSegundos: { type: Number, default: 5 },        // ...en esta ventana de tiempo
+            repetidos: { type: Boolean, default: true },     // también detectar el mismo mensaje repetido
+        },
+        // Filtro: menciones masivas
+        menciones: {
+            activo: { type: Boolean, default: false },
+            accion: { type: String, default: 'borrar' },
+            timeoutMin: { type: Number, default: 10 },
+            max: { type: Number, default: 5 },               // máx. menciones por mensaje
+            bloquearEveryone: { type: Boolean, default: true }, // bloquear @everyone/@here
+        },
+        // Filtro: exceso de mayúsculas
+        mayusculas: {
+            activo: { type: Boolean, default: false },
+            accion: { type: String, default: 'borrar' },
+            timeoutMin: { type: Number, default: 5 },
+            porcentaje: { type: Number, default: 70 },       // % de mayúsculas para considerarse spam
+            minLongitud: { type: Number, default: 10 },      // solo en mensajes de al menos N caracteres
+        },
+        // Filtro: estafas / cripto / nitro falso / cuentas hackeadas
+        estafas: {
+            activo: { type: Boolean, default: false },
+            accion: { type: String, default: 'ban' },        // por defecto banear (suelen ser cuentas hackeadas)
+            timeoutMin: { type: Number, default: 60 },
+            palabrasClave: { type: [String], default: [] },  // vacío = usa la lista por defecto del bot
+            conEnlace: { type: Boolean, default: true },     // exigir que el mensaje lleve también un enlace
+            conImagen: { type: Boolean, default: true },     // detectar también imagen + palabra clave (sin enlace)
+            nitroFalso: { type: Boolean, default: true },    // detectar "nitro gratis"/regalos de Steam falsos
+            borrarHoras: { type: Number, default: 1 },       // al banear, borra los mensajes de las últimas N horas
+        },
+        // Módulo: anti-raid (oleadas de entradas en poco tiempo)
+        antiRaid: {
+            activo: { type: Boolean, default: false },
+            uniones: { type: Number, default: 8 },            // nº de entradas...
+            enSegundos: { type: Number, default: 10 },        // ...en esta ventana = raid
+            accion: { type: String, default: 'kick' },        // qué hacer con los que entran durante el raid: kick|ban|timeout
+            timeoutMin: { type: Number, default: 60 },        // si accion=timeout
+            edadMinHoras: { type: Number, default: 0 },       // 0 = afecta a todos; si >0, solo a cuentas más nuevas que esto
+            lockdownMin: { type: Number, default: 10 },       // minutos que dura el bloqueo tras detectar un raid
+        },
+        // Módulo: cuentas nuevas / multicuentas (alts) al entrar
+        cuentasNuevas: {
+            activo: { type: Boolean, default: false },
+            edadMinHoras: { type: Number, default: 72 },      // cuentas más nuevas que esto = sospechosas
+            sinAvatar: { type: Boolean, default: true },      // marcar también cuentas sin avatar
+            accion: { type: String, default: 'alerta' },      // alerta|timeout|kick|ban
+            timeoutMin: { type: Number, default: 60 },        // si accion=timeout
+            asignarRolId: { type: String, default: null },    // rol opcional de "cuarentena" que se asigna al entrar
+        },
+    },
+
     // --- NIVELES / XP ---
     nivelesActivo: { type: Boolean, default: false },        // sistema de niveles activado
     // Ganancia por mensaje

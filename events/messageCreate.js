@@ -3,6 +3,7 @@ const Mensaje = require('../models/Mensaje.js');
 const { getConfigCached } = require('../utils/config.js');
 const { registrarMensaje } = require('../utils/actividad.js');
 const { otorgarXp } = require('../utils/niveles.js');
+const { revisarMensaje } = require('../utils/automod.js');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -13,6 +14,8 @@ module.exports = {
         if (message.guild) {
             try {
                 const cfgAct = await getConfigCached(message.guildId);
+                // Automod primero: si actúa (borra el mensaje), no seguimos con XP ni comandos.
+                if (await revisarMensaje(message, cfgAct, client)) return;
                 await registrarMensaje(message, !!(cfgAct && cfgAct.esPremium));
                 await otorgarXp(message, cfgAct);
             } catch (e) { console.error('Error registrando actividad de mensaje:', e.message); }

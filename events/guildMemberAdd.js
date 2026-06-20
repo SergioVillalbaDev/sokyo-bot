@@ -1,10 +1,11 @@
 const { Events } = require('discord.js');
 const Log = require('../models/Log.js');
 const { getConfig, logActivo } = require('../utils/config.js');
+const { revisarEntrada } = require('../utils/antiRaid.js');
 
 module.exports = {
     name: Events.GuildMemberAdd,
-    async execute(member) {
+    async execute(member, client) {
         let cfg;
         try {
             cfg = await getConfig(member.guild.id);
@@ -12,6 +13,12 @@ module.exports = {
             console.error('Error obteniendo config en guildMemberAdd:', error);
             return;
         }
+
+        // --- Anti-raid + cuentas nuevas/multicuentas ---
+        // Si el miembro fue expulsado/baneado, no seguimos con el autorol.
+        try {
+            if (await revisarEntrada(member, cfg, client)) return;
+        } catch (error) { console.error('Error en anti-raid:', error.message); }
 
         // --- Autorol al entrar (bots y personas usan listas distintas) ---
         try {

@@ -4,7 +4,7 @@
 import {
   Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
   Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap, UsersRound,
-  UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp,
+  UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
 } from 'lucide-react';
 
 export const navGroups = [
@@ -44,6 +44,7 @@ export const navGroups = [
     items: [
       { tab: 'mod-centro', icon: Gavel },
       { tab: 'mod-tipos', icon: ListChecks },
+      { tab: 'mod-automod', icon: Bot },
       { tab: 'mod-registro', icon: History },
     ],
   },
