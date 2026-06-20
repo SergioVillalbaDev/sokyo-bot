@@ -85,8 +85,9 @@ export function useDashboard() {
   const [catalogoPresets, setCatalogoPresets] = useState({ ocultos: [], personalizados: [] });
   // Seguridad: reportes de usuarios.
   const [reportes, setReportes] = useState([]);
-  // Productividad: anuncios programados.
+  // Productividad: anuncios programados + presets de anuncio.
   const [anuncios, setAnuncios] = useState([]);
+  const [presetsAnuncio, setPresetsAnuncio] = useState([]);
 
   // Moderación (Centro de Mando).
   const [tiposSancion, setTiposSancion] = useState([]);
@@ -571,6 +572,22 @@ export function useDashboard() {
     return false;
   };
 
+  // --- PRODUCTIVIDAD: presets de anuncio (mensajes guardados) ---
+  const cargarPresetsAnuncio = () => apiFetch(`/api/anuncios/presets${gp()}`).then(procesarRespuesta).then((d) => setPresetsAnuncio(Array.isArray(d) ? d : [])).catch(reportarError('cargando presets'));
+  const guardarPresetAnuncio = async (payload) => {
+    try {
+      const res = await apiFetch('/api/anuncios/presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { await cargarPresetsAnuncio(); return data; }
+      return { error: data.error || 'No se pudo guardar' };
+    } catch (error) { console.error('Error guardando preset:', error); return { error: 'Fallo de red' }; }
+  };
+  const eliminarPresetAnuncio = async (id) => {
+    try { const res = await apiFetch(`/api/anuncios/presets/${id}`, { method: 'DELETE' }); if (res.ok) { await cargarPresetsAnuncio(); return true; } }
+    catch (error) { console.error('Error borrando preset:', error); }
+    return false;
+  };
+
   // Carga qué secciones puede ver el usuario actual en el servidor seleccionado.
   const cargarMisPermisos = () => apiFetch(`/api/mis-permisos${gp()}`).then(procesarRespuesta).then((d) => setMisPermisos(d && d.areas ? d.areas : null)).catch(() => setMisPermisos(null));
 
@@ -828,8 +845,8 @@ export function useDashboard() {
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
-    else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); }
-    else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); }
+    else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); }
+    else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); cargarPresetsAnuncio(); }
     else if (activeTab === 'mod-registro') { cargarSanciones(); cargarTiposSancion(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
@@ -883,6 +900,7 @@ export function useDashboard() {
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,
+    presetsAnuncio, cargarPresetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
     guardarAcceso, misPermisos,

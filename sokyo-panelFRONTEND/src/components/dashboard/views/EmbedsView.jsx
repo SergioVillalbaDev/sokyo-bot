@@ -1,9 +1,10 @@
-// Productividad · Constructor de embeds — crea un mensaje con embed y lo envía
-// al instante a un canal del servidor.
+// Productividad · Creador de Anuncios — crea un mensaje (texto a secas o con
+// embed) y lo envía al instante a un canal. Permite guardar/usar presets.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, Info } from 'lucide-react';
+import { Send, Info, LayoutTemplate, FileText } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
+import PresetsAnuncio from './PresetsAnuncio';
 import { EMBED_VACIO } from './embedDefaults';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -11,8 +12,9 @@ const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text
 
 export default function EmbedsView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, enviarEmbed, subirImagen } = dash;
+  const { canales, configServidor, enviarEmbed, subirImagen, presetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio } = dash;
 
+  const [modo, setModo] = useState('embed'); // 'embed' | 'texto'
   const [embed, setEmbed] = useState(EMBED_VACIO);
   const [contenido, setContenido] = useState('');
   const [canalId, setCanalId] = useState('');
@@ -20,10 +22,22 @@ export default function EmbedsView({ dash }) {
 
   const enviar = async () => {
     setEstado('enviando');
-    const r = await enviarEmbed({ canalId, contenido, embed });
+    // En modo texto no mandamos embed.
+    const r = await enviarEmbed({ canalId, contenido, embed: modo === 'texto' ? {} : embed });
     setEstado(r.error ? `error:${r.error}` : 'ok');
     if (!r.error) { setContenido(''); setEmbed(EMBED_VACIO); }
   };
+
+  // Presets: cargar uno repuebla el formulario y ajusta el modo.
+  const cargarPreset = (p) => {
+    setEstado('');
+    setContenido(p.contenido || '');
+    if (p.embed) { setEmbed({ ...EMBED_VACIO, ...p.embed }); setModo('embed'); }
+    else { setEmbed(EMBED_VACIO); setModo('texto'); }
+  };
+  const guardarPreset = (nombre) => guardarPresetAnuncio({ nombre, contenido, embed: modo === 'texto' ? null : embed });
+
+  const modoCls = (id) => `flex flex-1 items-center justify-center gap-2 rounded-2xl border p-3 text-sm font-semibold transition-colors ${modo === id ? 'border-brand bg-brand/10 text-fg' : 'border-line bg-bg text-muted hover:border-brand/50'}`;
 
   return (
     <div className="space-y-5">
@@ -34,6 +48,17 @@ export default function EmbedsView({ dash }) {
         <p className="text-xs text-muted">{t('dashboard.embeds_v.note')}</p>
       </div>
 
+      {/* Tipo de mensaje */}
+      <div className="flex gap-3">
+        <button type="button" onClick={() => { setEstado(''); setModo('embed'); }} className={modoCls('embed')}>
+          <LayoutTemplate size={16} className="text-brand" /> {t('dashboard.embeds_v.modeEmbed')}
+        </button>
+        <button type="button" onClick={() => { setEstado(''); setModo('texto'); }} className={modoCls('texto')}>
+          <FileText size={16} className="text-brand" /> {t('dashboard.embeds_v.modeText')}
+        </button>
+      </div>
+
+      {/* Canal + texto */}
       <div className={card}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
@@ -43,16 +68,30 @@ export default function EmbedsView({ dash }) {
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.embeds_v.content')}</span>
-            <input value={contenido} onChange={(e) => setContenido(e.target.value)} className={input} maxLength={2000} placeholder={t('dashboard.embeds_v.contentPh')} />
-          </label>
+          {modo === 'embed' && (
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.embeds_v.content')}</span>
+              <input value={contenido} onChange={(e) => setContenido(e.target.value)} className={input} maxLength={2000} placeholder={t('dashboard.embeds_v.contentPh')} />
+            </label>
+          )}
         </div>
+        {modo === 'texto' && (
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.embeds_v.message')}</span>
+            <textarea value={contenido} onChange={(e) => setContenido(e.target.value)} rows={5} className={input} maxLength={2000} placeholder={t('dashboard.embeds_v.messagePh')} />
+          </label>
+        )}
       </div>
 
-      <div className={card}>
-        <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} />
-      </div>
+      {/* Embed (solo en modo embed) */}
+      {modo === 'embed' && (
+        <div className={card}>
+          <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} />
+        </div>
+      )}
+
+      {/* Presets */}
+      <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarPresetAnuncio} />
 
       <div className="flex flex-wrap items-center gap-3">
         <button

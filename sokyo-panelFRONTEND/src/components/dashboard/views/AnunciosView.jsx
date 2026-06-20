@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarClock, Trash2, Info, Repeat } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
+import PresetsAnuncio from './PresetsAnuncio';
 import { EMBED_VACIO } from './embedDefaults';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -19,7 +20,7 @@ function minLocal() {
 
 export default function AnunciosView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, anuncios, crearAnuncio, eliminarAnuncio, subirImagen } = dash;
+  const { canales, configServidor, anuncios, crearAnuncio, eliminarAnuncio, subirImagen, presetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio } = dash;
 
   const [embed, setEmbed] = useState(EMBED_VACIO);
   const [contenido, setContenido] = useState('');
@@ -34,6 +35,14 @@ export default function AnunciosView({ dash }) {
     setEstado(r.error ? `error:${r.error}` : 'ok');
     if (!r.error) { setContenido(''); setEmbed(EMBED_VACIO); setFechaEnvio(''); setRepetir('no'); }
   };
+
+  // Presets: cargar uno repuebla el embed/texto; guardar guarda el actual.
+  const cargarPreset = (p) => {
+    setEstado('');
+    setContenido(p.contenido || '');
+    setEmbed(p.embed ? { ...EMBED_VACIO, ...p.embed } : EMBED_VACIO);
+  };
+  const guardarPreset = (nombre) => guardarPresetAnuncio({ nombre, contenido, embed });
 
   const nombreCanal = (id) => (canales.find((c) => c.id === id) || {}).nombre || id;
   const fecha = (d) => new Date(d).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
@@ -70,6 +79,9 @@ export default function AnunciosView({ dash }) {
           </div>
         )}
       </div>
+
+      {/* Presets */}
+      <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarPresetAnuncio} />
 
       {/* Crear */}
       <div className={card}>

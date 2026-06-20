@@ -16,6 +16,7 @@ const TarjetaPersonal = require('../models/TarjetaPersonal.js');
 const CatalogoPresets = require('../models/CatalogoPresets.js');
 const Reporte = require('../models/Reporte.js');
 const AnuncioProgramado = require('../models/AnuncioProgramado.js');
+const AnuncioPreset = require('../models/AnuncioPreset.js');
 const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificacion.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
 const { construirMensaje, sanearEmbed, embedTieneContenido } = require('../utils/embeds.js');
@@ -1361,6 +1362,54 @@ app.get('/api/stats/uso', async (req, res) => {
             res.json({ success: true });
         } catch (error) {
             console.error('Error al borrar anuncio:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+
+    // --- Presets de anuncio (mensajes guardados: texto y/o embed) ---
+    app.get('/api/anuncios/presets', async (req, res) => {
+        try {
+            const { guildId } = req.query;
+            const filtro = {};
+            if (guildId) filtro.guildId = guildId;
+            else if (req.staff && !req.staff.owner) filtro.guildId = { $in: req.staff.guilds || [] };
+            res.json(await AnuncioPreset.find(filtro).sort({ creadoFecha: -1 }).limit(100));
+        } catch (error) {
+            console.error('Error al listar presets de anuncio:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+
+    app.post('/api/anuncios/presets', async (req, res) => {
+        try {
+            const b = req.body || {};
+            const guildId = String(b.guildId || '');
+            if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
+            const nombre = String(b.nombre || '').trim().slice(0, 80);
+            if (!nombre) return res.status(400).json({ error: 'Pon un nombre al preset' });
+            const embedSan = sanearEmbed(b.embed);
+            const tieneEmbed = embedTieneContenido(embedSan);
+            const contenido = String(b.contenido || '').slice(0, 2000);
+            if (!tieneEmbed && !contenido) return res.status(400).json({ error: 'El preset está vacío' });
+            const doc = await AnuncioPreset.create({ guildId, nombre, contenido, embed: tieneEmbed ? embedSan : null });
+            res.json({ success: true, preset: doc });
+        } catch (error) {
+            console.error('Error al guardar preset de anuncio:', error);
+            res.status(400).json({ error: error.message || 'No se pudo guardar' });
+        }
+    });
+
+    app.delete('/api/anuncios/presets/:id', async (req, res) => {
+        try {
+            const doc = await AnuncioPreset.findById(req.params.id);
+            if (!doc) return res.status(404).json({ error: 'No encontrado' });
+            if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) {
+                return res.status(403).json({ error: 'Sin permiso para este servidor' });
+            }
+            await doc.deleteOne();
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al borrar preset de anuncio:', error);
             res.status(500).json({ error: 'Fallo interno' });
         }
     });
