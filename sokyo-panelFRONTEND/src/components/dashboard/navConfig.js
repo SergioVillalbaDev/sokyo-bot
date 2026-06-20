@@ -6,6 +6,7 @@ import {
   Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap, UsersRound,
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
   ShieldCheck as ShieldCheckIcon, UserCheck, Flag, DatabaseBackup,
+  Sparkles, MessagesSquare, LayoutTemplate, Megaphone,
 } from 'lucide-react';
 
 export const navGroups = [
@@ -57,6 +58,15 @@ export const navGroups = [
       { tab: 'seg-verificacion', icon: UserCheck },
       { tab: 'seg-reportes', icon: Flag },
       { tab: 'seg-backup', icon: DatabaseBackup },
+    ],
+  },
+  {
+    id: 'productividad',
+    icon: Sparkles,
+    items: [
+      { tab: 'prod-autorespuestas', icon: MessagesSquare },
+      { tab: 'prod-embeds', icon: LayoutTemplate },
+      { tab: 'prod-anuncios', icon: Megaphone },
     ],
   },
   {

@@ -85,6 +85,8 @@ export function useDashboard() {
   const [catalogoPresets, setCatalogoPresets] = useState({ ocultos: [], personalizados: [] });
   // Seguridad: reportes de usuarios.
   const [reportes, setReportes] = useState([]);
+  // Productividad: anuncios programados.
+  const [anuncios, setAnuncios] = useState([]);
 
   // Moderación (Centro de Mando).
   const [tiposSancion, setTiposSancion] = useState([]);
@@ -528,6 +530,47 @@ export function useDashboard() {
     return false;
   };
 
+  // --- PRODUCTIVIDAD: auto-respuestas / triggers ---
+  const guardarAutoRespuestas = async (autoRespuestas) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/autorespuestas`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoRespuestas }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando auto-respuestas:', error); }
+    return false;
+  };
+
+  // --- PRODUCTIVIDAD: constructor de embeds (enviar ahora) ---
+  const enviarEmbed = async ({ canalId, contenido, embed }) => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/embed/${configServidor.guildId}/enviar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canalId, contenido, embed }),
+      });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'No se pudo enviar' };
+    } catch (error) { console.error('Error enviando embed:', error); return { error: 'Fallo de red' }; }
+  };
+
+  // --- PRODUCTIVIDAD: anuncios programados ---
+  const cargarAnuncios = () => apiFetch(`/api/anuncios${gp()}`).then(procesarRespuesta).then((d) => setAnuncios(Array.isArray(d) ? d : [])).catch(reportarError('cargando anuncios'));
+  const crearAnuncio = async (payload) => {
+    try {
+      const res = await apiFetch('/api/anuncios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { await cargarAnuncios(); return data; }
+      return { error: data.error || 'No se pudo crear' };
+    } catch (error) { console.error('Error creando anuncio:', error); return { error: 'Fallo de red' }; }
+  };
+  const eliminarAnuncio = async (id) => {
+    try { const res = await apiFetch(`/api/anuncios/${id}`, { method: 'DELETE' }); if (res.ok) { await cargarAnuncios(); return true; } }
+    catch (error) { console.error('Error borrando anuncio:', error); }
+    return false;
+  };
+
   // Carga qué secciones puede ver el usuario actual en el servidor seleccionado.
   const cargarMisPermisos = () => apiFetch(`/api/mis-permisos${gp()}`).then(procesarRespuesta).then((d) => setMisPermisos(d && d.areas ? d.areas : null)).catch(() => setMisPermisos(null));
 
@@ -784,6 +827,9 @@ export function useDashboard() {
     else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
+    else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
+    else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); }
+    else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); }
     else if (activeTab === 'mod-registro') { cargarSanciones(); cargarTiposSancion(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
@@ -834,6 +880,9 @@ export function useDashboard() {
     guardarVerificacion, publicarVerificacion,
     reportes, guardarReportes, cargarReportes, actualizarReporte, abrirTicketReporte,
     exportarConfig, importarConfig,
+    // productividad: auto-respuestas, embeds, anuncios programados
+    guardarAutoRespuestas, enviarEmbed,
+    anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,
     // acceso y permisos
     guardarAcceso, misPermisos,
     // emojis y stickers

@@ -31,6 +31,9 @@ import BackupView from './views/BackupView';
 import AccesoView from './views/AccesoView';
 import ExpresionesView from './views/ExpresionesView';
 import NivelesView from './views/NivelesView';
+import AutoRespuestasView from './views/AutoRespuestasView';
+import EmbedsView from './views/EmbedsView';
+import AnunciosView from './views/AnunciosView';
 
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
@@ -72,6 +75,9 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'seg-verificacion') return <VerificacionView dash={dash} />;
     if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') return <ReportesView dash={dash} />;
     if (activeTab === 'seg-backup') return <BackupView dash={dash} />;
+    if (activeTab === 'prod-autorespuestas') return <AutoRespuestasView dash={dash} />;
+    if (activeTab === 'prod-embeds') return <EmbedsView dash={dash} />;
+    if (activeTab === 'prod-anuncios') return <AnunciosView dash={dash} />;
     if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
     return <InicioView dash={dash} />;

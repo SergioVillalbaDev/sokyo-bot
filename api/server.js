@@ -15,8 +15,10 @@ const RegistroMensaje = require('../models/RegistroMensaje.js');
 const TarjetaPersonal = require('../models/TarjetaPersonal.js');
 const CatalogoPresets = require('../models/CatalogoPresets.js');
 const Reporte = require('../models/Reporte.js');
+const AnuncioProgramado = require('../models/AnuncioProgramado.js');
 const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificacion.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
+const { construirMensaje, sanearEmbed, embedTieneContenido } = require('../utils/embeds.js');
 const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, revocarSancion } = require('../utils/moderationManager.js');
@@ -1253,6 +1255,113 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al importar config:', error);
             res.status(500).json({ error: 'No se pudo importar (¿JSON válido?)' });
+        }
+    });
+
+    // ===================== PRODUCTIVIDAD =====================
+
+    // --- Auto-respuestas / triggers ---
+    const TIPOS_AR = ['contiene', 'exacto', 'empieza'];
+    app.put('/api/config/:guildId/autorespuestas', async (req, res) => {
+        try {
+            const arr = Array.isArray(req.body.autoRespuestas) ? req.body.autoRespuestas : [];
+            const limpio = arr.slice(0, 100).map((a) => ({
+                activo: a && a.activo !== false,
+                nombre: String((a && a.nombre) || '').slice(0, 80),
+                patron: String((a && a.patron) || '').slice(0, 200),
+                tipo: TIPOS_AR.includes(a && a.tipo) ? a.tipo : 'contiene',
+                respuesta: String((a && a.respuesta) || '').slice(0, 2000),
+                comoEmbed: !!(a && a.comoEmbed),
+                eliminarMensaje: !!(a && a.eliminarMensaje),
+            })).filter((a) => a.patron && a.respuesta);
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: { autoRespuestas: limpio } },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar auto-respuestas:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    // --- Constructor de embeds: enviar un embed/anuncio AHORA a un canal ---
+    app.post('/api/embed/:guildId/enviar', async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const canal = guild.channels.cache.get(String(req.body.canalId || ''));
+            if (!canal || !canal.isTextBased()) return res.status(400).json({ error: 'Canal no válido' });
+            const payload = construirMensaje(req.body.contenido, sanearEmbed(req.body.embed));
+            if (!payload.content && !payload.embeds) return res.status(400).json({ error: 'El mensaje está vacío' });
+            const msg = await canal.send(payload);
+            res.json({ success: true, mensajeId: msg.id });
+        } catch (error) {
+            console.error('Error al enviar embed:', error);
+            res.status(400).json({ error: error.message || 'No se pudo enviar' });
+        }
+    });
+
+    // --- Anuncios programados (CRUD) ---
+    app.get('/api/anuncios', async (req, res) => {
+        try {
+            const { guildId } = req.query;
+            const filtro = {};
+            if (guildId) filtro.guildId = guildId;
+            else if (req.staff && !req.staff.owner) filtro.guildId = { $in: req.staff.guilds || [] };
+            res.json(await AnuncioProgramado.find(filtro).sort({ fechaEnvio: 1 }).limit(200));
+        } catch (error) {
+            console.error('Error al listar anuncios:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+
+    app.post('/api/anuncios', async (req, res) => {
+        try {
+            const b = req.body || {};
+            const guildId = String(b.guildId || '');
+            if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const canalId = String(b.canalId || '');
+            if (!guild.channels.cache.get(canalId)) return res.status(400).json({ error: 'Canal no válido' });
+            const fecha = new Date(b.fechaEnvio);
+            if (isNaN(fecha.getTime()) || fecha.getTime() < Date.now() - 60000) {
+                return res.status(400).json({ error: 'La fecha debe ser futura' });
+            }
+            const embedSan = sanearEmbed(b.embed);
+            const tieneEmbed = embedTieneContenido(embedSan);
+            const contenido = String(b.contenido || '').slice(0, 2000);
+            if (!tieneEmbed && !contenido) return res.status(400).json({ error: 'El anuncio está vacío' });
+            const doc = await AnuncioProgramado.create({
+                guildId,
+                canalId,
+                contenido,
+                embed: tieneEmbed ? embedSan : null,
+                fechaEnvio: fecha,
+                repetir: ['no', 'diario', 'semanal'].includes(b.repetir) ? b.repetir : 'no',
+                creadoPor: (req.staff && req.staff.username) || 'Panel Web',
+            });
+            res.json({ success: true, anuncio: doc });
+        } catch (error) {
+            console.error('Error al crear anuncio:', error);
+            res.status(400).json({ error: error.message || 'No se pudo crear' });
+        }
+    });
+
+    app.delete('/api/anuncios/:id', async (req, res) => {
+        try {
+            const doc = await AnuncioProgramado.findById(req.params.id);
+            if (!doc) return res.status(404).json({ error: 'No encontrado' });
+            if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) {
+                return res.status(403).json({ error: 'Sin permiso para este servidor' });
+            }
+            await doc.deleteOne();
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al borrar anuncio:', error);
+            res.status(500).json({ error: 'Fallo interno' });
         }
     });
 

@@ -4,6 +4,7 @@ const { getConfigCached } = require('../utils/config.js');
 const { registrarMensaje } = require('../utils/actividad.js');
 const { otorgarXp } = require('../utils/niveles.js');
 const { revisarMensaje } = require('../utils/automod.js');
+const { revisarAutoRespuestas } = require('../utils/autoRespuestas.js');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -59,7 +60,11 @@ module.exports = {
         // 2. Ejecutar comandos (según el prefijo configurado, por defecto "!")
         const cfg = await getConfigCached(message.guildId);
         const prefijo = (cfg && cfg.prefijo) || '!';
-        if (!message.content.startsWith(prefijo)) return;
+        if (!message.content.startsWith(prefijo)) {
+            // No es un comando: comprobamos si coincide con una auto-respuesta.
+            if (message.guild) await revisarAutoRespuestas(message, cfg).catch((e) => console.error('Auto-respuesta:', e.message));
+            return;
+        }
 
         const args = message.content.slice(prefijo.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();

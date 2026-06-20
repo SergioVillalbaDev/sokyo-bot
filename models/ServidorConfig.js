@@ -47,6 +47,22 @@ const ServidorConfigSchema = new mongoose.Schema({
         default: [],
     },
 
+    // --- PRODUCTIVIDAD: auto-respuestas / triggers ---
+    // Si un mensaje (que no sea comando) coincide con `patron` según `tipo`, el bot
+    // responde con `respuesta`. FAQs automáticas.
+    autoRespuestas: {
+        type: [{
+            activo: { type: Boolean, default: true },
+            nombre: { type: String, default: '' },            // etiqueta para el panel
+            patron: { type: String, default: '' },            // texto que dispara la respuesta
+            tipo: { type: String, enum: ['contiene', 'exacto', 'empieza'], default: 'contiene' },
+            respuesta: { type: String, default: '' },
+            comoEmbed: { type: Boolean, default: false },     // responder dentro de un embed
+            eliminarMensaje: { type: Boolean, default: false }, // borrar el mensaje que la disparó
+        }],
+        default: [],
+    },
+
     // --- AJUSTES DE COMPORTAMIENTO (Fase 1) ---
     // Todos los defaults reproducen el comportamiento que tenía el bot antes.
     ratingActivo: { type: Boolean, default: true },        // encuesta CSAT (estrellas) al cerrar

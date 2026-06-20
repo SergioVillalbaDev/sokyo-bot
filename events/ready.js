@@ -1,5 +1,6 @@
 const { Events, ActivityType } = require('discord.js');
 const { iniciarAutoCierre } = require('../utils/autoClose.js');
+const { iniciarProgramador } = require('../utils/scheduler.js');
 const { barrerRolesTemporales } = require('../utils/rolePanelManager.js');
 const { barrerSancionesVencidas } = require('../utils/moderationManager.js');
 const { registrarVoz } = require('../utils/actividad.js');
@@ -19,6 +20,9 @@ module.exports = {
 
         // Arranca el barrido de auto-cierre por inactividad (configurable por servidor).
         iniciarAutoCierre(client);
+
+        // Arranca el programador de anuncios programados y recordatorios.
+        iniciarProgramador(client);
 
         // Barrido de roles temporales vencidos (cada 60 s).
         setInterval(() => barrerRolesTemporales(client).catch((e) => console.error('Barrido temporales:', e.message)), 60000);
