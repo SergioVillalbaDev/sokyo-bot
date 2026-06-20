@@ -4,6 +4,8 @@ const Ticket = require('../models/Ticket.js');
 const RolePanel = require('../models/RolePanel.js');
 const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js');
 const { toggleRol, aplicarSeleccionMenu } = require('../utils/rolePanelManager.js');
+const verificacion = require('../utils/verificacion.js');
+const reportes = require('../utils/reportes.js');
 
 // --- Paneles de roles: botón de rol o de verificación ---
 async function manejarBotonRol(interaction) {
@@ -68,6 +70,16 @@ module.exports = {
         }
         if (interaction.isStringSelectMenu() && interaction.customId.startsWith('rp_menu:')) {
             return manejarMenuRol(interaction);
+        }
+
+        // --- SEGURIDAD: verificación de entrada (botón + captcha) ---
+        if (interaction.isButton() && interaction.customId === 'verif_inicio') return verificacion.manejarInicio(interaction);
+        if (interaction.isButton() && interaction.customId === 'verif_introducir') return verificacion.manejarIntroducir(interaction);
+        if (interaction.isModalSubmit() && interaction.customId === 'verif_modal') return verificacion.manejarModal(interaction);
+
+        // --- SEGURIDAD: gestión de reportes (resolver / descartar / abrir ticket) ---
+        if (interaction.isButton() && (interaction.customId.startsWith('rep_resolver:') || interaction.customId.startsWith('rep_descartar:') || interaction.customId.startsWith('rep_ticket:'))) {
+            return reportes.manejarBoton(interaction, client);
         }
 
         // --- LÓGICA DE BOTONES ---

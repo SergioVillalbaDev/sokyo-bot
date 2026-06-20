@@ -14,6 +14,9 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const RegistroMensaje = require('../models/RegistroMensaje.js');
 const TarjetaPersonal = require('../models/TarjetaPersonal.js');
 const CatalogoPresets = require('../models/CatalogoPresets.js');
+const Reporte = require('../models/Reporte.js');
+const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificacion.js');
+const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
 const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, revocarSancion } = require('../utils/moderationManager.js');
@@ -1112,6 +1115,144 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al guardar automod:', error);
             res.status(500).json({ error: 'No se pudo guardar el automoderador' });
+        }
+    });
+
+    // --- SEGURIDAD: verificación de entrada ---
+    app.put('/api/config/:guildId/verificacion', async (req, res) => {
+        try {
+            const b = req.body.verificacion || req.body || {};
+            const v = {
+                activo: !!b.activo,
+                canalId: b.canalId ? String(b.canalId) : null,
+                rolVerificadoId: b.rolVerificadoId ? String(b.rolVerificadoId) : null,
+                modo: b.modo === 'captcha' ? 'captcha' : 'boton',
+                titulo: String(b.titulo || '🔒 Verificación').slice(0, 256),
+                descripcion: String(b.descripcion || '').slice(0, 2000),
+                textoBoton: String(b.textoBoton || '✅ Verificarme').slice(0, 80),
+            };
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: Object.fromEntries(Object.entries(v).map(([k, val]) => [`verificacion.${k}`, val])) },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar verificación:', error);
+            res.status(500).json({ error: 'No se pudo guardar la verificación' });
+        }
+    });
+
+    // Publica (o reedita) el panel de verificación en el canal configurado.
+    app.post('/api/seguridad/:guildId/verificacion/publicar', async (req, res) => {
+        try {
+            const mensajeId = await publicarPanelVerificacion(client, req.params.guildId);
+            res.json({ success: true, mensajeId });
+        } catch (error) {
+            console.error('Error al publicar panel de verificación:', error);
+            res.status(400).json({ error: error.message || 'No se pudo publicar el panel' });
+        }
+    });
+
+    // --- SEGURIDAD: ajustes de reportes ---
+    app.put('/api/config/:guildId/reportes', async (req, res) => {
+        try {
+            const b = req.body.reportes || req.body || {};
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: { 'reportes.activo': !!b.activo, 'reportes.canalId': b.canalId ? String(b.canalId) : null } },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar reportes:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    // Listado de reportes (filtrado por servidor / staff).
+    app.get('/api/reportes', async (req, res) => {
+        try {
+            const { guildId } = req.query;
+            const filtro = {};
+            if (guildId) filtro.guildId = guildId;
+            else if (req.staff && !req.staff.owner) filtro.guildId = { $in: req.staff.guilds || [] };
+            res.json(await Reporte.find(filtro).sort({ fecha: -1 }).limit(200));
+        } catch (error) {
+            console.error('Error al listar reportes:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+
+    // Cambia el estado de un reporte (resolver / descartar) desde el panel.
+    app.put('/api/reportes/:id', async (req, res) => {
+        try {
+            const estado = ['resuelto', 'descartado', 'pendiente'].includes(req.body.estado) ? req.body.estado : null;
+            if (!estado) return res.status(400).json({ error: 'Estado no válido' });
+            const doc = await Reporte.findById(req.params.id);
+            if (!doc) return res.status(404).json({ error: 'Reporte no encontrado' });
+            if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) {
+                return res.status(403).json({ error: 'Sin permiso para este servidor' });
+            }
+            doc.estado = estado;
+            doc.resueltoPor = (req.staff && req.staff.username) || 'Panel Web';
+            doc.resueltoFecha = estado === 'pendiente' ? null : new Date();
+            await doc.save();
+            res.json({ success: true, reporte: doc });
+        } catch (error) {
+            console.error('Error al actualizar reporte:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+
+    // Abre un ticket a raíz de un reporte (lo enlaza y lo marca como resuelto).
+    app.post('/api/reportes/:id/ticket', async (req, res) => {
+        try {
+            const doc = await Reporte.findById(req.params.id);
+            if (!doc) return res.status(404).json({ error: 'Reporte no encontrado' });
+            if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) {
+                return res.status(403).json({ error: 'Sin permiso para este servidor' });
+            }
+            const r = await abrirTicketDesdeReporte(client, req.params.id, (req.staff && req.staff.username) || 'Panel Web');
+            res.json({ success: true, canalId: r.canalId, reporte: r.reporte });
+        } catch (error) {
+            console.error('Error al abrir ticket desde reporte:', error);
+            res.status(400).json({ error: error.message || 'No se pudo abrir el ticket' });
+        }
+    });
+
+    // --- SEGURIDAD: exportar / importar configuración del servidor ---
+    // Campos que NO se exportan/importan (identidad, estado interno, premium).
+    const CAMPOS_NO_BACKUP = ['_id', '__v', 'guildId', 'esPremium', 'premiumHasta', 'autoAsignarIndex'];
+    app.get('/api/config/:guildId/export', async (req, res) => {
+        try {
+            const cfg = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean();
+            if (!cfg) return res.status(404).json({ error: 'Sin configuración' });
+            for (const k of CAMPOS_NO_BACKUP) delete cfg[k];
+            res.json({ version: 1, exportado: new Date().toISOString(), config: cfg });
+        } catch (error) {
+            console.error('Error al exportar config:', error);
+            res.status(500).json({ error: 'No se pudo exportar' });
+        }
+    });
+
+    app.post('/api/config/:guildId/import', async (req, res) => {
+        try {
+            const entrante = (req.body && (req.body.config || req.body)) || {};
+            if (typeof entrante !== 'object' || Array.isArray(entrante)) return res.status(400).json({ error: 'Formato no válido' });
+            const cambios = { ...entrante };
+            for (const k of CAMPOS_NO_BACKUP) delete cambios[k];
+            // mensajeId de la verificación no debe importarse (es de otro servidor).
+            if (cambios.verificacion) delete cambios.verificacion.mensajeId;
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al importar config:', error);
+            res.status(500).json({ error: 'No se pudo importar (¿JSON válido?)' });
         }
     });
 

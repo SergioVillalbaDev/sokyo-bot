@@ -1,7 +1,7 @@
 // Lógica compartida de ciclo de vida de los tickets.
 // La usan tanto los botones de Discord (events/interactionCreate.js) como la API web
 // (api/server.js), de modo que cerrar/reabrir se comporta igual desde ambos sitios.
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ChannelType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ChannelType, PermissionsBitField } = require('discord.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
@@ -59,6 +59,63 @@ async function archivarCanal(canal, ticket, categoriaNombre = CATEGORIA_ARCHIVO)
             await canal.setName(`cerrado-${ticket.creadorNombre}`).catch(() => {});
         }
     } catch (e) { console.error('Error archivando el canal:', e); }
+}
+
+// Crea un ticket (canal de Discord + documento + mensaje de bienvenida con los
+// botones estándar). Reutilizable desde el flujo normal y desde otros sistemas
+// (p. ej. los reportes). Devuelve { ok, ticket, canal } o { ok: false, error }.
+async function crearTicket(client, { guildId, creador, motivo = 'Soporte', titulo = 'Ticket de Soporte', descripcion = '', prioridad = 'Normal', darAccesoCreador = true } = {}) {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return { ok: false, error: 'Servidor no encontrado' };
+
+    const cfg = await getConfig(guildId);
+    const parentId = (cfg && cfg.categoriaTicketsId && guild.channels.cache.get(cfg.categoriaTicketsId)) ? cfg.categoriaTicketsId : null;
+    const F = PermissionsBitField.Flags;
+
+    const overwrites = [{ id: guild.id, deny: [F.ViewChannel] }];
+    if (darAccesoCreador && creador && creador.id) {
+        overwrites.push({ id: creador.id, allow: [F.ViewChannel, F.SendMessages, F.ReadMessageHistory] });
+    }
+    // Que el rol de staff configurado vea siempre el ticket.
+    if (cfg && cfg.rolStaffId && guild.roles.cache.get(cfg.rolStaffId)) {
+        overwrites.push({ id: cfg.rolStaffId, allow: [F.ViewChannel, F.SendMessages, F.ReadMessageHistory] });
+    }
+
+    const nombreBase = (creador && creador.username) ? creador.username : 'ticket';
+    const canal = await guild.channels.create({
+        name: `ticket-${nombreBase}`.slice(0, 90),
+        type: ChannelType.GuildText,
+        ...(parentId ? { parent: parentId } : {}),
+        permissionOverwrites: overwrites,
+    });
+
+    const ticket = await Ticket.create({
+        guildId,
+        canalId: canal.id,
+        creadorId: (creador && creador.id) || client.user.id,
+        creadorNombre: (creador && creador.username) || 'Sistema',
+        creadorAvatar: (creador && creador.avatar) || null,
+        motivo, titulo, descripcion, prioridad, estado: 'Abierto',
+        participantes: (creador && creador.id) ? [{ id: creador.id, username: creador.username, avatar: creador.avatar, rol: 'Creador' }] : [],
+        visibleWeb: true,
+    });
+
+    await registrarLogTicket(ticket, '🎫 Ticket Abierto', '#2ecc71', (creador && creador.username) || 'Sistema');
+
+    const embed = new EmbedBuilder()
+        .setTitle(`🎫 ${titulo}`)
+        .setColor('#3498db')
+        .setDescription(`**Motivo:** ${motivo}${descripcion ? `\n\n${descripcion}` : ''}`)
+        .addFields({ name: '🚨 Urgencia', value: `**${prioridad}**`, inline: true });
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Reclamar Ticket').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Añadir Usuario').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Cerrar Ticket').setStyle(ButtonStyle.Danger),
+    );
+    const saludo = (darAccesoCreador && creador && creador.id) ? `¡Hola <@${creador.id}>! Aquí tienes tu ticket. 👇` : 'Nuevo ticket 👇';
+    await canal.send({ content: saludo, embeds: [embed], components: [row] });
+
+    return { ok: true, ticket, canal };
 }
 
 // Cierra un ticket: transcript + encuesta CSAT por DM + log + archivado del canal.
@@ -142,4 +199,4 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     return { ok: true, ticket };
 }
 
-module.exports = { cerrarTicket, reabrirTicket, generarTranscript, registrarLogTicket };
+module.exports = { crearTicket, cerrarTicket, reabrirTicket, generarTranscript, registrarLogTicket };

@@ -83,6 +83,8 @@ export function useDashboard() {
   const [stickers, setStickers] = useState([]);
   const [ranking, setRanking] = useState([]);
   const [catalogoPresets, setCatalogoPresets] = useState({ ocultos: [], personalizados: [] });
+  // Seguridad: reportes de usuarios.
+  const [reportes, setReportes] = useState([]);
 
   // Moderación (Centro de Mando).
   const [tiposSancion, setTiposSancion] = useState([]);
@@ -443,6 +445,89 @@ export function useDashboard() {
     return false;
   };
 
+  // --- SEGURIDAD: verificación ---
+  const guardarVerificacion = async (verificacion) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/verificacion`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ verificacion }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando verificación:', error); }
+    return false;
+  };
+  const publicarVerificacion = async () => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/seguridad/${configServidor.guildId}/verificacion/publicar`, { method: 'POST' });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'No se pudo publicar' };
+    } catch (error) { console.error('Error publicando verificación:', error); return { error: 'Fallo de red' }; }
+  };
+
+  // --- SEGURIDAD: reportes ---
+  const guardarReportes = async (reportesCfg) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/reportes`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reportes: reportesCfg }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando reportes:', error); }
+    return false;
+  };
+  const cargarReportes = () => apiFetch(`/api/reportes${gp()}`).then(procesarRespuesta).then((d) => setReportes(Array.isArray(d) ? d : [])).catch(reportarError('cargando reportes'));
+  const actualizarReporte = async (id, estado) => {
+    try {
+      const res = await apiFetch(`/api/reportes/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }),
+      });
+      const data = await res.json();
+      if (data.success && data.reporte) { setReportes((prev) => prev.map((r) => r._id === id ? data.reporte : r)); return true; }
+    } catch (error) { console.error('Error actualizando reporte:', error); }
+    return false;
+  };
+  const abrirTicketReporte = async (id) => {
+    try {
+      const res = await apiFetch(`/api/reportes/${id}/ticket`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        if (data.reporte) setReportes((prev) => prev.map((r) => r._id === id ? data.reporte : r));
+        return data;
+      }
+      return { error: data.error || 'No se pudo abrir el ticket' };
+    } catch (error) { console.error('Error abriendo ticket desde reporte:', error); return { error: 'Fallo de red' }; }
+  };
+
+  // --- SEGURIDAD: backup (exportar / importar config) ---
+  const exportarConfig = async () => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/export`);
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `sokyo-config-${configServidor.guildId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return true;
+    } catch (error) { console.error('Error exportando config:', error); return false; }
+  };
+  const importarConfig = async (objeto) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/import`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(objeto),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error importando config:', error); }
+    return false;
+  };
+
   // Carga qué secciones puede ver el usuario actual en el servidor seleccionado.
   const cargarMisPermisos = () => apiFetch(`/api/mis-permisos${gp()}`).then(procesarRespuesta).then((d) => setMisPermisos(d && d.areas ? d.areas : null)).catch(() => setMisPermisos(null));
 
@@ -696,6 +781,9 @@ export function useDashboard() {
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
     else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
     else if (activeTab === 'mod-automod') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
+    else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
+    else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
+    else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'mod-registro') { cargarSanciones(); cargarTiposSancion(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
@@ -742,6 +830,10 @@ export function useDashboard() {
     cargarMiembro, cargarActividad, cargarMensajesUsuario, aplicarSancion, revocarSancion, subirPrueba, guardarModLog,
     // automoderador
     guardarAutomod,
+    // seguridad
+    guardarVerificacion, publicarVerificacion,
+    reportes, guardarReportes, cargarReportes, actualizarReporte, abrirTicketReporte,
+    exportarConfig, importarConfig,
     // acceso y permisos
     guardarAcceso, misPermisos,
     // emojis y stickers

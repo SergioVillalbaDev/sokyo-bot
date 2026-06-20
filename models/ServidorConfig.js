@@ -184,6 +184,24 @@ const ServidorConfigSchema = new mongoose.Schema({
     // Tarjeta de rango (imagen) al subir de nivel y en !nivel
     tarjetaActiva: { type: Boolean, default: true },
 
+    // --- SEGURIDAD: verificación de entrada (gate) ---
+    verificacion: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },          // canal donde se publica el panel de verificación
+        rolVerificadoId: { type: String, default: null },  // rol que se concede al verificarse
+        modo: { type: String, enum: ['boton', 'captcha'], default: 'boton' }, // botón directo o captcha
+        titulo: { type: String, default: '🔒 Verificación' },
+        descripcion: { type: String, default: 'Pulsa el botón para verificarte y acceder al servidor.' },
+        textoBoton: { type: String, default: '✅ Verificarme' },
+        mensajeId: { type: String, default: null },         // id del mensaje publicado (para republicar/editar)
+    },
+
+    // --- SEGURIDAD: reportes de usuarios ---
+    reportes: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },           // canal de staff donde llegan los reportes
+    },
+
     // --- ACCESO Y PERMISOS ---
     rolesPanelAcceso: { type: [String], default: [] },  // roles que pueden entrar al panel web
     rolesModeracion: { type: [String], default: [] },   // roles que pueden moderar (panel + comandos)

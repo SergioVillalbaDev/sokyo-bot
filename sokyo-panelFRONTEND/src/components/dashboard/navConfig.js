@@ -5,6 +5,7 @@ import {
   Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
   Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap, UsersRound,
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
+  ShieldCheck as ShieldCheckIcon, UserCheck, Flag, DatabaseBackup,
 } from 'lucide-react';
 
 export const navGroups = [
@@ -45,7 +46,17 @@ export const navGroups = [
       { tab: 'mod-centro', icon: Gavel },
       { tab: 'mod-tipos', icon: ListChecks },
       { tab: 'mod-automod', icon: Bot },
+      { tab: 'mod-reportes', icon: Flag },
       { tab: 'mod-registro', icon: History },
+    ],
+  },
+  {
+    id: 'seguridad',
+    icon: ShieldCheckIcon,
+    items: [
+      { tab: 'seg-verificacion', icon: UserCheck },
+      { tab: 'seg-reportes', icon: Flag },
+      { tab: 'seg-backup', icon: DatabaseBackup },
     ],
   },
   {
