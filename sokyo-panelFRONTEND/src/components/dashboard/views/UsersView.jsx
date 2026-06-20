@@ -1,12 +1,15 @@
 // Vista de registro de usuarios — tabla de estadísticas.
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Users } from 'lucide-react';
+import { Users, ShieldAlert } from 'lucide-react';
 import { Avatar, Stars, Card } from '../../ui/primitives';
 
 export default function UsersView({ dash }) {
   const { t } = useTranslation();
-  const { usuariosStats } = dash;
+  const { usuariosStats, setObjetivoMod, setActiveTab } = dash;
+
+  // Salta a la ficha del Centro de Mando con el usuario preseleccionado.
+  const verEnModeracion = (userId) => { setObjetivoMod(userId); setActiveTab('mod-centro'); };
 
   if (usuariosStats.length === 0) {
     return (
@@ -29,6 +32,7 @@ export default function UsersView({ dash }) {
               <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.open')}</th>
               <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.rating')}</th>
               <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.lastActivity')}</th>
+              <th className="px-6 py-4 font-semibold"></th>
             </tr>
           </thead>
           <tbody>
@@ -68,6 +72,17 @@ export default function UsersView({ dash }) {
                 </td>
                 <td className="px-6 py-4 text-muted">
                   {user.ultimoTicket ? new Date(user.ultimoTicket).toLocaleDateString() : t('dashboard.users_v.unknown')}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  {user._id && (
+                    <button
+                      onClick={() => verEnModeracion(user._id)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-brand/40 hover:text-fg"
+                      title={t('dashboard.users_v.viewInMod')}
+                    >
+                      <ShieldAlert size={13} /> {t('dashboard.users_v.viewInMod')}
+                    </button>
+                  )}
                 </td>
               </motion.tr>
             ))}

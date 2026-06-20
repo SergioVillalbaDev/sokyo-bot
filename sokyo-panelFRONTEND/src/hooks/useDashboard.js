@@ -80,11 +80,19 @@ export function useDashboard() {
   const [paneles, setPaneles] = useState([]);
   const [canales, setCanales] = useState([]);
   const [emojisServidor, setEmojisServidor] = useState([]);
+  const [stickers, setStickers] = useState([]);
+  const [ranking, setRanking] = useState([]);
+  const [catalogoPresets, setCatalogoPresets] = useState({ ocultos: [], personalizados: [] });
 
   // Moderación (Centro de Mando).
   const [tiposSancion, setTiposSancion] = useState([]);
   const [sanciones, setSanciones] = useState([]);
   const [statsSancion, setStatsSancion] = useState(null);
+  // Usuario a preseleccionar al saltar al Centro de Mando desde otra vista.
+  const [objetivoMod, setObjetivoMod] = useState(null);
+
+  // Secciones del panel que el usuario actual puede ver (según su rol en el servidor).
+  const [misPermisos, setMisPermisos] = useState(null);
 
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
@@ -214,6 +222,61 @@ export function useDashboard() {
   const cargarPaneles = () => apiFetch(`/api/paneles${gp()}`).then(procesarRespuesta).then((datos) => setPaneles(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando paneles'));
   const cargarCanales = () => apiFetch(`/api/servidor/canales${gp()}`).then(procesarRespuesta).then((datos) => setCanales(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando canales'));
   const cargarEmojisServidor = () => apiFetch(`/api/servidor/emojis${gp()}`).then(procesarRespuesta).then((datos) => setEmojisServidor(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando emojis'));
+  const cargarStickers = () => apiFetch(`/api/servidor/stickers${gp()}`).then(procesarRespuesta).then((datos) => setStickers(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando stickers'));
+
+  // Crea un emoji desde una imagen (dataURL). Refresca la lista. Devuelve {error} si falla.
+  const crearEmoji = async ({ nombre, datos }) => {
+    try {
+      const res = await apiFetch('/api/servidor/emojis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, nombre, datos }) });
+      const data = await res.json();
+      if (data.success) { await cargarEmojisServidor(); return data; }
+      return { error: data.error || 'No se pudo crear' };
+    } catch (error) { console.error('Error creando emoji:', error); return { error: 'Fallo de conexión' }; }
+  };
+  const eliminarEmoji = async (emojiId) => {
+    try { const res = await apiFetch(`/api/servidor/emojis/${emojiId}${gp()}`, { method: 'DELETE' }); if (res.ok) { await cargarEmojisServidor(); return true; } }
+    catch (error) { console.error('Error eliminando emoji:', error); }
+    return false;
+  };
+  const crearSticker = async ({ nombre, datos }) => {
+    try {
+      const res = await apiFetch('/api/servidor/stickers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, nombre, datos }) });
+      const data = await res.json();
+      if (data.success) { await cargarStickers(); return data; }
+      return { error: data.error || 'No se pudo crear' };
+    } catch (error) { console.error('Error creando sticker:', error); return { error: 'Fallo de conexión' }; }
+  };
+  const eliminarSticker = async (stickerId) => {
+    try { const res = await apiFetch(`/api/servidor/stickers/${stickerId}${gp()}`, { method: 'DELETE' }); if (res.ok) { await cargarStickers(); return true; } }
+    catch (error) { console.error('Error eliminando sticker:', error); }
+    return false;
+  };
+
+  // --- Niveles / XP ---
+  const cargarRanking = () => apiFetch(`/api/niveles/ranking${gp()}`).then(procesarRespuesta).then((datos) => setRanking(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando ranking'));
+  // Catálogo GLOBAL de presets de tarjeta (no depende del servidor).
+  const cargarCatalogoPresets = () => apiFetch('/api/presets-tarjeta').then(procesarRespuesta).then((datos) => setCatalogoPresets({ ocultos: datos?.ocultos || [], personalizados: datos?.personalizados || [] })).catch(reportarError('cargando catálogo de presets'));
+  const guardarCatalogoPresets = async (datos) => {
+    try {
+      const res = await apiFetch('/api/presets-tarjeta', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
+      });
+      const data = await res.json();
+      if (data.success) { setCatalogoPresets({ ocultos: data.ocultos || [], personalizados: data.personalizados || [] }); return true; }
+    } catch (error) { console.error('Error guardando catálogo de presets:', error); }
+    return false;
+  };
+  const guardarNiveles = async (cambios) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/niveles`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando niveles:', error); }
+    return false;
+  };
 
   // Crea un panel (el backend lo publica si trae canal). Refresca la lista.
   const crearPanel = async (datos) => {
@@ -315,6 +378,24 @@ export function useDashboard() {
     } catch (error) { console.error('Error cargando miembro:', error); return null; }
   };
 
+  // Resumen de actividad de un usuario (último mensaje, voz, conteo).
+  const cargarActividad = async (userId) => {
+    try {
+      const res = await apiFetch(`/api/servidor/actividad/${userId}${gp()}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) { console.error('Error cargando actividad:', error); return null; }
+  };
+
+  // Registro de mensajes recientes de un usuario. Devuelve un array.
+  const cargarMensajesUsuario = async (userId) => {
+    try {
+      const res = await apiFetch(`/api/servidor/mensajes/${userId}${gp()}`);
+      const datos = await res.json();
+      return Array.isArray(datos) ? datos : [];
+    } catch (error) { console.error('Error cargando mensajes del usuario:', error); return []; }
+  };
+
   // Aplica una sanción a un usuario (por tipoId guardado o por acción rápida).
   // Devuelve { success, sancion } o { error }.
   const aplicarSancion = async (payload) => {
@@ -346,6 +427,23 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success && data.config) { setConfigServidor(data.config); return true; }
     } catch (error) { console.error('Error guardando ajustes de moderación:', error); }
+    return false;
+  };
+
+  // Carga qué secciones puede ver el usuario actual en el servidor seleccionado.
+  const cargarMisPermisos = () => apiFetch(`/api/mis-permisos${gp()}`).then(procesarRespuesta).then((d) => setMisPermisos(d && d.areas ? d.areas : null)).catch(() => setMisPermisos(null));
+
+  // Guarda acceso al panel + roles de moderación + distribución de secciones.
+  const guardarAcceso = async ({ rolesPanelAcceso, rolesModeracion, accesoAreas }) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/acceso`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rolesPanelAcceso, rolesModeracion, accesoAreas }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); cargarMisPermisos(); return true; }
+    } catch (error) { console.error('Error guardando acceso:', error); }
     return false;
   };
 
@@ -564,12 +662,21 @@ export function useDashboard() {
   }, [servidores, guildId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Recarga qué secciones puede ver el usuario al cambiar de servidor.
+  useEffect(() => {
+    if (guildId) cargarMisPermisos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guildId]);
+
   // Recarga los datos de la pestaña activa (también al cambiar de servidor).
   useEffect(() => {
     if (activeTab === 'inicio') { cargarUso(); cargarTickets(); cargarLogs(); cargarUsuariosStats(); cargarConfiguracion(); cargarPing(); }
     else if (activeTab === 'tickets-gestion') { cargarTickets(); cargarConfiguracion(); }
     else if (activeTab === 'config-comportamiento') { cargarConfiguracion(); cargarRoles(); }
     else if (activeTab === 'config-reglas') { cargarConfiguracion(); cargarRoles(); cargarCategorias(); }
+    else if (activeTab === 'config-acceso') { cargarConfiguracion(); cargarRoles(); }
+    else if (activeTab === 'config-expresiones') { cargarEmojisServidor(); cargarStickers(); }
+    else if (activeTab === 'config-niveles') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarRanking(); cargarCatalogoPresets(); }
     else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); }
     else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
     else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
@@ -615,10 +722,17 @@ export function useDashboard() {
     guardarAutoRoles,
     paneles, canales, emojisServidor, crearPanel, editarPanel, publicarPanel, eliminarPanel, subirImagenPanel,
     // moderación (Centro de Mando)
-    tiposSancion, sanciones, statsSancion,
+    tiposSancion, sanciones, statsSancion, objetivoMod, setObjetivoMod,
     cargarTiposSancion, cargarSanciones, cargarStatsSancion,
     crearTipoSancion, editarTipoSancion, eliminarTipoSancion,
-    cargarMiembro, aplicarSancion, revocarSancion, subirPrueba, guardarModLog,
+    cargarMiembro, cargarActividad, cargarMensajesUsuario, aplicarSancion, revocarSancion, subirPrueba, guardarModLog,
+    // acceso y permisos
+    guardarAcceso, misPermisos,
+    // emojis y stickers
+    stickers, crearEmoji, eliminarEmoji, crearSticker, eliminarSticker,
+    // niveles
+    ranking, guardarNiveles,
+    catalogoPresets, guardarCatalogoPresets,
     // productividad: macros + etiquetas
     guardarMacros, guardarEtiquetas,
     // tickets

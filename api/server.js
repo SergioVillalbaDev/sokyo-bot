@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const { ChannelType, PermissionsBitField } = require('discord.js');
+const { ChannelType, PermissionsBitField, AttachmentBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
@@ -10,9 +10,14 @@ const Log = require('../models/Log.js');
 const RolePanel = require('../models/RolePanel.js');
 const TipoSancion = require('../models/TipoSancion.js');
 const Sancion = require('../models/Sancion.js');
+const ActividadUsuario = require('../models/ActividadUsuario.js');
+const RegistroMensaje = require('../models/RegistroMensaje.js');
+const TarjetaPersonal = require('../models/TarjetaPersonal.js');
+const CatalogoPresets = require('../models/CatalogoPresets.js');
 const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, revocarSancion } = require('../utils/moderationManager.js');
+const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken } = require('../utils/auth.js');
 
 module.exports = (client) => {
@@ -55,9 +60,10 @@ module.exports = (client) => {
                 const member = await g.members.fetch(userId);
                 const cfg = await ServidorConfig.findOne({ guildId: g.id });
                 const tieneRol = cfg && cfg.rolStaffId && member.roles.cache.has(cfg.rolStaffId);
+                const tieneAcceso = cfg && Array.isArray(cfg.rolesPanelAcceso) && cfg.rolesPanelAcceso.some((id) => member.roles.cache.has(id));
                 const esAdmin = member.permissions.has(PermissionsBitField.Flags.ManageChannels)
                     || member.permissions.has(PermissionsBitField.Flags.Administrator);
-                if (tieneRol || esAdmin) out.push({ id: g.id, nombre: g.name, icono: g.iconURL({ size: 128 }) || null });
+                if (tieneRol || tieneAcceso || esAdmin) out.push({ id: g.id, nombre: g.name, icono: g.iconURL({ size: 128 }) || null });
             } catch { /* el usuario no es miembro de ese servidor */ }
         }
         return out;
@@ -166,8 +172,12 @@ module.exports = (client) => {
             if (!guild) return false;
             const member = await guild.members.fetch(req.staff.id);
             const P = PermissionsBitField.Flags;
-            return member.permissions.has(P.Administrator) || member.permissions.has(P.BanMembers)
-                || member.permissions.has(P.KickMembers) || member.permissions.has(P.ModerateMembers);
+            if (member.permissions.has(P.Administrator) || member.permissions.has(P.BanMembers)
+                || member.permissions.has(P.KickMembers) || member.permissions.has(P.ModerateMembers)) return true;
+            // Roles de moderación configurados en el panel.
+            const cfg = await ServidorConfig.findOne({ guildId });
+            const rolesMod = (cfg && cfg.rolesModeracion) || [];
+            return rolesMod.some((id) => member.roles.cache.has(id));
         } catch { return false; }
     }
 
@@ -270,9 +280,151 @@ module.exports = (client) => {
         }
     });
 
+    // ¿El usuario tiene Premium? Lo es si es miembro de algún servidor Premium.
+    // (Los servidores premium suelen ser pocos, así que recorrerlos es barato.)
+    async function usuarioEsPremium(userId) {
+        const premium = await ServidorConfig.find({ esPremium: true }).select('guildId');
+        for (const pg of premium) {
+            const guild = client.guilds.cache.get(pg.guildId);
+            if (!guild) continue;
+            const miembro = guild.members.cache.get(userId) || await guild.members.fetch(userId).catch(() => null);
+            if (miembro) return true;
+        }
+        return false;
+    }
+
     // 3. Datos de la sesión actual
-    app.get('/api/portal/yo', portalAuth, (req, res) => {
-        res.json({ id: req.usuario.id, username: req.usuario.username, avatar: req.usuario.avatar });
+    app.get('/api/portal/yo', portalAuth, async (req, res) => {
+        const esPremium = await usuarioEsPremium(req.usuario.id).catch(() => false);
+        res.json({ id: req.usuario.id, username: req.usuario.username, avatar: req.usuario.avatar, esPremium });
+    });
+
+    // Tarjeta de rango personalizada del usuario (premium). Leer / guardar.
+    app.get('/api/portal/tarjeta', portalAuth, async (req, res) => {
+        try {
+            const t = await TarjetaPersonal.findOne({ userId: req.usuario.id });
+            res.json(t || {});
+        } catch (error) {
+            console.error('Error al leer tarjeta personal:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    app.put('/api/portal/tarjeta', portalAuth, async (req, res) => {
+        try {
+            const cambios = {};
+            if (req.body.colorAcento !== undefined) cambios.colorAcento = req.body.colorAcento;
+            if (req.body.fondoTipo !== undefined) cambios.fondoTipo = ['color', 'degradado', 'imagen'].includes(req.body.fondoTipo) ? req.body.fondoTipo : 'color';
+            if (req.body.fondoColor !== undefined) cambios.fondoColor = req.body.fondoColor;
+            if (req.body.colorSecundario !== undefined) cambios.colorSecundario = req.body.colorSecundario;
+            if (req.body.preset !== undefined) cambios.preset = req.body.preset ? String(req.body.preset).slice(0, 40) : null;
+            if (req.body.fondoImagen !== undefined) {
+                const v = req.body.fondoImagen;
+                cambios.fondoImagen = (v && (/^https?:\/\//i.test(v) || v.startsWith('/uploads/'))) ? String(v).slice(0, 500) : null;
+            }
+            const t = await TarjetaPersonal.findOneAndUpdate({ userId: req.usuario.id }, { $set: cambios }, { returnDocument: 'after', upsert: true });
+            res.json({ success: true, tarjeta: t });
+        } catch (error) {
+            console.error('Error al guardar tarjeta personal:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    // Subir el fondo de la tarjeta desde el ordenador (dataURL base64).
+    app.post('/api/portal/tarjeta/upload', portalAuth, (req, res) => {
+        try {
+            const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(req.body?.datos || '');
+            if (!m) return res.status(400).json({ error: 'Formato no válido (png, jpg, gif o webp)' });
+            const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
+            const buffer = Buffer.from(m[3], 'base64');
+            if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 8 MB' });
+            const archivo = `tarjeta-${req.usuario.id}-${Date.now()}.${ext}`;
+            fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
+            res.json({ success: true, url: `/uploads/${archivo}` });
+        } catch (error) {
+            console.error('Error al subir fondo de tarjeta:', error);
+            res.status(500).json({ error: 'No se pudo subir la imagen' });
+        }
+    });
+
+    // Previsualización REAL de la tarjeta: renderiza la misma imagen que el bot
+    // (PNG, o GIF si el estilo es animado) con los ajustes ENVIADOS (sin guardar)
+    // y el avatar del usuario. Devuelve la imagen binaria.
+    app.post('/api/portal/tarjeta/preview', portalAuth, async (req, res) => {
+        try {
+            const esPremium = await usuarioEsPremium(req.usuario.id).catch(() => false);
+            const b = req.body || {};
+            const opc = {
+                color: b.colorAcento || '#5865F2',
+                fondoTipo: b.fondoTipo || 'color',
+                fondoColor: b.fondoColor || '#1e2030',
+                colorSecundario: b.colorSecundario || null,
+                preset: b.preset || null,
+            };
+            // La imagen propia solo aplica con premium (igual que en el bot).
+            if (b.fondoTipo === 'imagen') {
+                if (esPremium) opc.fondoImagen = b.fondoImagen;
+                else opc.fondoTipo = b.colorSecundario ? 'degradado' : 'color';
+            }
+            const r = await construirBuffer(opc, esPremium, {
+                avatarURL: req.usuario.avatar, nombre: req.usuario.username,
+                nivel: 12, rank: 1, xpActual: 600, xpNecesaria: 1000,
+            });
+            if (!r) return res.status(500).json({ error: 'No se pudo generar' });
+            res.set('Content-Type', r.ext === 'gif' ? 'image/gif' : 'image/png');
+            res.set('Cache-Control', 'no-store');
+            res.send(r.buffer);
+        } catch (error) {
+            console.error('Error en previsualización de tarjeta:', error);
+            res.status(500).json({ error: 'No se pudo generar la previsualización' });
+        }
+    });
+
+    // Catálogo de presets para el PORTAL (qué hay disponible para los usuarios).
+    app.get('/api/portal/presets', portalAuth, async (req, res) => {
+        try {
+            const cat = await CatalogoPresets.findOne({ clave: 'global' });
+            res.json({ ocultos: cat?.ocultos || [], personalizados: cat?.personalizados || [] });
+        } catch (error) {
+            console.error('Error leyendo catálogo de presets:', error);
+            res.json({ ocultos: [], personalizados: [] });
+        }
+    });
+
+    // Catálogo de presets — gestión desde el PANEL DE ADMIN (protegido por el
+    // middleware de /api: requiere sesión de staff o la API key del propietario).
+    app.get('/api/presets-tarjeta', async (req, res) => {
+        try {
+            const cat = await CatalogoPresets.findOne({ clave: 'global' });
+            res.json({ ocultos: cat?.ocultos || [], personalizados: cat?.personalizados || [] });
+        } catch (error) {
+            console.error('Error leyendo catálogo de presets:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    app.put('/api/presets-tarjeta', async (req, res) => {
+        try {
+            const b = req.body || {};
+            const ocultos = Array.isArray(b.ocultos) ? b.ocultos.map(String).slice(0, 50) : [];
+            const personalizados = (Array.isArray(b.personalizados) ? b.personalizados : []).slice(0, 50).map((p) => ({
+                id: (String(p.id || '').trim() || `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`).slice(0, 40),
+                nombre: String(p.nombre || 'Diseño').slice(0, 40),
+                colorAcento: p.colorAcento || '#5865F2',
+                fondoColor: p.fondoColor || '#1e2030',
+                colorSecundario: p.colorSecundario || '#9b59b6',
+                fondoTipo: ['color', 'degradado'].includes(p.fondoTipo) ? p.fondoTipo : 'degradado',
+                premium: !!p.premium,
+            }));
+            const cat = await CatalogoPresets.findOneAndUpdate(
+                { clave: 'global' }, { $set: { ocultos, personalizados } },
+                { upsert: true, returnDocument: 'after' },
+            );
+            res.json({ success: true, ocultos: cat.ocultos, personalizados: cat.personalizados });
+        } catch (error) {
+            console.error('Error guardando catálogo de presets:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
     });
 
     // 4. MIS tickets
@@ -350,6 +502,33 @@ module.exports = (client) => {
     app.get('/api/ping', (req, res) => {
 
         res.json({ ping: Math.round(client.ws.ping) });
+    });
+
+    // Qué SECCIONES del panel puede ver el usuario actual en un servidor.
+    // Propietario/API key y administradores ven todo. El resto, según accesoAreas:
+    // lista vacía = visible para todos; con roles = solo quien tenga uno de ellos.
+    const AREAS = ['tickets', 'roles', 'moderacion', 'logs', 'config'];
+    app.get('/api/mis-permisos', async (req, res) => {
+        try {
+            const todo = () => res.json({ areas: Object.fromEntries(AREAS.map((a) => [a, true])) });
+            if (!req.staff || req.staff.owner) return todo();
+
+            const guildId = req.query.guildId;
+            const guild = guildId ? client.guilds.cache.get(guildId) : null;
+            const member = guild ? await guild.members.fetch(req.staff.id).catch(() => null) : null;
+            if (member && member.permissions.has(PermissionsBitField.Flags.Administrator)) return todo();
+
+            const cfg = guildId ? await ServidorConfig.findOne({ guildId }) : null;
+            const areas = {};
+            for (const a of AREAS) {
+                const lista = (cfg && cfg.accesoAreas && cfg.accesoAreas[a]) || [];
+                areas[a] = lista.length === 0 || !!(member && lista.some((id) => member.roles.cache.has(id)));
+            }
+            res.json({ areas });
+        } catch (error) {
+            console.error('Error en mis-permisos:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
     });
 
     // Config de servidores. Con ?guildId= devuelve solo ese (creándolo si no existe).
@@ -838,6 +1017,29 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- ACCESO Y PERMISOS: roles que entran al panel + roles de moderación ---
+    app.put('/api/config/:guildId/acceso', async (req, res) => {
+        try {
+            const cambios = {};
+            if (Array.isArray(req.body.rolesPanelAcceso)) cambios.rolesPanelAcceso = req.body.rolesPanelAcceso.filter(Boolean);
+            if (Array.isArray(req.body.rolesModeracion)) cambios.rolesModeracion = req.body.rolesModeracion.filter(Boolean);
+            if (req.body.accesoAreas && typeof req.body.accesoAreas === 'object') {
+                ['tickets', 'roles', 'moderacion', 'logs', 'config'].forEach((a) => {
+                    if (Array.isArray(req.body.accesoAreas[a])) cambios[`accesoAreas.${a}`] = req.body.accesoAreas[a].filter(Boolean);
+                });
+            }
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar acceso y permisos:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
     // --- SISTEMA DE ROLES: guardar autorol al entrar (personas / bots) ---
     app.put('/api/config/:guildId/autoroles', async (req, res) => {
         try {
@@ -1223,12 +1425,100 @@ app.get('/api/stats/uso', async (req, res) => {
                 animado: e.animated,
                 // Código que se inserta en el mensaje y que el bot sabe interpretar.
                 codigo: `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`,
-                url: e.imageURL({ size: 32 }),
+                url: e.imageURL({ size: 64 }),
             }));
             res.json(emojis);
         } catch (error) {
             console.error('Error al obtener emojis:', error);
             res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // Helper: dataURL base64 -> { buffer, mime }.
+    function dataUrlABuffer(datos) {
+        const m = /^data:(.+?);base64,(.+)$/.exec(datos || '');
+        if (!m) return null;
+        return { mime: m[1], buffer: Buffer.from(m[2], 'base64') };
+    }
+    // Nombre válido de emoji/sticker: 2–32, letras/números/guion bajo.
+    const limpiarNombre = (n) => String(n || '').trim().replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32);
+
+    // Crear un emoji (imagen en dataURL).
+    app.post('/api/servidor/emojis', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.body.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const nombre = limpiarNombre(req.body.nombre);
+            if (nombre.length < 2) return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
+            const datos = dataUrlABuffer(req.body.datos);
+            if (!datos || !/image\/(png|jpe?g|gif)/i.test(datos.mime)) return res.status(400).json({ error: 'Formato no válido (png, jpg o gif)' });
+            if (datos.buffer.length > 256 * 1024) return res.status(400).json({ error: 'El emoji supera 256 KB' });
+
+            const emoji = await guild.emojis.create({ attachment: datos.buffer, name: nombre });
+            res.json({ success: true, emoji: { id: emoji.id, nombre: emoji.name, animado: emoji.animated, codigo: `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`, url: emoji.imageURL({ size: 64 }) } });
+        } catch (error) {
+            console.error('Error al crear emoji:', error);
+            res.status(400).json({ error: error.message || 'No se pudo crear el emoji' });
+        }
+    });
+
+    // Eliminar un emoji.
+    app.delete('/api/servidor/emojis/:emojiId', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            await guild.emojis.delete(req.params.emojiId);
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al eliminar emoji:', error);
+            res.status(400).json({ error: error.message || 'No se pudo eliminar' });
+        }
+    });
+
+    // Listar stickers del servidor.
+    app.get('/api/servidor/stickers', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            await guild.stickers.fetch().catch(() => {});
+            const stickers = guild.stickers.cache.map((s) => ({ id: s.id, nombre: s.name, descripcion: s.description, tags: s.tags, url: s.url }));
+            res.json(stickers);
+        } catch (error) {
+            console.error('Error al obtener stickers:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // Crear un sticker (imagen PNG/APNG en dataURL).
+    app.post('/api/servidor/stickers', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.body.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const nombre = limpiarNombre(req.body.nombre);
+            if (nombre.length < 2) return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
+            const datos = dataUrlABuffer(req.body.datos);
+            if (!datos || !/image\/png/i.test(datos.mime)) return res.status(400).json({ error: 'El sticker debe ser PNG o APNG' });
+            if (datos.buffer.length > 512 * 1024) return res.status(400).json({ error: 'El sticker supera 512 KB' });
+
+            const file = new AttachmentBuilder(datos.buffer, { name: 'sticker.png' });
+            const sticker = await guild.stickers.create({ file, name: nombre, tags: req.body.tags || nombre, description: req.body.descripcion || undefined });
+            res.json({ success: true, sticker: { id: sticker.id, nombre: sticker.name, descripcion: sticker.description, tags: sticker.tags, url: sticker.url } });
+        } catch (error) {
+            console.error('Error al crear sticker:', error);
+            res.status(400).json({ error: error.message || 'No se pudo crear el sticker' });
+        }
+    });
+
+    // Eliminar un sticker.
+    app.delete('/api/servidor/stickers/:stickerId', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            await guild.stickers.delete(req.params.stickerId);
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al eliminar sticker:', error);
+            res.status(400).json({ error: error.message || 'No se pudo eliminar' });
         }
     });
 
@@ -1333,14 +1623,16 @@ app.get('/api/stats/uso', async (req, res) => {
                 return res.status(400).json({ error: 'Indica un tipo de sanción o una acción' });
             }
 
-            // Permiso de Discord ESPECÍFICO según la acción (el staff debe tenerlo en este servidor).
+            // Permiso ESPECÍFICO según la acción: nativo de Discord o rol de moderación configurado.
             if (req.staff && !req.staff.owner) {
                 const guild = client.guilds.cache.get(guildId);
                 const member = guild ? await guild.members.fetch(req.staff.id).catch(() => null) : null;
                 const P = PermissionsBitField.Flags;
                 const requerido = { timeout: P.ModerateMembers, expulsion: P.KickMembers, ban: P.BanMembers, aviso: P.ModerateMembers }[tipo.accion];
-                const ok = member && (member.permissions.has(P.Administrator) || member.permissions.has(requerido));
-                if (!ok) return res.status(403).json({ error: 'No tienes el permiso de Discord necesario para esta acción' });
+                const cfgMod = await ServidorConfig.findOne({ guildId });
+                const tieneRolMod = (cfgMod?.rolesModeracion || []).some((id) => member?.roles.cache.has(id));
+                const ok = member && (member.permissions.has(P.Administrator) || member.permissions.has(requerido) || tieneRolMod);
+                if (!ok) return res.status(403).json({ error: 'No tienes permiso para esta acción' });
             }
 
             const sancion = await aplicarSancion(client, {
@@ -1440,12 +1732,105 @@ app.get('/api/stats/uso', async (req, res) => {
                 creadoTimestamp: user.createdTimestamp,
                 entradaTimestamp: member ? member.joinedTimestamp : null,
                 esDueño: guild.ownerId === user.id,
+                // ¿En voz ahora mismo? (estado en vivo)
+                vozCanal: member?.voice?.channel ? { id: member.voice.channel.id, nombre: member.voice.channel.name } : null,
                 roles: member
                     ? member.roles.cache.filter((r) => r.name !== '@everyone').sort((a, b) => b.position - a.position).map((r) => ({ id: r.id, nombre: r.name, color: r.hexColor }))
                     : [],
             });
         } catch (error) {
             console.error('Error al obtener miembro:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- Actividad de un usuario (resumen: último mensaje, voz, conteo) ---
+    app.get('/api/servidor/actividad/:userId', exigeModerador, async (req, res) => {
+        try {
+            const act = await ActividadUsuario.findOne({ guildId: req.query.guildId, userId: req.params.userId });
+            res.json(act || null);
+        } catch (error) {
+            console.error('Error al obtener actividad:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- Registro de mensajes de un usuario (los más recientes) ---
+    app.get('/api/servidor/mensajes/:userId', exigeModerador, async (req, res) => {
+        try {
+            const limite = Math.min(100, parseInt(req.query.limit, 10) || 50);
+            const mensajes = await RegistroMensaje.find({ guildId: req.query.guildId, userId: req.params.userId })
+                .sort({ fecha: -1 }).limit(limite);
+            res.json(mensajes);
+        } catch (error) {
+            console.error('Error al obtener mensajes del usuario:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- NIVELES: guardar configuración ---
+    app.put('/api/config/:guildId/niveles', async (req, res) => {
+        try {
+            const b = req.body;
+            const cambios = {};
+            const numEntre = (v, min, max, def) => { const n = parseInt(v, 10); return Number.isNaN(n) ? def : Math.min(max, Math.max(min, n)); };
+
+            if (b.nivelesActivo !== undefined) cambios.nivelesActivo = !!b.nivelesActivo;
+            if (b.xpMin !== undefined) cambios.xpMin = numEntre(b.xpMin, 0, 1000, 15);
+            if (b.xpMax !== undefined) cambios.xpMax = numEntre(b.xpMax, 0, 1000, 25);
+            if (b.xpCooldownSeg !== undefined) cambios.xpCooldownSeg = numEntre(b.xpCooldownSeg, 0, 3600, 60);
+            if (b.xpVozActivo !== undefined) cambios.xpVozActivo = !!b.xpVozActivo;
+            if (b.xpVozPorMin !== undefined) cambios.xpVozPorMin = numEntre(b.xpVozPorMin, 0, 1000, 5);
+            if (b.dificultad !== undefined) { const d = parseFloat(b.dificultad); cambios.dificultad = Number.isNaN(d) ? 1 : Math.min(5, Math.max(0.1, d)); }
+            if (b.anuncioTipo !== undefined) cambios.anuncioTipo = ['canal', 'dm', 'off'].includes(b.anuncioTipo) ? b.anuncioTipo : 'canal';
+            if (b.canalNivelesId !== undefined) cambios.canalNivelesId = b.canalNivelesId || null;
+            if (b.mensajeSubida !== undefined) cambios.mensajeSubida = String(b.mensajeSubida).slice(0, 500);
+            if (b.recompensaAcumulativa !== undefined) cambios.recompensaAcumulativa = !!b.recompensaAcumulativa;
+            if (Array.isArray(b.canalesSinXp)) cambios.canalesSinXp = b.canalesSinXp.filter(Boolean);
+            if (Array.isArray(b.rolesSinXp)) cambios.rolesSinXp = b.rolesSinXp.filter(Boolean);
+            if (b.tarjetaActiva !== undefined) cambios.tarjetaActiva = !!b.tarjetaActiva;
+            if (Array.isArray(b.multiplicadoresRol)) {
+                cambios.multiplicadoresRol = b.multiplicadoresRol
+                    .filter((m) => m && m.rolId)
+                    .map((m) => ({ rolId: String(m.rolId), multiplicador: Math.min(10, Math.max(0, parseFloat(m.multiplicador) || 1)) }))
+                    .slice(0, 50);
+            }
+            if (Array.isArray(b.recompensasNivel)) {
+                cambios.recompensasNivel = b.recompensasNivel
+                    .filter((r) => r && r.rolId && r.nivel)
+                    .map((r) => ({ nivel: Math.max(1, parseInt(r.nivel, 10) || 1), rolId: String(r.rolId) }))
+                    .slice(0, 50);
+            }
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId }, { $set: cambios }, { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar niveles:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    // --- NIVELES: ranking (leaderboard) del servidor ---
+    app.get('/api/niveles/ranking', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            const top = await ActividadUsuario.find({ guildId: guild.id, xp: { $gt: 0 } }).sort({ xp: -1 }).limit(50);
+            const ranking = top.map((u, i) => {
+                const member = guild.members.cache.get(u.userId);
+                return {
+                    posicion: i + 1,
+                    userId: u.userId,
+                    nombre: member ? member.displayName : (u.usuarioTag || 'Usuario'),
+                    avatar: member ? member.user.displayAvatarURL({ size: 64 }) : null,
+                    xp: u.xp,
+                    nivel: u.nivel,
+                };
+            });
+            res.json(ranking);
+        } catch (error) {
+            console.error('Error al obtener ranking:', error);
             res.status(500).json({ error: 'Error del servidor' });
         }
     });

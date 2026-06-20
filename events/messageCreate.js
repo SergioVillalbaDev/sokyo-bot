@@ -1,11 +1,22 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
 const { getConfigCached } = require('../utils/config.js');
+const { registrarMensaje } = require('../utils/actividad.js');
+const { otorgarXp } = require('../utils/niveles.js');
 
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
         if (message.author.bot) return;
+
+        // 0. Registro de actividad del usuario (mensajes), solo en servidores.
+        if (message.guild) {
+            try {
+                const cfgAct = await getConfigCached(message.guildId);
+                await registrarMensaje(message, !!(cfgAct && cfgAct.esPremium));
+                await otorgarXp(message, cfgAct);
+            } catch (e) { console.error('Error registrando actividad de mensaje:', e.message); }
+        }
 
         // 1. Guardar mensajes de los tickets en la BD
         if (message.channel.name && message.channel.name.startsWith('ticket-')) {

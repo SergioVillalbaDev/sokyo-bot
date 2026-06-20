@@ -24,11 +24,14 @@ import PanelesView from './views/PanelesView';
 import CentroMandoView from './views/CentroMandoView';
 import TiposSancionView from './views/TiposSancionView';
 import RegistroSancionesView from './views/RegistroSancionesView';
+import AccesoView from './views/AccesoView';
+import ExpresionesView from './views/ExpresionesView';
+import NivelesView from './views/NivelesView';
 
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
   const dash = useDashboard();
-  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId } = dash;
+  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId, misPermisos } = dash;
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sokyoSidebarCollapsed') === '1');
   const toggleCollapsed = (value) => {
@@ -52,6 +55,9 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'config-comportamiento') return <ComportamientoView dash={dash} />;
     if (activeTab === 'config-reglas') return <RulesView dash={dash} />;
     if (activeTab === 'config-macros') return <MacrosView dash={dash} />;
+    if (activeTab === 'config-acceso') return <AccesoView dash={dash} />;
+    if (activeTab === 'config-expresiones') return <ExpresionesView dash={dash} />;
+    if (activeTab === 'config-niveles') return <NivelesView dash={dash} />;
     if (activeTab === 'roles-gestion') return <RolesView dash={dash} />;
     if (activeTab === 'roles-autorol') return <AutoRolView dash={dash} />;
     if (activeTab === 'roles-paneles') return <PanelesView dash={dash} />;
@@ -78,6 +84,7 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
         servidores={servidores}
         guildId={guildId}
         setGuildId={setGuildId}
+        permisos={misPermisos}
         onLogout={onLogout}
       />
 

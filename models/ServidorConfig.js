@@ -70,6 +70,45 @@ const ServidorConfigSchema = new mongoose.Schema({
     canalModLogId: { type: String, default: null },   // canal donde se registran las sanciones
     dmSancion: { type: Boolean, default: true },       // avisar por MD al usuario sancionado
 
+    // --- NIVELES / XP ---
+    nivelesActivo: { type: Boolean, default: false },        // sistema de niveles activado
+    // Ganancia por mensaje
+    xpMin: { type: Number, default: 15 },
+    xpMax: { type: Number, default: 25 },
+    xpCooldownSeg: { type: Number, default: 60 },            // segundos entre ganancias por mensaje
+    // Ganancia por voz
+    xpVozActivo: { type: Boolean, default: false },
+    xpVozPorMin: { type: Number, default: 5 },               // XP por minuto en voz
+    // Dificultad: multiplica la curva (1 = normal, >1 más difícil, <1 más fácil)
+    dificultad: { type: Number, default: 1 },
+    // Anuncios de subida
+    anuncioTipo: { type: String, enum: ['canal', 'dm', 'off'], default: 'canal' },
+    canalNivelesId: { type: String, default: null },         // canal de anuncios (null = donde escribió)
+    mensajeSubida: { type: String, default: '🎉 ¡{mention} ha subido a **nivel {level}**!' },
+    // Recompensas por nivel
+    recompensasNivel: { type: [{ nivel: Number, rolId: String }], default: [] },
+    recompensaAcumulativa: { type: Boolean, default: true }, // true = acumula roles; false = sustituye por el más alto
+    // Exclusiones
+    canalesSinXp: { type: [String], default: [] },           // canales que no dan XP
+    rolesSinXp: { type: [String], default: [] },             // roles cuyos miembros no ganan XP
+    // Multiplicadores: roles que ganan XP a un ritmo distinto (se aplica el mayor)
+    multiplicadoresRol: { type: [{ rolId: String, multiplicador: Number }], default: [] },
+    // Tarjeta de rango (imagen) al subir de nivel y en !nivel
+    tarjetaActiva: { type: Boolean, default: true },
+
+    // --- ACCESO Y PERMISOS ---
+    rolesPanelAcceso: { type: [String], default: [] },  // roles que pueden entrar al panel web
+    rolesModeracion: { type: [String], default: [] },   // roles que pueden moderar (panel + comandos)
+    // Distribución "quién ve qué": roles que ven cada sección. Lista vacía = la ven
+    // todos los que tengan acceso al panel. Admins/propietario ven todo siempre.
+    accesoAreas: {
+        tickets: { type: [String], default: [] },
+        roles: { type: [String], default: [] },
+        moderacion: { type: [String], default: [] },
+        logs: { type: [String], default: [] },
+        config: { type: [String], default: [] },
+    },
+
     esPremium: { type: Boolean, default: false },
     premiumHasta: { type: Date, default: null }
 });

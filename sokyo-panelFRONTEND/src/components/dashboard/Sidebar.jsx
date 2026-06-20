@@ -10,9 +10,12 @@ import { getStaffSession } from '../../lib/api';
 
 const esOwner = !!getStaffSession()?.owner;
 
-export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, onExitToLanding, servidorInfo, esPremium, servidores = [], guildId, setGuildId, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, onExitToLanding, servidorInfo, esPremium, servidores = [], guildId, setGuildId, permisos, onLogout }) {
   const { t } = useTranslation();
   const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
+
+  // Solo los grupos que el usuario puede ver (según su rol). Sin datos aún → todos.
+  const gruposVisibles = navGroups.filter((g) => !permisos || permisos[g.id] !== false);
 
   // Servidor seleccionado (de la lista) con fallback a la info del endpoint de uso.
   const seleccionado = servidores.find((s) => s.id === guildId);
@@ -98,7 +101,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           {!collapsed && <span>{t('dashboard.inicio')}</span>}
         </button>
 
-        {navGroups.map((group) => {
+        {gruposVisibles.map((group) => {
           const open = openGroups[group.id];
           const groupActive = group.items.some((it) => it.tab === activeTab);
           return (

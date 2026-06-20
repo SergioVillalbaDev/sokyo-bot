@@ -1,11 +1,11 @@
 // Centro de Mando — el panel "espectacular" de moderación.
 // Tarjetas de estado + buscador de usuario + ficha del usuario + historial +
 // botones de sanción (tus tipos) que aplican al instante con motivo y pruebas.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
-  Search, ShieldAlert, Hammer, Clock, ListChecks, Crown, CalendarDays, UserCheck, X, Send, Upload, Loader2, Undo2, Gavel,
+  Search, ShieldAlert, Hammer, Clock, ListChecks, Crown, CalendarDays, UserCheck, X, Send, Upload, Loader2, Undo2, Gavel, Activity, MessageSquare, Mic,
 } from 'lucide-react';
 import { Avatar, Badge } from '../../ui/primitives';
 import { ACCIONES, accionMeta, textoDuracion, aUnidad, aMinutos } from '../../../lib/sanciones';
@@ -14,18 +14,22 @@ import { API_URL } from '../../../lib/api';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const srcPrueba = (p) => (/^https?:\/\//i.test(p) ? p : `${API_URL}${p}`);
 const fecha = (ts) => (ts ? new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+const fechaHora = (ts) => (ts ? new Date(ts).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 
 export default function CentroMandoView({ dash }) {
   const { t } = useTranslation();
   const {
     tiposSancion, statsSancion, sanciones, buscarMiembros, cargarMiembro,
-    revocarSancion, cargarSanciones, cargarStatsSancion, setActiveTab,
+    cargarActividad, cargarMensajesUsuario, revocarSancion, cargarSanciones, cargarStatsSancion, setActiveTab,
+    objetivoMod, setObjetivoMod,
   } = dash;
 
   const [busqueda, setBusqueda] = useState('');
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [usuario, setUsuario] = useState(null);
+  const [actividad, setActividad] = useState(null);
+  const [mensajesUsuario, setMensajesUsuario] = useState([]);
   const [tipoAplicar, setTipoAplicar] = useState(null);
 
   const historial = usuario ? sanciones.filter((s) => s.usuarioId === usuario.id) : [];
@@ -37,16 +41,35 @@ export default function CentroMandoView({ dash }) {
     setBuscando(false);
   };
 
+  // Carga ficha + actividad + registro de mensajes de un usuario a la vez.
+  const cargarTodo = async (userId) => {
+    const [ficha, act, msgs] = await Promise.all([cargarMiembro(userId), cargarActividad(userId), cargarMensajesUsuario(userId)]);
+    setUsuario(ficha);
+    setActividad(act);
+    setMensajesUsuario(msgs);
+  };
+
   const seleccionar = async (m) => {
     setResultados([]);
     setBusqueda('');
-    setUsuario(await cargarMiembro(m.id));
+    await cargarTodo(m.id);
   };
+
+  // Si se llega desde "Ver en moderación" (otra vista), preselecciona ese usuario.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (objetivoMod) {
+      cargarTodo(objetivoMod);
+      setObjetivoMod(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objetivoMod]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const refrescar = async () => {
     await cargarSanciones();
     cargarStatsSancion();
-    if (usuario) setUsuario(await cargarMiembro(usuario.id));
+    if (usuario) await cargarTodo(usuario.id);
   };
 
   const stats = statsSancion || { total: 0, bansActivos: 0, recientes7d: 0, porAccion: {} };
@@ -130,6 +153,43 @@ export default function CentroMandoView({ dash }) {
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {usuario.roles.slice(0, 12).map((r) => (
                       <span key={r.id} className="rounded-full border border-line px-2 py-0.5 text-[11px] font-semibold" style={{ color: r.color !== '#000000' ? r.color : undefined }}>{r.nombre}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Actividad del usuario (vigilancia) */}
+              <div className={card}>
+                <h3 className="mb-3 flex items-center gap-2 font-bold text-fg"><Activity size={18} className="text-brand" /> {t('dashboard.mod_v.activityTitle')}</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-line bg-bg px-3 py-2.5">
+                    <p className="flex items-center gap-1.5 text-xs text-muted"><MessageSquare size={13} /> {t('dashboard.mod_v.lastMessage')}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-fg">{actividad?.ultimoMensajeFecha ? fechaHora(actividad.ultimoMensajeFecha) : t('dashboard.mod_v.noData')}</p>
+                  </div>
+                  <div className="rounded-xl border border-line bg-bg px-3 py-2.5">
+                    <p className="flex items-center gap-1.5 text-xs text-muted"><Mic size={13} /> {t('dashboard.mod_v.voice')}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-fg">
+                      {usuario.vozCanal ? <span className="text-success">🟢 {usuario.vozCanal.nombre}</span>
+                        : actividad?.ultimaVozFecha ? fechaHora(actividad.ultimaVozFecha) : t('dashboard.mod_v.noData')}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-line bg-bg px-3 py-2.5">
+                    <p className="flex items-center gap-1.5 text-xs text-muted"><MessageSquare size={13} /> {t('dashboard.mod_v.msgCount')}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-fg">{actividad?.mensajesTotal || 0}</p>
+                  </div>
+                </div>
+
+                {/* Registro de mensajes */}
+                <p className="mb-2 mt-4 text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.mod_v.msgLog')}</p>
+                {mensajesUsuario.length === 0 ? (
+                  <p className="text-sm italic text-muted">{t('dashboard.mod_v.noMsgLog')}</p>
+                ) : (
+                  <div className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
+                    {mensajesUsuario.map((msg) => (
+                      <div key={msg._id} className="rounded-lg border border-line bg-bg px-3 py-2">
+                        <p className="text-sm text-fg">{msg.contenido || <span className="italic text-muted">{t('dashboard.mod_v.attachment')}</span>}</p>
+                        <p className="mt-0.5 text-[11px] text-muted">{fechaHora(msg.fecha)}</p>
+                      </div>
                     ))}
                   </div>
                 )}

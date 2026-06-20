@@ -10,6 +10,7 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,        // Necesario para logs de entradas/salidas (intent privilegiado)
         GatewayIntentBits.GuildMessageReactions, // Necesario para los roles por reacción
+        GatewayIntentBits.GuildVoiceStates,    // Necesario para registrar la actividad de voz
         GatewayIntentBits.MessageContent
     ],
     // Partials: permite reaccionar/editar/borrar también en mensajes que no están en caché

@@ -4,7 +4,7 @@
 import {
   Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
   Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap, UsersRound,
-  UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History,
+  UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp,
 } from 'lucide-react';
 
 export const navGroups = [
@@ -53,6 +53,9 @@ export const navGroups = [
     items: [
       { tab: 'config-comportamiento', icon: SlidersVertical },
       { tab: 'config-reglas', icon: ShieldCheck },
+      { tab: 'config-acceso', icon: KeyRound },
+      { tab: 'config-expresiones', icon: Smile },
+      { tab: 'config-niveles', icon: TrendingUp },
       { tab: 'config-macros', icon: Zap },
       { tab: 'config-textos', icon: Type },
       { tab: 'config', icon: Plug },
