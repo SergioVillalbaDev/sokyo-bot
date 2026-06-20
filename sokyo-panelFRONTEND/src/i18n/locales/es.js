@@ -380,7 +380,7 @@ export default {
       author: 'Autor', authorPh: 'Nombre que aparece arriba del todo',
       authorUrl: 'Enlace del autor', authorIcon: 'Icono del autor',
       title: 'Título', titleUrl: 'Enlace del título', titleUrlPh: 'https://… (hace el título clicable)',
-      desc: 'Descripción', descHint: 'Selecciona texto y elige una fuente, o úsala sin seleccionar para aplicarla a todo. Las fuentes son negrita/cursiva de verdad sin símbolos.', color: 'Color', timestamp: 'Añadir fecha/hora',
+      desc: 'Descripción', descHint: 'Elige una fuente y escribe: todo lo nuevo saldrá en ella hasta que vuelvas a "Normal". También puedes seleccionar texto y cambiarle la fuente. Son negrita/cursiva de verdad, sin símbolos.', color: 'Color', timestamp: 'Añadir fecha/hora',
       image: 'Imagen (URL o desde el PC)', thumb: 'Miniatura (URL o desde el PC)', footer: 'Pie de página', footerIcon: 'Icono del pie',
       uploadPc: 'Subir del PC', uploading: 'Subiendo…', uploaded: 'Imagen subida', tooBig: 'La imagen supera los 8 MB', uploadFail: 'No se pudo subir',
       font: 'Fuente', fontNormal: 'Normal',

@@ -380,7 +380,7 @@ export default {
       author: 'Author', authorPh: 'Name shown at the very top',
       authorUrl: 'Author link', authorIcon: 'Author icon',
       title: 'Title', titleUrl: 'Title link', titleUrlPh: 'https://… (makes the title clickable)',
-      desc: 'Description', descHint: 'Select text and pick a font, or use it with nothing selected to apply it to everything. Fonts are real bold/italic with no symbols.', color: 'Color', timestamp: 'Add timestamp',
+      desc: 'Description', descHint: 'Pick a font and type: everything new comes out in it until you switch back to "Normal". You can also select text and change its font. They are real bold/italic, with no symbols.', color: 'Color', timestamp: 'Add timestamp',
       image: 'Image (URL or from PC)', thumb: 'Thumbnail (URL or from PC)', footer: 'Footer', footerIcon: 'Footer icon',
       uploadPc: 'Upload from PC', uploading: 'Uploading…', uploaded: 'Image uploaded', tooBig: 'The image is over 8 MB', uploadFail: 'Upload failed',
       font: 'Font', fontNormal: 'Normal',

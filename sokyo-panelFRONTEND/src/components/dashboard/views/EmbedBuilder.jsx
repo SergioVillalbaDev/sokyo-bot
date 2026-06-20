@@ -30,11 +30,19 @@ function leerComoDataURL(file) {
 }
 
 // Selector de tipografía: cada opción se muestra ya con su propio estilo.
-function SelectorFuente({ onPick, t }) {
+// Si recibe `value` es controlado (modo "fuente activa"); si no, es de acción
+// puntual (se aplica y vuelve al placeholder).
+function SelectorFuente({ value, onPick, t }) {
+  const controlado = value !== undefined;
   return (
-    <select value="" onChange={(e) => { if (e.target.value) onPick(e.target.value); e.target.value = ''; }} className={input + ' max-w-[9rem] shrink-0'} title={t('dashboard.embed_b.font')}>
-      <option value="">🅰 {t('dashboard.embed_b.font')}</option>
-      <option value="normal">{t('dashboard.embed_b.fontNormal')}</option>
+    <select
+      value={controlado ? value : ''}
+      onChange={(e) => { const v = e.target.value; if (controlado || v) onPick(v); if (!controlado) e.target.value = ''; }}
+      className={input + ' max-w-[10rem] shrink-0'}
+      title={t('dashboard.embed_b.font')}
+    >
+      {!controlado && <option value="">🅰 {t('dashboard.embed_b.font')}</option>}
+      <option value="normal">🅰 {t('dashboard.embed_b.fontNormal')}</option>
       {ESTILOS_FUENTE_EMBED.filter((id) => id !== 'normal').map((id) => (
         <option key={id} value={id}>{estilizar('Abcd 123', id)}</option>
       ))}
@@ -155,6 +163,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
   const e = { ...EMBED_VACIO, ...value, campos: value?.campos || [] };
   const set = (k, v) => onChange({ ...e, [k]: v });
   const descRef = useRef(null);
+  const [fuenteActiva, setFuenteActiva] = useState('normal'); // modo type-through de la descripción
 
   const setCampo = (i, k, v) => onChange({ ...e, campos: e.campos.map((c, idx) => (idx === i ? { ...c, [k]: v } : c)) });
   const addCampo = () => onChange({ ...e, campos: [...e.campos, { nombre: '', valor: '', inline: false }] });
@@ -172,9 +181,13 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
   };
   const envolver = (pre, post) => editarDesc((val, s, en) => {
     const sel = val.slice(s, en);
-    return { texto: val.slice(0, s) + pre + sel + post + val.slice(en), cursor: s + pre.length + sel.length + post.length };
+    const texto = val.slice(0, s) + pre + sel + post + val.slice(en);
+    // Sin selección: deja el cursor ENTRE los marcadores para escribir ya estilizado.
+    const cursor = sel ? s + pre.length + sel.length + post.length : s + pre.length;
+    return { texto, cursor };
   });
   const insertar = (txt) => editarDesc((val, s) => ({ texto: val.slice(0, s) + txt + val.slice(s), cursor: s + txt.length }));
+
   // Aplica una fuente a la selección de la descripción (o a todo si no hay selección).
   const fuenteDesc = (id) => editarDesc((val, s, en) => {
     const hay = s !== en;
@@ -183,6 +196,31 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
     const trozo = estilizar(val.slice(ini, fin), id);
     return { texto: val.slice(0, ini) + trozo + val.slice(fin), cursor: ini + trozo.length };
   });
+
+  // Elige la "fuente activa": lo que se escriba a partir de ahora saldrá en ella.
+  // Si hay texto seleccionado al elegirla, también lo convierte al momento.
+  const elegirFuenteDesc = (id) => {
+    setFuenteActiva(id);
+    const ta = descRef.current;
+    if (ta && ta.selectionStart !== ta.selectionEnd) fuenteDesc(id);
+  };
+
+  // onChange de la descripción: si hay fuente activa, estiliza solo lo recién tecleado.
+  const onDescChange = (nuevo) => {
+    const viejo = e.descripcion || '';
+    if (fuenteActiva === 'normal' || nuevo.length <= viejo.length) { set('descripcion', nuevo); return; }
+    // Localiza el tramo insertado (prefijo + sufijo común) y lo estiliza.
+    let ini = 0;
+    const min = Math.min(viejo.length, nuevo.length);
+    while (ini < min && viejo[ini] === nuevo[ini]) ini++;
+    let finV = viejo.length, finN = nuevo.length;
+    while (finV > ini && finN > ini && viejo[finV - 1] === nuevo[finN - 1]) { finV--; finN--; }
+    const estilizado = estilizar(nuevo.slice(ini, finN), fuenteActiva);
+    const texto = nuevo.slice(0, ini) + estilizado + nuevo.slice(finN);
+    set('descripcion', texto);
+    const cursor = ini + estilizado.length;
+    requestAnimationFrame(() => { const ta = descRef.current; if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = cursor; } });
+  };
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -220,10 +258,10 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-fg">{t('dashboard.embed_b.desc')}</span>
-            <SelectorFuente onPick={fuenteDesc} t={t} />
+            <SelectorFuente value={fuenteActiva} onPick={elegirFuenteDesc} t={t} />
           </div>
           <BarraFormato onWrap={envolver} onInsert={insertar} t={t} />
-          <textarea ref={descRef} value={e.descripcion} onChange={(ev) => set('descripcion', ev.target.value)} rows={5} className={input} maxLength={4096} />
+          <textarea ref={descRef} value={e.descripcion} onChange={(ev) => onDescChange(ev.target.value)} rows={5} className={input} maxLength={4096} />
           <p className="mt-1 text-xs text-muted">{t('dashboard.embed_b.descHint')}</p>
         </div>
 
