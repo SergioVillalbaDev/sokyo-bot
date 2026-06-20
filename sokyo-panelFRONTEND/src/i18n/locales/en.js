@@ -380,11 +380,11 @@ export default {
       author: 'Author', authorPh: 'Name shown at the very top',
       authorUrl: 'Author link', authorIcon: 'Author icon',
       title: 'Title', titleUrl: 'Title link', titleUrlPh: 'https://… (makes the title clickable)',
-      desc: 'Description', color: 'Color', timestamp: 'Add timestamp',
+      desc: 'Description', descHint: 'Select text and pick a font, or use it with nothing selected to apply it to everything. Fonts are real bold/italic with no symbols.', color: 'Color', timestamp: 'Add timestamp',
       image: 'Image (URL or from PC)', thumb: 'Thumbnail (URL or from PC)', footer: 'Footer', footerIcon: 'Footer icon',
       uploadPc: 'Upload from PC', uploading: 'Uploading…', uploaded: 'Image uploaded', tooBig: 'The image is over 8 MB', uploadFail: 'Upload failed',
       font: 'Font', fontNormal: 'Normal',
-      fmt: { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', code: 'Code', quote: 'Quote', header: 'Header', list: 'List', link: 'Link', divider: 'Divider' },
+      fmt: { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', code: 'Code', quote: 'Quote', h1: 'Big header (H1)', h2: 'Medium header (H2)', h3: 'Small header (H3)', list: 'List', link: 'Link', divider: 'Divider' },
       fields: 'Fields', addField: 'Add field', fieldName: 'Field name', fieldValue: 'Field value', inline: 'Inline (next to others)',
     },
     embeds_v: {

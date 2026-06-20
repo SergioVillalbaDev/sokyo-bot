@@ -5,7 +5,7 @@
 // attachment://). Lo usan EmbedsView y AnunciosView.
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Upload, X, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading, List, Link2, Minus } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading1, Heading2, Heading3, List, Link2, Minus } from 'lucide-react';
 import { API_URL } from '../../../lib/api';
 import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
 import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
@@ -53,7 +53,9 @@ function BarraFormato({ onWrap, onInsert, t }) {
       <button type="button" className={btn} title={t('dashboard.embed_b.fmt.strike')} onClick={() => onWrap('~~', '~~')}><Strikethrough size={14} /></button>
       <button type="button" className={btn} title={t('dashboard.embed_b.fmt.code')} onClick={() => onWrap('`', '`')}><Code size={14} /></button>
       <button type="button" className={btn} title={t('dashboard.embed_b.fmt.quote')} onClick={() => onInsert('\n> ')}><Quote size={14} /></button>
-      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.header')} onClick={() => onInsert('\n### ')}><Heading size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.h1')} onClick={() => onInsert('\n# ')}><Heading1 size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.h2')} onClick={() => onInsert('\n## ')}><Heading2 size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.h3')} onClick={() => onInsert('\n### ')}><Heading3 size={14} /></button>
       <button type="button" className={btn} title={t('dashboard.embed_b.fmt.list')} onClick={() => onInsert('\n- ')}><List size={14} /></button>
       <button type="button" className={btn} title={t('dashboard.embed_b.fmt.link')} onClick={() => onWrap('[', '](https://)')}><Link2 size={14} /></button>
       <button type="button" className={btn} title={t('dashboard.embed_b.fmt.divider')} onClick={() => onInsert('\n▬▬▬▬▬▬▬▬▬▬▬\n')}><Minus size={14} /></button>
@@ -123,9 +125,10 @@ function Preview({ e, t }) {
             {e.titulo && <p className={`mb-1 font-bold ${e.tituloUrl ? 'text-[#00a8fc]' : 'text-white'}`}>{e.titulo}</p>}
             {e.descripcion && <p className="whitespace-pre-wrap text-sm text-[#dbdee1]">{e.descripcion}</p>}
             {e.campos.length > 0 && (
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                {/* "En línea" = comparten fila (hasta 3); si no, ocupa la fila entera. */}
                 {e.campos.map((c, i) => (
-                  <div key={i}>
+                  <div key={i} className={c.inline ? 'min-w-[30%] flex-1' : 'w-full'}>
                     <p className="text-xs font-bold text-white">{c.nombre || '—'}</p>
                     <p className="whitespace-pre-wrap text-xs text-[#dbdee1]">{c.valor || '—'}</p>
                   </div>
@@ -172,6 +175,14 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
     return { texto: val.slice(0, s) + pre + sel + post + val.slice(en), cursor: s + pre.length + sel.length + post.length };
   });
   const insertar = (txt) => editarDesc((val, s) => ({ texto: val.slice(0, s) + txt + val.slice(s), cursor: s + txt.length }));
+  // Aplica una fuente a la selección de la descripción (o a todo si no hay selección).
+  const fuenteDesc = (id) => editarDesc((val, s, en) => {
+    const hay = s !== en;
+    const ini = hay ? s : 0;
+    const fin = hay ? en : val.length;
+    const trozo = estilizar(val.slice(ini, fin), id);
+    return { texto: val.slice(0, ini) + trozo + val.slice(fin), cursor: ini + trozo.length };
+  });
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -205,11 +216,15 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
           <input value={e.tituloUrl} onChange={(ev) => set('tituloUrl', ev.target.value)} className={input} placeholder={t('dashboard.embed_b.titleUrlPh')} maxLength={500} />
         </label>
 
-        {/* Descripción + barra de formato */}
+        {/* Descripción + barra de formato + fuente (sobre la selección) */}
         <div>
-          <span className={label}>{t('dashboard.embed_b.desc')}</span>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-fg">{t('dashboard.embed_b.desc')}</span>
+            <SelectorFuente onPick={fuenteDesc} t={t} />
+          </div>
           <BarraFormato onWrap={envolver} onInsert={insertar} t={t} />
           <textarea ref={descRef} value={e.descripcion} onChange={(ev) => set('descripcion', ev.target.value)} rows={5} className={input} maxLength={4096} />
+          <p className="mt-1 text-xs text-muted">{t('dashboard.embed_b.descHint')}</p>
         </div>
 
         {/* Color + paletas + fecha */}
