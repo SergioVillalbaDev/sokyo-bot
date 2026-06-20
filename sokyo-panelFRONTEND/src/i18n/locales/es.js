@@ -379,7 +379,8 @@ export default {
       preview: 'Vista previa', previewEmpty: 'Rellena algún campo para ver la vista previa.',
       author: 'Autor', authorPh: 'Nombre que aparece arriba del todo',
       title: 'Título', desc: 'Descripción', color: 'Color', timestamp: 'Añadir fecha/hora',
-      image: 'Imagen (URL)', thumb: 'Miniatura (URL)', footer: 'Pie de página',
+      image: 'Imagen (URL o desde el PC)', thumb: 'Miniatura (URL o desde el PC)', footer: 'Pie de página',
+      uploadPc: 'Subir del PC', uploading: 'Subiendo…', uploaded: 'Imagen subida', tooBig: 'La imagen supera los 8 MB', uploadFail: 'No se pudo subir',
       fields: 'Campos', addField: 'Añadir campo', fieldName: 'Nombre del campo', fieldValue: 'Valor del campo', inline: 'En línea (al lado de otros)',
     },
     embeds_v: {

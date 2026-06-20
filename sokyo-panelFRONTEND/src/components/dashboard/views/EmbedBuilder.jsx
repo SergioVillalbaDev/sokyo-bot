@@ -1,16 +1,80 @@
 // Constructor de embeds reutilizable: formulario + vista previa en vivo (estilo
-// Discord). Controlado por el padre vía { value, onChange }. Lo usan EmbedsView
-// (enviar ahora) y AnunciosView (programar).
+// Discord). Controlado por el padre vía { value, onChange }. La imagen y la
+// miniatura aceptan URL externa o subida desde el PC (se guardan en /uploads y
+// el bot las adjunta con attachment://). Lo usan EmbedsView y AnunciosView.
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload, X } from 'lucide-react';
+import { API_URL } from '../../../lib/api';
 import { EMBED_VACIO } from './embedDefaults';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
 
+// URL mostrable de una imagen: archivo subido (vía API) o URL externa http(s).
+function urlImagen(archivo, url) {
+  if (archivo) return `${API_URL}/uploads/${archivo}`;
+  if (url && /^https?:\/\//.test(url)) return url;
+  return '';
+}
+
+// Lee un File como dataURL (base64) para mandarlo al endpoint de subida.
+function leerComoDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Campo de imagen: input de URL + botón "Subir del PC" + estado del archivo subido.
+function CampoImagen({ titulo, url, archivo, onChange, subirImagen, t }) {
+  const [subiendo, setSubiendo] = useState(false);
+  const [error, setError] = useState('');
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite re-subir el mismo archivo
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { setError(t('dashboard.embed_b.tooBig')); return; }
+    setError(''); setSubiendo(true);
+    try {
+      const dataUrl = await leerComoDataURL(file);
+      const r = await subirImagen(dataUrl);
+      if (r.error) setError(r.error);
+      else onChange({ archivo: r.archivo, url: '' }); // archivo subido reemplaza la URL
+    } catch { setError(t('dashboard.embed_b.uploadFail')); }
+    setSubiendo(false);
+  };
+
+  return (
+    <div>
+      <span className={label}>{titulo}</span>
+      {archivo ? (
+        <div className="flex items-center gap-2 rounded-xl border border-line bg-bg px-3 py-2">
+          <span className="flex-1 truncate text-sm text-success">✓ {t('dashboard.embed_b.uploaded')}</span>
+          <button type="button" onClick={() => onChange({ archivo: '', url: '' })} className="text-muted transition-colors hover:text-danger"><X size={15} /></button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <input value={url} onChange={(e) => onChange({ archivo: '', url: e.target.value })} className={input + ' flex-1'} placeholder="https://…" maxLength={500} />
+          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand">
+            <Upload size={14} /> {subiendo ? t('dashboard.embed_b.uploading') : t('dashboard.embed_b.uploadPc')}
+            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onFile} className="hidden" disabled={subiendo} />
+          </label>
+        </div>
+      )}
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
+
 // --- Vista previa estilo Discord ---
 function Preview({ e, t }) {
-  const vacio = !e.titulo && !e.descripcion && !e.autorNombre && !e.imagenUrl && !e.footer && e.campos.length === 0;
+  const imgSrc = urlImagen(e.imagenArchivo, e.imagenUrl);
+  const thumbSrc = urlImagen(e.miniaturaArchivo, e.miniaturaUrl);
+  const vacio = !e.titulo && !e.descripcion && !e.autorNombre && !imgSrc && !thumbSrc && !e.footer && e.campos.length === 0;
   return (
     <div className="rounded-xl bg-[#313338] p-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/40">{t('dashboard.embed_b.preview')}</p>
@@ -32,13 +96,13 @@ function Preview({ e, t }) {
                 ))}
               </div>
             )}
-            {e.imagenUrl && /^https?:\/\//.test(e.imagenUrl) && (
-              <img src={e.imagenUrl} alt="" className="mt-2 max-h-48 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
+            {imgSrc && (
+              <img src={imgSrc} alt="" className="mt-2 max-h-48 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
             )}
             {e.footer && <p className="mt-2 text-xs text-white/50">{e.footer}{e.fecha ? ' • hoy' : ''}</p>}
           </div>
-          {e.miniaturaUrl && /^https?:\/\//.test(e.miniaturaUrl) && (
-            <img src={e.miniaturaUrl} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
+          {thumbSrc && (
+            <img src={thumbSrc} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
           )}
         </div>
       )}
@@ -46,7 +110,7 @@ function Preview({ e, t }) {
   );
 }
 
-export default function EmbedBuilder({ value, onChange }) {
+export default function EmbedBuilder({ value, onChange, subirImagen }) {
   const { t } = useTranslation();
   const e = { ...EMBED_VACIO, ...value, campos: value?.campos || [] };
   const set = (k, v) => onChange({ ...e, [k]: v });
@@ -84,14 +148,20 @@ export default function EmbedBuilder({ value, onChange }) {
             {t('dashboard.embed_b.timestamp')}
           </label>
         </div>
-        <label className="block">
-          <span className={label}>{t('dashboard.embed_b.image')}</span>
-          <input value={e.imagenUrl} onChange={(ev) => set('imagenUrl', ev.target.value)} className={input} placeholder="https://…" maxLength={500} />
-        </label>
-        <label className="block">
-          <span className={label}>{t('dashboard.embed_b.thumb')}</span>
-          <input value={e.miniaturaUrl} onChange={(ev) => set('miniaturaUrl', ev.target.value)} className={input} placeholder="https://…" maxLength={500} />
-        </label>
+
+        <CampoImagen
+          titulo={t('dashboard.embed_b.image')}
+          url={e.imagenUrl} archivo={e.imagenArchivo}
+          onChange={({ archivo, url }) => onChange({ ...e, imagenArchivo: archivo, imagenUrl: url })}
+          subirImagen={subirImagen} t={t}
+        />
+        <CampoImagen
+          titulo={t('dashboard.embed_b.thumb')}
+          url={e.miniaturaUrl} archivo={e.miniaturaArchivo}
+          onChange={({ archivo, url }) => onChange({ ...e, miniaturaArchivo: archivo, miniaturaUrl: url })}
+          subirImagen={subirImagen} t={t}
+        />
+
         <label className="block">
           <span className={label}>{t('dashboard.embed_b.footer')}</span>
           <input value={e.footer} onChange={(ev) => set('footer', ev.target.value)} className={input} maxLength={2048} />

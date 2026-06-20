@@ -19,7 +19,7 @@ function minLocal() {
 
 export default function AnunciosView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, anuncios, crearAnuncio, eliminarAnuncio } = dash;
+  const { canales, configServidor, anuncios, crearAnuncio, eliminarAnuncio, subirImagen } = dash;
 
   const [embed, setEmbed] = useState(EMBED_VACIO);
   const [contenido, setContenido] = useState('');
@@ -101,7 +101,7 @@ export default function AnunciosView({ dash }) {
         </div>
 
         <div className="mt-4 border-t border-line pt-4">
-          <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} />
+          <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

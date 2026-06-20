@@ -11,7 +11,7 @@ const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text
 
 export default function EmbedsView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, enviarEmbed } = dash;
+  const { canales, configServidor, enviarEmbed, subirImagen } = dash;
 
   const [embed, setEmbed] = useState(EMBED_VACIO);
   const [contenido, setContenido] = useState('');
@@ -51,7 +51,7 @@ export default function EmbedsView({ dash }) {
       </div>
 
       <div className={card}>
-        <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} />
+        <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

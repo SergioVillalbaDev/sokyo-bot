@@ -883,6 +883,7 @@ export function useDashboard() {
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,
+    subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
     guardarAcceso, misPermisos,
     // emojis y stickers

@@ -1,9 +1,13 @@
 // Programador de tareas: un único barrido periódico que publica los anuncios
 // programados y envía los recordatorios que ya han vencido. Mismo patrón que
 // utils/autoClose.js (un setInterval que consulta la BD).
+const path = require('path');
 const AnuncioProgramado = require('../models/AnuncioProgramado.js');
 const Recordatorio = require('../models/Recordatorio.js');
 const { construirMensaje } = require('./embeds.js');
+
+// Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
+const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 
 // Publica los anuncios cuya fecha ya llegó. Reprograma los recurrentes.
 async function enviarAnunciosPendientes(client) {
@@ -13,7 +17,7 @@ async function enviarAnunciosPendientes(client) {
         try {
             const canal = await client.channels.fetch(a.canalId).catch(() => null);
             if (canal && canal.isTextBased()) {
-                const payload = construirMensaje(a.contenido, a.embed);
+                const payload = construirMensaje(a.contenido, a.embed, UPLOADS_DIR);
                 if (payload.content || payload.embeds) await canal.send(payload);
             }
         } catch (e) {

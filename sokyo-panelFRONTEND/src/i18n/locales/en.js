@@ -379,7 +379,8 @@ export default {
       preview: 'Preview', previewEmpty: 'Fill in a field to see the preview.',
       author: 'Author', authorPh: 'Name shown at the very top',
       title: 'Title', desc: 'Description', color: 'Color', timestamp: 'Add timestamp',
-      image: 'Image (URL)', thumb: 'Thumbnail (URL)', footer: 'Footer',
+      image: 'Image (URL or from PC)', thumb: 'Thumbnail (URL or from PC)', footer: 'Footer',
+      uploadPc: 'Upload from PC', uploading: 'Uploading…', uploaded: 'Image uploaded', tooBig: 'The image is over 8 MB', uploadFail: 'Upload failed',
       fields: 'Fields', addField: 'Add field', fieldName: 'Field name', fieldValue: 'Field value', inline: 'Inline (next to others)',
     },
     embeds_v: {
