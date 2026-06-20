@@ -378,9 +378,13 @@ export default {
     embed_b: {
       preview: 'Vista previa', previewEmpty: 'Rellena algún campo para ver la vista previa.',
       author: 'Autor', authorPh: 'Nombre que aparece arriba del todo',
-      title: 'Título', desc: 'Descripción', color: 'Color', timestamp: 'Añadir fecha/hora',
-      image: 'Imagen (URL o desde el PC)', thumb: 'Miniatura (URL o desde el PC)', footer: 'Pie de página',
+      authorUrl: 'Enlace del autor', authorIcon: 'Icono del autor',
+      title: 'Título', titleUrl: 'Enlace del título', titleUrlPh: 'https://… (hace el título clicable)',
+      desc: 'Descripción', color: 'Color', timestamp: 'Añadir fecha/hora',
+      image: 'Imagen (URL o desde el PC)', thumb: 'Miniatura (URL o desde el PC)', footer: 'Pie de página', footerIcon: 'Icono del pie',
       uploadPc: 'Subir del PC', uploading: 'Subiendo…', uploaded: 'Imagen subida', tooBig: 'La imagen supera los 8 MB', uploadFail: 'No se pudo subir',
+      font: 'Fuente', fontNormal: 'Normal',
+      fmt: { bold: 'Negrita', italic: 'Cursiva', underline: 'Subrayado', strike: 'Tachado', code: 'Código', quote: 'Cita', header: 'Encabezado', list: 'Lista', link: 'Enlace', divider: 'Separador' },
       fields: 'Campos', addField: 'Añadir campo', fieldName: 'Nombre del campo', fieldValue: 'Valor del campo', inline: 'En línea (al lado de otros)',
     },
     embeds_v: {

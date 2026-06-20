@@ -1,12 +1,14 @@
 // Constructor de embeds reutilizable: formulario + vista previa en vivo (estilo
-// Discord). Controlado por el padre vía { value, onChange }. La imagen y la
-// miniatura aceptan URL externa o subida desde el PC (se guardan en /uploads y
-// el bot las adjunta con attachment://). Lo usan EmbedsView y AnunciosView.
-import { useState } from 'react';
+// Discord). Controlado por el padre vía { value, onChange }. Permite tipografías
+// "de fantasía" (Unicode), barra de formato Markdown, paletas de color, imagen/
+// miniatura/iconos por URL o subida desde el PC (el bot los adjunta con
+// attachment://). Lo usan EmbedsView y AnunciosView.
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Upload, X } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading, List, Link2, Minus } from 'lucide-react';
 import { API_URL } from '../../../lib/api';
-import { EMBED_VACIO } from './embedDefaults';
+import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
+import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
@@ -18,7 +20,6 @@ function urlImagen(archivo, url) {
   return '';
 }
 
-// Lee un File como dataURL (base64) para mandarlo al endpoint de subida.
 function leerComoDataURL(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -28,26 +29,54 @@ function leerComoDataURL(file) {
   });
 }
 
-// Campo de imagen: input de URL + botón "Subir del PC" + estado del archivo subido.
-function CampoImagen({ titulo, url, archivo, onChange, subirImagen, t }) {
-  const [subiendo, setSubiendo] = useState(false);
-  const [error, setError] = useState('');
+// Selector de tipografía: cada opción se muestra ya con su propio estilo.
+function SelectorFuente({ onPick, t }) {
+  return (
+    <select value="" onChange={(e) => { if (e.target.value) onPick(e.target.value); e.target.value = ''; }} className={input + ' max-w-[9rem] shrink-0'} title={t('dashboard.embed_b.font')}>
+      <option value="">🅰 {t('dashboard.embed_b.font')}</option>
+      <option value="normal">{t('dashboard.embed_b.fontNormal')}</option>
+      {ESTILOS_FUENTE_EMBED.filter((id) => id !== 'normal').map((id) => (
+        <option key={id} value={id}>{estilizar('Abcd 123', id)}</option>
+      ))}
+    </select>
+  );
+}
 
-  const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // permite re-subir el mismo archivo
+// Barra de formato Markdown (envuelve la selección o inserta texto).
+function BarraFormato({ onWrap, onInsert, t }) {
+  const btn = 'rounded-lg border border-line bg-bg p-1.5 text-muted transition-colors hover:border-brand hover:text-fg';
+  return (
+    <div className="mb-2 flex flex-wrap gap-1.5">
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.bold')} onClick={() => onWrap('**', '**')}><Bold size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.italic')} onClick={() => onWrap('*', '*')}><Italic size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.underline')} onClick={() => onWrap('__', '__')}><Underline size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.strike')} onClick={() => onWrap('~~', '~~')}><Strikethrough size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.code')} onClick={() => onWrap('`', '`')}><Code size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.quote')} onClick={() => onInsert('\n> ')}><Quote size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.header')} onClick={() => onInsert('\n### ')}><Heading size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.list')} onClick={() => onInsert('\n- ')}><List size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.link')} onClick={() => onWrap('[', '](https://)')}><Link2 size={14} /></button>
+      <button type="button" className={btn} title={t('dashboard.embed_b.fmt.divider')} onClick={() => onInsert('\n▬▬▬▬▬▬▬▬▬▬▬\n')}><Minus size={14} /></button>
+    </div>
+  );
+}
+
+// Campo de imagen/icono: input de URL + botón "Subir del PC" + estado del archivo.
+function CampoImagen({ titulo, url, archivo, onChange, subirImagen, t }) {
+  const [estado, setEstado] = useState('');
+  const onFile = async (ev) => {
+    const file = ev.target.files?.[0];
+    ev.target.value = '';
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { setError(t('dashboard.embed_b.tooBig')); return; }
-    setError(''); setSubiendo(true);
+    if (file.size > 8 * 1024 * 1024) { setEstado(`error:${t('dashboard.embed_b.tooBig')}`); return; }
+    setEstado('subiendo');
     try {
       const dataUrl = await leerComoDataURL(file);
       const r = await subirImagen(dataUrl);
-      if (r.error) setError(r.error);
-      else onChange({ archivo: r.archivo, url: '' }); // archivo subido reemplaza la URL
-    } catch { setError(t('dashboard.embed_b.uploadFail')); }
-    setSubiendo(false);
+      if (r.error) setEstado(`error:${r.error}`);
+      else { onChange({ archivo: r.archivo, url: '' }); setEstado(''); }
+    } catch { setEstado(`error:${t('dashboard.embed_b.uploadFail')}`); }
   };
-
   return (
     <div>
       <span className={label}>{titulo}</span>
@@ -60,12 +89,12 @@ function CampoImagen({ titulo, url, archivo, onChange, subirImagen, t }) {
         <div className="flex flex-wrap items-center gap-2">
           <input value={url} onChange={(e) => onChange({ archivo: '', url: e.target.value })} className={input + ' flex-1'} placeholder="https://…" maxLength={500} />
           <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand">
-            <Upload size={14} /> {subiendo ? t('dashboard.embed_b.uploading') : t('dashboard.embed_b.uploadPc')}
-            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onFile} className="hidden" disabled={subiendo} />
+            <Upload size={14} /> {estado === 'subiendo' ? t('dashboard.embed_b.uploading') : t('dashboard.embed_b.uploadPc')}
+            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onFile} className="hidden" disabled={estado === 'subiendo'} />
           </label>
         </div>
       )}
-      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+      {estado.startsWith('error:') && <p className="mt-1 text-xs text-danger">{estado.slice(6)}</p>}
     </div>
   );
 }
@@ -74,6 +103,8 @@ function CampoImagen({ titulo, url, archivo, onChange, subirImagen, t }) {
 function Preview({ e, t }) {
   const imgSrc = urlImagen(e.imagenArchivo, e.imagenUrl);
   const thumbSrc = urlImagen(e.miniaturaArchivo, e.miniaturaUrl);
+  const autorIcono = urlImagen(e.autorIconoArchivo, e.autorIconoUrl);
+  const footerIcono = urlImagen(e.footerIconoArchivo, e.footerIconoUrl);
   const vacio = !e.titulo && !e.descripcion && !e.autorNombre && !imgSrc && !thumbSrc && !e.footer && e.campos.length === 0;
   return (
     <div className="rounded-xl bg-[#313338] p-4">
@@ -83,8 +114,13 @@ function Preview({ e, t }) {
       ) : (
         <div className="flex gap-3 rounded-md bg-[#2b2d31] p-3" style={{ borderLeft: `4px solid ${/^#[0-9a-fA-F]{6}$/.test(e.color) ? e.color : '#5865F2'}` }}>
           <div className="min-w-0 flex-1">
-            {e.autorNombre && <p className="mb-1 text-sm font-semibold text-white">{e.autorNombre}</p>}
-            {e.titulo && <p className="mb-1 font-bold text-[#00a8fc]">{e.titulo}</p>}
+            {e.autorNombre && (
+              <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-white">
+                {autorIcono && <img src={autorIcono} alt="" className="h-5 w-5 rounded-full object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
+                {e.autorNombre}
+              </p>
+            )}
+            {e.titulo && <p className={`mb-1 font-bold ${e.tituloUrl ? 'text-[#00a8fc]' : 'text-white'}`}>{e.titulo}</p>}
             {e.descripcion && <p className="whitespace-pre-wrap text-sm text-[#dbdee1]">{e.descripcion}</p>}
             {e.campos.length > 0 && (
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -96,14 +132,15 @@ function Preview({ e, t }) {
                 ))}
               </div>
             )}
-            {imgSrc && (
-              <img src={imgSrc} alt="" className="mt-2 max-h-48 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
+            {imgSrc && <img src={imgSrc} alt="" className="mt-2 max-h-48 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
+            {(e.footer || footerIcono) && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-white/50">
+                {footerIcono && <img src={footerIcono} alt="" className="h-4 w-4 rounded-full object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
+                {e.footer}{e.fecha ? ' • hoy' : ''}
+              </p>
             )}
-            {e.footer && <p className="mt-2 text-xs text-white/50">{e.footer}{e.fecha ? ' • hoy' : ''}</p>}
           </div>
-          {thumbSrc && (
-            <img src={thumbSrc} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
-          )}
+          {thumbSrc && <img src={thumbSrc} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
         </div>
       )}
     </div>
@@ -114,58 +151,96 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
   const { t } = useTranslation();
   const e = { ...EMBED_VACIO, ...value, campos: value?.campos || [] };
   const set = (k, v) => onChange({ ...e, [k]: v });
+  const descRef = useRef(null);
 
-  const setCampo = (i, k, v) => {
-    const campos = e.campos.map((c, idx) => (idx === i ? { ...c, [k]: v } : c));
-    onChange({ ...e, campos });
-  };
+  const setCampo = (i, k, v) => onChange({ ...e, campos: e.campos.map((c, idx) => (idx === i ? { ...c, [k]: v } : c)) });
   const addCampo = () => onChange({ ...e, campos: [...e.campos, { nombre: '', valor: '', inline: false }] });
   const delCampo = (i) => onChange({ ...e, campos: e.campos.filter((_, idx) => idx !== i) });
+
+  // Barra de formato sobre la descripción (envolver selección / insertar texto).
+  const editarDesc = (fn) => {
+    const ta = descRef.current;
+    const val = e.descripcion || '';
+    const s = ta ? (ta.selectionStart ?? val.length) : val.length;
+    const en = ta ? (ta.selectionEnd ?? val.length) : val.length;
+    const { texto, cursor } = fn(val, s, en);
+    set('descripcion', texto);
+    requestAnimationFrame(() => { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = cursor; } });
+  };
+  const envolver = (pre, post) => editarDesc((val, s, en) => {
+    const sel = val.slice(s, en);
+    return { texto: val.slice(0, s) + pre + sel + post + val.slice(en), cursor: s + pre.length + sel.length + post.length };
+  });
+  const insertar = (txt) => editarDesc((val, s) => ({ texto: val.slice(0, s) + txt + val.slice(s), cursor: s + txt.length }));
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {/* Formulario */}
       <div className="space-y-4">
-        <label className="block">
+        {/* Autor */}
+        <div>
           <span className={label}>{t('dashboard.embed_b.author')}</span>
-          <input value={e.autorNombre} onChange={(ev) => set('autorNombre', ev.target.value)} className={input} maxLength={256} placeholder={t('dashboard.embed_b.authorPh')} />
-        </label>
+          <div className="flex gap-2">
+            <input value={e.autorNombre} onChange={(ev) => set('autorNombre', ev.target.value)} className={input} maxLength={256} placeholder={t('dashboard.embed_b.authorPh')} />
+            <SelectorFuente onPick={(id) => set('autorNombre', estilizar(e.autorNombre, id))} t={t} />
+          </div>
+        </div>
         <label className="block">
+          <span className={label}>{t('dashboard.embed_b.authorUrl')}</span>
+          <input value={e.autorUrl} onChange={(ev) => set('autorUrl', ev.target.value)} className={input} placeholder="https://…" maxLength={500} />
+        </label>
+        <CampoImagen titulo={t('dashboard.embed_b.authorIcon')} url={e.autorIconoUrl} archivo={e.autorIconoArchivo}
+          onChange={({ archivo, url }) => onChange({ ...e, autorIconoArchivo: archivo, autorIconoUrl: url })} subirImagen={subirImagen} t={t} />
+
+        {/* Título */}
+        <div>
           <span className={label}>{t('dashboard.embed_b.title')}</span>
-          <input value={e.titulo} onChange={(ev) => set('titulo', ev.target.value)} className={input} maxLength={256} />
-        </label>
+          <div className="flex gap-2">
+            <input value={e.titulo} onChange={(ev) => set('titulo', ev.target.value)} className={input} maxLength={256} />
+            <SelectorFuente onPick={(id) => set('titulo', estilizar(e.titulo, id))} t={t} />
+          </div>
+        </div>
         <label className="block">
-          <span className={label}>{t('dashboard.embed_b.desc')}</span>
-          <textarea value={e.descripcion} onChange={(ev) => set('descripcion', ev.target.value)} rows={4} className={input} maxLength={4096} />
+          <span className={label}>{t('dashboard.embed_b.titleUrl')}</span>
+          <input value={e.tituloUrl} onChange={(ev) => set('tituloUrl', ev.target.value)} className={input} placeholder={t('dashboard.embed_b.titleUrlPh')} maxLength={500} />
         </label>
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="block">
-            <span className={label}>{t('dashboard.embed_b.color')}</span>
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(e.color) ? e.color : '#5865F2'} onChange={(ev) => set('color', ev.target.value)} className="h-10 w-16 cursor-pointer rounded-lg border border-line bg-bg" />
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 pt-6 text-sm text-fg">
-            <input type="checkbox" checked={e.fecha} onChange={(ev) => set('fecha', ev.target.checked)} className="h-4 w-4 cursor-pointer" />
-            {t('dashboard.embed_b.timestamp')}
-          </label>
+
+        {/* Descripción + barra de formato */}
+        <div>
+          <span className={label}>{t('dashboard.embed_b.desc')}</span>
+          <BarraFormato onWrap={envolver} onInsert={insertar} t={t} />
+          <textarea ref={descRef} value={e.descripcion} onChange={(ev) => set('descripcion', ev.target.value)} rows={5} className={input} maxLength={4096} />
         </div>
 
-        <CampoImagen
-          titulo={t('dashboard.embed_b.image')}
-          url={e.imagenUrl} archivo={e.imagenArchivo}
-          onChange={({ archivo, url }) => onChange({ ...e, imagenArchivo: archivo, imagenUrl: url })}
-          subirImagen={subirImagen} t={t}
-        />
-        <CampoImagen
-          titulo={t('dashboard.embed_b.thumb')}
-          url={e.miniaturaUrl} archivo={e.miniaturaArchivo}
-          onChange={({ archivo, url }) => onChange({ ...e, miniaturaArchivo: archivo, miniaturaUrl: url })}
-          subirImagen={subirImagen} t={t}
-        />
+        {/* Color + paletas + fecha */}
+        <div>
+          <span className={label}>{t('dashboard.embed_b.color')}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(e.color) ? e.color : '#5865F2'} onChange={(ev) => set('color', ev.target.value)} className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-bg" />
+            <div className="flex flex-wrap gap-1.5">
+              {PALETAS_COLOR.map((c) => (
+                <button key={c} type="button" onClick={() => set('color', c)} title={c} style={{ backgroundColor: c }} className={`h-6 w-6 rounded-full border ${e.color?.toLowerCase() === c ? 'border-fg ring-2 ring-brand' : 'border-line'}`} />
+              ))}
+            </div>
+            <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm text-fg">
+              <input type="checkbox" checked={e.fecha} onChange={(ev) => set('fecha', ev.target.checked)} className="h-4 w-4 cursor-pointer" />
+              {t('dashboard.embed_b.timestamp')}
+            </label>
+          </div>
+        </div>
 
+        <CampoImagen titulo={t('dashboard.embed_b.image')} url={e.imagenUrl} archivo={e.imagenArchivo}
+          onChange={({ archivo, url }) => onChange({ ...e, imagenArchivo: archivo, imagenUrl: url })} subirImagen={subirImagen} t={t} />
+        <CampoImagen titulo={t('dashboard.embed_b.thumb')} url={e.miniaturaUrl} archivo={e.miniaturaArchivo}
+          onChange={({ archivo, url }) => onChange({ ...e, miniaturaArchivo: archivo, miniaturaUrl: url })} subirImagen={subirImagen} t={t} />
+
+        {/* Pie + icono */}
         <label className="block">
           <span className={label}>{t('dashboard.embed_b.footer')}</span>
           <input value={e.footer} onChange={(ev) => set('footer', ev.target.value)} className={input} maxLength={2048} />
         </label>
+        <CampoImagen titulo={t('dashboard.embed_b.footerIcon')} url={e.footerIconoUrl} archivo={e.footerIconoArchivo}
+          onChange={({ archivo, url }) => onChange({ ...e, footerIconoArchivo: archivo, footerIconoUrl: url })} subirImagen={subirImagen} t={t} />
 
         {/* Campos */}
         <div className="border-t border-line pt-4">

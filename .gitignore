@@ -3,3 +3,8 @@ node_modules/
 package-lock.json
 dist/
 build/
+
+# Artefactos de runtime: subidas y tarjetas de nivel generadas.
+# Ignora todo el contenido de la carpeta pero mantiene la carpeta en el repo.
+api/uploads/*
+!api/uploads/.gitkeep
