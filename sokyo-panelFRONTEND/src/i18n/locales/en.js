@@ -395,6 +395,10 @@ export default {
       content: 'Text outside the embed (optional)', contentPh: 'e.g. @everyone',
       message: 'Message', messagePh: 'Type the message…',
       send: 'Send now', sending: 'Sending…', sent: '✅ Message sent',
+      broadcastTitle: 'Broadcast', broadcastNote: 'Authorized IDs only. You can send to this server or to ALL the bot’s servers.',
+      scopeOne: 'This server', scopeAll: 'All servers',
+      allTarget: 'It will be sent to all {{n}} servers (to the system channel, or the first one where the bot can post).',
+      broadcastSend: 'Broadcast to all', sentAll: '✅ Sent to {{n}}/{{total}} servers', failed: '{{n}} not sent (no channel or permissions)',
     },
     presets_a: {
       title: 'Saved presets',

@@ -395,6 +395,10 @@ export default {
       content: 'Texto fuera del embed (opcional)', contentPh: 'p. ej. @everyone',
       message: 'Mensaje', messagePh: 'Escribe el mensaje…',
       send: 'Enviar ahora', sending: 'Enviando…', sent: '✅ Mensaje enviado',
+      broadcastTitle: 'Difusión', broadcastNote: 'Solo para IDs autorizadas. Puedes enviar a este servidor o a TODOS los servidores del bot.',
+      scopeOne: 'Este servidor', scopeAll: 'Todos los servidores',
+      allTarget: 'Se enviará a los {{n}} servidores (al canal del sistema o al primero donde el bot pueda escribir).',
+      broadcastSend: 'Difundir a todos', sentAll: '✅ Enviado a {{n}}/{{total}} servidores', failed: '{{n}} sin enviar (sin canal o permisos)',
     },
     presets_a: {
       title: 'Presets guardados',

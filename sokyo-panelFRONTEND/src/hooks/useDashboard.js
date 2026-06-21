@@ -88,6 +88,9 @@ export function useDashboard() {
   // Productividad: anuncios programados + presets de anuncio.
   const [anuncios, setAnuncios] = useState([]);
   const [presetsAnuncio, setPresetsAnuncio] = useState([]);
+  // Difusión (solo IDs autorizadas): permiso + nº de servidores del bot.
+  const [esBroadcaster, setEsBroadcaster] = useState(false);
+  const [servidoresBot, setServidoresBot] = useState(0);
 
   // Moderación (Centro de Mando).
   const [tiposSancion, setTiposSancion] = useState([]);
@@ -588,6 +591,21 @@ export function useDashboard() {
     return false;
   };
 
+  // --- PRODUCTIVIDAD: difusión (solo IDs autorizadas en BROADCAST_IDS) ---
+  const cargarBroadcast = () => apiFetch('/api/broadcast/permitido').then(procesarRespuesta)
+    .then((d) => { setEsBroadcaster(!!(d && d.permitido)); setServidoresBot((d && d.servidores) || 0); })
+    .catch(() => { setEsBroadcaster(false); });
+  const difundir = async ({ alcance, guildId: gid, canalId, contenido, embed }) => {
+    try {
+      const res = await apiFetch('/api/broadcast/enviar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alcance, guildId: gid, canalId, contenido, embed }),
+      });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'No se pudo difundir' };
+    } catch (error) { console.error('Error difundiendo:', error); return { error: 'Fallo de red' }; }
+  };
+
   // Carga qué secciones puede ver el usuario actual en el servidor seleccionado.
   const cargarMisPermisos = () => apiFetch(`/api/mis-permisos${gp()}`).then(procesarRespuesta).then((d) => setMisPermisos(d && d.areas ? d.areas : null)).catch(() => setMisPermisos(null));
 
@@ -845,7 +863,7 @@ export function useDashboard() {
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
-    else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); }
+    else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
     else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); cargarPresetsAnuncio(); }
     else if (activeTab === 'mod-registro') { cargarSanciones(); cargarTiposSancion(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
@@ -901,6 +919,7 @@ export function useDashboard() {
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,
     presetsAnuncio, cargarPresetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio,
+    esBroadcaster, servidoresBot, difundir,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
     guardarAcceso, misPermisos,

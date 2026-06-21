@@ -1,8 +1,9 @@
 // Productividad · Creador de Anuncios — crea un mensaje (texto a secas o con
-// embed) y lo envía al instante a un canal. Permite guardar/usar presets.
+// embed) y lo envía al instante a un canal. Permite guardar/usar presets y, para
+// las IDs autorizadas (difusores), enviar a TODOS los servidores del bot.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, Info, LayoutTemplate, FileText } from 'lucide-react';
+import { Send, Info, LayoutTemplate, FileText, Radio, Server, Globe2 } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
 import PresetsAnuncio from './PresetsAnuncio';
 import { EMBED_VACIO } from './embedDefaults';
@@ -12,23 +13,30 @@ const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text
 
 export default function EmbedsView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, enviarEmbed, subirImagen, presetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio } = dash;
+  const { canales, configServidor, enviarEmbed, subirImagen, presetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio, esBroadcaster, servidoresBot, difundir } = dash;
 
-  const [modo, setModo] = useState('embed'); // 'embed' | 'texto'
+  const [modo, setModo] = useState('embed');     // 'embed' | 'texto'
+  const [alcance, setAlcance] = useState('canal'); // 'canal' | 'todos' (solo difusores)
   const [embed, setEmbed] = useState(EMBED_VACIO);
   const [contenido, setContenido] = useState('');
   const [canalId, setCanalId] = useState('');
-  const [estado, setEstado] = useState(''); // '' | 'enviando' | 'ok' | 'error:...'
+  const [estado, setEstado] = useState('');       // '' | 'enviando' | 'ok' | 'error:...'
+  const [resumen, setResumen] = useState(null);   // resultado de la difusión a todos
+
+  const todos = esBroadcaster && alcance === 'todos';
 
   const enviar = async () => {
-    setEstado('enviando');
-    // En modo texto no mandamos embed.
-    const r = await enviarEmbed({ canalId, contenido, embed: modo === 'texto' ? {} : embed });
-    setEstado(r.error ? `error:${r.error}` : 'ok');
-    if (!r.error) { setContenido(''); setEmbed(EMBED_VACIO); }
+    setEstado('enviando'); setResumen(null);
+    const emb = modo === 'texto' ? {} : embed;
+    const r = todos
+      ? await difundir({ alcance: 'todos', contenido, embed: emb })
+      : await enviarEmbed({ canalId, contenido, embed: emb });
+    if (r.error) { setEstado(`error:${r.error}`); return; }
+    setEstado('ok');
+    if (todos) setResumen({ enviados: r.enviados, total: r.total, fallos: r.fallos || [] });
+    setContenido(''); setEmbed(EMBED_VACIO);
   };
 
-  // Presets: cargar uno repuebla el formulario y ajusta el modo.
   const cargarPreset = (p) => {
     setEstado('');
     setContenido(p.contenido || '');
@@ -37,7 +45,7 @@ export default function EmbedsView({ dash }) {
   };
   const guardarPreset = (nombre) => guardarPresetAnuncio({ nombre, contenido, embed: modo === 'texto' ? null : embed });
 
-  const modoCls = (id) => `flex flex-1 items-center justify-center gap-2 rounded-2xl border p-3 text-sm font-semibold transition-colors ${modo === id ? 'border-brand bg-brand/10 text-fg' : 'border-line bg-bg text-muted hover:border-brand/50'}`;
+  const cls = (activo) => `flex flex-1 items-center justify-center gap-2 rounded-2xl border p-3 text-sm font-semibold transition-colors ${activo ? 'border-brand bg-brand/10 text-fg' : 'border-line bg-bg text-muted hover:border-brand/50'}`;
 
   return (
     <div className="space-y-5">
@@ -48,26 +56,50 @@ export default function EmbedsView({ dash }) {
         <p className="text-xs text-muted">{t('dashboard.embeds_v.note')}</p>
       </div>
 
+      {/* Difusión: solo para IDs autorizadas */}
+      {esBroadcaster && (
+        <div className="space-y-3 rounded-2xl border border-warning/40 bg-warning/10 p-4">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-bold text-fg"><Radio size={16} className="text-warning" /> {t('dashboard.embeds_v.broadcastTitle')}</p>
+            <p className="mt-1 text-xs text-muted">{t('dashboard.embeds_v.broadcastNote')}</p>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => { setEstado(''); setAlcance('canal'); }} className={cls(alcance === 'canal')}>
+              <Server size={16} className="text-brand" /> {t('dashboard.embeds_v.scopeOne')}
+            </button>
+            <button type="button" onClick={() => { setEstado(''); setAlcance('todos'); }} className={cls(alcance === 'todos')}>
+              <Globe2 size={16} className="text-brand" /> {t('dashboard.embeds_v.scopeAll')} ({servidoresBot})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tipo de mensaje */}
       <div className="flex gap-3">
-        <button type="button" onClick={() => { setEstado(''); setModo('embed'); }} className={modoCls('embed')}>
+        <button type="button" onClick={() => { setEstado(''); setModo('embed'); }} className={cls(modo === 'embed')}>
           <LayoutTemplate size={16} className="text-brand" /> {t('dashboard.embeds_v.modeEmbed')}
         </button>
-        <button type="button" onClick={() => { setEstado(''); setModo('texto'); }} className={modoCls('texto')}>
+        <button type="button" onClick={() => { setEstado(''); setModo('texto'); }} className={cls(modo === 'texto')}>
           <FileText size={16} className="text-brand" /> {t('dashboard.embeds_v.modeText')}
         </button>
       </div>
 
-      {/* Canal + texto */}
+      {/* Destino + texto */}
       <div className={card}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.embeds_v.channel')}</span>
-            <select value={canalId} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={input}>
-              <option value="">{t('dashboard.embeds_v.channelPh')}</option>
-              {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
-          </label>
+          {todos ? (
+            <div className="flex items-center gap-2 rounded-xl border border-line bg-elevated px-3 py-2 text-sm text-muted sm:col-span-2">
+              <Globe2 size={15} className="text-brand" /> {t('dashboard.embeds_v.allTarget', { n: servidoresBot })}
+            </div>
+          ) : (
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.embeds_v.channel')}</span>
+              <select value={canalId} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={input}>
+                <option value="">{t('dashboard.embeds_v.channelPh')}</option>
+                {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </label>
+          )}
           {modo === 'embed' && (
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.embeds_v.content')}</span>
@@ -97,12 +129,15 @@ export default function EmbedsView({ dash }) {
         <button
           type="button"
           onClick={enviar}
-          disabled={estado === 'enviando' || !configServidor || !canalId}
-          className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={estado === 'enviando' || (!todos && (!configServidor || !canalId))}
+          className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${todos ? 'bg-warning' : 'bg-gradient-brand'}`}
         >
-          <Send size={16} /> {estado === 'enviando' ? t('dashboard.embeds_v.sending') : t('dashboard.embeds_v.send')}
+          {todos ? <Radio size={16} /> : <Send size={16} />}
+          {estado === 'enviando' ? t('dashboard.embeds_v.sending') : (todos ? t('dashboard.embeds_v.broadcastSend') : t('dashboard.embeds_v.send'))}
         </button>
-        {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.embeds_v.sent')}</span>}
+        {estado === 'ok' && (resumen
+          ? <span className="text-sm font-semibold text-success">{t('dashboard.embeds_v.sentAll', { n: resumen.enviados, total: resumen.total })}{resumen.fallos.length ? ` · ${t('dashboard.embeds_v.failed', { n: resumen.fallos.length })}` : ''}</span>
+          : <span className="text-sm font-semibold text-success">{t('dashboard.embeds_v.sent')}</span>)}
         {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}
       </div>
     </div>

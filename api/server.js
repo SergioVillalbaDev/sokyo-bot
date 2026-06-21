@@ -42,6 +42,10 @@ module.exports = (client) => {
     // servidores y tickets), sin el filtrado del staff. Separados por comas.
     const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 
+    // IDs con permiso de DIFUSIÓN: pueden mandar mensajes/embeds a un servidor
+    // concreto o a TODOS los servidores del bot. Exclusivo de estas IDs.
+    const BROADCAST_IDS = new Set((process.env.BROADCAST_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+
     app.use(cors());
     app.use(express.json({ limit: '12mb' })); // suficiente para imágenes/gifs en base64
 
@@ -89,6 +93,8 @@ module.exports = (client) => {
         if (sesion && sesion.staff) {
             req.staff = sesion;
             if (sesion.owner) return next(); // el PROPIETARIO lo ve todo, sin filtros
+            // Un difusor llega a los endpoints de difusión aunque no sea de sus servidores.
+            if (sesion.broadcaster && req.path.startsWith('/broadcast')) return next();
             // Acotamos por servidor: si la petición apunta a un guildId, debe ser de los suyos.
             const guildIds = sesion.guilds || [];
             const enQuery = req.query.guildId;
@@ -267,13 +273,15 @@ module.exports = (client) => {
             if (esStaff) {
                 // Propietario: ve TODO. Staff normal: solo sus servidores.
                 const esOwner = OWNER_IDS.has(user.id);
+                const esBroadcaster = BROADCAST_IDS.has(user.id);
                 const guilds = esOwner
                     ? client.guilds.cache.map((g) => g.id)
                     : (await guildsDelStaff(user.id)).map((g) => g.id);
-                if (!esOwner && guilds.length === 0) {
+                // Un difusor puro (no staff de ningún servidor) también puede entrar.
+                if (!esOwner && !esBroadcaster && guilds.length === 0) {
                     return res.redirect(`${FRONTEND_URL}/?staff=1&error=nostaff`);
                 }
-                const sesion = firmarToken({ id: user.id, username: user.username, avatar, staff: true, owner: esOwner, guilds }, JWT_SECRET);
+                const sesion = firmarToken({ id: user.id, username: user.username, avatar, staff: true, owner: esOwner, broadcaster: esBroadcaster, guilds }, JWT_SECRET);
                 return res.redirect(`${FRONTEND_URL}/?staff=1&token=${sesion}`);
             }
 
@@ -1411,6 +1419,57 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al borrar preset de anuncio:', error);
             res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+
+    // --- DIFUSIÓN: enviar a un servidor concreto o a TODOS (solo BROADCAST_IDS) ---
+    // Elige un canal de texto donde el bot pueda escribir (preferido: el del sistema).
+    function canalDifusion(guild) {
+        const yo = guild.members.me;
+        const puede = (c) => c && c.isTextBased() && c.viewable && yo && c.permissionsFor(yo)?.has(PermissionsBitField.Flags.SendMessages);
+        if (guild.systemChannel && puede(guild.systemChannel)) return guild.systemChannel;
+        return guild.channels.cache
+            .filter((c) => c.type === ChannelType.GuildText && puede(c))
+            .sort((a, b) => a.position - b.position)
+            .first() || null;
+    }
+
+    app.get('/api/broadcast/permitido', (req, res) => {
+        res.json({ permitido: !!(req.staff && req.staff.broadcaster), servidores: client.guilds.cache.size });
+    });
+
+    app.post('/api/broadcast/enviar', async (req, res) => {
+        try {
+            if (!req.staff || !req.staff.broadcaster) return res.status(403).json({ error: 'No autorizado' });
+            const b = req.body || {};
+            // Validamos que haya algo que enviar (se reconstruye por servidor para no reutilizar adjuntos).
+            const prueba = construirMensaje(b.contenido, sanearEmbed(b.embed), uploadsDir);
+            if (!prueba.content && !prueba.embeds) return res.status(400).json({ error: 'El mensaje está vacío' });
+
+            if (b.alcance === 'todos') {
+                let enviados = 0;
+                const fallos = [];
+                for (const guild of client.guilds.cache.values()) {
+                    const canal = canalDifusion(guild);
+                    if (!canal) { fallos.push(guild.name); continue; }
+                    try {
+                        await canal.send(construirMensaje(b.contenido, sanearEmbed(b.embed), uploadsDir));
+                        enviados++;
+                    } catch { fallos.push(guild.name); }
+                }
+                return res.json({ success: true, enviados, total: client.guilds.cache.size, fallos });
+            }
+
+            // Alcance: un servidor concreto.
+            const guild = client.guilds.cache.get(String(b.guildId || ''));
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const canal = guild.channels.cache.get(String(b.canalId || ''));
+            if (!canal || !canal.isTextBased()) return res.status(400).json({ error: 'Canal no válido' });
+            await canal.send(construirMensaje(b.contenido, sanearEmbed(b.embed), uploadsDir));
+            res.json({ success: true, enviados: 1, total: 1, fallos: [] });
+        } catch (error) {
+            console.error('Error en difusión:', error);
+            res.status(400).json({ error: error.message || 'No se pudo difundir' });
         }
     });
 
