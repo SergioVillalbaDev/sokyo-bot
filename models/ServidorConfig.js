@@ -231,8 +231,16 @@ const ServidorConfigSchema = new mongoose.Schema({
         config: { type: [String], default: [] },
     },
 
+    // --- PLAN / SUSCRIPCIÓN ---
+    // `esPremium` se conserva como "tiene algún plan de pago activo" (lo leen muchas
+    // funciones). `plan` añade el NIVEL concreto para gatear funciones por tramo.
     esPremium: { type: Boolean, default: false },
-    premiumHasta: { type: Date, default: null }
+    plan: { type: String, enum: ['free', 'pro', 'agency'], default: 'free' },
+    premiumHasta: { type: Date, default: null },          // fin del periodo pagado (null = de por vida)
+    premiumCancelaAlFinal: { type: Boolean, default: false }, // suscripción cancelada: activa hasta que caduque
+    stripeCustomerId: { type: String, default: null },    // cliente en Stripe (para renovar / portal)
+    stripeSubscriptionId: { type: String, default: null }, // suscripción en Stripe (null si es pago único/lifetime)
+    trialUsado: { type: Boolean, default: false }         // ya disfrutó la prueba gratuita de Pro
 });
 
 module.exports = mongoose.model('ServidorConfig', ServidorConfigSchema);

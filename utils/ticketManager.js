@@ -6,6 +6,8 @@ const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
 const { getConfig, logActivo } = require('./config.js');
+const { aplicarPieMarca, lineaMarcaTexto } = require('./marca.js');
+const { esPro } = require('./billing.js');
 
 const CATEGORIA_ARCHIVO = '🗄️ Tickets Archivados';
 
@@ -26,7 +28,7 @@ async function registrarLogTicket(ticket, accion, color, autor) {
 }
 
 // Genera el archivo .txt con la conversación completa del ticket.
-async function generarTranscript(canalId, ticket) {
+async function generarTranscript(canalId, ticket, cfg) {
     const historial = await Mensaje.find({ ticketId: canalId }).sort({ fecha: 1 });
     let txt = `=== TRANSCRIPCIÓN DEL TICKET ===\n` +
         `Usuario: ${ticket.creadorNombre}\n` +
@@ -41,7 +43,61 @@ async function generarTranscript(canalId, ticket) {
         txt += `[${fecha}] ${m.usuario}: ${m.contenido}\n`;
     });
 
+    txt += lineaMarcaTexto(cfg); // marca blanca: firma Sokyo solo en Free
+
     return new AttachmentBuilder(Buffer.from(txt, 'utf-8'), { name: `transcript-${ticket.creadorNombre}.txt` });
+}
+
+// Transcript en HTML con estilo (función Pro). Devuelve el HTML como string.
+async function construirTranscriptHTML(canalId, ticket) {
+    const historial = await Mensaje.find({ ticketId: canalId }).sort({ fecha: 1 });
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const filas = historial.length
+        ? historial.map((m) => {
+            const fecha = m.fecha ? new Date(m.fecha).toLocaleString('es-ES') : '';
+            const cuerpo = m.contenido ? esc(m.contenido).replace(/\n/g, '<br>') : '<i>(sin texto)</i>';
+            return `<div class="msg"><div class="meta"><span class="user">${esc(m.usuario)}</span><span class="time">${esc(fecha)}</span></div><div class="body">${cuerpo}</div></div>`;
+        }).join('\n')
+        : '<p class="empty">No se registraron mensajes.</p>';
+
+    return `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transcript · ${esc(ticket.titulo || ticket.creadorNombre)}</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0f1117; color: #e6e8ee; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 60px; }
+  header { border-bottom: 1px solid #262a36; padding-bottom: 18px; margin-bottom: 24px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .sub { color: #9aa0ad; font-size: 13px; line-height: 1.7; }
+  .sub b { color: #c7ccd6; font-weight: 600; }
+  .msg { background: #171a23; border: 1px solid #232734; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+  .meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .user { font-weight: 700; color: #8ab4ff; font-size: 13px; }
+  .time { color: #6b7280; font-size: 12px; }
+  .body { font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .empty { color: #6b7280; font-style: italic; }
+  footer { margin-top: 28px; color: #6b7280; font-size: 12px; text-align: center; }
+</style></head>
+<body><div class="wrap">
+<header>
+  <h1>🎫 ${esc(ticket.titulo || 'Ticket de soporte')}</h1>
+  <div class="sub">
+    <div><b>Cliente:</b> ${esc(ticket.creadorNombre)}</div>
+    <div><b>Motivo:</b> ${esc(ticket.motivo || '-')} &nbsp;·&nbsp; <b>Prioridad:</b> ${esc(ticket.prioridad || '-')}</div>
+    <div><b>Cierre:</b> ${esc(new Date().toLocaleString('es-ES'))}</div>
+  </div>
+</header>
+${filas}
+<footer>Transcript generado el ${esc(new Date().toLocaleString('es-ES'))}</footer>
+</div></body></html>`;
+}
+
+// Envoltura del HTML como adjunto de Discord (.html).
+async function generarTranscriptHTML(canalId, ticket) {
+    const html = await construirTranscriptHTML(canalId, ticket);
+    return new AttachmentBuilder(Buffer.from(html, 'utf-8'), { name: `transcript-${ticket.creadorNombre}.html` });
 }
 
 // Mueve el canal a la categoría de archivados y lo deja en modo solo lectura.
@@ -107,6 +163,7 @@ async function crearTicket(client, { guildId, creador, motivo = 'Soporte', titul
         .setColor('#3498db')
         .setDescription(`**Motivo:** ${motivo}${descripcion ? `\n\n${descripcion}` : ''}`)
         .addFields({ name: '🚨 Urgencia', value: `**${prioridad}**`, inline: true });
+    aplicarPieMarca(embed, cfg); // marca blanca
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Reclamar Ticket').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Añadir Usuario').setStyle(ButtonStyle.Secondary),
@@ -140,7 +197,8 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
             const files = [];
             let descripcion = `Hola **${ticket.creadorNombre}**, tu ticket de soporte ha sido cerrado.`;
             if (enviarTranscript) {
-                files.push(await generarTranscript(canalId, ticket));
+                // Pro: transcript en HTML con estilo. Free: texto plano.
+                files.push(esPro(cfg) ? await generarTranscriptHTML(canalId, ticket) : await generarTranscript(canalId, ticket, cfg));
                 descripcion += ` Adjunto tienes una copia de la conversación.`;
             }
             if (ratingActivo) {
@@ -199,4 +257,4 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     return { ok: true, ticket };
 }
 
-module.exports = { crearTicket, cerrarTicket, reabrirTicket, generarTranscript, registrarLogTicket };
+module.exports = { crearTicket, cerrarTicket, reabrirTicket, generarTranscript, construirTranscriptHTML, generarTranscriptHTML, registrarLogTicket };

@@ -10,6 +10,18 @@ module.exports = {
             let config = await ServidorConfig.findOne({ guildId: guild.id });
             if (!config) config = await ServidorConfig.create({ guildId: guild.id });
 
+            // 1.5. PRUEBA GRATUITA de Pro (7 días) la PRIMERA vez que entra el bot.
+            // Deja que prueben las funciones premium; al caducar, el barrido los
+            // devuelve a Free (red de seguridad en utils/scheduler.js).
+            if (!config.trialUsado && !config.esPremium) {
+                config.esPremium = true;
+                config.plan = 'pro';
+                config.premiumHasta = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                config.trialUsado = true;
+                await config.save().catch(() => {});
+                console.log(`🎁 Prueba Pro de 7 días activada en ${guild.name} (${guild.id})`);
+            }
+
             const guia = construirGuia(guild, config);
 
             // 2. Intentar MD privado al dueño del servidor.

@@ -2,6 +2,7 @@
 // La usan tanto el evento guildCreate (al entrar el bot) como el comando !setup,
 // para que el contenido sea siempre el mismo (un solo sitio que mantener).
 const { EmbedBuilder } = require('discord.js');
+const { aplicarPieMarca } = require('./marca.js');
 
 function construirGuia(guild, config) {
     const url = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -39,8 +40,8 @@ function construirGuia(guild, config) {
                 name: '💡 Comandos útiles',
                 value: `\`${prefijo}setup\` — ver esta guía · \`${prefijo}sokyo\` — publicar panel de tickets · \`${prefijo}rol\` — gestionar roles`,
             },
-        )
-        .setFooter({ text: 'Sokyo · Sistema de Gestión' });
+        );
+    aplicarPieMarca(embed, config); // marca blanca
 
     if (guild.iconURL()) embed.setThumbnail(guild.iconURL({ size: 128 }));
     return { embeds: [embed] };

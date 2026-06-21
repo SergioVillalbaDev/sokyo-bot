@@ -5,6 +5,13 @@ const path = require('path');
 const AnuncioProgramado = require('../models/AnuncioProgramado.js');
 const Recordatorio = require('../models/Recordatorio.js');
 const { construirMensaje } = require('./embeds.js');
+const { barrerPremiumCaducado } = require('./billing.js');
+const EstadisticaDiaria = require('../models/EstadisticaDiaria.js');
+const RegistroMensaje = require('../models/RegistroMensaje.js');
+const ActividadUsuario = require('../models/ActividadUsuario.js');
+const Log = require('../models/Log.js');
+const Ticket = require('../models/Ticket.js');
+const Sancion = require('../models/Sancion.js');
 
 // Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -58,6 +65,33 @@ async function enviarRecordatoriosPendientes(client) {
     }
 }
 
+// Guarda/actualiza la foto diaria de cada servidor (upsert por día). Construye
+// el histórico que la analítica usa para el crecimiento de miembros.
+async function snapshotDiario(client) {
+    const ahora = new Date();
+    const inicioDia = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()));
+    const dia = inicioDia.toISOString().slice(0, 10);
+    for (const [, guild] of client.guilds.cache) {
+        try {
+            const gid = guild.id;
+            const [mensajes, entradas, salidas, ticketsAbiertos, ticketsCerrados, sanciones, activos] = await Promise.all([
+                RegistroMensaje.countDocuments({ guildId: gid, fecha: { $gte: inicioDia } }),
+                Log.countDocuments({ guildId: gid, categoria: 'Entradas', fecha: { $gte: inicioDia } }),
+                Log.countDocuments({ guildId: gid, categoria: 'Salidas', fecha: { $gte: inicioDia } }),
+                Ticket.countDocuments({ guildId: gid, fechaCreacion: { $gte: inicioDia } }),
+                Ticket.countDocuments({ guildId: gid, fechaCierre: { $gte: inicioDia } }),
+                Sancion.countDocuments({ guildId: gid, fecha: { $gte: inicioDia } }),
+                ActividadUsuario.countDocuments({ guildId: gid, ultimoMensajeFecha: { $gte: inicioDia } }),
+            ]);
+            await EstadisticaDiaria.findOneAndUpdate(
+                { guildId: gid, dia },
+                { $set: { fecha: ahora, miembros: guild.memberCount || 0, mensajes, entradas, salidas, ticketsAbiertos, ticketsCerrados, sanciones, activos } },
+                { upsert: true },
+            );
+        } catch (e) { console.error(`Snapshot de ${guild.id}:`, e.message); }
+    }
+}
+
 // Arranca el barrido: primera pasada a los 15s, luego cada `intervaloMs` (30s).
 function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     const tick = async () => {
@@ -66,6 +100,23 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     };
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
+
+    // Red de seguridad: devuelve a Free los servidores con premium caducado (cada hora).
+    const tickPremium = async () => {
+        try {
+            const n = await barrerPremiumCaducado();
+            if (n) console.log(`⏳ Premium caducado en ${n} servidor(es) -> Free.`);
+        } catch (e) { console.error('Barrido de premium:', e.message); }
+    };
+    setTimeout(tickPremium, 20 * 1000);
+    setInterval(tickPremium, 60 * 60 * 1000);
+
+    // Foto diaria de cada servidor: primera a los 30s, luego cada 6h (upsert por día).
+    const tickSnapshot = async () => {
+        try { await snapshotDiario(client); } catch (e) { console.error('Snapshot diario:', e.message); }
+    };
+    setTimeout(tickSnapshot, 30 * 1000);
+    setInterval(tickSnapshot, 6 * 60 * 60 * 1000);
 }
 
 module.exports = { iniciarProgramador, enviarAnunciosPendientes, enviarRecordatoriosPendientes };

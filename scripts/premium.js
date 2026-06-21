@@ -35,7 +35,10 @@ const guildId = process.argv[3] || null;
     );
   } else if (accion === 'on' || accion === 'off') {
     const esPremium = accion === 'on';
-    const res = await ServidorConfig.updateMany(filtro, { esPremium });
+    // Mantiene `plan` coherente con el nuevo sistema de tramos. Para activar el
+    // tramo Agencia a mano: edita el documento o pasa por la pasarela de pago.
+    const cambios = esPremium ? { esPremium: true, plan: 'pro' } : { esPremium: false, plan: 'free' };
+    const res = await ServidorConfig.updateMany(filtro, cambios);
     console.log(`✅ Premium ${esPremium ? 'ACTIVADO' : 'desactivado'} en ${res.modifiedCount} servidor(es).`);
   } else {
     console.log('Uso: node scripts/premium.js on|off|status [guildId]');

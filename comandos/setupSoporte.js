@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
+const { aplicarPieMarca } = require('../utils/marca.js');
 
 module.exports = {
     name: 'sokyo', // O el nombre que uses en tu gestor de comandos
@@ -25,8 +26,8 @@ module.exports = {
                 .setTitle(config.mensajeSoporteTitulo || '🎫 Soporte Técnico Activo')
                 .setDescription(config.mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.')
                 .setColor(config.colorEmbed || '#5865F2') // Color configurable desde el panel
-                .setFooter({ text: config.footerPersonalizado || 'Sistema de Gestión Sokyo' })
                 .setTimestamp();
+            aplicarPieMarca(embedPanel, config); // marca blanca: Sokyo en Free, su marca en Pro
 
             // 4. Creamos el botón interactivo que dispara el evento "create_ticket"
             const botonAbrir = new ButtonBuilder()

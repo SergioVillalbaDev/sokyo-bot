@@ -34,6 +34,8 @@ import NivelesView from './views/NivelesView';
 import AutoRespuestasView from './views/AutoRespuestasView';
 import EmbedsView from './views/EmbedsView';
 import AnunciosView from './views/AnunciosView';
+import PlanesView from './views/PlanesView';
+import AnaliticaView from './views/AnaliticaView';
 
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
@@ -78,6 +80,8 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'prod-autorespuestas') return <AutoRespuestasView dash={dash} />;
     if (activeTab === 'prod-embeds') return <EmbedsView dash={dash} />;
     if (activeTab === 'prod-anuncios') return <AnunciosView dash={dash} />;
+    if (activeTab === 'cuenta-plan') return <PlanesView dash={dash} />;
+    if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
     if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
     return <InicioView dash={dash} />;

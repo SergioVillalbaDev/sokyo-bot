@@ -6,10 +6,24 @@ import {
   Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap, UsersRound,
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
   ShieldCheck as ShieldCheckIcon, UserCheck, Flag, DatabaseBackup,
-  Sparkles, MessagesSquare, LayoutTemplate, Megaphone,
+  Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3,
 } from 'lucide-react';
 
 export const navGroups = [
+  {
+    id: 'cuenta',
+    icon: Crown,
+    items: [
+      { tab: 'cuenta-plan', icon: Crown },
+    ],
+  },
+  {
+    id: 'datos',
+    icon: BarChart3,
+    items: [
+      { tab: 'datos-analitica', icon: BarChart3 },
+    ],
+  },
   {
     id: 'tickets',
     icon: Ticket,

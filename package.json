@@ -12,12 +12,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.105.0",
     "@napi-rs/canvas": "^1.0.0",
     "cors": "^2.8.6",
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "gifenc": "^1.0.3",
-    "mongoose": "^9.6.3"
+    "mongoose": "^9.6.3",
+    "stripe": "^22.2.2"
   }
 }

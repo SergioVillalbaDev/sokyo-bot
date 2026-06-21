@@ -20,11 +20,15 @@ const AnuncioPreset = require('../models/AnuncioPreset.js');
 const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificacion.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
 const { construirMensaje, sanearEmbed, embedTieneContenido } = require('../utils/embeds.js');
-const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
+const { cerrarTicket, reabrirTicket, construirTranscriptHTML } = require('../utils/ticketManager.js');
+const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken } = require('../utils/auth.js');
+const billing = require('../utils/billing.js');
+const { limite } = require('../utils/limites.js');
+const { construirAnalitica } = require('../utils/analitica.js');
 
 module.exports = (client) => {
     const app = express();
@@ -47,6 +51,27 @@ module.exports = (client) => {
     const BROADCAST_IDS = new Set((process.env.BROADCAST_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 
     app.use(cors());
+
+    // --- WEBHOOK DE STRIPE ---
+    // DEBE ir ANTES de express.json: Stripe firma el cuerpo CRUDO y hay que
+    // verificarlo sin parsear. Es público (lo llama Stripe, no el panel).
+    app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+        if (!billing.getStripe()) return res.status(503).end();
+        let event;
+        try {
+            event = billing.construirEvento(req.body, req.headers['stripe-signature']);
+        } catch (e) {
+            console.error('🔴 Webhook de Stripe inválido:', e.message);
+            return res.status(400).send(`Webhook Error: ${e.message}`);
+        }
+        try {
+            await billing.procesarEvento(event);
+        } catch (e) {
+            console.error('🔴 Error procesando webhook de Stripe:', e.message);
+        }
+        res.json({ received: true });
+    });
+
     app.use(express.json({ limit: '12mb' })); // suficiente para imágenes/gifs en base64
 
     // Carpeta donde se guardan las imágenes subidas para los paneles, servida públicamente.
@@ -726,6 +751,21 @@ app.get('/api/stats/uso', async (req, res) => {
     }
 });
 
+    // --- ANALÍTICA (Pro): radiografía completa del servidor + insights ---
+    app.get('/api/stats/analitica', async (req, res) => {
+        try {
+            const gid = req.query.guildId || (req.staff && (req.staff.guilds || [])[0]) || null;
+            if (!gid) return res.json({ esPro: false, vacio: true });
+            const cfg = await ServidorConfig.findOne({ guildId: gid });
+            const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
+            const data = await construirAnalitica(client, gid, cfg, dias);
+            res.json(data);
+        } catch (error) {
+            console.error('Error en /api/stats/analitica:', error.message);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
     app.post('/api/mensajes/:ticketId', scopeTicket, async (req, res) => {
         try {
             const { ticketId } = req.params;
@@ -830,6 +870,44 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al actualizar etiquetas:', error);
             res.status(500).json({ error: 'Fallo interno al actualizar las etiquetas' });
+        }
+    });
+
+    // --- ASISTENTE IA (Pro): resumen y respuesta sugerida de un ticket ---
+    app.post('/api/tickets/:canalId/ia/:accion', scopeTicket, async (req, res) => {
+        try {
+            const accion = req.params.accion;
+            if (!['resumen', 'sugerir'].includes(accion)) return res.status(400).json({ error: 'Acción no válida' });
+            if (!ia.iaDisponible()) return res.status(503).json({ error: 'El asistente IA no está configurado (falta ANTHROPIC_API_KEY).' });
+            const ticket = await Ticket.findOne({ canalId: req.params.canalId });
+            if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+            const cfg = await ServidorConfig.findOne({ guildId: ticket.guildId });
+            if (!billing.esPro(cfg)) return res.status(402).json({ error: 'El asistente IA es una función Pro. Sube de plan para usarlo.' });
+            const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 }).limit(100);
+            const texto = accion === 'resumen'
+                ? await ia.resumirTicket(mensajes, ticket)
+                : await ia.sugerirRespuesta(mensajes, ticket);
+            res.json({ texto });
+        } catch (error) {
+            console.error('Error en el asistente IA:', error.message);
+            res.status(500).json({ error: 'La IA no pudo responder. Inténtalo de nuevo.' });
+        }
+    });
+
+    // --- TRANSCRIPT HTML (Pro): descarga la conversación del ticket en HTML ---
+    app.get('/api/tickets/:canalId/transcript', scopeTicket, async (req, res) => {
+        try {
+            const ticket = await Ticket.findOne({ canalId: req.params.canalId });
+            if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+            const cfg = await ServidorConfig.findOne({ guildId: ticket.guildId });
+            if (!billing.esPro(cfg)) return res.status(402).json({ error: 'Los transcripts en HTML son una función Pro.' });
+            const html = await construirTranscriptHTML(req.params.canalId, ticket);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="transcript-${req.params.canalId}.html"`);
+            res.send(html);
+        } catch (error) {
+            console.error('Error generando transcript HTML:', error.message);
+            res.status(500).json({ error: 'No se pudo generar el transcript' });
         }
     });
 
@@ -1274,6 +1352,11 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/autorespuestas', async (req, res) => {
         try {
             const arr = Array.isArray(req.body.autoRespuestas) ? req.body.autoRespuestas : [];
+            const cfgAR = await ServidorConfig.findOne({ guildId: req.params.guildId });
+            const topeAR = limite(cfgAR, 'autoRespuestas');
+            if (arr.length > topeAR) {
+                return res.status(402).json({ error: `El plan Free permite ${topeAR} auto-respuestas. Sube a Pro para tener ilimitadas.` });
+            }
             const limpio = arr.slice(0, 100).map((a) => ({
                 activo: a && a.activo !== false,
                 nombre: String((a && a.nombre) || '').slice(0, 80),
@@ -1335,6 +1418,11 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
             const canalId = String(b.canalId || '');
             if (!guild.channels.cache.get(canalId)) return res.status(400).json({ error: 'Canal no válido' });
+            const cfgAnuncio = await ServidorConfig.findOne({ guildId });
+            const topeAnuncio = limite(cfgAnuncio, 'anunciosProgramados');
+            if (await AnuncioProgramado.countDocuments({ guildId, enviado: false }) >= topeAnuncio) {
+                return res.status(402).json({ error: `El plan Free permite ${topeAnuncio} anuncios programados. Sube a Pro para tener ilimitados.` });
+            }
             const fecha = new Date(b.fechaEnvio);
             if (isNaN(fecha.getTime()) || fecha.getTime() < Date.now() - 60000) {
                 return res.status(400).json({ error: 'La fecha debe ser futura' });
@@ -1806,6 +1894,11 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const { guildId } = req.body;
             if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
+            const cfgPanel = await ServidorConfig.findOne({ guildId });
+            const topePanel = limite(cfgPanel, 'panelesRoles');
+            if (await RolePanel.countDocuments({ guildId }) >= topePanel) {
+                return res.status(402).json({ error: `El plan Free permite ${topePanel} panel(es) de roles. Sube a Pro para tener paneles ilimitados.` });
+            }
             const panel = await RolePanel.create({ guildId, ...limpiarPanel(req.body) });
             if (panel.channelId) {
                 try { await publicarPanel(client, panel); }
@@ -2288,6 +2381,73 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al obtener ranking:', error);
             res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // ========================================================================
+    // PAGOS (Stripe). El webhook está más arriba (cuerpo crudo). Estos van
+    // protegidos por el middleware /api: solo staff/propietario del servidor.
+    // ========================================================================
+
+    // Estado del plan del servidor (para pintar el panel y los candados).
+    app.get('/api/billing/estado', async (req, res) => {
+        try {
+            const gid = req.query.guildId || (req.staff && (req.staff.guilds || [])[0]) || null;
+            const cfg = gid ? await ServidorConfig.findOne({ guildId: gid }) : null;
+            res.json({
+                plan: (cfg && cfg.plan) || 'free',
+                esPremium: billing.premiumActivo(cfg),
+                premiumHasta: (cfg && cfg.premiumHasta) || null,
+                cancelaAlFinal: !!(cfg && cfg.premiumCancelaAlFinal),
+                pagosActivos: !!billing.getStripe(),       // ¿hay pasarela configurada?
+                tieneSuscripcion: !!(cfg && cfg.stripeCustomerId),
+            });
+        } catch (e) {
+            console.error('Error en estado de facturación:', e.message);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // Crea la sesión de pago y devuelve la URL de Stripe (el panel redirige ahí).
+    app.post('/api/billing/checkout', async (req, res) => {
+        try {
+            if (!billing.getStripe()) return res.status(503).json({ error: 'Los pagos no están configurados.' });
+            const { guildId, plan, intervalo } = req.body || {};
+            if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
+            if (!billing.PLANES_VALIDOS.includes(plan)) return res.status(400).json({ error: 'Plan no válido' });
+            const intv = billing.INTERVALOS_VALIDOS.includes(intervalo) ? intervalo : 'month';
+            const precio = billing.precioId(plan, intv);
+            if (!precio) return res.status(400).json({ error: 'Ese plan o periodo no está disponible todavía' });
+
+            const cfg = await ServidorConfig.findOne({ guildId });
+            const sesion = await billing.crearSesionCheckout({
+                guildId, plan, intervalo: intv, precio,
+                clienteExistenteId: cfg && cfg.stripeCustomerId,
+                exitoUrl: `${FRONTEND_URL}/?pago=ok`,
+                cancelUrl: `${FRONTEND_URL}/?pago=cancelado`,
+            });
+            res.json({ url: sesion.url });
+        } catch (e) {
+            console.error('Error creando checkout:', e.message);
+            res.status(500).json({ error: 'No se pudo iniciar el pago' });
+        }
+    });
+
+    // Abre el Portal de Cliente de Stripe (gestionar / cancelar suscripción).
+    app.post('/api/billing/portal', async (req, res) => {
+        try {
+            if (!billing.getStripe()) return res.status(503).json({ error: 'Los pagos no están configurados.' });
+            const { guildId } = req.body || {};
+            const cfg = guildId ? await ServidorConfig.findOne({ guildId }) : null;
+            if (!cfg || !cfg.stripeCustomerId) return res.status(400).json({ error: 'No hay suscripción que gestionar' });
+            const sesion = await billing.crearSesionPortal({
+                clienteId: cfg.stripeCustomerId,
+                retornoUrl: `${FRONTEND_URL}/`,
+            });
+            res.json({ url: sesion.url });
+        } catch (e) {
+            console.error('Error abriendo portal de pago:', e.message);
+            res.status(500).json({ error: 'No se pudo abrir el portal' });
         }
     });
 

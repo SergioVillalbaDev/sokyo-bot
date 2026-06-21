@@ -11,6 +11,7 @@ export default function TextsView({ dash }) {
     colorEmbed, setColorEmbed, textoBoton, setTextoBoton,
     mensajeBienvenida, setMensajeBienvenida, prefijo, setPrefijo,
     categoriaArchivados, setCategoriaArchivados, guardarTextosConfig,
+    esPremium,
   } = dash;
 
   if (!configServidor) {
@@ -54,6 +55,9 @@ export default function TextsView({ dash }) {
           <div className="flex flex-col gap-2">
             <label className={label}>{t('dashboard.texts_v.footer')}</label>
             <input type="text" value={footerMensaje} onChange={(e) => setFooterMensaje(e.target.value)} className={field} />
+            <p className={`text-xs ${esPremium ? 'text-success' : 'text-muted'}`}>
+              {esPremium ? t('dashboard.texts_v.wlPro') : t('dashboard.texts_v.wlFree')}
+            </p>
           </div>
 
           {/* Color + botón */}

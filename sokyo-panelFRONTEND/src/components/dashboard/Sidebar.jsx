@@ -85,6 +85,26 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         </AnimatePresence>
       </div>
 
+      {/* Upsell: Subir a Pro (solo servidores Free, no propietario) */}
+      {!esOwner && !esPremium && (
+        <button
+          onClick={() => setActiveTab('cuenta-plan')}
+          className={cn(
+            'mt-3 flex items-center gap-2 rounded-2xl bg-gradient-brand px-3 py-2.5 text-on-brand shadow-soft transition-transform hover:scale-[1.02]',
+            collapsed ? 'justify-center' : 'w-full'
+          )}
+          title={collapsed ? t('dashboard.plan.upgrade') : undefined}
+        >
+          <Crown size={collapsed ? 18 : 16} className="shrink-0" />
+          {!collapsed && (
+            <span className="min-w-0 text-left">
+              <span className="block text-sm font-bold leading-tight">{t('dashboard.plan.upgrade')}</span>
+              <span className="block text-[11px] font-medium opacity-90">{t('dashboard.plan.upgradeSub')}</span>
+            </span>
+          )}
+        </button>
+      )}
+
       {/* Navegación */}
       <nav className="mt-4 flex-1 space-y-1 overflow-y-auto pr-1">
         {/* Inicio (standalone) */}

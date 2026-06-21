@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Lock, Unlock, Send, Users, StickyNote, Plus, Zap, Tag, X, History } from 'lucide-react';
+import { ArrowLeft, Lock, Unlock, Send, Users, StickyNote, Plus, Zap, Tag, X, History, Sparkles, FileDown, Loader2 } from 'lucide-react';
 import { Avatar, Card } from '../../ui/primitives';
 
 export default function ChatView({ dash }) {
@@ -11,8 +11,25 @@ export default function ChatView({ dash }) {
     ticketSeleccionado: ticket, mensajes, nuevoMensaje, setNuevoMensaje, enviarMensaje,
     nuevaNota, setNuevaNota, agregarNotaInterna, obtenerParticipantes,
     cerrarMensajes, handleCerrarTicket, handleReabrirTicket, configServidor, guardarEtiquetas,
-    ticketsReales, verMensajes,
+    ticketsReales, verMensajes, esPremium, iaTicket, descargarTranscript,
   } = dash;
+
+  // Asistente IA (Pro): resumen / respuesta sugerida.
+  const [iaCargando, setIaCargando] = useState(''); // '', 'resumen', 'sugerir'
+  const [iaResumen, setIaResumen] = useState('');
+  const [iaError, setIaError] = useState('');
+  const pedirIA = async (accion) => {
+    setIaError(''); setIaCargando(accion);
+    const r = await iaTicket(ticket.canalId, accion);
+    setIaCargando('');
+    if (r.error) { setIaError(r.error); return; }
+    if (accion === 'sugerir') setNuevoMensaje((prev) => (prev ? `${prev} ${r.texto}` : r.texto));
+    else setIaResumen(r.texto);
+  };
+  const bajarTranscript = async () => {
+    const r = await descargarTranscript(ticket.canalId);
+    if (r.error) setIaError(r.error);
+  };
 
   // Historial: otros tickets del mismo usuario (derivado de los ya cargados).
   const historial = (ticketsReales || []).filter((tk) => tk.creadorId === ticket.creadorId && tk.canalId !== ticket.canalId);
@@ -53,21 +70,33 @@ export default function ChatView({ dash }) {
             {ticket.titulo || ticket.creadorNombre}
           </span>
         </div>
-        {!cerrado ? (
-          <button
-            onClick={(e) => handleCerrarTicket(ticket.canalId, e)}
-            className="flex items-center gap-1.5 rounded-lg bg-danger/15 px-4 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/25"
-          >
-            <Lock size={15} /> {t('dashboard.chat_v.close')}
-          </button>
-        ) : (
-          <button
-            onClick={(e) => handleReabrirTicket(ticket.canalId, e)}
-            className="flex items-center gap-1.5 rounded-lg bg-ok/15 px-4 py-2 text-sm font-semibold text-ok transition-colors hover:bg-ok/25"
-          >
-            <Unlock size={15} /> {t('dashboard.chat_v.reopen')}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {esPremium && (
+            <button
+              type="button"
+              onClick={bajarTranscript}
+              title={t('dashboard.chat_v.transcript')}
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+            >
+              <FileDown size={15} /> {t('dashboard.chat_v.transcript')}
+            </button>
+          )}
+          {!cerrado ? (
+            <button
+              onClick={(e) => handleCerrarTicket(ticket.canalId, e)}
+              className="flex items-center gap-1.5 rounded-lg bg-danger/15 px-4 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/25"
+            >
+              <Lock size={15} /> {t('dashboard.chat_v.close')}
+            </button>
+          ) : (
+            <button
+              onClick={(e) => handleReabrirTicket(ticket.canalId, e)}
+              className="flex items-center gap-1.5 rounded-lg bg-ok/15 px-4 py-2 text-sm font-semibold text-ok transition-colors hover:bg-ok/25"
+            >
+              <Unlock size={15} /> {t('dashboard.chat_v.reopen')}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_300px]">
@@ -157,6 +186,41 @@ export default function ChatView({ dash }) {
               />
             )}
           </Card>
+
+          {/* Asistente IA (Pro) */}
+          {esPremium && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-brand/30 bg-brand/5 p-3">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-brand"><Sparkles size={14} /> {t('dashboard.chat_v.aiTitle')}</span>
+              <button
+                type="button"
+                onClick={() => pedirIA('resumen')}
+                disabled={!!iaCargando}
+                className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-semibold text-fg transition-colors hover:border-brand disabled:opacity-50"
+              >
+                {iaCargando === 'resumen' ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} {t('dashboard.chat_v.aiSummarize')}
+              </button>
+              {!cerrado && (
+                <button
+                  type="button"
+                  onClick={() => pedirIA('sugerir')}
+                  disabled={!!iaCargando}
+                  className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-semibold text-fg transition-colors hover:border-brand disabled:opacity-50"
+                >
+                  {iaCargando === 'sugerir' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} {t('dashboard.chat_v.aiSuggest')}
+                </button>
+              )}
+            </div>
+          )}
+          {iaError && <p className="mb-3 text-xs font-semibold text-danger">{iaError}</p>}
+          {iaResumen && (
+            <Card className="mb-4 p-4" style={{ borderLeft: '4px solid var(--brand)' }}>
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-brand"><Sparkles size={14} /> {t('dashboard.chat_v.aiSummaryTitle')}</p>
+                <button type="button" onClick={() => setIaResumen('')} className="text-muted transition-opacity hover:opacity-70" aria-label="Cerrar"><X size={15} /></button>
+              </div>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg">{iaResumen}</p>
+            </Card>
+          )}
 
           <Card className="flex flex-1 flex-col overflow-hidden">
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5" style={{ minHeight: 360, maxHeight: '52vh' }}>

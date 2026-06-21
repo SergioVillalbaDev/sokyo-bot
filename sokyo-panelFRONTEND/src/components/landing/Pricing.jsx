@@ -7,6 +7,7 @@ import { inviteUrl } from '../../lib/landingConfig';
 const ORDEN = [
   { id: 'free', highlighted: false },
   { id: 'pro', highlighted: true },
+  { id: 'agency', highlighted: false },
 ];
 
 export default function Pricing() {
@@ -20,9 +21,12 @@ export default function Pricing() {
           {t('landing.pricing.title')} <span className="text-gradient-brand">{t('landing.pricing.titleHighlight')}</span>
         </h2>
         <p className="mt-4 text-lg text-muted">{t('landing.pricing.subtitle')}</p>
+        <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5 text-sm font-semibold text-brand">
+          {t('landing.pricing.trialNote')}
+        </p>
       </div>
 
-      <div className="mx-auto mt-14 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-3">
         {ORDEN.map((o, i) => {
           const tier = tiers[o.id];
           return (

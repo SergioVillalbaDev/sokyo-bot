@@ -534,6 +534,72 @@ export function useDashboard() {
     return false;
   };
 
+  // --- PAGOS: estado del plan + subir / gestionar suscripción (Stripe) ---
+  const [billing, setBilling] = useState(null);
+  const cargarEstadoBilling = () =>
+    apiFetch(`/api/billing/estado${gp()}`).then(procesarRespuesta)
+      .then((d) => setBilling(d))
+      .catch(reportarError('cargando estado de pago'));
+  const irACheckout = async (plan, intervalo) => {
+    const gid = guildId || (configServidor && configServidor.guildId);
+    if (!gid) return { error: 'Selecciona un servidor' };
+    try {
+      const res = await apiFetch('/api/billing/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId: gid, plan, intervalo }),
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return { ok: true }; }
+      return { error: data.error || 'No se pudo iniciar el pago' };
+    } catch (error) { console.error('Error en checkout:', error); return { error: 'Fallo de red' }; }
+  };
+  const abrirPortalPago = async () => {
+    const gid = guildId || (configServidor && configServidor.guildId);
+    if (!gid) return { error: 'Selecciona un servidor' };
+    try {
+      const res = await apiFetch('/api/billing/portal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId: gid }),
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return { ok: true }; }
+      return { error: data.error || 'No se pudo abrir el portal' };
+    } catch (error) { console.error('Error abriendo portal:', error); return { error: 'Fallo de red' }; }
+  };
+
+  // --- IA en tickets (Pro): resumen / respuesta sugerida ---
+  const iaTicket = async (canalId, accion) => {
+    try {
+      const res = await apiFetch(`/api/tickets/${canalId}/ia/${accion}`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.texto) return { texto: data.texto };
+      return { error: data.error || 'La IA no respondió' };
+    } catch (error) { console.error('Error IA:', error); return { error: 'Fallo de red' }; }
+  };
+  // Descarga el transcript HTML del ticket (Pro).
+  const descargarTranscript = async (canalId) => {
+    try {
+      const res = await apiFetch(`/api/tickets/${canalId}/transcript`);
+      if (!res.ok) { const d = await res.json().catch(() => ({})); return { error: d.error || 'No disponible' }; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `transcript-${canalId}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return { ok: true };
+    } catch (error) { console.error('Error transcript:', error); return { error: 'Fallo de red' }; }
+  };
+
+  // --- ANALÍTICA (Pro) ---
+  const [analitica, setAnalitica] = useState(null);
+  const cargarAnalitica = (dias = 30) => {
+    const sep = gp() ? '&' : '?';
+    return apiFetch(`/api/stats/analitica${gp()}${sep}dias=${dias}`).then(procesarRespuesta)
+      .then(setAnalitica)
+      .catch(reportarError('cargando analítica'));
+  };
+
   // --- PRODUCTIVIDAD: auto-respuestas / triggers ---
   const guardarAutoRespuestas = async (autoRespuestas) => {
     if (!configServidor) return false;
@@ -862,6 +928,8 @@ export function useDashboard() {
     else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
+    else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
+    else if (activeTab === 'datos-analitica') { cargarConfiguracion(); cargarAnalitica(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
     else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); cargarPresetsAnuncio(); }
@@ -915,6 +983,10 @@ export function useDashboard() {
     guardarVerificacion, publicarVerificacion,
     reportes, guardarReportes, cargarReportes, actualizarReporte, abrirTicketReporte,
     exportarConfig, importarConfig,
+    // pagos / suscripción (Stripe)
+    billing, cargarEstadoBilling, irACheckout, abrirPortalPago,
+    // IA en tickets + transcript + analítica (Pro)
+    iaTicket, descargarTranscript, analitica, cargarAnalitica,
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,
