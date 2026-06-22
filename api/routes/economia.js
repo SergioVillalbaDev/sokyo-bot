@@ -33,6 +33,19 @@ module.exports = ({ portalAuth }) => {
         }
     });
 
+    // LISTAR TODOS los ítems (ADMIN): para el selector de ofertas relámpago.
+    router.get('/admin/items', async (req, res) => {
+        const items = await Item.find().sort({ createdAt: -1 });
+        res.json(items);
+    });
+
+    // LANZAR OFERTA RELÁMPAGO sobre un ítem (ADMIN).
+    router.post('/admin/items/:id/oferta', async (req, res) => {
+        const r = await economia.ponerOferta(req.params.id, req.body.porcentaje, req.body.duracionMin);
+        if (!r.ok) return res.status(400).json({ error: r.error });
+        res.json({ success: true, porcentaje: r.porcentaje, expiraEn: r.expiraEn });
+    });
+
     // LISTAR ÍTEMS ACTIVOS. Lo cuelgo de /portal porque tu middleware global deja
     // pasar /portal/* y así lo ve cualquier usuario logueado (no solo staff).
     router.get('/portal/items', portalAuth, async (req, res) => {

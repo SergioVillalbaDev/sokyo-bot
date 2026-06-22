@@ -24,6 +24,11 @@ const ItemSchema = new mongoose.Schema({
         duracionMin: { type: Number, default: 60 },  // para xpBoost y rol
         rolId: { type: String, default: null },       // para rol (id del rol de Discord)
     },
+    // Oferta relámpago: descuento temporal. Activa mientras expiraEn esté en el futuro.
+    oferta: {
+        porcentaje: { type: Number, default: 0, min: 0, max: 100 },
+        expiraEn: { type: Date, default: null },
+    },
     // "Activo en tienda": el borrado lógico. Nunca borramos un ítem que alguien
     // ya tiene en su inventario; lo desactivamos (activo: false) y deja de venderse.
     activo: { type: Boolean, default: true },

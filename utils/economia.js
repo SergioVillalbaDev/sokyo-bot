@@ -23,7 +23,7 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
     }
     if (!item) return { ok: false, error: 'Ese objeto no existe o no está disponible.' };
 
-    const coste = item.precio * cantidad;
+    const coste = precioEfectivo(item).precio * cantidad; // respeta la oferta relámpago si la hay
     await obtenerUsuario(discordId);
 
     // 2) STOCK: si el ítem lleva unidades limitadas, las reservamos de forma atómica
@@ -69,6 +69,26 @@ async function anadirAlInventario(discordId, itemId, cantidad = 1) {
     if (!yaLoTiene) {
         await Usuario.updateOne({ discordId }, { $push: { inventory: { item: itemId, cantidad } } });
     }
+}
+
+// Precio efectivo de un objeto teniendo en cuenta una oferta relámpago activa.
+function precioEfectivo(item) {
+    const o = item.oferta;
+    const activa = o && o.porcentaje > 0 && o.expiraEn && new Date(o.expiraEn) > new Date();
+    const precio = activa ? Math.max(0, Math.round(item.precio * (1 - o.porcentaje / 100))) : item.precio;
+    return { precio, original: item.precio, oferta: !!activa, porcentaje: activa ? o.porcentaje : 0 };
+}
+
+// Lanza una oferta relámpago sobre un objeto (descuento % durante X minutos).
+async function ponerOferta(itemDocId, porcentaje, duracionMin) {
+    porcentaje = Math.min(100, Math.max(1, parseInt(porcentaje, 10) || 0));
+    duracionMin = Math.max(1, parseInt(duracionMin, 10) || 60);
+    const expiraEn = new Date(Date.now() + duracionMin * 60000);
+    let item;
+    try { item = await Item.findByIdAndUpdate(itemDocId, { $set: { oferta: { porcentaje, expiraEn } } }, { returnDocument: 'after' }); }
+    catch { return { ok: false, error: 'Objeto no válido.' }; }
+    if (!item) return { ok: false, error: 'Objeto no encontrado.' };
+    return { ok: true, item, porcentaje, expiraEn };
 }
 
 // Da (o quita, si es negativo) oro a un usuario. Nunca deja el saldo por debajo de 0.
@@ -210,4 +230,4 @@ async function multiplicadorBoost(discordId) {
     return 1;
 }
 
-module.exports = { obtenerUsuario, comprarItem, darOro, reclamarDaily, topRicos, usarItem, multiplicadorBoost };
+module.exports = { obtenerUsuario, comprarItem, darOro, reclamarDaily, topRicos, usarItem, multiplicadorBoost, precioEfectivo, ponerOferta };
