@@ -1,5 +1,6 @@
 const express = require('express');
 const Item = require('../../models/Item.js');
+const Usuario = require('../../models/Usuario.js');
 const economia = require('../../utils/economia.js');
 
 // Recibe portalAuth desde server.js (donde está definido, con acceso a JWT_SECRET).
@@ -10,11 +11,13 @@ module.exports = ({ portalAuth }) => {
     // staff/owner. No hace falta proteger nada más aquí.
     router.post('/admin/items', async (req, res) => {
         try {
-            const { itemId, nombre, descripcion, precio, imageUrl, tipo, activo } = req.body;
+            const { itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock, activo } = req.body;
             if (!itemId || !nombre || precio == null) {
                 return res.status(400).json({ error: 'Faltan campos: itemId, nombre y precio son obligatorios.' });
             }
-            const item = await Item.create({ itemId, nombre, descripcion, precio, imageUrl, tipo, activo });
+            // Stock vacío = ilimitado (null). Si llega un número, lo usamos.
+            const stockNum = (stock === '' || stock == null) ? null : Math.max(0, parseInt(stock, 10) || 0);
+            const item = await Item.create({ itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock: stockNum, activo });
             res.status(201).json({ success: true, item });
         } catch (e) {
             if (e.code === 11000) return res.status(409).json({ error: 'Ya existe un ítem con ese itemId.' });
@@ -30,10 +33,19 @@ module.exports = ({ portalAuth }) => {
         res.json(items);
     });
 
-    // SALDO del usuario logueado (para mostrar su oro en la tienda).
+    // SALDO + INVENTARIO del usuario logueado (oro para la barra, inventario para "Mi mochila").
     router.get('/portal/economia', portalAuth, async (req, res) => {
         const u = await economia.obtenerUsuario(req.usuario.id);
-        res.json({ balance: u.balance });
+        // populate() cambia cada referencia por el documento completo del ítem.
+        const doc = await Usuario.findOne({ discordId: req.usuario.id }).populate('inventory.item');
+        const inventory = (doc?.inventory || [])
+            .filter(e => e.item) // descarta objetos que ya no existan en la BD
+            .map(e => ({
+                _id: e.item._id, nombre: e.item.nombre, descripcion: e.item.descripcion,
+                tipo: e.item.tipo, rareza: e.item.rareza, imageUrl: e.item.imageUrl,
+                cantidad: e.cantidad,
+            }));
+        res.json({ balance: u.balance, inventory });
     });
 
     // COMPRAR (usuario logueado). El comprador es req.usuario (lo pone portalAuth):

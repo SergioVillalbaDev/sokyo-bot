@@ -26,17 +26,33 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
     const coste = item.precio * cantidad;
     await obtenerUsuario(discordId);
 
-    // 2) PUERTA ATÓMICA: solo descuenta si en ESE mismo instante hay saldo suficiente.
-    //    Si dos compras llegan a la vez, MongoDB serializa este update: una pasa y la
-    //    otra falla la condición `balance >= coste`. Imposible quedar en negativo.
+    // 2) STOCK: si el ítem lleva unidades limitadas, las reservamos de forma atómica
+    //    (solo resta si quedan suficientes). Si no, evitamos vender lo que no hay.
+    const llevaStock = typeof item.stock === 'number';
+    if (llevaStock) {
+        const reserva = await Item.findOneAndUpdate(
+            { _id: item._id, stock: { $gte: cantidad } },
+            { $inc: { stock: -cantidad } },
+            { returnDocument: 'after' }
+        );
+        if (!reserva) return { ok: false, error: '¡Agotado! No queda stock de este objeto.' };
+    }
+
+    // 3) PUERTA ATÓMICA del oro: solo descuenta si en ESE mismo instante hay saldo
+    //    suficiente. Si dos compras llegan a la vez, MongoDB serializa este update:
+    //    una pasa y la otra falla la condición `balance >= coste`.
     const usuario = await Usuario.findOneAndUpdate(
         { discordId, balance: { $gte: coste } },
         { $inc: { balance: -coste } },
         { returnDocument: 'after' }
     );
-    if (!usuario) return { ok: false, error: 'No tienes suficiente oro para comprar esto.' };
+    if (!usuario) {
+        // El oro falló: devolvemos el stock que habíamos reservado para no perderlo.
+        if (llevaStock) await Item.updateOne({ _id: item._id }, { $inc: { stock: cantidad } });
+        return { ok: false, error: 'No tienes suficiente oro para comprar esto.' };
+    }
 
-    // 3) Añadir al inventario: si ya lo tiene, suma cantidad; si no, crea la entrada.
+    // 4) Añadir al inventario: si ya lo tiene, suma cantidad; si no, crea la entrada.
     const yaLoTiene = await Usuario.findOneAndUpdate(
         { discordId, 'inventory.item': item._id },
         { $inc: { 'inventory.$.cantidad': cantidad } }, // $ = el elemento que coincidió

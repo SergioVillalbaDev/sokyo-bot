@@ -11,6 +11,10 @@ const ItemSchema = new mongoose.Schema({
     imageUrl: { type: String, default: null },
     // Limitamos el tipo con enum: la BD rechaza valores no válidos por nosotros.
     tipo: { type: String, enum: ['consumible', 'equipo', 'material'], default: 'material' },
+    // Rareza (para el filtrado y el color de la carta en la tienda).
+    rareza: { type: String, enum: ['comun', 'raro', 'epico', 'legendario'], default: 'comun' },
+    // Unidades disponibles. null = ilimitado (STOCK ∞). Si llega a 0, se agota.
+    stock: { type: Number, default: null, min: 0 },
     // "Activo en tienda": el borrado lógico. Nunca borramos un ítem que alguien
     // ya tiene en su inventario; lo desactivamos (activo: false) y deja de venderse.
     activo: { type: Boolean, default: true },
