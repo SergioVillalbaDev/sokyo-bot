@@ -99,7 +99,7 @@ async function darOro(discordId, cantidad) {
     const u = await Usuario.findOneAndUpdate(
         { discordId },
         [{ $set: { balance: { $max: [0, { $add: ['$balance', cantidad] }] } } }],
-        { returnDocument: 'after' }
+        { returnDocument: 'after', updatePipeline: true } // el array es una pipeline (Mongoose 9 lo exige)
     );
     return u.balance;
 }
