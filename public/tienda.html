@@ -255,7 +255,7 @@
         <button class="pill" data-rar="raro" onclick="setFiltro('raro', this)">Raro</button>
         <button class="pill" data-rar="comun" onclick="setFiltro('comun', this)">Común</button>
         <button class="pill" data-rar="__mochila" onclick="verEspecial('mochila', this)">🎒 Mochila</button>
-        <button class="pill" data-rar="__admin" onclick="verEspecial('admin', this)">🛠 Admin</button>
+        <button class="pill" data-rar="__admin" onclick="verEspecial('admin', this)">🛠 Crear</button>
       </div>
       <div class="relative w-full sm:w-80">
         <input id="busqueda" oninput="render()" placeholder="Buscar en el catálogo…" class="inp pl-9" />
@@ -273,9 +273,6 @@
       <form id="formItem" class="panel p-6 space-y-4">
         <h2 class="brand text-xl text-cyan-200">⚒ Forjar nuevo objeto</h2>
         <div class="linea"></div>
-        <label class="block tech text-xs text-[var(--tenue)]">Llave de administrador (API Key)
-          <input id="apiKey" type="password" placeholder="x-api-key del .env" class="inp mt-1.5" />
-        </label>
         <div class="grid sm:grid-cols-2 gap-4">
           <label class="block tech text-xs text-[var(--tenue)]">ID único
             <input name="itemId" placeholder="espada_estelar" required class="inp mt-1.5" />
@@ -337,7 +334,7 @@
       <form id="formOferta" class="panel p-6 space-y-4 mt-6">
         <h2 class="brand text-xl text-cyan-200">⚡ Oferta relámpago</h2>
         <div class="linea"></div>
-        <p class="text-sm text-[var(--tenue)]">Aplica un descuento temporal a un objeto (usa la misma API Key de arriba).</p>
+        <p class="text-sm text-[var(--tenue)]">Aplica un descuento temporal a un objeto del catálogo.</p>
         <label class="block tech text-xs text-[var(--tenue)]">Objeto
           <select id="ofertaItem" class="inp mt-1.5"></select>
         </label>
@@ -673,16 +670,16 @@ async function comprar(itemId, nombre) {
 async function subirImagen(input) {
   const file = input.files && input.files[0];
   if (!file) return;
-  if (!$('#apiKey').value.trim()) return toast('Pon primero la llave de administrador.', 'error');
+  if (!getToken()) return toast('Inicia sesión con Discord primero.', 'error');
   const datos = await new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(r.result);
     r.onerror = rej;
     r.readAsDataURL(file);
   });
-  const r = await fetch(`${API}/api/admin/upload`, {
+  const r = await fetch(`${API}/api/portal/upload`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': $('#apiKey').value.trim() },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify({ datos }),
   });
   const data = await r.json();
@@ -693,9 +690,9 @@ async function subirImagen(input) {
 $('#formItem').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
-  const res = await fetch(`${API}/api/admin/items`, {
+  const res = await fetch(`${API}/api/portal/items`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': $('#apiKey').value.trim() },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify(Object.fromEntries(f)),
   });
   const data = await res.json();
@@ -715,9 +712,9 @@ $('#formOferta').addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = $('#ofertaItem').value;
   if (!id) return toast('No hay objetos para poner en oferta.', 'error');
-  const res = await fetch(`${API}/api/admin/items/${id}/oferta`, {
+  const res = await fetch(`${API}/api/portal/items/${id}/oferta`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': $('#apiKey').value.trim() },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify({ porcentaje: $('#ofertaPct').value, duracionMin: $('#ofertaDur').value }),
   });
   const data = await res.json();

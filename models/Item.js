@@ -32,6 +32,8 @@ const ItemSchema = new mongoose.Schema({
     // "Activo en tienda": el borrado lógico. Nunca borramos un ítem que alguien
     // ya tiene en su inventario; lo desactivamos (activo: false) y deja de venderse.
     activo: { type: Boolean, default: true },
+    // Quién creó el objeto (discordId). Para el futuro MMO: "mis objetos", permisos…
+    creadorId: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Item', ItemSchema);

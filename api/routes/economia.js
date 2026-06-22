@@ -9,35 +9,39 @@ const economia = require('../../utils/economia.js');
 module.exports = ({ portalAuth }) => {
     const router = express.Router();
 
-    // CREAR ÍTEM (ADMIN). Cuelga de /api, así que ya pasa por tu middleware de
-    // staff/owner. No hace falta proteger nada más aquí.
-    router.post('/admin/items', async (req, res) => {
+    // CREAR OBJETO. Abierto a cualquier usuario logueado (fase actual): cuelga de
+    // /portal, que el middleware global deja pasar, y lo protege portalAuth.
+    // Guardamos creadorId para el futuro MMO (saber de quién es cada objeto).
+    router.post('/portal/items', portalAuth, async (req, res) => {
         try {
-            const { itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock, activo } = req.body;
+            const { itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock } = req.body;
             if (!itemId || !nombre || precio == null) {
-                return res.status(400).json({ error: 'Faltan campos: itemId, nombre y precio son obligatorios.' });
+                return res.status(400).json({ error: 'Faltan campos: ID, nombre y precio son obligatorios.' });
             }
             // Stock vacío = ilimitado (null). Si llega un número, lo usamos.
             const stockNum = (stock === '' || stock == null) ? null : Math.max(0, parseInt(stock, 10) || 0);
             // Efecto al usar (campos planos desde el formulario web).
             const efecto = {
-                tipo: ['xpBoost', 'rol'].includes(req.body.efectoTipo) ? req.body.efectoTipo : 'ninguno',
+                tipo: ['xpBoost', 'rol', 'caja'].includes(req.body.efectoTipo) ? req.body.efectoTipo : 'ninguno',
                 multiplicador: Math.max(1, parseInt(req.body.efectoMultiplicador, 10) || 2),
                 duracionMin: Math.max(1, parseInt(req.body.efectoDuracionMin, 10) || 60),
                 rolId: req.body.efectoRolId ? String(req.body.efectoRolId).trim() : null,
             };
-            const item = await Item.create({ itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock: stockNum, efecto, activo });
+            const item = await Item.create({
+                itemId, nombre, descripcion, precio, imageUrl, tipo, rareza,
+                stock: stockNum, efecto, activo: true, creadorId: req.usuario.id,
+            });
             res.status(201).json({ success: true, item });
         } catch (e) {
-            if (e.code === 11000) return res.status(409).json({ error: 'Ya existe un ítem con ese itemId.' });
-            console.error('Error al crear ítem:', e);
-            res.status(500).json({ error: 'No se pudo crear el ítem.' });
+            if (e.code === 11000) return res.status(409).json({ error: 'Ya existe un objeto con ese ID.' });
+            console.error('Error al crear objeto:', e);
+            res.status(500).json({ error: 'No se pudo crear el objeto.' });
         }
     });
 
-    // SUBIR IMAGEN de un objeto desde el PC (ADMIN). Recibe un dataURL base64 y la
-    // guarda en api/uploads, devolviendo su URL pública (/uploads/...).
-    router.post('/admin/upload', (req, res) => {
+    // SUBIR IMAGEN de un objeto desde el PC. Recibe un dataURL base64 y la guarda
+    // en api/uploads, devolviendo su URL pública (/uploads/...).
+    router.post('/portal/upload', portalAuth, (req, res) => {
         const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(req.body?.datos || '');
         if (!m) return res.status(400).json({ error: 'Formato no válido (png, jpg, gif o webp).' });
         const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
@@ -50,14 +54,8 @@ module.exports = ({ portalAuth }) => {
         res.json({ success: true, url: `/uploads/${archivo}` });
     });
 
-    // LISTAR TODOS los ítems (ADMIN): para el selector de ofertas relámpago.
-    router.get('/admin/items', async (req, res) => {
-        const items = await Item.find().sort({ createdAt: -1 });
-        res.json(items);
-    });
-
-    // LANZAR OFERTA RELÁMPAGO sobre un ítem (ADMIN).
-    router.post('/admin/items/:id/oferta', async (req, res) => {
+    // LANZAR OFERTA RELÁMPAGO sobre un objeto.
+    router.post('/portal/items/:id/oferta', portalAuth, async (req, res) => {
         const r = await economia.ponerOferta(req.params.id, req.body.porcentaje, req.body.duracionMin);
         if (!r.ok) return res.status(400).json({ error: r.error });
         res.json({ success: true, porcentaje: r.porcentaje, expiraEn: r.expiraEn });
