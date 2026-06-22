@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+// Una entrada del contenido de una caja: qué objeto puede soltar y con qué peso
+// (probabilidad relativa: a mayor peso, más a menudo sale).
+const ContenidoCajaSchema = new mongoose.Schema({
+    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
+    peso: { type: Number, default: 1, min: 1 },
+}, { _id: false });
+
 // Un objeto del catálogo de la tienda.
 const ItemSchema = new mongoose.Schema({
     // Identificador "legible" y único (ej: "pocion_vida"). Útil para referenciarlo
@@ -29,6 +36,9 @@ const ItemSchema = new mongoose.Schema({
         porcentaje: { type: Number, default: 0, min: 0, max: 100 },
         expiraEn: { type: Date, default: null },
     },
+    // Contenido de una CAJA (solo si efecto.tipo === 'caja'): los objetos que puede
+    // soltar, cada uno con su peso. La caja sortea SOLO entre estos.
+    contenido: { type: [ContenidoCajaSchema], default: [] },
     // "Activo en tienda": el borrado lógico. Nunca borramos un ítem que alguien
     // ya tiene en su inventario; lo desactivamos (activo: false) y deja de venderse.
     activo: { type: Boolean, default: true },

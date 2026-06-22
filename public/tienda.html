@@ -306,7 +306,6 @@
               <option value="ninguno">Ninguno (decorativo)</option>
               <option value="xpBoost">Boost de XP</option>
               <option value="rol">Rol temporal</option>
-              <option value="caja">Caja de botín</option>
             </select>
           </label>
           <label class="block tech text-xs text-[var(--tenue)]">Duración efecto (min)
@@ -329,6 +328,44 @@
           </label>
         </div>
         <button class="btn-oro w-full py-3 rounded-xl">⚒ Forjar y poner a la venta</button>
+      </form>
+
+      <form id="formCaja" class="panel p-6 space-y-4 mt-6">
+        <h2 class="brand text-xl text-cyan-200">🎁 Crear caja de botín</h2>
+        <div class="linea"></div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block tech text-xs text-[var(--tenue)]">ID único
+            <input name="itemId" placeholder="caja_estelar" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Nombre
+            <input name="nombre" placeholder="Caja Estelar" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Precio (oro)
+            <input name="precio" type="number" min="0" placeholder="500" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Rareza de la caja
+            <select name="rareza" class="inp mt-1.5">
+              <option value="comun">Común</option>
+              <option value="raro">Raro</option>
+              <option value="epico">Épico</option>
+              <option value="legendario">Legendario</option>
+            </select>
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Imagen de la caja
+            <input name="imageUrl" id="cajaImageUrl" placeholder="https://… o sube abajo" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Subir imagen desde tu PC
+            <input type="file" accept="image/*" class="inp mt-1.5" onchange="subirImagen(this, '#cajaImageUrl')" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Descripción
+            <textarea name="descripcion" rows="2" placeholder="Una caja con recompensas aleatorias…" class="inp mt-1.5"></textarea>
+          </label>
+        </div>
+        <div>
+          <p class="tech text-xs text-[var(--tenue)] mb-2">Contenido — marca qué objetos puede soltar y su peso (mayor = más probable)</p>
+          <div id="cajaContenido" class="max-h-64 overflow-y-auto pr-1"></div>
+        </div>
+        <button class="btn-oro w-full py-3 rounded-xl">🎁 Crear caja</button>
       </form>
 
       <form id="formOferta" class="panel p-6 space-y-4 mt-6">
@@ -584,6 +621,7 @@ async function cargarCatalogo() {
   ITEMS = await res.json();
   calcularDestacados();
   poblarSelectOferta();
+  poblarContenidoCaja();
   render();
 }
 
@@ -667,7 +705,7 @@ async function comprar(itemId, nombre) {
 
 // --- ADMIN ---
 // Sube una imagen del PC al servidor y pone su URL en el campo imageUrl.
-async function subirImagen(input) {
+async function subirImagen(input, target = '#imageUrl') {
   const file = input.files && input.files[0];
   if (!file) return;
   if (!getToken()) return toast('Inicia sesión con Discord primero.', 'error');
@@ -683,7 +721,7 @@ async function subirImagen(input) {
     body: JSON.stringify({ datos }),
   });
   const data = await r.json();
-  if (r.ok) { $('#imageUrl').value = data.url; toast('🖼️ Imagen subida correctamente.', 'ok'); }
+  if (r.ok) { $(target).value = data.url; toast('🖼️ Imagen subida correctamente.', 'ok'); }
   else { toast(`❌ ${data.error}`, 'error'); }
 }
 
@@ -706,6 +744,47 @@ function poblarSelectOferta() {
   if (!sel) return;
   sel.innerHTML = ITEMS.map(i => `<option value="${i._id}">${i.nombre} (🪙 ${fmt(i.precio)})</option>`).join('');
 }
+
+// Rellena la lista de objetos que se pueden meter en una caja (todos menos cajas).
+function poblarContenidoCaja() {
+  const cont = $('#cajaContenido');
+  if (!cont) return;
+  const candidatos = ITEMS.filter(i => !(i.efecto && i.efecto.tipo === 'caja'));
+  if (!candidatos.length) {
+    cont.innerHTML = '<p class="text-sm text-[var(--tenue)]">Crea primero algún objeto normal para poder meterlo en cajas.</p>';
+    return;
+  }
+  cont.innerHTML = candidatos.map(i => {
+    const R = rar(i.rareza);
+    return `<label class="flex items-center gap-3 py-1.5 border-b border-white/5">
+      <input type="checkbox" class="caja-check" value="${i._id}" />
+      <span class="badge-rar" style="--rar:${R.color}">${R.label}</span>
+      <span class="flex-1 text-sm">${i.nombre}</span>
+      <span class="tech text-[10px] text-[var(--tenue)]">peso</span>
+      <input type="number" min="1" value="1" class="caja-peso" data-id="${i._id}" style="width:64px" />
+    </label>`;
+  }).join('');
+}
+
+// Crear caja con su contenido.
+$('#formCaja').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const contenido = [...document.querySelectorAll('.caja-check:checked')].map(ch => ({
+    item: ch.value,
+    peso: document.querySelector(`.caja-peso[data-id="${ch.value}"]`)?.value || 1,
+  }));
+  if (!contenido.length) return toast('Marca al menos un objeto para la caja.', 'error');
+  const body = Object.fromEntries(new FormData(e.target));
+  body.contenido = contenido;
+  const res = await fetch(`${API}/api/portal/cajas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (res.ok) { toast(`🎁 Caja <b>${data.item.nombre}</b> creada.`, 'oro'); e.target.reset(); cargarCatalogo(); }
+  else { toast(`❌ ${data.error}`, 'error'); }
+});
 
 // Lanzar oferta relámpago (admin).
 $('#formOferta').addEventListener('submit', async (e) => {

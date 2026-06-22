@@ -147,27 +147,23 @@ async function consumirUnidad(discordId, itemId) {
     );
 }
 
-// Probabilidad de cada rareza al abrir una caja (cuanto mayor, más frecuente).
-const PESOS_RAREZA = { comun: 60, raro: 25, epico: 12, legendario: 3 };
+// Sortea un premio del CONTENIDO definido de una caja, ponderando por su peso.
+async function elegirPremioDeCaja(caja) {
+    const contenido = (caja.contenido || []).filter(c => c.item);
+    if (!contenido.length) return null;
 
-// Elige un objeto premio al azar entre los activos (que NO sean cajas), ponderando
-// por rareza: lo común sale mucho, lo legendario casi nunca.
-async function elegirPremioCaja() {
-    const items = await Item.find({ activo: true, 'efecto.tipo': { $ne: 'caja' } });
-    if (!items.length) return null;
+    // Cargamos los objetos referenciados (descartando los que ya no existan).
+    const items = await Item.find({ _id: { $in: contenido.map(c => c.item) } });
+    const mapa = new Map(items.map(it => [it._id.toString(), it]));
+    const candidatos = contenido
+        .map(c => ({ item: mapa.get(c.item.toString()), peso: Math.max(1, c.peso || 1) }))
+        .filter(c => c.item);
+    if (!candidatos.length) return null;
 
-    // Agrupamos por rareza y sorteamos primero la rareza (solo entre las que tienen objetos).
-    const porRareza = {};
-    for (const it of items) (porRareza[it.rareza || 'comun'] ||= []).push(it);
-    const rarezas = Object.keys(porRareza);
-    const total = rarezas.reduce((s, r) => s + (PESOS_RAREZA[r] || 1), 0);
-
+    const total = candidatos.reduce((s, c) => s + c.peso, 0);
     let x = Math.random() * total;
-    let elegida = rarezas[0];
-    for (const r of rarezas) { x -= (PESOS_RAREZA[r] || 1); if (x <= 0) { elegida = r; break; } }
-
-    const grupo = porRareza[elegida];
-    return grupo[Math.floor(Math.random() * grupo.length)];
+    for (const c of candidatos) { x -= c.peso; if (x <= 0) return c.item; }
+    return candidatos[candidatos.length - 1].item;
 }
 
 // USAR un objeto: aplica su efecto y consume 1 unidad.
@@ -190,8 +186,8 @@ async function usarItem(discordId, itemDocId, ctx = {}) {
 
     // Efecto CAJA: sortea un premio, lo añade al inventario y consume la caja.
     if (efecto.tipo === 'caja') {
-        const premio = await elegirPremioCaja();
-        if (!premio) return { ok: false, error: 'No hay objetos en el catálogo para soltar. Crea algunos primero.' };
+        const premio = await elegirPremioDeCaja(item);
+        if (!premio) return { ok: false, error: 'Esta caja no tiene contenido configurado.' };
         await consumirUnidad(discordId, item._id);
         await anadirAlInventario(discordId, premio._id, 1);
         return { ok: true, item, efecto, premio };

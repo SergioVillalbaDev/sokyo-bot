@@ -39,6 +39,31 @@ module.exports = ({ portalAuth }) => {
         }
     });
 
+    // CREAR CAJA de botín con su contenido. Abierto a usuarios logueados.
+    router.post('/portal/cajas', portalAuth, async (req, res) => {
+        try {
+            const { itemId, nombre, descripcion, precio, imageUrl, rareza, contenido } = req.body;
+            if (!itemId || !nombre || precio == null) {
+                return res.status(400).json({ error: 'Faltan campos: ID, nombre y precio son obligatorios.' });
+            }
+            const lista = Array.isArray(contenido)
+                ? contenido.filter(c => c && c.item).map(c => ({ item: c.item, peso: Math.max(1, parseInt(c.peso, 10) || 1) }))
+                : [];
+            if (!lista.length) return res.status(400).json({ error: 'Marca al menos un objeto que pueda soltar la caja.' });
+
+            const caja = await Item.create({
+                itemId, nombre, descripcion, precio, imageUrl, rareza,
+                tipo: 'material', efecto: { tipo: 'caja' }, contenido: lista,
+                activo: true, creadorId: req.usuario.id,
+            });
+            res.status(201).json({ success: true, item: caja });
+        } catch (e) {
+            if (e.code === 11000) return res.status(409).json({ error: 'Ya existe un objeto con ese ID.' });
+            console.error('Error al crear caja:', e);
+            res.status(500).json({ error: 'No se pudo crear la caja.' });
+        }
+    });
+
     // SUBIR IMAGEN de un objeto desde el PC. Recibe un dataURL base64 y la guarda
     // en api/uploads, devolviendo su URL pública (/uploads/...).
     router.post('/portal/upload', portalAuth, (req, res) => {
