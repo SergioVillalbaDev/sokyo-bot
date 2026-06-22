@@ -6,6 +6,7 @@ function descEfecto(ef) {
     if (!ef) return '';
     if (ef.tipo === 'xpBoost') return `XP x${ef.multiplicador} durante ${ef.duracionMin} min`;
     if (ef.tipo === 'rol') return `Rol temporal durante ${ef.duracionMin} min`;
+    if (ef.tipo === 'caja') return 'Caja de botín — ábrela para un premio aleatorio';
     return '';
 }
 

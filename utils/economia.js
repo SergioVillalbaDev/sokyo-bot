@@ -52,21 +52,23 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
         return { ok: false, error: 'No tienes suficiente oro para comprar esto.' };
     }
 
-    // 4) Añadir al inventario: si ya lo tiene, suma cantidad; si no, crea la entrada.
+    // 4) Añadir al inventario.
+    await anadirAlInventario(discordId, item._id, cantidad);
+
+    const final = await Usuario.findOne({ discordId });
+    return { ok: true, item, coste, balance: final.balance };
+}
+
+// Añade un objeto al inventario: suma cantidad si ya lo tiene, o crea la entrada.
+async function anadirAlInventario(discordId, itemId, cantidad = 1) {
     const yaLoTiene = await Usuario.findOneAndUpdate(
-        { discordId, 'inventory.item': item._id },
+        { discordId, 'inventory.item': itemId },
         { $inc: { 'inventory.$.cantidad': cantidad } }, // $ = el elemento que coincidió
         { returnDocument: 'after' }
     );
     if (!yaLoTiene) {
-        await Usuario.updateOne(
-            { discordId },
-            { $push: { inventory: { item: item._id, cantidad } } }
-        );
+        await Usuario.updateOne({ discordId }, { $push: { inventory: { item: itemId, cantidad } } });
     }
-
-    const final = await Usuario.findOne({ discordId });
-    return { ok: true, item, coste, balance: final.balance };
 }
 
 // Da (o quita, si es negativo) oro a un usuario. Nunca deja el saldo por debajo de 0.
@@ -125,6 +127,29 @@ async function consumirUnidad(discordId, itemId) {
     );
 }
 
+// Probabilidad de cada rareza al abrir una caja (cuanto mayor, más frecuente).
+const PESOS_RAREZA = { comun: 60, raro: 25, epico: 12, legendario: 3 };
+
+// Elige un objeto premio al azar entre los activos (que NO sean cajas), ponderando
+// por rareza: lo común sale mucho, lo legendario casi nunca.
+async function elegirPremioCaja() {
+    const items = await Item.find({ activo: true, 'efecto.tipo': { $ne: 'caja' } });
+    if (!items.length) return null;
+
+    // Agrupamos por rareza y sorteamos primero la rareza (solo entre las que tienen objetos).
+    const porRareza = {};
+    for (const it of items) (porRareza[it.rareza || 'comun'] ||= []).push(it);
+    const rarezas = Object.keys(porRareza);
+    const total = rarezas.reduce((s, r) => s + (PESOS_RAREZA[r] || 1), 0);
+
+    let x = Math.random() * total;
+    let elegida = rarezas[0];
+    for (const r of rarezas) { x -= (PESOS_RAREZA[r] || 1); if (x <= 0) { elegida = r; break; } }
+
+    const grupo = porRareza[elegida];
+    return grupo[Math.floor(Math.random() * grupo.length)];
+}
+
 // USAR un objeto: aplica su efecto y consume 1 unidad.
 //  ctx.aplicarRol(rolId, duracionMin) -> Promise<bool>: lo aporta /usar (tiene
 //  contexto de servidor). Sin él, los efectos de rol no se pueden aplicar (web).
@@ -142,6 +167,15 @@ async function usarItem(discordId, itemDocId, ctx = {}) {
     // ¿Lo tiene en la mochila?
     const tiene = await Usuario.findOne({ discordId, 'inventory.item': item._id }).select('_id');
     if (!tiene) return { ok: false, error: 'No tienes ese objeto en tu mochila.' };
+
+    // Efecto CAJA: sortea un premio, lo añade al inventario y consume la caja.
+    if (efecto.tipo === 'caja') {
+        const premio = await elegirPremioCaja();
+        if (!premio) return { ok: false, error: 'No hay objetos en el catálogo para soltar. Crea algunos primero.' };
+        await consumirUnidad(discordId, item._id);
+        await anadirAlInventario(discordId, premio._id, 1);
+        return { ok: true, item, efecto, premio };
+    }
 
     // Efecto de ROL: solo desde un servidor (lo aplica el comando /usar).
     if (efecto.tipo === 'rol') {

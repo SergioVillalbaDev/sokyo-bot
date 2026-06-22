@@ -19,7 +19,7 @@ const ItemSchema = new mongoose.Schema({
     //  · xpBoost → multiplica tu XP durante `duracionMin` (efecto global).
     //  · rol     → te da el rol `rolId` durante `duracionMin` (se usa en un servidor).
     efecto: {
-        tipo: { type: String, enum: ['ninguno', 'xpBoost', 'rol'], default: 'ninguno' },
+        tipo: { type: String, enum: ['ninguno', 'xpBoost', 'rol', 'caja'], default: 'ninguno' },
         multiplicador: { type: Number, default: 2 }, // para xpBoost (x2, x3…)
         duracionMin: { type: Number, default: 60 },  // para xpBoost y rol
         rolId: { type: String, default: null },       // para rol (id del rol de Discord)

@@ -69,7 +69,11 @@ module.exports = ({ portalAuth }) => {
     router.post('/portal/shop/use', portalAuth, async (req, res) => {
         const r = await economia.usarItem(req.usuario.id, req.body.itemId);
         if (!r.ok) return res.status(400).json({ error: r.error });
-        res.json({ success: true, item: r.item.nombre, efecto: r.efecto });
+        // Si era una caja, devolvemos el premio (slim) para la animación de apertura.
+        const premio = r.premio
+            ? { nombre: r.premio.nombre, rareza: r.premio.rareza, tipo: r.premio.tipo, imageUrl: r.premio.imageUrl }
+            : null;
+        res.json({ success: true, item: r.item.nombre, efecto: r.efecto, premio });
     });
 
     return router;

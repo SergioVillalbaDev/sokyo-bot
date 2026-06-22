@@ -175,6 +175,27 @@
 
   .gema { color: var(--cian); filter: drop-shadow(0 0 6px rgba(34,211,238,.6)); }
   .linea { height: 1px; background: linear-gradient(90deg, transparent, rgba(120,150,210,.4), transparent); }
+
+  /* Revelación de caja de botín */
+  #revelacion { position: fixed; inset: 0; z-index: 70; display: none; align-items: center; justify-content: center; background: rgba(3,5,10,.82); backdrop-filter: blur(7px); cursor: pointer; }
+  #revelacion.mostrar { display: flex; animation: fadeIn .25s ease; }
+  .rev-card {
+    position: relative; text-align: center; padding: 32px 44px; border-radius: 20px; max-width: 360px;
+    background: linear-gradient(180deg, rgba(20,28,44,.96), rgba(9,12,20,.98));
+    border: 1px solid var(--rar, #f5b942); box-shadow: 0 0 70px -10px var(--rar-glow, rgba(245,185,66,.6));
+    animation: revPop .55s cubic-bezier(.2,.9,.3,1.5);
+  }
+  .rev-card::before { /* halo giratorio */
+    content: ""; position: absolute; inset: -2px; border-radius: 22px; z-index: -1; opacity: .5;
+    background: conic-gradient(from 0deg, transparent, var(--rar, #f5b942), transparent 40%);
+    animation: girar 6s linear infinite;
+  }
+  .rev-escena { height: 170px; display: grid; place-items: center; margin: 14px 0; }
+  .rev-img, .rev-ph { max-height: 150px; max-width: 200px; object-fit: contain; filter: drop-shadow(0 0 24px var(--rar-glow, rgba(245,185,66,.6))); animation: flota 4s ease-in-out infinite; }
+  .rev-ph { font-size: 90px; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes revPop { 0% { transform: scale(.6) rotate(-4deg); opacity: 0; } 60% { transform: scale(1.05); } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+  @keyframes girar { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -273,6 +294,7 @@
               <option value="ninguno">Ninguno (decorativo)</option>
               <option value="xpBoost">Boost de XP</option>
               <option value="rol">Rol temporal</option>
+              <option value="caja">Caja de botín</option>
             </select>
           </label>
           <label class="block tech text-xs text-[var(--tenue)]">Duración efecto (min)
@@ -305,6 +327,11 @@
       <div class="linea max-w-md mx-auto mb-3"></div>
       <p class="tech text-[11px] text-[var(--tenue)]">SOKYO // NODO MERCANTIL · INTERCAMBIO DE OBJETOS</p>
     </footer>
+  </div>
+
+  <!-- Revelación de caja -->
+  <div id="revelacion" onclick="this.classList.remove('mostrar')">
+    <div class="rev-card"></div>
   </div>
 
   <div id="toasts"></div>
@@ -451,7 +478,7 @@ function renderMochila() {
         <div class="flex items-center justify-between mt-auto gap-2">
           <span class="brand text-lg" style="color:${R.color}">×${fmt(i.cantidad)}</span>
           ${(i.efecto && i.efecto.tipo && i.efecto.tipo !== 'ninguno')
-            ? `<button class="btn-comprar" onclick='usar(${JSON.stringify(i._id)}, ${JSON.stringify(i.nombre)})'>Usar</button>`
+            ? `<button class="btn-comprar" onclick='usar(${JSON.stringify(i._id)}, ${JSON.stringify(i.nombre)})'>${i.efecto.tipo === 'caja' ? 'Abrir' : 'Usar'}</button>`
             : `<span class="tech text-xs text-[var(--tenue)]">En posesión</span>`}
         </div>
       </div>
@@ -466,14 +493,33 @@ async function usar(itemId, nombre) {
     body: JSON.stringify({ itemId }),
   });
   const data = await res.json();
-  if (res.ok) {
-    const ef = data.efecto || {};
+  if (!res.ok) { toast(`❌ ${data.error}`, 'error'); return; }
+  const ef = data.efecto || {};
+  if (ef.tipo === 'caja' && data.premio) {
+    abrirRevelacion(nombre, data.premio); // animación de apertura
+  } else {
     const txt = ef.tipo === 'xpBoost' ? `XP x${ef.multiplicador} durante ${ef.duracionMin} min 📈` : 'efecto activado';
     toast(`✨ Has usado <b>${nombre}</b>: ${txt}`, 'oro');
-    actualizarOro(); // refresca el inventario
-  } else {
-    toast(`❌ ${data.error}`, 'error');
   }
+  actualizarOro(); // refresca el inventario
+}
+
+// Muestra el premio de una caja con animación.
+function abrirRevelacion(cajaNombre, premio) {
+  const R = rar(premio.rareza);
+  const visual = premio.imageUrl
+    ? `<img src="${premio.imageUrl}" class="rev-img" />`
+    : `<div class="rev-ph">${ICONO[premio.tipo] || '🎁'}</div>`;
+  const ov = $('#revelacion');
+  ov.style.setProperty('--rar', R.color);
+  ov.style.setProperty('--rar-glow', R.glow);
+  ov.querySelector('.rev-card').innerHTML = `
+    <p class="tech text-xs" style="color:var(--tenue)">Has abierto · ${cajaNombre}</p>
+    <div class="rev-escena">${visual}</div>
+    <span class="badge-rar" style="--rar:${R.color}">${R.label}</span>
+    <h3 class="brand text-2xl text-white mt-2">${premio.nombre}</h3>
+    <p class="tech text-[10px] mt-4" style="color:var(--tenue)">Toca para cerrar</p>`;
+  ov.classList.add('mostrar');
 }
 
 // --- CATÁLOGO ---

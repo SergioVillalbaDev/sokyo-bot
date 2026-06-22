@@ -116,6 +116,16 @@ module.exports = {
             if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, ephemeral: true });
 
             const ef = r.efecto;
+            if (ef.tipo === 'caja') {
+                const COLOR = { comun: '#2dd4bf', raro: '#38bdf8', epico: '#c084fc', legendario: '#f5b942' };
+                const p = r.premio;
+                const embed = new EmbedBuilder()
+                    .setColor(COLOR[p.rareza] || '#f5b942')
+                    .setTitle('🎁 ¡Caja abierta!')
+                    .setDescription(`Has abierto **${r.item.nombre}** y ha salido…\n\n✨ **${p.nombre}** *(${p.rareza})*`)
+                    .setThumbnail(p.imageUrl || null);
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
             const msg = ef.tipo === 'xpBoost'
                 ? `✨ Has usado **${r.item.nombre}**: ¡XP **x${ef.multiplicador}** durante **${ef.duracionMin} min**! 📈`
                 : `✨ Has usado **${r.item.nombre}**: rol activado durante **${ef.duracionMin} min**. 🎭`;
