@@ -321,8 +321,11 @@
           <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">ID del rol (si efecto = Rol)
             <input name="efectoRolId" placeholder="ID del rol de Discord" class="inp mt-1.5" />
           </label>
-          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">URL de la imagen
-            <input name="imageUrl" placeholder="https://…" class="inp mt-1.5" />
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">URL de la imagen (o súbela abajo)
+            <input name="imageUrl" id="imageUrl" placeholder="https://… o usa el botón de subir" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Subir imagen desde tu PC
+            <input type="file" id="imageFile" accept="image/*" class="inp mt-1.5" onchange="subirImagen(this)" />
           </label>
           <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Descripción
             <textarea name="descripcion" rows="2" placeholder="Forjado de una estrella colapsada…" class="inp mt-1.5"></textarea>
@@ -666,6 +669,27 @@ async function comprar(itemId, nombre) {
 }
 
 // --- ADMIN ---
+// Sube una imagen del PC al servidor y pone su URL en el campo imageUrl.
+async function subirImagen(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!$('#apiKey').value.trim()) return toast('Pon primero la llave de administrador.', 'error');
+  const datos = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const r = await fetch(`${API}/api/admin/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': $('#apiKey').value.trim() },
+    body: JSON.stringify({ datos }),
+  });
+  const data = await r.json();
+  if (r.ok) { $('#imageUrl').value = data.url; toast('🖼️ Imagen subida correctamente.', 'ok'); }
+  else { toast(`❌ ${data.error}`, 'error'); }
+}
+
 $('#formItem').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);

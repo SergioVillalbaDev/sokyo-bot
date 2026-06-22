@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const Item = require('../../models/Item.js');
 const Usuario = require('../../models/Usuario.js');
 const economia = require('../../utils/economia.js');
@@ -31,6 +33,21 @@ module.exports = ({ portalAuth }) => {
             console.error('Error al crear ítem:', e);
             res.status(500).json({ error: 'No se pudo crear el ítem.' });
         }
+    });
+
+    // SUBIR IMAGEN de un objeto desde el PC (ADMIN). Recibe un dataURL base64 y la
+    // guarda en api/uploads, devolviendo su URL pública (/uploads/...).
+    router.post('/admin/upload', (req, res) => {
+        const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(req.body?.datos || '');
+        if (!m) return res.status(400).json({ error: 'Formato no válido (png, jpg, gif o webp).' });
+        const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
+        const buffer = Buffer.from(m[3], 'base64');
+        if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 8 MB.' });
+        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        const archivo = `item-${Date.now()}.${ext}`;
+        fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
+        res.json({ success: true, url: `/uploads/${archivo}` });
     });
 
     // LISTAR TODOS los ítems (ADMIN): para el selector de ofertas relámpago.
