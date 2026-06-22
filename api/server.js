@@ -82,6 +82,10 @@ module.exports = (client) => {
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
     app.use('/uploads', express.static(uploadsDir));
 
+    // Páginas estáticas propias (p. ej. la tienda en public/tienda.html), servidas
+    // en el MISMO origen que la API para evitar problemas de CORS con el token.
+    app.use(express.static(path.join(__dirname, '..', 'public')));
+
     if (!API_KEY) {
         console.warn('⚠️  API_KEY no está definida en el .env: la API queda SIN protección. Define API_KEY para protegerla.');
     }
@@ -150,6 +154,9 @@ module.exports = (client) => {
         req.usuario = usuario;
         next();
     };
+
+    // --- Sistema de economía y tienda (rutas en api/routes/economia.js) ---
+    app.use('/api', require('./routes/economia.js')({ portalAuth }));
 
     // --- Endurecimiento: acota las acciones por ticket (por canalId) ---
     // Si la petición viene de un staff, el ticket debe pertenecer a uno de SUS
@@ -262,7 +269,7 @@ module.exports = (client) => {
             redirect_uri: OAUTH_REDIRECT_URI,
             response_type: 'code',
             scope: 'identify',
-            state: req.query.state === 'staff' ? 'staff' : 'portal', // distingue login de staff vs portal
+            state: ['staff', 'tienda'].includes(req.query.state) ? req.query.state : 'portal', // staff / tienda / portal
         });
         res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
     });
@@ -273,7 +280,10 @@ module.exports = (client) => {
     app.get('/api/auth/discord/callback', async (req, res) => {
         const { code, state } = req.query;
         const esStaff = state === 'staff';
-        const destinoError = esStaff ? `${FRONTEND_URL}/?staff=1&error=denegado` : `${FRONTEND_URL}/?portal=1&error=denegado`;
+        const esTienda = state === 'tienda';
+        const destinoError = esStaff ? `${FRONTEND_URL}/?staff=1&error=denegado`
+            : esTienda ? `/tienda.html?error=denegado`
+            : `${FRONTEND_URL}/?portal=1&error=denegado`;
         if (!code) return res.redirect(destinoError);
         try {
             const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
@@ -313,12 +323,21 @@ module.exports = (client) => {
                 return res.redirect(`${FRONTEND_URL}/?staff=1&token=${sesion}`);
             }
 
+            // Login desde la página de la tienda (servida por el propio Express):
+            // volvemos a ella, en el mismo origen, con la sesión ya puesta.
+            if (esTienda) {
+                const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
+                return res.redirect(`/tienda.html?token=${sesion}`);
+            }
+
             // Login del PORTAL del cliente (comportamiento existente).
             const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
             res.redirect(`${FRONTEND_URL}/?portal=1&token=${sesion}`);
         } catch (error) {
             console.error('Error en el callback de OAuth:', error);
-            res.redirect(esStaff ? `${FRONTEND_URL}/?staff=1&error=oauth` : `${FRONTEND_URL}/?portal=1&error=oauth`);
+            res.redirect(esStaff ? `${FRONTEND_URL}/?staff=1&error=oauth`
+                : esTienda ? `/tienda.html?error=oauth`
+                : `${FRONTEND_URL}/?portal=1&error=oauth`);
         }
     });
 

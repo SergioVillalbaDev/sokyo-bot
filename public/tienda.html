@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mercado de Sokyo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --oro: #d4af37;
+    --oro-claro: #f3d98c;
+    --oro-osc: #8a6d1f;
+    --crema: #f3e9d2;
+    --pergamino: #1c1610;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: var(--crema);
+    font-family: 'Spectral', Georgia, serif;
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(212,175,55,.10), transparent 60%),
+      radial-gradient(900px 500px at 50% 110%, rgba(120,60,20,.12), transparent 60%),
+      linear-gradient(160deg, #100c08 0%, #0a0705 100%);
+    background-attachment: fixed;
+  }
+  /* Textura sutil de "ruido" para dar sensación de cuero/pergamino */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  h1, h2, h3, .titulo { font-family: 'Cinzel', serif; letter-spacing: .03em; }
+  .display { font-family: 'Cinzel Decorative', serif; }
+
+  /* Marco ornamentado dorado reutilizable */
+  .marco {
+    position: relative;
+    background: linear-gradient(180deg, rgba(36,28,18,.92), rgba(18,13,9,.92));
+    border: 1px solid rgba(212,175,55,.35);
+    border-radius: 14px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,225,150,.06), 0 12px 40px rgba(0,0,0,.55);
+  }
+  .marco::before {
+    content: ""; position: absolute; inset: 6px; border-radius: 9px;
+    border: 1px solid rgba(212,175,55,.15); pointer-events: none;
+  }
+
+  .titulo-glow { text-shadow: 0 0 18px rgba(212,175,55,.45), 0 2px 0 #000; }
+
+  /* Botón "épico" dorado */
+  .btn-oro {
+    font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: .04em;
+    color: #2a1d05;
+    background: linear-gradient(180deg, var(--oro-claro), var(--oro) 55%, var(--oro-osc));
+    border: 1px solid #5c4710;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 4px 14px rgba(212,175,55,.25);
+    transition: transform .12s ease, box-shadow .2s ease, filter .2s ease;
+  }
+  .btn-oro:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 6px 22px rgba(212,175,55,.45); }
+  .btn-oro:active { transform: translateY(1px); }
+
+  .btn-fantasma {
+    font-family: 'Cinzel', serif; letter-spacing: .03em; color: var(--crema);
+    background: rgba(255,255,255,.03); border: 1px solid rgba(212,175,55,.3);
+    transition: background .2s, border-color .2s;
+  }
+  .btn-fantasma:hover { background: rgba(212,175,55,.12); border-color: rgba(212,175,55,.6); }
+
+  /* Carta de objeto = "slot" del inventario, con brillo según rareza */
+  .carta {
+    position: relative; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(30,23,14,.95), rgba(14,10,6,.97));
+    border: 1px solid var(--rar, rgba(212,175,55,.4));
+    box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 0 22px -6px var(--rar-glow, rgba(212,175,55,.4));
+    transition: transform .15s ease, box-shadow .25s ease;
+  }
+  .carta:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 14px 30px -6px var(--rar-glow, rgba(212,175,55,.6)); }
+  .carta::after { /* destello superior */
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--rar, var(--oro)), transparent); opacity: .8;
+  }
+  .carta-img { height: 150px; background: radial-gradient(circle at 50% 35%, rgba(212,175,55,.12), transparent 70%), #0d0a06; }
+  .placeholder-img { display:flex; align-items:center; justify-content:center; font-size:46px; opacity:.4; }
+
+  .badge {
+    font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rar); color: var(--rar);
+    background: color-mix(in srgb, var(--rar) 14%, transparent);
+  }
+
+  .moneda { filter: drop-shadow(0 0 6px rgba(212,175,55,.6)); }
+
+  /* Píldora de oro del jugador */
+  .bolsa-oro {
+    font-family: 'Cinzel', serif; font-weight: 700;
+    background: linear-gradient(180deg, rgba(60,45,15,.7), rgba(30,22,8,.7));
+    border: 1px solid rgba(212,175,55,.5); color: var(--oro-claro);
+    box-shadow: inset 0 0 14px rgba(212,175,55,.15), 0 0 16px -4px rgba(212,175,55,.4);
+  }
+
+  .inp {
+    background: rgba(0,0,0,.5); border: 1px solid rgba(212,175,55,.3); border-radius: 8px;
+    padding: .55rem .7rem; width: 100%; color: var(--crema); font-family: 'Spectral', serif;
+  }
+  .inp:focus { outline: none; border-color: var(--oro); box-shadow: 0 0 0 2px rgba(212,175,55,.25); }
+  .inp::placeholder { color: rgba(243,233,210,.4); }
+
+  /* Notificaciones (toast) tipo juego */
+  #toasts { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 10px; z-index: 50; }
+  .toast {
+    font-family: 'Cinzel', serif; min-width: 240px; max-width: 340px; padding: 12px 16px; border-radius: 10px;
+    color: var(--crema); background: linear-gradient(180deg, rgba(34,26,16,.97), rgba(16,11,7,.97));
+    border: 1px solid var(--tcol, var(--oro)); box-shadow: 0 0 24px -6px var(--tcol, var(--oro)), 0 10px 30px rgba(0,0,0,.5);
+    animation: entrar .35s cubic-bezier(.2,.9,.3,1.4);
+  }
+  .toast.salir { animation: salir .35s ease forwards; }
+  @keyframes entrar { from { opacity: 0; transform: translateX(40px) scale(.95); } to { opacity: 1; transform: none; } }
+  @keyframes salir { to { opacity: 0; transform: translateX(40px) scale(.95); } }
+
+  .divisor { height: 1px; background: linear-gradient(90deg, transparent, rgba(212,175,55,.5), transparent); }
+  @keyframes brillarOro { 0%,100% { filter: brightness(1);} 50% { filter: brightness(1.4);} }
+  .pulso-oro { animation: brillarOro 1.4s ease; }
+</style>
+</head>
+<body class="p-5 sm:p-8">
+  <div class="max-w-6xl mx-auto">
+
+    <!-- Cabecera -->
+    <header class="text-center mb-8">
+      <p class="text-amber-500/70 tracking-[.4em] text-xs mb-2">⚜ EL EMPORIO DE ⚜</p>
+      <h1 class="display text-5xl sm:text-6xl text-amber-300 titulo-glow">Sokyo</h1>
+      <div class="divisor max-w-xs mx-auto mt-4"></div>
+      <p class="text-amber-100/50 mt-3 italic">«Todo aventurero necesita su botín…»</p>
+    </header>
+
+    <!-- Barra de sesión + oro -->
+    <div class="marco p-4 mb-7 flex flex-wrap items-center justify-between gap-4">
+      <div id="sesionInfo" class="flex items-center gap-3 pl-1">
+        <span class="text-amber-100/60 italic">Forastero sin identificar…</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="bolsaOro" class="bolsa-oro hidden items-center gap-2 px-4 py-2 rounded-full text-lg">
+          <span class="moneda">🪙</span><span id="goldCounter">0</span>
+        </div>
+        <button id="btnLogin" onclick="login()" class="btn-oro px-5 py-2.5 rounded-lg">⚔ Entrar con Discord</button>
+        <button id="btnLogout" onclick="logout()" class="btn-fantasma hidden px-4 py-2.5 rounded-lg">Salir</button>
+      </div>
+    </div>
+
+    <!-- Pestañas -->
+    <div class="flex justify-center gap-3 mb-8">
+      <button onclick="ver('tienda')" id="tab-tienda" class="btn-oro px-6 py-2.5 rounded-lg">🛒 Mercado</button>
+      <button onclick="ver('admin')" id="tab-admin" class="btn-fantasma px-6 py-2.5 rounded-lg">🛠 Herrería (Admin)</button>
+    </div>
+
+    <!-- ZONA TIENDA -->
+    <section id="vista-tienda">
+      <div id="catalogo" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- ZONA ADMIN -->
+    <section id="vista-admin" class="hidden max-w-2xl mx-auto">
+      <form id="formItem" class="marco p-6 space-y-4">
+        <h2 class="text-2xl text-amber-300 titulo">⚒ Forjar nuevo objeto</h2>
+        <div class="divisor"></div>
+        <label class="block text-sm text-amber-100/70">Llave de la herrería (API Key)
+          <input id="apiKey" type="password" placeholder="x-api-key del .env" class="inp mt-1.5" />
+        </label>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block text-sm text-amber-100/70">ID único
+            <input name="itemId" placeholder="pocion_vida" required class="inp mt-1.5" />
+          </label>
+          <label class="block text-sm text-amber-100/70">Nombre
+            <input name="nombre" placeholder="Poción de Vida" required class="inp mt-1.5" />
+          </label>
+          <label class="block text-sm text-amber-100/70">Precio (oro)
+            <input name="precio" type="number" min="0" placeholder="100" required class="inp mt-1.5" />
+          </label>
+          <label class="block text-sm text-amber-100/70">Rareza / Tipo
+            <select name="tipo" class="inp mt-1.5">
+              <option value="consumible">Consumible</option>
+              <option value="equipo">Equipo</option>
+              <option value="material">Material</option>
+            </select>
+          </label>
+          <label class="block text-sm text-amber-100/70 sm:col-span-2">URL de la imagen
+            <input name="imageUrl" placeholder="https://…" class="inp mt-1.5" />
+          </label>
+          <label class="block text-sm text-amber-100/70 sm:col-span-2">Descripción
+            <textarea name="descripcion" rows="2" placeholder="Restaura 50 puntos de vida." class="inp mt-1.5"></textarea>
+          </label>
+        </div>
+        <button class="btn-oro w-full py-3 rounded-lg text-lg">⚒ Forjar y poner a la venta</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="toasts"></div>
+
+<script>
+const API = ''; // mismo origen (servido por Express). En Vite usa 'http://localhost:3000'
+const $ = (s) => document.querySelector(s);
+
+// Mapa de rareza por tipo: color de borde, brillo, etiqueta e icono.
+const RAREZA = {
+  consumible: { label: 'Consumible', color: '#34d399', glow: 'rgba(52,211,153,.55)', icono: '🧪' },
+  equipo:     { label: 'Equipo',     color: '#c084fc', glow: 'rgba(192,132,252,.55)', icono: '🛡️' },
+  material:   { label: 'Material',   color: '#d4af37', glow: 'rgba(212,175,55,.55)', icono: '⛏️' },
+};
+const rar = (t) => RAREZA[t] || RAREZA.material;
+
+// --- Notificaciones tipo juego ---
+function toast(msg, tipo = 'ok') {
+  const colores = { ok: '#34d399', oro: '#d4af37', error: '#f87171' };
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.setProperty('--tcol', colores[tipo] || colores.ok);
+  el.innerHTML = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.classList.add('salir'); setTimeout(() => el.remove(), 350); }, 3200);
+}
+
+// --- SESIÓN (login con Discord en un clic) ---
+const getToken = () => localStorage.getItem('sokyo_token') || '';
+function login() { window.location = `${API}/api/auth/discord?state=tienda`; }
+function logout() { localStorage.removeItem('sokyo_token'); location.href = '/tienda.html'; }
+
+function recogerSesionDeURL() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('token')) localStorage.setItem('sokyo_token', p.get('token'));
+  else if (p.get('error')) toast('No se pudo iniciar sesión con Discord.', 'error');
+  if (p.get('token') || p.get('error')) history.replaceState({}, '', '/tienda.html');
+}
+
+async function init() {
+  recogerSesionDeURL();
+  const token = getToken();
+  if (!token) return mostrarDeslogueado();
+  try {
+    const res = await fetch(`${API}/api/portal/yo`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('sesión caducada');
+    const yo = await res.json();
+    $('#sesionInfo').innerHTML = `
+      ${yo.avatar ? `<img src="${yo.avatar}" class="w-9 h-9 rounded-full ring-2 ring-amber-500/60" />` : ''}
+      <span class="text-amber-100">Bienvenido, <b class="text-amber-300 titulo">${yo.username}</b></span>`;
+    $('#btnLogin').classList.add('hidden');
+    $('#btnLogout').classList.remove('hidden');
+    $('#bolsaOro').classList.remove('hidden');
+    $('#bolsaOro').classList.add('flex');
+    actualizarOro();
+    cargarCatalogo();
+  } catch {
+    localStorage.removeItem('sokyo_token');
+    mostrarDeslogueado();
+  }
+}
+
+function mostrarDeslogueado() {
+  $('#sesionInfo').innerHTML = '<span class="text-amber-100/60 italic">Forastero sin identificar…</span>';
+  $('#btnLogin').classList.remove('hidden');
+  $('#btnLogout').classList.add('hidden');
+  $('#bolsaOro').classList.add('hidden');
+  $('#bolsaOro').classList.remove('flex');
+  $('#catalogo').innerHTML = mensajeVacio('🔒', 'Identifícate para entrar al mercado', 'Pulsa «Entrar con Discord» para ver el botín disponible.');
+}
+
+function mensajeVacio(icono, titulo, sub) {
+  return `<div class="col-span-full text-center py-16 opacity-70">
+    <div class="text-6xl mb-4">${icono}</div>
+    <p class="titulo text-xl text-amber-300">${titulo}</p>
+    <p class="text-amber-100/50 mt-1">${sub}</p>
+  </div>`;
+}
+
+function setGold(v, pulso = false) {
+  const el = $('#goldCounter');
+  el.textContent = Number(v).toLocaleString('es-ES');
+  if (pulso) { el.classList.remove('pulso-oro'); void el.offsetWidth; el.classList.add('pulso-oro'); }
+}
+
+async function actualizarOro() {
+  const r = await fetch(`${API}/api/portal/economia`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (r.ok) setGold((await r.json()).balance);
+}
+
+// --- MERCADO: listar + comprar ---
+function ver(v) {
+  $('#vista-tienda').classList.toggle('hidden', v !== 'tienda');
+  $('#vista-admin').classList.toggle('hidden', v !== 'admin');
+  $('#tab-tienda').className = (v === 'tienda' ? 'btn-oro' : 'btn-fantasma') + ' px-6 py-2.5 rounded-lg';
+  $('#tab-admin').className  = (v === 'admin'  ? 'btn-oro' : 'btn-fantasma') + ' px-6 py-2.5 rounded-lg';
+  if (v === 'tienda' && getToken()) cargarCatalogo();
+}
+
+async function cargarCatalogo() {
+  const token = getToken();
+  if (!token) return mostrarDeslogueado();
+  const res = await fetch(`${API}/api/portal/items`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) { $('#catalogo').innerHTML = mensajeVacio('⚠️', 'No se pudo abrir el mercado', 'Tu sesión pudo caducar. Vuelve a entrar.'); return; }
+  const items = await res.json();
+  if (!items.length) { $('#catalogo').innerHTML = mensajeVacio('📦', 'El mercado está vacío', 'El herrero aún no ha forjado nada. Vuelve pronto.'); return; }
+
+  $('#catalogo').innerHTML = items.map(i => {
+    const R = rar(i.tipo);
+    const img = i.imageUrl
+      ? `<img src="${i.imageUrl}" class="carta-img w-full object-cover" />`
+      : `<div class="carta-img placeholder-img">${R.icono}</div>`;
+    return `
+    <article class="carta flex flex-col" style="--rar:${R.color}; --rar-glow:${R.glow}">
+      ${img}
+      <div class="p-4 flex flex-col flex-1">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <h3 class="titulo text-lg text-amber-100 leading-tight">${i.nombre}</h3>
+          <span class="badge shrink-0">${R.label}</span>
+        </div>
+        <p class="text-sm text-amber-100/55 italic flex-1 my-2">${i.descripcion || 'Sin descripción.'}</p>
+        <div class="divisor my-2"></div>
+        <div class="flex items-center justify-between">
+          <span class="titulo text-lg" style="color:${R.color}"><span class="moneda">🪙</span> ${Number(i.precio).toLocaleString('es-ES')}</span>
+          <button onclick='comprar(${JSON.stringify(i._id)}, ${JSON.stringify(i.nombre)})' class="btn-oro px-4 py-1.5 rounded-lg text-sm">Comprar</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+async function comprar(itemId, nombre) {
+  const token = getToken();
+  if (!token) return login();
+  const res = await fetch(`${API}/api/portal/shop/buy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ itemId, cantidad: 1 }),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    setGold(data.balance, true);
+    toast(`✨ <b>${nombre}</b> es tuyo.<br><span style="opacity:.8">Te quedan 🪙 ${Number(data.balance).toLocaleString('es-ES')} de oro.</span>`, 'oro');
+  } else {
+    toast(`❌ ${data.error}`, 'error');
+  }
+}
+
+// --- HERRERÍA (Admin): forjar ítem ---
+$('#formItem').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const res = await fetch(`${API}/api/admin/items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': $('#apiKey').value.trim() },
+    body: JSON.stringify(Object.fromEntries(f)),
+  });
+  const data = await res.json();
+  if (res.ok) { toast(`⚒ <b>${data.item.nombre}</b> forjado y a la venta.`, 'ok'); e.target.reset(); }
+  else { toast(`❌ ${data.error}`, 'error'); }
+});
+
+init();
+</script>
+</body>
+</html>

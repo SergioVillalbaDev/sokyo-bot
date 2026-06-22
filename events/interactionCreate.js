@@ -65,6 +65,31 @@ module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
 
+        // --- SLASH COMMANDS ---
+        if (interaction.isChatInputCommand()) {
+            const comando = client.slashCommands.get(interaction.commandName);
+            if (!comando) return;
+            try {
+                await comando.execute(interaction, client);
+            } catch (e) {
+                console.error('Error en slash command:', e);
+                const msg = { content: '❌ Error al ejecutar el comando.', ephemeral: true };
+                interaction.replied || interaction.deferred ? interaction.followUp(msg) : interaction.reply(msg);
+            }
+            return;
+        }
+
+        // --- TIENDA: compra al elegir en el menú (reutiliza la MISMA lógica que la web) ---
+        if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_comprar') {
+            const economia = require('../utils/economia.js');
+            const r = await economia.comprarItem(interaction.user.id, interaction.values[0]);
+            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, ephemeral: true });
+            return interaction.reply({
+                content: `✅ Has comprado **${r.item.nombre}** por 🪙 ${r.coste}. Te quedan **${r.balance}** de oro.`,
+                ephemeral: true,
+            });
+        }
+
         // --- SISTEMA DE ROLES: paneles de autoasignación (se gestionan aparte) ---
         if (interaction.isButton() && (interaction.customId.startsWith('rp_btn:') || interaction.customId.startsWith('rp_verify:'))) {
             return manejarBotonRol(interaction);

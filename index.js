@@ -33,6 +33,17 @@ for (const file of commandFiles) {
     }
 }
 
+// 1.b Cargador de Slash Commands
+client.slashCommands = new Collection();
+const slashPath = path.join(__dirname, 'slash');
+for (const file of fs.readdirSync(slashPath).filter(f => f.endsWith('.js'))) {
+    const cmd = require(path.join(slashPath, file));
+    if (cmd.data && cmd.execute) {
+        client.slashCommands.set(cmd.data.name, cmd);
+        console.log(`⚡ Slash cargado: /${cmd.data.name}`);
+    }
+}
+
 // 2. Cargador de Eventos
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
