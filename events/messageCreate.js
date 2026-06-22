@@ -5,6 +5,7 @@ const { registrarMensaje } = require('../utils/actividad.js');
 const { otorgarXp } = require('../utils/niveles.js');
 const { revisarMensaje } = require('../utils/automod.js');
 const { revisarAutoRespuestas } = require('../utils/autoRespuestas.js');
+const { marcarParticipacion } = require('../utils/embudo.js');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -19,6 +20,10 @@ module.exports = {
                 if (await revisarMensaje(message, cfgAct, client)) return;
                 await registrarMensaje(message, !!(cfgAct && cfgAct.esPremium));
                 await otorgarXp(message, cfgAct);
+                // Embudo A/B: anota el primer mensaje del usuario (participación).
+                if (cfgAct && cfgAct.embudoAB && cfgAct.embudoAB.activo) {
+                    await marcarParticipacion(message.guildId, message.author.id).catch(() => {});
+                }
             } catch (e) { console.error('Error registrando actividad de mensaje:', e.message); }
         }
 

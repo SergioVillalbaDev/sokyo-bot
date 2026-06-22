@@ -81,6 +81,31 @@ function esAgency(cfg) {
     return nivel(cfg) === 'agency';
 }
 
+// --- CUOTA DE IA por servidor y mes (evita sorpresas de coste) ---
+const CUOTA_IA = { free: 5, pro: 150, agency: 1500 };
+const mesActual = () => new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+
+function cuotaIA(cfg) {
+    return CUOTA_IA[nivel(cfg)] || 0;
+}
+
+// Estado del contador de IA (sin tocar nada). Reinicia virtualmente al cambiar de mes.
+function estadoIA(cfg) {
+    const cuota = cuotaIA(cfg);
+    const usos = (cfg && cfg.iaMesRef === mesActual()) ? (cfg.iaUsos || 0) : 0;
+    return { cuota, usos, restantes: Math.max(0, cuota - usos), mes: mesActual() };
+}
+
+// Suma 1 uso de IA al servidor (tras una llamada con éxito). Devuelve el estado nuevo.
+async function consumirIA(guildId, cfg) {
+    const cuota = cuotaIA(cfg);
+    const mes = mesActual();
+    const usos = (cfg && cfg.iaMesRef === mes) ? (cfg.iaUsos || 0) : 0;
+    const nuevo = usos + 1;
+    await ServidorConfig.updateOne({ guildId }, { $set: { iaUsos: nuevo, iaMesRef: mes } });
+    return { cuota, usos: nuevo, restantes: Math.max(0, cuota - nuevo), mes };
+}
+
 // Activa / renueva un plan en la BD. `premiumHasta === null` = de por vida.
 async function activarPlan(guildId, datos) {
     const set = { esPremium: true, plan: datos.plan || 'pro' };
@@ -201,6 +226,7 @@ async function barrerPremiumCaducado() {
 
 module.exports = {
     getStripe, precioId, premiumActivo, nivel, esPro, esAgency,
+    cuotaIA, estadoIA, consumirIA,
     PLANES_VALIDOS, INTERVALOS_VALIDOS,
     activarPlan, desactivarPlan,
     crearSesionCheckout, crearSesionPortal,

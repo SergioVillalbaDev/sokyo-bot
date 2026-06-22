@@ -14,9 +14,11 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const Sancion = require('../models/Sancion.js');
 const Reporte = require('../models/Reporte.js');
 const EstadisticaDiaria = require('../models/EstadisticaDiaria.js');
+const EmbudoCohorte = require('../models/EmbudoCohorte.js');
 const { esPro } = require('./billing.js');
 
 const DIA = 24 * 60 * 60 * 1000;
+const SEMANA = 7 * DIA;
 const fmt = (d) => new Date(d).toISOString().slice(0, 10);
 
 async function construirAnalitica(client, gid, cfg, dias) {
@@ -30,6 +32,7 @@ async function construirAnalitica(client, gid, cfg, dias) {
         tickets, logsDia, msgsDia, msgsHora, msgsCanal, topUsuarios,
         nivelesResumen, nivelesDist, topNiveles, sancionesDocs, topMods,
         reportePend, reporteTotal, activos, vozActivos, snapshots, saludDia,
+        embudoDocs,
     ] = await Promise.all([
         Ticket.find({ guildId: gid }).select('estado prioridad motivo fechaCreacion fechaCierre valoracionCSAT asignadoNombre').lean(),
         Log.aggregate([
@@ -72,6 +75,8 @@ async function construirAnalitica(client, gid, cfg, dias) {
             { $match: { guildId: gid, categoria: { $in: ['Mensajes Borrados', 'Mensajes Editados'] }, fecha: { $gte: desde } } },
             { $group: { _id: { d: { $dateToString: { format: '%Y-%m-%d', date: '$fecha' } }, c: '$categoria' }, n: { $sum: 1 } } },
         ]),
+        EmbudoCohorte.find({ guildId: gid, fechaEntrada: { $gte: desde } })
+            .select('variante verificado participo fechaEntrada fechaPrimerMensaje sigueEnServidor').lean(),
     ]);
 
     // --- Comunidad: entradas / salidas por día ---
@@ -183,12 +188,16 @@ async function construirAnalitica(client, gid, cfg, dias) {
     const miembros = guild ? guild.memberCount : null;
     const pctActivos = miembros ? Math.round((activos / miembros) * 100) : null;
 
+    // --- Embudo de bienvenida A/B: retención y participación por variante ---
+    const embudo = construirEmbudo(embudoDocs, cfg);
+
     const insights = construirInsights({
         dias, crecimientoNeto, totalEntradas, totalSalidas, pctActivos, activos, miembros,
         horaPico, topCanales, totalMensajes, csat, reportePend, tiempoMedioCierreH, abiertos,
         sancionesTotal: sancionesDocs.length, automod, nr,
         totalBorrados, totalEditados, agentes, vozActivos, mensajesPorActivo, hayMiembros, serieMiembros,
     });
+    if (embudo.insight) insights.unshift(embudo.insight);
 
     return {
         esPro: esPro(cfg), dias,
@@ -237,8 +246,92 @@ async function construirAnalitica(client, gid, cfg, dias) {
             urgencias: Object.entries(porUrg).map(([nombre, n]) => ({ nombre, n })),
             topMotivos: Object.entries(porMotivo).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([nombre, n]) => ({ nombre, n })),
         },
+        embudo,
         insights,
     };
+}
+
+// Calcula las métricas del Test A/B del embudo de bienvenida a partir de las
+// fichas de cohorte. Por cada variante: cuántos entraron, se verificaron,
+// participaron en su 1ª semana y siguen en el servidor (retención, medida solo
+// sobre las cohortes "maduras": las que ya cumplieron 7 días). Determina la
+// variante ganadora (por retención; si no hay datos maduros, por participación).
+function construirEmbudo(docs, cfg) {
+    const activo = !!(cfg && cfg.embudoAB && cfg.embudoAB.activo);
+    const ahora = Date.now();
+    const nombres = { A: 'Texto + captcha', B: 'Embed visual' };
+    const base = () => ({ asignados: 0, verificados: 0, participaron: 0, maduros: 0, retenidos: 0 });
+    const acc = { A: base(), B: base() };
+
+    for (const d of docs || []) {
+        const v = acc[d.variante];
+        if (!v) continue;
+        v.asignados++;
+        if (d.verificado) v.verificados++;
+        // Participación dentro de la primera semana desde la entrada.
+        if (d.participo && d.fechaPrimerMensaje && d.fechaEntrada
+            && (new Date(d.fechaPrimerMensaje) - new Date(d.fechaEntrada)) <= SEMANA) v.participaron++;
+        // Retención: solo cuenta a quien ya tuvo tiempo de cumplir su 1ª semana.
+        if (d.fechaEntrada && (ahora - new Date(d.fechaEntrada)) >= SEMANA) {
+            v.maduros++;
+            if (d.sigueEnServidor) v.retenidos++;
+        }
+    }
+
+    const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : null);
+    const fmtV = (k) => {
+        const v = acc[k];
+        return {
+            clave: k, nombre: nombres[k],
+            asignados: v.asignados,
+            verificados: v.verificados, tasaVerificacion: pct(v.verificados, v.asignados),
+            participaron: v.participaron, tasaParticipacion: pct(v.participaron, v.asignados),
+            maduros: v.maduros, retenidos: v.retenidos, tasaRetencion: pct(v.retenidos, v.maduros),
+        };
+    };
+    const A = fmtV('A'), B = fmtV('B');
+    const total = A.asignados + B.asignados;
+
+    // Ganadora: por retención si ambas tienen cohortes maduras; si no, por participación.
+    let ganadora = null, metrica = null, confianza = 'baja';
+    const usarRet = A.maduros > 0 && B.maduros > 0;
+    const mA = usarRet ? A.tasaRetencion : A.tasaParticipacion;
+    const mB = usarRet ? B.tasaRetencion : B.tasaParticipacion;
+    if (A.asignados > 0 && B.asignados > 0 && mA != null && mB != null && mA !== mB) {
+        ganadora = mA > mB ? 'A' : 'B';
+        metrica = usarRet ? 'retencion' : 'participacion';
+        // Confianza alta si hay muestra razonable en ambas variantes.
+        const minMuestra = usarRet ? Math.min(A.maduros, B.maduros) : Math.min(A.asignados, B.asignados);
+        confianza = minMuestra >= 10 ? 'alta' : 'baja';
+    }
+
+    // Insight accionable para el panel de Analítica.
+    let insight = null;
+    if (activo && total > 0) {
+        if (ganadora) {
+            const g = ganadora === 'A' ? A : B;
+            const o = ganadora === 'A' ? B : A;
+            const etqMetrica = metrica === 'retencion' ? 'retención a 7 días' : 'participación la 1ª semana';
+            const vG = metrica === 'retencion' ? g.tasaRetencion : g.tasaParticipacion;
+            const vO = metrica === 'retencion' ? o.tasaRetencion : o.tasaParticipacion;
+            insight = {
+                tipo: 'ok',
+                titulo: `Test A/B: gana "${g.nombre}"`,
+                texto: `La variante "${g.nombre}" consigue mejor ${etqMetrica} (${vG}% frente a ${vO}% de "${o.nombre}").`
+                    + (confianza === 'alta'
+                        ? ` La muestra ya es fiable: plantéate dejar esta variante para todos.`
+                        : ` Aún con pocos datos: deja correr el test unos días más para confirmarlo.`),
+            };
+        } else {
+            insight = {
+                tipo: 'tip',
+                titulo: 'Test A/B en marcha',
+                texto: `Tu embudo de bienvenida está repartiendo a los nuevos entre dos variantes (${total} hasta ahora). En cuanto pasen unos días verás aquí qué método retiene mejor.`,
+            };
+        }
+    }
+
+    return { activo, hayDatos: total > 0, total, variantes: { A, B }, ganadora, metrica, confianza, insight };
 }
 
 // Convierte los números en recomendaciones accionables de crecimiento.

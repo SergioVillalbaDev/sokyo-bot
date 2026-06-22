@@ -5,10 +5,14 @@ import {
   Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
   Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap, UsersRound,
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
-  ShieldCheck as ShieldCheckIcon, UserCheck, Flag, DatabaseBackup,
-  Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3,
+  UserCheck, Flag, DatabaseBackup, FlaskConical,
+  Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
 } from 'lucide-react';
 
+// Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
+// primero la cuenta y los datos, luego la puerta de entrada y la comunidad, el
+// soporte (tickets), roles, moderación, su registro (logs), los mensajes
+// automáticos y, al final, la configuración fina.
 export const navGroups = [
   {
     id: 'cuenta',
@@ -22,6 +26,19 @@ export const navGroups = [
     icon: BarChart3,
     items: [
       { tab: 'datos-analitica', icon: BarChart3 },
+      { tab: 'datos-resumen', icon: Mail },
+    ],
+  },
+  {
+    // NUEVO: todo lo que pasa "cuando alguien entra" vive aquí (onboarding).
+    id: 'entrada',
+    icon: DoorOpen,
+    items: [
+      { tab: 'seg-verificacion', icon: UserCheck },
+      { tab: 'seg-embudo', icon: FlaskConical },
+      { tab: 'prod-bienvenidas', icon: Sparkles },
+      { tab: 'roles-autorol', icon: UserPlus },
+      { tab: 'config-niveles', icon: TrendingUp },
     ],
   },
   {
@@ -34,23 +51,10 @@ export const navGroups = [
     ],
   },
   {
-    id: 'logs',
-    icon: ScrollText,
-    items: [
-      { tab: 'logs-todos', icon: Globe },
-      { tab: 'logs-tickets', icon: Ticket },
-      { tab: 'logs-borrados', icon: Trash2 },
-      { tab: 'logs-editados', icon: Pencil },
-      { tab: 'logs-entradas', icon: LogIn },
-      { tab: 'logs-salidas', icon: LogOut },
-    ],
-  },
-  {
     id: 'roles',
     icon: UsersRound,
     items: [
       { tab: 'roles-gestion', icon: UserCog },
-      { tab: 'roles-autorol', icon: UserPlus },
       { tab: 'roles-paneles', icon: MousePointerClick },
     ],
   },
@@ -66,17 +70,21 @@ export const navGroups = [
     ],
   },
   {
-    id: 'seguridad',
-    icon: ShieldCheckIcon,
+    id: 'logs',
+    icon: ScrollText,
     items: [
-      { tab: 'seg-verificacion', icon: UserCheck },
-      { tab: 'seg-reportes', icon: Flag },
-      { tab: 'seg-backup', icon: DatabaseBackup },
+      { tab: 'logs-todos', icon: Globe },
+      { tab: 'logs-tickets', icon: Ticket },
+      { tab: 'logs-borrados', icon: Trash2 },
+      { tab: 'logs-editados', icon: Pencil },
+      { tab: 'logs-entradas', icon: LogIn },
+      { tab: 'logs-salidas', icon: LogOut },
     ],
   },
   {
-    id: 'productividad',
-    icon: Sparkles,
+    // Antes "Productividad": los mensajes que el bot manda solo.
+    id: 'mensajes',
+    icon: MessagesSquare,
     items: [
       { tab: 'prod-autorespuestas', icon: MessagesSquare },
       { tab: 'prod-embeds', icon: LayoutTemplate },
@@ -91,9 +99,9 @@ export const navGroups = [
       { tab: 'config-reglas', icon: ShieldCheck },
       { tab: 'config-acceso', icon: KeyRound },
       { tab: 'config-expresiones', icon: Smile },
-      { tab: 'config-niveles', icon: TrendingUp },
       { tab: 'config-macros', icon: Zap },
       { tab: 'config-textos', icon: Type },
+      { tab: 'seg-backup', icon: DatabaseBackup },
       { tab: 'config', icon: Plug },
     ],
   },

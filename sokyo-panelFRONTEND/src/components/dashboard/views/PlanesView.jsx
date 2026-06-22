@@ -131,6 +131,9 @@ export default function PlanesView({ dash }) {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted">{t('dashboard.planes_v.currentPlan')}</p>
             <p className="text-lg font-bold text-fg">{t(`dashboard.planes_v.tiers.${planActual}.name`)}</p>
+            {billing && billing.iaActiva && billing.iaCuota != null && (
+              <p className="mt-0.5 text-xs text-muted">{t('dashboard.planes_v.aiQuota', { usos: billing.iaUsos || 0, cuota: billing.iaCuota })}</p>
+            )}
           </div>
         </div>
         {planActual !== 'free' && (

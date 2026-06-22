@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Crown, Lock, Users, UserPlus, MessageSquare, Activity, Ticket, Star, Shield,
   TrendingUp, BarChart3, Clock, Lightbulb, AlertTriangle, CheckCircle2, Flag,
-  Mic, Gauge, Trash2, UserCog,
+  Mic, Gauge, Trash2, UserCog, Sparkles, Loader2, X, FlaskConical, Trophy,
 } from 'lucide-react';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -86,10 +86,56 @@ function Seccion({ icon: Icon, titulo, children, right }) {
 const ICONO_INSIGHT = { ok: CheckCircle2, warn: AlertTriangle, tip: Lightbulb };
 const COLOR_INSIGHT = { ok: 'var(--success)', warn: 'var(--warning)', tip: 'var(--brand)' };
 
+// Una métrica del embudo (porcentaje grande con su etiqueta).
+function MetricaEmbudo({ label, value, sufijo }) {
+  return (
+    <div className="rounded-2xl border border-line bg-bg p-3 text-center">
+      <p className="text-[11px] font-semibold text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold text-fg">{value == null ? '—' : `${value}${sufijo || ''}`}</p>
+    </div>
+  );
+}
+
+// Tarjeta de una variante del Test A/B (con distintivo si es la ganadora).
+function VarianteEmbudo({ v, esGanadora, t }) {
+  return (
+    <div className={`rounded-3xl border p-4 ${esGanadora ? 'border-brand bg-brand/5' : 'border-line bg-card'}`}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="flex items-center gap-2 font-bold text-fg">
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-brand text-xs font-extrabold text-on-brand">{v.clave}</span>
+          {v.nombre}
+        </h4>
+        {esGanadora && (
+          <span className="flex items-center gap-1 rounded-full bg-gradient-brand px-2.5 py-1 text-[11px] font-bold text-on-brand">
+            <Trophy size={12} /> {t('dashboard.analitica_v.embudoWinner')}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <MetricaEmbudo label={t('dashboard.analitica_v.embudoNuevos')} value={v.asignados} />
+        <MetricaEmbudo label={t('dashboard.analitica_v.embudoVerif')} value={v.tasaVerificacion} sufijo="%" />
+        <MetricaEmbudo label={t('dashboard.analitica_v.embudoPart')} value={v.tasaParticipacion} sufijo="%" />
+        <MetricaEmbudo label={t('dashboard.analitica_v.embudoRet')} value={v.tasaRetencion} sufijo="%" />
+      </div>
+      <p className="mt-2 text-center text-[11px] text-muted">{t('dashboard.analitica_v.embudoSample', { n: v.maduros })}</p>
+    </div>
+  );
+}
+
 export default function AnaliticaView({ dash }) {
   const { t } = useTranslation();
-  const { analitica, setActiveTab, cargarAnalitica } = dash;
+  const { analitica, setActiveTab, cargarAnalitica, informeIA } = dash;
   const [dias, setDias] = useState(30);
+  const [informe, setInforme] = useState('');
+  const [informeCargando, setInformeCargando] = useState(false);
+  const [informeError, setInformeError] = useState('');
+  const generarInforme = async () => {
+    setInformeError(''); setInformeCargando(true);
+    const r = await informeIA(dias);
+    setInformeCargando(false);
+    if (r.error) { setInformeError(r.error); return; }
+    setInforme(r.texto);
+  };
 
   if (!analitica) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
 
@@ -124,15 +170,34 @@ export default function AnaliticaView({ dash }) {
       {/* Cabecera + selector de periodo */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{t('dashboard.analitica_v.intro', { dias: a.dias })}</p>
-        <div className="flex items-center gap-1 rounded-2xl border border-line bg-elevated p-1">
-          {[7, 30, 90].map((d) => (
-            <button key={d} type="button" onClick={() => cambiarDias(d)}
-              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${dias === d ? 'bg-gradient-brand text-on-brand' : 'text-muted hover:text-fg'}`}>
-              {d}d
+        <div className="flex items-center gap-2">
+          {a.iaActiva && (
+            <button type="button" onClick={generarInforme} disabled={informeCargando}
+              className="flex items-center gap-1.5 rounded-2xl bg-gradient-brand px-4 py-2 text-xs font-bold text-on-brand shadow-soft transition-transform hover:scale-[1.02] disabled:opacity-50">
+              {informeCargando ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {t('dashboard.analitica_v.aiReport')}
             </button>
-          ))}
+          )}
+          <div className="flex items-center gap-1 rounded-2xl border border-line bg-elevated p-1">
+            {[7, 30, 90].map((d) => (
+              <button key={d} type="button" onClick={() => cambiarDias(d)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${dias === d ? 'bg-gradient-brand text-on-brand' : 'text-muted hover:text-fg'}`}>
+                {d}d
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {informeError && <p className="text-sm font-semibold text-danger">{informeError}</p>}
+      {informe && (
+        <div className={`${card} border-brand/40`}>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 font-bold text-brand"><Sparkles size={18} /> {t('dashboard.analitica_v.aiReportTitle')}</h3>
+            <button type="button" onClick={() => setInforme('')} className="text-muted transition-opacity hover:opacity-70" aria-label="Cerrar"><X size={16} /></button>
+          </div>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg">{informe}</p>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -178,6 +243,33 @@ export default function AnaliticaView({ dash }) {
         </div>}>
         <LineaChart serie={a.comunidad.serie} lineas={[{ key: 'entradas', color: 'var(--success)' }, { key: 'salidas', color: 'var(--danger)', dash: '4 3' }]} />
       </Seccion>
+
+      {/* Embudo de bienvenida · Test A/B de retención */}
+      {a.embudo && (
+        <Seccion icon={FlaskConical} titulo={t('dashboard.analitica_v.secEmbudo')}
+          right={a.embudo.ganadora && (
+            <span className={`text-xs font-semibold ${a.embudo.confianza === 'alta' ? 'text-success' : 'text-muted'}`}>
+              {a.embudo.confianza === 'alta' ? t('dashboard.analitica_v.embudoConfHigh') : t('dashboard.analitica_v.embudoConfLow')}
+            </span>
+          )}>
+          {!a.embudo.activo && !a.embudo.hayDatos ? (
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-sm text-muted">{t('dashboard.analitica_v.embudoOff')}</p>
+              <button type="button" onClick={() => setActiveTab('seg-embudo')}
+                className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2 text-xs font-bold text-on-brand shadow-soft transition-transform hover:scale-[1.02]">
+                <FlaskConical size={14} /> {t('dashboard.analitica_v.embudoConfig')}
+              </button>
+            </div>
+          ) : !a.embudo.hayDatos ? (
+            <p className="py-4 text-center text-sm italic text-muted">{t('dashboard.analitica_v.embudoEmpty')}</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <VarianteEmbudo v={a.embudo.variantes.A} esGanadora={a.embudo.ganadora === 'A'} t={t} />
+              <VarianteEmbudo v={a.embudo.variantes.B} esGanadora={a.embudo.ganadora === 'B'} t={t} />
+            </div>
+          )}
+        </Seccion>
+      )}
 
       {/* Actividad */}
       <div className="grid gap-4 lg:grid-cols-2">

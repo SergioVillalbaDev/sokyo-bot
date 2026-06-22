@@ -14,14 +14,17 @@ export default function ChatView({ dash }) {
     ticketsReales, verMensajes, esPremium, iaTicket, descargarTranscript,
   } = dash;
 
-  // Asistente IA (Pro): resumen / respuesta sugerida.
+  // Asistente IA: resumen / respuesta sugerida (con cuota mensual por servidor).
+  const iaActiva = !!(configServidor && configServidor.iaActiva);
   const [iaCargando, setIaCargando] = useState(''); // '', 'resumen', 'sugerir'
   const [iaResumen, setIaResumen] = useState('');
   const [iaError, setIaError] = useState('');
+  const [iaUso, setIaUso] = useState(null); // { usos, cuota }
   const pedirIA = async (accion) => {
     setIaError(''); setIaCargando(accion);
     const r = await iaTicket(ticket.canalId, accion);
     setIaCargando('');
+    if (r.iaUsos != null) setIaUso({ usos: r.iaUsos, cuota: r.iaCuota });
     if (r.error) { setIaError(r.error); return; }
     if (accion === 'sugerir') setNuevoMensaje((prev) => (prev ? `${prev} ${r.texto}` : r.texto));
     else setIaResumen(r.texto);
@@ -187,10 +190,11 @@ export default function ChatView({ dash }) {
             )}
           </Card>
 
-          {/* Asistente IA (Pro) */}
-          {esPremium && (
+          {/* Asistente IA (cuota mensual) */}
+          {iaActiva && (
             <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-brand/30 bg-brand/5 p-3">
               <span className="flex items-center gap-1.5 text-xs font-bold text-brand"><Sparkles size={14} /> {t('dashboard.chat_v.aiTitle')}</span>
+              {iaUso && <span className="rounded-full bg-elevated px-2 py-0.5 text-[10px] font-bold text-muted">{t('dashboard.chat_v.aiUsage', { usos: iaUso.usos, cuota: iaUso.cuota })}</span>}
               <button
                 type="button"
                 onClick={() => pedirIA('resumen')}

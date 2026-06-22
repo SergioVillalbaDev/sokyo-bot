@@ -6,6 +6,7 @@ const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js'
 const { toggleRol, aplicarSeleccionMenu } = require('../utils/rolePanelManager.js');
 const verificacion = require('../utils/verificacion.js');
 const reportes = require('../utils/reportes.js');
+const embudo = require('../utils/embudo.js');
 
 // --- Paneles de roles: botón de rol o de verificación ---
 async function manejarBotonRol(interaction) {
@@ -76,6 +77,14 @@ module.exports = {
         if (interaction.isButton() && interaction.customId === 'verif_inicio') return verificacion.manejarInicio(interaction);
         if (interaction.isButton() && interaction.customId === 'verif_introducir') return verificacion.manejarIntroducir(interaction);
         if (interaction.isModalSubmit() && interaction.customId === 'verif_modal') return verificacion.manejarModal(interaction);
+
+        // --- EMBUDO DE BIENVENIDA A/B (botones por panel y por MD) ---
+        // Los customId llevan el guildId (`embudo_x:<gid>`), por eso funcionan en MD.
+        if (interaction.isButton() && interaction.customId.startsWith('embudo_inicio:')) return embudo.manejarInicio(interaction, client);
+        if (interaction.isButton() && interaction.customId.startsWith('embudo_reglas:')) return embudo.manejarReglas(interaction, client);
+        if (interaction.isButton() && interaction.customId.startsWith('embudo_aceptar:')) return embudo.manejarAceptar(interaction, client);
+        if (interaction.isButton() && interaction.customId.startsWith('embudo_captcha:')) return embudo.manejarCaptcha(interaction, client);
+        if (interaction.isModalSubmit() && interaction.customId.startsWith('embudo_modal:')) return embudo.manejarModal(interaction, client);
 
         // --- SEGURIDAD: gestión de reportes (resolver / descartar / abrir ticket) ---
         if (interaction.isButton() && (interaction.customId.startsWith('rep_resolver:') || interaction.customId.startsWith('rep_descartar:') || interaction.customId.startsWith('rep_ticket:'))) {

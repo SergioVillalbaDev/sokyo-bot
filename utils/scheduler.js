@@ -12,6 +12,8 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const Log = require('../models/Log.js');
 const Ticket = require('../models/Ticket.js');
 const Sancion = require('../models/Sancion.js');
+const ServidorConfig = require('../models/ServidorConfig.js');
+const { enviarResumen } = require('./resumenDiario.js');
 
 // Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -117,6 +119,25 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     };
     setTimeout(tickSnapshot, 30 * 1000);
     setInterval(tickSnapshot, 6 * 60 * 60 * 1000);
+
+    // Briefing diario: cada 30 min mira qué servidores tienen el resumen activo,
+    // ha llegado su hora (UTC) y no se ha enviado hoy.
+    const tickResumen = async () => {
+        try {
+            const hoy = new Date().toISOString().slice(0, 10);
+            const horaAhora = new Date().getUTCHours();
+            const configs = await ServidorConfig.find({ 'resumenDiario.activo': true }).select('guildId resumenDiario');
+            for (const cfg of configs) {
+                const rd = cfg.resumenDiario || {};
+                if (rd.lastDia === hoy) continue;            // ya enviado hoy
+                if (horaAhora < (rd.hora || 9)) continue;     // aún no es su hora
+                try { await enviarResumen(client, cfg.guildId, {}); }
+                catch (e) { console.error(`Resumen diario ${cfg.guildId}:`, e.message); }
+            }
+        } catch (e) { console.error('Barrido de resúmenes:', e.message); }
+    };
+    setTimeout(tickResumen, 45 * 1000);
+    setInterval(tickResumen, 30 * 60 * 1000);
 }
 
 module.exports = { iniciarProgramador, enviarAnunciosPendientes, enviarRecordatoriosPendientes };

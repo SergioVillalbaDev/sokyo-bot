@@ -18,6 +18,8 @@ const Reporte = require('../models/Reporte.js');
 const AnuncioProgramado = require('../models/AnuncioProgramado.js');
 const AnuncioPreset = require('../models/AnuncioPreset.js');
 const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificacion.js');
+const { publicarPanel: publicarPanelEmbudo } = require('../utils/embudo.js');
+const { enviarBienvenida, enviarDespedida } = require('../utils/bienvenida.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
 const { construirMensaje, sanearEmbed, embedTieneContenido } = require('../utils/embeds.js');
 const { cerrarTicket, reabrirTicket, construirTranscriptHTML } = require('../utils/ticketManager.js');
@@ -29,6 +31,7 @@ const { firmarToken, verificarToken } = require('../utils/auth.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
+const { enviarResumen } = require('../utils/resumenDiario.js');
 
 module.exports = (client) => {
     const app = express();
@@ -573,16 +576,18 @@ module.exports = (client) => {
     // Config de servidores. Con ?guildId= devuelve solo ese (creándolo si no existe).
     app.get('/api/servidores', async (req, res) => {
         const { guildId } = req.query;
+        // Adjunta iaActiva (¿hay clave de IA configurada?) para que el panel muestre o no la IA.
+        const conIA = (doc) => { const o = doc.toObject ? doc.toObject() : doc; o.iaActiva = ia.iaDisponible(); return o; };
         if (guildId) {
             let cfg = await ServidorConfig.findOne({ guildId });
             if (!cfg) cfg = await ServidorConfig.create({ guildId });
-            return res.json([cfg]);
+            return res.json([conIA(cfg)]);
         }
         // Sin guildId: el staff (no dueño) solo ve la config de SUS servidores.
         if (req.staff && !req.staff.owner) {
-            return res.json(await ServidorConfig.find({ guildId: { $in: req.staff.guilds || [] } }));
+            return res.json((await ServidorConfig.find({ guildId: { $in: req.staff.guilds || [] } })).map(conIA));
         }
-        res.json(await ServidorConfig.find());
+        res.json((await ServidorConfig.find()).map(conIA));
     });
 
     // Tickets visibles (filtrados por servidor si se indica ?guildId=)
@@ -759,10 +764,32 @@ app.get('/api/stats/uso', async (req, res) => {
             const cfg = await ServidorConfig.findOne({ guildId: gid });
             const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
             const data = await construirAnalitica(client, gid, cfg, dias);
+            data.iaActiva = ia.iaDisponible();
             res.json(data);
         } catch (error) {
             console.error('Error en /api/stats/analitica:', error.message);
             res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- INFORME CON IA (Pro): convierte la analítica en informe + plan de acción ---
+    app.post('/api/stats/analitica/informe', async (req, res) => {
+        try {
+            const gid = req.query.guildId || (req.body && req.body.guildId) || (req.staff && (req.staff.guilds || [])[0]) || null;
+            if (!gid) return res.status(400).json({ error: 'Falta el servidor' });
+            if (!ia.iaDisponible()) return res.status(503).json({ error: 'El asistente IA no está configurado (falta ANTHROPIC_API_KEY).' });
+            const cfg = await ServidorConfig.findOne({ guildId: gid });
+            if (!billing.esPro(cfg)) return res.status(402).json({ error: 'El informe con IA es una función Pro.' });
+            const est = billing.estadoIA(cfg);
+            if (est.restantes <= 0) return res.status(402).json({ error: `Has agotado tus ${est.cuota} usos de IA de este mes. Se renueva el día 1.`, iaUsos: est.usos, iaCuota: est.cuota });
+            const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
+            const data = await construirAnalitica(client, gid, cfg, dias);
+            const texto = await ia.informeServidor(data);
+            const consumo = await billing.consumirIA(gid, cfg);
+            res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
+        } catch (error) {
+            console.error('Error en informe IA:', error.message);
+            res.status(500).json({ error: 'No se pudo generar el informe' });
         }
     });
 
@@ -882,12 +909,17 @@ app.get('/api/stats/uso', async (req, res) => {
             const ticket = await Ticket.findOne({ canalId: req.params.canalId });
             if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
             const cfg = await ServidorConfig.findOne({ guildId: ticket.guildId });
-            if (!billing.esPro(cfg)) return res.status(402).json({ error: 'El asistente IA es una función Pro. Sube de plan para usarlo.' });
+            // Cuota mensual de IA por servidor (Free 5 · Pro 150 · Agencia 1500).
+            const est = billing.estadoIA(cfg);
+            if (est.restantes <= 0) {
+                return res.status(402).json({ error: `Has agotado tus ${est.cuota} usos de IA de este mes. Se renueva el día 1${est.cuota <= 5 ? ' · sube a Pro para 150 usos' : ''}.`, iaUsos: est.usos, iaCuota: est.cuota });
+            }
             const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 }).limit(100);
             const texto = accion === 'resumen'
                 ? await ia.resumirTicket(mensajes, ticket)
                 : await ia.sugerirRespuesta(mensajes, ticket);
-            res.json({ texto });
+            const consumo = await billing.consumirIA(ticket.guildId, cfg); // solo cuenta si tuvo éxito
+            res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
         } catch (error) {
             console.error('Error en el asistente IA:', error.message);
             res.status(500).json({ error: 'La IA no pudo responder. Inténtalo de nuevo.' });
@@ -908,6 +940,36 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error generando transcript HTML:', error.message);
             res.status(500).json({ error: 'No se pudo generar el transcript' });
+        }
+    });
+
+    // --- RESUMEN DIARIO (Pro): guardar config + enviar prueba ---
+    app.put('/api/config/:guildId/resumen', async (req, res) => {
+        try {
+            const b = req.body || {};
+            const set = {
+                'resumenDiario.activo': !!b.activo,
+                'resumenDiario.hora': Math.min(23, Math.max(0, parseInt(b.hora, 10) || 9)),
+                'resumenDiario.canalId': b.canalId ? String(b.canalId) : null,
+            };
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar resumen diario:', error.message);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    app.post('/api/resumen/:guildId/probar', async (req, res) => {
+        try {
+            const r = await enviarResumen(client, req.params.guildId, { prueba: true });
+            if (r.ok) return res.json({ success: true });
+            res.status(400).json({ error: r.error || 'No se pudo enviar' });
+        } catch (error) {
+            console.error('Error en prueba de resumen:', error.message);
+            res.status(500).json({ error: 'No se pudo enviar el resumen' });
         }
     });
 
@@ -1240,6 +1302,104 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al publicar panel de verificación:', error);
             res.status(400).json({ error: error.message || 'No se pudo publicar el panel' });
+        }
+    });
+
+    // --- EMBUDO DE BIENVENIDA: Test A/B de retención ---
+    app.put('/api/config/:guildId/embudo', async (req, res) => {
+        try {
+            const cfgActual = await ServidorConfig.findOne({ guildId: req.params.guildId });
+            if (!billing.esPro(cfgActual)) return res.status(402).json({ error: 'El embudo de bienvenida A/B es una función Pro.' });
+            const b = req.body.embudoAB || req.body || {};
+            const a = b.varianteA || {};
+            const bb = b.varianteB || {};
+            const set = {
+                'embudoAB.activo': !!b.activo,
+                'embudoAB.entrega': ['md', 'ambos'].includes(b.entrega) ? b.entrega : 'panel',
+                'embudoAB.canalId': b.canalId ? String(b.canalId) : null,
+                'embudoAB.rolVerificadoId': b.rolVerificadoId ? String(b.rolVerificadoId) : null,
+                'embudoAB.varianteA.titulo': String(a.titulo || '📋 Bienvenido/a — Lee las normas').slice(0, 256),
+                'embudoAB.varianteA.reglas': String(a.reglas || '').slice(0, 2000),
+                'embudoAB.varianteA.captcha': a.captcha !== false,
+                'embudoAB.varianteA.textoBoton': String(a.textoBoton || '✅ Aceptar y acceder').slice(0, 80),
+                'embudoAB.varianteB.titulo': String(bb.titulo || '👋 ¡Te damos la bienvenida!').slice(0, 256),
+                'embudoAB.varianteB.descripcion': String(bb.descripcion || '').slice(0, 2000),
+                'embudoAB.varianteB.color': /^#[0-9a-fA-F]{6}$/.test(bb.color || '') ? bb.color : '#5865F2',
+                'embudoAB.varianteB.reglas': String(bb.reglas || '').slice(0, 2000),
+                'embudoAB.varianteB.textoBoton': String(bb.textoBoton || '🎉 Unirme').slice(0, 80),
+            };
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: set },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar embudo:', error);
+            res.status(500).json({ error: 'No se pudo guardar el embudo' });
+        }
+    });
+
+    // Publica (o reedita) el panel del embudo en el canal configurado.
+    app.post('/api/embudo/:guildId/publicar', async (req, res) => {
+        try {
+            const cfgActual = await ServidorConfig.findOne({ guildId: req.params.guildId });
+            if (!billing.esPro(cfgActual)) return res.status(402).json({ error: 'El embudo de bienvenida A/B es una función Pro.' });
+            const mensajeId = await publicarPanelEmbudo(client, req.params.guildId);
+            res.json({ success: true, mensajeId });
+        } catch (error) {
+            console.error('Error al publicar panel del embudo:', error.message);
+            res.status(400).json({ error: error.message || 'No se pudo publicar el panel' });
+        }
+    });
+
+    // --- COMUNIDAD: mensajes de bienvenida y despedida ---
+    app.put('/api/config/:guildId/bienvenidas', async (req, res) => {
+        try {
+            const norm = (b) => {
+                b = b || {};
+                const embed = sanearEmbed(b.embed);
+                return {
+                    activo: !!b.activo,
+                    canalId: b.canalId ? String(b.canalId) : null,
+                    contenido: String(b.contenido || '').slice(0, 2000),
+                    mencionar: !!b.mencionar,
+                    embed: embedTieneContenido(embed) ? embed : null,
+                };
+            };
+            const set = {};
+            for (const [k, v] of Object.entries(norm(req.body.bienvenida))) set[`bienvenida.${k}`] = v;
+            for (const [k, v] of Object.entries(norm(req.body.despedida))) set[`despedida.${k}`] = v;
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: set },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar bienvenidas:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    // Envía un mensaje de prueba (bienvenida/despedida) al canal, usando al propio
+    // staff que lo solicita como miembro de ejemplo.
+    app.post('/api/bienvenidas/:guildId/probar', async (req, res) => {
+        try {
+            const gid = req.params.guildId;
+            const tipo = req.body.tipo === 'despedida' ? 'despedida' : 'bienvenida';
+            const cfg = await ServidorConfig.findOne({ guildId: gid });
+            if (!cfg) return res.status(404).json({ error: 'Servidor sin configurar.' });
+            const guild = client.guilds.cache.get(gid);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado.' });
+            const member = await guild.members.fetch(req.usuario.id).catch(() => null);
+            if (!member) return res.status(400).json({ error: 'No estás en ese servidor para la prueba.' });
+            const r = await (tipo === 'despedida' ? enviarDespedida : enviarBienvenida)(member, cfg);
+            if (r && r.error) return res.status(400).json({ error: r.error });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error en prueba de bienvenida:', error.message);
+            res.status(500).json({ error: 'No se pudo enviar la prueba' });
         }
     });
 
@@ -2394,6 +2554,7 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const gid = req.query.guildId || (req.staff && (req.staff.guilds || [])[0]) || null;
             const cfg = gid ? await ServidorConfig.findOne({ guildId: gid }) : null;
+            const estIA = billing.estadoIA(cfg);
             res.json({
                 plan: (cfg && cfg.plan) || 'free',
                 esPremium: billing.premiumActivo(cfg),
@@ -2401,6 +2562,8 @@ app.get('/api/stats/uso', async (req, res) => {
                 cancelaAlFinal: !!(cfg && cfg.premiumCancelaAlFinal),
                 pagosActivos: !!billing.getStripe(),       // ¿hay pasarela configurada?
                 tieneSuscripcion: !!(cfg && cfg.stripeCustomerId),
+                iaActiva: ia.iaDisponible(),
+                iaUsos: estIA.usos, iaCuota: estIA.cuota,
             });
         } catch (e) {
             console.error('Error en estado de facturación:', e.message);

@@ -26,6 +26,7 @@ import TiposSancionView from './views/TiposSancionView';
 import RegistroSancionesView from './views/RegistroSancionesView';
 import AutomodView from './views/AutomodView';
 import VerificacionView from './views/VerificacionView';
+import EmbudoView from './views/EmbudoView';
 import ReportesView from './views/ReportesView';
 import BackupView from './views/BackupView';
 import AccesoView from './views/AccesoView';
@@ -34,8 +35,10 @@ import NivelesView from './views/NivelesView';
 import AutoRespuestasView from './views/AutoRespuestasView';
 import EmbedsView from './views/EmbedsView';
 import AnunciosView from './views/AnunciosView';
+import BienvenidaView from './views/BienvenidaView';
 import PlanesView from './views/PlanesView';
 import AnaliticaView from './views/AnaliticaView';
+import ResumenView from './views/ResumenView';
 
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
@@ -75,13 +78,16 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'mod-automod') return <AutomodView dash={dash} />;
     if (activeTab === 'mod-registro') return <RegistroSancionesView dash={dash} />;
     if (activeTab === 'seg-verificacion') return <VerificacionView dash={dash} />;
+    if (activeTab === 'seg-embudo') return <EmbudoView dash={dash} />;
     if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') return <ReportesView dash={dash} />;
     if (activeTab === 'seg-backup') return <BackupView dash={dash} />;
     if (activeTab === 'prod-autorespuestas') return <AutoRespuestasView dash={dash} />;
     if (activeTab === 'prod-embeds') return <EmbedsView dash={dash} />;
     if (activeTab === 'prod-anuncios') return <AnunciosView dash={dash} />;
+    if (activeTab === 'prod-bienvenidas') return <BienvenidaView dash={dash} />;
     if (activeTab === 'cuenta-plan') return <PlanesView dash={dash} />;
     if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
+    if (activeTab === 'datos-resumen') return <ResumenView dash={dash} />;
     if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
     return <InicioView dash={dash} />;

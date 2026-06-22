@@ -2,6 +2,8 @@ const { Events } = require('discord.js');
 const Log = require('../models/Log.js');
 const { getConfig, logActivo } = require('../utils/config.js');
 const { revisarEntrada } = require('../utils/antiRaid.js');
+const { asignarCohorte, enviarMD } = require('../utils/embudo.js');
+const { enviarBienvenida } = require('../utils/bienvenida.js');
 
 module.exports = {
     name: Events.GuildMemberAdd,
@@ -34,6 +36,23 @@ module.exports = {
                 }
             }
         } catch (error) { console.error('Error aplicando autorol:', error); }
+
+        // --- Embudo de bienvenida A/B: asignar variante al entrar ---
+        // Si la entrega incluye MD, se le manda su onboarding por privado.
+        // (la entrega por panel es un botón fijo publicado en el canal)
+        try {
+            const cohorte = await asignarCohorte(member, cfg);
+            const entrega = cfg?.embudoAB?.entrega;
+            if (cohorte && !member.user.bot && (entrega === 'md' || entrega === 'ambos')) {
+                await enviarMD(member, cfg.embudoAB, cohorte);
+            }
+        } catch (error) { console.error('Error en embudo de bienvenida:', error.message); }
+
+        // --- Mensaje de bienvenida en el canal (editable, con embed/GIFs) ---
+        if (!member.user.bot) {
+            try { await enviarBienvenida(member, cfg); }
+            catch (error) { console.error('Error en mensaje de bienvenida:', error.message); }
+        }
 
         // --- Log de entrada (comportamiento existente) ---
         try {

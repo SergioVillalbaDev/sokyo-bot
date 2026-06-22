@@ -472,6 +472,50 @@ export function useDashboard() {
     } catch (error) { console.error('Error publicando verificación:', error); return { error: 'Fallo de red' }; }
   };
 
+  // --- EMBUDO DE BIENVENIDA: Test A/B ---
+  const guardarEmbudo = async (embudoAB) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/embudo`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embudoAB }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando embudo:', error); }
+    return false;
+  };
+  const publicarEmbudo = async () => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/embudo/${configServidor.guildId}/publicar`, { method: 'POST' });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'No se pudo publicar' };
+    } catch (error) { console.error('Error publicando embudo:', error); return { error: 'Fallo de red' }; }
+  };
+
+  // --- COMUNIDAD: mensajes de bienvenida / despedida ---
+  const guardarBienvenidas = async (bienvenida, despedida) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/bienvenidas`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bienvenida, despedida }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando bienvenidas:', error); }
+    return false;
+  };
+  const probarBienvenida = async (tipo) => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/bienvenidas/${configServidor.guildId}/probar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo }),
+      });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'No se pudo enviar la prueba' };
+    } catch (error) { console.error('Error probando bienvenida:', error); return { error: 'Fallo de red' }; }
+  };
+
   // --- SEGURIDAD: reportes ---
   const guardarReportes = async (reportesCfg) => {
     if (!configServidor) return false;
@@ -572,9 +616,19 @@ export function useDashboard() {
     try {
       const res = await apiFetch(`/api/tickets/${canalId}/ia/${accion}`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.texto) return { texto: data.texto };
-      return { error: data.error || 'La IA no respondió' };
+      if (res.ok && data.texto) return { texto: data.texto, iaUsos: data.iaUsos, iaCuota: data.iaCuota };
+      return { error: data.error || 'La IA no respondió', iaUsos: data.iaUsos, iaCuota: data.iaCuota };
     } catch (error) { console.error('Error IA:', error); return { error: 'Fallo de red' }; }
+  };
+  // Informe del servidor con IA (a partir de la analítica).
+  const informeIA = async (dias = 30) => {
+    const sep = gp() ? '&' : '?';
+    try {
+      const res = await apiFetch(`/api/stats/analitica/informe${gp()}${sep}dias=${dias}`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.texto) return { texto: data.texto, iaUsos: data.iaUsos, iaCuota: data.iaCuota };
+      return { error: data.error || 'No se pudo generar el informe' };
+    } catch (error) { console.error('Error informe IA:', error); return { error: 'Fallo de red' }; }
   };
   // Descarga el transcript HTML del ticket (Pro).
   const descargarTranscript = async (canalId) => {
@@ -589,6 +643,28 @@ export function useDashboard() {
       URL.revokeObjectURL(url);
       return { ok: true };
     } catch (error) { console.error('Error transcript:', error); return { error: 'Fallo de red' }; }
+  };
+
+  // --- RESUMEN DIARIO (Pro) ---
+  const guardarResumen = async (datos) => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/resumen`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return { ok: true }; }
+      return { error: data.error || 'No se pudo guardar' };
+    } catch (error) { console.error('Error guardando resumen:', error); return { error: 'Fallo de red' }; }
+  };
+  const probarResumen = async () => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/resumen/${configServidor.guildId}/probar`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) return { ok: true };
+      return { error: data.error || 'No se pudo enviar' };
+    } catch (error) { console.error('Error probando resumen:', error); return { error: 'Fallo de red' }; }
   };
 
   // --- ANALÍTICA (Pro) ---
@@ -926,10 +1002,13 @@ export function useDashboard() {
     else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
     else if (activeTab === 'mod-automod') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
     else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
+    else if (activeTab === 'seg-embudo') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
+    else if (activeTab === 'prod-bienvenidas') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
     else if (activeTab === 'datos-analitica') { cargarConfiguracion(); cargarAnalitica(); }
+    else if (activeTab === 'datos-resumen') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
     else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); cargarPresetsAnuncio(); }
@@ -981,12 +1060,15 @@ export function useDashboard() {
     guardarAutomod,
     // seguridad
     guardarVerificacion, publicarVerificacion,
+    guardarEmbudo, publicarEmbudo,
+    guardarBienvenidas, probarBienvenida,
     reportes, guardarReportes, cargarReportes, actualizarReporte, abrirTicketReporte,
     exportarConfig, importarConfig,
     // pagos / suscripción (Stripe)
     billing, cargarEstadoBilling, irACheckout, abrirPortalPago,
     // IA en tickets + transcript + analítica (Pro)
-    iaTicket, descargarTranscript, analitica, cargarAnalitica,
+    iaTicket, informeIA, descargarTranscript, analitica, cargarAnalitica,
+    guardarResumen, probarResumen,
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,

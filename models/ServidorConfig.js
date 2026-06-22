@@ -212,6 +212,53 @@ const ServidorConfigSchema = new mongoose.Schema({
         mensajeId: { type: String, default: null },         // id del mensaje publicado (para republicar/editar)
     },
 
+    // --- EMBUDO DE BIENVENIDA: Test A/B de retención (Pro) ---
+    // Al entrar un usuario se le asigna una variante (50/50) y se mide cuál
+    // retiene/engancha más. Variante A = reglas en texto + captcha; variante B =
+    // embed visual con botones interactivos. El recorrido se guarda en EmbudoCohorte.
+    embudoAB: {
+        activo: { type: Boolean, default: false },
+        entrega: { type: String, enum: ['panel', 'md', 'ambos'], default: 'panel' }, // botón en canal, MD, o los dos
+        canalId: { type: String, default: null },           // canal donde se publica el panel (entrega panel/ambos)
+        rolVerificadoId: { type: String, default: null },   // rol que se concede al completar el onboarding
+        mensajeId: { type: String, default: null },         // id del panel publicado (para republicar/editar)
+
+        // Variante A — reglas en texto plano + captcha
+        varianteA: {
+            titulo: { type: String, default: '📋 Bienvenido/a — Lee las normas' },
+            reglas: { type: String, default: '1. Sé respetuoso con todos.\n2. Nada de spam ni publicidad.\n3. Usa los canales para su tema.\n\nResuelve el captcha para acceder.' },
+            captcha: { type: Boolean, default: true },       // exigir captcha de imagen
+            textoBoton: { type: String, default: '✅ Aceptar y acceder' },
+        },
+        // Variante B — embed visual con botones interactivos
+        varianteB: {
+            titulo: { type: String, default: '👋 ¡Te damos la bienvenida!' },
+            descripcion: { type: String, default: 'Nos alegra tenerte aquí. Pulsa **Ver normas** para conocer la comunidad y luego **Unirme** para acceder a todos los canales.' },
+            color: { type: String, default: '#5865F2' },
+            reglas: { type: String, default: '1. Sé respetuoso con todos.\n2. Nada de spam ni publicidad.\n3. Usa los canales para su tema.' },
+            textoBoton: { type: String, default: '🎉 Unirme' },
+        },
+    },
+
+    // --- COMUNIDAD: mensajes de bienvenida y despedida ---
+    // Mensaje totalmente editable (texto + embed con imágenes/GIFs, reutiliza el
+    // creador de embeds) que se publica en un canal cuando alguien entra/sale.
+    // Placeholders: {mention} {user} {servidor} {miembros} {avatar}.
+    bienvenida: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },
+        contenido: { type: String, default: '¡Bienvenido/a {mention} a **{servidor}**! 🎉 Ya sois {miembros} miembros.' },
+        mencionar: { type: Boolean, default: true },        // pingear al usuario que entra
+        embed: { type: mongoose.Schema.Types.Mixed, default: null }, // embed opcional (null = solo texto)
+    },
+    despedida: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },
+        contenido: { type: String, default: '👋 **{user}** ha dejado **{servidor}**. Ahora sois {miembros}.' },
+        mencionar: { type: Boolean, default: false },
+        embed: { type: mongoose.Schema.Types.Mixed, default: null },
+    },
+
     // --- SEGURIDAD: reportes de usuarios ---
     reportes: {
         activo: { type: Boolean, default: false },
@@ -240,7 +287,17 @@ const ServidorConfigSchema = new mongoose.Schema({
     premiumCancelaAlFinal: { type: Boolean, default: false }, // suscripción cancelada: activa hasta que caduque
     stripeCustomerId: { type: String, default: null },    // cliente en Stripe (para renovar / portal)
     stripeSubscriptionId: { type: String, default: null }, // suscripción en Stripe (null si es pago único/lifetime)
-    trialUsado: { type: Boolean, default: false }         // ya disfrutó la prueba gratuita de Pro
+    trialUsado: { type: Boolean, default: false },        // ya disfrutó la prueba gratuita de Pro
+    iaUsos: { type: Number, default: 0 },                 // usos de IA consumidos en el mes en curso
+    iaMesRef: { type: String, default: '' },              // 'YYYY-MM' del contador (se reinicia al cambiar de mes)
+
+    // Briefing diario por IA (Pro): MD al dueño + canal opcional, a la hora fijada.
+    resumenDiario: {
+        activo: { type: Boolean, default: false },
+        hora: { type: Number, default: 9 },               // hora UTC (0-23) del envío
+        canalId: { type: String, default: null },         // canal opcional donde publicarlo además del MD
+        lastDia: { type: String, default: '' },           // 'YYYY-MM-DD' del último envío (anti-duplicado)
+    },
 });
 
 module.exports = mongoose.model('ServidorConfig', ServidorConfigSchema);
