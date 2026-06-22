@@ -17,7 +17,14 @@ module.exports = ({ portalAuth }) => {
             }
             // Stock vacío = ilimitado (null). Si llega un número, lo usamos.
             const stockNum = (stock === '' || stock == null) ? null : Math.max(0, parseInt(stock, 10) || 0);
-            const item = await Item.create({ itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock: stockNum, activo });
+            // Efecto al usar (campos planos desde el formulario web).
+            const efecto = {
+                tipo: ['xpBoost', 'rol'].includes(req.body.efectoTipo) ? req.body.efectoTipo : 'ninguno',
+                multiplicador: Math.max(1, parseInt(req.body.efectoMultiplicador, 10) || 2),
+                duracionMin: Math.max(1, parseInt(req.body.efectoDuracionMin, 10) || 60),
+                rolId: req.body.efectoRolId ? String(req.body.efectoRolId).trim() : null,
+            };
+            const item = await Item.create({ itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock: stockNum, efecto, activo });
             res.status(201).json({ success: true, item });
         } catch (e) {
             if (e.code === 11000) return res.status(409).json({ error: 'Ya existe un ítem con ese itemId.' });
@@ -43,7 +50,7 @@ module.exports = ({ portalAuth }) => {
             .map(e => ({
                 _id: e.item._id, nombre: e.item.nombre, descripcion: e.item.descripcion,
                 tipo: e.item.tipo, rareza: e.item.rareza, imageUrl: e.item.imageUrl,
-                cantidad: e.cantidad,
+                efecto: e.item.efecto, cantidad: e.cantidad,
             }));
         res.json({ balance: u.balance, inventory });
     });
@@ -55,6 +62,14 @@ module.exports = ({ portalAuth }) => {
         const r = await economia.comprarItem(req.usuario.id, itemId, cantidad);
         if (!r.ok) return res.status(400).json({ error: r.error });
         res.json({ success: true, comprado: r.item.nombre, coste: r.coste, balance: r.balance });
+    });
+
+    // USAR un objeto desde la web. Sin contexto de servidor, así que solo aplica
+    // efectos globales (xpBoost); los de rol piden usar /usar en Discord.
+    router.post('/portal/shop/use', portalAuth, async (req, res) => {
+        const r = await economia.usarItem(req.usuario.id, req.body.itemId);
+        if (!r.ok) return res.status(400).json({ error: r.error });
+        res.json({ success: true, item: r.item.nombre, efecto: r.efecto });
     });
 
     return router;

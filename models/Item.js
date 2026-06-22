@@ -15,6 +15,15 @@ const ItemSchema = new mongoose.Schema({
     rareza: { type: String, enum: ['comun', 'raro', 'epico', 'legendario'], default: 'comun' },
     // Unidades disponibles. null = ilimitado (STOCK ∞). Si llega a 0, se agota.
     stock: { type: Number, default: null, min: 0 },
+    // Efecto al USAR el objeto (Fase 2). 'ninguno' = objeto decorativo/coleccionable.
+    //  · xpBoost → multiplica tu XP durante `duracionMin` (efecto global).
+    //  · rol     → te da el rol `rolId` durante `duracionMin` (se usa en un servidor).
+    efecto: {
+        tipo: { type: String, enum: ['ninguno', 'xpBoost', 'rol'], default: 'ninguno' },
+        multiplicador: { type: Number, default: 2 }, // para xpBoost (x2, x3…)
+        duracionMin: { type: Number, default: 60 },  // para xpBoost y rol
+        rolId: { type: String, default: null },       // para rol (id del rol de Discord)
+    },
     // "Activo en tienda": el borrado lógico. Nunca borramos un ítem que alguien
     // ya tiene en su inventario; lo desactivamos (activo: false) y deja de venderse.
     activo: { type: Boolean, default: true },

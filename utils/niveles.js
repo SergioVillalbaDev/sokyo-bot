@@ -6,6 +6,7 @@ const { AttachmentBuilder } = require('discord.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const TarjetaPersonal = require('../models/TarjetaPersonal.js');
 const { generarTarjeta, generarTarjetaAnimada, ESTILOS } = require('./rankCard.js');
+const economia = require('./economia.js'); // para el boost de XP comprado en la tienda
 
 // Opciones de tarjeta personalizada del usuario.
 // Los COLORES (acento, fondo, secundario/degradado) se aplican siempre.
@@ -94,6 +95,9 @@ function multiplicadorDe(member, cfg) {
 // Núcleo: suma `ganada` XP a un miembro, detecta subida de nivel y actúa.
 async function aplicarXp(guild, member, ganada, cfg, canalFallback) {
     const dif = cfg.dificultad || 1;
+    // Boost de XP comprado en la tienda (objeto con efecto xpBoost). Global por usuario.
+    const boost = await economia.multiplicadorBoost(member.id);
+    if (boost > 1) ganada = Math.round(ganada * boost);
     const doc = await ActividadUsuario.findOne({ guildId: guild.id, userId: member.id }).select('xp');
     const xpVieja = doc?.xp || 0;
     const xpNueva = xpVieja + ganada;

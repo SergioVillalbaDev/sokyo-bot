@@ -12,6 +12,14 @@ const UsuarioSchema = new mongoose.Schema({
     discordId: { type: String, required: true, unique: true, index: true },
     balance: { type: Number, default: 0, min: 0 }, // oro
     inventory: { type: [InventarioItemSchema], default: [] },
+    // Recompensa diaria (/daily): cuándo la reclamó por última vez y su racha actual.
+    ultimoDaily: { type: Date, default: null },
+    rachaDaily: { type: Number, default: 0 },
+    // Boost de XP activo (objeto con efecto xpBoost). Global por usuario.
+    boostXp: {
+        multiplicador: { type: Number, default: 1 },
+        expiraEn: { type: Date, default: null },
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Usuario', UsuarioSchema);

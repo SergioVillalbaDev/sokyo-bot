@@ -82,4 +82,98 @@ async function darOro(discordId, cantidad) {
     return u.balance;
 }
 
-module.exports = { obtenerUsuario, comprarItem, darOro };
+// Recompensa diaria con racha. Se puede reclamar cada ~20h; si pasan más de 48h
+// sin reclamar, la racha se reinicia. Cada 7 días seguidos hay premio gordo.
+async function reclamarDaily(discordId) {
+    const u = await obtenerUsuario(discordId);
+    const ahora = new Date();
+    let racha;
+    if (u.ultimoDaily) {
+        const horas = (ahora - new Date(u.ultimoDaily)) / 3600000;
+        if (horas < 20) return { ok: false, esperaHoras: 20 - horas };
+        racha = horas <= 48 ? (u.rachaDaily || 0) + 1 : 1; // dentro de 48h continúa; si no, reinicia
+    } else {
+        racha = 1;
+    }
+    const base = 100;
+    const bonus = Math.min(racha, 7) * 25;          // hasta +175 según racha
+    const jackpot = (racha % 7 === 0) ? 500 : 0;    // premio gordo cada 7 días
+    const total = base + bonus + jackpot;
+
+    await Usuario.updateOne(
+        { discordId },
+        { $set: { ultimoDaily: ahora, rachaDaily: racha }, $inc: { balance: total } }
+    );
+    const final = await Usuario.findOne({ discordId });
+    return { ok: true, total, racha, jackpot, balance: final.balance };
+}
+
+// Ranking de los usuarios con más oro.
+async function topRicos(limite = 10) {
+    return Usuario.find().sort({ balance: -1 }).limit(limite).select('discordId balance');
+}
+
+// Quita 1 unidad de un objeto del inventario; si llega a 0, elimina la entrada.
+async function consumirUnidad(discordId, itemId) {
+    await Usuario.updateOne(
+        { discordId, 'inventory.item': itemId },
+        { $inc: { 'inventory.$.cantidad': -1 } }
+    );
+    await Usuario.updateOne(
+        { discordId },
+        { $pull: { inventory: { cantidad: { $lte: 0 } } } }
+    );
+}
+
+// USAR un objeto: aplica su efecto y consume 1 unidad.
+//  ctx.aplicarRol(rolId, duracionMin) -> Promise<bool>: lo aporta /usar (tiene
+//  contexto de servidor). Sin él, los efectos de rol no se pueden aplicar (web).
+async function usarItem(discordId, itemDocId, ctx = {}) {
+    let item;
+    try { item = await Item.findOne({ _id: itemDocId }); }
+    catch { return { ok: false, error: 'Objeto no válido.' }; }
+    if (!item) return { ok: false, error: 'Ese objeto no existe.' };
+
+    const efecto = item.efecto || {};
+    if (!efecto.tipo || efecto.tipo === 'ninguno') {
+        return { ok: false, error: 'Este objeto no tiene ningún efecto que usar.' };
+    }
+
+    // ¿Lo tiene en la mochila?
+    const tiene = await Usuario.findOne({ discordId, 'inventory.item': item._id }).select('_id');
+    if (!tiene) return { ok: false, error: 'No tienes ese objeto en tu mochila.' };
+
+    // Efecto de ROL: solo desde un servidor (lo aplica el comando /usar).
+    if (efecto.tipo === 'rol') {
+        if (typeof ctx.aplicarRol !== 'function') {
+            return { ok: false, error: 'Este objeto otorga un rol: úsalo en un servidor con `/usar`.' };
+        }
+        const aplicado = await ctx.aplicarRol(efecto.rolId, efecto.duracionMin);
+        if (!aplicado) return { ok: false, error: 'No se pudo dar el rol (¿existe en este servidor y el bot tiene permisos?).' };
+    }
+
+    // Consumir 1 unidad (después de validar el efecto, para no perder el objeto si falla).
+    await consumirUnidad(discordId, item._id);
+
+    // Efecto de XP BOOST (global por usuario): lo lee aplicarXp en niveles.js.
+    if (efecto.tipo === 'xpBoost') {
+        const expiraEn = new Date(Date.now() + (efecto.duracionMin || 60) * 60000);
+        await Usuario.updateOne(
+            { discordId },
+            { $set: { boostXp: { multiplicador: efecto.multiplicador || 2, expiraEn } } }
+        );
+    }
+
+    return { ok: true, item, efecto };
+}
+
+// Multiplicador de XP activo del usuario (1 si no tiene boost o ya caducó).
+async function multiplicadorBoost(discordId) {
+    const u = await Usuario.findOne({ discordId }).select('boostXp');
+    if (u?.boostXp?.expiraEn && new Date(u.boostXp.expiraEn) > new Date()) {
+        return u.boostXp.multiplicador || 1;
+    }
+    return 1;
+}
+
+module.exports = { obtenerUsuario, comprarItem, darOro, reclamarDaily, topRicos, usarItem, multiplicadorBoost };

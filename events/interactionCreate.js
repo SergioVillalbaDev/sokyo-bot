@@ -90,6 +90,38 @@ module.exports = {
             });
         }
 
+        // --- USAR: aplica el efecto del objeto elegido en /usar ---
+        if (interaction.isStringSelectMenu() && interaction.customId === 'usar_objeto') {
+            const economia = require('../utils/economia.js');
+            const RolTemporal = require('../models/RolTemporal.js');
+            // El efecto de ROL se aplica aquí porque tenemos servidor + miembro.
+            const ctx = {
+                aplicarRol: async (rolId, durMin) => {
+                    if (!rolId || !interaction.guild) return false;
+                    const rol = interaction.guild.roles.cache.get(rolId);
+                    if (!rol) return false;
+                    try {
+                        await interaction.member.roles.add(rolId);
+                        if (durMin > 0) {
+                            await RolTemporal.create({
+                                guildId: interaction.guild.id, userId: interaction.user.id,
+                                roleId: rolId, expiraEn: new Date(Date.now() + durMin * 60000),
+                            });
+                        }
+                        return true;
+                    } catch { return false; }
+                },
+            };
+            const r = await economia.usarItem(interaction.user.id, interaction.values[0], ctx);
+            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, ephemeral: true });
+
+            const ef = r.efecto;
+            const msg = ef.tipo === 'xpBoost'
+                ? `✨ Has usado **${r.item.nombre}**: ¡XP **x${ef.multiplicador}** durante **${ef.duracionMin} min**! 📈`
+                : `✨ Has usado **${r.item.nombre}**: rol activado durante **${ef.duracionMin} min**. 🎭`;
+            return interaction.reply({ content: msg, ephemeral: true });
+        }
+
         // --- SISTEMA DE ROLES: paneles de autoasignación (se gestionan aparte) ---
         if (interaction.isButton() && (interaction.customId.startsWith('rp_btn:') || interaction.customId.startsWith('rp_verify:'))) {
             return manejarBotonRol(interaction);
