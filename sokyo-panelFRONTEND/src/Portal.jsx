@@ -4,7 +4,9 @@ import { PRESETS_TARJETA } from './presetsTarjeta';
 import MusicaPortal from './components/portal/MusicaPortal';
 import './index.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// En producción la API y el portal se sirven en el mismo dominio: por defecto
+// usamos rutas relativas (mismo origen). Para desarrollo define VITE_API_URL.
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 function Portal() {
   const [token, setToken] = useState(localStorage.getItem('portalToken') || '');

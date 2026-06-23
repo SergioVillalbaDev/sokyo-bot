@@ -5,9 +5,11 @@
 // solo se ha movido aquí para reutilizarla desde los componentes/hooks.
 // ============================================================================
 
-// URL base de la API del bot. Cambia este valor (o define VITE_API_URL en el .env)
-// para apuntar al servidor donde corre el bot, p. ej. 'http://192.168.1.168:3000'.
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// URL base de la API del bot. En producción la API y el panel se sirven en el
+// MISMO dominio, así que por defecto usamos rutas relativas (mismo origen) y no
+// dependemos de localhost. Para desarrollo, define VITE_API_URL en el .env
+// (p. ej. 'http://localhost:3001') apuntando al servidor donde corre el bot.
+export const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Clave de la API: debe coincidir con API_KEY del .env del bot. Se define en VITE_API_KEY.
 export const API_KEY = import.meta.env.VITE_API_KEY || '';

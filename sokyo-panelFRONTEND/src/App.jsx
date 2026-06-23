@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import Landing from './components/landing/Landing';
 import Dashboard from './components/dashboard/Dashboard';
 import StaffLogin from './components/dashboard/StaffLogin';
+import { API_URL } from './lib/api';
 
 const getRoute = () =>
   window.location.hash.replace('#', '').startsWith('dashboard') ? 'dashboard' : 'landing';
@@ -63,7 +64,15 @@ function App() {
 
   if (route === 'dashboard') {
     // Requiere sesión de staff, salvo en modo propietario (VITE_API_KEY presente).
-    if (!staffToken && !hasApiKey) return <StaffLogin error={authError} />;
+    if (!staffToken && !hasApiKey) {
+      // Si hubo un error en el login, mostramos la pantalla con el mensaje
+      // (si no, entraríamos en un bucle de redirección).
+      if (authError) return <StaffLogin error={authError} />;
+      // Sin sesión y sin error: vamos DIRECTOS al login de Discord, sin
+      // pantalla intermedia.
+      window.location.href = `${API_URL}/api/auth/discord?state=staff`;
+      return null;
+    }
     return <Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} />;
   }
   return <Landing onEnterDashboard={goDashboard} />;
