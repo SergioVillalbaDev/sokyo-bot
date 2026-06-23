@@ -1,6 +1,7 @@
 // Portal del Cliente: los usuarios entran con Discord y gestionan SUS tickets.
 import { useState, useEffect, useRef } from 'react';
 import { PRESETS_TARJETA } from './presetsTarjeta';
+import MusicaPortal from './components/portal/MusicaPortal';
 import './index.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -329,6 +330,21 @@ function Portal() {
     );
   }
 
+  // ---------- MÚSICA ----------
+  if (vista === 'musica') {
+    return (
+      <div style={contenedor}>
+        <Cabecera usuario={usuario} onLogout={logout} />
+        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+          <Nav vista={vista} setVista={setVista} />
+          <h1 style={{ marginBottom: '5px' }}>🎵 Música</h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Pon música en tu canal de voz: busca o pega una URL y controla la cola desde aquí.</p>
+          <MusicaPortal portalFetch={portalFetch} />
+        </div>
+      </div>
+    );
+  }
+
   // ---------- LISTA DE MIS TICKETS ----------
   return (
     <div style={contenedor}>
@@ -367,7 +383,7 @@ function Nav({ vista, setVista }) {
       backgroundColor: vista === id ? 'var(--accent-color)' : 'transparent', color: vista === id ? '#fff' : 'var(--text-secondary)',
     }}>{etiqueta}</button>
   );
-  return <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>{tab('tickets', '🎫 Mis Tickets')}{tab('tarjeta', '🎨 Mi tarjeta')}</div>;
+  return <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>{tab('tickets', '🎫 Mis Tickets')}{tab('tarjeta', '🎨 Mi tarjeta')}{tab('musica', '🎵 Música')}</div>;
 }
 
 function Cabecera({ usuario, onLogout }) {

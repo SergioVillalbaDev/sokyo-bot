@@ -86,6 +86,26 @@ const ServidorConfigSchema = new mongoose.Schema({
     canalModLogId: { type: String, default: null },   // canal donde se registran las sanciones
     dmSancion: { type: Boolean, default: true },       // avisar por MD al usuario sancionado
 
+    // --- MÚSICA (Lavalink) ---
+    // Controla quién puede usar la música y cómo se comporta el reproductor.
+    musica: {
+        activo: { type: Boolean, default: true },              // interruptor general de la música
+        canalMusicaId: { type: String, default: null },        // canal de texto donde se anuncia/gestiona la música
+        djRolId: { type: String, default: null },              // si está, SOLO este rol puede controlar
+        soloMismoCanal: { type: Boolean, default: true },      // hay que estar en el mismo canal de voz que el bot
+        volumenDefecto: { type: Number, default: 60 },         // volumen al empezar (0-150)
+        volumenMax: { type: Number, default: 150 },            // tope de volumen que se puede poner
+        maxCola: { type: Number, default: 100 },               // máx. canciones en cola (0 = ilimitada)
+        permitirPlaylists: { type: Boolean, default: true },   // permitir encolar playlists enteras
+        anunciarAhora: { type: Boolean, default: true },       // mensaje "reproduciendo ahora" en Discord
+        autoSalir: { type: Boolean, default: true },           // salir del canal al quedarse solo/sin cola
+        fuentes: {                                             // de dónde se permite reproducir
+            youtube: { type: Boolean, default: true },
+            spotify: { type: Boolean, default: true },
+            soundcloud: { type: Boolean, default: true },
+        },
+    },
+
     // --- AUTOMODERADOR ---
     // Cada filtro tiene su propio `activo`, `accion` (borrar | aviso | timeout | expulsion | ban)
     // y `timeoutMin` (minutos de aislamiento si la acción es timeout). "borrar" solo elimina el

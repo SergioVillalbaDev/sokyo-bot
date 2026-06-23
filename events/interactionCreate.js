@@ -140,6 +140,11 @@ module.exports = {
             return manejarMenuRol(interaction);
         }
 
+        // --- MÚSICA: botones del panel (⏯️ ⏭️ ⏹️ 🔀 🔉 🔊) ---
+        if (interaction.isButton() && interaction.customId.startsWith('music_')) {
+            return require('../utils/musica.js').manejarBotonMusica(interaction, client);
+        }
+
         // --- SEGURIDAD: verificación de entrada (botón + captcha) ---
         if (interaction.isButton() && interaction.customId === 'verif_inicio') return verificacion.manejarInicio(interaction);
         if (interaction.isButton() && interaction.customId === 'verif_introducir') return verificacion.manejarIntroducir(interaction);

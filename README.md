@@ -55,6 +55,14 @@ sokyo-bot/
 - **Auto-respuestas** (expresiones/macros configurables).
 - **Recordatorios** (`!remind`).
 
+### 🎵 Música
+- Reproductor de voz con **Lavalink**: `/play` (URL de **YouTube/Spotify** o búsqueda por nombre),
+  `/skip`, `/stop`, `/queue`, `/nowplaying`, `/pause`, `/resume`, `/volume`.
+- Cola por servidor, anuncio de "reproduciendo ahora" y **salida automática** del canal
+  al quedarse vacío o sin canciones.
+- **Spotify** (canciones, álbumes y playlists) y **YouTube** funcionan de fábrica:
+  Spotify aporta solo los títulos (legal) y el audio sale de YouTube.
+
 ### 🧠 IA y analítica
 - Integración con **Claude** para auditoría/analítica e IA en tickets.
 - **Resumen diario** automático, estadísticas diarias y vista de analítica.
@@ -164,24 +172,38 @@ activa estos *Privileged Gateway Intents* (si no, el bot **no arranca**):
 
 ### 5. Arrancar
 
-Necesitas **dos terminales abiertas a la vez**:
+Necesitas **tres terminales abiertas a la vez** (la de música es opcional si no la usas):
 
 ```bash
-# Terminal 1 — el bot (déjala abierta)
+# Terminal 1 — servidor de música Lavalink (déjala abierta)
+npm run lavalink
+```
+Espera a ver `Lavalink is ready to accept connections`. La primera vez descarga
+los plugins (YouTube y Spotify), así que tarda un poco más.
+
+```bash
+# Terminal 2 — el bot (déjala abierta)
 npm start
 ```
 Deberías ver:
 ```
 🌐 API corriendo en puerto 3000
 🟢 Conectado a MongoDB
+🎵 Lavalink conectado (nodo: sokyo-node)
 🚀 Logged in as TuBot#0000!
 ```
 
 ```bash
-# Terminal 2 — el panel web
+# Terminal 3 — el panel web
 cd sokyo-panelFRONTEND
 npm run dev
 ```
+
+> 🎵 **Música:** necesitas **Java 17+** instalado (para Lavalink). Las URLs de
+> **YouTube y Spotify** (canciones, álbumes y playlists) funcionan sin configurar
+> nada: `npm run lavalink` arranca Lavalink **y** un pequeño servidor de tokens de
+> Spotify (carpeta `spotify-tokener`) a la vez. La primera vez instala sus
+> dependencias con `cd spotify-tokener && npm install`.
 Abre la URL que indica Vite (normalmente <http://localhost:5173>).
 
 > ⚠️ El bot debe estar **encendido** para que el panel cargue datos. Si cierras su terminal,
@@ -209,6 +231,6 @@ Algunos comandos rápidos: `!user [@usuario]` (estadísticas), `!nivel`, `!ranki
 - Los archivos `.env` están en `.gitignore`: cada persona crea el suyo a partir de `.env.example`.
 - Si cambias un `.env`, **reinicia** el proceso correspondiente (Vite no recarga variables en caliente).
 - **Stack:** Node.js, discord.js v14, Express 5, Mongoose, @anthropic-ai/sdk, Stripe,
-  @napi-rs/canvas y React + Vite en el panel.
+  @napi-rs/canvas, Lavalink + lavalink-client (música) y React + Vite en el panel.
 </content>
 </invoke>

@@ -3,13 +3,25 @@ const { registrarVoz } = require('../utils/actividad.js');
 
 module.exports = {
     name: Events.VoiceStateUpdate,
-    async execute(oldState, newState) {
+    async execute(oldState, newState, client) {
         try {
             // Solo cuando ENTRA a un canal de voz (o cambia de uno a otro).
             if (newState.channelId && newState.channelId !== oldState.channelId) {
                 const member = newState.member;
                 if (member && !member.user.bot) {
                     await registrarVoz(newState.guild.id, member, newState.channelId);
+                }
+            }
+
+            // MÚSICA: si el bot se queda solo en su canal de voz, salir y parar.
+            const player = client?.lavalink?.getPlayer(oldState.guild.id);
+            if (player && oldState.channelId && oldState.channelId === player.voiceChannelId) {
+                const canal = oldState.guild.channels.cache.get(player.voiceChannelId);
+                const humanos = canal?.members.filter((m) => !m.user.bot).size ?? 0;
+                if (humanos === 0) {
+                    const texto = client.channels.cache.get(player.textChannelId);
+                    if (texto?.isTextBased()) texto.send('👋 Me he quedado solo, salgo del canal de voz.').catch(() => {});
+                    await player.destroy();
                 }
             }
         } catch (e) { console.error('Error en voiceStateUpdate:', e.message); }

@@ -58,6 +58,10 @@ for (const file of eventFiles) {
     }
 }
 
+// 2.b Motor de música (Lavalink)
+const { initMusica } = require('./utils/musica.js');
+initMusica(client);
+
 // 3. Arrancamos la API pasándole el cliente de Discord
 require('./api/server.js')(client);
 

@@ -286,6 +286,19 @@ export function useDashboard() {
     return false;
   };
 
+  // Guarda la configuración de música del servidor.
+  const guardarMusica = async (cambios) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/musica`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando música:', error); }
+    return false;
+  };
+
   // Crea un panel (el backend lo publica si trae canal). Refresca la lista.
   const crearPanel = async (datos) => {
     try {
@@ -1009,6 +1022,7 @@ export function useDashboard() {
     else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
     else if (activeTab === 'datos-analitica') { cargarConfiguracion(); cargarAnalitica(); }
     else if (activeTab === 'datos-resumen') { cargarConfiguracion(); cargarCanales(); }
+    else if (activeTab === 'musica') { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
     else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); cargarPresetsAnuncio(); }
@@ -1081,6 +1095,7 @@ export function useDashboard() {
     stickers, crearEmoji, eliminarEmoji, crearSticker, eliminarSticker,
     // niveles
     ranking, guardarNiveles,
+    guardarMusica,
     catalogoPresets, guardarCatalogoPresets,
     // productividad: macros + etiquetas
     guardarMacros, guardarEtiquetas,

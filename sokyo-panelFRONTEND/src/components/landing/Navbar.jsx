@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Plus, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, Plus, ArrowRight, UserCircle } from 'lucide-react';
 import { inviteUrl } from '../../lib/landingConfig';
 import LanguageSwitcher from '../LanguageSwitcher';
 
@@ -67,9 +67,15 @@ export default function Navbar({ onEnterDashboard }) {
 
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
+            <a
+              href="/?portal=1"
+              className="hidden items-center gap-1.5 rounded-lg border border-line bg-card/60 px-3.5 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated sm:flex"
+            >
+              <UserCircle size={16} /> {t('landing.nav.accountBtn')}
+            </a>
             <button
               onClick={onEnterDashboard}
-              className="hidden items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-muted transition-colors hover:text-fg sm:flex"
+              className="hidden items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-muted transition-colors hover:text-fg lg:flex"
             >
               <LayoutDashboard size={16} /> {t('landing.nav.panelBtn')}
             </button>

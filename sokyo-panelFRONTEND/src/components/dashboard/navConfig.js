@@ -7,6 +7,7 @@ import {
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
   UserCheck, Flag, DatabaseBackup, FlaskConical,
   Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
+  Music,
 } from 'lucide-react';
 
 // Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
@@ -39,6 +40,13 @@ export const navGroups = [
       { tab: 'prod-bienvenidas', icon: Sparkles },
       { tab: 'roles-autorol', icon: UserPlus },
       { tab: 'config-niveles', icon: TrendingUp },
+    ],
+  },
+  {
+    id: 'musica',
+    icon: Music,
+    items: [
+      { tab: 'musica', icon: Music },
     ],
   },
   {

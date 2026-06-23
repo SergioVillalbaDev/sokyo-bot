@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const fs = require('fs');
 const path = require('path');
 const { ChannelType, PermissionsBitField, AttachmentBuilder } = require('discord.js');
@@ -38,6 +40,11 @@ module.exports = (client) => {
     const port = process.env.PORT || 3000;
     const API_KEY = process.env.API_KEY;
 
+    // En producción el bot va detrás de un proxy/HTTPS (Nginx, Cloudflare…). Sin esto
+    // express-rate-limit vería la IP del proxy y no la real del visitante. Se activa
+    // con TRUST_PROXY en el .env (p. ej. 1 = un salto). En local se deja sin tocar.
+    if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
+
     // --- Configuración del Portal del Cliente (login con Discord) ---
     const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
     const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
@@ -54,6 +61,18 @@ module.exports = (client) => {
     const BROADCAST_IDS = new Set((process.env.BROADCAST_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 
     app.use(cors());
+
+    // --- CABECERAS DE SEGURIDAD (helmet) ---
+    // Añade cabeceras que protegen frente a ataques comunes (clickjacking, sniffing…).
+    // - contentSecurityPolicy: false → el panel es una SPA aparte (otro origen) y
+    //   servimos páginas propias (public/tienda.html) con scripts; una CSP estricta
+    //   las rompería. Se puede afinar más adelante con una CSP a medida.
+    // - crossOriginResourcePolicy cross-origin → el panel (otro origen) debe poder
+    //   cargar las imágenes servidas en /uploads.
+    app.use(helmet({
+        contentSecurityPolicy: false,
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }));
 
     // --- WEBHOOK DE STRIPE ---
     // DEBE ir ANTES de express.json: Stripe firma el cuerpo CRUDO y hay que
@@ -92,6 +111,30 @@ module.exports = (client) => {
     if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
         console.warn('⚠️  DISCORD_CLIENT_ID/SECRET no definidos: el Portal del Cliente (login con Discord) estará desactivado.');
     }
+
+    // --- LÍMITE DE PETICIONES (rate limiting) ---
+    // Evita que alguien martillee la API (fuerza bruta del login, abuso de endpoints…).
+    // OJO: el webhook de Stripe se registró ANTES, así que NO pasa por estos límites.
+    // El panel hace polling, por eso el límite general es holgado.
+    const limitadorGeneral = rateLimit({
+        windowMs: 60 * 1000,           // ventana de 1 minuto
+        max: 600,                      // 600 peticiones/min por IP
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Demasiadas peticiones, espera un momento.' },
+    });
+
+    // Mucho más estricto en el login/OAuth: ahí no hay polling y es lo que más se abusa.
+    const limitadorAuth = rateLimit({
+        windowMs: 60 * 1000,
+        max: 30,                       // 30 intentos/min por IP
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Demasiados intentos de inicio de sesión, espera un minuto.' },
+    });
+
+    app.use('/api/auth', limitadorAuth);   // primero el específico del login
+    app.use('/api', limitadorGeneral);     // y el general para el resto de la API
 
     // Calcula en qué servidores (de los que tiene el bot) el usuario es staff:
     // tiene el rol de soporte configurado, o permiso de gestionar canales / admin.
@@ -157,6 +200,9 @@ module.exports = (client) => {
 
     // --- Sistema de economía y tienda (rutas en api/routes/economia.js) ---
     app.use('/api', require('./routes/economia.js')({ portalAuth }));
+
+    // --- Sistema de música (rutas en api/routes/musica.js) ---
+    app.use('/api', require('./routes/musica.js')({ portalAuth, client }));
 
     // --- Endurecimiento: acota las acciones por ticket (por canalId) ---
     // Si la petición viene de un staff, el ticket debe pertenecer a uno de SUS
@@ -2632,6 +2678,26 @@ app.get('/api/stats/uso', async (req, res) => {
             res.status(500).json({ error: 'No se pudo abrir el portal' });
         }
     });
+
+    // --- Frontend del panel (SPA de React, compilada con `npm run build`) ---
+    // Servimos el build del panel desde el MISMO proceso y origen que la API.
+    // Así un único dominio (p. ej. dashboard.sokyo.studio) sirve la web Y la API
+    // sin problemas de CORS y con un solo túnel/proxy por delante.
+    const panelDist = path.join(__dirname, '..', 'sokyo-panelFRONTEND', 'dist');
+    if (fs.existsSync(panelDist)) {
+        app.use(express.static(panelDist));
+        // Fallback SPA: las rutas que no son de la API ni archivos subidos
+        // devuelven index.html para que el enrutado del cliente
+        // (?portal=1 y #dashboard) funcione al recargar o entrar directo.
+        app.use((req, res, next) => {
+            if (req.method !== 'GET') return next();
+            if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
+            res.sendFile(path.join(panelDist, 'index.html'));
+        });
+        console.log('🖥️  Panel web servido desde sokyo-panelFRONTEND/dist');
+    } else {
+        console.warn('ℹ️  No se encontró sokyo-panelFRONTEND/dist; ejecuta "npm run build" en el panel para servir la web desde la API.');
+    }
 
     app.listen(port, () => console.log(`🌐 API corriendo en puerto ${port}`));
 };

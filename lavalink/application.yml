@@ -1,0 +1,70 @@
+# --- Configuración del servidor Lavalink (motor de música de Sokyo) ---
+# Lavalink es un programa Java aparte que procesa el audio. El bot le manda
+# órdenes y Lavalink reproduce en Discord. Arráncalo con:  npm run lavalink
+#
+# La contraseña y las claves de Spotify se leen del .env del bot (gracias al
+# lanzador scripts/lavalink.js). No hace falta tocar nada aquí en condiciones
+# normales.
+
+server:
+  port: ${LAVALINK_PORT:2333}
+  address: 127.0.0.1            # Solo accesible desde este PC (seguro)
+
+plugins:
+  # Plugin de YouTube (la fuente de audio real). Sustituye al YouTube interno
+  # de Lavalink, que está obsoleto.
+  youtube:
+    enabled: true
+    clients:
+      - MUSIC
+      - ANDROID_VR
+      - WEB
+      - WEBEMBEDDED
+  # LavaSrc: permite pegar URLs de Spotify. Lee solo los TÍTULOS de Spotify y
+  # reproduce el audio desde YouTube (modo "mirror", igual que Jockie).
+  # Funciona en cuanto pongas SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET en el .env.
+  lavasrc:
+    providers:
+      - 'ytsearch:"%ISRC%"'   # busca por código ISRC (coincidencia exacta)
+      - 'ytsearch:%QUERY%'    # si no, por nombre + artista
+    sources:
+      spotify: true
+      deezer: false
+      applemusic: false
+      yandexmusic: false
+    spotify:
+      countryCode: 'ES'
+      # SIN clientId/secret a propósito: así LavaSrc usa SOLO el token anónimo del
+      # servidor local (carpeta spotify-tokener, arranca con "npm run lavalink"),
+      # que sí puede cargar álbumes, playlists y búsquedas (la API oficial con la
+      # app en modo desarrollo da 403). El servidor de tokens debe estar encendido.
+      preferPartnerApi: true
+      customTokenEndpoint: 'http://127.0.0.1:37353/api/getToken'
+
+lavalink:
+  plugins:
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.1"
+      repository: "https://maven.lavalink.dev/releases"
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
+      repository: "https://maven.lavalink.dev/releases"
+  server:
+    password: "${LAVALINK_PASSWORD:sokyolavalink}"
+    sources:
+      youtube: false           # lo aporta el plugin de arriba
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      http: true               # streams de radio y URLs directas
+      local: true              # archivos de música propios
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    youtubePlaylistLoadLimit: 6
+    playerUpdateInterval: 5
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+
+logging:
+  level:
+    root: INFO
+    lavalink: INFO

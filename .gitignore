@@ -8,3 +8,9 @@ build/
 # Ignora todo el contenido de la carpeta pero mantiene la carpeta en el repo.
 api/uploads/*
 !api/uploads/.gitkeep
+
+# Lavalink: el .jar (~96MB) y los plugins se descargan, no van al repo.
+# La configuración (application.yml) SÍ se sube.
+lavalink/Lavalink.jar
+lavalink/plugins/
+lavalink/logs/
