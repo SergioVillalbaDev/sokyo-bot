@@ -12,16 +12,31 @@ for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
+// Modo de registro según el argumento:
+//   node deploy-commands.js        -> GLOBAL: aparecen en TODOS los servidores donde
+//                                     está el bot (la 1ª vez tardan hasta ~1h en salir).
+//   node deploy-commands.js dev    -> SOLO en el servidor de pruebas (GUILD_ID),
+//                                     aparecen al instante. Ideal para desarrollar.
+const modoDev = process.argv[2] === 'dev';
+
 (async () => {
     try {
-        console.log(`Registrando ${commands.length} slash commands...`);
-        // Por GUILD = aparecen al instante (ideal para probar). Necesitas GUILD_ID en el .env.
-        // Para todos los servidores usa Routes.applicationCommands(CLIENT_ID) (tarda hasta 1h).
-        await rest.put(
-            Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.GUILD_ID),
-            { body: commands },
-        );
-        console.log('✅ Comandos registrados.');
+        if (modoDev) {
+            if (!process.env.GUILD_ID) throw new Error('Falta GUILD_ID en el .env para el modo dev.');
+            console.log(`Registrando ${commands.length} slash commands en el servidor de pruebas...`);
+            await rest.put(
+                Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.GUILD_ID),
+                { body: commands },
+            );
+            console.log('✅ Comandos registrados en el servidor de pruebas (instantáneo).');
+        } else {
+            console.log(`Registrando ${commands.length} slash commands GLOBALMENTE (todos los servidores)...`);
+            await rest.put(
+                Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
+                { body: commands },
+            );
+            console.log('✅ Comandos registrados globalmente. Pueden tardar hasta ~1h en aparecer en todos los servidores.');
+        }
     } catch (e) {
         console.error(e);
     }
