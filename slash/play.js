@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { gateMusica, formatDuration, COLOR_MUSICA } = require('../utils/musica.js');
+const { gateMusica, formatDuration, COLOR_MUSICA, buscarMusica } = require('../utils/musica.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -30,10 +30,10 @@ module.exports = {
 
         if (!player.connected) await player.connect();
 
-        // 3. Buscar lo que pidió el usuario (URL o texto).
+        // 3. Buscar lo que pidió el usuario (URL o texto). Prioriza YouTube Music.
         let res;
         try {
-            res = await player.search({ query }, interaction.user);
+            res = await buscarMusica(player, query, interaction.user);
         } catch (e) {
             return interaction.editReply(`❌ No pude buscar eso: ${e.message}`);
         }

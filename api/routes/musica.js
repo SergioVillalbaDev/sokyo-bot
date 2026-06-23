@@ -8,7 +8,7 @@
 const express = require('express');
 const ServidorConfig = require('../../models/ServidorConfig.js');
 const {
-    getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON,
+    getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON, buscarMusica,
 } = require('../../utils/musica.js');
 
 module.exports = ({ portalAuth, client }) => {
@@ -22,12 +22,11 @@ module.exports = ({ portalAuth, client }) => {
         return null;
     }
 
-    // Busca pistas: si es URL la resuelve tal cual; si es texto, busca en YouTube.
+    // Busca pistas priorizando YouTube Music (versión oficial); ver buscarMusica.
     async function buscar(query, requester) {
         const node = nodoConectado();
         if (!node) throw new Error('motor-apagado');
-        const esUrl = /^https?:\/\//i.test(query) || query.startsWith('spotify:');
-        return node.search(esUrl ? { query } : { query, source: 'ytsearch' }, requester);
+        return buscarMusica(node, query, requester);
     }
 
     // ¿De qué fuente es esta consulta? (para respetar las fuentes permitidas).

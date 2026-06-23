@@ -270,7 +270,7 @@ function initMusica(client) {
             client.guilds.cache.get(guildId)?.shard?.send(payload),
         autoSkip: true,
         playerOptions: {
-            defaultSearchPlatform: 'ytsearch', // YouTube (en la fase 2 añadimos Spotify)
+            defaultSearchPlatform: 'ytmsearch', // YouTube Music: prioriza la versión oficial
             onEmptyQueue: { destroyAfterMs: 60_000 }, // sale del canal 1 min tras quedarse sin cola
             onDisconnect: { autoReconnect: true, destroyPlayer: false },
         },
@@ -316,8 +316,27 @@ function initMusica(client) {
     return client.lavalink;
 }
 
+// Busca pistas priorizando la versión OFICIAL de la canción:
+//   1. Si es una URL (YouTube/Spotify/…), la resuelve tal cual.
+//   2. Si es texto, busca primero en YouTube MUSIC (ytmsearch) -> devuelve la
+//      canción/álbum oficial en vez de un vídeo random (lives, covers, loops…).
+//   3. Si Music no encuentra nada (p. ej. algo que no es música), cae a
+//      YouTube normal (ytsearch) para no quedarse sin resultados.
+// `buscador` puede ser un player o un nodo de Lavalink (ambos tienen .search).
+async function buscarMusica(buscador, query, requester) {
+    const esUrl = /^https?:\/\//i.test(query) || query.startsWith('spotify:');
+    if (esUrl) return buscador.search({ query }, requester);
+
+    const hayResultados = (r) => r && r.tracks?.length && r.loadType !== 'empty' && r.loadType !== 'error';
+
+    const enMusic = await buscador.search({ query, source: 'ytmsearch' }, requester);
+    if (hayResultados(enMusic)) return enMusic;
+
+    return buscador.search({ query, source: 'ytsearch' }, requester); // respaldo
+}
+
 module.exports = {
     initMusica, formatDuration, ensureVoice, gateMusica, COLOR_MUSICA,
     getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON,
-    manejarBotonMusica, MUSICA_DEFAULTS,
+    manejarBotonMusica, MUSICA_DEFAULTS, buscarMusica,
 };
