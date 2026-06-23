@@ -1,8 +1,10 @@
 // Datos NO traducibles de la landing (enlaces, colores, anchos de barras…).
 // El texto vive en src/i18n/locales/*. Aquí solo lo que no cambia entre idiomas.
 
-// // TODO: DESIGN TEAM — enlace de invitación real del bot (OAuth de Discord)
-export const inviteUrl = 'https://discord.com/oauth2/authorize';
+// Enlace de invitación del bot (OAuth de Discord).
+// permissions=8 -> Administrador (gestiona tickets, roles, moderación y voz).
+// scope bot+applications.commands -> entra como bot y habilita los slash commands.
+export const inviteUrl = 'https://discord.com/oauth2/authorize?client_id=1512125911439376506&permissions=8&scope=bot+applications.commands';
 
 // Clases de color (acento) de cada stat, en el mismo orden que landing.stats.
 export const statsAccent = ['text-brand', 'text-emerald-400', 'text-lime-300', 'text-zinc-200'];
