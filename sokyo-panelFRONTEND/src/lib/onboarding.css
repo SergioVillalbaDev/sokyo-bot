@@ -189,19 +189,29 @@
 }
 .sokyo-focus.is-visible { opacity: 1; }
 
-/* Anillo de energía giratorio (gradiente de marca enmascarado como borde) */
+/* Ángulo animable del degradado (rota el COLOR, no el elemento) */
+@property --sokyo-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Anillo de energía: el destello recorre el borde girando el ángulo del
+   degradado. El rectángulo NO se mueve (nada de transform: rotate). */
 .sokyo-focus__ring {
   position: absolute;
   inset: -2px;
   border-radius: 18px;
   padding: 2px;
   background: conic-gradient(
-    from 0deg,
+    from var(--sokyo-angle),
     transparent 0deg,
-    color-mix(in srgb, var(--brand-to) 0%, transparent) 30deg,
-    var(--brand-to) 130deg,
-    var(--brand-from) 210deg,
-    transparent 320deg
+    color-mix(in srgb, var(--brand-to) 30%, transparent) 40deg,
+    var(--brand-to) 120deg,
+    var(--brand-from) 175deg,
+    color-mix(in srgb, var(--brand-from) 30%, transparent) 210deg,
+    transparent 250deg,
+    transparent 360deg
   );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -211,9 +221,11 @@
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
-  animation: sokyo-spin 2.4s linear infinite;
+  animation: sokyo-sweep 2.6s linear infinite;
 }
-@keyframes sokyo-spin { to { transform: rotate(1turn); } }
+@keyframes sokyo-sweep {
+  to { --sokyo-angle: 360deg; }
+}
 
 /* Halo pulsante alrededor del elemento */
 .sokyo-focus__glow {
@@ -231,34 +243,8 @@
   50% { opacity: 1; }
 }
 
-/* Destello que recorre el borde, en sentido contrario al anillo (más vida) */
-.sokyo-focus__sheen {
-  position: absolute;
-  inset: -2px;
-  border-radius: 18px;
-  padding: 2px;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    color-mix(in srgb, var(--brand-to) 95%, white) 12deg,
-    transparent 40deg,
-    transparent 360deg
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  animation: sokyo-spin 1.9s linear infinite reverse;
-}
-
 /* Respeta a quien prefiere menos movimiento */
 @media (prefers-reduced-motion: reduce) {
   .sokyo-focus__ring,
-  .sokyo-focus__glow,
-  .sokyo-focus__sheen { animation: none; }
-  .sokyo-focus__sheen { display: none; }
+  .sokyo-focus__glow { animation: none; }
 }

@@ -40,8 +40,7 @@ const ensureFocus = () => {
   focusEl.setAttribute('aria-hidden', 'true');
   focusEl.innerHTML =
     '<div class="sokyo-focus__ring"></div>' +
-    '<div class="sokyo-focus__glow"></div>' +
-    '<div class="sokyo-focus__sheen"></div>';
+    '<div class="sokyo-focus__glow"></div>';
   document.body.appendChild(focusEl);
   return focusEl;
 };
