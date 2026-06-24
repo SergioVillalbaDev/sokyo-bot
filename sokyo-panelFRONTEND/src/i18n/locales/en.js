@@ -205,6 +205,34 @@ export default {
       greetingSub: 'Here’s how your support system is doing today.',
       search: 'Search tickets...',
     },
+    onboarding: {
+      skip: 'Skip tour',
+      next: 'Next →',
+      prev: '← Back',
+      done: 'All set! 🎉',
+      progress: '{{current}} of {{total}}',
+      welcome: {
+        title: '👋 Welcome to Sokyo!',
+        desc: 'Let me show you the essentials in 30 seconds. Ready?',
+      },
+      stats: {
+        title: '📊 Your server at a glance',
+        desc: 'Tickets, team and activity in real time. Your command center.',
+      },
+      tickets: {
+        title: '🎫 Ticket System',
+        desc: 'Your community’s support: create, assign and close without leaving here.',
+      },
+      community: {
+        title: '⚡ Hook your members',
+        desc: 'Turn on levels, XP and welcomes to grow your community.',
+      },
+      help: {
+        title: '💡 Lost?',
+        desc: 'Tap here anytime to replay this tour. Enjoy!',
+        aria: 'Replay the tutorial',
+      },
+    },
     theme: {
       button: 'Theme',
       title: 'Appearance',

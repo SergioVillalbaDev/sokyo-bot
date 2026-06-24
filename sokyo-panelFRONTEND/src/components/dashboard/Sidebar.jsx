@@ -127,6 +127,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           return (
             <div key={group.id}>
               <button
+                data-tour={`nav-${group.id}`}
                 onClick={() => toggleGroup(group.id)}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',

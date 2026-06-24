@@ -1,8 +1,9 @@
 // Header superior del dashboard — saludo + buscador + idioma + tema.
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, HelpCircle } from 'lucide-react';
 import { metaKey } from './navConfig';
+import { startOnboarding } from '../../lib/onboarding';
 import ThemePicker from './ThemePicker';
 import LanguageSwitcher from '../LanguageSwitcher';
 
@@ -41,6 +42,16 @@ export default function Header({ dash }) {
             className="w-52 rounded-full border border-line bg-card py-2.5 pl-10 pr-4 text-sm text-fg outline-none transition-all focus:w-64 focus:ring-2 focus:ring-brand/30"
           />
         </div>
+
+        <button
+          data-tour="help"
+          onClick={() => startOnboarding(t)}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated"
+          aria-label={t('dashboard.onboarding.help.aria')}
+          title={t('dashboard.onboarding.help.aria')}
+        >
+          <HelpCircle size={17} />
+        </button>
 
         <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated" aria-label="Notificaciones">
           <Bell size={17} />

@@ -58,7 +58,7 @@ export default function InicioView({ dash }) {
       {/* ===================== COLUMNA PRINCIPAL ===================== */}
       <div className="space-y-5">
         {/* Tarjetas rápidas */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div data-tour="stats" className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {quickStats.map((s, i) => (
             <motion.div
               key={s.id}

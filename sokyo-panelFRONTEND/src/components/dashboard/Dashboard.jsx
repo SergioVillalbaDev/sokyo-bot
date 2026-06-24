@@ -1,10 +1,11 @@
 // Contenedor del Dashboard — une el layout (Sidebar + Header) con las vistas.
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
+import { maybeStartOnboarding } from '../../lib/onboarding';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import InicioView from './views/InicioView';
@@ -52,6 +53,16 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     setCollapsed(next);
     localStorage.setItem('sokyoSidebarCollapsed', next ? '1' : '0');
   };
+
+  // Onboarding: la PRIMERA vez que se entra al panel, lanza el tour guiado.
+  // El pequeño retardo da tiempo a que monten el sidebar y la vista de inicio.
+  const onboardingLanzado = useRef(false);
+  useEffect(() => {
+    if (onboardingLanzado.current || activeTab !== 'inicio') return;
+    onboardingLanzado.current = true;
+    const id = setTimeout(() => maybeStartOnboarding(t), 700);
+    return () => clearTimeout(id);
+  }, [activeTab, t]);
 
   // Navegación desde el sidebar: al ir a "Gestión" cerramos el chat abierto.
   const navigate = (tab) => {
