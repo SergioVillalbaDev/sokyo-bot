@@ -1,16 +1,21 @@
 // Header superior del dashboard — saludo + buscador + idioma + tema.
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell, HelpCircle, Menu } from 'lucide-react';
+import { Search, Bell, HelpCircle, Menu, ChevronDown } from 'lucide-react';
 import { metaKey } from './navConfig';
 import { startOnboarding } from '../../lib/onboarding';
 import OwnerBadge from './OwnerBadge';
 import ThemePicker from './ThemePicker';
 import LanguageSwitcher from '../LanguageSwitcher';
+import { Avatar } from '../ui/primitives';
 
 export default function Header({ dash, onOpenMenu }) {
   const { t } = useTranslation();
-  const { activeTab, theme, setTheme, esPremium, servidorInfo, query, setQuery, ticketsReales } = dash;
+  const { activeTab, theme, setTheme, esPremium, servidorInfo, query, setQuery, ticketsReales, servidores, guildId, setMostrarSelectorServidor } = dash;
+  // Servidor activo: visible siempre (también en móvil) para no perderse de cuál
+  // se está gestionando. Si hay varios, al pulsarlo se abre el selector.
+  const servActivo = (servidores || []).find((s) => s.id === guildId);
+  const variosServidores = (servidores || []).length > 1;
   const ticketsAbiertos = ticketsReales.filter((tk) => tk.estado !== 'Cerrado').length;
   const enInicio = activeTab === 'inicio';
   const mk = metaKey(activeTab);
@@ -45,6 +50,20 @@ export default function Header({ dash, onOpenMenu }) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Servidor activo (siempre visible; clicable si hay varios) */}
+        {servActivo && (
+          <button
+            onClick={() => variosServidores && setMostrarSelectorServidor(true)}
+            disabled={!variosServidores}
+            title={variosServidores ? t('dashboard.header.changeServer') : servActivo.nombre}
+            className="flex max-w-[44vw] items-center gap-2 rounded-full border border-line bg-card py-1.5 pl-1.5 pr-3 transition-colors enabled:hover:bg-elevated disabled:cursor-default sm:max-w-[220px]"
+          >
+            <Avatar src={servActivo.icono} name={servActivo.nombre} size={26} />
+            <span className="min-w-0 truncate text-sm font-semibold text-fg">{servActivo.nombre}</span>
+            {variosServidores && <ChevronDown size={14} className="shrink-0 text-muted" />}
+          </button>
+        )}
+
         <OwnerBadge />
 
         <div className="relative hidden md:block">

@@ -21,7 +21,14 @@ export function useDashboard() {
   // Servidor (guild) seleccionado en el panel + lista de servidores del bot.
   const [guildId, setGuildIdState] = useState(() => localStorage.getItem('sokyoGuild') || '');
   const [servidores, setServidores] = useState([]);
-  const setGuildId = (id) => { setGuildIdState(id); localStorage.setItem('sokyoGuild', id || ''); };
+  // Modal "elige servidor": se muestra al entrar si hay varios y aún no se eligió
+  // uno en ESTE dispositivo (localStorage es por navegador, de ahí la confusión).
+  const [mostrarSelectorServidor, setMostrarSelectorServidor] = useState(false);
+  const setGuildId = (id) => {
+    setGuildIdState(id);
+    localStorage.setItem('sokyoGuild', id || '');
+    if (id) setMostrarSelectorServidor(false); // al elegir, cerramos el modal
+  };
   // Sufijo de query con el servidor activo (para filtrar las llamadas a la API).
   const gp = () => (guildId ? `?guildId=${guildId}` : '');
 
@@ -989,7 +996,10 @@ export function useDashboard() {
   }, [esPremium, theme]);
 
   useEffect(() => {
-    if (!guildId && servidores.length > 0) setGuildId(servidores[0].id);
+    if (guildId || servidores.length === 0) return;
+    // Un solo servidor: entrar directo. Varios: preguntar cuál gestionar.
+    if (servidores.length === 1) setGuildId(servidores[0].id);
+    else setMostrarSelectorServidor(true);
   }, [servidores, guildId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -1050,7 +1060,7 @@ export function useDashboard() {
     // estado tema / navegación
     theme, setTheme, activeTab, setActiveTab,
     // multi-servidor
-    guildId, setGuildId, servidores,
+    guildId, setGuildId, servidores, mostrarSelectorServidor, setMostrarSelectorServidor,
     // buscador
     query, setQuery,
     // uso de memoria / servidor

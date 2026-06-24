@@ -8,6 +8,7 @@ import { useDashboard } from '../../hooks/useDashboard';
 import { maybeStartOnboarding } from '../../lib/onboarding';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import ServerPicker from './ServerPicker';
 import InicioView from './views/InicioView';
 import TicketsView from './views/TicketsView';
 import ChatView from './views/ChatView';
@@ -45,7 +46,7 @@ import MusicaView from './views/MusicaView';
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
   const dash = useDashboard();
-  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId, misPermisos } = dash;
+  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId, misPermisos, mostrarSelectorServidor, setMostrarSelectorServidor } = dash;
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sokyoSidebarCollapsed') === '1');
   const toggleCollapsed = (value) => {
@@ -159,6 +160,14 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
           </AnimatePresence>
         </main>
       </div>
+
+      <ServerPicker
+        abierto={mostrarSelectorServidor && servidores.length > 1}
+        servidores={servidores}
+        guildId={guildId}
+        onSeleccionar={setGuildId}
+        onCerrar={() => setMostrarSelectorServidor(false)}
+      />
     </div>
   );
 }

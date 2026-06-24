@@ -204,6 +204,7 @@ export default {
       greeting: '¡Hola, {{name}}! 👋',
       greetingSub: 'Este es el estado de tu sistema de soporte hoy.',
       search: 'Buscar tickets...',
+      changeServer: 'Cambiar de servidor',
     },
     onboarding: {
       skip: 'Saltar tutorial',
