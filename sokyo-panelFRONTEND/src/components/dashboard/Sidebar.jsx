@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronLeft, ChevronRight, Home, LayoutDashboard, LogOut, Crown } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Home, LayoutDashboard, LogOut, Crown, X } from 'lucide-react';
 import { navGroups } from './navConfig';
 import { Avatar } from '../ui/primitives';
 import { cn } from '../../lib/cn';
@@ -10,7 +10,7 @@ import { getStaffSession } from '../../lib/api';
 
 const esOwner = !!getStaffSession()?.owner;
 
-export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, onExitToLanding, servidorInfo, esPremium, servidores = [], guildId, setGuildId, permisos, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, mobileOpen, setMobileOpen, onExitToLanding, servidorInfo, esPremium, servidores = [], guildId, setGuildId, permisos, onLogout }) {
   const { t } = useTranslation();
   const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
 
@@ -30,11 +30,28 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
   const inicioActivo = activeTab === 'inicio';
 
   return (
-    <motion.aside
-      animate={{ width: collapsed ? 80 : 270 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="relative z-20 flex h-screen flex-col bg-sidebar p-3"
-    >
+    <>
+      {/* Fondo oscuro detrás del drawer (solo móvil) */}
+      <div
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+        className={cn(
+          'fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden',
+          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        )}
+      />
+
+      <aside
+        className={cn(
+          // Móvil: drawer deslizable fijo a la izquierda.
+          'fixed inset-y-0 left-0 z-50 flex h-screen w-[270px] flex-col bg-sidebar p-3 shadow-2xl',
+          'transition-[transform,width] duration-300 ease-out',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          // Escritorio (lg+): fijo en el layout, sin sombra, con colapso.
+          'lg:relative lg:z-20 lg:translate-x-0 lg:shadow-none',
+          collapsed ? 'lg:w-20' : 'lg:w-[270px]'
+        )}
+      >
       {/* Logo */}
       <div className="flex h-12 items-center gap-2.5 px-2">
         {/* // TODO: DESIGN TEAM — logo oficial */}
@@ -47,12 +64,21 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
             </motion.span>
           )}
         </AnimatePresence>
+
+        {/* Cerrar drawer (solo móvil) */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-elevated hover:text-fg lg:hidden"
+          aria-label="Cerrar menú"
+        >
+          <X size={18} />
+        </button>
       </div>
 
-      {/* Botón de colapso */}
+      {/* Botón de colapso (solo escritorio) */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 z-30 flex h-6 w-6 items-center justify-center rounded-full border border-line bg-card text-muted shadow-md transition-colors hover:text-fg"
+        className="absolute -right-3 top-6 z-30 hidden h-6 w-6 items-center justify-center rounded-full border border-line bg-card text-muted shadow-md transition-colors hover:text-fg lg:flex"
         aria-label="Colapsar menú"
       >
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -199,6 +225,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           {!collapsed && <span>{t('dashboard.auth.logout')}</span>}
         </button>
       )}
-    </motion.aside>
+      </aside>
+    </>
   );
 }

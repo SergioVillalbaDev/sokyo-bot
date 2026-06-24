@@ -54,6 +54,9 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     localStorage.setItem('sokyoSidebarCollapsed', next ? '1' : '0');
   };
 
+  // Menú lateral como "drawer" en móvil (en escritorio es fijo).
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   // Onboarding: la PRIMERA vez que se entra al panel, lanza el tour guiado.
   // El pequeño retardo da tiempo a que monten el sidebar y la vista de inicio.
   const onboardingLanzado = useRef(false);
@@ -65,9 +68,11 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
   }, [activeTab, t]);
 
   // Navegación desde el sidebar: al ir a "Gestión" cerramos el chat abierto.
+  // En móvil, además cerramos el drawer al elegir una sección.
   const navigate = (tab) => {
     if (tab === 'tickets-gestion') setTicketSeleccionado(null);
     setActiveTab(tab);
+    setMobileOpen(false);
   };
 
   const renderView = () => {
@@ -115,6 +120,8 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
         setActiveTab={navigate}
         collapsed={collapsed}
         setCollapsed={toggleCollapsed}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
         onExitToLanding={onExitToLanding}
         servidorInfo={servidorInfo}
         esPremium={esPremium}
@@ -126,9 +133,9 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header dash={dash} />
+        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} />
 
-        <main className="flex-1 overflow-y-auto p-6 sm:p-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {errorConexion && (
             <div className="mb-6 rounded-2xl border border-danger/40 bg-danger/10 p-5">
               <p className="flex items-center gap-2 font-semibold text-danger">

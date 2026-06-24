@@ -1,13 +1,13 @@
 // Header superior del dashboard — saludo + buscador + idioma + tema.
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell, HelpCircle } from 'lucide-react';
+import { Search, Bell, HelpCircle, Menu } from 'lucide-react';
 import { metaKey } from './navConfig';
 import { startOnboarding } from '../../lib/onboarding';
 import ThemePicker from './ThemePicker';
 import LanguageSwitcher from '../LanguageSwitcher';
 
-export default function Header({ dash }) {
+export default function Header({ dash, onOpenMenu }) {
   const { t } = useTranslation();
   const { activeTab, theme, setTheme, esPremium, servidorInfo, query, setQuery, ticketsReales } = dash;
   const ticketsAbiertos = ticketsReales.filter((tk) => tk.estado !== 'Cerrado').length;
@@ -16,8 +16,18 @@ export default function Header({ dash }) {
 
   return (
     <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-line bg-bg/80 px-6 py-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-8">
-      <motion.div key={activeTab} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        {enInicio ? (
+      <div className="flex items-center gap-3">
+        {/* Abrir menú (solo móvil) */}
+        <button
+          onClick={onOpenMenu}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated lg:hidden"
+          aria-label="Abrir menú"
+        >
+          <Menu size={18} />
+        </button>
+
+        <motion.div key={activeTab} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          {enInicio ? (
           <>
             <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-[1.7rem]">
               {t('dashboard.header.greeting', { name: servidorInfo?.nombre || 'servidor' })}
@@ -30,7 +40,8 @@ export default function Header({ dash }) {
             <p className="mt-0.5 text-sm text-muted">{t(`dashboard.meta.${mk}.subtitle`)}</p>
           </>
         )}
-      </motion.div>
+        </motion.div>
+      </div>
 
       <div className="flex items-center gap-3">
         <div className="relative hidden md:block">

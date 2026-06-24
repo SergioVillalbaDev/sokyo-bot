@@ -107,9 +107,20 @@ const buildSteps = (t) => {
  * blanco ni señala al vacío.
  */
 export const startOnboarding = (t) => {
-  const steps = buildSteps(t).filter(
-    (s) => !s.element || document.querySelector(s.element),
-  );
+  // Un paso es válido si no tiene elemento (centrado) o si su elemento existe Y
+  // está visible en pantalla. En móvil el menú lateral está oculto (drawer),
+  // así que sus pasos se descartan en vez de señalar fuera de la vista.
+  const isUsable = (sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return (
+      r.width > 0 && r.height > 0 &&
+      r.right > 0 && r.bottom > 0 &&
+      r.left < window.innerWidth && r.top < window.innerHeight
+    );
+  };
+  const steps = buildSteps(t).filter((s) => !s.element || isUsable(s.element));
   if (steps.length === 0) return;
 
   let activeEl = null;
