@@ -379,7 +379,11 @@ export default function MusicaView({ dash }) {
     if (importandoLiked) return;
     setImportandoLiked(true);
     try {
-      const r = await apiFetch('/api/portal/spotify/liked/importar', { method: 'POST' });
+      const r = await apiFetch('/api/portal/spotify/liked/importar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: 'Mis me gusta de Spotify' }),
+      });
       const data = await r.json();
       if (data.error) setSpMsg({ tipo: 'err', texto: data.error });
       else {

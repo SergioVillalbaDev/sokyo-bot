@@ -261,7 +261,7 @@ module.exports = ({ portalAuth }) => {
 
             if (!canciones.length) return res.status(400).json({ error: 'No tienes canciones que te gusten en Spotify.' });
 
-            const nombre = String(req.body.nombre || 'Mis me gusta de Spotify').trim().slice(0, 100);
+            const nombre = String(req.body?.nombre || 'Mis me gusta de Spotify').trim().slice(0, 100);
             const p = await Playlist.create({ userId: req.usuario.id, nombre, canciones });
             res.status(201).json({ ok: true, _id: p._id, nombre: p.nombre, total: canciones.length });
         } catch (e) {
@@ -300,7 +300,7 @@ module.exports = ({ portalAuth }) => {
                 offset += 50;
             }
 
-            const nombre = String(req.body.nombre || plInfo.name || 'Playlist de Spotify').trim().slice(0, 100);
+            const nombre = String(req.body?.nombre || plInfo.name || 'Playlist de Spotify').trim().slice(0, 100);
             const canciones = tracks.map((t) => ({
                 title: t.name,
                 author: (t.artists || []).map((a) => a.name).join(', '),
