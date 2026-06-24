@@ -184,3 +184,34 @@ export const maybeStartOnboarding = (t) => {
   if (hasSeenOnboarding()) return;
   startOnboarding(t);
 };
+
+// ---------------------------------------------------------------------------
+// AYUDA POR SECCIÓN — un popover de UN solo paso, con el mismo estilo que el
+// tour, que explica a fondo SOLO la sección en la que estás. Se lanza desde el
+// botón (?) que vive junto al título de cada sección en el Header.
+//
+// • Texto: i18n (dashboard.sectionHelp.<key>.title/desc). Si una sección no
+//   tiene texto propio, no hace nada (botón inofensivo).
+// • Es centrado (no señala a ningún elemento), así funciona igual en escritorio
+//   y móvil y nunca apunta al vacío.
+// ---------------------------------------------------------------------------
+export const startSectionHelp = (t, key) => {
+  const titleKey = `dashboard.sectionHelp.${key}.title`;
+  const descKey = `dashboard.sectionHelp.${key}.desc`;
+  // Si no hay traducción para esta sección, i18n devuelve la propia clave:
+  // en ese caso no abrimos nada para no mostrar un popover vacío.
+  const title = t(titleKey);
+  const description = t(descKey);
+  if (title === titleKey || description === descKey) return;
+
+  const driverObj = driver({
+    showProgress: false,
+    doneBtnText: t('dashboard.sectionHelp.done'),
+    popoverClass: 'sokyo-popover',
+    overlayColor: '#06070a',
+    overlayOpacity: 0.72,
+    steps: [{ popover: { title, description, align: 'center' } }],
+    onDestroyed: () => destroyFocus(),
+  });
+  driverObj.drive();
+};

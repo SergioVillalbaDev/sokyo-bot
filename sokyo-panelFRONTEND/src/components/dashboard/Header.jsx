@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Search, Bell, HelpCircle, Menu, ChevronDown } from 'lucide-react';
 import { metaKey } from './navConfig';
-import { startOnboarding } from '../../lib/onboarding';
+import { startOnboarding, startSectionHelp } from '../../lib/onboarding';
 import OwnerBadge from './OwnerBadge';
 import ThemePicker from './ThemePicker';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -20,6 +20,18 @@ export default function Header({ dash, onOpenMenu }) {
   const enInicio = activeTab === 'inicio';
   const mk = metaKey(activeTab);
 
+  // Botón (?) que explica SOLO la sección actual, con el mismo estilo del tour.
+  const sectionHelpButton = (
+    <button
+      onClick={() => startSectionHelp(t, mk)}
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-card text-muted transition-colors hover:bg-elevated hover:text-fg"
+      aria-label={t('dashboard.sectionHelp.aria')}
+      title={t('dashboard.sectionHelp.aria')}
+    >
+      <HelpCircle size={15} />
+    </button>
+  );
+
   return (
     <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-line bg-bg/80 px-6 py-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-8">
       <div className="flex items-center gap-3">
@@ -35,14 +47,20 @@ export default function Header({ dash, onOpenMenu }) {
         <motion.div key={activeTab} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           {enInicio ? (
           <>
-            <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-[1.7rem]">
-              {t('dashboard.header.greeting', { name: servidorInfo?.nombre || 'servidor' })}
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-[1.7rem]">
+                {t('dashboard.header.greeting', { name: servidorInfo?.nombre || 'servidor' })}
+              </h1>
+              {sectionHelpButton}
+            </div>
             <p className="mt-0.5 text-sm text-muted">{t('dashboard.header.greetingSub')}</p>
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-extrabold tracking-tight text-fg">{t(`dashboard.meta.${mk}.title`)}</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-extrabold tracking-tight text-fg">{t(`dashboard.meta.${mk}.title`)}</h1>
+              {sectionHelpButton}
+            </div>
             <p className="mt-0.5 text-sm text-muted">{t(`dashboard.meta.${mk}.subtitle`)}</p>
           </>
         )}

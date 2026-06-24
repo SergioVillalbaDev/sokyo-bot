@@ -276,6 +276,142 @@ export default {
         },
       },
     },
+    sectionHelp: {
+      aria: 'Explain this section',
+      done: 'Got it!',
+      inicio: {
+        title: '📊 Command center',
+        desc: 'Your community’s live pulse: total, open and closed tickets, your support team and the latest activity. Your daily starting point.',
+      },
+      'cuenta-plan': {
+        title: '👑 Plans & subscription',
+        desc: 'Compare Free, Pro and Owner, and upgrade in one click. Pro unlocks premium themes, white-label, advanced stats and priority support.',
+      },
+      'datos-analitica': {
+        title: '📈 Analytics',
+        desc: 'Your ticket metrics in charts: volume per day, urgencies, top reasons and satisfaction. Spot bottlenecks at a glance.',
+      },
+      'datos-resumen': {
+        title: '📰 Daily summary',
+        desc: 'Get an AI-written server briefing every day: what happened, activity spikes and what needs your attention. You pick the channel and time.',
+      },
+      musica: {
+        title: '🎵 Music',
+        desc: 'The live player: queue songs by name or link, manage the queue and control play, pause and volume without leaving the panel.',
+      },
+      'tickets-gestion': {
+        title: '🎫 Ticket management',
+        desc: 'The heart of support: open each conversation, reply to your users and close resolved requests. All from here, without touching Discord.',
+      },
+      'tickets-usuarios': {
+        title: '👥 User registry',
+        desc: 'A global count of who has opened tickets and their stats. Handy for spotting your most active users and their history.',
+      },
+      'tickets-config': {
+        title: '🎛️ Incident settings',
+        desc: 'Define the ticket system’s rules: available reasons, priorities and the behavior when opening or closing an incident.',
+      },
+      'config-comportamiento': {
+        title: '🎚️ Behavior',
+        desc: 'Turn the bot’s features on or off to taste, module by module. Switch off what you don’t use; turn on what you need.',
+      },
+      'config-reglas': {
+        title: '🛡️ Rules & control',
+        desc: 'The fine print of tickets: permissions, the category they’re created in, per-user limits and auto-close on inactivity.',
+      },
+      'config-acceso': {
+        title: '🔑 Access & permissions',
+        desc: 'Decide who gets into the panel and what they can do: which roles manage the bot and which only moderate. You hand out the keys.',
+      },
+      'config-expresiones': {
+        title: '😄 Emojis & Stickers',
+        desc: 'Add, rename and delete your server’s emojis and stickers by dragging and dropping, without wrestling with Discord’s settings.',
+      },
+      'config-niveles': {
+        title: '📈 Levels & XP',
+        desc: 'Reward your community’s activity: earn XP by participating, level up, check the leaderboard and grant automatic roles per level.',
+      },
+      'roles-gestion': {
+        title: '🧩 Roles & permissions',
+        desc: 'Create, edit, color and assign your server’s roles hassle-free, all from a clear table instead of Discord’s menu.',
+      },
+      'roles-autorol': {
+        title: '➕ Auto-role on join',
+        desc: 'Assign roles automatically the moment someone joins the server. Perfect for granting basic access or tagging newcomers.',
+      },
+      'roles-paneles': {
+        title: '🖱️ Role panels',
+        desc: 'Create messages with buttons where members self-assign roles in one click: colors, games, notifications… they choose.',
+      },
+      'mod-centro': {
+        title: '⚖️ Command center',
+        desc: 'Search any user and apply a sanction instantly: ban, kick, timeout or warning. Fast moderation from a single place.',
+      },
+      'mod-tipos': {
+        title: '📋 Sanction types',
+        desc: 'Design your own custom sanctions: name, type (ban, timeout, kick or warning), duration and reason. Your rulebook, your rules.',
+      },
+      'mod-automod': {
+        title: '🤖 Auto-moderator',
+        desc: 'Automatic filters that watch for you: banned words, links, spam, mass mentions and caps abuse. It acts on its own, 24/7.',
+      },
+      'mod-reportes': {
+        title: '🚩 Reports',
+        desc: 'Your users report messages or people and your team handles them here, with all the context at hand to decide.',
+      },
+      'mod-registro': {
+        title: '🗂️ Moderation log',
+        desc: 'The complete, auditable history of every sanction: who, to whom, when and why. Full transparency for your staff.',
+      },
+      'seg-verificacion': {
+        title: '✅ Entry verification',
+        desc: 'Filter out bots and fake accounts before they get in: a button or captcha they must pass to gain access to the server.',
+      },
+      'seg-embudo': {
+        title: '🧪 Welcome funnel (A/B Test)',
+        desc: 'Split each new member 50/50 between two different onboardings and measure which one keeps more people around and engaged.',
+      },
+      'seg-reportes': {
+        title: '🚩 Reports',
+        desc: 'Your users report messages or people and your team handles them here, with all the context at hand to decide.',
+      },
+      'seg-backup': {
+        title: '💾 Configuration backup',
+        desc: 'Export your whole server configuration to a file and import it back whenever you want. Your safety net for any change.',
+      },
+      'prod-autorespuestas': {
+        title: '💬 Auto-replies',
+        desc: 'If someone writes X, the bot answers Y automatically. Perfect for FAQs: it resolves repeat questions without your team lifting a finger.',
+      },
+      'prod-embeds': {
+        title: '🖼️ Announcement builder',
+        desc: 'Design plain-text or embed messages, save them as presets and post them to any channel without touching Discord. Preview included.',
+      },
+      'prod-anuncios': {
+        title: '📣 Scheduled announcements',
+        desc: 'Schedule messages to post in the channel and at the time you choose, with optional repetition. Your notices on autopilot.',
+      },
+      'prod-bienvenidas': {
+        title: '✨ Welcome & farewell',
+        desc: 'Greet who joins and bid farewell to who leaves with messages your way: text, embeds and GIFs. Your community’s first impression.',
+      },
+      'config-macros': {
+        title: '⚡ Quick replies',
+        desc: 'Reusable response templates for your team: write once, use a thousand times. Consistent support that’s far quicker.',
+      },
+      'config-textos': {
+        title: '🔤 Text configuration',
+        desc: 'Customize the bot’s white-label titles and descriptions so it speaks with your brand’s voice, not Sokyo’s.',
+      },
+      config: {
+        title: '⚙️ General settings',
+        desc: 'Turn the bot’s global modules on or off. The master switch for each major feature: enable only what your community needs.',
+      },
+      logs: {
+        title: '📜 Audit log',
+        desc: 'Monitor the server’s inner workings: joins and leaves, edited or deleted messages and all key activity, sorted by type.',
+      },
+    },
     theme: {
       button: 'Theme',
       title: 'Appearance',
