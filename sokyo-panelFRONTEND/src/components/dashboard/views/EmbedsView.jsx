@@ -75,7 +75,7 @@ export default function EmbedsView({ dash }) {
       )}
 
       {/* Tipo de mensaje */}
-      <div className="flex gap-3">
+      <div data-help="embeds-tipo" className="flex gap-3">
         <button type="button" onClick={() => { setEstado(''); setModo('embed'); }} className={cls(modo === 'embed')}>
           <LayoutTemplate size={16} className="text-brand" /> {t('dashboard.embeds_v.modeEmbed')}
         </button>
@@ -85,7 +85,7 @@ export default function EmbedsView({ dash }) {
       </div>
 
       {/* Destino + texto */}
-      <div className={card}>
+      <div data-help="embeds-destino" className={card}>
         <div className="grid gap-4 sm:grid-cols-2">
           {todos ? (
             <div className="flex items-center gap-2 rounded-xl border border-line bg-elevated px-3 py-2 text-sm text-muted sm:col-span-2">
@@ -117,7 +117,7 @@ export default function EmbedsView({ dash }) {
 
       {/* Embed (solo en modo embed) */}
       {modo === 'embed' && (
-        <div className={card}>
+        <div data-help="embeds-builder" className={card}>
           <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} />
         </div>
       )}
@@ -125,7 +125,7 @@ export default function EmbedsView({ dash }) {
       {/* Presets */}
       <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarPresetAnuncio} />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-help="embeds-enviar" className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={enviar}

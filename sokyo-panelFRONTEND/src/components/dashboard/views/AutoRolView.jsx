@@ -80,21 +80,21 @@ export default function AutoRolView({ dash }) {
       )}
 
       {/* Autorol para personas */}
-      <div className={card}>
+      <div data-help="autorol-personas" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><UserPlus size={18} className="text-brand" /> {t('dashboard.autorol_v.peopleTitle')}</h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.autorol_v.peopleDesc')}</p>
         <SelectorRoles roles={rolesDetalle} seleccion={autoRoles} onToggle={toggle(autoRoles, setAutoRoles)} />
       </div>
 
       {/* Autorol para bots */}
-      <div className={card}>
+      <div data-help="autorol-bots" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><Bot size={18} className="text-brand" /> {t('dashboard.autorol_v.botsTitle')}</h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.autorol_v.botsDesc')}</p>
         <SelectorRoles roles={rolesDetalle} seleccion={autoRolesBots} onToggle={toggle(autoRolesBots, setAutoRolesBots)} />
       </div>
 
       {/* Guardar */}
-      <div className="flex items-center gap-3">
+      <div data-help="autorol-guardar" className="flex items-center gap-3">
         <button
           onClick={guardar}
           disabled={guardando || !configServidor}

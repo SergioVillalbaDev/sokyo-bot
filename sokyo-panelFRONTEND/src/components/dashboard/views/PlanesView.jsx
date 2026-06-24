@@ -123,7 +123,7 @@ export default function PlanesView({ dash }) {
       )}
 
       {/* Cabecera: plan actual */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-line bg-card p-5 shadow-soft">
+      <div data-help="planes-actual" className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-line bg-card p-5 shadow-soft">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-brand text-on-brand">
             <Crown size={22} />
@@ -148,7 +148,7 @@ export default function PlanesView({ dash }) {
       <p className="text-sm text-muted">{t('dashboard.planes_v.intro')}</p>
 
       {/* Conmutador mensual / anual */}
-      <div className="flex items-center justify-center gap-1 rounded-2xl border border-line bg-elevated p-1 w-fit mx-auto">
+      <div data-help="planes-intervalo" className="flex items-center justify-center gap-1 rounded-2xl border border-line bg-elevated p-1 w-fit mx-auto">
         {['month', 'year'].map((iv) => (
           <button
             key={iv}
@@ -169,7 +169,7 @@ export default function PlanesView({ dash }) {
       </div>
 
       {/* Tarjetas de los 3 planes */}
-      <div className="grid gap-5 md:grid-cols-3">
+      <div data-help="planes-tarjetas" className="grid gap-5 md:grid-cols-3">
         {ORDEN.map((o) => (
           <TierCard
             key={o.id}

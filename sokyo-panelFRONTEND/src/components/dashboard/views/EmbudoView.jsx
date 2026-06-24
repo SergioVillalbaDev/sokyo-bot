@@ -105,7 +105,7 @@ export default function EmbudoView({ dash }) {
         <p className="text-xs text-muted">{t('dashboard.embudo_v.note')}</p>
       </div>
 
-      <div className={card}>
+      <div data-help="embudo-config" className={card}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 font-bold text-fg"><FlaskConical size={18} className="text-brand" /> {t('dashboard.embudo_v.enable')}</h3>
           <Toggle checked={e.activo} onChange={(val) => set('activo', val)} />
@@ -136,7 +136,7 @@ export default function EmbudoView({ dash }) {
       </div>
 
       {/* Las dos variantes */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div data-help="embudo-variantes" className="grid gap-4 lg:grid-cols-2">
         {/* Variante A */}
         <div className={card}>
           <h3 className="flex items-center gap-2 font-bold text-fg">
@@ -199,7 +199,7 @@ export default function EmbudoView({ dash }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-help="embudo-acciones" className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={guardar} disabled={guardando || !configServidor}
           className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save size={16} /> {guardando ? t('dashboard.embudo_v.saving') : t('dashboard.embudo_v.save')}

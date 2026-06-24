@@ -31,7 +31,7 @@ export default function TicketsView({ dash }) {
     <div className="flex flex-col gap-5">
       {/* Barra de filtro por etiqueta */}
       {allTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-help="tickets-filtro" className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setTagFiltro(null)}
             className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
@@ -59,7 +59,7 @@ export default function TicketsView({ dash }) {
           <p className="mt-1 text-sm text-muted">{t('dashboard.tickets_v.emptyDesc')}</p>
         </div>
       ) : (
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div data-help="tickets-grid" className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
       {tickets.map((ticket, index) => {
         const color = getColorUrgencia(ticket.prioridad);
         const cerrado = ticket.estado === 'Cerrado';

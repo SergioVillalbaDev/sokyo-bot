@@ -258,7 +258,7 @@ export default function AutomodView({ dash }) {
       </div>
 
       {/* Presets */}
-      <div className={card}>
+      <div data-help="automod-presets" className={card}>
         <h3 className="mb-1 font-bold text-fg">{t('dashboard.automod_v.presetsTitle')}</h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.automod_v.presetsDesc')}</p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -284,7 +284,7 @@ export default function AutomodView({ dash }) {
       </div>
 
       {/* Interruptor general + ajustes globales */}
-      <div className={card}>
+      <div data-help="automod-master" className={card}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 font-bold text-fg"><Power size={18} className="text-brand" /> {t('dashboard.automod_v.masterTitle')}</h3>
           <Toggle on={am.activo} onChange={(v) => set('activo', v)} />
@@ -314,7 +314,7 @@ export default function AutomodView({ dash }) {
       </div>
 
       {/* === DEFENSA DE ENTRADAS === */}
-      <h4 className="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">{t('dashboard.automod_v.groupGuard')}</h4>
+      <h4 data-help="automod-entradas" className="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">{t('dashboard.automod_v.groupGuard')}</h4>
 
       <ModuloCard icon={Siren} danger titulo={t('dashboard.automod_v.raidTitle')} desc={t('dashboard.automod_v.raidDesc')} modulo={am.antiRaid} onChange={(m) => set('antiRaid', m)} accionOpciones={ACC_RAID}>
         <div className="flex flex-wrap gap-4">
@@ -340,7 +340,7 @@ export default function AutomodView({ dash }) {
       </ModuloCard>
 
       {/* === FILTROS DE MENSAJES === */}
-      <h4 className="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">{t('dashboard.automod_v.groupMessages')}</h4>
+      <h4 data-help="automod-mensajes" className="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">{t('dashboard.automod_v.groupMessages')}</h4>
 
       <ModuloCard icon={Banknote} danger titulo={t('dashboard.automod_v.scamTitle')} desc={t('dashboard.automod_v.scamDesc')} modulo={am.estafas} onChange={(m) => set('estafas', m)} accionOpciones={ACC_MSG}>
         <ToggleRow label={t('dashboard.automod_v.scamNitro')} on={am.estafas.nitroFalso} onChange={(v) => set('estafas', { ...am.estafas, nitroFalso: v })} />
@@ -406,7 +406,7 @@ export default function AutomodView({ dash }) {
       </ModuloCard>
 
       {/* Guardar */}
-      <div className="sticky bottom-0 flex items-center gap-3 rounded-2xl bg-bg/80 py-3 backdrop-blur">
+      <div data-help="automod-guardar" className="sticky bottom-0 flex items-center gap-3 rounded-2xl bg-bg/80 py-3 backdrop-blur">
         <button
           type="button"
           onClick={guardar}

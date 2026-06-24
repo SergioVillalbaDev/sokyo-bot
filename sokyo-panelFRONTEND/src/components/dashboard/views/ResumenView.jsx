@@ -56,12 +56,12 @@ export default function ResumenView({ dash }) {
       </div>
 
       <div className={card}>
-        <div className="flex items-center justify-between gap-3">
+        <div data-help="resumen-toggle" className="flex items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 font-bold text-fg"><Mail size={18} className="text-brand" /> {t('dashboard.resumen_v.title')}</h3>
           <Toggle checked={activo} onChange={setActivo} />
         </div>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div data-help="resumen-cuando" className="mt-5 grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted">{t('dashboard.resumen_v.hour')}</label>
             <select value={hora} onChange={(e) => setHora(parseInt(e.target.value, 10))} className={field}>
@@ -77,7 +77,7 @@ export default function ResumenView({ dash }) {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-2.5">
+        <div data-help="resumen-acciones" className="mt-5 flex flex-wrap items-center gap-2.5">
           <button type="button" onClick={guardar}
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand shadow-soft transition-opacity hover:opacity-90">
             <Save size={16} /> {t('dashboard.resumen_v.save')}

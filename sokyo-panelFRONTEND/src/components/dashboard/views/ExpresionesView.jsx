@@ -65,7 +65,7 @@ export default function ExpresionesView({ dash }) {
       )}
 
       {/* ===== EMOJIS ===== */}
-      <div className={card}>
+      <div data-help="expr-emojis" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><Smile size={18} className="text-brand" /> {t('dashboard.expr_v.emojis')} <span className="text-sm font-normal text-muted">({emojisServidor.length})</span></h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.expr_v.emojisHint')}</p>
 
@@ -85,7 +85,7 @@ export default function ExpresionesView({ dash }) {
       </div>
 
       {/* ===== STICKERS ===== */}
-      <div className={card}>
+      <div data-help="expr-stickers" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><Sticker size={18} className="text-brand" /> {t('dashboard.expr_v.stickers')} <span className="text-sm font-normal text-muted">({stickers.length})</span></h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.expr_v.stickersHint')}</p>
 

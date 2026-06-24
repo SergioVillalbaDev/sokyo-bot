@@ -50,7 +50,7 @@ export default function ComportamientoView({ dash }) {
       </div>
 
       {/* Tickets */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="comp-cierre" className="p-6 shadow-soft">
         <h3 className="mb-1 font-bold text-fg">{b('onClose')}</h3>
         <div className="divide-y divide-line">
           <Row
@@ -75,7 +75,7 @@ export default function ComportamientoView({ dash }) {
       </Card>
 
       {/* Notificaciones */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="comp-notif" className="p-6 shadow-soft">
         <h3 className="mb-1 font-bold text-fg">{b('notifications')}</h3>
         <div className="divide-y divide-line">
           <Row
@@ -106,7 +106,7 @@ export default function ComportamientoView({ dash }) {
       </Card>
 
       {/* Logs */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="comp-logs" className="p-6 shadow-soft">
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><ScrollText size={18} className="text-brand" /> {b('logsTitle')}</h3>
         <p className="mb-2 text-xs text-muted">{b('logsSub')}</p>
         <div className="divide-y divide-line">

@@ -75,7 +75,7 @@ export default function InicioView({ dash }) {
         </div>
 
         {/* Equipo de soporte */}
-        <div className={card}>
+        <div data-help="inicio-team" className={card}>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="flex items-center gap-2 font-bold text-fg"><Users2 size={18} className="text-brand" /> {t('dashboard.inicio_v.team')}</h3>
             <button onClick={() => setActiveTab('tickets-usuarios')} className="flex items-center gap-1 text-xs font-semibold text-muted transition-colors hover:text-fg">
@@ -100,7 +100,7 @@ export default function InicioView({ dash }) {
         </div>
 
         {/* Tickets recientes */}
-        <div className={card}>
+        <div data-help="inicio-recientes" className={card}>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="flex items-center gap-2 font-bold text-fg"><Ticket size={18} className="text-brand" /> {t('dashboard.inicio_v.recentTickets')}</h3>
             <button onClick={() => setActiveTab('tickets-gestion')} className="flex items-center gap-1 text-xs font-semibold text-muted transition-colors hover:text-fg">
@@ -158,7 +158,7 @@ export default function InicioView({ dash }) {
       </div>
 
       {/* ===================== RAIL DERECHO: MEMORIA / STATS ===================== */}
-      <div className="space-y-4">
+      <div data-help="inicio-rail" className="space-y-4">
         {/* Memoria del plan */}
         <div className={`${card} flex flex-col items-center text-center`}>
           <div className="mb-1 flex w-full items-center justify-between">

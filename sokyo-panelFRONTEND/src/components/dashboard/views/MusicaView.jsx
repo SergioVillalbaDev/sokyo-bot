@@ -410,7 +410,7 @@ export default function MusicaView({ dash }) {
     <div className="space-y-6">
 
       {/* ── PANEL EN VIVO ── */}
-      <Card className={card}>
+      <Card data-help="musica-player" className={card}>
         <div className="mb-4 flex items-center gap-2">
           <Music size={18} style={{ color: VERDE }} />
           <h3 className="text-lg font-bold text-fg">Sonando ahora</h3>
@@ -479,7 +479,7 @@ export default function MusicaView({ dash }) {
       </Card>
 
       {/* ── TABS ── */}
-      <div className="flex border-b border-line">
+      <div data-help="musica-tabs" className="flex border-b border-line">
         {[
           ['config', 'Configuración'],
           ['playlists', 'Mis Playlists'],
@@ -495,7 +495,7 @@ export default function MusicaView({ dash }) {
 
       {/* ══ TAB CONFIGURACIÓN ══ */}
       {tab === 'config' && (
-        <Card className={card}>
+        <Card data-help="musica-config" className={card}>
           <h3 className="mb-2 text-lg font-bold text-fg">Configuración del reproductor</h3>
 
           <Ajuste titulo="Música activada" desc="Interruptor general. Si lo apagas, nadie puede poner música.">

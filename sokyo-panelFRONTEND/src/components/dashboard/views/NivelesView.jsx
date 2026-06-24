@@ -110,7 +110,7 @@ export default function NivelesView({ dash }) {
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_340px]">
       <div className="space-y-5">
         {/* Activar */}
-        <div className={card}>
+        <div data-help="niveles-enable" className={card}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="flex items-center gap-2 font-bold text-fg"><TrendingUp size={18} className="text-brand" /> {t('dashboard.niveles_v.enable')}</h3>
@@ -121,7 +121,7 @@ export default function NivelesView({ dash }) {
         </div>
 
         {/* Ganancia de XP */}
-        <div className={card}>
+        <div data-help="niveles-xp" className={card}>
           <h3 className="mb-3 flex items-center gap-2 font-bold text-fg"><Gauge size={18} className="text-brand" /> {t('dashboard.niveles_v.gain')}</h3>
           <div className="flex flex-wrap items-end gap-4">
             <label className="text-xs font-semibold text-muted">{t('dashboard.niveles_v.xpMin')}<input type="number" min={0} value={f.xpMin} onChange={(e) => set('xpMin', Math.max(0, parseInt(e.target.value, 10) || 0))} className={`${numCls} mt-1 block`} /></label>
@@ -149,7 +149,7 @@ export default function NivelesView({ dash }) {
         </div>
 
         {/* Anuncios */}
-        <div className={card}>
+        <div data-help="niveles-anuncios" className={card}>
           <h3 className="mb-3 flex items-center gap-2 font-bold text-fg"><Megaphone size={18} className="text-brand" /> {t('dashboard.niveles_v.announce')}</h3>
           <div className="mb-3 grid grid-cols-3 gap-2">
             {ANUNCIOS.map((a) => (
@@ -272,7 +272,7 @@ export default function NivelesView({ dash }) {
         </div>
 
         {/* Recompensas */}
-        <div className={card}>
+        <div data-help="niveles-recompensas" className={card}>
           <div className="mb-1 flex items-center justify-between">
             <h3 className="flex items-center gap-2 font-bold text-fg"><Trophy size={18} className="text-brand" /> {t('dashboard.niveles_v.rewards')}</h3>
             <button onClick={addRecompensa} className="flex items-center gap-1 text-xs font-semibold text-brand hover:opacity-80"><Plus size={13} /> {t('dashboard.niveles_v.addReward')}</button>
@@ -320,7 +320,7 @@ export default function NivelesView({ dash }) {
       </div>
 
       {/* Ranking */}
-      <div className={`${card} h-fit`}>
+      <div data-help="niveles-ranking" className={`${card} h-fit`}>
         <h3 className="mb-3 flex items-center gap-2 font-bold text-fg"><Trophy size={18} className="text-amber-400" /> {t('dashboard.niveles_v.ranking')}</h3>
         {ranking.length === 0 ? (
           <p className="py-4 text-center text-sm italic text-muted">{t('dashboard.niveles_v.noRanking')}</p>

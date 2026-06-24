@@ -34,7 +34,7 @@ export default function MacrosView({ dash }) {
       </div>
 
       {/* Crear nueva */}
-      <Card className="flex flex-col gap-3 p-6 shadow-soft">
+      <Card data-help="macros-crear" className="flex flex-col gap-3 p-6 shadow-soft">
         <h3 className="flex items-center gap-2 font-bold text-fg"><Zap size={18} className="text-brand" /> {t('dashboard.macros_v.title')}</h3>
         <p className="-mt-1 text-sm text-muted">{t('dashboard.macros_v.subtitle')}</p>
         <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder={t('dashboard.macros_v.newTitle')} maxLength={100} className={field} />

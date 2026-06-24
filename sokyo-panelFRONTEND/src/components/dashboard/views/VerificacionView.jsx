@@ -61,14 +61,14 @@ export default function VerificacionView({ dash }) {
       </div>
 
       <div className={card}>
-        <div className="flex items-center justify-between gap-3">
+        <div data-help="verif-enable" className="flex items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 font-bold text-fg"><ShieldCheck size={18} className="text-brand" /> {t('dashboard.verif_v.enable')}</h3>
           <Toggle checked={v.activo} onChange={(val) => set('activo', val)} />
         </div>
 
         <div className="mt-4 space-y-4 border-t border-line pt-4">
           {/* Modo */}
-          <div>
+          <div data-help="verif-modo">
             <p className="mb-2 text-sm font-semibold text-fg">{t('dashboard.verif_v.mode')}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <button
@@ -90,7 +90,7 @@ export default function VerificacionView({ dash }) {
             </div>
           </div>
 
-          <label className="block">
+          <label data-help="verif-campos" className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.verif_v.role')}</span>
             <Select items={roles} value={v.rolVerificadoId} onChange={(val) => set('rolVerificadoId', val)} placeholder={t('dashboard.verif_v.rolePh')} />
           </label>
@@ -113,7 +113,7 @@ export default function VerificacionView({ dash }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-help="verif-acciones" className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={guardar}

@@ -79,7 +79,7 @@ export default function RegistroSancionesView({ dash }) {
   return (
     <div className="space-y-5">
       {/* Canal de registro */}
-      <div className={card}>
+      <div data-help="modreg-canal" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><Hash size={18} className="text-brand" /> {t('dashboard.mod_v.modLogChannel')}</h3>
         <p className="mb-3 text-xs text-muted">{t('dashboard.mod_v.modLogHint')}</p>
         <select value={canalValor} onChange={(e) => { setCanalSel(e.target.value); setGuardado(false); }} className={inputCls}>
@@ -108,7 +108,7 @@ export default function RegistroSancionesView({ dash }) {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-help="modreg-filtros" className="flex flex-wrap items-center gap-2">
         <button onClick={() => setFiltroAccion('todos')} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${filtroAccion === 'todos' ? 'border-brand bg-brand/10 text-fg' : 'border-line bg-bg text-muted hover:text-fg'}`}>{t('dashboard.mod_v.filterAll')}</button>
         {ACCIONES.map((a) => (
           <button key={a.id} onClick={() => setFiltroAccion(a.id)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${filtroAccion === a.id ? 'border-brand bg-brand/10 text-fg' : 'border-line bg-bg text-muted hover:text-fg'}`}>
@@ -128,7 +128,7 @@ export default function RegistroSancionesView({ dash }) {
           <p className="text-sm italic text-muted">{t('dashboard.mod_v.regEmpty')}</p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div data-help="modreg-lista" className="space-y-2.5">
           {lista.map((s, i) => {
             const meta = accionMeta(s.accion);
             return (

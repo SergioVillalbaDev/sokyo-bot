@@ -22,7 +22,7 @@ export default function UsersView({ dash }) {
   }
 
   return (
-    <Card className="overflow-hidden">
+    <Card data-help="users-tabla" className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>

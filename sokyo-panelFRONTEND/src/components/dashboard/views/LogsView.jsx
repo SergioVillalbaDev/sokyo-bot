@@ -23,7 +23,7 @@ export default function LogsView({ dash }) {
   return (
     <Card className="p-6">
       {/* Cabecera con capacidad del plan */}
-      <div className="flex flex-col items-start justify-between gap-4 border-b border-line pb-5 sm:flex-row sm:items-center">
+      <div data-help="logs-capacidad" className="flex flex-col items-start justify-between gap-4 border-b border-line pb-5 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-lg font-bold text-fg">{t('dashboard.logs_v.title')}</h2>
           <p className="mt-0.5 text-sm text-muted">{t('dashboard.logs_v.subtitle')}</p>
@@ -52,7 +52,7 @@ export default function LogsView({ dash }) {
       </div>
 
       {/* Pills de filtrado */}
-      <div className="flex flex-wrap gap-2 py-5">
+      <div data-help="logs-filtros" className="flex flex-wrap gap-2 py-5">
         {pills.map((p) => {
           const active = activeTab === p.tab;
           return (
@@ -77,7 +77,7 @@ export default function LogsView({ dash }) {
           <p className="mt-3 text-sm text-muted">{t('dashboard.logs_v.empty')}</p>
         </div>
       ) : (
-        <div className="relative ml-2 border-l-2 border-line pl-6">
+        <div data-help="logs-timeline" className="relative ml-2 border-l-2 border-line pl-6">
           {logs.map((log, index) => (
             <motion.div
               key={index}

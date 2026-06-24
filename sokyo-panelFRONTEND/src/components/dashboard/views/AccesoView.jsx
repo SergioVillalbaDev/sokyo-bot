@@ -84,21 +84,21 @@ export default function AccesoView({ dash }) {
       </div>
 
       {/* Acceso al panel */}
-      <div className={card}>
+      <div data-help="acceso-panel" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><MonitorSmartphone size={18} className="text-brand" /> {t('dashboard.acceso_v.panelTitle')}</h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.acceso_v.panelDesc')}</p>
         <SelectorRoles roles={roles} seleccion={panel} onToggle={toggle(panel, setPanel)} />
       </div>
 
       {/* Roles de moderación */}
-      <div className={card}>
+      <div data-help="acceso-moderacion" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><ShieldAlert size={18} className="text-brand" /> {t('dashboard.acceso_v.modTitle')}</h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.acceso_v.modDesc')}</p>
         <SelectorRoles roles={roles} seleccion={moderacion} onToggle={toggle(moderacion, setModeracion)} />
       </div>
 
       {/* ¿Quién ve cada sección? */}
-      <div className={card}>
+      <div data-help="acceso-areas" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><LayoutList size={18} className="text-brand" /> {t('dashboard.acceso_v.areasTitle')}</h3>
         <p className="mb-4 text-xs text-muted">{t('dashboard.acceso_v.areasDesc')}</p>
         <div className="space-y-4">
@@ -111,7 +111,7 @@ export default function AccesoView({ dash }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div data-help="acceso-guardar" className="flex items-center gap-3">
         <button
           onClick={guardar}
           disabled={guardando || !configServidor}

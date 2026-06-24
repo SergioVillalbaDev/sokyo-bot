@@ -412,6 +412,164 @@ export default {
         desc: 'Supervisa el funcionamiento interno del servidor: entradas y salidas, mensajes editados o borrados y toda la actividad clave, ordenada por tipo.',
       },
     },
+    sectionTours: {
+      inicio: { steps: {
+        stats: { title: '📊 Tus números de un vistazo', desc: 'Las cuatro cifras clave: tickets totales, abiertos, cerrados y cuántos del equipo han atendido. El pulso rápido de tu soporte.' },
+        team: { title: '👥 Tu equipo de soporte', desc: 'Quién está atendiendo tickets en tu servidor. Pulsa «Ver usuarios» para el listado completo con sus estadísticas.' },
+        recientes: { title: '🎫 Tickets recientes', desc: 'Las últimas solicitudes abiertas. Pulsa cualquiera para saltar directo a la conversación y responder.' },
+        rail: { title: '📈 Memoria, logs y satisfacción', desc: 'A la derecha controlas tu plan: memoria usada, capacidad de logs, la nota media de satisfacción (CSAT) y la latencia del bot en vivo.' },
+      } },
+      'datos-analitica': { steps: {
+        periodo: { title: '🗓️ Periodo e informe IA', desc: 'Cambia el rango (7, 30 o 90 días) para recalcular todo. Si tienes IA activa, «Informe IA» te redacta un análisis del periodo.' },
+        kpis: { title: '🔢 Indicadores clave', desc: 'Tus grandes números: miembros, crecimiento neto, mensajes, satisfacción y actividad de voz. La foto general del servidor.' },
+        graficas: { title: '📉 Gráficas detalladas', desc: 'A partir de aquí todo en gráficas: actividad por día y hora, canales y usuarios top, salud del chat, niveles, moderación, equipo y tickets.' },
+      } },
+      'datos-resumen': { steps: {
+        toggle: { title: '📰 Activar el resumen', desc: 'Enciende el resumen diario. Cada día la IA escribe el parte del servidor y te lo envía.' },
+        cuando: { title: '⏰ Cuándo y dónde', desc: 'Elige la hora (en UTC) a la que se envía y, opcionalmente, un canal donde publicarlo además del MD al dueño.' },
+        acciones: { title: '💾 Guardar y probar', desc: 'Guarda los cambios y, con «Enviar prueba ahora», recibe un resumen de muestra al instante para ver cómo queda.' },
+      } },
+      musica: { steps: {
+        player: { title: '▶️ Sonando ahora', desc: 'El reproductor en vivo: ves la canción actual y la cola, y controlas play, pausa, saltar, parar y volumen en directo.' },
+        tabs: { title: '🗂️ Configuración · Playlists · Spotify', desc: 'Cambia entre los ajustes del reproductor, tus playlists guardadas y (si eres dueño) la conexión con Spotify.' },
+        config: { title: '🎛️ Ajustes del reproductor', desc: 'Define el canal de música, el rol DJ, los volúmenes, el tamaño de cola y qué fuentes (YouTube, Spotify, SoundCloud) se permiten.' },
+      } },
+      'seg-verificacion': { steps: {
+        enable: { title: '✅ Activar verificación', desc: 'Enciende el filtro de entrada. Mientras esté activo, los nuevos deben verificarse para conseguir acceso.' },
+        modo: { title: '🔘 Botón o captcha', desc: 'Elige cómo se verifican: un simple botón (rápido) o un captcha (más seguro contra bots). Tú decides el nivel.' },
+        campos: { title: '⚙️ Rol, canal y textos', desc: 'Define el rol que reciben al verificarse, el canal donde sale el panel y personaliza el título, la descripción y el texto del botón.' },
+        acciones: { title: '📨 Guardar y publicar', desc: 'Guarda la configuración y pulsa «Publicar» para colocar el panel de verificación en el canal elegido.' },
+      } },
+      'cuenta-plan': { steps: {
+        actual: { title: '👑 Tu plan actual', desc: 'De un vistazo: en qué plan estás, tu cuota de IA y, si tienes suscripción, cuándo se renueva o caduca.' },
+        intervalo: { title: '🔁 Mensual o anual', desc: 'Cambia entre pago mensual y anual. El anual sale más barato (ahorras unos dos meses).' },
+        tarjetas: { title: '💳 Elige tu plan', desc: 'Compara Free, Pro y Agencia con todo lo que incluye cada uno y sube de plan con el botón. El pago va por Stripe, seguro.' },
+      } },
+      'config-niveles': { steps: {
+        enable: { title: '✅ Activar niveles', desc: 'El interruptor general del sistema de XP. Si está apagado, nadie gana experiencia ni sube de nivel.' },
+        xp: { title: '📊 Ganancia de XP', desc: 'Cuánta XP se gana por mensaje (mín/máx), el tiempo de espera entre mensajes que cuentan y la dificultad de la curva de niveles.' },
+        anuncios: { title: '📣 Aviso de subida', desc: 'Decide si al subir de nivel se avisa por un canal, por privado o nada, y personaliza el mensaje con variables como {mention} o {level}.' },
+        recompensas: { title: '🏆 Recompensas y multiplicadores', desc: 'Otorga roles automáticos al alcanzar ciertos niveles y da XP extra (×2, ×3…) a roles concretos para premiar la actividad.' },
+        ranking: { title: '🥇 Ranking en vivo', desc: 'La clasificación de tu comunidad por XP. Aquí ves quién va líder en tiempo real.' },
+      } },
+      'roles-autorol': { steps: {
+        personas: { title: '🙋 Roles para personas', desc: 'Marca los roles que recibirá automáticamente cualquier persona al entrar al servidor. Pulsa para activar o desactivar cada uno.' },
+        bots: { title: '🤖 Roles para bots', desc: 'Igual que arriba, pero para los bots que se añadan. Útil para separarlos del resto con un rol propio.' },
+        guardar: { title: '💾 Guardar', desc: 'Aplica los cambios. A partir de ese momento, cada nueva entrada recibirá los roles elegidos.' },
+      } },
+      'seg-embudo': { steps: {
+        config: { title: '⚙️ Activar y entrega', desc: 'Enciende el test A/B y elige cómo llega el onboarding (panel en un canal, por privado o ambos), el rol al completar y el canal.' },
+        variantes: { title: '🅰️🅱️ Las dos variantes', desc: 'Diseña los dos onboardings que se compararán. A cada nuevo se le asigna uno al azar (50/50) para ver cuál retiene mejor.' },
+        acciones: { title: '📊 Guardar, publicar y resultados', desc: 'Guarda la configuración, publica el panel en el canal y consulta en Analítica qué variante está ganando.' },
+      } },
+      'prod-bienvenidas': { steps: {
+        tabs: { title: '🚪 Bienvenida y despedida', desc: 'Dos pestañas independientes: configura por separado el mensaje de cuando alguien entra y el de cuando alguien se va.' },
+        mensaje: { title: '✍️ Mensaje y variables', desc: 'Activa el mensaje, elige el canal y escribe el texto. Usa variables como {mention} o {servidor} para personalizarlo por miembro.' },
+        embed: { title: '🖼️ Embed opcional', desc: 'Si quieres algo más vistoso, añade un embed con color, imágenes y GIFs usando el mismo constructor que en los anuncios.' },
+        acciones: { title: '👀 Guardar y previsualizar', desc: 'Guarda y usa «Probar» para que el bot te envíe el mensaje real al canal y veas exactamente cómo queda.' },
+      } },
+      'tickets-gestion': { steps: {
+        filtro: { title: '🏷️ Filtrar por etiqueta', desc: 'Si tus tickets tienen etiquetas, filtra aquí para ver solo los de un tipo. «Todas» quita el filtro.' },
+        grid: { title: '🎫 Tus tickets', desc: 'Cada tarjeta es una solicitud: prioridad, quién la abrió, motivo y quién la atiende. Pulsa «Ver» para abrir la conversación, o ciérrala, reábrela u ocúltala.' },
+      } },
+      'tickets-usuarios': { steps: {
+        tabla: { title: '👥 Registro de usuarios', desc: 'Cada fila es un usuario con sus tickets totales, abiertos, su valoración media y su última actividad. Con «Ver en moderación» saltas a su ficha para sancionarlo si hace falta.' },
+      } },
+      'tickets-config': { steps: {
+        guardar: { title: '💾 Guardar cambios', desc: 'Aquí guardas toda la configuración de incidencias que ajustes debajo. No olvides pulsarlo al terminar.' },
+        urgencias: { title: '🚦 Niveles de urgencia', desc: 'Define tus prioridades (color y nivel). Cuanto mayor el nivel, más arriba aparece el ticket. Añade o quita las que quieras.' },
+        categorias: { title: '🗂️ Categorías', desc: 'Los motivos que el usuario elige al abrir un ticket. A cada uno le asignas una urgencia por defecto.' },
+      } },
+      'roles-gestion': { steps: {
+        crear: { title: '➕ Crear rol', desc: 'Crea un rol nuevo con su nombre, color, estilo de fuente y permisos, sin salir del panel ni pelearte con Discord.' },
+        lista: { title: '📋 Tus roles', desc: 'Cada fila es un rol. Despliégalo para ver sus permisos por categorías y los miembros que lo tienen, asignarlo a alguien o quitárselo. Los candados son roles por encima del bot.' },
+      } },
+      'roles-paneles': { steps: {
+        crear: { title: '➕ Crear panel', desc: 'Crea un panel de autoroles: botones, menú, reacciones o verificación. Eliges apariencia, roles y comportamiento.' },
+        lista: { title: '📋 Tus paneles', desc: 'Tus paneles creados. Desde aquí los editas, los borras y los publicas (o republicas) en el canal para que los miembros se autoasignen roles.' },
+      } },
+      'mod-centro': { steps: {
+        stats: { title: '📊 Estado de la moderación', desc: 'Un resumen rápido: sanciones totales, bans activos, las de los últimos 7 días y cuántos tipos de sanción tienes creados.' },
+        buscar: { title: '🔍 Busca al usuario', desc: 'Escribe un nombre para encontrar a un miembro. Al elegirlo verás su ficha, su actividad y su historial de sanciones.' },
+        aplicar: { title: '⚖️ Aplica la sanción', desc: 'Con un usuario elegido, sanciónalo al instante: acciones rápidas (ban, expulsión…) o tus tipos personalizados, con motivo y pruebas.' },
+      } },
+      'mod-tipos': { steps: {
+        crear: { title: '➕ Nuevo tipo', desc: 'Crea una plantilla de sanción: nombre, acción (ban, aislamiento, expulsión o aviso), duración, color y emoji. Aparecerá como botón en el Centro de Mando.' },
+        lista: { title: '📋 Tus tipos', desc: 'Tus sanciones a medida. Edítalas o bórralas cuando quieras; los cambios se reflejan en el Centro de Mando.' },
+      } },
+      'mod-automod': { steps: {
+        presets: { title: '⚡ Presets rápidos', desc: 'Configuraciones listas (suave, equilibrado, estricto…). Aplica una con un clic y luego afina los detalles a tu gusto.' },
+        master: { title: '🔌 Interruptor general', desc: 'Enciende o apaga todo el automoderador y define dónde avisa (canal de alertas) cuando actúa.' },
+        entradas: { title: '🛡️ Defensa de entradas', desc: 'Protección contra raids (muchas entradas de golpe) y cuentas nuevas o sin avatar sospechosas. Actúa antes de que escriban.' },
+        mensajes: { title: '💬 Filtros de mensajes', desc: 'Vigilan lo que se escribe: estafas, palabras prohibidas, invitaciones, enlaces, spam, menciones masivas y mayúsculas. Cada uno con su acción.' },
+        guardar: { title: '💾 Guardar', desc: 'No olvides guardar al terminar. El botón te sigue abajo mientras desplazas para que lo tengas siempre a mano.' },
+      } },
+      'mod-reportes': { steps: {
+        ajustes: { title: '⚙️ Activar reportes', desc: 'Enciende el sistema de reportes y elige el canal donde tu staff recibirá los avisos de la comunidad.' },
+        bandeja: { title: '📥 Bandeja de reportes', desc: 'Aquí llegan los reportes. Fíltralos por estado y resuélvelos, abre un ticket con el caso o descártalos.' },
+      } },
+      'seg-reportes': { steps: {
+        ajustes: { title: '⚙️ Activar reportes', desc: 'Enciende el sistema de reportes y elige el canal donde tu staff recibirá los avisos de la comunidad.' },
+        bandeja: { title: '📥 Bandeja de reportes', desc: 'Aquí llegan los reportes. Fíltralos por estado y resuélvelos, abre un ticket con el caso o descártalos.' },
+      } },
+      'mod-registro': { steps: {
+        canal: { title: '📋 Canal de registro y avisos', desc: 'Elige el canal donde se registran todas las sanciones y decide si se avisa por privado al usuario sancionado.' },
+        filtros: { title: '🔎 Filtros', desc: 'Filtra el historial por tipo de sanción o busca por usuario, ID o motivo para encontrar un caso rápido.' },
+        lista: { title: '🗂️ Historial completo', desc: 'Cada sanción aplicada, con su moderador, motivo, pruebas y cuenta atrás si está activa. Puedes revocar bans y aislamientos desde aquí.' },
+      } },
+      'prod-autorespuestas': { steps: {
+        reglas: { title: '➕ Tus reglas', desc: 'Cada regla es un «si alguien escribe X, el bot responde Y». Añade las que quieras: define el disparador, el tipo de coincidencia y la respuesta.' },
+        guardar: { title: '💾 Guardar', desc: 'Guarda todas las reglas a la vez. Las que estén activas empezarán a responder al instante en tu servidor.' },
+      } },
+      'prod-embeds': { steps: {
+        tipo: { title: '📄 Texto o embed', desc: 'Elige si tu anuncio es un mensaje de texto normal o un embed con color, imágenes y campos.' },
+        destino: { title: '🎯 Destino y contenido', desc: 'Elige el canal donde publicar y escribe el contenido del mensaje.' },
+        builder: { title: '🖼️ Constructor de embed', desc: 'Diseña el embed al detalle: título, descripción, color, autor, campos, imagen y pie. Con vista previa en vivo.' },
+        enviar: { title: '🚀 Enviar', desc: 'Publica el anuncio en el canal al instante. (Si eres difusor, también puedes mandarlo a todos los servidores).' },
+      } },
+      'prod-anuncios': { steps: {
+        lista: { title: '🗓️ Programados', desc: 'Tus anuncios en cola, con su fecha y repetición. Bórralos cuando ya no los necesites.' },
+        crear: { title: '➕ Programar uno nuevo', desc: 'Elige canal, fecha y hora, repetición opcional y el contenido (texto y/o embed). El bot lo publicará solo cuando toque.' },
+      } },
+      'config-comportamiento': { steps: {
+        cierre: { title: '🎫 Al cerrar un ticket', desc: 'Decide qué pasa al cerrar: pedir valoración (CSAT), enviar el transcript y avisar en el canal. Todo se guarda solo al cambiarlo.' },
+        notif: { title: '🔔 Notificaciones', desc: 'Activa el aviso al equipo de soporte cuando se abre un ticket y elige qué rol se menciona.' },
+        logs: { title: '📜 Qué se registra', desc: 'Enciende o apaga qué eventos guarda el bot en los logs: tickets, entradas, salidas y mensajes borrados o editados.' },
+      } },
+      'config-reglas': { steps: {
+        staff: { title: '🛡️ Rol de soporte', desc: 'Elige qué rol (además de los admins) puede gestionar los tickets. Se guarda automáticamente.' },
+        categoria: { title: '📁 Categoría de creación', desc: 'La categoría de Discord donde se crearán los canales de ticket nuevos.' },
+        limite: { title: '🔢 Límite por usuario', desc: 'Cuántos tickets abiertos puede tener una misma persona a la vez (0 = sin límite).' },
+        autoasignar: { title: '🔁 Asignación automática', desc: 'Reparte los tickets nuevos entre tu staff por turnos (round-robin), para que nadie se quede sin atender.' },
+      } },
+      'config-acceso': { steps: {
+        panel: { title: '🖥️ Acceso al panel', desc: 'Qué roles pueden entrar a este panel web. Si no eliges ninguno, solo los administradores.' },
+        moderacion: { title: '🛡️ Roles de moderación', desc: 'Qué roles pueden usar el panel de moderación y los comandos de sanción.' },
+        areas: { title: '🗂️ Quién ve cada sección', desc: 'Afina, sección por sección, qué roles ven cada parte del panel. Control granular total.' },
+        guardar: { title: '💾 Guardar', desc: 'Aplica todos los cambios de acceso de una vez.' },
+      } },
+      'config-expresiones': { steps: {
+        emojis: { title: '😄 Emojis', desc: 'Arrastra y suelta imágenes para añadir emojis al servidor (PNG, JPG o GIF). Pasa el ratón por uno para borrarlo.' },
+        stickers: { title: '🩹 Stickers', desc: 'Igual que los emojis pero para stickers (PNG). Súbelos arrastrando y gestiónalos desde aquí.' },
+      } },
+      'config-macros': { steps: {
+        crear: { title: '⚡ Crear respuesta rápida', desc: 'Dale un título y un contenido a tu plantilla. El staff la insertará en el chat con el botón ⚡. Debajo aparece la lista de las que ya tienes.' },
+      } },
+      'config-textos': { steps: {
+        guardar: { title: '💾 Guardar', desc: 'Guarda toda la personalización de marca blanca que ajustes debajo.' },
+        form: { title: '✍️ Textos del panel de tickets', desc: 'Personaliza el título, la descripción, el pie y el texto del botón del mensaje de soporte. A la derecha ves la vista previa en vivo.' },
+        avanzado: { title: '⌨️ Avanzado', desc: 'El prefijo de los comandos del bot y el nombre de la categoría donde se archivan los tickets cerrados.' },
+      } },
+      logs: { steps: {
+        capacidad: { title: '📊 Capacidad del plan', desc: 'Cuántos logs guardas frente al límite de tu plan. Al llegar al tope, los más antiguos se van borrando.' },
+        filtros: { title: '🔖 Filtrar por tipo', desc: 'Cambia entre todos los eventos o un tipo concreto: tickets, borrados, editados, entradas o salidas.' },
+        timeline: { title: '🕒 Línea de tiempo', desc: 'El historial cronológico de eventos: qué pasó, quién intervino y cuándo, con todos los detalles.' },
+      } },
+      'seg-backup': { steps: {
+        exportar: { title: '⬇️ Exportar', desc: 'Descarga toda la configuración del servidor en un archivo. Tu copia de seguridad o para clonarla en otro servidor.' },
+        importar: { title: '⬆️ Importar', desc: 'Carga un archivo de backup para restaurar la configuración. Ojo: sobrescribe los ajustes actuales.' },
+      } },
+    },
     theme: {
       button: 'Tema',
       title: 'Apariencia',

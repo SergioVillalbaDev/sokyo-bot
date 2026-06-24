@@ -24,7 +24,7 @@ export default function TextsView({ dash }) {
   return (
     <div className="flex flex-col gap-6">
       {/* Cabecera con botón guardar */}
-      <Card className="flex flex-col items-start justify-between gap-4 p-6 shadow-soft sm:flex-row sm:items-center">
+      <Card data-help="texts-guardar" className="flex flex-col items-start justify-between gap-4 p-6 shadow-soft sm:flex-row sm:items-center">
         <div>
           <h2 className="text-xl font-bold text-fg">{t('dashboard.texts_v.title')}</h2>
           <p className="mt-1 text-sm text-muted">{t('dashboard.texts_v.subtitle')}</p>
@@ -39,7 +39,7 @@ export default function TextsView({ dash }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Formulario */}
-        <Card className="flex flex-col gap-5 p-6 shadow-soft">
+        <Card data-help="texts-form" className="flex flex-col gap-5 p-6 shadow-soft">
           <h3 className="flex items-center gap-2 font-bold text-fg"><Pencil size={17} className="text-brand" /> {t('dashboard.texts_v.content')}</h3>
 
           <div className="flex flex-col gap-2">
@@ -101,7 +101,7 @@ export default function TextsView({ dash }) {
       </div>
 
       {/* Avanzado: prefijo + categoría de archivados */}
-      <Card className="flex flex-col gap-5 p-6 shadow-soft">
+      <Card data-help="texts-avanzado" className="flex flex-col gap-5 p-6 shadow-soft">
         <h3 className="flex items-center gap-2 font-bold text-fg"><Terminal size={17} className="text-brand" /> {t('dashboard.texts_v.advanced')}</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">

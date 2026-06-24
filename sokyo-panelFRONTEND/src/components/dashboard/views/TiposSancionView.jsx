@@ -18,7 +18,7 @@ export default function TiposSancionView({ dash }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div data-help="tipos-crear" className="flex items-center justify-between">
         <p className="text-sm text-muted">{t('dashboard.mod_v.tiposIntro')}</p>
         <button onClick={() => setEditando({})} className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90">
           <Plus size={16} /> {t('dashboard.mod_v.newType')}
@@ -31,7 +31,7 @@ export default function TiposSancionView({ dash }) {
           <p className="text-sm italic text-muted">{t('dashboard.mod_v.noTypes')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div data-help="tipos-lista" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {tiposSancion.map((tipo) => {
             const meta = accionMeta(tipo.accion);
             const Icono = meta.icon;

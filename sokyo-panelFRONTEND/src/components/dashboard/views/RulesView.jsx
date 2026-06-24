@@ -29,7 +29,7 @@ export default function RulesView({ dash }) {
       </div>
 
       {/* Rol de soporte */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="reglas-staff" className="p-6 shadow-soft">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-brand"><ShieldCheck size={18} /></span>
@@ -51,7 +51,7 @@ export default function RulesView({ dash }) {
       </Card>
 
       {/* Categoría de creación */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="reglas-categoria" className="p-6 shadow-soft">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-brand"><FolderTree size={18} /></span>
@@ -72,7 +72,7 @@ export default function RulesView({ dash }) {
       </Card>
 
       {/* Límite de tickets abiertos */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="reglas-limite" className="p-6 shadow-soft">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-brand"><Hash size={18} /></span>
@@ -111,7 +111,7 @@ export default function RulesView({ dash }) {
       </Card>
 
       {/* Asignación automática (round-robin) */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="reglas-autoasignar" className="p-6 shadow-soft">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-brand"><UserCheck size={18} /></span>

@@ -83,7 +83,7 @@ export default function CentroMandoView({ dash }) {
   return (
     <div className="space-y-5">
       {/* Tarjetas de estado */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div data-help="modcentro-stats" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {tarjetas.map((s, i) => (
           <motion.div key={s.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-3xl border border-line bg-card p-4 shadow-soft">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: `${s.color}1f`, color: s.color }}><s.icon size={18} /></span>
@@ -97,7 +97,7 @@ export default function CentroMandoView({ dash }) {
         {/* ===== Columna izquierda: usuario + historial ===== */}
         <div className="space-y-5">
           {/* Buscador */}
-          <div className={card}>
+          <div data-help="modcentro-buscar" className={card}>
             <h3 className="mb-3 flex items-center gap-2 font-bold text-fg"><Search size={18} className="text-brand" /> {t('dashboard.mod_v.searchUser')}</h3>
             <div className="relative">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -236,7 +236,7 @@ export default function CentroMandoView({ dash }) {
         </div>
 
         {/* ===== Columna derecha: botones de sanción ===== */}
-        <div className={`${card} h-fit`}>
+        <div data-help="modcentro-aplicar" className={`${card} h-fit`}>
           <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><Gavel size={18} className="text-brand" /> {t('dashboard.mod_v.applyTitle')}</h3>
           <p className="mb-4 text-xs text-muted">{usuario ? t('dashboard.mod_v.applyOn', { user: usuario.displayName }) : t('dashboard.mod_v.applyPickFirst')}</p>
 

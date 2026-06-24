@@ -57,7 +57,7 @@ export default function AnunciosView({ dash }) {
       </div>
 
       {/* Programados */}
-      <div className={card}>
+      <div data-help="anuncios-lista" className={card}>
         <h3 className="mb-3 font-bold text-fg">{t('dashboard.anuncios_v.scheduled')}</h3>
         {(!anuncios || anuncios.length === 0) ? (
           <p className="py-6 text-center text-sm italic text-muted">{t('dashboard.anuncios_v.empty')}</p>
@@ -84,7 +84,7 @@ export default function AnunciosView({ dash }) {
       <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarPresetAnuncio} />
 
       {/* Crear */}
-      <div className={card}>
+      <div data-help="anuncios-crear" className={card}>
         <h3 className="mb-4 font-bold text-fg">{t('dashboard.anuncios_v.createTitle')}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">

@@ -45,7 +45,7 @@ export default function BackupView({ dash }) {
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Exportar */}
-        <div className={card}>
+        <div data-help="backup-exportar" className={card}>
           <h3 className="flex items-center gap-2 font-bold text-fg"><Download size={18} className="text-brand" /> {t('dashboard.backup_v.exportTitle')}</h3>
           <p className="mt-1 mb-4 text-xs text-muted">{t('dashboard.backup_v.exportDesc')}</p>
           <button
@@ -59,7 +59,7 @@ export default function BackupView({ dash }) {
         </div>
 
         {/* Importar */}
-        <div className={card}>
+        <div data-help="backup-importar" className={card}>
           <h3 className="flex items-center gap-2 font-bold text-fg"><Upload size={18} className="text-brand" /> {t('dashboard.backup_v.importTitle')}</h3>
           <p className="mt-1 mb-3 text-xs text-muted">{t('dashboard.backup_v.importDesc')}</p>
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2">

@@ -96,7 +96,7 @@ export default function AutoRespuestasView({ dash }) {
         <p className="text-xs text-muted">{t('dashboard.autoresp_v.note')}</p>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div data-help="autoresp-reglas" className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-bold text-fg"><MessagesSquare size={18} className="text-brand" /> {t('dashboard.autoresp_v.rules')} ({lista.length})</h3>
         <button type="button" onClick={addRegla} className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-sm font-semibold text-fg transition-colors hover:border-brand">
           <Plus size={15} /> {t('dashboard.autoresp_v.add')}
@@ -115,7 +115,7 @@ export default function AutoRespuestasView({ dash }) {
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      <div data-help="autoresp-guardar" className="flex items-center gap-3">
         <button
           type="button"
           onClick={guardar}

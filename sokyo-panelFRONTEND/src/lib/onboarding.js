@@ -15,6 +15,7 @@
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import './onboarding.css';
+import { sectionTours } from './sectionTours';
 
 const STORAGE_KEY = 'sokyoOnboardingDone';
 
@@ -101,34 +102,38 @@ const buildSteps = (t) => {
   ];
 };
 
+// Un paso es válido si no tiene elemento (centrado) o si su elemento existe Y
+// está visible en pantalla. En móvil el menú lateral está oculto (drawer), así
+// que sus pasos se descartan en vez de señalar fuera de la vista.
+const isUsable = (sel) => {
+  const el = document.querySelector(sel);
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return (
+    r.width > 0 && r.height > 0 &&
+    r.right > 0 && r.bottom > 0 &&
+    r.left < window.innerWidth && r.top < window.innerHeight
+  );
+};
+
 /**
- * Lanza el tour. Descarta los pasos cuyo elemento no exista (p. ej. una
- * categoría que el usuario no puede ver por permisos), así nunca se queda en
- * blanco ni señala al vacío.
+ * MOTOR COMÚN — corre un tour de driver.js con el "campo de energía" de Sokyo
+ * alrededor de cada paso, el botón "Saltar tutorial" y la limpieza al cerrar.
+ * Lo usan tanto el tour global como los mini-tours de cada sección.
+ *
+ * @param t        función de i18n
+ * @param steps    pasos ya construidos (formato driver.js)
+ * @param onClose  callback opcional al destruir (p. ej. marcar el tour visto)
  */
-export const startOnboarding = (t) => {
-  // Un paso es válido si no tiene elemento (centrado) o si su elemento existe Y
-  // está visible en pantalla. En móvil el menú lateral está oculto (drawer),
-  // así que sus pasos se descartan en vez de señalar fuera de la vista.
-  const isUsable = (sel) => {
-    const el = document.querySelector(sel);
-    if (!el) return false;
-    const r = el.getBoundingClientRect();
-    return (
-      r.width > 0 && r.height > 0 &&
-      r.right > 0 && r.bottom > 0 &&
-      r.left < window.innerWidth && r.top < window.innerHeight
-    );
-  };
-  const steps = buildSteps(t).filter((s) => !s.element || isUsable(s.element));
-  if (steps.length === 0) return;
+const runTour = (t, steps, onClose) => {
+  if (!steps || steps.length === 0) return;
 
   let activeEl = null;
   const reposition = () => activeEl && positionFocus(activeEl);
 
   let driverObj;
   driverObj = driver({
-    showProgress: true,
+    showProgress: steps.length > 1,
     progressText: t('dashboard.onboarding.progress'),
     nextBtnText: t('dashboard.onboarding.next'),
     prevBtnText: t('dashboard.onboarding.prev'),
@@ -141,10 +146,10 @@ export const startOnboarding = (t) => {
     smoothScroll: true,
     steps,
 
-    // Inyecta "Saltar tutorial" a la izquierda del footer en cada paso.
+    // Inyecta "Saltar tutorial" a la izquierda del footer (solo si hay >1 paso).
     onPopoverRender: (popover) => {
       const footer = popover.footer;
-      if (!footer || footer.querySelector('.sokyo-skip-btn')) return;
+      if (!footer || steps.length <= 1 || footer.querySelector('.sokyo-skip-btn')) return;
       const skip = document.createElement('button');
       skip.className = 'sokyo-skip-btn';
       skip.type = 'button';
@@ -165,18 +170,27 @@ export const startOnboarding = (t) => {
       }
     },
 
-    // Al terminar, saltar o cerrar con la X: limpia todo y no vuelve a salir solo.
     onDestroyed: () => {
       window.removeEventListener('scroll', reposition, true);
       window.removeEventListener('resize', reposition);
       destroyFocus();
-      markOnboardingSeen();
+      if (onClose) onClose();
     },
   });
 
   window.addEventListener('scroll', reposition, true);
   window.addEventListener('resize', reposition);
   driverObj.drive();
+};
+
+/**
+ * Lanza el tour global. Descarta los pasos cuyo elemento no exista o no esté
+ * visible (p. ej. una categoría oculta por permisos o el sidebar en móvil), así
+ * nunca se queda en blanco ni señala al vacío.
+ */
+export const startOnboarding = (t) => {
+  const steps = buildSteps(t).filter((s) => !s.element || isUsable(s.element));
+  runTour(t, steps, markOnboardingSeen);
 };
 
 /** Lanza el tour solo si es la primera vez (auto-inicio en el primer login). */
@@ -186,32 +200,50 @@ export const maybeStartOnboarding = (t) => {
 };
 
 // ---------------------------------------------------------------------------
-// AYUDA POR SECCIÓN — un popover de UN solo paso, con el mismo estilo que el
-// tour, que explica a fondo SOLO la sección en la que estás. Se lanza desde el
-// botón (?) que vive junto al título de cada sección en el Header.
+// MINI-TOUR POR SECCIÓN — el botón (?) del Header lanza un recorrido guiado que
+// señala y explica las distintas partes de la sección en la que estás, con el
+// mismo estilo (campo de energía + popover) que el tour global.
 //
-// • Texto: i18n (dashboard.sectionHelp.<key>.title/desc). Si una sección no
-//   tiene texto propio, no hace nada (botón inofensivo).
-// • Es centrado (no señala a ningún elemento), así funciona igual en escritorio
-//   y móvil y nunca apunta al vacío.
+// • Estructura de pasos: lib/sectionTours.js (anclas data-help="..." + lado).
+// • Texto: i18n dashboard.sectionTours.<key>.steps.<id>.{title,desc}.
+// • Robusto: descarta pasos cuyo elemento no esté visible. Si no queda ninguno
+//   (vista aún cargando, etc.), no abre nada.
 // ---------------------------------------------------------------------------
-export const startSectionHelp = (t, key) => {
+export const startSectionTour = (t, key) => {
+  const defs = sectionTours[key];
+
+  // 1) Mini-tour guiado multi-paso (si la sección lo tiene definido y al menos
+  //    uno de sus elementos está visible).
+  if (Array.isArray(defs) && defs.length > 0) {
+    const steps = defs
+      .filter((d) => !d.sel || isUsable(d.sel))
+      .map((d) => ({
+        ...(d.sel ? { element: d.sel } : {}),
+        popover: {
+          title: t(`dashboard.sectionTours.${key}.steps.${d.id}.title`),
+          description: t(`dashboard.sectionTours.${key}.steps.${d.id}.desc`),
+          ...(d.side ? { side: d.side } : {}),
+          ...(d.align ? { align: d.align } : {}),
+        },
+      }));
+    if (steps.length > 0) { runTour(t, steps); return; }
+  }
+
+  // 2) Fallback: un único popover centrado con el resumen de la sección
+  //    (dashboard.sectionHelp.<key>). Si no hay texto, no abre nada.
   const titleKey = `dashboard.sectionHelp.${key}.title`;
   const descKey = `dashboard.sectionHelp.${key}.desc`;
-  // Si no hay traducción para esta sección, i18n devuelve la propia clave:
-  // en ese caso no abrimos nada para no mostrar un popover vacío.
   const title = t(titleKey);
   const description = t(descKey);
   if (title === titleKey || description === descKey) return;
+  runTour(t, [{ popover: { title, description, align: 'center' } }]);
+};
 
-  const driverObj = driver({
-    showProgress: false,
-    doneBtnText: t('dashboard.sectionHelp.done'),
-    popoverClass: 'sokyo-popover',
-    overlayColor: '#06070a',
-    overlayOpacity: 0.72,
-    steps: [{ popover: { title, description, align: 'center' } }],
-    onDestroyed: () => destroyFocus(),
-  });
-  driverObj.drive();
+/**
+ * ¿Esta sección tiene alguna ayuda? Hay mini-tour propio o, como mínimo, el
+ * texto-resumen de sectionHelp. Sirve para mostrar u ocultar el botón (?).
+ */
+export const hasSectionTour = (t, key) => {
+  if (Array.isArray(sectionTours[key]) && sectionTours[key].length > 0) return true;
+  return t(`dashboard.sectionHelp.${key}.title`) !== `dashboard.sectionHelp.${key}.title`;
 };

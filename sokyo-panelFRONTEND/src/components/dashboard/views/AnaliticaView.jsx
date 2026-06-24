@@ -168,7 +168,7 @@ export default function AnaliticaView({ dash }) {
   return (
     <div className="space-y-5">
       {/* Cabecera + selector de periodo */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div data-help="analitica-periodo" className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{t('dashboard.analitica_v.intro', { dias: a.dias })}</p>
         <div className="flex items-center gap-2">
           {a.iaActiva && (
@@ -200,7 +200,7 @@ export default function AnaliticaView({ dash }) {
       )}
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-help="analitica-kpis" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={Users} label={t('dashboard.analitica_v.members')} value={v(r.miembros)} sub={sv.boosts != null ? t('dashboard.analitica_v.boosts', { n: sv.boosts }) : null} color="var(--brand)" />
         <Stat icon={TrendingUp} label={t('dashboard.analitica_v.growth')} value={r.crecimientoNeto > 0 ? `+${r.crecimientoNeto}` : v(r.crecimientoNeto)} sub={t('dashboard.analitica_v.inDays', { dias: a.dias })} color="var(--success)" />
         <Stat icon={MessageSquare} label={t('dashboard.analitica_v.messages')} value={v(r.mensajes)} sub={r.pctActivos != null ? t('dashboard.analitica_v.activePct', { pct: r.pctActivos }) : null} color="#8ab4ff" />
@@ -272,7 +272,7 @@ export default function AnaliticaView({ dash }) {
       )}
 
       {/* Actividad */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div data-help="analitica-graficas" className="grid gap-4 lg:grid-cols-2">
         <Seccion icon={Activity} titulo={t('dashboard.analitica_v.msgsPerDay')}>
           <LineaChart serie={a.actividad.serie} lineas={[{ key: 'n', color: 'var(--brand)' }]} />
         </Seccion>

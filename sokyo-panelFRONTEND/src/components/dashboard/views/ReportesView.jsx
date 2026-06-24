@@ -49,7 +49,7 @@ export default function ReportesView({ dash }) {
       </div>
 
       {/* Ajustes */}
-      <div className={card}>
+      <div data-help="reportes-ajustes" className={card}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 font-bold text-fg"><Flag size={18} className="text-brand" /> {t('dashboard.reportes_v.enable')}</h3>
           <Toggle checked={cfg.activo} onChange={(v) => { setGuardado(false); setCfg((p) => ({ ...p, activo: v })); }} />
@@ -79,7 +79,7 @@ export default function ReportesView({ dash }) {
       </div>
 
       {/* Bandeja */}
-      <div className={card}>
+      <div data-help="reportes-bandeja" className={card}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-bold text-fg">{t('dashboard.reportes_v.inbox')}</h3>
           <div className="flex gap-1.5">

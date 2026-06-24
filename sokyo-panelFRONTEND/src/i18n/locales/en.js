@@ -412,6 +412,164 @@ export default {
         desc: 'Monitor the server’s inner workings: joins and leaves, edited or deleted messages and all key activity, sorted by type.',
       },
     },
+    sectionTours: {
+      inicio: { steps: {
+        stats: { title: '📊 Your numbers at a glance', desc: 'The four key figures: total, open and closed tickets, and how many of your team have handled them. The quick pulse of your support.' },
+        team: { title: '👥 Your support team', desc: 'Who is handling tickets in your server. Click “See users” for the full list with their stats.' },
+        recientes: { title: '🎫 Recent tickets', desc: 'The latest open requests. Click any to jump straight into the conversation and reply.' },
+        rail: { title: '📈 Memory, logs and satisfaction', desc: 'On the right you track your plan: memory used, log capacity, the average satisfaction score (CSAT) and the bot’s live latency.' },
+      } },
+      'datos-analitica': { steps: {
+        periodo: { title: '🗓️ Period & AI report', desc: 'Change the range (7, 30 or 90 days) to recompute everything. If AI is active, “AI report” writes you an analysis of the period.' },
+        kpis: { title: '🔢 Key indicators', desc: 'Your big numbers: members, net growth, messages, satisfaction and voice activity. The server’s overall picture.' },
+        graficas: { title: '📉 Detailed charts', desc: 'From here on, everything in charts: activity per day and hour, top channels and users, chat health, levels, moderation, team and tickets.' },
+      } },
+      'datos-resumen': { steps: {
+        toggle: { title: '📰 Enable the summary', desc: 'Turn on the daily summary. Each day the AI writes the server briefing and sends it to you.' },
+        cuando: { title: '⏰ When and where', desc: 'Pick the time (in UTC) it’s sent and, optionally, a channel to post it in besides the DM to the owner.' },
+        acciones: { title: '💾 Save and test', desc: 'Save your changes and, with “Send test now”, get a sample summary instantly to see how it looks.' },
+      } },
+      musica: { steps: {
+        player: { title: '▶️ Now playing', desc: 'The live player: you see the current track and the queue, and control play, pause, skip, stop and volume in real time.' },
+        tabs: { title: '🗂️ Settings · Playlists · Spotify', desc: 'Switch between the player settings, your saved playlists and (if you’re an owner) the Spotify connection.' },
+        config: { title: '🎛️ Player settings', desc: 'Set the music channel, the DJ role, the volumes, the queue size and which sources (YouTube, Spotify, SoundCloud) are allowed.' },
+      } },
+      'seg-verificacion': { steps: {
+        enable: { title: '✅ Enable verification', desc: 'Turn on the entry filter. While it’s active, newcomers must verify to gain access.' },
+        modo: { title: '🔘 Button or captcha', desc: 'Choose how they verify: a simple button (fast) or a captcha (safer against bots). You set the level.' },
+        campos: { title: '⚙️ Role, channel and texts', desc: 'Set the role they get on verifying, the channel where the panel appears, and customize the title, description and button text.' },
+        acciones: { title: '📨 Save and publish', desc: 'Save the configuration and click “Publish” to place the verification panel in the chosen channel.' },
+      } },
+      'cuenta-plan': { steps: {
+        actual: { title: '👑 Your current plan', desc: 'At a glance: which plan you’re on, your AI quota and, if you have a subscription, when it renews or expires.' },
+        intervalo: { title: '🔁 Monthly or yearly', desc: 'Switch between monthly and yearly billing. Yearly is cheaper (you save about two months).' },
+        tarjetas: { title: '💳 Choose your plan', desc: 'Compare Free, Pro and Agency with everything each one includes, and upgrade with the button. Payment goes through Stripe, securely.' },
+      } },
+      'config-niveles': { steps: {
+        enable: { title: '✅ Enable levels', desc: 'The master switch for the XP system. If it’s off, nobody earns experience or levels up.' },
+        xp: { title: '📊 XP gain', desc: 'How much XP is earned per message (min/max), the cooldown between counting messages and the difficulty of the level curve.' },
+        anuncios: { title: '📣 Level-up announcement', desc: 'Decide whether level-ups are announced in a channel, via DM or not at all, and customize the message with variables like {mention} or {level}.' },
+        recompensas: { title: '🏆 Rewards and multipliers', desc: 'Grant automatic roles upon reaching certain levels and give extra XP (×2, ×3…) to specific roles to reward activity.' },
+        ranking: { title: '🥇 Live leaderboard', desc: 'Your community’s ranking by XP. Here you see who’s leading in real time.' },
+      } },
+      'roles-autorol': { steps: {
+        personas: { title: '🙋 Roles for people', desc: 'Tick the roles anyone will get automatically when they join the server. Click to toggle each one on or off.' },
+        bots: { title: '🤖 Roles for bots', desc: 'Same as above, but for bots that get added. Handy for separating them from the rest with their own role.' },
+        guardar: { title: '💾 Save', desc: 'Apply the changes. From then on, every new join will receive the chosen roles.' },
+      } },
+      'seg-embudo': { steps: {
+        config: { title: '⚙️ Enable and delivery', desc: 'Turn on the A/B test and choose how the onboarding arrives (a panel in a channel, via DM or both), the role on completion and the channel.' },
+        variantes: { title: '🅰️🅱️ The two variants', desc: 'Design the two onboardings to compare. Each newcomer gets one at random (50/50) to see which one retains better.' },
+        acciones: { title: '📊 Save, publish and results', desc: 'Save the configuration, publish the panel in the channel and check in Analytics which variant is winning.' },
+      } },
+      'prod-bienvenidas': { steps: {
+        tabs: { title: '🚪 Welcome and farewell', desc: 'Two independent tabs: configure separately the message for when someone joins and for when someone leaves.' },
+        mensaje: { title: '✍️ Message and variables', desc: 'Enable the message, pick the channel and write the text. Use variables like {mention} or {servidor} to personalize it per member.' },
+        embed: { title: '🖼️ Optional embed', desc: 'For something flashier, add an embed with color, images and GIFs using the same builder as in announcements.' },
+        acciones: { title: '👀 Save and preview', desc: 'Save and use “Test” to have the bot send you the real message in the channel so you see exactly how it looks.' },
+      } },
+      'tickets-gestion': { steps: {
+        filtro: { title: '🏷️ Filter by tag', desc: 'If your tickets have tags, filter here to see only one type. “All” clears the filter.' },
+        grid: { title: '🎫 Your tickets', desc: 'Each card is a request: priority, who opened it, reason and who’s handling it. Click “View” to open the conversation, or close, reopen or hide it.' },
+      } },
+      'tickets-usuarios': { steps: {
+        tabla: { title: '👥 User registry', desc: 'Each row is a user with their total and open tickets, average rating and last activity. “View in moderation” jumps to their profile to sanction them if needed.' },
+      } },
+      'tickets-config': { steps: {
+        guardar: { title: '💾 Save changes', desc: 'This is where you save all the incident settings you adjust below. Don’t forget to click it when you’re done.' },
+        urgencias: { title: '🚦 Urgency levels', desc: 'Define your priorities (color and level). The higher the level, the higher the ticket appears. Add or remove as many as you want.' },
+        categorias: { title: '🗂️ Categories', desc: 'The reasons a user picks when opening a ticket. You assign each one a default urgency.' },
+      } },
+      'roles-gestion': { steps: {
+        crear: { title: '➕ Create role', desc: 'Create a new role with its name, color, font style and permissions, without leaving the panel or wrestling with Discord.' },
+        lista: { title: '📋 Your roles', desc: 'Each row is a role. Expand it to see its permissions by category and the members who have it, assign it to someone or remove it. Locks are roles above the bot.' },
+      } },
+      'roles-paneles': { steps: {
+        crear: { title: '➕ Create panel', desc: 'Create a self-role panel: buttons, menu, reactions or verification. You choose the appearance, roles and behavior.' },
+        lista: { title: '📋 Your panels', desc: 'Your created panels. From here you edit, delete and publish (or republish) them in the channel so members can self-assign roles.' },
+      } },
+      'mod-centro': { steps: {
+        stats: { title: '📊 Moderation status', desc: 'A quick summary: total sanctions, active bans, those from the last 7 days and how many sanction types you’ve created.' },
+        buscar: { title: '🔍 Search the user', desc: 'Type a name to find a member. When you pick them you’ll see their profile, activity and sanction history.' },
+        aplicar: { title: '⚖️ Apply the sanction', desc: 'With a user selected, sanction them instantly: quick actions (ban, kick…) or your custom types, with reason and evidence.' },
+      } },
+      'mod-tipos': { steps: {
+        crear: { title: '➕ New type', desc: 'Create a sanction template: name, action (ban, timeout, kick or warning), duration, color and emoji. It appears as a button in the Command Center.' },
+        lista: { title: '📋 Your types', desc: 'Your custom sanctions. Edit or delete them anytime; changes are reflected in the Command Center.' },
+      } },
+      'mod-automod': { steps: {
+        presets: { title: '⚡ Quick presets', desc: 'Ready-made configs (soft, balanced, strict…). Apply one in a click and then fine-tune the details to taste.' },
+        master: { title: '🔌 Master switch', desc: 'Turn the whole auto-moderator on or off and define where it warns (alert channel) when it acts.' },
+        entradas: { title: '🛡️ Entry defense', desc: 'Protection against raids (many joins at once) and suspicious new or avatar-less accounts. It acts before they even write.' },
+        mensajes: { title: '💬 Message filters', desc: 'They watch what gets written: scams, banned words, invites, links, spam, mass mentions and caps. Each with its own action.' },
+        guardar: { title: '💾 Save', desc: 'Don’t forget to save when you’re done. The button follows you at the bottom as you scroll so it’s always within reach.' },
+      } },
+      'mod-reportes': { steps: {
+        ajustes: { title: '⚙️ Enable reports', desc: 'Turn on the report system and choose the channel where your staff will get the community’s alerts.' },
+        bandeja: { title: '📥 Reports inbox', desc: 'Reports arrive here. Filter them by status and resolve them, open a ticket with the case or dismiss them.' },
+      } },
+      'seg-reportes': { steps: {
+        ajustes: { title: '⚙️ Enable reports', desc: 'Turn on the report system and choose the channel where your staff will get the community’s alerts.' },
+        bandeja: { title: '📥 Reports inbox', desc: 'Reports arrive here. Filter them by status and resolve them, open a ticket with the case or dismiss them.' },
+      } },
+      'mod-registro': { steps: {
+        canal: { title: '📋 Log channel and alerts', desc: 'Choose the channel where all sanctions are logged and decide whether the sanctioned user is notified by DM.' },
+        filtros: { title: '🔎 Filters', desc: 'Filter the history by sanction type or search by user, ID or reason to find a case quickly.' },
+        lista: { title: '🗂️ Full history', desc: 'Every applied sanction, with its moderator, reason, evidence and a countdown if active. You can revoke bans and timeouts from here.' },
+      } },
+      'prod-autorespuestas': { steps: {
+        reglas: { title: '➕ Your rules', desc: 'Each rule is an “if someone writes X, the bot replies Y”. Add as many as you want: set the trigger, the match type and the reply.' },
+        guardar: { title: '💾 Save', desc: 'Save all rules at once. The active ones will start replying instantly in your server.' },
+      } },
+      'prod-embeds': { steps: {
+        tipo: { title: '📄 Text or embed', desc: 'Choose whether your announcement is a plain text message or an embed with color, images and fields.' },
+        destino: { title: '🎯 Target and content', desc: 'Pick the channel to post in and write the message content.' },
+        builder: { title: '🖼️ Embed builder', desc: 'Design the embed in detail: title, description, color, author, fields, image and footer. With a live preview.' },
+        enviar: { title: '🚀 Send', desc: 'Post the announcement to the channel instantly. (If you’re a broadcaster, you can also send it to all servers.)' },
+      } },
+      'prod-anuncios': { steps: {
+        lista: { title: '🗓️ Scheduled', desc: 'Your queued announcements, with their date and repetition. Delete them when you no longer need them.' },
+        crear: { title: '➕ Schedule a new one', desc: 'Pick channel, date and time, optional repetition and the content (text and/or embed). The bot posts it on its own when due.' },
+      } },
+      'config-comportamiento': { steps: {
+        cierre: { title: '🎫 On ticket close', desc: 'Decide what happens on close: ask for a rating (CSAT), send the transcript and notify the channel. Everything saves automatically on change.' },
+        notif: { title: '🔔 Notifications', desc: 'Enable the alert to your support team when a ticket opens and choose which role gets mentioned.' },
+        logs: { title: '📜 What gets logged', desc: 'Turn on or off which events the bot saves to the logs: tickets, joins, leaves and deleted or edited messages.' },
+      } },
+      'config-reglas': { steps: {
+        staff: { title: '🛡️ Support role', desc: 'Choose which role (besides admins) can manage tickets. Saves automatically.' },
+        categoria: { title: '📁 Creation category', desc: 'The Discord category where new ticket channels will be created.' },
+        limite: { title: '🔢 Per-user limit', desc: 'How many open tickets one person can have at a time (0 = no limit).' },
+        autoasignar: { title: '🔁 Automatic assignment', desc: 'Distribute new tickets among your staff in turns (round-robin), so no one goes unattended.' },
+      } },
+      'config-acceso': { steps: {
+        panel: { title: '🖥️ Panel access', desc: 'Which roles can enter this web panel. If you pick none, only administrators.' },
+        moderacion: { title: '🛡️ Moderation roles', desc: 'Which roles can use the moderation panel and the sanction commands.' },
+        areas: { title: '🗂️ Who sees each section', desc: 'Fine-tune, section by section, which roles see each part of the panel. Full granular control.' },
+        guardar: { title: '💾 Save', desc: 'Apply all access changes at once.' },
+      } },
+      'config-expresiones': { steps: {
+        emojis: { title: '😄 Emojis', desc: 'Drag and drop images to add emojis to the server (PNG, JPG or GIF). Hover over one to delete it.' },
+        stickers: { title: '🩹 Stickers', desc: 'Same as emojis but for stickers (PNG). Upload them by dragging and manage them here.' },
+      } },
+      'config-macros': { steps: {
+        crear: { title: '⚡ Create quick reply', desc: 'Give your template a title and content. Staff insert it into the chat with the ⚡ button. The list of existing ones appears below.' },
+      } },
+      'config-textos': { steps: {
+        guardar: { title: '💾 Save', desc: 'Save all the white-label customization you adjust below.' },
+        form: { title: '✍️ Ticket panel texts', desc: 'Customize the title, description, footer and button text of the support message. On the right you see a live preview.' },
+        avanzado: { title: '⌨️ Advanced', desc: 'The bot’s command prefix and the name of the category where closed tickets are archived.' },
+      } },
+      logs: { steps: {
+        capacidad: { title: '📊 Plan capacity', desc: 'How many logs you store against your plan’s limit. When you hit the cap, the oldest get deleted.' },
+        filtros: { title: '🔖 Filter by type', desc: 'Switch between all events or a specific type: tickets, deleted, edited, joins or leaves.' },
+        timeline: { title: '🕒 Timeline', desc: 'The chronological history of events: what happened, who was involved and when, with all the details.' },
+      } },
+      'seg-backup': { steps: {
+        exportar: { title: '⬇️ Export', desc: 'Download the whole server configuration to a file. Your backup or to clone it onto another server.' },
+        importar: { title: '⬆️ Import', desc: 'Load a backup file to restore the configuration. Careful: it overwrites the current settings.' },
+      } },
+    },
     theme: {
       button: 'Theme',
       title: 'Appearance',

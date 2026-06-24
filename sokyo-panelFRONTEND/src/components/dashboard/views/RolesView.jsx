@@ -48,7 +48,7 @@ export default function RolesView({ dash }) {
   return (
     <div className="space-y-5">
       {/* Cabecera con el botón de crear */}
-      <div className="flex items-center justify-between">
+      <div data-help="roles-crear" className="flex items-center justify-between">
         <p className="text-sm text-muted">{t('dashboard.roles_v.intro')}</p>
         <button
           onClick={() => setEditando({})}
@@ -73,7 +73,7 @@ export default function RolesView({ dash }) {
           <p className="text-sm italic text-muted">{t('dashboard.roles_v.empty')}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div data-help="roles-lista" className="space-y-3">
           {rolesDetalle.map((rol, i) => (
             <RolRow key={rol.id} rol={rol} index={i} dash={dash} onEditar={() => setEditando(rol)} />
           ))}

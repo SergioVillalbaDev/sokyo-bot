@@ -32,7 +32,7 @@ export default function PanelesView({ dash }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div data-help="paneles-crear" className="flex items-center justify-between">
         <p className="text-sm text-muted">{t('dashboard.paneles_v.intro')}</p>
         <button
           onClick={() => setEditando({})}
@@ -55,7 +55,7 @@ export default function PanelesView({ dash }) {
           <p className="text-sm italic text-muted">{t('dashboard.paneles_v.empty')}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div data-help="paneles-lista" className="space-y-3">
           {paneles.map((p) => {
             const TipoIcon = (TIPOS.find((x) => x.id === p.tipo) || TIPOS[0]).icon;
             return (

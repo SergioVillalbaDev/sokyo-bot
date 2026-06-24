@@ -71,7 +71,7 @@ export default function BienvenidaView({ dash }) {
       <p className="text-sm text-muted">{t('dashboard.bienvenida_v.intro')}</p>
 
       {/* Pestañas bienvenida / despedida */}
-      <div className="flex items-center gap-1 rounded-2xl border border-line bg-elevated p-1">
+      <div data-help="bienvenida-tabs" className="flex items-center gap-1 rounded-2xl border border-line bg-elevated p-1">
         {[['bienvenida', LogIn], ['despedida', LogOut]].map(([id, Icon]) => (
           <button key={id} type="button" onClick={() => { setTab(id); setPrueba(''); }}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${tab === id ? 'bg-gradient-brand text-on-brand' : 'text-muted hover:text-fg'}`}>
@@ -80,7 +80,7 @@ export default function BienvenidaView({ dash }) {
         ))}
       </div>
 
-      <div className={card}>
+      <div data-help="bienvenida-mensaje" className={card}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 font-bold text-fg">
             {tab === 'bienvenida' ? <LogIn size={18} className="text-brand" /> : <LogOut size={18} className="text-brand" />}
@@ -121,7 +121,7 @@ export default function BienvenidaView({ dash }) {
       </div>
 
       {/* Embed opcional */}
-      <div className={card}>
+      <div data-help="bienvenida-embed" className={card}>
         <h3 className="flex items-center gap-2 font-bold text-fg"><Hash size={18} className="text-brand" /> {t('dashboard.bienvenida_v.embedTitle')}</h3>
         <p className="mt-1 text-xs text-muted">{t('dashboard.bienvenida_v.embedDesc')}</p>
         <div className="mt-4 border-t border-line pt-4">
@@ -129,7 +129,7 @@ export default function BienvenidaView({ dash }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div data-help="bienvenida-acciones" className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={guardar} disabled={guardando || !configServidor}
           className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save size={16} /> {guardando ? t('dashboard.bienvenida_v.saving') : t('dashboard.bienvenida_v.save')}

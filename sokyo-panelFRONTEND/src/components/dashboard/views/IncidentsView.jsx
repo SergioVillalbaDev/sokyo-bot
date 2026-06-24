@@ -22,7 +22,7 @@ export default function IncidentsView({ dash }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
+      <Card data-help="incidents-guardar" className="flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-xl font-bold text-fg">{t('dashboard.incidents_v.title')}</h2>
           <p className="mt-1 text-sm text-muted">{t('dashboard.incidents_v.subtitle')}</p>
@@ -37,7 +37,7 @@ export default function IncidentsView({ dash }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Niveles de urgencia */}
-        <Card className="flex flex-col p-6">
+        <Card data-help="incidents-urgencias" className="flex flex-col p-6">
           <h3 className="mb-4 flex items-center gap-2 font-bold text-fg"><Gauge size={18} className="text-brand" /> {t('dashboard.incidents_v.sla')}</h3>
 
           <ul className="mb-5 flex max-h-[340px] flex-col gap-2.5 overflow-y-auto">
@@ -70,7 +70,7 @@ export default function IncidentsView({ dash }) {
         </Card>
 
         {/* Categorías del menú */}
-        <Card className="flex flex-col p-6">
+        <Card data-help="incidents-categorias" className="flex flex-col p-6">
           <h3 className="mb-4 flex items-center gap-2 font-bold text-fg"><Tags size={18} className="text-brand" /> {t('dashboard.incidents_v.categories')}</h3>
 
           <ul className="mb-5 flex max-h-[340px] flex-col gap-2.5 overflow-y-auto">
