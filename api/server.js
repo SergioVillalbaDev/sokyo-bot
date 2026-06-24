@@ -161,6 +161,7 @@ module.exports = (client) => {
         if (req.path === '/estado') return next();          // health check público
         if (req.path.startsWith('/auth')) return next();    // flujo OAuth (público)
         if (req.path.startsWith('/portal')) return next();  // portal: su propio middleware
+        if (req.path.startsWith('/spotify')) return next(); // callback OAuth de Spotify (verificado por state)
 
         // (1) ¿Sesión de staff por JWT?
         const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -203,6 +204,12 @@ module.exports = (client) => {
 
     // --- Sistema de música (rutas en api/routes/musica.js) ---
     app.use('/api', require('./routes/musica.js')({ portalAuth, client }));
+
+    // --- Playlists de usuario (guardadas en BD) ---
+    app.use('/api', require('./routes/playlists.js')({ portalAuth, client }));
+
+    // --- Spotify OAuth y browsing de playlists ---
+    app.use('/api', require('./routes/spotify.js')({ portalAuth }));
 
     // --- Endurecimiento: acota las acciones por ticket (por canalId) ---
     // Si la petición viene de un staff, el ticket debe pertenecer a uno de SUS
