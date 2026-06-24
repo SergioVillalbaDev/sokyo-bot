@@ -210,27 +210,69 @@ export default {
       next: 'Next →',
       prev: '← Back',
       done: 'All set! 🎉',
-      progress: '{{current}} of {{total}}',
-      welcome: {
-        title: '👋 Welcome to Sokyo!',
-        desc: 'Let me show you the essentials in 30 seconds. Ready?',
-      },
-      stats: {
-        title: '📊 Your server at a glance',
-        desc: 'Tickets, team and activity in real time. Your command center.',
-      },
-      tickets: {
-        title: '🎫 Ticket System',
-        desc: 'Your community’s support: create, assign and close without leaving here.',
-      },
-      community: {
-        title: '⚡ Hook your members',
-        desc: 'Turn on levels, XP and welcomes to grow your community.',
-      },
-      help: {
-        title: '💡 Lost?',
-        desc: 'Tap here anytime to replay this tour. Enjoy!',
-        aria: 'Replay the tutorial',
+      progress: 'Step {{current}} of {{total}}',
+      help: { aria: 'Replay the tutorial' },
+      steps: {
+        welcome: {
+          title: '👋 Welcome to Sokyo',
+          desc: 'Your all-in-one Discord bot. In one minute I’ll walk you through every area of the panel and what it does. You can exit anytime.',
+        },
+        server: {
+          title: '🌐 Your server & plan',
+          desc: 'Pick the server you manage here (if you have several) and see your current plan: Free, Pro or Owner.',
+        },
+        home: {
+          title: '📊 Command center',
+          desc: 'Your community’s live pulse: total, open and closed tickets, your support team and recent activity.',
+        },
+        plan: {
+          title: '👑 My Plan',
+          desc: 'Upgrade to Pro or manage your subscription: premium themes, white-label, advanced stats and priority support.',
+        },
+        data: {
+          title: '📈 Data',
+          desc: 'Ticket analytics (volume, reasons, satisfaction) plus a daily server digest written by the AI.',
+        },
+        community: {
+          title: '🚪 Onboarding & community',
+          desc: 'Everything that happens when someone joins: bot verification, A/B welcome test, welcome messages, auto-role and XP levels.',
+        },
+        music: {
+          title: '🎵 Music',
+          desc: 'Live player: queue songs by name or link and control playback without leaving the panel.',
+        },
+        tickets: {
+          title: '🎫 Ticket System',
+          desc: 'Your community’s support: manage conversations, review the user log and tune reasons and priorities.',
+        },
+        roles: {
+          title: '🧩 Roles System',
+          desc: 'Create and hand out roles, and build panels where members self-assign roles with one click.',
+        },
+        moderation: {
+          title: '🛡️ Moderation',
+          desc: 'Command center to act instantly, automod (spam, links, words), sanction types, reports and their log.',
+        },
+        logs: {
+          title: '📜 Bot Logs',
+          desc: 'Full audit trail: joins and leaves, edited or deleted messages and all server activity.',
+        },
+        messages: {
+          title: '💬 Automated messages',
+          desc: 'Auto-replies for your FAQs, an announcement builder with embeds and scheduled posts at your chosen time.',
+        },
+        config: {
+          title: '⚙️ Settings',
+          desc: 'The bot’s engine: behavior, rules, access and permissions, emojis, quick replies, texts, backup and modules.',
+        },
+        tools: {
+          title: '🎨 Language & theme',
+          desc: 'Switch the panel language and pick from 11 themes. The 8 premium ones unlock with Sokyo Pro.',
+        },
+        help: {
+          title: '💡 Lost?',
+          desc: 'Tap this button anytime to replay the tour. That’s it — you’ve mastered Sokyo!',
+        },
       },
     },
     theme: {

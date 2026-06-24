@@ -89,7 +89,8 @@
   margin-top: 18px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .driver-popover.sokyo-popover .driver-popover-progress-text {
@@ -160,10 +161,100 @@
 
 /* --- Elemento resaltado --- */
 .driver-active-element {
-  border-radius: 16px !important;
+  border-radius: 14px !important;
 }
 
-/* Overlay un pelín más suave */
-.driver-overlay {
-  opacity: 1;
+/* ============================================================================
+   CAMPO DE ENERGÍA — resaltado animado alrededor del elemento del paso actual.
+   z-index entre el oscurecido de driver.js (10000) y el popover (1e9).
+   ============================================================================ */
+.sokyo-focus {
+  position: fixed;
+  z-index: 100000000;
+  pointer-events: none;
+  border-radius: 16px;
+  opacity: 0;
+  /* Glide suave de un elemento al siguiente (el campo "vuela" al nuevo paso) */
+  transition:
+    left 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    top 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s ease;
+}
+.sokyo-focus.is-visible { opacity: 1; }
+
+/* Anillo de energía giratorio (gradiente de marca enmascarado como borde) */
+.sokyo-focus__ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--brand-to) 0%, transparent) 30deg,
+    var(--brand-to) 130deg,
+    var(--brand-from) 210deg,
+    transparent 320deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: sokyo-spin 2.4s linear infinite;
+}
+@keyframes sokyo-spin { to { transform: rotate(1turn); } }
+
+/* Halo pulsante alrededor del elemento */
+.sokyo-focus__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--brand-to) 70%, transparent),
+    0 0 22px 2px color-mix(in srgb, var(--brand-to) 45%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--brand-from) 20%, transparent);
+  animation: sokyo-pulse 1.8s ease-in-out infinite;
+}
+@keyframes sokyo-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Partículas en órbita siguiendo el borde del elemento (rastro de energía) */
+.sokyo-focus__p {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px;
+  border-radius: 50%;
+  background: var(--brand-to);
+  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--brand-to) 80%, transparent);
+  offset-path: inset(0 round 16px);
+  animation: sokyo-orbit 3.2s linear infinite;
+}
+.sokyo-focus__p:nth-child(4) { animation-delay: -1.07s; }
+.sokyo-focus__p:nth-child(5) {
+  animation-delay: -2.14s;
+  background: var(--brand-from);
+  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--brand-from) 80%, transparent);
+}
+@keyframes sokyo-orbit {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+/* Respeta a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .sokyo-focus__ring,
+  .sokyo-focus__glow,
+  .sokyo-focus__p { animation: none; }
+  .sokyo-focus__p { display: none; }
 }

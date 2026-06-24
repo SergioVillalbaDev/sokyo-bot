@@ -62,8 +62,10 @@ export default function Header({ dash }) {
           )}
         </button>
 
-        <LanguageSwitcher />
-        <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} />
+        <div data-tour="tools" className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} />
+        </div>
       </div>
     </header>
   );

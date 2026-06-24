@@ -59,7 +59,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       </button>
 
       {/* Tarjeta + SELECTOR del SERVIDOR */}
-      <div className={cn('mt-4 flex items-center gap-3 rounded-2xl border border-line bg-card p-3 shadow-soft', collapsed && 'justify-center px-0')}>
+      <div data-tour="server" className={cn('mt-4 flex items-center gap-3 rounded-2xl border border-line bg-card p-3 shadow-soft', collapsed && 'justify-center px-0')}>
         <Avatar src={iconoServidor} name={nombreServidor} size={collapsed ? 36 : 42} />
         <AnimatePresence>
           {!collapsed && (

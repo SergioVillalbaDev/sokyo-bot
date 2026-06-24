@@ -1,12 +1,15 @@
 // ============================================================================
-// SOKYO — ONBOARDING INTERACTIVO DEL PANEL
+// SOKYO — ONBOARDING INTERACTIVO DEL PANEL (versión "deep tour")
 // ----------------------------------------------------------------------------
-// Tour guiado paso a paso con driver.js. Filosofía: corto, amigable y nunca
-// atrapa al usuario (siempre hay "Saltar tutorial" + X para cerrar).
+// Recorrido guiado que explica CADA categoría del panel, en el mismo orden que
+// el menú lateral, con un resaltado visual potente (campo de energía + rastro
+// de partículas) alrededor del elemento de cada paso.
 //
-// • Persistencia: se guarda en localStorage que ya se vio → solo salta solo la
-//   PRIMERA vez. Después solo se lanza a mano (botón de ayuda en el Header).
-// • Textos: salen de i18n (dashboard.onboarding.*), así funciona en ES/EN.
+// • Filosofía: corto por paso, pero completo en conjunto. Nunca atrapa: siempre
+//   hay "Saltar tutorial" + la X para cerrar.
+// • Persistencia: localStorage → solo salta solo la PRIMERA vez. Después se
+//   relanza a mano con el botón de ayuda (?) del Header.
+// • Textos: i18n (dashboard.onboarding.*), funciona en ES/EN.
 // • Anclajes: cada paso apunta a un [data-tour="..."] del panel.
 // ============================================================================
 import { driver } from 'driver.js';
@@ -21,57 +24,90 @@ export const hasSeenOnboarding = () => localStorage.getItem(STORAGE_KEY) === '1'
 /** Marca el tour como visto (para que no vuelva a saltar solo). */
 export const markOnboardingSeen = () => localStorage.setItem(STORAGE_KEY, '1');
 
-// Pasos del recorrido (máx. 5, estratégicos). El primero es una bienvenida
-// centrada (sin `element`); el resto resaltan zonas reales del panel.
-const buildSteps = (t) => [
-  {
+// ---------------------------------------------------------------------------
+// CAMPO DE ENERGÍA: un overlay que rodea el elemento resaltado con un anillo
+// giratorio + partículas en órbita. Se reposiciona en cada paso y al hacer
+// scroll/resize. Vive por encima del oscurecido de driver.js y por debajo del
+// popover (z-index controlado en onboarding.css).
+// ---------------------------------------------------------------------------
+const FOCUS_PAD = 6;
+let focusEl = null;
+
+const ensureFocus = () => {
+  if (focusEl) return focusEl;
+  focusEl = document.createElement('div');
+  focusEl.className = 'sokyo-focus';
+  focusEl.setAttribute('aria-hidden', 'true');
+  focusEl.innerHTML =
+    '<div class="sokyo-focus__ring"></div>' +
+    '<div class="sokyo-focus__glow"></div>' +
+    '<span class="sokyo-focus__p"></span>' +
+    '<span class="sokyo-focus__p"></span>' +
+    '<span class="sokyo-focus__p"></span>';
+  document.body.appendChild(focusEl);
+  return focusEl;
+};
+
+const positionFocus = (el) => {
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const f = ensureFocus();
+  f.style.left = `${r.left - FOCUS_PAD}px`;
+  f.style.top = `${r.top - FOCUS_PAD}px`;
+  f.style.width = `${r.width + FOCUS_PAD * 2}px`;
+  f.style.height = `${r.height + FOCUS_PAD * 2}px`;
+};
+
+const showFocus = (el) => {
+  positionFocus(el);
+  const f = ensureFocus();
+  // Doble pase: tras el scroll que hace driver, recalculamos la posición real.
+  requestAnimationFrame(() => positionFocus(el));
+  f.classList.add('is-visible');
+};
+
+const hideFocus = () => focusEl && focusEl.classList.remove('is-visible');
+const destroyFocus = () => { if (focusEl) { focusEl.remove(); focusEl = null; } };
+
+// ---------------------------------------------------------------------------
+// PASOS — uno por categoría del panel, en el orden del menú lateral. Cada paso
+// resalta el grupo del sidebar (o una zona de Inicio) y su texto resume TODO lo
+// que vive dentro de esa categoría.
+// ---------------------------------------------------------------------------
+const buildSteps = (t) => {
+  const step = (key, element, side, align) => ({
+    element,
     popover: {
-      title: t('dashboard.onboarding.welcome.title'),
-      description: t('dashboard.onboarding.welcome.desc'),
-      align: 'center',
+      title: t(`dashboard.onboarding.steps.${key}.title`),
+      description: t(`dashboard.onboarding.steps.${key}.desc`),
+      ...(side ? { side } : {}),
+      ...(align ? { align } : {}),
     },
-  },
-  {
-    element: '[data-tour="stats"]',
-    popover: {
-      title: t('dashboard.onboarding.stats.title'),
-      description: t('dashboard.onboarding.stats.desc'),
-      side: 'bottom',
-      align: 'start',
-    },
-  },
-  {
-    element: '[data-tour="nav-tickets"]',
-    popover: {
-      title: t('dashboard.onboarding.tickets.title'),
-      description: t('dashboard.onboarding.tickets.desc'),
-      side: 'right',
-      align: 'center',
-    },
-  },
-  {
-    element: '[data-tour="nav-entrada"]',
-    popover: {
-      title: t('dashboard.onboarding.community.title'),
-      description: t('dashboard.onboarding.community.desc'),
-      side: 'right',
-      align: 'center',
-    },
-  },
-  {
-    element: '[data-tour="help"]',
-    popover: {
-      title: t('dashboard.onboarding.help.title'),
-      description: t('dashboard.onboarding.help.desc'),
-      side: 'bottom',
-      align: 'end',
-    },
-  },
-];
+  });
+
+  return [
+    step('welcome', undefined, undefined, 'center'),
+    step('server', '[data-tour="server"]', 'right', 'start'),
+    step('home', '[data-tour="stats"]', 'bottom', 'start'),
+    step('plan', '[data-tour="nav-cuenta"]', 'right', 'center'),
+    step('data', '[data-tour="nav-datos"]', 'right', 'center'),
+    step('community', '[data-tour="nav-entrada"]', 'right', 'center'),
+    step('music', '[data-tour="nav-musica"]', 'right', 'center'),
+    step('tickets', '[data-tour="nav-tickets"]', 'right', 'center'),
+    step('roles', '[data-tour="nav-roles"]', 'right', 'center'),
+    step('moderation', '[data-tour="nav-moderacion"]', 'right', 'center'),
+    step('logs', '[data-tour="nav-logs"]', 'right', 'center'),
+    step('messages', '[data-tour="nav-mensajes"]', 'right', 'center'),
+    step('config', '[data-tour="nav-config"]', 'right', 'center'),
+    step('tools', '[data-tour="tools"]', 'bottom', 'end'),
+    step('help', '[data-tour="help"]', 'bottom', 'end'),
+  ];
+};
 
 /**
- * Lanza el tour. Solo descarta los pasos cuyo elemento no exista (p. ej. si el
- * usuario no tiene permiso para verlo), así nunca se queda en blanco.
+ * Lanza el tour. Descarta los pasos cuyo elemento no exista (p. ej. una
+ * categoría que el usuario no puede ver por permisos), así nunca se queda en
+ * blanco ni señala al vacío.
  */
 export const startOnboarding = (t) => {
   const steps = buildSteps(t).filter(
@@ -79,20 +115,25 @@ export const startOnboarding = (t) => {
   );
   if (steps.length === 0) return;
 
+  let activeEl = null;
+  const reposition = () => activeEl && positionFocus(activeEl);
+
   let driverObj;
   driverObj = driver({
-    showProgress: steps.length > 1,
+    showProgress: true,
     progressText: t('dashboard.onboarding.progress'),
     nextBtnText: t('dashboard.onboarding.next'),
     prevBtnText: t('dashboard.onboarding.prev'),
     doneBtnText: t('dashboard.onboarding.done'),
     popoverClass: 'sokyo-popover',
     stagePadding: 6,
-    stageRadius: 16,
-    overlayColor: '#0b0c0e',
-    overlayOpacity: 0.62,
+    stageRadius: 14,
+    overlayColor: '#06070a',
+    overlayOpacity: 0.72,
+    smoothScroll: true,
     steps,
-    // Inyecta un botón "Saltar tutorial" a la izquierda del footer en cada paso.
+
+    // Inyecta "Saltar tutorial" a la izquierda del footer en cada paso.
     onPopoverRender: (popover) => {
       const footer = popover.footer;
       if (!footer || footer.querySelector('.sokyo-skip-btn')) return;
@@ -103,10 +144,30 @@ export const startOnboarding = (t) => {
       skip.addEventListener('click', () => driverObj.destroy());
       footer.insertBefore(skip, footer.firstChild);
     },
-    // Se dispara al terminar, saltar o cerrar con la X → no vuelve a salir solo.
-    onDestroyed: () => markOnboardingSeen(),
+
+    // Mueve el campo de energía al elemento del paso actual (o lo oculta si el
+    // paso es centrado, como la bienvenida).
+    onHighlighted: (element) => {
+      if (element && element !== document.body) {
+        activeEl = element;
+        showFocus(element);
+      } else {
+        activeEl = null;
+        hideFocus();
+      }
+    },
+
+    // Al terminar, saltar o cerrar con la X: limpia todo y no vuelve a salir solo.
+    onDestroyed: () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+      destroyFocus();
+      markOnboardingSeen();
+    },
   });
 
+  window.addEventListener('scroll', reposition, true);
+  window.addEventListener('resize', reposition);
   driverObj.drive();
 };
 
