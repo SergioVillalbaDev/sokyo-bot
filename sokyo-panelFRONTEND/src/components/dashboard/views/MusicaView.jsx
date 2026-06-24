@@ -79,6 +79,10 @@ export default function MusicaView({ dash }) {
   const [cargandoSpotify, setCargandoSpotify] = useState(false);
   const [importando, setImportando] = useState(new Set());
   const [spMsg, setSpMsg] = useState(null);
+  // Canciones que te gustan (Liked Songs)
+  const [liked, setLiked] = useState(null);            // { total, canciones }
+  const [cargandoLiked, setCargandoLiked] = useState(false);
+  const [importandoLiked, setImportandoLiked] = useState(false);
 
   // Auto-clear de mensajes
   useEffect(() => {
@@ -97,6 +101,7 @@ export default function MusicaView({ dash }) {
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   // Inicializar formulario de configuración
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const m = configServidor?.musica || {};
     setF({
@@ -117,6 +122,7 @@ export default function MusicaView({ dash }) {
       },
     });
   }, [configServidor]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Sondeo del reproductor en vivo (cada 3 s)
   const cargarEstado = useCallback(() => {
@@ -166,6 +172,7 @@ export default function MusicaView({ dash }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (tab === 'playlists' && playlists === null) cargarPlaylists();
   }, [tab, playlists, cargarPlaylists]);
 
@@ -286,6 +293,7 @@ export default function MusicaView({ dash }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (tab === 'spotify' && spotifyStatus === null) cargarSpotifyStatus();
   }, [tab, spotifyStatus, cargarSpotifyStatus]);
 
@@ -342,7 +350,7 @@ export default function MusicaView({ dash }) {
     setImportando((s) => { const n = new Set(s); n.delete(pl.id); return n; });
   };
 
-  const reproducirSpotify = async (uri) => {
+  const reproducirSpotify = async (uri, etiqueta = 'Playlist') => {
     try {
       const r = await apiFetch('/api/portal/musica/play', {
         method: 'POST',
@@ -352,8 +360,34 @@ export default function MusicaView({ dash }) {
       const data = await r.json();
       setSpMsg(data.error
         ? { tipo: 'err', texto: data.error }
-        : { tipo: 'ok', texto: '▶ Playlist añadida a la cola del bot' });
+        : { tipo: 'ok', texto: `▶ ${etiqueta} añadida a la cola del bot` });
     } catch { setSpMsg({ tipo: 'err', texto: 'No se pudo reproducir.' }); }
+  };
+
+  const cargarLiked = async () => {
+    setCargandoLiked(true);
+    try {
+      const r = await apiFetch('/api/portal/spotify/liked');
+      const data = await r.json();
+      if (data.error) setSpMsg({ tipo: 'err', texto: data.error });
+      else setLiked(data);
+    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudieron cargar tus me gusta.' }); }
+    setCargandoLiked(false);
+  };
+
+  const importarLiked = async () => {
+    if (importandoLiked) return;
+    setImportandoLiked(true);
+    try {
+      const r = await apiFetch('/api/portal/spotify/liked/importar', { method: 'POST' });
+      const data = await r.json();
+      if (data.error) setSpMsg({ tipo: 'err', texto: data.error });
+      else {
+        setSpMsg({ tipo: 'ok', texto: `"${data.nombre}" importada con ${data.total} canciones` });
+        setPlaylists(null); // recargar playlists propias al volver a esa pestaña
+      }
+    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudieron importar tus me gusta.' }); }
+    setImportandoLiked(false);
   };
 
   // ══════════════════════════════════════════════
@@ -742,6 +776,60 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
                 Con «Importar» la playlist se guarda en el bot y la puedes usar desde la pestaña «Mis Playlists».
               </p>
 
+              {/* ── Canciones que te gustan (Liked Songs) ── */}
+              <div className="rounded-2xl border border-line bg-bg p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <span style={{ color: VERDE }}>❤</span>
+                  <span className="font-semibold text-fg">Canciones que te gustan</span>
+                  {liked && <span className="text-sm text-muted">({liked.total})</span>}
+                </div>
+
+                {liked === null ? (
+                  <button onClick={cargarLiked} disabled={cargandoLiked}
+                    className="flex items-center gap-2 rounded-xl border border-line bg-elevated px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:opacity-80 disabled:opacity-50">
+                    {cargandoLiked ? 'Cargando…' : '❤ Ver mis me gusta'}
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <button onClick={importarLiked} disabled={importandoLiked}
+                      className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+                      style={{ background: VERDE }}>
+                      {importandoLiked ? 'Importando…' : `Importar todas como playlist (${Math.min(liked.total, 200)})`}
+                    </button>
+
+                    {liked.canciones.length === 0 ? (
+                      <p className="text-sm text-muted">No tienes canciones marcadas con me gusta.</p>
+                    ) : (
+                      <>
+                        <div className="max-h-72 space-y-1.5 overflow-y-auto">
+                          {liked.canciones.map((c, i) => (
+                            <div key={i} className="flex items-center gap-2 rounded-xl border border-line bg-elevated px-3 py-2 text-sm">
+                              <span className="w-5 shrink-0 text-center font-bold text-muted">{i + 1}</span>
+                              {c.artwork && <img src={c.artwork} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />}
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-semibold text-fg">{c.title}</div>
+                                {c.author && <div className="truncate text-xs text-muted">{c.author}</div>}
+                              </div>
+                              <span className="shrink-0 text-muted">{fmt(c.duration)}</span>
+                              <button onClick={() => reproducirSpotify(c.uri, c.title)}
+                                title="Reproducir esta canción en el bot"
+                                className="shrink-0 transition-opacity hover:opacity-70">
+                                <Play size={15} style={{ color: VERDE }} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        {liked.total > liked.canciones.length && (
+                          <p className="text-xs text-muted">
+                            Mostrando las primeras {liked.canciones.length}. «Importar todas» guarda hasta 200.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Cargar playlists de Spotify */}
               {spotifyPlaylists === null ? (
                 <button onClick={cargarSpotifyPlaylists} disabled={cargandoSpotify}
@@ -777,7 +865,7 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-1.5">
-                            <button onClick={() => reproducirSpotify(pl.uri)}
+                            <button onClick={() => reproducirSpotify(pl.uri, pl.nombre)}
                               title="Reproducir en el bot (necesitas estar en un canal de voz)"
                               className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-elevated text-fg hover:opacity-80 transition-opacity">
                               <Play size={15} style={{ color: VERDE }} />

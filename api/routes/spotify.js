@@ -201,6 +201,75 @@ module.exports = ({ portalAuth }) => {
         }
     });
 
+    // --- Mis canciones que me gustan (Liked Songs) ---
+    router.get('/portal/spotify/liked', portalAuth, async (req, res) => {
+        try {
+            const st = await SpotifyToken.findOne({ userId: req.usuario.id });
+            if (!st) return res.status(401).json({ error: 'Conecta tu Spotify primero.' });
+            const token = await tokenFresco(st);
+
+            const r = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!r.ok) throw new Error(`spotify-liked-${r.status}`);
+            const data = await r.json();
+
+            res.json({
+                total: data.total || 0,
+                canciones: (data.items || []).filter((it) => it.track).map((it) => ({
+                    title: it.track.name,
+                    author: (it.track.artists || []).map((a) => a.name).join(', '),
+                    uri: it.track.external_urls?.spotify || it.track.uri,
+                    artwork: it.track.album?.images?.[0]?.url || null,
+                    duration: it.track.duration_ms || 0,
+                })),
+            });
+        } catch (e) {
+            console.error('spotify/liked:', e.message);
+            res.status(500).json({ error: 'No se pudieron cargar tus canciones que te gustan.' });
+        }
+    });
+
+    // --- Importar mis canciones que me gustan como playlist del bot ---
+    router.post('/portal/spotify/liked/importar', portalAuth, async (req, res) => {
+        try {
+            const st = await SpotifyToken.findOne({ userId: req.usuario.id });
+            if (!st) return res.status(401).json({ error: 'Conecta tu Spotify primero.' });
+            const token = await tokenFresco(st);
+
+            // Paginación de tracks (50 por petición, hasta 200)
+            const canciones = [];
+            let offset = 0;
+            while (canciones.length < 200) {
+                const r = await fetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!r.ok) break;
+                const data = await r.json();
+                if (!data.items?.length) break;
+                canciones.push(...data.items.filter((it) => it.track).map((it) => ({
+                    title: it.track.name,
+                    author: (it.track.artists || []).map((a) => a.name).join(', '),
+                    uri: it.track.external_urls?.spotify || it.track.uri,
+                    artwork: it.track.album?.images?.[0]?.url || null,
+                    duration: it.track.duration_ms || 0,
+                    sourceName: 'spotify',
+                })));
+                offset += 50;
+                if (offset >= data.total) break;
+            }
+
+            if (!canciones.length) return res.status(400).json({ error: 'No tienes canciones que te gusten en Spotify.' });
+
+            const nombre = String(req.body.nombre || 'Mis me gusta de Spotify').trim().slice(0, 100);
+            const p = await Playlist.create({ userId: req.usuario.id, nombre, canciones });
+            res.status(201).json({ ok: true, _id: p._id, nombre: p.nombre, total: canciones.length });
+        } catch (e) {
+            console.error('spotify/liked/importar:', e.message);
+            res.status(500).json({ error: 'No se pudieron importar tus canciones.' });
+        }
+    });
+
     // --- Importar playlist de Spotify al bot (la guarda en MongoDB) ---
     router.post('/portal/spotify/playlists/:spotifyId/importar', portalAuth, async (req, res) => {
         try {
