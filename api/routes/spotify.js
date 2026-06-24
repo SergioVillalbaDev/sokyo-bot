@@ -121,6 +121,15 @@ module.exports = ({ portalAuth }) => {
         }
         pendingStates.delete(String(state));
 
+        // Lee la respuesta como JSON, pero si Spotify devuelve texto plano
+        // (p. ej. "The user is not registered…" en modo desarrollo) lo captura
+        // y lo expone como mensaje en vez de petar al parsear.
+        const leerRespuesta = async (resp) => {
+            const texto = await resp.text();
+            try { return { ok: resp.ok, data: JSON.parse(texto) }; }
+            catch { return { ok: resp.ok, data: null, texto }; }
+        };
+
         try {
             // Intercambiar código por tokens
             const tokenParams = new URLSearchParams({
@@ -135,14 +144,27 @@ module.exports = ({ portalAuth }) => {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: tokenParams.toString(),
             });
-            if (!tokenRes.ok) throw new Error(`token-exchange-${tokenRes.status}`);
-            const tokens = await tokenRes.json();
+            const tokenBody = await leerRespuesta(tokenRes);
+            if (!tokenBody.ok || !tokenBody.data?.access_token) {
+                // Spotify suele devolver aquí "The user is not registered in the
+                // Developer Dashboard" cuando la app está en modo desarrollo y el
+                // usuario no está en la lista de usuarios autorizados.
+                const motivo = tokenBody.data?.error_description || tokenBody.texto || '';
+                console.error('spotify/callback (token):', motivo || `HTTP ${tokenRes.status}`);
+                if (/not registered|not been granted|not allowlisted/i.test(motivo)) {
+                    return res.send(paginaResultado(false,
+                        'Tu cuenta de Spotify no está autorizada en esta app. Pide al administrador que te añada.'));
+                }
+                return res.send(paginaResultado(false, 'No se pudo conectar con Spotify. Inténtalo de nuevo.'));
+            }
+            const tokens = tokenBody.data;
 
             // Info del perfil de Spotify
             const profileRes = await fetch('https://api.spotify.com/v1/me', {
                 headers: { Authorization: `Bearer ${tokens.access_token}` },
             });
-            const profile = await profileRes.json();
+            const profileBody = await leerRespuesta(profileRes);
+            const profile = profileBody.data || {};
 
             await SpotifyToken.findOneAndUpdate(
                 { userId: pending.userId },
@@ -151,7 +173,7 @@ module.exports = ({ portalAuth }) => {
                     refreshToken: tokens.refresh_token,
                     expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
                     spotifyUserId: profile.id,
-                    spotifyUsername: profile.display_name || profile.id,
+                    spotifyUsername: profile.display_name || profile.id || 'Spotify',
                     spotifyAvatar: profile.images?.[0]?.url || null,
                 },
                 { upsert: true, new: true },
