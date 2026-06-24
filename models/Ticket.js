@@ -24,7 +24,13 @@ const ticketSchema = new mongoose.Schema({
     notasInternas: { type: Array, default: [] },
     etiquetas: { type: [String], default: [] },
     visibleWeb: { type: Boolean, default: true },
-    valoracionCSAT: { type: Number, default: null } 
+    valoracionCSAT: { type: Number, default: null }
 });
+
+// El panel filtra tickets por servidor + estado y los ordena por fecha; las
+// vistas de usuario buscan por creador. Sin estos índices cada listado escanea
+// toda la colección.
+ticketSchema.index({ guildId: 1, estado: 1, fechaCreacion: -1 });
+ticketSchema.index({ guildId: 1, creadorId: 1 });
 
 module.exports = mongoose.model('Ticket', ticketSchema);

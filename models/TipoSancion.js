@@ -20,4 +20,7 @@ const TipoSancionSchema = new mongoose.Schema({
     orden: { type: Number, default: 0 },
 }, { timestamps: true });
 
+// Los tipos de sanción se cargan por servidor (Centro de Mando y panel).
+TipoSancionSchema.index({ guildId: 1, orden: 1 });
+
 module.exports = mongoose.model('TipoSancion', TipoSancionSchema);

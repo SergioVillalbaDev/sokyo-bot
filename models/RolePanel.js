@@ -40,4 +40,9 @@ const RolePanelSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
+// Se lista por servidor (panel) y se busca por messageId al gestionar
+// botones/reacciones de roles en tiempo real.
+RolePanelSchema.index({ guildId: 1 });
+RolePanelSchema.index({ messageId: 1 });
+
 module.exports = mongoose.model('RolePanel', RolePanelSchema);

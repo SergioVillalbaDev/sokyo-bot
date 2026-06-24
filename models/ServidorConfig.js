@@ -320,4 +320,27 @@ const ServidorConfigSchema = new mongoose.Schema({
     },
 });
 
+// Invalida el caché en memoria (utils/config.js) cada vez que se guarda la
+// configuración, para que los cambios del panel se apliquen sin esperar al TTL.
+// Require perezoso dentro del hook para evitar el ciclo de dependencias
+// (config.js -> este modelo -> config.js).
+function _invalidarCache(guildId) {
+    try {
+        require('../utils/config.js').invalidateConfig(guildId);
+    } catch (_) { /* el caché se refrescará por TTL de todas formas */ }
+}
+
+ServidorConfigSchema.post('save', function () {
+    _invalidarCache(this.guildId);
+});
+
+// En las actualizaciones por query el guildId va en el filtro. Si no hay uno
+// concreto (p. ej. una actualización masiva), limpiamos todo el caché.
+['findOneAndUpdate', 'updateOne', 'updateMany', 'findOneAndDelete'].forEach((op) => {
+    ServidorConfigSchema.post(op, function () {
+        const filtro = (typeof this.getFilter === 'function' && this.getFilter()) || {};
+        _invalidarCache(filtro.guildId);
+    });
+});
+
 module.exports = mongoose.model('ServidorConfig', ServidorConfigSchema);

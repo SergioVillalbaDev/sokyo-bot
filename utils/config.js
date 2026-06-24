@@ -30,4 +30,12 @@ async function getConfigCached(guildId, ttlMs = 30000) {
     return v;
 }
 
-module.exports = { getConfig, getConfigCached, logActivo };
+// Borra la entrada cacheada de un servidor (o TODO el caché si no se pasa
+// guildId). Lo llama un hook del modelo ServidorConfig al guardar, para que los
+// cambios del panel se reflejen al instante en vez de esperar al TTL.
+function invalidateConfig(guildId) {
+    if (guildId) _cache.delete(guildId);
+    else _cache.clear();
+}
+
+module.exports = { getConfig, getConfigCached, logActivo, invalidateConfig };
