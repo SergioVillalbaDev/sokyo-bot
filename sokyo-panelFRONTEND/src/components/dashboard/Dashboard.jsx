@@ -63,10 +63,14 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
   const onboardingLanzado = useRef(false);
   useEffect(() => {
     if (onboardingLanzado.current || activeTab !== 'inicio') return;
+    // Esperar a que haya un servidor elegido: si está abierto el selector
+    // (varios servidores, sin elegir aún), el tour se lanzaría por encima y lo
+    // taparía. Cuando se elige servidor, este efecto vuelve a correr.
+    if (!guildId || (mostrarSelectorServidor && servidores.length > 1)) return;
     onboardingLanzado.current = true;
     const id = setTimeout(() => maybeStartOnboarding(t), 700);
     return () => clearTimeout(id);
-  }, [activeTab, t]);
+  }, [activeTab, t, guildId, mostrarSelectorServidor, servidores.length]);
 
   // Navegación desde el sidebar: al ir a "Gestión" cerramos el chat abierto.
   // En móvil, además cerramos el drawer al elegir una sección.
