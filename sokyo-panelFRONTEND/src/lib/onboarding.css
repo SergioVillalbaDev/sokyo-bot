@@ -13,15 +13,16 @@
   background-color: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 22px 22px 18px;
-  max-width: 340px;
+  border-radius: 24px;
+  padding: 30px 30px 22px;
+  min-width: 360px;
+  max-width: 420px;
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--brand-to) 22%, transparent),
-    0 24px 60px -18px var(--shadow-color),
-    0 8px 24px -12px var(--shadow-color);
+    0 0 0 1px color-mix(in srgb, var(--brand-to) 26%, transparent),
+    0 32px 80px -20px var(--shadow-color),
+    0 12px 32px -14px var(--shadow-color);
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  animation: sokyo-pop-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: sokyo-pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes sokyo-pop-in {
@@ -33,24 +34,26 @@
 .driver-popover.sokyo-popover::before {
   content: '';
   position: absolute;
-  top: 0; left: 22px; right: 22px;
-  height: 3px;
+  top: 0; left: 28px; right: 28px;
+  height: 4px;
   border-radius: 999px;
   background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  box-shadow: 0 0 16px -2px color-mix(in srgb, var(--brand-to) 60%, transparent);
 }
 
 .driver-popover.sokyo-popover .driver-popover-title {
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  margin-bottom: 9px;
   line-height: 1.3;
+  padding-right: 28px;
 }
 
 .driver-popover.sokyo-popover .driver-popover-description {
-  font-size: 0.875rem;
-  line-height: 1.55;
+  font-size: 0.95rem;
+  line-height: 1.62;
   color: var(--text-secondary);
 }
 
@@ -65,10 +68,10 @@
 
 /* --- Botón cerrar (X) --- */
 .driver-popover.sokyo-popover .driver-popover-close-btn {
-  width: 28px;
-  height: 28px;
-  top: 12px;
-  right: 12px;
+  width: 30px;
+  height: 30px;
+  top: 16px;
+  right: 16px;
   color: var(--text-secondary);
   background-color: var(--bg-elevated);
   border-radius: 999px;
@@ -86,36 +89,37 @@
 
 /* --- Footer: progreso + botones --- */
 .driver-popover.sokyo-popover .driver-popover-footer {
-  margin-top: 18px;
+  margin-top: 24px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 12px;
 }
 
 .driver-popover.sokyo-popover .driver-popover-progress-text {
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--text-secondary);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 /* Empuja los botones de navegación a la derecha */
 .driver-popover.sokyo-popover .driver-popover-navigation-btns {
   display: flex;
-  gap: 8px;
+  gap: 9px;
   margin-left: auto;
 }
 
 .driver-popover.sokyo-popover .driver-popover-navigation-btns button {
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  padding: 8px 16px;
-  border-radius: 11px;
+  padding: 10px 19px;
+  border-radius: 13px;
   border: 1px solid transparent;
   text-shadow: none;
-  transition: transform 0.12s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.12s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
 }
 
 /* Botón "Atrás" — secundario */
@@ -143,13 +147,14 @@
 /* --- Botón "Saltar tutorial" (inyectado a la izquierda) --- */
 .driver-popover.sokyo-popover .sokyo-skip-btn {
   font-family: inherit;
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-secondary);
   background: none;
   border: none;
-  padding: 6px 4px;
+  padding: 7px 4px;
   margin-right: 2px;
+  white-space: nowrap;
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-color: var(--border-color);
@@ -226,35 +231,34 @@
   50% { opacity: 1; }
 }
 
-/* Partículas en órbita siguiendo el borde del elemento (rastro de energía) */
-.sokyo-focus__p {
+/* Destello que recorre el borde, en sentido contrario al anillo (más vida) */
+.sokyo-focus__sheen {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 7px;
-  height: 7px;
-  margin: -3.5px;
-  border-radius: 50%;
-  background: var(--brand-to);
-  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--brand-to) 80%, transparent);
-  offset-path: inset(0 round 16px);
-  animation: sokyo-orbit 3.2s linear infinite;
-}
-.sokyo-focus__p:nth-child(4) { animation-delay: -1.07s; }
-.sokyo-focus__p:nth-child(5) {
-  animation-delay: -2.14s;
-  background: var(--brand-from);
-  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--brand-from) 80%, transparent);
-}
-@keyframes sokyo-orbit {
-  from { offset-distance: 0%; }
-  to { offset-distance: 100%; }
+  inset: -2px;
+  border-radius: 18px;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--brand-to) 95%, white) 12deg,
+    transparent 40deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: sokyo-spin 1.9s linear infinite reverse;
 }
 
 /* Respeta a quien prefiere menos movimiento */
 @media (prefers-reduced-motion: reduce) {
   .sokyo-focus__ring,
   .sokyo-focus__glow,
-  .sokyo-focus__p { animation: none; }
-  .sokyo-focus__p { display: none; }
+  .sokyo-focus__sheen { animation: none; }
+  .sokyo-focus__sheen { display: none; }
 }

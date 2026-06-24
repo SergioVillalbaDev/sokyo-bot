@@ -41,9 +41,7 @@ const ensureFocus = () => {
   focusEl.innerHTML =
     '<div class="sokyo-focus__ring"></div>' +
     '<div class="sokyo-focus__glow"></div>' +
-    '<span class="sokyo-focus__p"></span>' +
-    '<span class="sokyo-focus__p"></span>' +
-    '<span class="sokyo-focus__p"></span>';
+    '<div class="sokyo-focus__sheen"></div>';
   document.body.appendChild(focusEl);
   return focusEl;
 };
