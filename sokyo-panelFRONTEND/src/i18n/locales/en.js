@@ -121,7 +121,7 @@ export default {
       errNoStaff: 'You are not staff in any server where the bot is.',
       errOauth: 'Could not log in with Discord.',
     },
-    plan: { premium: 'Premium plan', free: 'Free plan', premiumShort: 'Premium', freeShort: 'Free', owner: 'Owner', upgrade: 'Upgrade to Pro', upgradeSub: 'Unlock all of Sokyo' },
+    plan: { premium: 'Premium plan', free: 'Free plan', premiumShort: 'Premium', freeShort: 'Free', owner: 'Owner', ownerBadge: 'Owner Account', upgrade: 'Upgrade to Pro', upgradeSub: 'Unlock all of Sokyo' },
     loading: 'Loading server configuration...',
     nav: {
       groups: { cuenta: 'My Plan', datos: 'Data', entrada: 'Onboarding & community', musica: 'Music', tickets: 'Ticket System', roles: 'Role System', moderacion: 'Moderation', logs: 'Bot Logs', mensajes: 'Automated messages', config: 'Settings' },

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, Bell, HelpCircle, Menu } from 'lucide-react';
 import { metaKey } from './navConfig';
 import { startOnboarding } from '../../lib/onboarding';
+import OwnerBadge from './OwnerBadge';
 import ThemePicker from './ThemePicker';
 import LanguageSwitcher from '../LanguageSwitcher';
 
@@ -44,6 +45,8 @@ export default function Header({ dash, onOpenMenu }) {
       </div>
 
       <div className="flex items-center gap-3">
+        <OwnerBadge />
+
         <div className="relative hidden md:block">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input
