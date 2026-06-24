@@ -5,7 +5,7 @@ import {
   Plus, Trash2, Search, X, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
-import { apiFetch } from '../../../lib/api';
+import { apiFetch, getStaffSession } from '../../../lib/api';
 
 const VERDE = '#1db954';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -62,6 +62,10 @@ export default function MusicaView({ dash }) {
 
   // ── Tab activa ──
   const [tab, setTab] = useState('config');
+
+  // El tab de Spotify (conexión OAuth) solo es para los dueños del bot (OWNER_IDS),
+  // porque la app de Spotify está en modo desarrollo y solo admite 5 cuentas.
+  const esOwner = !!getStaffSession()?.owner;
 
   // ── Playlists propias ──
   const [playlists, setPlaylists] = useState(null);       // null = sin cargar todavía
@@ -476,7 +480,11 @@ export default function MusicaView({ dash }) {
 
       {/* ── TABS ── */}
       <div className="flex border-b border-line">
-        {[['config', 'Configuración'], ['playlists', 'Mis Playlists'], ['spotify', 'Spotify']].map(([tabKey, tabLabel]) => (
+        {[
+          ['config', 'Configuración'],
+          ['playlists', 'Mis Playlists'],
+          ...(esOwner ? [['spotify', 'Spotify']] : []),
+        ].map(([tabKey, tabLabel]) => (
           <button key={tabKey} onClick={() => setTab(tabKey)}
             className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === tabKey ? 'text-fg' : 'border-transparent text-muted hover:text-fg'}`}
             style={tab === tabKey ? { borderColor: VERDE } : {}}>
@@ -703,8 +711,8 @@ export default function MusicaView({ dash }) {
         </div>
       )}
 
-      {/* ══ TAB SPOTIFY ══ */}
-      {tab === 'spotify' && (
+      {/* ══ TAB SPOTIFY (solo dueños) ══ */}
+      {tab === 'spotify' && esOwner && (
         <Card className={card}>
           <div className="mb-5 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full text-base font-bold text-black"
