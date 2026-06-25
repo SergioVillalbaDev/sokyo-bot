@@ -435,6 +435,16 @@ export function useDashboard() {
     } catch (error) { console.error('Error aplicando sanción:', error); return { error: 'Fallo de conexión' }; }
   };
 
+  // Aplica la misma sanción a varios usuarios (lista de IDs). Devuelve el resumen.
+  const aplicarSancionMasiva = async (payload) => {
+    try {
+      const res = await apiFetch('/api/sanciones/aplicar-masiva', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { cargarStatsSancion(); cargarSanciones(); return data; }
+      return { error: data.error || 'No se pudo aplicar' };
+    } catch (error) { console.error('Error en sanción masiva:', error); return { error: 'Fallo de conexión' }; }
+  };
+
   // Revoca una sanción (desbanea / quita aislamiento).
   const revocarSancion = async (id) => {
     try {
@@ -1079,7 +1089,7 @@ export function useDashboard() {
     tiposSancion, sanciones, statsSancion, objetivoMod, setObjetivoMod,
     cargarTiposSancion, cargarSanciones, cargarStatsSancion,
     crearTipoSancion, editarTipoSancion, eliminarTipoSancion,
-    cargarMiembro, cargarActividad, cargarMensajesUsuario, aplicarSancion, revocarSancion, subirPrueba, guardarModLog,
+    cargarMiembro, cargarActividad, cargarMensajesUsuario, aplicarSancion, aplicarSancionMasiva, revocarSancion, subirPrueba, guardarModLog,
     // automoderador
     guardarAutomod,
     // seguridad

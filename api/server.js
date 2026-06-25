@@ -27,7 +27,7 @@ const { construirMensaje, sanearEmbed, embedTieneContenido } = require('../utils
 const { cerrarTicket, reabrirTicket, construirTranscriptHTML } = require('../utils/ticketManager.js');
 const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
-const { aplicarSancion, revocarSancion } = require('../utils/moderationManager.js');
+const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken } = require('../utils/auth.js');
 const billing = require('../utils/billing.js');
@@ -2441,6 +2441,55 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al aplicar sanción:', error);
             res.status(400).json({ error: error.message || 'No se pudo aplicar la sanción' });
+        }
+    });
+
+    // --- Sanción MASIVA: misma acción a varios usuarios (limpieza de raids) ---
+    app.post('/api/sanciones/aplicar-masiva', async (req, res) => {
+        try {
+            const { guildId, usuarioIds, tipoId, accion, duracionMin, borrarMensajesHoras, motivo } = req.body;
+            if (!guildId || !Array.isArray(usuarioIds) || usuarioIds.length === 0) {
+                return res.status(400).json({ error: 'Faltan datos (servidor o usuarios)' });
+            }
+            // Normaliza, deduplica y limita a 50 por llamada (seguridad / rate de Discord).
+            const ids = [...new Set(usuarioIds.map((s) => String(s).trim()).filter(Boolean))].slice(0, 50);
+            if (!ids.length) return res.status(400).json({ error: 'No hay IDs de usuario válidos' });
+
+            // Tipo guardado (tipoId) o acción rápida (accion suelta) — igual que en /aplicar.
+            let tipo;
+            if (tipoId) {
+                tipo = await TipoSancion.findById(tipoId);
+                if (!tipo || tipo.guildId !== guildId) return res.status(404).json({ error: 'Tipo de sanción no válido' });
+            } else if (['aviso', 'timeout', 'expulsion', 'ban'].includes(accion)) {
+                tipo = {
+                    nombre: null,
+                    accion,
+                    duracionMin: Math.max(0, parseInt(duracionMin, 10) || 0),
+                    borrarMensajesHoras: Math.min(168, Math.max(0, parseInt(borrarMensajesHoras, 10) || 0)),
+                };
+            } else {
+                return res.status(400).json({ error: 'Indica un tipo de sanción o una acción' });
+            }
+
+            // Mismo control de permisos por acción que en /aplicar.
+            if (req.staff && !req.staff.owner) {
+                const guild = client.guilds.cache.get(guildId);
+                const member = guild ? await guild.members.fetch(req.staff.id).catch(() => null) : null;
+                const P = PermissionsBitField.Flags;
+                const requerido = { timeout: P.ModerateMembers, expulsion: P.KickMembers, ban: P.BanMembers, aviso: P.ModerateMembers }[tipo.accion];
+                const cfgMod = await ServidorConfig.findOne({ guildId });
+                const tieneRolMod = (cfgMod?.rolesModeracion || []).some((id) => member?.roles.cache.has(id));
+                const ok = member && (member.permissions.has(P.Administrator) || member.permissions.has(requerido) || tieneRolMod);
+                if (!ok) return res.status(403).json({ error: 'No tienes permiso para esta acción' });
+            }
+
+            const resultado = await aplicarSancionMasiva(client, {
+                guildId, usuarioIds: ids, tipo, motivo: motivo || '', moderador: moderadorDe(req),
+            });
+            res.json({ success: true, ...resultado });
+        } catch (error) {
+            console.error('Error en sanción masiva:', error);
+            res.status(400).json({ error: error.message || 'No se pudo aplicar la sanción masiva' });
         }
     });
 

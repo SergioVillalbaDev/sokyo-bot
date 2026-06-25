@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
   Search, ShieldAlert, Hammer, Clock, ListChecks, Crown, CalendarDays, UserCheck, X, Send, Upload, Loader2, Undo2, Gavel, Activity, MessageSquare, Mic,
+  Users, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { Avatar, Badge } from '../../ui/primitives';
 import { ACCIONES, accionMeta, textoDuracion, aUnidad, aMinutos } from '../../../lib/sanciones';
@@ -31,6 +32,7 @@ export default function CentroMandoView({ dash }) {
   const [actividad, setActividad] = useState(null);
   const [mensajesUsuario, setMensajesUsuario] = useState([]);
   const [tipoAplicar, setTipoAplicar] = useState(null);
+  const [bulkAbierto, setBulkAbierto] = useState(false);
 
   const historial = usuario ? sanciones.filter((s) => s.usuarioId === usuario.id) : [];
 
@@ -240,6 +242,14 @@ export default function CentroMandoView({ dash }) {
           <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><Gavel size={18} className="text-brand" /> {t('dashboard.mod_v.applyTitle')}</h3>
           <p className="mb-4 text-xs text-muted">{usuario ? t('dashboard.mod_v.applyOn', { user: usuario.displayName }) : t('dashboard.mod_v.applyPickFirst')}</p>
 
+          {/* Acción masiva: misma sanción a varios usuarios (lista de IDs) */}
+          <button
+            onClick={() => setBulkAbierto(true)}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-line bg-bg px-3 py-2.5 text-sm font-semibold text-fg transition-colors hover:border-brand/40"
+          >
+            <Users size={16} className="text-brand" /> {t('dashboard.mod_v.bulkBtn')}
+          </button>
+
           {/* Acciones rápidas (sin tipo pre-creado) */}
           <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">{t('dashboard.mod_v.quickActions')}</p>
           <div className="mb-4 grid grid-cols-2 gap-2">
@@ -294,7 +304,135 @@ export default function CentroMandoView({ dash }) {
           />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {bulkAbierto && (
+          <BulkModal
+            dash={dash}
+            onClose={() => setBulkAbierto(false)}
+            onDone={refrescar}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// --- Modal de acción masiva (misma sanción a una lista de IDs) ---
+function BulkModal({ dash, onClose, onDone }) {
+  const { t } = useTranslation();
+  const { aplicarSancionMasiva } = dash;
+
+  const [idsText, setIdsText] = useState('');
+  const [accion, setAccion] = useState('ban');
+  const [valor, setValor] = useState(0);
+  const [unidad, setUnidad] = useState('dias');
+  const [motivo, setMotivo] = useState('');
+  const [aplicando, setAplicando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+  const [error, setError] = useState('');
+
+  // IDs únicos a partir del texto (separados por espacios, comas o saltos de línea).
+  const ids = [...new Set(idsText.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean))];
+  const usaDuracion = accion === 'timeout' || accion === 'ban';
+
+  const aplicar = async () => {
+    if (!ids.length) { setError(t('dashboard.mod_v.bulkNoIds')); return; }
+    setAplicando(true); setError('');
+    const payload = { usuarioIds: ids, accion, motivo: motivo.trim() };
+    if (usaDuracion) payload.duracionMin = aMinutos(Number(valor) || 0, unidad);
+    const res = await aplicarSancionMasiva(payload);
+    setAplicando(false);
+    if (res?.success) { setResultado(res); onDone?.(); }
+    else setError(res?.error || t('dashboard.mod_v.bulkError'));
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }} transition={{ duration: 0.2 }} onClick={(e) => e.stopPropagation()} className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-3xl border border-line bg-card p-6 shadow-soft">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-lg font-extrabold text-fg"><Users size={18} className="text-brand" /> {t('dashboard.mod_v.bulkTitle')}</h2>
+          <button onClick={onClose} className="text-muted transition-colors hover:text-fg"><X size={20} /></button>
+        </div>
+
+        {resultado ? (
+          /* Resumen de la operación */
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success">
+              <CheckCircle2 size={18} /> {t('dashboard.mod_v.bulkApplied', { ok: resultado.aplicadas.length, total: resultado.total })}
+            </div>
+            {resultado.fallidas.length > 0 && (
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted"><AlertCircle size={13} className="text-danger" /> {t('dashboard.mod_v.bulkFailedTitle')} ({resultado.fallidas.length})</p>
+                <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                  {resultado.fallidas.map((f) => (
+                    <div key={f.usuarioId} className="rounded-lg border border-line bg-bg px-3 py-2 text-xs">
+                      <span className="font-mono text-fg">{f.usuarioId}</span>
+                      <span className="text-muted"> — {f.error}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <button onClick={onClose} className="rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand">{t('dashboard.mod_v.bulkClose')}</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="mb-3 text-xs text-muted">{t('dashboard.mod_v.bulkDesc')}</p>
+
+            {/* IDs */}
+            <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.mod_v.bulkIdsLabel')}</label>
+            <textarea value={idsText} onChange={(e) => setIdsText(e.target.value)} rows={4} placeholder={'123456789012345678\n234567890123456789'} className="w-full resize-none rounded-xl border border-line bg-bg px-3.5 py-2.5 font-mono text-xs text-fg outline-none focus:border-brand" />
+            <p className="mb-4 mt-1 text-[11px] text-muted">{t('dashboard.mod_v.bulkCount', { n: ids.length })}</p>
+
+            {/* Acción */}
+            <label className="mb-2 block text-xs font-semibold text-muted">{t('dashboard.mod_v.bulkActionLabel')}</label>
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              {ACCIONES.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => setAccion(a.id)}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${accion === a.id ? 'border-brand bg-brand/10 text-fg' : 'border-line bg-bg text-muted hover:text-fg'}`}
+                >
+                  <a.icon size={15} style={{ color: a.color }} /> {t(`dashboard.mod_v.actions.${a.id}`)}
+                </button>
+              ))}
+            </div>
+
+            {/* Duración (timeout / ban) */}
+            {usaDuracion && (
+              <>
+                <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.mod_v.duration')}</label>
+                <div className="mb-1 flex gap-2">
+                  <input type="number" min={0} value={valor} onChange={(e) => setValor(Math.max(0, parseInt(e.target.value, 10) || 0))} className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-brand" />
+                  <select value={unidad} onChange={(e) => setUnidad(e.target.value)} className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-brand">
+                    <option value="min">{t('dashboard.mod_v.unitMin')}</option>
+                    <option value="horas">{t('dashboard.mod_v.unitHours')}</option>
+                    <option value="dias">{t('dashboard.mod_v.unitDays')}</option>
+                  </select>
+                </div>
+                <p className="mb-4 text-xs text-muted">{accion === 'ban' && Number(valor) === 0 ? t('dashboard.mod_v.banPermanentHint') : t('dashboard.mod_v.timeoutMaxHint')}</p>
+              </>
+            )}
+
+            {/* Motivo */}
+            <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.mod_v.reason')}</label>
+            <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} placeholder={t('dashboard.mod_v.reasonPh')} className="mb-4 w-full resize-none rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand" />
+
+            {error && <p className="mb-3 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>}
+
+            <div className="flex justify-end gap-3">
+              <button onClick={onClose} className="rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">{t('dashboard.mod_v.cancel')}</button>
+              <button onClick={aplicar} disabled={aplicando || !ids.length} className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50">
+                {aplicando ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {t('dashboard.mod_v.bulkApply', { n: ids.length })}
+              </button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
   );
 }
 

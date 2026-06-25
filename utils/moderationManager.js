@@ -85,6 +85,25 @@ async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', p
     return sancion;
 }
 
+// Aplica la MISMA sanción a varios usuarios a la vez (limpieza de raids, oleadas
+// de spam, etc.). Reutiliza aplicarSancion por cada uno, así cada acción queda
+// registrada por separado en el historial (auditoría completa). No se corta al
+// primer fallo: devuelve el resumen de aplicadas y fallidas.
+async function aplicarSancionMasiva(client, { guildId, usuarioIds = [], tipo, motivo = '', moderador = null }) {
+    const unicos = [...new Set((usuarioIds || []).map((s) => String(s).trim()).filter(Boolean))];
+    const aplicadas = [];
+    const fallidas = [];
+    for (const usuarioId of unicos) {
+        try {
+            const s = await aplicarSancion(client, { guildId, usuarioId, tipo, motivo, moderador });
+            aplicadas.push({ usuarioId, sancionId: String(s._id) });
+        } catch (e) {
+            fallidas.push({ usuarioId, error: e.message || 'Error' });
+        }
+    }
+    return { aplicadas, fallidas, total: unicos.length };
+}
+
 // Revoca una sanción: quita el ban / levanta el timeout y marca el registro.
 async function revocarSancion(client, sancionId, moderador = null) {
     const s = await Sancion.findById(sancionId);
@@ -170,4 +189,4 @@ async function registrarEnCanal(client, guild, sancion) {
     await canal.send({ embeds: [embed] }).catch(() => {});
 }
 
-module.exports = { aplicarSancion, revocarSancion, barrerSancionesVencidas, duracionTexto };
+module.exports = { aplicarSancion, aplicarSancionMasiva, revocarSancion, barrerSancionesVencidas, duracionTexto };

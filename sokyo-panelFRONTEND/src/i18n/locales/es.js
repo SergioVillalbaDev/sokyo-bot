@@ -1040,6 +1040,11 @@ export default {
       confirmRevoke: '¿Revocar esta sanción? (desbanea / quita el aislamiento)',
       // aplicar
       applyTitle: 'Aplicar sanción', applyOn: 'A {{user}}', applyPickFirst: 'Selecciona un usuario primero.',
+      bulkBtn: 'Acción masiva', bulkTitle: 'Acción masiva',
+      bulkDesc: 'Aplica la misma acción a varios usuarios a la vez. Pega sus IDs (uno por línea o separados por comas). Máximo 50 por tanda.',
+      bulkIdsLabel: 'IDs de usuario', bulkCount: '{{n}} ID(s) detectados', bulkActionLabel: 'Acción a aplicar',
+      bulkNoIds: 'Añade al menos un ID de usuario.', bulkApply: 'Aplicar a {{n}}', bulkError: 'No se pudo aplicar',
+      bulkApplied: '{{ok}} de {{total}} aplicadas correctamente', bulkFailedTitle: 'No se pudieron aplicar', bulkClose: 'Cerrar',
       quickActions: 'Acciones rápidas', yourTypes: 'Tus tipos',
       activityTitle: 'Actividad', lastMessage: 'Último mensaje', voice: 'Voz', msgCount: 'Mensajes',
       noData: 'Sin registro', msgLog: 'Registro de mensajes', noMsgLog: 'No hay mensajes registrados todavía.', attachment: '(adjunto / vacío)',
