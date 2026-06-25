@@ -20,6 +20,15 @@ const UsuarioSchema = new mongoose.Schema({
         multiplicador: { type: Number, default: 1 },
         expiraEn: { type: Date, default: null },
     },
+    // --- COSMÉTICOS (se compran con oro; lógica en utils/cosmeticos.js) ---
+    // DORMIDO: la base está lista pero aún no se expone en comandos ni panel,
+    // a la espera de cerrar la economía. Por defecto vacío: no afecta a nada.
+    cosmeticos: { type: [String], default: [] }, // ids de cosméticos en propiedad
+    cosmeticosEquipados: {
+        tarjeta: { type: String, default: null },     // estilo de tarjeta de rango equipado
+        colorNombre: { type: String, default: null }, // color de nombre (hex) equipado
+        insignia: { type: String, default: null },    // insignia/emoji equipado
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Usuario', UsuarioSchema);
