@@ -34,9 +34,9 @@ export default {
       },
     },
     stats: [
-      { to: 8, label: 'Sistemas en un solo bot' },
-      { to: 35, suffix: '+', label: 'Vistas en el panel web' },
-      { to: 7, suffix: ' días', label: 'De Pro gratis al empezar' },
+      { to: 5, suffix: '+', label: 'Bots que reemplaza en uno' },
+      { to: 37, label: 'Comandos listos para usar' },
+      { to: 100, suffix: '%', label: 'Configurable sin tocar código' },
       { to: 60, prefix: '<', suffix: 's', label: 'Para ponerlo en marcha' },
     ],
     features: {

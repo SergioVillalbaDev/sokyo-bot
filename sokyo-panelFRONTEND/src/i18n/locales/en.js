@@ -34,9 +34,9 @@ export default {
       },
     },
     stats: [
-      { to: 8, label: 'Systems in one bot' },
-      { to: 35, suffix: '+', label: 'Views in the web panel' },
-      { to: 7, suffix: ' days', label: 'Of free Pro to start' },
+      { to: 5, suffix: '+', label: 'Bots replaced by just one' },
+      { to: 37, label: 'Ready-to-use commands' },
+      { to: 100, suffix: '%', label: 'Configurable, no code needed' },
       { to: 60, prefix: '<', suffix: 's', label: 'To get up and running' },
     ],
     features: {
