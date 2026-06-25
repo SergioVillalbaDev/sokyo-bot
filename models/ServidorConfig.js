@@ -100,6 +100,10 @@ const ServidorConfigSchema = new mongoose.Schema({
         anunciarAhora: { type: Boolean, default: true },       // mensaje "reproduciendo ahora" en Discord
         autoSalir: { type: Boolean, default: true },           // salir del canal al quedarse solo/sin cola
         modo247: { type: Boolean, default: false },            // 24/7 (Pro): NO salir aunque se vacíe cola/canal
+        // Autoplay (Pro): qué hacer cuando se acaba la cola.
+        //   'off' = nada (comportamiento normal) · 'aleatorio' = añade música
+        //   similar a la última · 'repetir' = repite la cola en bucle.
+        autoplay: { type: String, enum: ['off', 'aleatorio', 'repetir'], default: 'off' },
         fuentes: {                                             // de dónde se permite reproducir
             youtube: { type: Boolean, default: true },
             spotify: { type: Boolean, default: true },

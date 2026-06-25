@@ -16,7 +16,7 @@ const COLOR_MUSICA = '#1db954'; // verde "música"
 const MUSICA_DEFAULTS = {
     activo: true, canalMusicaId: null, djRolId: null, soloMismoCanal: true,
     volumenDefecto: 60, volumenMax: 150, maxCola: 100,
-    permitirPlaylists: true, anunciarAhora: true, autoSalir: true, modo247: false,
+    permitirPlaylists: true, anunciarAhora: true, autoSalir: true, modo247: false, autoplay: 'off',
     fuentes: { youtube: true, spotify: true, soundcloud: true },
 };
 
@@ -28,6 +28,35 @@ async function es247(guildId) {
         const cfg = await ServidorConfig.findOne({ guildId });
         return !!(cfg && esPro(cfg) && cfg.musica && cfg.musica.modo247);
     } catch { return false; }
+}
+
+// Modo de autoplay EFECTIVO del servidor: 'off' si no es Pro o no está activado;
+// si no, 'aleatorio' o 'repetir'. (El autoplay es un extra de Pro, como el 24/7.)
+async function modoAutoplay(guildId) {
+    try {
+        const cfg = await ServidorConfig.findOne({ guildId });
+        if (!cfg || !esPro(cfg)) return 'off';
+        const a = cfg.musica && cfg.musica.autoplay;
+        return (a === 'aleatorio' || a === 'repetir') ? a : 'off';
+    } catch { return 'off'; }
+}
+
+// Busca pistas "similares" a la última para el autoplay aleatorio: busca por el
+// artista/título en YouTube Music, descarta la misma y baraja. Devuelve hasta n.
+async function pistasAleatorias(player, lastTrack, n = 5) {
+    if (!lastTrack) return [];
+    const q = lastTrack.info?.author || lastTrack.info?.title;
+    if (!q) return [];
+    let res;
+    try { res = await player.search({ query: q, source: 'ytmsearch' }, lastTrack.requester); }
+    catch { return []; }
+    const id = lastTrack.info?.identifier;
+    const tracks = (res?.tracks || []).filter((t) => t.info?.identifier && t.info.identifier !== id);
+    for (let i = tracks.length - 1; i > 0; i--) {           // baraja (Fisher-Yates)
+        const j = Math.floor(Math.random() * (i + 1));
+        [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+    }
+    return tracks.slice(0, n);
 }
 
 // Último mensaje-panel de música por servidor, para editarlo/reemplazarlo.
@@ -147,9 +176,14 @@ function construirPanel(player, cfg) {
     const t = player.queue.current;
     if (!t) return null;
     const enCola = player.queue.tracks.length;
+    // Indicador del modo autoplay activo (lo guarda trackStart en el player).
+    const modo = typeof player.getData === 'function' ? player.getData('sokyoAutoplay') : null;
+    let autorTxt = player.paused ? '⏸️ En pausa' : '🎶 Reproduciendo ahora';
+    if (modo === 'repetir') autorTxt += ' · 🔁 Repetir cola';
+    else if (modo === 'aleatorio') autorTxt += ' · 🎲 Autoplay';
     const embed = new EmbedBuilder()
         .setColor(COLOR_MUSICA)
-        .setAuthor({ name: player.paused ? '⏸️ En pausa' : '🎶 Reproduciendo ahora' })
+        .setAuthor({ name: autorTxt })
         .setTitle(t.info.title)
         .setURL(t.info.uri || null)
         .setDescription(
@@ -261,6 +295,23 @@ async function gateMusica(interaction) {
 }
 
 function initMusica(client) {
+    // Autoplay ALEATORIO: lo llama la librería cuando se vacía la cola. Si el
+    // servidor (Pro) tiene autoplay='aleatorio', añade música similar a la última
+    // y avisa en el canal. Si no añade nada, sigue el flujo normal (auto-salida).
+    const autoPlayFunction = async (player, lastTrack) => {
+        try {
+            if ((await modoAutoplay(player.guildId)) !== 'aleatorio') return;
+            const tracks = await pistasAleatorias(player, lastTrack, 5);
+            if (!tracks.length) return;
+            await player.queue.add(tracks);
+            const cfg = await getMusicaConfig(player.guildId);
+            const canal = client.channels.cache.get(cfg.canalMusicaId || player.textChannelId);
+            if (canal?.isTextBased()) {
+                canal.send('🎲 **Autoplay**: se acabó la cola, sigo con música similar.').catch(() => {});
+            }
+        } catch (e) { console.error('Autoplay aleatorio:', e.message); }
+    };
+
     client.lavalink = new LavalinkManager({
         nodes: [
             {
@@ -285,7 +336,7 @@ function initMusica(client) {
         autoSkip: true,
         playerOptions: {
             defaultSearchPlatform: 'ytmsearch', // YouTube Music: prioriza la versión oficial
-            onEmptyQueue: { destroyAfterMs: 60_000 }, // sale del canal 1 min tras quedarse sin cola
+            onEmptyQueue: { destroyAfterMs: 60_000, autoPlayFunction }, // sale 1 min tras vaciarse (salvo autoplay)
             onDisconnect: { autoReconnect: true, destroyPlayer: false },
         },
     });
@@ -299,6 +350,13 @@ function initMusica(client) {
 
     // Panel visual "Reproduciendo ahora" (embed + botones) en cada canción.
     client.lavalink.on('trackStart', async (player) => {
+        // Sincroniza el modo autoplay: 'repetir' usa el repeatMode NATIVO de la
+        // cola; lo guardamos en el player para pintar el badge del panel.
+        const modo = await modoAutoplay(player.guildId);
+        player.setData('sokyoAutoplay', modo);
+        const objetivo = modo === 'repetir' ? 'queue' : 'off';
+        if (player.repeatMode !== objetivo) await player.setRepeatMode(objetivo).catch(() => {});
+
         const cfg = await getMusicaConfig(player.guildId);
         if (!cfg.anunciarAhora) return;
         await enviarPanel(client, player, cfg);

@@ -120,6 +120,7 @@ export default function MusicaView({ dash }) {
       anunciarAhora: m.anunciarAhora ?? true,
       autoSalir: m.autoSalir ?? true,
       modo247: m.modo247 ?? false,
+      autoplay: m.autoplay ?? 'off',
       fuentes: {
         youtube: m.fuentes?.youtube ?? true,
         spotify: m.fuentes?.spotify ?? true,
@@ -416,6 +417,12 @@ export default function MusicaView({ dash }) {
           <Music size={18} style={{ color: VERDE }} />
           <h3 className="text-lg font-bold text-fg">Sonando ahora</h3>
           {estado?.canalVoz && <span className="text-sm text-muted">· 🔊 {estado.canalVoz.nombre}</span>}
+          {esPremium && f.autoplay === 'repetir' && (
+            <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">🔁 Repetir</span>
+          )}
+          {esPremium && f.autoplay === 'aleatorio' && (
+            <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">🎲 Autoplay</span>
+          )}
         </div>
 
         {actual ? (
@@ -549,6 +556,24 @@ export default function MusicaView({ dash }) {
               ? 'El bot se queda en el canal aunque se vacíe la cola o el canal de voz. También puedes activarlo con /247.'
               : 'Extra del plan Pro: el bot no sale del canal. Puedes dejarlo activado ahora; funcionará en cuanto subas a Pro.'}>
             <Toggle checked={f.modo247} onChange={(v) => set('modo247', v)} />
+          </Ajuste>
+
+          <Ajuste
+            titulo={(
+              <span className="flex items-center gap-1.5">
+                Autoplay al acabar la cola
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">
+                  <Crown size={10} /> Pro
+                </span>
+              </span>
+            )}
+            desc="Qué hacer cuando se acaba la música: nada, poner música similar o repetir la cola. Funciona también sin 24/7.">
+            <select value={f.autoplay} onChange={(e) => set('autoplay', e.target.value)}
+              className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg">
+              <option value="off">No (parar)</option>
+              <option value="aleatorio">🎲 Música aleatoria</option>
+              <option value="repetir">🔁 Repetir la cola</option>
+            </select>
           </Ajuste>
 
           <Ajuste titulo="Volumen por defecto" desc={`Volumen al empezar: ${f.volumenDefecto}%`}>

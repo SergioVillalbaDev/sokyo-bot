@@ -216,6 +216,7 @@ module.exports = ({ portalAuth, client }) => {
                 anunciarAhora: !!b.anunciarAhora,
                 autoSalir: !!b.autoSalir,
                 modo247: !!b.modo247,
+                autoplay: ['off', 'aleatorio', 'repetir'].includes(b.autoplay) ? b.autoplay : 'off',
                 fuentes: {
                     youtube: !!b.fuentes?.youtube,
                     spotify: !!b.fuentes?.spotify,
