@@ -113,14 +113,14 @@ export default {
     faq: {
       title: 'Preguntas',
       titleHighlight: 'frecuentes',
-      subtitle: 'Lo que casi todo el mundo quiere saber antes de empezar.',
+      subtitle: 'Todo lo que necesitas saber para dar el paso con confianza.',
       items: [
-        { q: '¿Necesito saber programar?', a: 'No. Todo se configura desde el panel web: tickets, moderación, niveles, mensajes... sin tocar una línea de código.' },
-        { q: '¿Puedo empezar gratis?', a: 'Sí. El plan Free incluye todos los sistemas con límites generosos. Subes a Pro solo cuando tu servidor crece y los necesita.' },
-        { q: '¿Sokyo reemplaza a MEE6, Dyno o Ticket Tool?', a: 'Esa es justo la idea: en un único bot tienes tickets, moderación, niveles, economía y música, gestionados desde una sola web.' },
-        { q: '¿Mis datos están seguros?', a: 'Tus datos viven en tu propia base de datos MongoDB. Con Pro activas copias de seguridad automáticas de toda la configuración.' },
-        { q: '¿Qué pasa si cancelo Pro?', a: 'Vuelves al plan Free sin perder nada: tu configuración se mantiene, solo dejan de estar las funciones Pro.' },
-        { q: '¿La música funciona con Spotify y YouTube?', a: 'Sí. Reproduce por nombre, URL de YouTube o enlaces de Spotify (canciones, álbumes y playlists), con cola por servidor.' },
+        { q: '¿Tendré que pelearme con comandos y configuraciones?', a: 'En absoluto. Sokyo se gobierna entero desde un panel web visual: activas lo que quieras con un clic, sin comandos ni código. En menos de un minuto lo tienes funcionando.' },
+        { q: '¿Cuánto me cuesta empezar?', a: 'Nada. Arrancas gratis con todos los sistemas activos y límites de sobra. Solo subes de plan cuando tu comunidad crece y te pide más, sin tarjeta para empezar.' },
+        { q: '¿Por qué un solo bot en lugar de varios?', a: 'Porque menos es más: moderación, tickets, niveles, economía y música conviviendo en un mismo panel, con un estilo coherente y una sola cosa que mantener. Un bot que lo hace todo, y lo hace bien.' },
+        { q: '¿Mis datos y los de mi comunidad están a salvo?', a: 'Siempre. Tu información está protegida y es solo tuya, con copias de seguridad automáticas en el plan Pro. Aquí mandas tú.' },
+        { q: '¿Y si quiero darme de baja?', a: 'Sin ataduras ni letra pequeña. Cancelas cuando quieras y vuelves al plan gratuito conservando toda tu configuración. No pierdes nada.' },
+        { q: '¿Incluye música para los canales de voz?', a: 'Sí, un reproductor de alta calidad con cola y controles, manejable también desde el panel. Pon ambiente en tu comunidad en segundos.' },
       ],
     },
     finalCta: {

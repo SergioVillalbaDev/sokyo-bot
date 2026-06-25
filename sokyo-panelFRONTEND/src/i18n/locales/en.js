@@ -113,14 +113,14 @@ export default {
     faq: {
       title: 'Frequently asked',
       titleHighlight: 'questions',
-      subtitle: 'What most people want to know before getting started.',
+      subtitle: 'Everything you need to take the leap with confidence.',
       items: [
-        { q: 'Do I need to know how to code?', a: 'No. Everything is configured from the web panel: tickets, moderation, levels, messages... without touching a line of code.' },
-        { q: 'Can I start for free?', a: 'Yes. The Free plan includes every system with generous limits. You move to Pro only when your server grows and needs them.' },
-        { q: 'Does Sokyo replace MEE6, Dyno or Ticket Tool?', a: "That's exactly the idea: one bot for tickets, moderation, levels, economy and music, all managed from a single website." },
-        { q: 'Is my data safe?', a: 'Your data lives in your own MongoDB database. With Pro you enable automatic backups of your whole configuration.' },
-        { q: 'What happens if I cancel Pro?', a: 'You go back to the Free plan without losing anything: your setup stays, only the Pro features go away.' },
-        { q: 'Does music work with Spotify and YouTube?', a: 'Yes. Play by name, YouTube URL or Spotify links (tracks, albums and playlists), with a per-server queue.' },
+        { q: 'Will I have to wrestle with commands and config?', a: 'Not at all. You run all of Sokyo from a visual web panel: turn on what you want with a click — no commands, no code. You will be live in under a minute.' },
+        { q: 'How much does it cost to start?', a: 'Nothing. You begin free with every system on and plenty of headroom. You only move up a plan when your community grows and asks for more, with no card to start.' },
+        { q: 'Why one bot instead of several?', a: 'Because less is more: moderation, tickets, levels, economy and music living together in one panel, with one consistent style and just one thing to maintain. One bot that does it all, and does it well.' },
+        { q: 'Is my data and my community safe?', a: 'Always. Your information is protected and yours alone, with automatic backups on the Pro plan. You are in control.' },
+        { q: 'What if I want to cancel?', a: 'No strings, no fine print. Cancel anytime and return to the free plan keeping all your configuration. You lose nothing.' },
+        { q: 'Does it include music for voice channels?', a: 'Yes, a high-quality player with a queue and controls, manageable from the panel too. Set the mood in your community in seconds.' },
       ],
     },
     finalCta: {
