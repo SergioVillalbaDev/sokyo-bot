@@ -117,6 +117,24 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalesExentos: { type: [String], default: [] },    // canales donde el automod no actúa
         avisarEnCanal: { type: Boolean, default: true },     // mandar aviso efímero al usuario en el canal
         canalAlertasId: { type: String, default: null },     // canal donde el automod publica alertas (raids, etc.)
+        // Filtro: moderación por IA (Pro). Entiende el CONTEXTO, no solo palabras
+        // sueltas: detecta toxicidad, acoso, amenazas o NSFW que las listas no
+        // pillan (jerga, ironía, l3tras...). Consume la cuota mensual de IA del
+        // servidor para acotar el coste y no bloquea el flujo de mensajes.
+        ia: {
+            activo: { type: Boolean, default: false },
+            accion: { type: String, default: 'borrar' },     // borrar | timeout | expulsion | ban
+            timeoutMin: { type: Number, default: 10 },
+            sensibilidad: { type: String, default: 'media' }, // baja | media | alta
+            categorias: {
+                toxicidad: { type: Boolean, default: true },
+                acoso: { type: Boolean, default: true },
+                amenazas: { type: Boolean, default: true },
+                nsfw: { type: Boolean, default: true },
+                autolesion: { type: Boolean, default: true },
+            },
+            minLongitud: { type: Number, default: 12 },       // ignora mensajes muy cortos (ahorra coste)
+        },
         // Filtro: palabras prohibidas
         palabras: {
             activo: { type: Boolean, default: false },

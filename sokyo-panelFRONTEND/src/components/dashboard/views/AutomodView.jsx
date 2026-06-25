@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Save, Check, Info, Power, MessageSquareWarning, Link2, Link,
   Repeat2, AtSign, CaseUpper, ShieldOff, Hash, Banknote, Siren, UserPlus,
+  Sparkles, Crown,
 } from 'lucide-react';
 import { PRESETS } from '../../../automodPresets';
 
@@ -20,6 +21,10 @@ const ACC_MIEMBRO = ['alerta', 'timeout', 'kick', 'ban'];             // cuentas
 const POR_DEFECTO = {
   activo: false, preset: '', avisarEnCanal: true, canalAlertasId: null,
   rolesExentos: [], canalesExentos: [],
+  ia: {
+    activo: false, accion: 'borrar', timeoutMin: 10, sensibilidad: 'media', minLongitud: 12,
+    categorias: { toxicidad: true, acoso: true, amenazas: true, nsfw: true, autolesion: true },
+  },
   palabras: { activo: false, lista: [], accion: 'borrar', timeoutMin: 10 },
   invitaciones: { activo: false, accion: 'borrar', timeoutMin: 10 },
   enlaces: { activo: false, accion: 'borrar', timeoutMin: 10, listaBlanca: [] },
@@ -31,17 +36,23 @@ const POR_DEFECTO = {
   cuentasNuevas: { activo: false, edadMinHoras: 72, sinAvatar: true, accion: 'alerta', timeoutMin: 60, asignarRolId: null },
 };
 
-const MODULOS = ['palabras', 'invitaciones', 'enlaces', 'spam', 'menciones', 'mayusculas', 'estafas', 'antiRaid', 'cuentasNuevas'];
+const MODULOS = ['ia', 'palabras', 'invitaciones', 'enlaces', 'spam', 'menciones', 'mayusculas', 'estafas', 'antiRaid', 'cuentasNuevas'];
 
 // Combina los valores guardados (o un preset) con los defaults.
 function fusionar(guardado) {
   const g = guardado || {};
   const out = { ...POR_DEFECTO, ...g };
   for (const k of MODULOS) out[k] = { ...POR_DEFECTO[k], ...(g[k] || {}) };
+  // La IA lleva un objeto anidado (categorias): hay que fusionarlo aparte.
+  out.ia.categorias = { ...POR_DEFECTO.ia.categorias, ...((g.ia && g.ia.categorias) || {}) };
   out.rolesExentos = g.rolesExentos || [];
   out.canalesExentos = g.canalesExentos || [];
   return out;
 }
+
+// Categorías de moderación por IA (clave -> orden de aparición en la tarjeta).
+const CATEGORIAS_IA = ['toxicidad', 'acoso', 'amenazas', 'nsfw', 'autolesion'];
+const SENSIBILIDADES = ['baja', 'media', 'alta'];
 
 // --- Subcomponentes reutilizables (a nivel de módulo por react-hooks v7) ---
 
@@ -207,7 +218,7 @@ function SelectUno({ label, items, value, onChange, placeholder }) {
 
 export default function AutomodView({ dash }) {
   const { t } = useTranslation();
-  const { roles, canales, configServidor, guardarAutomod } = dash;
+  const { roles, canales, configServidor, guardarAutomod, esPremium } = dash;
 
   const [am, setAm] = useState(POR_DEFECTO);
   const [guardando, setGuardando] = useState(false);
@@ -341,6 +352,70 @@ export default function AutomodView({ dash }) {
 
       {/* === FILTROS DE MENSAJES === */}
       <h4 data-help="automod-mensajes" className="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">{t('dashboard.automod_v.groupMessages')}</h4>
+
+      {/* Moderación por IA (Pro) — el filtro estrella: entiende el contexto. */}
+      <div className="rounded-3xl border border-brand/40 bg-card p-5 shadow-soft ring-1 ring-brand/10">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="flex flex-wrap items-center gap-2 font-bold text-fg">
+              <Sparkles size={18} className="text-brand" /> {t('dashboard.automod_v.ia.title')}
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">
+                <Crown size={10} /> Pro
+              </span>
+            </h3>
+            <p className="mt-0.5 text-xs text-muted">{t('dashboard.automod_v.ia.desc')}</p>
+          </div>
+          <Toggle on={am.ia.activo} onChange={(v) => set('ia', { ...am.ia, activo: v })} />
+        </div>
+
+        {!esPremium && (
+          <div className="mt-3 flex items-start gap-2 rounded-2xl border border-brand/30 bg-brand/5 px-3 py-2">
+            <Crown size={14} className="mt-0.5 shrink-0 text-amber-400" />
+            <p className="text-xs text-muted">{t('dashboard.automod_v.ia.proNote')}</p>
+          </div>
+        )}
+
+        {am.ia.activo && (
+          <div className="mt-4 space-y-4 border-t border-line pt-4">
+            <div>
+              <p className="mb-2 text-sm font-semibold text-fg">{t('dashboard.automod_v.ia.categories')}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {CATEGORIAS_IA.map((c) => (
+                  <ToggleRow
+                    key={c}
+                    label={t(`dashboard.automod_v.ia.cat.${c}`)}
+                    on={!!am.ia.categorias[c]}
+                    onChange={(v) => set('ia', { ...am.ia, categorias: { ...am.ia.categorias, [c]: v } })}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-muted">
+              <span>{t('dashboard.automod_v.ia.sensitivity')}</span>
+              <select
+                value={am.ia.sensibilidad}
+                onChange={(e) => set('ia', { ...am.ia, sensibilidad: e.target.value })}
+                className="rounded-xl border border-line bg-bg px-2.5 py-1.5 text-sm font-semibold text-fg focus:border-brand focus:outline-none"
+              >
+                {SENSIBILIDADES.map((s) => <option key={s} value={s}>{t(`dashboard.automod_v.ia.sens.${s}`)}</option>)}
+              </select>
+            </label>
+
+            <AccionSelect
+              opciones={ACC_MSG}
+              accion={am.ia.accion}
+              timeoutMin={am.ia.timeoutMin}
+              onAccion={(v) => set('ia', { ...am.ia, accion: v })}
+              onTimeout={(v) => set('ia', { ...am.ia, timeoutMin: v })}
+            />
+
+            <p className="flex items-start gap-2 text-xs text-muted">
+              <Info size={14} className="mt-0.5 shrink-0 text-brand" /> {t('dashboard.automod_v.ia.quotaHint')}
+            </p>
+          </div>
+        )}
+      </div>
 
       <ModuloCard icon={Banknote} danger titulo={t('dashboard.automod_v.scamTitle')} desc={t('dashboard.automod_v.scamDesc')} modulo={am.estafas} onChange={(m) => set('estafas', m)} accionOpciones={ACC_MSG}>
         <ToggleRow label={t('dashboard.automod_v.scamNitro')} on={am.estafas.nitroFalso} onChange={(v) => set('estafas', { ...am.estafas, nitroFalso: v })} />

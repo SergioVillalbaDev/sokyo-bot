@@ -119,4 +119,33 @@ async function resumenDiario(data, nombre) {
     return pedir(system, contenido, 700);
 }
 
-module.exports = { getIA, iaDisponible, resumirTicket, sugerirRespuesta, informeServidor, resumenDiario };
+// Moderación por IA: clasifica UN mensaje. Devuelve { accionar, categoria, motivo }.
+// Pensado para ser barato (pocos tokens) y robusto: si la IA no devuelve un JSON
+// válido, asumimos que NO hay que actuar (no castigamos por una respuesta rara).
+async function moderarTexto(texto, opciones = {}) {
+    const { categorias = [], sensibilidad = 'media' } = opciones;
+    const cats = categorias.length ? categorias.join(', ') : 'toxicidad, acoso, amenazas, nsfw, autolesion';
+    const system = [
+        'Eres un moderador de contenido para un chat de Discord.',
+        `Decide si el MENSAJE del usuario infringe alguna de estas categorías: ${cats}.`,
+        'Ten en cuenta jerga, ironía y los intentos de evadir filtros (l3tras, espacios, símbolos).',
+        `Sensibilidad: ${sensibilidad} (baja = solo casos claros y graves; media = equilibrado; alta = también casos límite).`,
+        'Responde SOLO con un JSON válido, sin nada más, con esta forma exacta:',
+        '{"accionar": true|false, "categoria": "<categoria o cadena vacía>", "motivo": "<máx 8 palabras en español>"}',
+        'accionar=true solo si infringe de verdad según la sensibilidad indicada.',
+    ].join(' ');
+
+    const raw = await pedir(system, `MENSAJE: ${texto}`, 200);
+    try {
+        const json = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+        return {
+            accionar: json.accionar === true,
+            categoria: typeof json.categoria === 'string' ? json.categoria : '',
+            motivo: (typeof json.motivo === 'string' && json.motivo) ? json.motivo : 'Contenido inapropiado',
+        };
+    } catch {
+        return { accionar: false, categoria: '', motivo: '' };
+    }
+}
+
+module.exports = { getIA, iaDisponible, resumirTicket, sugerirRespuesta, informeServidor, resumenDiario, moderarTexto };

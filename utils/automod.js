@@ -8,6 +8,8 @@
 // ============================================================================
 const { PermissionsBitField } = require('discord.js');
 const { aplicarSancion } = require('./moderationManager.js');
+const { esPro, estadoIA, consumirIA } = require('./billing.js');
+const { iaDisponible, moderarTexto } = require('./ia.js');
 
 // Historial reciente por usuario para el anti-spam (en memoria).
 // Clave `${guildId}:${userId}` -> [{ t: timestamp, contenido }]
@@ -182,6 +184,45 @@ async function revisarMensaje(message, cfg, client) {
     return false;
 }
 
+// Categorías de moderación que el admin dejó activas -> array de strings.
+function categoriasActivas(ia) {
+    const c = (ia && ia.categorias) || {};
+    return Object.keys(c).filter((k) => c[k]);
+}
+
+// Moderación por IA (Pro). NO bloquea el flujo de mensajes: se llama SIN await
+// desde messageCreate y, si la IA detecta una infracción de contexto (toxicidad,
+// acoso, amenazas, NSFW...), borra/sanciona después. Acota el coste: solo con
+// plan Pro, solo si queda cuota de IA y solo en mensajes con texto suficiente.
+async function revisarConIA(message, cfg, client) {
+    const am = cfg && cfg.automod;
+    const ia = am && am.ia;
+    if (!message.guild || !am || !am.activo || !ia || !ia.activo) return;
+    if (!iaDisponible() || !esPro(cfg)) return;                // gate: clave de IA + plan Pro
+    if ((am.canalesExentos || []).includes(message.channelId)) return;
+    if (exento(message.member, am, cfg)) return;
+
+    const contenido = (message.content || '').trim();
+    if (contenido.length < (ia.minLongitud || 12)) return;     // mensajes muy cortos: no gastamos IA
+    if (estadoIA(cfg).restantes <= 0) return;                  // sin cuota de IA este mes
+
+    const cats = categoriasActivas(ia);
+    if (!cats.length) return;
+
+    let veredicto;
+    try {
+        veredicto = await moderarTexto(contenido, { categorias: cats, sensibilidad: ia.sensibilidad || 'media' });
+    } catch (e) {
+        console.error('Automod IA: error consultando la IA:', e.message);
+        return;
+    }
+    // La llamada a la IA tiene coste: consumimos 1 uso de cuota (haya o no infracción).
+    await consumirIA(message.guild.id, cfg).catch(() => {});
+
+    if (!veredicto || !veredicto.accionar) return;
+    await castigar(message, client, { accion: ia.accion, timeoutMin: ia.timeoutMin }, am, `IA: ${veredicto.motivo}`);
+}
+
 // Publica una alerta del automod en el canal configurado (raids, etc.).
 async function enviarAlerta(client, guild, am, payload) {
     const id = am && am.canalAlertasId;
@@ -191,4 +232,4 @@ async function enviarAlerta(client, guild, am, payload) {
     await canal.send(payload).catch(() => {});
 }
 
-module.exports = { revisarMensaje, enviarAlerta, ESTAFA_DEFECTO };
+module.exports = { revisarMensaje, revisarConIA, enviarAlerta, ESTAFA_DEFECTO };

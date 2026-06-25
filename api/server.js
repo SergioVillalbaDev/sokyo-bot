@@ -1261,6 +1261,20 @@ app.get('/api/stats/uso', async (req, res) => {
                 canalesExentos: arr(b.canalesExentos),
                 avisarEnCanal: b.avisarEnCanal !== false,
                 canalAlertasId: b.canalAlertasId ? String(b.canalAlertasId) : null,
+                ia: {
+                    activo: !!(b.ia && b.ia.activo),
+                    accion: accion(b.ia && b.ia.accion, 'borrar'),
+                    timeoutMin: num(b.ia && b.ia.timeoutMin, 10, 1),
+                    sensibilidad: ['baja', 'media', 'alta'].includes(b.ia && b.ia.sensibilidad) ? b.ia.sensibilidad : 'media',
+                    minLongitud: num(b.ia && b.ia.minLongitud, 12, 1),
+                    categorias: {
+                        toxicidad: !(b.ia && b.ia.categorias && b.ia.categorias.toxicidad === false),
+                        acoso: !(b.ia && b.ia.categorias && b.ia.categorias.acoso === false),
+                        amenazas: !(b.ia && b.ia.categorias && b.ia.categorias.amenazas === false),
+                        nsfw: !(b.ia && b.ia.categorias && b.ia.categorias.nsfw === false),
+                        autolesion: !(b.ia && b.ia.categorias && b.ia.categorias.autolesion === false),
+                    },
+                },
                 palabras: {
                     activo: !!(b.palabras && b.palabras.activo),
                     lista: arr(b.palabras && b.palabras.lista).map((s) => s.slice(0, 100)).slice(0, 200),

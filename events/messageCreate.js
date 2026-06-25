@@ -3,7 +3,7 @@ const Mensaje = require('../models/Mensaje.js');
 const { getConfigCached } = require('../utils/config.js');
 const { registrarMensaje } = require('../utils/actividad.js');
 const { otorgarXp } = require('../utils/niveles.js');
-const { revisarMensaje } = require('../utils/automod.js');
+const { revisarMensaje, revisarConIA } = require('../utils/automod.js');
 const { revisarAutoRespuestas } = require('../utils/autoRespuestas.js');
 const { marcarParticipacion } = require('../utils/embudo.js');
 
@@ -18,6 +18,8 @@ module.exports = {
                 const cfgAct = await getConfigCached(message.guildId);
                 // Automod primero: si actúa (borra el mensaje), no seguimos con XP ni comandos.
                 if (await revisarMensaje(message, cfgAct, client)) return;
+                // Moderación por IA (Pro): no bloquea el flujo; actúa por su cuenta si toca.
+                revisarConIA(message, cfgAct, client).catch(() => {});
                 await registrarMensaje(message, !!(cfgAct && cfgAct.esPremium));
                 await otorgarXp(message, cfgAct);
                 // Embudo A/B: anota el primer mensaje del usuario (participación).
