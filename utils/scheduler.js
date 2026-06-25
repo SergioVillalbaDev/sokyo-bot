@@ -18,6 +18,17 @@ const { enviarResumen } = require('./resumenDiario.js');
 // Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 
+// Calcula el siguiente envío de un anuncio recurrente a partir de una fecha.
+// Mensual avanza por CALENDARIO (no 30 días fijos): respeta el día del mes.
+function proximaFecha(desde, repetir) {
+    const d = new Date(desde);
+    if (repetir === 'diario') d.setUTCDate(d.getUTCDate() + 1);
+    else if (repetir === 'semanal') d.setUTCDate(d.getUTCDate() + 7);
+    else if (repetir === 'mensual') d.setUTCMonth(d.getUTCMonth() + 1);
+    else return null;
+    return d;
+}
+
 // Publica los anuncios cuya fecha ya llegó. Reprograma los recurrentes.
 async function enviarAnunciosPendientes(client) {
     const ahora = new Date();
@@ -33,11 +44,10 @@ async function enviarAnunciosPendientes(client) {
             console.error('Error enviando anuncio programado:', e.message);
         }
         // Recurrente: avanza la fecha al próximo turno (saltando los perdidos). Si no, lo marca enviado.
-        if (a.repetir === 'diario' || a.repetir === 'semanal') {
-            const paso = a.repetir === 'diario' ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
-            let next = a.fechaEnvio.getTime() + paso;
-            while (next <= Date.now()) next += paso;
-            a.fechaEnvio = new Date(next);
+        if (['diario', 'semanal', 'mensual'].includes(a.repetir)) {
+            let next = proximaFecha(a.fechaEnvio, a.repetir);
+            while (next && next.getTime() <= Date.now()) next = proximaFecha(next, a.repetir);
+            a.fechaEnvio = next;
         } else {
             a.enviado = true;
         }

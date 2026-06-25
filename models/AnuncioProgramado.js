@@ -8,7 +8,7 @@ const AnuncioProgramadoSchema = new mongoose.Schema({
     contenido: { type: String, default: '' },                         // texto fuera del embed
     embed: { type: mongoose.Schema.Types.Mixed, default: null },       // config del embed (o null)
     fechaEnvio: { type: Date, required: true, index: true },           // próximo (o único) envío
-    repetir: { type: String, enum: ['no', 'diario', 'semanal'], default: 'no' },
+    repetir: { type: String, enum: ['no', 'diario', 'semanal', 'mensual'], default: 'no' },
     enviado: { type: Boolean, default: false },                        // true cuando ya se envió (no recurrente)
     creadoPor: { type: String, default: '' },
     creadoFecha: { type: Date, default: Date.now },

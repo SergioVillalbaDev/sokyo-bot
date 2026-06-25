@@ -1685,7 +1685,7 @@ app.get('/api/stats/uso', async (req, res) => {
                 contenido,
                 embed: tieneEmbed ? embedSan : null,
                 fechaEnvio: fecha,
-                repetir: ['no', 'diario', 'semanal'].includes(b.repetir) ? b.repetir : 'no',
+                repetir: ['no', 'diario', 'semanal', 'mensual'].includes(b.repetir) ? b.repetir : 'no',
                 creadoPor: (req.staff && req.staff.username) || 'Panel Web',
             });
             res.json({ success: true, anuncio: doc });

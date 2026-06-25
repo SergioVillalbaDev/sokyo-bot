@@ -933,7 +933,7 @@ export default {
       channel: 'Canal de destino', channelPh: 'Elige un canal…',
       when: 'Fecha y hora', repeatLabel: 'Repetir',
       content: 'Texto fuera del embed (opcional)', contentPh: 'p. ej. @everyone',
-      repeat: { no: 'No repetir', diario: 'Cada día', semanal: 'Cada semana' },
+      repeat: { no: 'No repetir', diario: 'Cada día', semanal: 'Cada semana', mensual: 'Cada mes' },
       schedule: 'Programar', scheduling: 'Programando…', scheduledOk: '✅ Anuncio programado',
     },
     autorol_v: {

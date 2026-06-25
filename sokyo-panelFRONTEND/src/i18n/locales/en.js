@@ -933,7 +933,7 @@ export default {
       channel: 'Target channel', channelPh: 'Pick a channel…',
       when: 'Date and time', repeatLabel: 'Repeat',
       content: 'Text outside the embed (optional)', contentPh: 'e.g. @everyone',
-      repeat: { no: 'No repeat', diario: 'Every day', semanal: 'Every week' },
+      repeat: { no: 'No repeat', diario: 'Every day', semanal: 'Every week', mensual: 'Every month' },
       schedule: 'Schedule', scheduling: 'Scheduling…', scheduledOk: '✅ Announcement scheduled',
     },
     autorol_v: {

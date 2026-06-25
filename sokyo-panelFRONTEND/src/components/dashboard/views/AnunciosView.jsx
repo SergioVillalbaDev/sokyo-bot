@@ -104,6 +104,7 @@ export default function AnunciosView({ dash }) {
               <option value="no">{t('dashboard.anuncios_v.repeat.no')}</option>
               <option value="diario">{t('dashboard.anuncios_v.repeat.diario')}</option>
               <option value="semanal">{t('dashboard.anuncios_v.repeat.semanal')}</option>
+              <option value="mensual">{t('dashboard.anuncios_v.repeat.mensual')}</option>
             </select>
           </label>
           <label className="block">
