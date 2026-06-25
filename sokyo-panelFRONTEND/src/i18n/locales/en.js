@@ -94,6 +94,7 @@ export default {
       title: 'One bot,',
       titleHighlight: 'not five',
       subtitle: 'What other bots split across several subscriptions, Sokyo gives you in one. See for yourself.',
+      cols: { tickets: 'Tickets bot', moderacion: 'Moderation bot', comunidad: 'Community bot' },
       legendYes: 'Included',
       legendLimited: 'Limited or paid',
       legendNo: 'Not its purpose',

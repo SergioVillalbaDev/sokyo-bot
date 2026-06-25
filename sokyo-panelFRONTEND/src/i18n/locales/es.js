@@ -94,6 +94,7 @@ export default {
       title: 'Un bot,',
       titleHighlight: 'no cinco',
       subtitle: 'Lo que en otros bots son varias suscripciones, en Sokyo es una sola. Compáralo tú mismo.',
+      cols: { tickets: 'Bot de tickets', moderacion: 'Bot de moderación', comunidad: 'Bot de comunidad' },
       legendYes: 'Incluido',
       legendLimited: 'Limitado o de pago',
       legendNo: 'No es su propósito',

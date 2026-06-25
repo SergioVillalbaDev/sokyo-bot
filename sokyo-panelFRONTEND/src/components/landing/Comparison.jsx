@@ -1,23 +1,23 @@
-// Tabla comparativa vs. los bots de un solo propósito más conocidos. El objetivo
-// es dejar claro el ángulo "todo en uno": lo que con Sokyo es un bot, con la
-// competencia son tres o cuatro. Comparativa ORIENTATIVA (ver nota al pie).
+// Tabla comparativa vs. bots de un solo propósito (categorías GENÉRICAS, sin
+// nombrar marcas). El objetivo es dejar claro el ángulo "todo en uno": lo que con
+// Sokyo es un bot, con otros son tres o cuatro. Comparativa ORIENTATIVA (nota al pie).
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Check, Minus, X } from 'lucide-react';
 
-// Columnas (Sokyo siempre primero y destacado). Nombres = literales de marca.
-const COLUMNAS = ['Sokyo', 'MEE6', 'Dyno', 'Ticket Tool'];
+// Claves i18n de las columnas de "otros" (Sokyo va aparte, como literal).
+const COLS_OTROS = ['tickets', 'moderacion', 'comunidad'];
 
-// Matriz de capacidades por fila, en el mismo orden que COLUMNAS.
-// 'si' = incluido · 'lim' = limitado / de pago · 'no' = no es su propósito.
+// Matriz de capacidades por fila. Orden de celdas: Sokyo, bot de tickets, bot de
+// moderación, bot de comunidad. 'si' = incluido · 'lim' = limitado/de pago · 'no'.
 const FILAS = [
   { key: 'todo',       cells: ['si', 'no', 'no', 'no'] },
-  { key: 'tickets',    cells: ['si', 'no', 'no', 'si'] },
+  { key: 'tickets',    cells: ['si', 'si', 'no', 'no'] },
   { key: 'panel',      cells: ['si', 'lim', 'lim', 'lim'] },
-  { key: 'moderacion', cells: ['si', 'lim', 'si', 'no'] },
-  { key: 'niveles',    cells: ['si', 'si', 'no', 'no'] },
-  { key: 'economia',   cells: ['si', 'no', 'no', 'no'] },
-  { key: 'musica',     cells: ['si', 'lim', 'no', 'no'] },
+  { key: 'moderacion', cells: ['si', 'no', 'si', 'no'] },
+  { key: 'niveles',    cells: ['si', 'no', 'no', 'si'] },
+  { key: 'economia',   cells: ['si', 'no', 'no', 'si'] },
+  { key: 'musica',     cells: ['si', 'no', 'no', 'lim'] },
   { key: 'portal',     cells: ['si', 'no', 'no', 'no'] },
 ];
 
@@ -30,6 +30,8 @@ function Celda({ estado }) {
 export default function Comparison() {
   const { t } = useTranslation();
   const rows = t('landing.comparison.rows', { returnObjects: true });
+  // Cabeceras: Sokyo (literal) + las 3 categorías genéricas traducidas.
+  const colLabels = ['Sokyo', ...COLS_OTROS.map((k) => t(`landing.comparison.cols.${k}`))];
 
   return (
     <section className="relative mx-auto max-w-5xl px-6 py-24">
@@ -51,7 +53,7 @@ export default function Comparison() {
           <thead>
             <tr>
               <th className="w-1/3 px-4 py-3 text-left text-sm font-semibold text-muted"> </th>
-              {COLUMNAS.map((col, i) => (
+              {colLabels.map((col, i) => (
                 <th
                   key={col}
                   className={`px-4 py-3 text-center text-sm font-bold ${
