@@ -64,11 +64,20 @@ export default function Features() {
         </Tile>
 
         <Tile id="audit" items={items}>
-          <div className="mt-4 space-y-1.5">
+          <div className="mt-4 space-y-2">
             {['#e74c3c', '#f1c40f', '#2ecc71'].map((c, i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c }} />
-                <span className="h-2 rounded-full bg-elevated" style={{ width: `${70 - i * 14}%` }} />
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c }} />
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-elevated">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${70 - i * 14}%` }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 + i * 0.12 }}
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: c }}
+                  />
+                </div>
               </div>
             ))}
           </div>
