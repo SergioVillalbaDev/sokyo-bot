@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Music, Save, Check, Play, Pause, SkipForward, Square, Volume2, Shuffle,
-  Plus, Trash2, Search, X, ChevronRight, ChevronDown,
+  Plus, Trash2, Search, X, ChevronRight, ChevronDown, Crown,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { apiFetch, getStaffSession } from '../../../lib/api';
@@ -49,7 +49,7 @@ function MsgBanner({ msg }) {
 }
 
 export default function MusicaView({ dash }) {
-  const { configServidor, roles, canales, guildId, guardarMusica } = dash;
+  const { configServidor, roles, canales, guildId, guardarMusica, esPremium } = dash;
 
   // ── Config form ──
   const [f, setF] = useState(null);
@@ -119,6 +119,7 @@ export default function MusicaView({ dash }) {
       permitirPlaylists: m.permitirPlaylists ?? true,
       anunciarAhora: m.anunciarAhora ?? true,
       autoSalir: m.autoSalir ?? true,
+      modo247: m.modo247 ?? false,
       fuentes: {
         youtube: m.fuentes?.youtube ?? true,
         spotify: m.fuentes?.spotify ?? true,
@@ -533,6 +534,21 @@ export default function MusicaView({ dash }) {
 
           <Ajuste titulo="Salir solo del canal" desc="Desconectarse al quedarse sin gente o sin cola.">
             <Toggle checked={f.autoSalir} onChange={(v) => set('autoSalir', v)} />
+          </Ajuste>
+
+          <Ajuste
+            titulo={(
+              <span className="flex items-center gap-1.5">
+                Modo 24/7
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">
+                  <Crown size={10} /> Pro
+                </span>
+              </span>
+            )}
+            desc={esPremium
+              ? 'El bot se queda en el canal aunque se vacíe la cola o el canal de voz. También puedes activarlo con /247.'
+              : 'Extra del plan Pro: el bot no sale del canal. Puedes dejarlo activado ahora; funcionará en cuanto subas a Pro.'}>
+            <Toggle checked={f.modo247} onChange={(v) => set('modo247', v)} />
           </Ajuste>
 
           <Ajuste titulo="Volumen por defecto" desc={`Volumen al empezar: ${f.volumenDefecto}%`}>
