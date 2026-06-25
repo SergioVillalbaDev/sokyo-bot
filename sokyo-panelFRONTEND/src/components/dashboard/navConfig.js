@@ -7,7 +7,7 @@ import {
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
   UserCheck, Flag, DatabaseBackup, FlaskConical,
   Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
-  Music,
+  Music, Webhook,
 } from 'lucide-react';
 
 // Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
@@ -109,6 +109,7 @@ export const navGroups = [
       { tab: 'config-expresiones', icon: Smile },
       { tab: 'config-macros', icon: Zap },
       { tab: 'config-textos', icon: Type },
+      { tab: 'config-webhooks', icon: Webhook, premium: true },
       { tab: 'seg-backup', icon: DatabaseBackup, premium: true },
       { tab: 'config', icon: Plug },
     ],

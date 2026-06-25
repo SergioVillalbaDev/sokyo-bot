@@ -8,6 +8,7 @@ const Log = require('../models/Log.js');
 const { getConfig, logActivo } = require('./config.js');
 const { aplicarPieMarca, lineaMarcaTexto } = require('./marca.js');
 const { esPro } = require('./billing.js');
+const { enviarWebhook } = require('./webhooks.js');
 
 const CATEGORIA_ARCHIVO = '🗄️ Tickets Archivados';
 
@@ -157,6 +158,12 @@ async function crearTicket(client, { guildId, creador, motivo = 'Soporte', titul
     });
 
     await registrarLogTicket(ticket, '🎫 Ticket Abierto', '#2ecc71', (creador && creador.username) || 'Sistema');
+
+    // Webhook saliente (Pro): avisa de un ticket nuevo (útil para los urgentes).
+    enviarWebhook(cfg, 'ticketNuevo', {
+        text: `🎫 Nuevo ticket [${prioridad}]: "${titulo}" de ${(creador && creador.username) || 'Sistema'} — ${motivo}`,
+        data: { canalId: canal.id, titulo, motivo, prioridad, creadorId: (creador && creador.id) || null },
+    }).catch(() => {});
 
     const embed = new EmbedBuilder()
         .setTitle(`🎫 ${titulo}`)

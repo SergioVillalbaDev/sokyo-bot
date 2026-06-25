@@ -345,6 +345,19 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalId: { type: String, default: null },         // canal opcional donde publicarlo además del MD
         lastDia: { type: String, default: '' },           // 'YYYY-MM-DD' del último envío (anti-duplicado)
     },
+
+    // Webhooks salientes (Pro): avisan a un endpoint externo (Slack, Discord,
+    // n8n, propio) de eventos del servidor. Lógica en utils/webhooks.js.
+    webhooksSalientes: {
+        activo: { type: Boolean, default: false },
+        url: { type: String, default: '' },               // endpoint https de destino
+        secret: { type: String, default: '' },            // opcional: se envía como cabecera X-Sokyo-Secret
+        eventos: {
+            ticketNuevo: { type: Boolean, default: true },
+            sancion: { type: Boolean, default: true },
+            raid: { type: Boolean, default: true },
+        },
+    },
 });
 
 // Invalida el caché en memoria (utils/config.js) cada vez que se guarda la

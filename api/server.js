@@ -1832,6 +1832,51 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- Webhooks salientes (Pro): guardar configuración ---
+    app.put('/api/config/:guildId/webhooks', async (req, res) => {
+        try {
+            const b = req.body || {};
+            const ev = b.eventos || {};
+            const cambios = {
+                'webhooksSalientes.activo': !!b.activo,
+                'webhooksSalientes.url': typeof b.url === 'string' ? b.url.trim().slice(0, 500) : '',
+                'webhooksSalientes.secret': typeof b.secret === 'string' ? b.secret.trim().slice(0, 200) : '',
+                'webhooksSalientes.eventos.ticketNuevo': ev.ticketNuevo !== false,
+                'webhooksSalientes.eventos.sancion': ev.sancion !== false,
+                'webhooksSalientes.eventos.raid': ev.raid !== false,
+            };
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: cambios },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error al guardar webhooks:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    // --- Webhooks salientes: enviar una prueba a la URL indicada ---
+    app.post('/api/config/:guildId/webhooks/test', async (req, res) => {
+        try {
+            const url = String(req.body.url || '').trim();
+            const secret = String(req.body.secret || '').trim();
+            if (!/^https:\/\//i.test(url)) return res.status(400).json({ error: 'La URL debe empezar por https://' });
+            const headers = { 'Content-Type': 'application/json' };
+            if (secret) headers['X-Sokyo-Secret'] = secret;
+            const payload = {
+                event: 'test', guildId: req.params.guildId,
+                text: '✅ Webhook de prueba de Sokyo', content: '✅ Webhook de prueba de Sokyo',
+                data: { prueba: true }, timestamp: new Date().toISOString(),
+            };
+            const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload), signal: AbortSignal.timeout(5000) });
+            res.json({ success: r.ok, status: r.status });
+        } catch (e) {
+            res.json({ success: false, error: e.message });
+        }
+    });
+
     // --- SISTEMA DE ROLES: guardar autorol al entrar (personas / bots) ---
     app.put('/api/config/:guildId/autoroles', async (req, res) => {
         try {

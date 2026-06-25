@@ -795,6 +795,30 @@ export function useDashboard() {
     return false;
   };
 
+  // Guarda la configuración de webhooks salientes (Pro).
+  const guardarWebhooks = async (datos) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/webhooks`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando webhooks:', error); }
+    return false;
+  };
+
+  // Envía un webhook de prueba a la URL indicada. Devuelve { success, status?, error? }.
+  const probarWebhook = async ({ url, secret }) => {
+    if (!configServidor) return { success: false, error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/webhooks/test`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, secret }),
+      });
+      return await res.json();
+    } catch (error) { console.error('Error probando webhook:', error); return { success: false, error: 'Fallo de conexión' }; }
+  };
+
   // Sube una imagen de prueba (dataURL). Devuelve { archivo, url } o { error }.
   const subirPrueba = async (dataUrl) => {
     try {
@@ -1110,7 +1134,7 @@ export function useDashboard() {
     esBroadcaster, servidoresBot, difundir,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
-    guardarAcceso, misPermisos,
+    guardarAcceso, misPermisos, guardarWebhooks, probarWebhook,
     // emojis y stickers
     stickers, crearEmoji, eliminarEmoji, crearSticker, eliminarSticker,
     // niveles

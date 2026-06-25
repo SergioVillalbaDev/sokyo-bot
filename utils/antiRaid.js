@@ -7,6 +7,7 @@
 const { EmbedBuilder } = require('discord.js');
 const { aplicarSancion } = require('./moderationManager.js');
 const { enviarAlerta } = require('./automod.js');
+const { enviarWebhook } = require('./webhooks.js');
 
 // Entradas recientes por servidor (ventana deslizante en memoria).
 const entradas = new Map();   // guildId -> [timestamps]
@@ -83,6 +84,11 @@ async function revisarEntrada(member, cfg, client) {
                 .setDescription(`Se han unido **${lista.length}** cuentas en ~${r.enSegundos}s.\nBloqueo activado durante **${r.lockdownMin} min** (acción: ${r.accion}).`)
                 .setTimestamp();
             await enviarAlerta(client, guild, am, { embeds: [embed] });
+            // Webhook saliente (Pro): avisa del raid a un endpoint externo.
+            enviarWebhook(cfg, 'raid', {
+                text: `🚨 Posible RAID en ${guild.name}: ${lista.length} cuentas en ~${r.enSegundos}s. Bloqueo ${r.lockdownMin} min.`,
+                data: { uniones: lista.length, enSegundos: r.enSegundos, lockdownMin: r.lockdownMin, accion: r.accion },
+            }).catch(() => {});
         }
 
         if (enRaid(guild.id)) {

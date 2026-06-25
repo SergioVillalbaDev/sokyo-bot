@@ -7,6 +7,7 @@
 const { EmbedBuilder } = require('discord.js');
 const Sancion = require('../models/Sancion.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
+const { enviarWebhook } = require('./webhooks.js');
 
 const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000; // límite nativo de Discord: 28 días
 
@@ -82,6 +83,17 @@ async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', p
     });
 
     await registrarEnCanal(client, guild, sancion).catch(() => {});
+
+    // Webhook saliente (Pro): avisa a un endpoint externo de la sanción.
+    const meta = META[sancion.accion] || META.aviso;
+    enviarWebhook(cfg, 'sancion', {
+        text: `${meta.emoji} ${meta.etiqueta}: ${sancion.usuarioTag} (${sancion.usuarioId})${motivo ? ` — ${motivo}` : ''}`,
+        data: {
+            usuarioId: sancion.usuarioId, usuarioTag: sancion.usuarioTag, accion: sancion.accion,
+            motivo, duracionMin: sancion.duracionMin, moderador: sancion.moderadorTag, sancionId: String(sancion._id),
+        },
+    }).catch(() => {});
+
     return sancion;
 }
 
