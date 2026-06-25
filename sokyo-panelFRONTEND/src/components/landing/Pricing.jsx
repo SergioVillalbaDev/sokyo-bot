@@ -78,6 +78,10 @@ export default function Pricing() {
           );
         })}
       </div>
+
+      <p className="mx-auto mt-10 max-w-xl text-center text-sm text-muted">
+        {t('landing.pricing.reassurance')}
+      </p>
     </section>
   );
 }

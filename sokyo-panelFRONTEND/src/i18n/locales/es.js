@@ -3,10 +3,43 @@ export default {
   common: {
     language: 'Idioma',
   },
+  legal: {
+    back: 'Volver al inicio',
+    privacidad: {
+      title: 'Política de Privacidad',
+      updated: 'Última actualización: 25 de junio de 2026',
+      intro: 'En Sokyo nos tomamos en serio tu privacidad. Esta política explica qué datos tratamos cuando usas el bot y el panel web, para qué y con qué garantías.',
+      sections: [
+        { h: '1. Responsable', p: 'El responsable del tratamiento es el equipo de Sokyo (sokyo.studio). Para cualquier cuestión sobre tus datos, escríbenos a soporte@sokyo.studio.' },
+        { h: '2. Qué datos tratamos', p: 'Identificadores de Discord (ID de usuario, de servidor y roles), la configuración que defines en el panel, el contenido de los tickets de soporte, datos de actividad necesarios para funciones como niveles o analítica y, si contratas un plan de pago, los datos de facturación gestionados por Stripe. No almacenamos los datos de tu tarjeta.' },
+        { h: '3. Para qué los usamos', p: 'Para prestar el servicio del bot y del panel, ofrecerte soporte, procesar los pagos de los planes y mejorar el producto. No usamos tus datos para publicidad de terceros.' },
+        { h: '4. Base legal', p: 'Tratamos tus datos para ejecutar el servicio que solicitas, en virtud de tu consentimiento al añadir el bot y, cuando aplica, por nuestro interés legítimo en mantener y mejorar el servicio.' },
+        { h: '5. Con quién los compartimos', p: 'Solo con los proveedores que hacen funcionar el servicio: Discord, MongoDB Atlas (base de datos), Stripe (pagos) y, en las funciones de inteligencia artificial, Anthropic. No vendemos ni cedemos tus datos a terceros con fines comerciales.' },
+        { h: '6. Conservación', p: 'Conservamos los datos mientras uses el servicio. Si dejas de usar Sokyo o lo solicitas, eliminamos los datos asociados salvo los que debamos guardar por obligación legal.' },
+        { h: '7. Tus derechos', p: 'Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad escribiéndonos a soporte@sokyo.studio. También puedes reclamar ante la autoridad de control competente.' },
+        { h: '8. Cambios', p: 'Podemos actualizar esta política para reflejar mejoras o cambios legales. Avisaremos de los cambios relevantes a través de la web.' },
+      ],
+    },
+    terminos: {
+      title: 'Términos de Servicio',
+      updated: 'Última actualización: 25 de junio de 2026',
+      intro: 'Estos términos regulan el uso de Sokyo (el bot de Discord y su panel web). Al añadir el bot o usar el panel, aceptas estas condiciones.',
+      sections: [
+        { h: '1. El servicio', p: 'Sokyo es un bot todo en uno para Discord (moderación, tickets, niveles, economía, música y más) con un panel web de gestión. Se ofrece en un plan gratuito y en planes de pago (Pro y Agencia).' },
+        { h: '2. Uso aceptable', p: 'Te comprometes a no usar Sokyo para actividades ilegales, abusivas, de spam o que infrinjan las normas de Discord. Eres responsable de cómo configuras y usas el bot en tu servidor.' },
+        { h: '3. Cuentas y acceso', p: 'El acceso al panel se realiza con tu cuenta de Discord. Eres responsable de mantener la seguridad de tu cuenta y de las acciones que se realicen con ella.' },
+        { h: '4. Planes y pagos', p: 'Los planes de pago se gestionan a través de Stripe. Los precios y características son los indicados en la web en el momento de la contratación. Salvo los pagos de pago único, las suscripciones se renuevan automáticamente hasta que las canceles.' },
+        { h: '5. Cancelación y reembolsos', p: 'Puedes cancelar tu plan cuando quieras; conservarás el acceso a las funciones de pago hasta el final del periodo ya abonado. Los reembolsos se atienden conforme a la legislación aplicable; escríbenos a soporte@sokyo.studio.' },
+        { h: '6. Disponibilidad', p: 'Trabajamos para ofrecer un servicio estable, pero Sokyo se presta "tal cual" y "según disponibilidad", sin garantía de funcionamiento ininterrumpido o libre de errores.' },
+        { h: '7. Limitación de responsabilidad', p: 'En la medida que permita la ley, Sokyo no será responsable de daños indirectos, pérdida de datos o lucro cesante derivados del uso o la imposibilidad de uso del servicio.' },
+        { h: '8. Cambios y ley aplicable', p: 'Podemos modificar estos términos y el servicio, avisando de los cambios relevantes. Estos términos se rigen por la legislación española y los tribunales que correspondan según la ley.' },
+      ],
+    },
+  },
   landing: {
     nav: {
       brand: 'Sokyo Bot',
-      announcement: '🎉 Sokyo Pro ya disponible · auditoría ampliada y marca blanca',
+      announcement: '🎉 Nuevo: moderación por IA que entiende el contexto, no solo palabras',
       announcementCta: 'Descúbrelo',
       panelBtn: 'Panel',
       accountBtn: 'Mi cuenta',
@@ -60,7 +93,7 @@ export default {
       items: {
         add: { title: 'Añade el bot', desc: 'Invita a Sokyo a tu servidor con un clic y activa los intents. Listo en segundos.' },
         config: { title: 'Configúralo', desc: 'Ajusta categorías, urgencias y textos desde el panel. Lanza el panel con !sokyo.' },
-        support: { title: 'Da soporte', desc: 'Tu equipo gestiona tickets desde la web mientras tú ves todo lo que ocurre.' },
+        support: { title: 'Gestiónalo todo', desc: 'Moderación, tickets, niveles y más, controlados en tiempo real desde un único panel web.' },
       },
     },
     pricing: {
@@ -69,6 +102,7 @@ export default {
       subtitle: 'Cada servidor empieza con 7 días de Pro gratis. Quédate en Free para siempre o sube cuando despegues.',
       recommended: 'Recomendado',
       trialNote: '✨ Cada servidor nuevo recibe 7 días de Pro gratis, sin tarjeta.',
+      reassurance: 'Cancela cuando quieras, sin permanencia ni letra pequeña. Tus datos siempre son tuyos.',
       tiers: {
         free: {
           name: 'Free', price: '0€', period: 'para siempre',
@@ -124,17 +158,28 @@ export default {
       ],
     },
     finalCta: {
-      title: '¿Listo para profesionalizar tu soporte?',
+      title: '¿Listo para unificar tu servidor en un solo bot?',
       subtitle: 'Añade Sokyo a tu servidor en menos de un minuto. Sin tarjeta, sin complicaciones.',
       primary: 'Añadir a Discord',
       secondary: 'Explorar el panel',
     },
     footer: {
-      brandDesc: 'El sistema de soporte definitivo para tu comunidad de Discord. Profesional, rápido y personalizable.',
+      brandDesc: 'El bot todo en uno para tu comunidad de Discord: moderación, tickets, niveles, economía y música desde un panel web. Profesional, rápido y personalizable.',
       columns: [
-        { title: 'Producto', links: ['Funciones', 'Precios', 'Panel', 'Estado del servicio'] },
-        { title: 'Recursos', links: ['Documentación', 'Guía de inicio', 'Comandos', 'Soporte'] },
-        { title: 'Legal', links: ['Términos de servicio', 'Política de privacidad', 'Cookies', 'Aviso legal'] },
+        { title: 'Producto', links: [
+          { label: 'Funciones', href: '#features' },
+          { label: 'Precios', href: '#pricing' },
+          { label: 'Preguntas frecuentes', href: '#faq' },
+        ] },
+        { title: 'Empezar', links: [
+          { label: 'Añadir a Discord', href: 'INVITE' },
+          { label: 'Abrir el panel', href: 'DASHBOARD' },
+          { label: 'Portal del cliente', href: '/?portal=1' },
+        ] },
+        { title: 'Legal', links: [
+          { label: 'Términos de servicio', href: '#legal/terminos' },
+          { label: 'Política de privacidad', href: '#legal/privacidad' },
+        ] },
       ],
       copyright: 'Sokyo Bot. Todos los derechos reservados.',
       madeWith: 'Hecho con 💜 para la comunidad de Discord.',

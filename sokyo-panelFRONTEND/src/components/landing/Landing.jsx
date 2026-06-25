@@ -62,7 +62,7 @@ export default function Landing({ onEnterDashboard }) {
           </div>
         </section>
       </main>
-      <Footer />
+      <Footer onEnterDashboard={onEnterDashboard} />
     </div>
   );
 }

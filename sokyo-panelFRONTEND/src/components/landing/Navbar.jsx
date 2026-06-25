@@ -1,9 +1,9 @@
 // Barra de navegación de la landing — sticky, con barra de anuncio superior.
 // Textos vía i18n (src/i18n/locales/*).
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Plus, ArrowRight, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Plus, ArrowRight, UserCircle, Menu, X } from 'lucide-react';
 import { inviteUrl } from '../../lib/landingConfig';
 import LanguageSwitcher from '../LanguageSwitcher';
 
@@ -16,6 +16,7 @@ const LINKS = [
 export default function Navbar({ onEnterDashboard }) {
   const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -86,8 +87,50 @@ export default function Navbar({ onEnterDashboard }) {
             >
               <Plus size={16} /> {t('landing.nav.cta')}
             </a>
+
+            {/* Botón de menú (solo móvil) */}
+            <button
+              onClick={() => setMenuAbierto((v) => !v)}
+              aria-label="Menú"
+              aria-expanded={menuAbierto}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card/60 text-fg transition-colors hover:bg-elevated md:hidden"
+            >
+              {menuAbierto ? <X size={18} /> : <Menu size={18} />}
+            </button>
           </div>
         </motion.nav>
+
+        {/* Menú desplegable (solo móvil) */}
+        <AnimatePresence>
+          {menuAbierto && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden border-t border-line bg-bg/95 backdrop-blur-xl md:hidden"
+            >
+              <div className="flex flex-col gap-1 px-6 py-4">
+                {LINKS.map((l) => (
+                  <a
+                    key={l.key}
+                    href={l.href}
+                    onClick={(e) => { if (l.dashboard) onEnterDashboard(e); setMenuAbierto(false); }}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
+                  >
+                    {t(`landing.nav.links.${l.key}`)}
+                  </a>
+                ))}
+                <a
+                  href="/?portal=1"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
+                >
+                  <UserCircle size={16} /> {t('landing.nav.accountBtn')}
+                </a>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
     </>
   );

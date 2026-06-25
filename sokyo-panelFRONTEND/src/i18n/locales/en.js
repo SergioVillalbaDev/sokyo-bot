@@ -3,10 +3,43 @@ export default {
   common: {
     language: 'Language',
   },
+  legal: {
+    back: 'Back to home',
+    privacidad: {
+      title: 'Privacy Policy',
+      updated: 'Last updated: June 25, 2026',
+      intro: 'At Sokyo we take your privacy seriously. This policy explains what data we process when you use the bot and the web panel, why, and with what safeguards.',
+      sections: [
+        { h: '1. Data controller', p: 'The data controller is the Sokyo team (sokyo.studio). For any question about your data, write to soporte@sokyo.studio.' },
+        { h: '2. What data we process', p: 'Discord identifiers (user, server and role IDs), the configuration you set in the panel, the content of support tickets, activity data needed for features such as levels or analytics and, if you purchase a paid plan, billing data handled by Stripe. We do not store your card details.' },
+        { h: '3. How we use it', p: 'To run the bot and panel, provide support, process plan payments and improve the product. We do not use your data for third-party advertising.' },
+        { h: '4. Legal basis', p: 'We process your data to deliver the service you request, on the basis of your consent when adding the bot and, where applicable, our legitimate interest in maintaining and improving the service.' },
+        { h: '5. Who we share it with', p: 'Only with the providers that make the service work: Discord, MongoDB Atlas (database), Stripe (payments) and, for AI features, Anthropic. We do not sell or transfer your data to third parties for commercial purposes.' },
+        { h: '6. Retention', p: 'We keep data while you use the service. If you stop using Sokyo or request it, we delete the associated data except what we must keep by law.' },
+        { h: '7. Your rights', p: 'You can exercise your rights of access, rectification, erasure, objection, restriction and portability by writing to soporte@sokyo.studio. You may also lodge a complaint with the relevant supervisory authority.' },
+        { h: '8. Changes', p: 'We may update this policy to reflect improvements or legal changes. We will announce relevant changes on the website.' },
+      ],
+    },
+    terminos: {
+      title: 'Terms of Service',
+      updated: 'Last updated: June 25, 2026',
+      intro: 'These terms govern the use of Sokyo (the Discord bot and its web panel). By adding the bot or using the panel, you accept these terms.',
+      sections: [
+        { h: '1. The service', p: 'Sokyo is an all-in-one Discord bot (moderation, tickets, levels, economy, music and more) with a web management panel. It is offered on a free plan and paid plans (Pro and Agency).' },
+        { h: '2. Acceptable use', p: 'You agree not to use Sokyo for illegal, abusive or spam activities, or anything that breaches Discord rules. You are responsible for how you configure and use the bot on your server.' },
+        { h: '3. Accounts and access', p: 'Panel access is via your Discord account. You are responsible for keeping your account secure and for actions taken with it.' },
+        { h: '4. Plans and payments', p: 'Paid plans are handled through Stripe. Prices and features are those shown on the website at the time of purchase. Except for one-time payments, subscriptions renew automatically until you cancel.' },
+        { h: '5. Cancellation and refunds', p: 'You can cancel your plan anytime; you keep access to paid features until the end of the period already paid. Refunds are handled in accordance with applicable law; write to soporte@sokyo.studio.' },
+        { h: '6. Availability', p: 'We work to provide a stable service, but Sokyo is provided "as is" and "as available", without warranty of uninterrupted or error-free operation.' },
+        { h: '7. Limitation of liability', p: 'To the extent permitted by law, Sokyo is not liable for indirect damages, data loss or lost profits arising from the use or inability to use the service.' },
+        { h: '8. Changes and governing law', p: 'We may modify these terms and the service, announcing relevant changes. These terms are governed by Spanish law and the courts that apply under the law.' },
+      ],
+    },
+  },
   landing: {
     nav: {
       brand: 'Sokyo Bot',
-      announcement: '🎉 Sokyo Pro is here · extended audit log and white-label',
+      announcement: '🎉 New: AI moderation that understands context, not just words',
       announcementCta: 'Learn more',
       panelBtn: 'Panel',
       accountBtn: 'My account',
@@ -60,7 +93,7 @@ export default {
       items: {
         add: { title: 'Add the bot', desc: 'Invite Sokyo to your server in one click and enable the intents. Ready in seconds.' },
         config: { title: 'Configure it', desc: 'Set up categories, priorities and texts from the panel. Launch it with !sokyo.' },
-        support: { title: 'Give support', desc: 'Your team handles tickets from the web while you see everything that happens.' },
+        support: { title: 'Run it all', desc: 'Moderation, tickets, levels and more, controlled in real time from a single web panel.' },
       },
     },
     pricing: {
@@ -69,6 +102,7 @@ export default {
       subtitle: 'Every server starts with a 7-day Pro trial. Keep Free forever or upgrade when you take off.',
       recommended: 'Recommended',
       trialNote: '✨ Every new server gets 7 days of Pro, free — no card required.',
+      reassurance: 'Cancel anytime, no lock-in and no fine print. Your data is always yours.',
       tiers: {
         free: {
           name: 'Free', price: '€0', period: 'forever',
@@ -124,17 +158,28 @@ export default {
       ],
     },
     finalCta: {
-      title: 'Ready to professionalize your support?',
+      title: 'Ready to unify your server into one bot?',
       subtitle: 'Add Sokyo to your server in under a minute. No card, no hassle.',
       primary: 'Add to Discord',
       secondary: 'Explore the panel',
     },
     footer: {
-      brandDesc: 'The ultimate support system for your Discord community. Professional, fast and customizable.',
+      brandDesc: 'The all-in-one bot for your Discord community: moderation, tickets, levels, economy and music from one web panel. Professional, fast and customizable.',
       columns: [
-        { title: 'Product', links: ['Features', 'Pricing', 'Panel', 'Service status'] },
-        { title: 'Resources', links: ['Documentation', 'Getting started', 'Commands', 'Support'] },
-        { title: 'Legal', links: ['Terms of service', 'Privacy policy', 'Cookies', 'Legal notice'] },
+        { title: 'Product', links: [
+          { label: 'Features', href: '#features' },
+          { label: 'Pricing', href: '#pricing' },
+          { label: 'FAQ', href: '#faq' },
+        ] },
+        { title: 'Get started', links: [
+          { label: 'Add to Discord', href: 'INVITE' },
+          { label: 'Open the panel', href: 'DASHBOARD' },
+          { label: 'Client portal', href: '/?portal=1' },
+        ] },
+        { title: 'Legal', links: [
+          { label: 'Terms of service', href: '#legal/terminos' },
+          { label: 'Privacy policy', href: '#legal/privacidad' },
+        ] },
       ],
       copyright: 'Sokyo Bot. All rights reserved.',
       madeWith: 'Made with 💜 for the Discord community.',

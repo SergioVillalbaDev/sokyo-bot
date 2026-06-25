@@ -5,12 +5,20 @@
 // El Portal del Cliente se enruta aparte en main.jsx mediante ?portal=1.
 import { useState, useEffect } from 'react';
 import Landing from './components/landing/Landing';
+import Legal from './components/landing/Legal';
 import Dashboard from './components/dashboard/Dashboard';
 import StaffLogin from './components/dashboard/StaffLogin';
 import { API_URL } from './lib/api';
 
-const getRoute = () =>
-  window.location.hash.replace('#', '').startsWith('dashboard') ? 'dashboard' : 'landing';
+const getRoute = () => {
+  const h = window.location.hash.replace('#', '');
+  if (h.startsWith('dashboard')) return 'dashboard';
+  if (h.startsWith('legal')) return 'legal';
+  return 'landing';
+};
+
+// Qué página legal mostrar según el hash (#legal/terminos vs #legal/privacidad).
+const getLegalPage = () => (window.location.hash.includes('terminos') ? 'terminos' : 'privacidad');
 
 const hasApiKey = !!import.meta.env.VITE_API_KEY;
 
@@ -74,6 +82,9 @@ function App() {
       return null;
     }
     return <Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} />;
+  }
+  if (route === 'legal') {
+    return <Legal page={getLegalPage()} onBack={(e) => { if (e) e.preventDefault(); goLanding(); }} />;
   }
   return <Landing onEnterDashboard={goDashboard} />;
 }
