@@ -8,6 +8,7 @@
 const { LavalinkManager } = require('lavalink-client');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
+const { esPro } = require('./billing.js');
 
 const COLOR_MUSICA = '#1db954'; // verde "música"
 
@@ -15,9 +16,19 @@ const COLOR_MUSICA = '#1db954'; // verde "música"
 const MUSICA_DEFAULTS = {
     activo: true, canalMusicaId: null, djRolId: null, soloMismoCanal: true,
     volumenDefecto: 60, volumenMax: 150, maxCola: 100,
-    permitirPlaylists: true, anunciarAhora: true, autoSalir: true,
+    permitirPlaylists: true, anunciarAhora: true, autoSalir: true, modo247: false,
     fuentes: { youtube: true, spotify: true, soundcloud: true },
 };
+
+// ¿Este servidor tiene el modo 24/7 activo Y plan Pro? (la música base es gratis;
+// el 24/7 es un extra de Pro). Hace una consulta porque getMusicaConfig no trae
+// los campos de plan.
+async function es247(guildId) {
+    try {
+        const cfg = await ServidorConfig.findOne({ guildId });
+        return !!(cfg && esPro(cfg) && cfg.musica && cfg.musica.modo247);
+    } catch { return false; }
+}
 
 // Último mensaje-panel de música por servidor, para editarlo/reemplazarlo.
 const panelMsgs = new Map(); // guildId -> { channelId, messageId }
@@ -210,8 +221,11 @@ async function manejarBotonMusica(interaction, client) {
     switch (interaction.customId) {
         case 'music_toggle': player.paused ? await player.resume() : await player.pause(); break;
         case 'music_skip':
-            if (!player.queue.tracks.length) { await player.destroy(); parar = true; }
-            else await player.skip();
+            if (!player.queue.tracks.length) {
+                // Última canción: en 24/7 paramos pero seguimos en el canal; si no, salimos.
+                if (await es247(interaction.guildId)) { await player.stopPlaying().catch(() => {}); }
+                else { await player.destroy(); parar = true; }
+            } else await player.skip();
             break;
         case 'music_stop': await player.destroy(); parar = true; break;
         case 'music_shuffle': if (typeof player.queue.shuffle === 'function') await player.queue.shuffle(); break;
@@ -290,6 +304,20 @@ function initMusica(client) {
         await enviarPanel(client, player, cfg);
     });
 
+    // Modo 24/7 (Pro): la librería programa la auto-salida al vaciarse la cola
+    // (onEmptyQueue) guardando el temporizador en player.getData('internal_queueempty').
+    // Para los servidores Pro con 24/7, lo cancelamos para que el bot se quede.
+    // setImmediate: el timer se crea JUSTO DESPUÉS de emitirse este evento.
+    client.lavalink.on('playerQueueEmptyStart', (player) => {
+        setImmediate(async () => {
+            try {
+                if (!(await es247(player.guildId))) return;
+                const id = player.getData('internal_queueempty');
+                if (id) { clearTimeout(id); player.setData('internal_queueempty', undefined); }
+            } catch (e) { console.error('24/7 (cancelar salida):', e.message); }
+        });
+    });
+
     // Al acabarse la cola: quitar el panel y avisar.
     client.lavalink.on('queueEnd', async (player) => {
         const prev = panelMsgs.get(player.guildId);
@@ -301,7 +329,10 @@ function initMusica(client) {
         const cfg = await getMusicaConfig(player.guildId);
         const canal = client.channels.cache.get(cfg.canalMusicaId || player.textChannelId);
         if (canal?.isTextBased()) {
-            canal.send('🎵 Se acabó la cola. Saldré del canal si no añades más música.').catch(() => {});
+            const seQueda = await es247(player.guildId);
+            canal.send(seQueda
+                ? '🎵 Se acabó la cola. Sigo en el canal (modo 24/7). Añade más música cuando quieras.'
+                : '🎵 Se acabó la cola. Saldré del canal si no añades más música.').catch(() => {});
         }
     });
 
@@ -338,5 +369,5 @@ async function buscarMusica(buscador, query, requester) {
 module.exports = {
     initMusica, formatDuration, ensureVoice, gateMusica, COLOR_MUSICA,
     getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON,
-    manejarBotonMusica, MUSICA_DEFAULTS, buscarMusica,
+    manejarBotonMusica, MUSICA_DEFAULTS, buscarMusica, es247,
 };

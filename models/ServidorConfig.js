@@ -99,6 +99,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         permitirPlaylists: { type: Boolean, default: true },   // permitir encolar playlists enteras
         anunciarAhora: { type: Boolean, default: true },       // mensaje "reproduciendo ahora" en Discord
         autoSalir: { type: Boolean, default: true },           // salir del canal al quedarse solo/sin cola
+        modo247: { type: Boolean, default: false },            // 24/7 (Pro): NO salir aunque se vacíe cola/canal
         fuentes: {                                             // de dónde se permite reproducir
             youtube: { type: Boolean, default: true },
             spotify: { type: Boolean, default: true },
