@@ -308,11 +308,20 @@ const ServidorConfigSchema = new mongoose.Schema({
     rolesModeracion: { type: [String], default: [] },   // roles que pueden moderar (panel + comandos)
     // Distribución "quién ve qué": roles que ven cada sección. Lista vacía = la ven
     // todos los que tengan acceso al panel. Admins/propietario ven todo siempre.
+    // Qué roles ven cada SECCIÓN del panel. Lista vacía = visible para todos los
+    // que tengan acceso al panel; con roles = solo quien tenga uno de ellos.
+    // Cubre todos los grupos del nav, incluida 'cuenta' (facturación), para poder
+    // ocultarle la suscripción a los moderadores.
     accesoAreas: {
+        cuenta: { type: [String], default: [] },
+        datos: { type: [String], default: [] },
+        entrada: { type: [String], default: [] },
+        musica: { type: [String], default: [] },
         tickets: { type: [String], default: [] },
         roles: { type: [String], default: [] },
         moderacion: { type: [String], default: [] },
         logs: { type: [String], default: [] },
+        mensajes: { type: [String], default: [] },
         config: { type: [String], default: [] },
     },
 

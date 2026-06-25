@@ -621,7 +621,9 @@ module.exports = (client) => {
     // Qué SECCIONES del panel puede ver el usuario actual en un servidor.
     // Propietario/API key y administradores ven todo. El resto, según accesoAreas:
     // lista vacía = visible para todos; con roles = solo quien tenga uno de ellos.
-    const AREAS = ['tickets', 'roles', 'moderacion', 'logs', 'config'];
+    // Debe cubrir TODOS los grupos del nav (incluida 'cuenta' = facturación) para
+    // que se puedan restringir; si falta uno, ese grupo sería visible para todos.
+    const AREAS = ['cuenta', 'datos', 'entrada', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
     app.get('/api/mis-permisos', async (req, res) => {
         try {
             const todo = () => res.json({ areas: Object.fromEntries(AREAS.map((a) => [a, true])) });
@@ -1814,7 +1816,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (Array.isArray(req.body.rolesPanelAcceso)) cambios.rolesPanelAcceso = req.body.rolesPanelAcceso.filter(Boolean);
             if (Array.isArray(req.body.rolesModeracion)) cambios.rolesModeracion = req.body.rolesModeracion.filter(Boolean);
             if (req.body.accesoAreas && typeof req.body.accesoAreas === 'object') {
-                ['tickets', 'roles', 'moderacion', 'logs', 'config'].forEach((a) => {
+                ['cuenta', 'datos', 'entrada', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'].forEach((a) => {
                     if (Array.isArray(req.body.accesoAreas[a])) cambios[`accesoAreas.${a}`] = req.body.accesoAreas[a].filter(Boolean);
                 });
             }

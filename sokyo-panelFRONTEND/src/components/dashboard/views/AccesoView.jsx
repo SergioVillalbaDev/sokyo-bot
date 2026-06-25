@@ -6,7 +6,10 @@ import { MonitorSmartphone, ShieldAlert, Save, Check, Info, LayoutList } from 'l
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
-const AREAS = ['tickets', 'roles', 'moderacion', 'logs', 'config'];
+// Todas las secciones gobernables del panel (mismo orden que el nav). Incluye
+// 'cuenta' (facturación) para poder ocultársela a los moderadores.
+const AREAS = ['cuenta', 'datos', 'entrada', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
+const areasVacias = () => Object.fromEntries(AREAS.map((a) => [a, []]));
 
 // Selector de varios roles como chips que se activan/desactivan al pulsar.
 function SelectorRoles({ roles, seleccion, onToggle }) {
@@ -38,7 +41,7 @@ export default function AccesoView({ dash }) {
 
   const [panel, setPanel] = useState([]);
   const [moderacion, setModeracion] = useState([]);
-  const [areas, setAreas] = useState({ tickets: [], roles: [], moderacion: [], logs: [], config: [] });
+  const [areas, setAreas] = useState(areasVacias);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
 
@@ -48,7 +51,7 @@ export default function AccesoView({ dash }) {
       setPanel(configServidor.rolesPanelAcceso || []);
       setModeracion(configServidor.rolesModeracion || []);
       const a = configServidor.accesoAreas || {};
-      setAreas({ tickets: a.tickets || [], roles: a.roles || [], moderacion: a.moderacion || [], logs: a.logs || [], config: a.config || [] });
+      setAreas(Object.fromEntries(AREAS.map((k) => [k, a[k] || []])));
     }
   }, [configServidor]);
   /* eslint-enable react-hooks/set-state-in-effect */

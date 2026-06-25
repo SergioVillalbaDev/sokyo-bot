@@ -111,8 +111,9 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         </AnimatePresence>
       </div>
 
-      {/* Upsell: Subir a Pro (solo servidores Free, no propietario) */}
-      {!esOwner && !esPremium && (
+      {/* Upsell: Subir a Pro (solo servidores Free, no propietario y con acceso
+          a la sección de cuenta/facturación). */}
+      {!esOwner && !esPremium && (!permisos || permisos.cuenta !== false) && (
         <button
           onClick={() => setActiveTab('cuenta-plan')}
           className={cn(
