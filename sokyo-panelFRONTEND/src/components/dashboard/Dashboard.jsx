@@ -9,6 +9,7 @@ import { maybeStartOnboarding } from '../../lib/onboarding';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import ServerPicker from './ServerPicker';
+import UpgradeModal from './UpgradeModal';
 import InicioView from './views/InicioView';
 import TicketsView from './views/TicketsView';
 import ChatView from './views/ChatView';
@@ -57,6 +58,10 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
 
   // Menú lateral como "drawer" en móvil (en escritorio es fijo).
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Upsell contextual: qué función de pago intentó abrir un servidor Free.
+  // null = modal cerrado. Lo dispara el Sidebar al pulsar un ítem con candado.
+  const [upgradeFeature, setUpgradeFeature] = useState(null);
 
   // Onboarding: la PRIMERA vez que se entra al panel, lanza el tour guiado.
   // El pequeño retardo da tiempo a que monten el sidebar y la vista de inicio.
@@ -130,6 +135,7 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
         onExitToLanding={onExitToLanding}
         servidorInfo={servidorInfo}
         esPremium={esPremium}
+        onRequestUpgrade={setUpgradeFeature}
         servidores={servidores}
         guildId={guildId}
         setGuildId={setGuildId}
@@ -171,6 +177,12 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
         guildId={guildId}
         onSeleccionar={setGuildId}
         onCerrar={() => setMostrarSelectorServidor(false)}
+      />
+
+      <UpgradeModal
+        feature={upgradeFeature}
+        onClose={() => setUpgradeFeature(null)}
+        onVerPlanes={() => { setUpgradeFeature(null); navigate('cuenta-plan'); }}
       />
     </div>
   );

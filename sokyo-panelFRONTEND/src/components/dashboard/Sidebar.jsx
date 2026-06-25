@@ -10,7 +10,7 @@ import { getStaffSession } from '../../lib/api';
 
 const esOwner = !!getStaffSession()?.owner;
 
-export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, mobileOpen, setMobileOpen, onExitToLanding, servidorInfo, esPremium, servidores = [], guildId, setGuildId, permisos, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, mobileOpen, setMobileOpen, onExitToLanding, servidorInfo, esPremium, onRequestUpgrade, servidores = [], guildId, setGuildId, permisos, onLogout }) {
   const { t } = useTranslation();
   const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
 
@@ -176,17 +176,21 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                     <div className="mt-1 ml-4 flex flex-col gap-1 border-l border-line pl-3">
                       {group.items.map((item) => {
                         const active = activeTab === item.tab;
+                        // Función de pago en un servidor Free (el propietario lo ve todo).
+                        const locked = item.premium && !esPremium && !esOwner;
                         return (
                           <button
                             key={item.tab}
-                            onClick={() => setActiveTab(item.tab)}
+                            onClick={() => (locked ? onRequestUpgrade?.(item.tab) : setActiveTab(item.tab))}
+                            title={locked ? t('dashboard.plan.upgrade') : undefined}
                             className={cn(
                               'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
                               active ? 'bg-gradient-brand font-semibold text-on-brand shadow-md' : 'text-muted hover:bg-elevated hover:text-fg'
                             )}
                           >
                             <item.icon size={16} className="shrink-0" />
-                            <span className="truncate">{t(`dashboard.nav.items.${item.tab}`)}</span>
+                            <span className="flex-1 truncate text-left">{t(`dashboard.nav.items.${item.tab}`)}</span>
+                            {locked && <Crown size={13} className="shrink-0 text-amber-400" />}
                           </button>
                         );
                       })}

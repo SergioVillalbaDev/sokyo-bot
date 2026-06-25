@@ -7,7 +7,9 @@ import Hero from './Hero';
 import Stats from './Stats';
 import Features from './Features';
 import Steps from './Steps';
+import Comparison from './Comparison';
 import Pricing from './Pricing';
+import Faq from './Faq';
 import Footer from './Footer';
 import { inviteUrl } from '../../lib/landingConfig';
 
@@ -27,7 +29,9 @@ export default function Landing({ onEnterDashboard }) {
         <Stats />
         <Features />
         <Steps />
+        <Comparison />
         <Pricing />
+        <Faq />
 
         {/* CTA final */}
         <section className="mx-auto max-w-7xl px-6 py-20">

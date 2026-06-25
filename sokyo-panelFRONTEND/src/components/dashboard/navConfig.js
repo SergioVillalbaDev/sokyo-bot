@@ -26,8 +26,8 @@ export const navGroups = [
     id: 'datos',
     icon: BarChart3,
     items: [
-      { tab: 'datos-analitica', icon: BarChart3 },
-      { tab: 'datos-resumen', icon: Mail },
+      { tab: 'datos-analitica', icon: BarChart3, premium: true },
+      { tab: 'datos-resumen', icon: Mail, premium: true },
     ],
   },
   {
@@ -36,7 +36,7 @@ export const navGroups = [
     icon: DoorOpen,
     items: [
       { tab: 'seg-verificacion', icon: UserCheck },
-      { tab: 'seg-embudo', icon: FlaskConical },
+      { tab: 'seg-embudo', icon: FlaskConical, premium: true },
       { tab: 'prod-bienvenidas', icon: Sparkles },
       { tab: 'roles-autorol', icon: UserPlus },
       { tab: 'config-niveles', icon: TrendingUp },
@@ -109,7 +109,7 @@ export const navGroups = [
       { tab: 'config-expresiones', icon: Smile },
       { tab: 'config-macros', icon: Zap },
       { tab: 'config-textos', icon: Type },
-      { tab: 'seg-backup', icon: DatabaseBackup },
+      { tab: 'seg-backup', icon: DatabaseBackup, premium: true },
       { tab: 'config', icon: Plug },
     ],
   },
