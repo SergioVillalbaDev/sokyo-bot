@@ -2796,6 +2796,9 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- COMUNIDAD: sorteos, eventos, encuestas, sugerencias, presentaciones ---
+    require('./comunidadRoutes.js')(app, client);
+
     // --- Frontend del panel (SPA de React, compilada con `npm run build`) ---
     // Servimos el build del panel desde el MISMO proceso y origen que la API.
     // Así un único dominio (p. ej. dashboard.sokyo.studio) sirve la web Y la API

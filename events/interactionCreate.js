@@ -163,6 +163,23 @@ module.exports = {
             return reportes.manejarBoton(interaction, client);
         }
 
+        // --- COMUNIDAD: votos, participaciones y presentaciones ---
+        if (interaction.isButton() && interaction.customId.startsWith('enc_vote:')) {
+            return require('../utils/comunidad.js').manejarVotoEncuesta(interaction);
+        }
+        if (interaction.isButton() && interaction.customId.startsWith('sorteo_join:')) {
+            return require('../utils/comunidad.js').manejarEntradaSorteo(interaction);
+        }
+        if (interaction.isButton() && (interaction.customId.startsWith('sug_up:') || interaction.customId.startsWith('sug_down:'))) {
+            return require('../utils/comunidad.js').manejarVotoSugerencia(interaction);
+        }
+        if (interaction.isButton() && interaction.customId.startsWith('intro_start:')) {
+            return require('../utils/comunidad.js').abrirModalPresentacion(interaction);
+        }
+        if (interaction.isModalSubmit() && interaction.customId.startsWith('intro_modal:')) {
+            return require('../utils/comunidad.js').procesarPresentacion(interaction);
+        }
+
         // --- ONBOARDING: botones del mensaje de bienvenida y !setup ---
         if (interaction.isButton() && interaction.customId.startsWith('setup_estado:')) {
             const guildId = interaction.customId.split(':')[1];

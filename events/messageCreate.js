@@ -27,6 +27,16 @@ module.exports = {
                     await marcarParticipacion(message.guildId, message.author.id).catch(() => {});
                 }
             } catch (e) { console.error('Error registrando actividad de mensaje:', e.message); }
+
+            // 0.5. Comunidad · Sugerencias: si el mensaje cae en el canal de
+            // sugerencias, lo convertimos en un embed con votos y no seguimos.
+            try {
+                const cfgSug = await getConfigCached(message.guildId);
+                if (cfgSug?.canalSugerencias && message.channelId === cfgSug.canalSugerencias) {
+                    await require('../utils/comunidad.js').manejarMensajeSugerencia(message, cfgSug);
+                    return;
+                }
+            } catch (e) { console.error('Sugerencia:', e.message); }
         }
 
         // 1. Guardar mensajes de los tickets en la BD

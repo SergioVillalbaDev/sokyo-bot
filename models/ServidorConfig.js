@@ -308,6 +308,42 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalId: { type: String, default: null },           // canal de staff donde llegan los reportes
     },
 
+    // --- COMUNIDAD: sugerencias ---
+    // Canal donde los miembros escriben sugerencias; el bot las convierte en un
+    // embed con botones de voto 👍/👎 y las registra para gestionarlas en el panel.
+    canalSugerencias: { type: String, default: null },
+
+    // --- COMUNIDAD: presentaciones de nuevos miembros ---
+    // Al entrar un miembro, el bot publica en `canalIntro` un botón para abrir un
+    // formulario (modal) con `preguntas`. Las respuestas se publican al `canalStaff`
+    // y los `filtros` pueden descartar/marcar automáticamente.
+    presentaciones: {
+        activo: { type: Boolean, default: false },
+        canalIntro: { type: String, default: null },        // canal donde se pide la presentación
+        canalStaff: { type: String, default: null },        // canal donde se publican para el staff
+        preguntas: {
+            type: [{
+                id: { type: String },
+                texto: { type: String },
+                tipo: { type: String, enum: ['texto', 'numero', 'seleccion'], default: 'texto' },
+                requerida: { type: Boolean, default: false },
+            }],
+            default: [],
+        },
+        filtros: {
+            type: [{
+                id: { type: String },
+                campo: { type: String },                    // id de la pregunta a evaluar
+                operador: { type: String },                 // menor_que/mayor_que/igual_a/contiene/no_contiene
+                valor: { type: String },
+                accion: { type: String, default: 'descartar' }, // descartar | marcar
+                avisarUsuario: { type: Boolean, default: true },
+                mensajeAviso: { type: String, default: '' },
+            }],
+            default: [],
+        },
+    },
+
     // --- ACCESO Y PERMISOS ---
     rolesPanelAcceso: { type: [String], default: [] },  // roles que pueden entrar al panel web
     rolesModeracion: { type: [String], default: [] },   // roles que pueden moderar (panel + comandos)
