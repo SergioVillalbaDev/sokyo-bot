@@ -173,6 +173,12 @@ module.exports = {
         if (interaction.isButton() && (interaction.customId.startsWith('sug_up:') || interaction.customId.startsWith('sug_down:'))) {
             return require('../utils/comunidad.js').manejarVotoSugerencia(interaction);
         }
+        if (interaction.isButton() && interaction.customId.startsWith('sug_nueva:')) {
+            return require('../utils/comunidad.js').abrirModalSugerencia(interaction);
+        }
+        if (interaction.isModalSubmit() && interaction.customId.startsWith('sug_modal:')) {
+            return require('../utils/comunidad.js').procesarModalSugerencia(interaction);
+        }
         if (interaction.isButton() && interaction.customId.startsWith('intro_start:')) {
             return require('../utils/comunidad.js').abrirModalPresentacion(interaction);
         }

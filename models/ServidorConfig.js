@@ -309,9 +309,15 @@ const ServidorConfigSchema = new mongoose.Schema({
     },
 
     // --- COMUNIDAD: sugerencias ---
-    // Canal donde los miembros escriben sugerencias; el bot las convierte en un
+    // Canal donde los miembros proponen sugerencias; el bot las convierte en un
     // embed con botones de voto 👍/👎 y las registra para gestionarlas en el panel.
     canalSugerencias: { type: String, default: null },
+    // modo 'mensaje' = escribir en el canal y el bot lo transforma.
+    // modo 'formulario' = el canal queda bloqueado para chat libre y se sugiere
+    //   con un botón que abre un formulario (modal) con una plantilla rellenable.
+    sugerenciasModo: { type: String, enum: ['mensaje', 'formulario'], default: 'mensaje' },
+    sugerenciasPlantilla: { type: String, default: '' }, // plantilla prerellenada del formulario
+    sugerenciasMinLong: { type: Number, default: 0 },    // longitud mínima (0 = sin mínimo)
 
     // --- COMUNIDAD: presentaciones de nuevos miembros ---
     // Al entrar un miembro, el bot publica en `canalIntro` un botón para abrir un
@@ -321,6 +327,10 @@ const ServidorConfigSchema = new mongoose.Schema({
         activo: { type: Boolean, default: false },
         canalIntro: { type: String, default: null },        // canal donde se pide la presentación
         canalStaff: { type: String, default: null },        // canal donde se publican para el staff
+        // modo 'preguntas' = campos sueltos (uno por pregunta).
+        // modo 'plantilla' = un único texto rellenable que el usuario edita.
+        modo: { type: String, enum: ['preguntas', 'plantilla'], default: 'preguntas' },
+        plantilla: { type: String, default: 'Edad: \nDe dónde eres: \nAficiones: \nPor qué te unes: ' },
         preguntas: {
             type: [{
                 id: { type: String },

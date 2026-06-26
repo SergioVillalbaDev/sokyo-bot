@@ -18,6 +18,10 @@ const SorteoSchema = new mongoose.Schema({
     ganadores: { type: Number, default: 1 },          // cuántos ganadores elegir
     nivelMin: { type: Number, default: 0 },           // nivel mínimo para participar (0 = sin requisito)
     rolRequerido: { type: String, default: null },    // rol obligatorio para participar
+    imagen: { type: String, default: null },          // URL de imagen del sorteo
+    // Roles que multiplican las posibilidades (p. ej. booster x2). Se aplica el
+    // multiplicador MÁS ALTO que tenga el participante.
+    multiplicadores: { type: [{ rolId: String, multiplicador: Number }], default: [] },
     participantes: { type: [String], default: [] },   // userIds que se han apuntado
     ganadoresSeleccionados: { type: [GanadorSchema], default: [] },
     activo: { type: Boolean, default: true },

@@ -53,6 +53,11 @@ module.exports = function montarRutasComunidad(app, client) {
                 ganadores: Math.min(20, Math.max(1, parseInt(b.ganadores, 10) || 1)),
                 nivelMin: Math.max(0, parseInt(b.nivelMin, 10) || 0),
                 rolRequerido: b.rolRequerido || null,
+                imagen: b.imagen || null,
+                multiplicadores: (Array.isArray(b.multiplicadores) ? b.multiplicadores : [])
+                    .filter((m) => m && m.rolId)
+                    .map((m) => ({ rolId: String(m.rolId), multiplicador: Math.max(1, Math.min(100, parseInt(m.multiplicador, 10) || 1)) }))
+                    .slice(0, 10),
                 fechaFin: fecha,
                 creadoPor: (req.staff && req.staff.username) || 'Panel Web',
             });
@@ -213,11 +218,18 @@ module.exports = function montarRutasComunidad(app, client) {
 
     app.put('/api/config/:guildId/sugerencias', async (req, res) => {
         try {
+            const b = req.body || {};
+            const set = { canalSugerencias: b.canalSugerencias || null };
+            if (b.sugerenciasModo !== undefined) set.sugerenciasModo = ['mensaje', 'formulario'].includes(b.sugerenciasModo) ? b.sugerenciasModo : 'mensaje';
+            if (b.sugerenciasPlantilla !== undefined) set.sugerenciasPlantilla = String(b.sugerenciasPlantilla || '').slice(0, 1000);
+            if (b.sugerenciasMinLong !== undefined) set.sugerenciasMinLong = Math.max(0, parseInt(b.sugerenciasMinLong, 10) || 0);
             const config = await ServidorConfig.findOneAndUpdate(
-                { guildId: req.params.guildId },
-                { $set: { canalSugerencias: req.body?.canalSugerencias || null } },
-                { returnDocument: 'after', upsert: true },
+                { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
             );
+            // Si es modo formulario, publica el panel y bloquea el canal.
+            if (config.sugerenciasModo === 'formulario') {
+                await comunidad.publicarPanelSugerencias(client, req.params.guildId, config).catch(() => {});
+            }
             res.json({ success: true, config });
         } catch (e) { console.error('Config sugerencias:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
@@ -245,6 +257,8 @@ module.exports = function montarRutasComunidad(app, client) {
                 'presentaciones.activo': true,
                 'presentaciones.canalIntro': b.canalIntro || null,
                 'presentaciones.canalStaff': b.canalStaff || null,
+                'presentaciones.modo': ['preguntas', 'plantilla'].includes(b.modo) ? b.modo : 'preguntas',
+                'presentaciones.plantilla': String(b.plantilla || '').slice(0, 1500),
                 'presentaciones.preguntas': Array.isArray(b.preguntas) ? b.preguntas.slice(0, 10) : [],
                 'presentaciones.filtros': Array.isArray(b.filtros) ? b.filtros.slice(0, 20) : [],
             };

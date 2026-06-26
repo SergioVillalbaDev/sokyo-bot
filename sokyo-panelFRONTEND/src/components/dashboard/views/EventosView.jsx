@@ -2,21 +2,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic } from 'lucide-react';
+import { FechaPicker, SubirImagen } from './comunidadShared.jsx';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
-
-function minLocal() {
-  const d = new Date(Date.now() + 60000);
-  d.setSeconds(0, 0);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-}
 
 const TIPO_ICONO = { voz: Mic, escenario: Radio, externo: MapPin };
 
 export default function EventosView({ dash }) {
   const { t } = useTranslation();
-  const { canales, eventos = [], crearEvento, eliminarEvento } = dash;
+  const { canales, eventos = [], crearEvento, eliminarEvento, subirImagen } = dash;
 
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -36,7 +31,7 @@ export default function EventosView({ dash }) {
     setEstado('creando');
     const r = await crearEvento({
       titulo, descripcion, canalId,
-      fechaInicio: new Date(fechaInicio).toISOString(),
+      fechaInicio,
       tipo, recordatorio: Number(recordatorio),
       portada: portada || null,
     });
@@ -173,16 +168,9 @@ export default function EventosView({ dash }) {
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.eventos_v.startAt')}</span>
-            <input
-              type="datetime-local"
-              value={fechaInicio}
-              min={minLocal()}
-              onChange={(e) => { setEstado(''); setFechaInicio(e.target.value); }}
-              className={input}
-            />
-          </label>
+          <div className="block">
+            <FechaPicker value={fechaInicio} onChange={(v) => { setEstado(''); setFechaInicio(v); }} titulo={t('dashboard.eventos_v.startAt')} />
+          </div>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.eventos_v.type')}</span>
             <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={input}>
@@ -201,15 +189,9 @@ export default function EventosView({ dash }) {
               <option value="1440">1 {t('dashboard.eventos_v.dia')}</option>
             </select>
           </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.eventos_v.coverUrl')}</span>
-            <input
-              value={portada}
-              onChange={(e) => setPortada(e.target.value)}
-              className={input}
-              placeholder="https://..."
-            />
-          </label>
+          <div className="block sm:col-span-2">
+            <SubirImagen value={portada} onChange={setPortada} subirImagen={subirImagen} titulo={t('dashboard.eventos_v.coverUrl')} />
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

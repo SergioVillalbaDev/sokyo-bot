@@ -1230,10 +1230,10 @@ export function useDashboard() {
     iaTicket, informeIA, descargarTranscript, analitica, cargarAnalitica,
     guardarResumen, probarResumen,
     // comunidad: sorteos, eventos, encuestas, sugerencias, presentaciones
-    sorteos, crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo,
-    eventos, crearEvento, eliminarEvento,
-    encuestas, crearEncuesta, eliminarEncuesta,
-    sugerencias, actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias,
+    sorteos, crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, cargarSorteos,
+    eventos, crearEvento, eliminarEvento, cargarEventos,
+    encuestas, crearEncuesta, eliminarEncuesta, cargarEncuestas,
+    sugerencias, actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias, cargarSugerencias,
     presentaciones, eliminarPresentacion, guardarConfigPresentaciones,
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,

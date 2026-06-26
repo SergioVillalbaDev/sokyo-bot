@@ -30,6 +30,16 @@ async function colorDe(guildId, fallback = COLOR) {
     } catch { return fallback; }
 }
 
+// Las imágenes subidas desde el panel se guardan como `/uploads/xxx` (ruta
+// relativa). Discord necesita una URL absoluta, así que le anteponemos el
+// dominio público (FRONTEND_URL) que sirve también esos archivos.
+function urlAbs(u) {
+    if (!u || typeof u !== 'string') return null;
+    if (/^https?:\/\//i.test(u)) return u;
+    if (u.startsWith('/uploads/')) return `${(process.env.FRONTEND_URL || '').replace(/\/$/, '')}${u}`;
+    return null;
+}
+
 // ============================ ENCUESTAS ============================
 
 function construirEmbedEncuesta(enc, color, cerrada = false) {
@@ -137,6 +147,15 @@ function construirEmbedSorteo(s, color, finalizado = false) {
     if (s.nivelMin > 0) reqs.push(`Nivel ${s.nivelMin}+`);
     if (s.rolRequerido) reqs.push(`Rol <@&${s.rolRequerido}>`);
     if (reqs.length) embed.addFields({ name: '📋 Requisitos', value: reqs.join(' · '), inline: false });
+    if (s.multiplicadores?.length) {
+        embed.addFields({
+            name: '✨ Multiplicadores',
+            value: s.multiplicadores.map((m) => `<@&${m.rolId}> ×${m.multiplicador}`).join(' · '),
+            inline: false,
+        });
+    }
+    const img = urlAbs(s.imagen);
+    if (img) embed.setImage(img);
 
     if (finalizado) {
         const ganadores = s.ganadoresSeleccionados.length
@@ -211,13 +230,17 @@ async function actualizarMensajeSorteo(client, s) {
     await msg.edit({ embeds: [construirEmbedSorteo(s, color)], components: [filaSorteo(s)] }).catch(() => {});
 }
 
-// Elige `n` ganadores al azar de una lista de userIds (sin repetir).
-function elegirAlAzar(lista, n) {
-    const copia = [...lista];
+// Elige `n` ganadores al azar PONDERADO por peso (sin repetir). `pesos` es un
+// mapa userId -> nº de "papeletas" (1 por defecto, más si tiene rol multiplicador).
+function elegirPonderado(lista, n, pesos) {
+    const pool = lista.map((id) => ({ id, peso: Math.max(1, pesos?.[id] || 1) }));
     const out = [];
-    while (out.length < n && copia.length) {
-        const i = Math.floor(Math.random() * copia.length);
-        out.push(copia.splice(i, 1)[0]);
+    while (out.length < n && pool.length) {
+        const total = pool.reduce((s, p) => s + p.peso, 0);
+        let r = Math.random() * total;
+        let idx = 0;
+        for (let i = 0; i < pool.length; i++) { r -= pool[i].peso; if (r <= 0) { idx = i; break; } }
+        out.push(pool.splice(idx, 1)[0].id);
     }
     return out;
 }
@@ -226,7 +249,23 @@ function elegirAlAzar(lista, n) {
 // reroll=true vuelve a elegir entre los participantes (sorteo ya finalizado).
 async function finalizarSorteo(client, s, { reroll = false } = {}) {
     const guild = client.guilds.cache.get(s.guildId);
-    const ids = elegirAlAzar(s.participantes, Math.max(1, s.ganadores));
+
+    // Calcular papeletas según los roles multiplicadores (se aplica el mayor).
+    const pesos = {};
+    if (s.multiplicadores?.length && guild) {
+        for (const id of s.participantes) {
+            const miembro = await guild.members.fetch(id).catch(() => null);
+            let mejor = 1;
+            if (miembro) {
+                for (const m of s.multiplicadores) {
+                    if (miembro.roles.cache.has(m.rolId)) mejor = Math.max(mejor, m.multiplicador || 1);
+                }
+            }
+            pesos[id] = mejor;
+        }
+    }
+
+    const ids = elegirPonderado(s.participantes, Math.max(1, s.ganadores), pesos);
     const ganadores = [];
     for (const id of ids) {
         const miembro = guild ? await guild.members.fetch(id).catch(() => null) : null;
@@ -262,7 +301,8 @@ function construirEmbedEvento(e, color) {
             { name: '🗓️ Cuándo', value: `<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:F> (<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:R>)` },
         );
     if (e.descripcion) embed.setDescription(e.descripcion);
-    if (e.portada) embed.setImage(e.portada);
+    const img = urlAbs(e.portada);
+    if (img) embed.setImage(img);
     return embed;
 }
 
@@ -305,27 +345,107 @@ function filaSugerencia(sug) {
     );
 }
 
-// messageCreate: si el mensaje cae en el canal de sugerencias, lo convertimos.
+// Crea la sugerencia y publica su embed con votos en el canal.
+async function crearYPublicarSugerencia(canal, guildId, autor, texto, color) {
+    const sug = await Sugerencia.create({
+        guildId, canalId: canal.id, autorId: autor.id, autor: autor.tag, texto: texto.slice(0, 1000),
+    });
+    const enviado = await canal.send({ embeds: [construirEmbedSugerencia(sug, color)], components: [filaSugerencia(sug)] }).catch(() => null);
+    if (enviado) { sug.mensajeId = enviado.id; await sug.save().catch(() => {}); }
+    return sug;
+}
+
+// messageCreate: si el mensaje cae en el canal de sugerencias (modo 'mensaje'),
+// lo convertimos en un embed con votos. En modo 'formulario' el canal está
+// bloqueado y se sugiere por botón, así que aquí solo borramos lo que se cuele.
 async function manejarMensajeSugerencia(message, cfg) {
     try {
         if (!cfg?.canalSugerencias || message.channelId !== cfg.canalSugerencias) return false;
         if (message.author.bot) return false;
+
+        // En modo formulario el canal es "solo sugerencias": borra cualquier mensaje suelto.
+        if (cfg.sugerenciasModo === 'formulario') { await message.delete().catch(() => {}); return true; }
+
         const texto = message.content?.trim();
         if (!texto) return false;
+        if (cfg.sugerenciasMinLong > 0 && texto.length < cfg.sugerenciasMinLong) {
+            await message.delete().catch(() => {});
+            await message.author.send(`✍️ Tu sugerencia en **${message.guild?.name}** es demasiado corta (mínimo ${cfg.sugerenciasMinLong} caracteres).`).catch(() => {});
+            return true;
+        }
 
-        const sug = await Sugerencia.create({
-            guildId: message.guildId,
-            canalId: message.channelId,
-            autorId: message.author.id,
-            autor: message.author.tag,
-            texto: texto.slice(0, 1000),
-        });
         const color = cfg.colorEmbed || COLOR;
-        const enviado = await message.channel.send({ embeds: [construirEmbedSugerencia(sug, color)], components: [filaSugerencia(sug)] }).catch(() => null);
-        if (enviado) { sug.mensajeId = enviado.id; await sug.save().catch(() => {}); }
+        await crearYPublicarSugerencia(message.channel, message.guildId, message.author, texto, color);
         await message.delete().catch(() => {}); // limpiar el mensaje original
         return true;
     } catch (e) { console.error('Mensaje sugerencia:', e.message); return false; }
+}
+
+// Publica (o republica) el panel del modo formulario y bloquea el chat libre
+// del canal (deja solo el botón para sugerir).
+async function publicarPanelSugerencias(client, guildId, cfg) {
+    try {
+        if (cfg?.sugerenciasModo !== 'formulario' || !cfg.canalSugerencias) return false;
+        const canal = await client.channels.fetch(cfg.canalSugerencias).catch(() => null);
+        if (!canal?.isTextBased()) return false;
+
+        // Bloquear el envío de mensajes a @everyone (el bot sí puede; el botón funciona).
+        try {
+            await canal.permissionOverwrites.edit(canal.guild.roles.everyone, { SendMessages: false });
+        } catch (e) { console.error('Bloqueo canal sugerencias:', e.message); }
+
+        const color = cfg.colorEmbed || COLOR;
+        const embed = new EmbedBuilder()
+            .setColor(color)
+            .setTitle('💡 Sugerencias')
+            .setDescription('Pulsa el botón para enviar tu sugerencia. La comunidad podrá votarla 👍/👎.');
+        aplicarPieMarca(embed, cfg);
+        const fila = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`sug_nueva:${guildId}`).setLabel('💡 Nueva sugerencia').setStyle(ButtonStyle.Primary),
+        );
+        await canal.send({ embeds: [embed], components: [fila] }).catch(() => {});
+        return true;
+    } catch (e) { console.error('Panel sugerencias:', e.message); return false; }
+}
+
+// Botón "Nueva sugerencia" → modal con la plantilla configurada.
+async function abrirModalSugerencia(interaction) {
+    try {
+        const guildId = interaction.customId.split(':')[1];
+        const cfg = await ServidorConfig.findOne({ guildId }).select('sugerenciasPlantilla').lean();
+        const input = new TextInputBuilder()
+            .setCustomId('texto')
+            .setLabel('Tu sugerencia')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+            .setMaxLength(1000);
+        if (cfg?.sugerenciasPlantilla) input.setValue(cfg.sugerenciasPlantilla.slice(0, 1000));
+        const modal = new ModalBuilder().setCustomId(`sug_modal:${guildId}`).setTitle('Nueva sugerencia')
+            .addComponents(new ActionRowBuilder().addComponents(input));
+        await interaction.showModal(modal);
+    } catch (e) {
+        console.error('Modal sugerencia:', e.message);
+        if (!interaction.replied) interaction.reply({ content: '❌ No se pudo abrir el formulario.', ephemeral: true }).catch(() => {});
+    }
+}
+
+// Modal de sugerencia enviado → crea y publica la sugerencia.
+async function procesarModalSugerencia(interaction) {
+    try {
+        const guildId = interaction.customId.split(':')[1];
+        const cfg = await ServidorConfig.findOne({ guildId }).lean();
+        const texto = (interaction.fields.getTextInputValue('texto') || '').trim();
+        if (!texto) return interaction.reply({ content: '❌ La sugerencia está vacía.', ephemeral: true });
+        if (cfg?.sugerenciasMinLong > 0 && texto.length < cfg.sugerenciasMinLong) {
+            return interaction.reply({ content: `✍️ Demasiado corta (mínimo ${cfg.sugerenciasMinLong} caracteres).`, ephemeral: true });
+        }
+        const canal = interaction.channel;
+        await crearYPublicarSugerencia(canal, guildId, interaction.user, texto, cfg?.colorEmbed || COLOR);
+        await interaction.reply({ content: '✅ ¡Sugerencia enviada! Gracias.', ephemeral: true }).catch(() => {});
+    } catch (e) {
+        console.error('Procesar modal sugerencia:', e.message);
+        if (!interaction.replied) interaction.reply({ content: '❌ Error al enviar la sugerencia.', ephemeral: true }).catch(() => {});
+    }
 }
 
 async function manejarVotoSugerencia(interaction) {
@@ -389,24 +509,37 @@ async function publicarPanelPresentacion(client, guildId, cfg) {
     } catch (e) { console.error('Panel presentación:', e.message); return false; }
 }
 
-// Botón "Presentarme" → abre un modal con las preguntas (máx. 5, límite de Discord).
+// Botón "Presentarme" → abre el modal. En modo 'plantilla' es un único campo
+// rellenable; en modo 'preguntas', un campo por pregunta (máx. 5, límite Discord).
 async function abrirModalPresentacion(interaction) {
     try {
         const guildId = interaction.customId.split(':')[1];
         const cfg = await ServidorConfig.findOne({ guildId }).select('presentaciones').lean();
-        const preguntas = (cfg?.presentaciones?.preguntas || []).slice(0, 5);
-        if (!preguntas.length) return interaction.reply({ content: '❌ No hay preguntas configuradas.', ephemeral: true });
-
+        const pres = cfg?.presentaciones || {};
         const modal = new ModalBuilder().setCustomId(`intro_modal:${guildId}`).setTitle('Tu presentación');
-        preguntas.forEach((p) => {
+
+        if (pres.modo === 'plantilla') {
             const input = new TextInputBuilder()
-                .setCustomId(p.id)
-                .setLabel((p.texto || 'Pregunta').slice(0, 45))
-                .setStyle(p.tipo === 'texto' ? TextInputStyle.Paragraph : TextInputStyle.Short)
-                .setRequired(!!p.requerida)
-                .setMaxLength(p.tipo === 'numero' ? 6 : 300);
+                .setCustomId('_plantilla')
+                .setLabel('Rellena tu presentación')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(true)
+                .setMaxLength(1500);
+            if (pres.plantilla) input.setValue(pres.plantilla.slice(0, 1500));
             modal.addComponents(new ActionRowBuilder().addComponents(input));
-        });
+        } else {
+            const preguntas = (pres.preguntas || []).slice(0, 5);
+            if (!preguntas.length) return interaction.reply({ content: '❌ No hay preguntas configuradas.', ephemeral: true });
+            preguntas.forEach((p) => {
+                const input = new TextInputBuilder()
+                    .setCustomId(p.id)
+                    .setLabel((p.texto || 'Pregunta').slice(0, 45))
+                    .setStyle(p.tipo === 'texto' ? TextInputStyle.Paragraph : TextInputStyle.Short)
+                    .setRequired(!!p.requerida)
+                    .setMaxLength(p.tipo === 'numero' ? 6 : 300);
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+            });
+        }
         await interaction.showModal(modal);
     } catch (e) {
         console.error('Modal presentación:', e.message);
@@ -414,10 +547,11 @@ async function abrirModalPresentacion(interaction) {
     }
 }
 
-// Evalúa los filtros sobre las respuestas (mapa { preguntaId: valor }).
-function evaluarFiltros(filtros, respuestasPorId) {
+// Evalúa los filtros sobre las respuestas (mapa { preguntaId: valor }). En modo
+// plantilla, todos los campos evalúan contra el texto completo (_plantilla).
+function evaluarFiltros(filtros, respuestasPorId, plantilla = false) {
     for (const f of filtros || []) {
-        const val = (respuestasPorId[f.campo] || '').trim();
+        const val = (plantilla ? (respuestasPorId._plantilla || '') : (respuestasPorId[f.campo] || '')).trim();
         if (val === '') continue;
         let coincide = false;
         const num = parseFloat(val);
@@ -442,19 +576,35 @@ async function procesarPresentacion(interaction) {
         const guildId = interaction.customId.split(':')[1];
         const cfg = await ServidorConfig.findOne({ guildId }).lean();
         const pres = cfg?.presentaciones || {};
-        const preguntas = (pres.preguntas || []).slice(0, 5);
+        const modoPlantilla = pres.modo === 'plantilla';
 
         const respuestas = [];
         const respuestasPorId = {};
-        preguntas.forEach((p) => {
+        if (modoPlantilla) {
             let v = '';
-            try { v = interaction.fields.getTextInputValue(p.id) || ''; } catch { v = ''; }
-            respuestas.push({ pregunta: p.texto || p.id, respuesta: v });
-            respuestasPorId[p.id] = v;
-        });
+            try { v = interaction.fields.getTextInputValue('_plantilla') || ''; } catch { v = ''; }
+            respuestas.push({ pregunta: 'Presentación', respuesta: v });
+            respuestasPorId._plantilla = v;
+        } else {
+            (pres.preguntas || []).slice(0, 5).forEach((p) => {
+                let v = '';
+                try { v = interaction.fields.getTextInputValue(p.id) || ''; } catch { v = ''; }
+                respuestas.push({ pregunta: p.texto || p.id, respuesta: v });
+                respuestasPorId[p.id] = v;
+            });
+        }
 
-        const filtro = evaluarFiltros(pres.filtros, respuestasPorId);
-        const descartada = !!(filtro && filtro.accion === 'descartar');
+        const filtro = evaluarFiltros(pres.filtros, respuestasPorId, modoPlantilla);
+        // Acciones de moderación automáticas si el filtro las pide.
+        const accionMod = filtro && ['banear', 'expulsar', 'aislar'].includes(filtro.accion);
+        if (accionMod && interaction.member) {
+            try {
+                if (filtro.accion === 'banear') await interaction.member.ban({ reason: 'Filtro de presentación' });
+                else if (filtro.accion === 'expulsar') await interaction.member.kick('Filtro de presentación');
+                else if (filtro.accion === 'aislar') await interaction.member.timeout(60 * 60 * 1000, 'Filtro de presentación'); // 1 hora
+            } catch (e) { console.error('Acción mod presentación:', e.message); }
+        }
+        const descartada = !!(filtro && (filtro.accion === 'descartar' || accionMod));
         const marcada = !!(filtro && filtro.accion === 'marcar');
 
         await Presentacion.create({
@@ -541,6 +691,7 @@ module.exports = {
     publicarEvento,
     // sugerencias
     manejarMensajeSugerencia, manejarVotoSugerencia, refrescarSugerencia,
+    publicarPanelSugerencias, abrirModalSugerencia, procesarModalSugerencia,
     // presentaciones
     publicarPanelPresentacion, abrirModalPresentacion, procesarPresentacion,
     // scheduler

@@ -1,16 +1,11 @@
 // Comunidad · Sorteos — crea y gestiona sorteos en tu servidor de Discord.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck } from 'lucide-react';
+import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck, Sparkles, Plus, X } from 'lucide-react';
+import { CierrePicker, SubirImagen } from './comunidadShared.jsx';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
-
-function minLocal() {
-  const d = new Date(Date.now() + 60000);
-  d.setSeconds(0, 0);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-}
 
 function tiempoRestante(fechaFin) {
   const diff = new Date(fechaFin) - Date.now();
@@ -24,7 +19,7 @@ function tiempoRestante(fechaFin) {
 
 export default function SorteosView({ dash }) {
   const { t } = useTranslation();
-  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo } = dash;
+  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen } = dash;
 
   const [nombre, setNombre] = useState('');
   const [premio, setPremio] = useState('');
@@ -33,7 +28,13 @@ export default function SorteosView({ dash }) {
   const [ganadores, setGanadores] = useState(1);
   const [nivelMin, setNivelMin] = useState(0);
   const [rolRequerido, setRolRequerido] = useState('');
+  const [imagen, setImagen] = useState('');
+  const [multiplicadores, setMultiplicadores] = useState([]);
   const [estado, setEstado] = useState('');
+
+  const addMulti = () => setMultiplicadores((p) => [...p, { rolId: '', multiplicador: 2 }]);
+  const setMulti = (i, k, v) => setMultiplicadores((p) => p.map((m, idx) => (idx === i ? { ...m, [k]: v } : m)));
+  const delMulti = (i) => setMultiplicadores((p) => p.filter((_, idx) => idx !== i));
 
   const activos = sorteos.filter((s) => s.activo);
   const terminados = sorteos.filter((s) => !s.activo);
@@ -42,15 +43,17 @@ export default function SorteosView({ dash }) {
     setEstado('creando');
     const r = await crearSorteo({
       nombre, premio, canalId,
-      fechaFin: new Date(fechaFin).toISOString(),
+      fechaFin,
       ganadores: Number(ganadores),
       nivelMin: Number(nivelMin),
       rolRequerido: rolRequerido || null,
+      imagen: imagen || null,
+      multiplicadores: multiplicadores.filter((m) => m.rolId).map((m) => ({ rolId: m.rolId, multiplicador: Number(m.multiplicador) || 2 })),
     });
     setEstado(r?.error ? `error:${r.error}` : 'ok');
     if (!r?.error) {
       setNombre(''); setPremio(''); setCanalId(''); setFechaFin('');
-      setGanadores(1); setNivelMin(0); setRolRequerido('');
+      setGanadores(1); setNivelMin(0); setRolRequerido(''); setImagen(''); setMultiplicadores([]);
     }
   };
 
@@ -210,16 +213,9 @@ export default function SorteosView({ dash }) {
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sorteos_v.endAt')}</span>
-            <input
-              type="datetime-local"
-              value={fechaFin}
-              min={minLocal()}
-              onChange={(e) => { setEstado(''); setFechaFin(e.target.value); }}
-              className={input}
-            />
-          </label>
+          <div className="block">
+            <CierrePicker value={fechaFin} onChange={(v) => { setEstado(''); setFechaFin(v); }} titulo="Cuándo se cierra" />
+          </div>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sorteos_v.winnersLabel')}</span>
             <input
@@ -250,6 +246,39 @@ export default function SorteosView({ dash }) {
               {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
             </select>
           </label>
+
+          <div className="block sm:col-span-2">
+            <SubirImagen value={imagen} onChange={setImagen} subirImagen={subirImagen} titulo="Imagen del sorteo" />
+          </div>
+
+          {/* Multiplicadores de roles */}
+          <div className="block sm:col-span-2">
+            <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg">
+              <Sparkles size={14} className="text-brand" /> Multiplicadores de probabilidad
+            </span>
+            <p className="mb-2 text-xs text-muted">Da más papeletas a ciertos roles (p. ej. boosters ×2). Se aplica el multiplicador más alto que tenga el participante.</p>
+            <div className="space-y-2">
+              {multiplicadores.map((m, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <select value={m.rolId} onChange={(e) => setMulti(i, 'rolId', e.target.value)} className={`${input} flex-1`}>
+                    <option value="">Elige un rol…</option>
+                    {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                  </select>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-muted">×</span>
+                    <input type="number" min={2} max={100} value={m.multiplicador}
+                      onChange={(e) => setMulti(i, 'multiplicador', e.target.value)} className="w-16 rounded-xl border border-line bg-bg px-2 py-2 text-sm text-fg focus:border-brand focus:outline-none" />
+                  </div>
+                  <button type="button" onClick={() => delMulti(i)} className="shrink-0 rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={addMulti} className="flex items-center gap-1.5 rounded-xl border border-dashed border-line px-3 py-2 text-sm text-muted transition-colors hover:border-brand hover:text-brand">
+                <Plus size={14} /> Añadir multiplicador
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

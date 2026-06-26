@@ -26,6 +26,8 @@ export default function PresentacionesView({ dash }) {
 
   const [canalIntro, setCanalIntro] = useState('');
   const [canalStaff, setCanalStaff] = useState('');
+  const [modo, setModo] = useState('preguntas');
+  const [plantilla, setPlantilla] = useState('Edad: \nDe dónde eres: \nAficiones: \nPor qué te unes: ');
   const [preguntas, setPreguntas] = useState(PREGUNTAS_DEFECTO);
   const [filtros, setFiltros] = useState([]);
   const [guardando, setGuardando] = useState(false);
@@ -38,6 +40,8 @@ export default function PresentacionesView({ dash }) {
       const p = configServidor.presentaciones;
       if (p.canalIntro) setCanalIntro(p.canalIntro);
       if (p.canalStaff) setCanalStaff(p.canalStaff);
+      if (p.modo) setModo(p.modo);
+      if (p.plantilla) setPlantilla(p.plantilla);
       if (Array.isArray(p.preguntas) && p.preguntas.length) setPreguntas(p.preguntas);
       if (Array.isArray(p.filtros)) setFiltros(p.filtros);
     }
@@ -91,7 +95,7 @@ export default function PresentacionesView({ dash }) {
 
   const guardar = async () => {
     setGuardando(true);
-    await guardarConfigPresentaciones({ canalIntro, canalStaff, preguntas, filtros });
+    await guardarConfigPresentaciones({ canalIntro, canalStaff, modo, plantilla, preguntas, filtros });
     setGuardadoOk(true);
     setGuardando(false);
     setTimeout(() => setGuardadoOk(false), 2500);
@@ -132,7 +136,33 @@ export default function PresentacionesView({ dash }) {
         </div>
       </div>
 
-      {/* Preguntas (acordeón) */}
+      {/* Modo de presentación */}
+      <div className={card}>
+        <h3 className="mb-3 font-bold text-fg">Formato de la presentación</h3>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={() => setModo('preguntas')}
+            className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'preguntas' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
+            <p className="text-sm font-semibold text-fg">📋 Preguntas sueltas</p>
+            <p className="mt-0.5 text-xs text-muted">Un campo por cada pregunta (hasta 5 en el formulario).</p>
+          </button>
+          <button type="button" onClick={() => setModo('plantilla')}
+            className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'plantilla' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
+            <p className="text-sm font-semibold text-fg">📝 Plantilla rellenable</p>
+            <p className="mt-0.5 text-xs text-muted">Un único texto con tu propio formato que el usuario completa.</p>
+          </button>
+        </div>
+        {modo === 'plantilla' && (
+          <label className="mt-3 block">
+            <span className="mb-1.5 block text-sm font-semibold text-fg">Plantilla</span>
+            <textarea value={plantilla} onChange={(e) => setPlantilla(e.target.value)} rows={5} maxLength={1500}
+              className={`${input} resize-none font-mono`} placeholder={'Edad: \nDe dónde eres: \nAficiones: '} />
+            <span className="mt-1 block text-xs text-muted">Aparecerá prerellenada en el formulario. Los filtros de abajo se evalúan sobre todo el texto.</span>
+          </label>
+        )}
+      </div>
+
+      {/* Preguntas (acordeón) — solo en modo preguntas */}
+      {modo === 'preguntas' && (
       <div className={card}>
         <button
           type="button"
@@ -203,6 +233,7 @@ export default function PresentacionesView({ dash }) {
           </div>
         )}
       </div>
+      )}
 
       {/* Filtros automáticos (acordeón) */}
       <div className={`${card} ${filtros.length > 0 ? 'border-warning/40' : ''}`}>
@@ -281,6 +312,9 @@ export default function PresentacionesView({ dash }) {
                         >
                           <option value="descartar">{t('dashboard.presentaciones_v.acciones.descartar')}</option>
                           <option value="marcar">{t('dashboard.presentaciones_v.acciones.marcar')}</option>
+                          <option value="aislar">🔇 Aislar (timeout 1h)</option>
+                          <option value="expulsar">👢 Expulsar</option>
+                          <option value="banear">🔨 Banear</option>
                         </select>
                       </div>
 

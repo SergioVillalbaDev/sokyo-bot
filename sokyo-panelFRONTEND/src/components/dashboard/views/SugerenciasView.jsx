@@ -21,12 +21,18 @@ export default function SugerenciasView({ dash }) {
 
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [canalSugs, setCanalSugs] = useState('');
+  const [modo, setModo] = useState('mensaje');
+  const [plantilla, setPlantilla] = useState('');
+  const [minLong, setMinLong] = useState(0);
   const [guardando, setGuardando] = useState(false);
   const [guardadoOk, setGuardadoOk] = useState(false);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (configServidor?.canalSugerencias) setCanalSugs(configServidor.canalSugerencias);
+    if (configServidor?.sugerenciasModo) setModo(configServidor.sugerenciasModo);
+    if (configServidor?.sugerenciasPlantilla) setPlantilla(configServidor.sugerenciasPlantilla);
+    if (configServidor?.sugerenciasMinLong != null) setMinLong(configServidor.sugerenciasMinLong);
   }, [configServidor]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -39,7 +45,12 @@ export default function SugerenciasView({ dash }) {
 
   const guardar = async () => {
     setGuardando(true);
-    await guardarConfigSugerencias({ canalSugerencias: canalSugs });
+    await guardarConfigSugerencias({
+      canalSugerencias: canalSugs,
+      sugerenciasModo: modo,
+      sugerenciasPlantilla: plantilla,
+      sugerenciasMinLong: Number(minLong) || 0,
+    });
     setGuardadoOk(true);
     setGuardando(false);
     setTimeout(() => setGuardadoOk(false), 2500);
@@ -60,20 +71,48 @@ export default function SugerenciasView({ dash }) {
       <div data-help="sugerencias-config" className={card}>
         <h3 className="mb-3 font-bold text-fg">{t('dashboard.sugerencias_v.config')}</h3>
         <p className="mb-3 text-xs text-muted">{t('dashboard.sugerencias_v.configNote')}</p>
-        <div className="flex gap-3">
-          <select value={canalSugs} onChange={(e) => setCanalSugs(e.target.value)} className={input}>
-            <option value="">{t('dashboard.sugerencias_v.channelPh')}</option>
-            {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
-          <button
-            type="button"
-            onClick={guardar}
-            disabled={guardando}
-            className="shrink-0 flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {guardando ? '...' : t('dashboard.sugerencias_v.save')}
+        <select value={canalSugs} onChange={(e) => setCanalSugs(e.target.value)} className={`${input} mb-3`}>
+          <option value="">{t('dashboard.sugerencias_v.channelPh')}</option>
+          {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+        </select>
+
+        {/* Modo de envío */}
+        <span className="mb-1.5 block text-sm font-semibold text-fg">¿Cómo se envían las sugerencias?</span>
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={() => setModo('mensaje')}
+            className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'mensaje' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
+            <p className="text-sm font-semibold text-fg">💬 Escribiendo en el canal</p>
+            <p className="mt-0.5 text-xs text-muted">Quien escriba en el canal genera una sugerencia con votos.</p>
+          </button>
+          <button type="button" onClick={() => setModo('formulario')}
+            className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'formulario' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
+            <p className="text-sm font-semibold text-fg">🔒 Solo formulario</p>
+            <p className="mt-0.5 text-xs text-muted">El chat se bloquea; se sugiere con un botón y una plantilla.</p>
           </button>
         </div>
+
+        {modo === 'formulario' && (
+          <label className="mb-3 block">
+            <span className="mb-1.5 block text-sm font-semibold text-fg">Plantilla del formulario</span>
+            <textarea value={plantilla} onChange={(e) => setPlantilla(e.target.value)} rows={3} maxLength={1000}
+              className={`${input} resize-none`} placeholder={'Ejemplo:\nQué propones: \nPor qué ayudaría: '} />
+            <span className="mt-1 block text-xs text-muted">Aparecerá prerellenada en el formulario para que el usuario la complete.</span>
+          </label>
+        )}
+
+        <label className="mb-3 block">
+          <span className="mb-1.5 block text-sm font-semibold text-fg">Longitud mínima (caracteres)</span>
+          <input type="number" min={0} max={500} value={minLong} onChange={(e) => setMinLong(e.target.value)} className={input} placeholder="0 = sin mínimo" />
+        </label>
+
+        <button
+          type="button"
+          onClick={guardar}
+          disabled={guardando}
+          className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {guardando ? '...' : t('dashboard.sugerencias_v.save')}
+        </button>
         {guardadoOk && <p className="mt-2 text-xs font-semibold text-success">{t('dashboard.sugerencias_v.savedOk')}</p>}
       </div>
 

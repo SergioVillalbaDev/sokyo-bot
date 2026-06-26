@@ -1,16 +1,11 @@
 // Comunidad · Encuestas — crea y gestiona votaciones en Discord con resultados en tiempo real.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BarChart2, Trash2, Info, Plus, X, CheckSquare, EyeOff, Clock, Users } from 'lucide-react';
+import { BarChart2, Trash2, Info, Plus, X, CheckSquare, EyeOff, Clock, Users, RefreshCw } from 'lucide-react';
+import { CierrePicker } from './comunidadShared.jsx';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
-
-function minLocal() {
-  const d = new Date(Date.now() + 60000);
-  d.setSeconds(0, 0);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-}
 
 function tiempoRestante(fechaFin) {
   const diff = new Date(fechaFin) - Date.now();
@@ -24,7 +19,7 @@ function tiempoRestante(fechaFin) {
 
 export default function EncuestasView({ dash }) {
   const { t } = useTranslation();
-  const { canales, encuestas = [], crearEncuesta, eliminarEncuesta } = dash;
+  const { canales, encuestas = [], crearEncuesta, eliminarEncuesta, cargarEncuestas } = dash;
 
   const [pregunta, setPregunta] = useState('');
   const [opciones, setOpciones] = useState(['', '']);
@@ -33,6 +28,16 @@ export default function EncuestasView({ dash }) {
   const [multiple, setMultiple] = useState(false);
   const [anonima, setAnonima] = useState(false);
   const [estado, setEstado] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Tiempo real: si hay encuestas activas y el auto-refresco está activo,
+  // recargamos cada 5s para ver los votos llegar en vivo.
+  const hayActivas = encuestas.some((e) => e.activa);
+  useEffect(() => {
+    if (!autoRefresh || !hayActivas || !cargarEncuestas) return undefined;
+    const id = setInterval(() => { cargarEncuestas(); }, 5000);
+    return () => clearInterval(id);
+  }, [autoRefresh, hayActivas, cargarEncuestas]);
 
   const activas = encuestas.filter((e) => e.activa);
   const cerradas = encuestas.filter((e) => !e.activa);
@@ -46,7 +51,7 @@ export default function EncuestasView({ dash }) {
     const opsFiltradas = opciones.filter((o) => o.trim());
     const r = await crearEncuesta({
       pregunta, opciones: opsFiltradas, canalId,
-      fechaFin: new Date(fechaFin).toISOString(),
+      fechaFin,
       multiple, anonima,
     });
     setEstado(r?.error ? `error:${r.error}` : 'ok');
@@ -71,7 +76,21 @@ export default function EncuestasView({ dash }) {
 
       {/* Encuestas activas */}
       <div data-help="encuestas-activas" className={card}>
-        <h3 className="mb-3 font-bold text-fg">{t('dashboard.encuestas_v.active')}</h3>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="font-bold text-fg">{t('dashboard.encuestas_v.active')}</h3>
+          {hayActivas && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => cargarEncuestas && cargarEncuestas()}
+                className="flex items-center gap-1.5 rounded-xl border border-line px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-brand hover:text-brand">
+                <RefreshCw size={12} /> Actualizar
+              </button>
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
+                <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="h-3.5 w-3.5 rounded accent-brand" />
+                En vivo
+              </label>
+            </div>
+          )}
+        </div>
         {activas.length === 0 ? (
           <p className="py-6 text-center text-sm italic text-muted">{t('dashboard.encuestas_v.emptyActive')}</p>
         ) : (
@@ -221,16 +240,9 @@ export default function EncuestasView({ dash }) {
                 {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </label>
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.encuestas_v.endAt')}</span>
-              <input
-                type="datetime-local"
-                value={fechaFin}
-                min={minLocal()}
-                onChange={(e) => setFechaFin(e.target.value)}
-                className={input}
-              />
-            </label>
+            <div className="block">
+              <CierrePicker value={fechaFin} onChange={setFechaFin} titulo={t('dashboard.encuestas_v.endAt')} />
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-5">
