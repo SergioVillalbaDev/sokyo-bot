@@ -11,6 +11,10 @@
 //       semana y los hitos de miembros del tablón de logros.
 //   · Los hitos de NIVEL del tablón -> los dispara niveles.js al subir de nivel
 //       (comprobarLogroNivel), por eso es event-driven y no cuesta consultas.
+//
+// Cada mensaje que publica una dinámica es CONFIGURABLE desde el panel (texto con
+// placeholders {user}/{xp}/… + imagen o GIF por URL o subida desde el PC). Los
+// helpers urlAbs/rellenar/payloadMensaje resuelven eso.
 const {
     EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
 } = require('discord.js');
@@ -37,6 +41,38 @@ function semanaISO(d = new Date()) {
     return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 const escaparRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// --- Mensajes configurables: imagen absoluta + placeholders + payload ---
+// Las imágenes subidas desde el panel se guardan como '/uploads/xxx' (relativa);
+// Discord necesita URL absoluta, así que le anteponemos el dominio público.
+function urlAbs(u) {
+    if (!u || typeof u !== 'string') return null;
+    if (/^https?:\/\//i.test(u)) return u;
+    if (u.startsWith('/uploads/')) return `${(process.env.FRONTEND_URL || '').replace(/\/$/, '')}${u}`;
+    return null;
+}
+// Sustituye {clave} por su valor (deja intactos los que no conozca).
+const rellenar = (texto, vars = {}) => String(texto ?? '').replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+
+// Construye el payload de un mensaje configurable. Con imagen -> embed con la
+// imagen; sin imagen -> texto plano. Devuelve null si no hay nada que enviar
+// (texto vacío y sin imagen), p. ej. el "acierto" opcional del contador.
+function payloadMensaje(slot, { color = COLOR, vars = {}, fallback = '', mention } = {}) {
+    const texto = rellenar(slot?.texto || fallback, vars);
+    const img = urlAbs(slot?.imagen);
+    if (!texto && !img) return null;
+    const out = {};
+    if (img) {
+        const embed = new EmbedBuilder().setColor(color);
+        if (texto) embed.setDescription(texto);
+        embed.setImage(img);
+        out.embeds = [embed];
+    } else {
+        out.content = texto;
+    }
+    if (mention) out.allowedMentions = { users: [mention] };
+    return out;
+}
 
 // Reparte una recompensa a un miembro: XP (con su anuncio de subida de nivel y
 // los multiplicadores normales) y/o oro. `cfg` es la config del servidor (la
@@ -93,6 +129,7 @@ async function dinContador(message, c, cfg) {
             { upsert: true, returnDocument: 'after' },
         );
         const esperado = doc.numeroActual + 1;
+        const color = cfg.colorEmbed || COLOR;
 
         // No es un número: el canal es solo para contar.
         if (!/^\d+$/.test(content)) {
@@ -114,7 +151,11 @@ async function dinContador(message, c, cfg) {
             doc.ultimoUserId = null;
             await doc.save().catch(() => {});
             await message.react('❌').catch(() => {});
-            await message.channel.send(`💥 **${message.author.username}** rompió la cuenta. El número correcto era **${esperado}**. ¡Vuelta a empezar desde **1**!`).catch(() => {});
+            const p = payloadMensaje(c.mensajes?.fallo, {
+                color, vars: { user: `<@${message.author.id}>`, numero: esperado },
+                fallback: '💥 ¡Se rompió la cuenta! El número correcto era **{numero}**. ¡Vuelta a empezar desde **1**!',
+            });
+            if (p) await message.channel.send(p).catch(() => {});
             return true;
         }
 
@@ -125,6 +166,9 @@ async function dinContador(message, c, cfg) {
         if (nuevoRecord) { doc.record = num; doc.recordFecha = new Date(); }
         await doc.save().catch(() => {});
         await message.react(nuevoRecord ? '🏆' : '✅').catch(() => {});
+        // Mensaje de acierto opcional (por defecto vacío -> solo la reacción).
+        const pa = payloadMensaje(c.mensajes?.acierto, { color, vars: { user: `<@${message.author.id}>`, numero: num }, mention: message.author.id });
+        if (pa) await message.channel.send(pa).catch(() => {});
         if (c.xp > 0 || c.oro > 0) await darRecompensa(message.guild, message.member, { xp: c.xp, oro: c.oro }, cfg, message.channel);
         return true;
     } catch (e) { console.error('Dinámica contador:', e.message); return true; }
@@ -141,7 +185,11 @@ async function dinQotdRespuesta(message, q, cfg) {
     if (!r.modifiedCount) return; // alguien respondió un instante antes
     await message.react('⭐').catch(() => {});
     await darRecompensa(message.guild, message.member, { xp: q.xp, oro: q.oro }, cfg, message.channel);
-    await message.reply(`⭐ ¡Primero en responder hoy! +${q.xp} XP 🎉`).catch(() => {});
+    const p = payloadMensaje(q.mensajes?.acierto, {
+        color: cfg.colorEmbed || COLOR, vars: { user: `<@${message.author.id}>`, xp: q.xp },
+        fallback: '⭐ ¡{user} ha sido el primero en responder! +{xp} XP 🎉', mention: message.author.id,
+    });
+    if (p) await message.reply(p).catch(() => {});
 }
 
 // --- Palabra secreta / caza del tesoro ---
@@ -167,10 +215,11 @@ async function dinTesoro(message, t, cfg) {
         await ServidorConfig.updateOne({ guildId: message.guildId }, { $set: { 'dinamicas.tesoro.encontradaPor': message.author.id } });
     }
 
-    const texto = (t.mensajeExito || '🏆 ¡{user} ha encontrado la palabra secreta!')
-        .replace(/{user}/g, `<@${message.author.id}>`)
-        .replace(/{palabra}/g, palabra);
-    await message.channel.send(texto).catch(() => {});
+    const p = payloadMensaje(t.mensajes?.acierto, {
+        color: cfg.colorEmbed || COLOR, vars: { user: `<@${message.author.id}>`, palabra },
+        fallback: '🏆 ¡{user} ha encontrado la palabra secreta!', mention: message.author.id,
+    });
+    if (p) await message.channel.send(p).catch(() => {});
     await darRecompensa(message.guild, message.member, { xp: t.xp, oro: t.oro }, cfg, message.channel);
 }
 
@@ -210,7 +259,11 @@ async function dinReto(message, r, cfg, client) {
             const c = await client.channels.fetch(r.avisarCanalId).catch(() => null);
             if (c?.isTextBased()) canal = c;
         }
-        await canal.send(`🎯 ¡<@${userId}> ha completado el reto diario! +${r.xp} XP · Racha 🔥 **${racha}** día(s).`).catch(() => {});
+        const p = payloadMensaje(r.mensajes?.acierto, {
+            color: cfg.colorEmbed || COLOR, vars: { user: `<@${userId}>`, xp: r.xp, racha },
+            fallback: '🎯 ¡{user} ha completado el reto diario! +{xp} XP · Racha 🔥 **{racha}** día(s).', mention: userId,
+        });
+        if (p) await canal.send(p).catch(() => {});
     }
 }
 
@@ -262,11 +315,15 @@ async function tickQotd(client, guild, cfg, q, hoy, horaUTC) {
 
     const canal = await client.channels.fetch(q.canalId).catch(() => null);
     if (!canal?.isTextBased()) return;
+    const pre = q.mensajes?.pregunta;
+    const desc = (pre?.texto ? `${rellenar(pre.texto)}\n\n` : '') + pregunta;
     const embed = new EmbedBuilder()
         .setColor(cfg.colorEmbed || COLOR)
         .setTitle('❓ Pregunta del día')
-        .setDescription(pregunta)
+        .setDescription(desc)
         .setFooter({ text: `El primero en responder gana ${q.xp} XP` });
+    const img = urlAbs(pre?.imagen);
+    if (img) embed.setImage(img);
     const msg = await canal.send({
         content: q.mencionRolId ? `<@&${q.mencionRolId}>` : undefined,
         embeds: [embed],
@@ -289,11 +346,14 @@ async function tickGota(client, guild, cfg, g, ahora) {
     const canal = await client.channels.fetch(g.canalId).catch(() => null);
     if (!canal?.isTextBased()) return;
     const emoji = g.emoji || '🪙';
-    const embed = new EmbedBuilder()
-        .setColor(cfg.colorEmbed || COLOR)
+    const color = cfg.colorEmbed || COLOR;
+    const dropEmbed = new EmbedBuilder()
+        .setColor(color)
         .setTitle(`${emoji} ¡Gota de oro!`)
-        .setDescription(`¡Reacciona con ${emoji} para llevarte **${g.xp} XP**!\nSolo el primero se la lleva. ¡Rápido! ⚡`);
-    const msg = await canal.send({ embeds: [embed] }).catch(() => null);
+        .setDescription(rellenar(g.mensajes?.anuncio?.texto || '¡Reacciona con {emoji} para llevarte **{xp} XP**!\nSolo el primero se la lleva. ¡Rápido! ⚡', { emoji, xp: g.xp }));
+    const dropImg = urlAbs(g.mensajes?.anuncio?.imagen);
+    if (dropImg) dropEmbed.setImage(dropImg);
+    const msg = await canal.send({ embeds: [dropEmbed] }).catch(() => null);
     if (!msg) return;
     await msg.react(emoji).catch(() => {});
 
@@ -307,13 +367,21 @@ async function tickGota(client, guild, cfg, g, ahora) {
         const member = await guild.members.fetch(user.id).catch(() => null);
         if (!member) return;
         await darRecompensa(guild, member, { xp: g.xp, oro: g.oro }, cfg, canal);
-        const ganado = EmbedBuilder.from(embed).setColor('#2ecc71').setDescription(`Recogida por <@${user.id}> — **+${g.xp} XP** 🎉`);
-        await msg.edit({ embeds: [ganado] }).catch(() => {});
+        const p = payloadMensaje(g.mensajes?.acierto, {
+            color, vars: { user: `<@${user.id}>`, xp: g.xp, emoji },
+            fallback: '{emoji} ¡{user} ha recogido la gota y gana **{xp} XP**! 🎉', mention: user.id,
+        });
+        if (p) await canal.send(p).catch(() => {});
+        const recogida = EmbedBuilder.from(dropEmbed).setColor('#2ecc71').setDescription(`Recogida por <@${user.id}> 🎉`).setImage(null);
+        await msg.edit({ embeds: [recogida] }).catch(() => {});
     });
     collector.on('end', async (collected) => {
         if (collected.size) return;
-        const nadie = EmbedBuilder.from(embed).setColor('#95a5a6').setDescription('Nadie la recogió a tiempo… 😢');
-        await msg.edit({ embeds: [nadie] }).catch(() => {});
+        const fallo = EmbedBuilder.from(dropEmbed)
+            .setColor('#95a5a6')
+            .setDescription(rellenar(g.mensajes?.fallo?.texto || 'Nadie la recogió a tiempo… 😢', { emoji }))
+            .setImage(urlAbs(g.mensajes?.fallo?.imagen) || null);
+        await msg.edit({ embeds: [fallo] }).catch(() => {});
     });
 }
 
@@ -329,11 +397,12 @@ async function tickTrivia(client, guild, cfg, t, hoy, horaUTC) {
 
     const q = banco[Math.floor(Math.random() * banco.length)];
     const opciones = (q.opciones || []).slice(0, 4);
-    const embed = new EmbedBuilder()
-        .setColor(cfg.colorEmbed || COLOR)
-        .setTitle('🧠 Trivia')
-        .setDescription(q.pregunta)
-        .setFooter({ text: `Tienes ${t.segundos}s · +${t.xp} XP por acertar` });
+    const color = cfg.colorEmbed || COLOR;
+    const pre = t.mensajes?.pregunta;
+    const desc = (pre?.texto ? `${rellenar(pre.texto)}\n\n` : '') + q.pregunta;
+    const embed = new EmbedBuilder().setColor(color).setTitle('🧠 Trivia').setDescription(desc).setFooter({ text: `Tienes ${t.segundos}s · +${t.xp} XP por acertar` });
+    const preImg = urlAbs(pre?.imagen);
+    if (preImg) embed.setImage(preImg);
     const fila = new ActionRowBuilder().addComponents(
         opciones.map((op, i) => new ButtonBuilder().setCustomId(`trivia_ans:${i}`).setLabel(String(op).slice(0, 80)).setStyle(ButtonStyle.Secondary)),
     );
@@ -352,9 +421,11 @@ async function tickTrivia(client, guild, cfg, t, hoy, horaUTC) {
             aciertos.push(i.user.id);
             const member = await guild.members.fetch(i.user.id).catch(() => null);
             if (member) { await darRecompensa(guild, member, { xp: t.xp, oro: t.oro }, cfg, canal); await sumarPuntoTrivia(guild.id, i.user.id); }
-            await i.reply({ content: `✅ ¡Correcto! +${t.xp} XP`, ephemeral: true }).catch(() => {});
+            const p = payloadMensaje(t.mensajes?.acierto, { color, vars: { user: `<@${i.user.id}>`, xp: t.xp }, fallback: '✅ ¡Correcto! +{xp} XP' });
+            await i.reply({ ...(p || { content: '✅ ¡Correcto!' }), ephemeral: true }).catch(() => {});
         } else {
-            await i.reply({ content: '❌ Respuesta incorrecta. ¡Suerte la próxima!', ephemeral: true }).catch(() => {});
+            const p = payloadMensaje(t.mensajes?.fallo, { color, vars: { user: `<@${i.user.id}>` }, fallback: '❌ Respuesta incorrecta. ¡Suerte la próxima!' });
+            await i.reply({ ...(p || { content: '❌ Incorrecto' }), ephemeral: true }).catch(() => {});
         }
     });
     collector.on('end', async () => {
@@ -425,11 +496,15 @@ async function tickMiembroSemana(client, guild, cfg, m, ahora, semana, horaUTC) 
         m.xp ? `🎁 Recompensa: **${m.xp} XP**` : '',
         m.rolId ? '🎖️ Rol especial concedido' : '',
     ].filter(Boolean).join('\n');
+    const an = m.mensajes?.anuncio;
+    const desc = rellenar(an?.texto || '¡Enhorabuena {user}! Has sido el miembro más activo de la semana con **{mensajes}** mensajes.', { user: `<@${ganadorId}>`, xp: m.xp, mensajes: agg[0].n });
     const embed = new EmbedBuilder()
         .setColor(cfg.colorEmbed || COLOR)
         .setTitle('👑 Miembro de la semana')
-        .setDescription(`¡Enhorabuena <@${ganadorId}>! Has sido el miembro más activo de la semana con **${agg[0].n}** mensajes.${detalle ? `\n\n${detalle}` : ''}`)
+        .setDescription(`${desc}${detalle ? `\n\n${detalle}` : ''}`)
         .setThumbnail(member.user.displayAvatarURL());
+    const anImg = urlAbs(an?.imagen);
+    if (anImg) embed.setImage(anImg);
     await canal.send({ content: `<@${ganadorId}>`, embeds: [embed], allowedMentions: { users: [ganadorId] } }).catch(() => {});
 }
 
@@ -451,7 +526,9 @@ async function tickLogrosMiembros(client, guild, cfg, l) {
             const embed = new EmbedBuilder()
                 .setColor(cfg.colorEmbed || COLOR)
                 .setTitle('🎉 ¡Nuevo hito!')
-                .setDescription(`¡Ya somos **${h}** miembros en **${guild.name}**! Gracias por estar aquí 💜`);
+                .setDescription(rellenar(l.mensajes?.miembros?.texto || '¡Ya somos **{miembros}** miembros en **{servidor}**! Gracias por estar aquí 💜', { miembros: h, servidor: guild.name }));
+            const img = urlAbs(l.mensajes?.miembros?.imagen);
+            if (img) embed.setImage(img);
             await canal.send({ embeds: [embed] }).catch(() => {});
         }
     }
@@ -476,7 +553,9 @@ async function comprobarLogroNivel(guild, member, nivelNuevo, cfg, canalFallback
     const embed = new EmbedBuilder()
         .setColor(cfg.colorEmbed || COLOR)
         .setTitle('🏅 ¡Logro de nivel!')
-        .setDescription(`¡<@${member.id}> es el primero en alcanzar el **nivel ${nivelNuevo}**! 🚀`);
+        .setDescription(rellenar(l.mensajes?.nivel?.texto || '¡{user} es el primero en alcanzar el **nivel {nivel}**! 🚀', { user: `<@${member.id}>`, nivel: nivelNuevo }));
+    const img = urlAbs(l.mensajes?.nivel?.imagen);
+    if (img) embed.setImage(img);
     await canal.send({ embeds: [embed] }).catch(() => {});
 }
 

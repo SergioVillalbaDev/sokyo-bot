@@ -309,9 +309,27 @@ module.exports = function montarRutasComunidad(app, client) {
         contador: { activo: 'bool', canalId: 'str', repetirUsuario: 'bool', xp: [0, 100000, 1], borrarErrores: 'bool' },
         trivia: { activo: 'bool', canalId: 'str', hora: [0, 23, 18], xp: [0, 100000, 30], oro: [0, 1000000, 0], segundos: [5, 600, 30] },
         reto: { activo: 'bool', canalId: 'str', objetivo: [1, 100000, 20], xp: [0, 100000, 40], oro: [0, 1000000, 0], avisarCanalId: 'str' },
-        tesoro: { activo: 'bool', canalId: 'str', palabra: 'str', xp: [0, 100000, 60], oro: [0, 1000000, 0], mensajeExito: 'str', unaVez: 'bool' },
+        tesoro: { activo: 'bool', canalId: 'str', palabra: 'str', xp: [0, 100000, 60], oro: [0, 1000000, 0], unaVez: 'bool' },
         miembroSemana: { activo: 'bool', canalId: 'str', rolId: 'str', dia: [0, 6, 1], hora: [0, 23, 12], xp: [0, 100000, 200], oro: [0, 1000000, 0] },
         logros: { activo: 'bool', canalId: 'str', hitosMiembros: 'numArr', hitosNivel: 'numArr' },
+    };
+
+    // Slots de mensaje configurable (texto + imagen) por dinámica.
+    const DINAMICAS_MENSAJES = {
+        qotd: ['pregunta', 'acierto'],
+        gota: ['anuncio', 'acierto', 'fallo'],
+        contador: ['acierto', 'fallo'],
+        trivia: ['pregunta', 'acierto', 'fallo'],
+        reto: ['acierto'],
+        tesoro: ['acierto'],
+        miembroSemana: ['anuncio'],
+        logros: ['miembros', 'nivel'],
+    };
+    // La imagen debe ser una URL externa o una ruta /uploads/ (subida desde el panel).
+    const sanearImagen = (v) => {
+        if (!v || typeof v !== 'string') return null;
+        const s = v.trim().slice(0, 500);
+        return (/^https?:\/\//i.test(s) || s.startsWith('/uploads/')) ? s : null;
     };
 
     function sanearCampo(tipo, valor) {
@@ -335,6 +353,16 @@ module.exports = function montarRutasComunidad(app, client) {
                 for (const [campo, tipo] of Object.entries(campos)) {
                     if (entrada[campo] === undefined) continue;
                     set[`dinamicas.${dyn}.${campo}`] = sanearCampo(tipo, entrada[campo]);
+                }
+                // Mensajes configurables (texto + imagen) de cada slot de la dinámica.
+                const slots = DINAMICAS_MENSAJES[dyn];
+                if (slots && entrada.mensajes && typeof entrada.mensajes === 'object') {
+                    for (const slot of slots) {
+                        const sm = entrada.mensajes[slot];
+                        if (!sm || typeof sm !== 'object') continue;
+                        if (sm.texto !== undefined) set[`dinamicas.${dyn}.mensajes.${slot}.texto`] = String(sm.texto).slice(0, 1000);
+                        if (sm.imagen !== undefined) set[`dinamicas.${dyn}.mensajes.${slot}.imagen`] = sanearImagen(sm.imagen);
+                    }
                 }
                 // Si cambian la palabra secreta o reactivan el tesoro, reiniciamos la caza.
                 if (dyn === 'tesoro' && (entrada.palabra !== undefined || entrada.activo === true)) {

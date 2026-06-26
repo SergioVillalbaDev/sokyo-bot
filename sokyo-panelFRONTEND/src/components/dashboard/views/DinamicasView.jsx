@@ -8,6 +8,7 @@ import {
   ChevronDown, Info, Save, Plus, Trash2, Check,
   HelpCircle, Coins, Hash, Brain, Flame, Key, Crown, Trophy,
 } from 'lucide-react';
+import { SubirImagen } from './comunidadShared.jsx';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -15,15 +16,38 @@ const label = 'mb-1.5 block text-sm font-semibold text-fg';
 
 // Valores por defecto (espejo del esquema) para tener inputs controlados aunque
 // el servidor aún no tenga la dinámica guardada.
+const m = (texto = '') => ({ texto, imagen: null });
 const DEFAULTS = {
-  qotd: { activo: false, canalId: '', hora: 12, xp: 50, mencionRolId: '', preguntas: [] },
-  gota: { activo: false, canalId: '', cadaMin: 120, ventanaSeg: 60, xp: 75, emoji: '🪙' },
-  contador: { activo: false, canalId: '', repetirUsuario: false, xp: 1, borrarErrores: true },
-  trivia: { activo: false, canalId: '', hora: 18, xp: 30, segundos: 30 },
-  reto: { activo: false, canalId: '', objetivo: 20, xp: 40, avisarCanalId: '' },
-  tesoro: { activo: false, canalId: '', palabra: '', xp: 60, mensajeExito: '🏆 ¡{user} ha encontrado la palabra secreta!', unaVez: true, encontrada: false },
-  miembroSemana: { activo: false, canalId: '', rolId: '', dia: 1, hora: 12, xp: 200 },
-  logros: { activo: false, canalId: '', hitosMiembros: [100, 250, 500, 1000, 5000], hitosNivel: [10, 25, 50, 100] },
+  qotd: { activo: false, canalId: '', hora: 12, xp: 50, mencionRolId: '', preguntas: [], mensajes: { pregunta: m(), acierto: m('⭐ ¡{user} ha sido el primero en responder! +{xp} XP 🎉') } },
+  gota: { activo: false, canalId: '', cadaMin: 120, ventanaSeg: 60, xp: 75, emoji: '🪙', mensajes: { anuncio: m('¡Reacciona con {emoji} para llevarte **{xp} XP**!\nSolo el primero se la lleva. ¡Rápido! ⚡'), acierto: m('{emoji} ¡{user} ha recogido la gota y gana **{xp} XP**! 🎉'), fallo: m('Nadie la recogió a tiempo… 😢') } },
+  contador: { activo: false, canalId: '', repetirUsuario: false, xp: 1, borrarErrores: true, mensajes: { acierto: m(''), fallo: m('💥 ¡Se rompió la cuenta! El número correcto era **{numero}**. ¡Vuelta a empezar desde **1**!') } },
+  trivia: { activo: false, canalId: '', hora: 18, xp: 30, segundos: 30, mensajes: { pregunta: m(), acierto: m('✅ ¡Correcto! +{xp} XP'), fallo: m('❌ Respuesta incorrecta. ¡Suerte la próxima!') } },
+  reto: { activo: false, canalId: '', objetivo: 20, xp: 40, avisarCanalId: '', mensajes: { acierto: m('🎯 ¡{user} ha completado el reto diario! +{xp} XP · Racha 🔥 **{racha}** día(s).') } },
+  tesoro: { activo: false, canalId: '', palabra: '', xp: 60, unaVez: true, encontrada: false, mensajes: { acierto: m('🏆 ¡{user} ha encontrado la palabra secreta!') } },
+  miembroSemana: { activo: false, canalId: '', rolId: '', dia: 1, hora: 12, xp: 200, mensajes: { anuncio: m('¡Enhorabuena {user}! Has sido el miembro más activo de la semana con **{mensajes}** mensajes.') } },
+  logros: { activo: false, canalId: '', hitosMiembros: [100, 250, 500, 1000, 5000], hitosNivel: [10, 25, 50, 100], mensajes: { miembros: m('¡Ya somos **{miembros}** miembros en **{servidor}**! Gracias por estar aquí 💜'), nivel: m('¡{user} es el primero en alcanzar el **nivel {nivel}**! 🚀') } },
+};
+
+// Slots de mensaje por dinámica y placeholders disponibles en cada uno.
+const SLOTS_POR_DIN = {
+  qotd: ['pregunta', 'acierto'],
+  gota: ['anuncio', 'acierto', 'fallo'],
+  contador: ['acierto', 'fallo'],
+  trivia: ['pregunta', 'acierto', 'fallo'],
+  reto: ['acierto'],
+  tesoro: ['acierto'],
+  miembroSemana: ['anuncio'],
+  logros: ['miembros', 'nivel'],
+};
+const VARS = {
+  qotd: { pregunta: [], acierto: ['user', 'xp'] },
+  gota: { anuncio: ['emoji', 'xp'], acierto: ['user', 'xp', 'emoji'], fallo: ['emoji'] },
+  contador: { acierto: ['user', 'numero'], fallo: ['user', 'numero'] },
+  trivia: { pregunta: [], acierto: ['user', 'xp'], fallo: ['user'] },
+  reto: { acierto: ['user', 'xp', 'racha'] },
+  tesoro: { acierto: ['user', 'palabra'] },
+  miembroSemana: { anuncio: ['user', 'xp', 'mensajes'] },
+  logros: { miembros: ['miembros', 'servidor'], nivel: ['user', 'nivel'] },
 };
 
 const ICONOS = {
@@ -54,7 +78,7 @@ function CanalSelect({ value, onChange, canales, placeholder, allowAny }) {
 
 export default function DinamicasView({ dash }) {
   const { t } = useTranslation();
-  const { configServidor, canales = [], roles = [], guardarDinamicas } = dash;
+  const { configServidor, canales = [], roles = [], guardarDinamicas, subirImagen } = dash;
   const din = configServidor?.dinamicas || {};
 
   const [form, setForm] = useState({});
@@ -73,6 +97,14 @@ export default function DinamicasView({ dash }) {
 
   const set = (dyn, campo, valor) => {
     setForm((f) => ({ ...f, [dyn]: { ...f[dyn], [campo]: valor } }));
+    setEstado((s) => ({ ...s, [dyn]: undefined }));
+  };
+  // Setter para un campo (texto/imagen) de un mensaje concreto de la dinámica.
+  const setMsg = (dyn, slot, campo, valor) => {
+    setForm((f) => ({
+      ...f,
+      [dyn]: { ...f[dyn], mensajes: { ...f[dyn].mensajes, [slot]: { ...(f[dyn].mensajes?.[slot] || {}), [campo]: valor } } },
+    }));
     setEstado((s) => ({ ...s, [dyn]: undefined }));
   };
 
@@ -172,7 +204,6 @@ export default function DinamicasView({ dash }) {
           <div><span className={label}>{t('dashboard.dinamicas_v.tesoroChannel')}</span><CanalSelect value={f.canalId} onChange={(v) => set('tesoro', 'canalId', v)} canales={canales} placeholder={t('dashboard.dinamicas_v.anyChannel')} allowAny /></div>
         </div>
         <div><span className={label}>{t('dashboard.dinamicas_v.xp')}</span><input type="number" min={0} value={f.xp} onChange={(e) => set('tesoro', 'xp', e.target.value)} className={`${input} sm:max-w-[200px]`} /></div>
-        <div><span className={label}>{t('dashboard.dinamicas_v.tesoroMsg')}</span><input value={f.mensajeExito} onChange={(e) => set('tesoro', 'mensajeExito', e.target.value)} className={input} /></div>
         <Toggle checked={f.unaVez} onChange={(v) => set('tesoro', 'unaVez', v)}>{t('dashboard.dinamicas_v.tesoroOnce')}</Toggle>
         {f.encontrada && <p className="text-xs text-warning">{t('dashboard.dinamicas_v.tesoroFound')}</p>}
       </div>
@@ -258,6 +289,8 @@ export default function DinamicasView({ dash }) {
 
                   {cuerpos[dyn](f)}
 
+                  <MensajesSection dyn={dyn} f={f} setMsg={setMsg} subirImagen={subirImagen} t={t} />
+
                   <div className="mt-5 flex items-center gap-3">
                     <button
                       type="button"
@@ -282,6 +315,45 @@ export default function DinamicasView({ dash }) {
 
 function parseNums(str) {
   return String(str).split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n) && n > 0);
+}
+
+// Sección "Mensajes": un editor (texto + imagen/GIF por link o PC) por cada slot
+// que tiene la dinámica (acierto, fallo, anuncio…).
+function MensajesSection({ dyn, f, setMsg, subirImagen, t }) {
+  const slots = SLOTS_POR_DIN[dyn] || [];
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <h4 className="mb-3 text-sm font-bold text-fg">{t('dashboard.dinamicas_v.msgSection')}</h4>
+      <div className="space-y-3">
+        {slots.map((slot) => {
+          const msg = f.mensajes?.[slot] || {};
+          const vars = VARS[dyn]?.[slot] || [];
+          const esContadorAcierto = dyn === 'contador' && slot === 'acierto';
+          return (
+            <div key={slot} className="rounded-xl border border-line bg-bg p-3">
+              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                <span className="text-xs font-semibold text-fg">{t(`dashboard.dinamicas_v.slots.${slot}`)}</span>
+                {vars.length > 0 && (
+                  <span className="text-[10px] text-muted">{t('dashboard.dinamicas_v.msgVars')}: {vars.map((v) => `{${v}}`).join(' ')}</span>
+                )}
+              </div>
+              <textarea
+                rows={2}
+                value={msg.texto || ''}
+                onChange={(e) => setMsg(dyn, slot, 'texto', e.target.value)}
+                className={input}
+                maxLength={1000}
+                placeholder={esContadorAcierto ? t('dashboard.dinamicas_v.contadorAciertoHint') : t('dashboard.dinamicas_v.msgTextPh')}
+              />
+              <div className="mt-2">
+                <SubirImagen value={msg.imagen || ''} onChange={(v) => setMsg(dyn, slot, 'imagen', v)} subirImagen={subirImagen} titulo={t('dashboard.dinamicas_v.msgImage')} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // Sub-bloque: banco de preguntas de la trivia (crear / borrar).

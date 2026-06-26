@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+// Mensaje configurable de una dinámica: texto (con placeholders {user}, {xp}…)
+// + imagen/GIF opcional (URL externa o ruta /uploads/ subida desde el panel).
+const msgDin = (texto = '') => ({
+    texto: { type: String, default: texto },
+    imagen: { type: String, default: null },
+});
+
 const ServidorConfigSchema = new mongoose.Schema({
     guildId: { type: String, required: true, unique: true },
     motivos: { 
@@ -375,6 +382,12 @@ const ServidorConfigSchema = new mongoose.Schema({
             lastDia: { type: String, default: '' },          // (interno) 'YYYY-MM-DD' del último envío
             mensajeId: { type: String, default: null },      // (interno) mensaje publicado hoy
             ganadorHoy: { type: String, default: null },     // (interno) ya premiado hoy
+            mensajes: {
+                // pregunta: texto extra (encima de la pregunta del banco) + banner.
+                pregunta: msgDin(''),
+                // acierto: primero en responder. Placeholders {user} {xp}.
+                acierto: msgDin('⭐ ¡{user} ha sido el primero en responder! +{xp} XP 🎉'),
+            },
         },
         // 2) Gota de oro / Lluvia de XP: cada X minutos cae un mensaje y el primero en
         //    reaccionar gana. Se muestra XP en el panel; el oro queda cableado y oculto.
@@ -387,6 +400,14 @@ const ServidorConfigSchema = new mongoose.Schema({
             oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
             emoji: { type: String, default: '🪙' },
             proxima: { type: Date, default: null },           // (interno) cuándo cae la próxima
+            mensajes: {
+                // anuncio: el mensaje de la gota al caer. Placeholders {emoji} {xp}.
+                anuncio: msgDin('¡Reacciona con {emoji} para llevarte **{xp} XP**!\nSolo el primero se la lleva. ¡Rápido! ⚡'),
+                // acierto: cuando alguien la recoge. Placeholders {user} {xp} {emoji}.
+                acierto: msgDin('{emoji} ¡{user} ha recogido la gota y gana **{xp} XP**! 🎉'),
+                // fallo: si nadie reacciona a tiempo.
+                fallo: msgDin('Nadie la recogió a tiempo… 😢'),
+            },
         },
         // 3) Contador colaborativo: un canal donde se cuenta 1,2,3… sin fallar. El
         //    estado (número actual, récord, último) vive en el modelo Contador.
@@ -396,6 +417,12 @@ const ServidorConfigSchema = new mongoose.Schema({
             repetirUsuario: { type: Boolean, default: false }, // ¿puede una persona contar dos veces seguidas?
             xp: { type: Number, default: 1 },                  // XP por número correcto
             borrarErrores: { type: Boolean, default: true },   // borrar mensajes que rompen la cuenta
+            mensajes: {
+                // acierto: opcional (vacío = solo reacción ✅). Placeholders {user} {numero}.
+                acierto: msgDin(''),
+                // fallo: al romper la cuenta. Placeholders {user} {numero} (el que tocaba).
+                fallo: msgDin('💥 ¡Se rompió la cuenta! El número correcto era **{numero}**. ¡Vuelta a empezar desde **1**!'),
+            },
         },
         // 4) Trivia: el bot lanza preguntas con botones; aciertos dan XP y suman al
         //    ranking semanal. El banco de preguntas vive en el modelo TriviaPregunta.
@@ -407,6 +434,14 @@ const ServidorConfigSchema = new mongoose.Schema({
             oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
             segundos: { type: Number, default: 30 },          // tiempo para responder
             lastDia: { type: String, default: '' },           // (interno) 'YYYY-MM-DD' de la última
+            mensajes: {
+                // pregunta: texto extra (encima de la pregunta) + banner.
+                pregunta: msgDin(''),
+                // acierto: respuesta correcta (privado). Placeholders {user} {xp}.
+                acierto: msgDin('✅ ¡Correcto! +{xp} XP'),
+                // fallo: respuesta incorrecta (privado).
+                fallo: msgDin('❌ Respuesta incorrecta. ¡Suerte la próxima!'),
+            },
         },
         // 5) Reto diario / racha: manda N mensajes hoy y te llevas recompensa; días
         //    seguidos = racha. El progreso por usuario vive en ActividadUsuario.
@@ -417,6 +452,10 @@ const ServidorConfigSchema = new mongoose.Schema({
             xp: { type: Number, default: 40 },
             oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
             avisarCanalId: { type: String, default: null },   // dónde felicitar al completarlo (null = el mismo)
+            mensajes: {
+                // acierto: al completar el reto. Placeholders {user} {xp} {racha}.
+                acierto: msgDin('🎯 ¡{user} ha completado el reto diario! +{xp} XP · Racha 🔥 **{racha}** día(s).'),
+            },
         },
         // 6) Palabra secreta / caza del tesoro: el primero que escriba la palabra gana.
         tesoro: {
@@ -425,10 +464,13 @@ const ServidorConfigSchema = new mongoose.Schema({
             palabra: { type: String, default: '' },
             xp: { type: Number, default: 60 },
             oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
-            mensajeExito: { type: String, default: '🏆 ¡{user} ha encontrado la palabra secreta!' },
             unaVez: { type: Boolean, default: true },          // se desactiva al primer acierto
             encontrada: { type: Boolean, default: false },     // (interno) ya la encontró alguien
             encontradaPor: { type: String, default: null },    // (interno) quién la encontró
+            mensajes: {
+                // acierto: al encontrar la palabra. Placeholders {user} {palabra}.
+                acierto: msgDin('🏆 ¡{user} ha encontrado la palabra secreta!'),
+            },
         },
         // 7) Miembro de la semana: el más activo (por XP ganada) se lleva un rol
         //    temporal y/o recompensa, un día fijo a la semana.
@@ -442,6 +484,10 @@ const ServidorConfigSchema = new mongoose.Schema({
             oro: { type: Number, default: 0 },                 // (oculto en panel por ahora)
             lastSemana: { type: String, default: '' },         // (interno) 'YYYY-Www' del último premio
             ultimoGanador: { type: String, default: null },    // (interno) para retirarle el rol al siguiente
+            mensajes: {
+                // anuncio: al coronar al ganador. Placeholders {user} {xp} {mensajes}.
+                anuncio: msgDin('¡Enhorabuena {user}! Has sido el miembro más activo de la semana con **{mensajes}** mensajes.'),
+            },
         },
         // 8) Tablón de logros: anuncia hitos automáticos del servidor (X miembros,
         //    alguien llega a nivel Y…). Recuerda los ya anunciados para no repetir.
@@ -451,6 +497,12 @@ const ServidorConfigSchema = new mongoose.Schema({
             hitosMiembros: { type: [Number], default: [100, 250, 500, 1000, 5000] },
             hitosNivel: { type: [Number], default: [10, 25, 50, 100] },
             anunciados: { type: [String], default: [] },       // (interno) claves de hitos ya celebrados
+            mensajes: {
+                // miembros: hito de nº de miembros. Placeholders {miembros} {servidor}.
+                miembros: msgDin('¡Ya somos **{miembros}** miembros en **{servidor}**! Gracias por estar aquí 💜'),
+                // nivel: primero en alcanzar un nivel-hito. Placeholders {user} {nivel}.
+                nivel: msgDin('¡{user} es el primero en alcanzar el **nivel {nivel}**! 🚀'),
+            },
         },
     },
 
