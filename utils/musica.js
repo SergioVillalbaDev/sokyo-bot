@@ -176,28 +176,50 @@ function construirPanel(player, cfg) {
     const t = player.queue.current;
     if (!t) return null;
     const enCola = player.queue.tracks.length;
-    // Indicador del modo autoplay activo (lo guarda trackStart en el player).
     const modo = typeof player.getData === 'function' ? player.getData('sokyoAutoplay') : null;
-    let autorTxt = player.paused ? '⏸️ En pausa' : '🎶 Reproduciendo ahora';
-    if (modo === 'repetir') autorTxt += ' · 🔁 Repetir cola';
-    else if (modo === 'aleatorio') autorTxt += ' · 🎲 Autoplay';
+
+    // Color dinámico: pausa → naranja, autoplay aleatorio → morado, repetir → azul, normal → verde.
+    const color = player.paused ? '#f0a500'
+        : modo === 'aleatorio' ? '#9b59b6'
+        : modo === 'repetir'   ? '#3498db'
+        : COLOR_MUSICA;
+
+    // Línea de estado en el autor.
+    const estadoIcon = player.paused ? '⏸️' : '▶️';
+    const modoSufijo = modo === 'repetir' ? '  ·  🔁 Repetir cola'
+        : modo === 'aleatorio' ? '  ·  🎲 Autoplay'
+        : '';
+    const autorTxt = `${estadoIcon} Reproduciendo ahora${modoSufijo}`;
+
+    // Fuente con icono.
+    const FUENTE_ICONO = { youtube: '▶️ YouTube', spotify: '🎵 Spotify', soundcloud: '🔶 SoundCloud' };
+    const fuente = FUENTE_ICONO[t.info.sourceName?.toLowerCase()] || capitalizar(t.info.sourceName);
+
     const embed = new EmbedBuilder()
-        .setColor(COLOR_MUSICA)
+        .setColor(color)
         .setAuthor({ name: autorTxt })
         .setTitle(t.info.title)
         .setURL(t.info.uri || null)
         .setDescription(
-            `**${t.info.author || 'Desconocido'}**\n` +
-            `\`${formatDuration(player.position)}\` ${progresoBarra(player.position, t.info.duration)} \`${formatDuration(t.info.duration)}\``)
+            `**${t.info.author || 'Desconocido'}**\n\n` +
+            `\`${formatDuration(player.position)}\`  ${progresoBarra(player.position, t.info.duration)}  \`${formatDuration(t.info.duration)}\``
+        )
         .addFields(
             { name: '🔊 Volumen', value: `${player.volume}%`, inline: true },
             { name: '📋 En cola', value: `${enCola} ${enCola === 1 ? 'canción' : 'canciones'}`, inline: true },
-            { name: '🎚️ Fuente', value: capitalizar(t.info.sourceName), inline: true },
+            { name: '🎚️ Fuente', value: fuente, inline: true },
         );
+
     if (t.info.artworkUrl) embed.setThumbnail(t.info.artworkUrl);
     if (t.requester?.username) {
         embed.setFooter({ text: `Pedida por ${t.requester.username}`, iconURL: avatarUrl(t.requester) });
     }
+
+    // Botón de autoplay: muestra el estado actual y cicla al hacer clic.
+    const autoplayLabel = modo === 'aleatorio' ? '🎲 Autoplay: ON'
+        : modo === 'repetir' ? '🔁 Repetir: ON'
+        : '🎲 Autoplay';
+    const autoplayStyle = modo && modo !== 'off' ? ButtonStyle.Primary : ButtonStyle.Secondary;
 
     const fila1 = new ActionRowBuilder().addComponents(
         btnMusica('music_toggle', player.paused ? '▶️' : '⏸️', ButtonStyle.Success),
@@ -208,6 +230,7 @@ function construirPanel(player, cfg) {
     const fila2 = new ActionRowBuilder().addComponents(
         btnMusica('music_voldown', '🔉', ButtonStyle.Secondary, player.volume <= 0),
         btnMusica('music_volup', '🔊', ButtonStyle.Secondary, player.volume >= (cfg?.volumenMax ?? 150)),
+        new ButtonBuilder().setCustomId('music_autoplay').setLabel(autoplayLabel).setStyle(autoplayStyle),
     );
     return { embeds: [embed], components: [fila1, fila2] };
 }
@@ -265,6 +288,23 @@ async function manejarBotonMusica(interaction, client) {
         case 'music_shuffle': if (typeof player.queue.shuffle === 'function') await player.queue.shuffle(); break;
         case 'music_voldown': await player.setVolume(Math.max(0, player.volume - 10)); break;
         case 'music_volup': await player.setVolume(Math.min(cfg.volumenMax, player.volume + 10)); break;
+        case 'music_autoplay': {
+            const cfgDoc = await ServidorConfig.findOne({ guildId: interaction.guildId });
+            if (!cfgDoc || !esPro(cfgDoc)) {
+                return interaction.reply({ content: '⭐ El **Autoplay** es una función **Pro**. Actívala desde el panel web.', ephemeral: true });
+            }
+            // Ciclo: off → aleatorio → repetir → off
+            const modoActual = cfgDoc.musica?.autoplay || 'off';
+            const siguienteModo = modoActual === 'off' ? 'aleatorio' : modoActual === 'aleatorio' ? 'repetir' : 'off';
+            if (!cfgDoc.musica) cfgDoc.musica = {};
+            cfgDoc.musica.autoplay = siguienteModo;
+            cfgDoc.markModified('musica');
+            await cfgDoc.save().catch(() => {});
+            // Sincronizar en el player en caliente.
+            player.setData('sokyoAutoplay', siguienteModo);
+            await player.setRepeatMode(siguienteModo === 'repetir' ? 'queue' : 'off').catch(() => {});
+            break;
+        }
         default: return interaction.deferUpdate().catch(() => {});
     }
 
@@ -304,11 +344,7 @@ function initMusica(client) {
             const tracks = await pistasAleatorias(player, lastTrack, 5);
             if (!tracks.length) return;
             await player.queue.add(tracks);
-            const cfg = await getMusicaConfig(player.guildId);
-            const canal = client.channels.cache.get(cfg.canalMusicaId || player.textChannelId);
-            if (canal?.isTextBased()) {
-                canal.send('🎲 **Autoplay**: se acabó la cola, sigo con música similar.').catch(() => {});
-            }
+            // No enviamos mensaje suelto: el panel de trackStart ya muestra el badge 🎲.
         } catch (e) { console.error('Autoplay aleatorio:', e.message); }
     };
 

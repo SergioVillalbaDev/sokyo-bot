@@ -1,4 +1,4 @@
-const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
+const { Events, ActionRowBuilder, StringSelectMenuBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const RolePanel = require('../models/RolePanel.js');
@@ -161,6 +161,72 @@ module.exports = {
         // --- SEGURIDAD: gestión de reportes (resolver / descartar / abrir ticket) ---
         if (interaction.isButton() && (interaction.customId.startsWith('rep_resolver:') || interaction.customId.startsWith('rep_descartar:') || interaction.customId.startsWith('rep_ticket:'))) {
             return reportes.manejarBoton(interaction, client);
+        }
+
+        // --- ONBOARDING: botones del mensaje de bienvenida y !setup ---
+        if (interaction.isButton() && interaction.customId.startsWith('setup_estado:')) {
+            const guildId = interaction.customId.split(':')[1];
+            try {
+                const { construirEmbedEstado } = require('../utils/onboarding.js');
+                const config = await ServidorConfig.findOne({ guildId });
+                const guild = interaction.guild || client.guilds.cache.get(guildId);
+                return interaction.reply(construirEmbedEstado(guild, config));
+            } catch (e) {
+                console.error('Error en setup_estado:', e);
+                return interaction.reply({ content: '❌ No pude obtener el estado.', flags: 64 });
+            }
+        }
+
+        if (interaction.isButton() && interaction.customId.startsWith('setup_publicar:')) {
+            const guildId = interaction.customId.split(':')[1];
+            const menu = new ChannelSelectMenuBuilder()
+                .setCustomId(`setup_canal:${guildId}`)
+                .setPlaceholder('📢 Elige el canal donde publicar el panel de tickets...')
+                .addChannelTypes(ChannelType.GuildText);
+            const fila = new ActionRowBuilder().addComponents(menu);
+            return interaction.reply({
+                content: '¿En qué canal quieres publicar el panel de tickets?\n> Los usuarios harán clic aquí para abrir tickets.',
+                components: [fila],
+                flags: 64,
+            });
+        }
+
+        if (interaction.isChannelSelectMenu() && interaction.customId.startsWith('setup_canal:')) {
+            const guildId = interaction.customId.split(':')[1];
+            try {
+                await interaction.deferUpdate();
+                const config = await ServidorConfig.findOne({ guildId });
+                const canal = interaction.channels?.first() || interaction.guild?.channels.cache.get(interaction.values[0]);
+                if (!canal) return interaction.editReply({ content: '❌ Canal no encontrado.', components: [] });
+
+                const puedeEscribir = canal.permissionsFor(interaction.guild?.members?.me)?.has(PermissionsBitField.Flags.SendMessages);
+                if (!puedeEscribir) {
+                    return interaction.editReply({ content: `❌ No tengo permisos para escribir en <#${canal.id}>.`, components: [] });
+                }
+
+                const embedPanel = new EmbedBuilder()
+                    .setTitle(config?.mensajeSoporteTitulo || '🎫 Soporte Técnico')
+                    .setDescription(config?.mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket.')
+                    .setColor(config?.colorEmbed || '#5865F2')
+                    .setTimestamp();
+                const { aplicarPieMarca } = require('../utils/marca.js');
+                aplicarPieMarca(embedPanel, config);
+
+                const boton = new ButtonBuilder()
+                    .setCustomId('create_ticket')
+                    .setLabel(config?.textoBoton || '📩 Abrir Ticket')
+                    .setStyle(ButtonStyle.Primary);
+                const filaTicket = new ActionRowBuilder().addComponents(boton);
+
+                await canal.send({ embeds: [embedPanel], components: [filaTicket] });
+                return interaction.editReply({
+                    content: `✅ ¡Panel publicado en <#${canal.id}>! Los usuarios ya pueden abrir tickets.`,
+                    components: [],
+                });
+            } catch (e) {
+                console.error('Error en setup_canal:', e);
+                return interaction.editReply({ content: '❌ Error al publicar el panel.', components: [] });
+            }
         }
 
         // --- LÓGICA DE BOTONES ---

@@ -1,6 +1,6 @@
 const { Events, ChannelType, PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
-const { construirGuia } = require('../utils/onboarding.js');
+const { construirBienvenida } = require('../utils/onboarding.js');
 
 module.exports = {
     name: Events.GuildCreate,
@@ -22,12 +22,12 @@ module.exports = {
                 console.log(`🎁 Prueba Pro de 7 días activada en ${guild.name} (${guild.id})`);
             }
 
-            const guia = construirGuia(guild, config);
+            const bienvenida = construirBienvenida(guild, config);
 
             // 2. Intentar MD privado al dueño del servidor.
             try {
                 const owner = await guild.fetchOwner();
-                await owner.send(guia);
+                await owner.send(bienvenida);
             } catch { /* el dueño tiene los MD cerrados: lo dejamos en un canal */ }
 
             // 3. Respaldo en un canal: el del sistema, o el primero donde el bot pueda escribir.
@@ -36,7 +36,7 @@ module.exports = {
             const canal = (guild.systemChannel && puedeEscribir(guild.systemChannel))
                 ? guild.systemChannel
                 : guild.channels.cache.find(puedeEscribir);
-            if (canal) await canal.send(guia).catch(() => {});
+            if (canal) await canal.send(bienvenida).catch(() => {});
 
             console.log(`🎉 Bot añadido a un servidor nuevo: ${guild.name} (${guild.id})`);
         } catch (error) {

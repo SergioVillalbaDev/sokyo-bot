@@ -1,6 +1,6 @@
 const { PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
-const { construirGuia } = require('../utils/onboarding.js');
+const { construirBienvenida } = require('../utils/onboarding.js');
 
 module.exports = {
     name: 'setup',
@@ -15,6 +15,6 @@ module.exports = {
         let config = await ServidorConfig.findOne({ guildId: message.guild.id });
         if (!config) config = await ServidorConfig.create({ guildId: message.guild.id });
 
-        await message.reply(construirGuia(message.guild, config));
+        await message.reply(construirBienvenida(message.guild, config));
     },
 };

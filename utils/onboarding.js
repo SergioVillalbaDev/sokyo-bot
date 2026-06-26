@@ -1,50 +1,135 @@
-// Construye la "guía de bienvenida / configuración" de un servidor.
-// La usan tanto el evento guildCreate (al entrar el bot) como el comando !setup,
-// para que el contenido sea siempre el mismo (un solo sitio que mantener).
-const { EmbedBuilder } = require('discord.js');
+// Construye los mensajes de bienvenida / configuración.
+// guildCreate y !setup usan construirBienvenida (con botones).
+// construirGuia se mantiene por compatibilidad si algo la llama directamente.
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { aplicarPieMarca } = require('./marca.js');
 
-function construirGuia(guild, config) {
+// Mensaje interactivo enviado al unirse el bot y en !setup.
+function construirBienvenida(guild, config) {
     const url = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const prefijo = (config && config.prefijo) || '!';
-    const check = (ok) => (ok ? '✅' : '⬜');
+    const guildId = guild.id;
 
-    // Estado de los ajustes clave (para el checklist).
-    const rol = config?.rolStaffId ? `<@&${config.rolStaffId}>` : '_sin definir_';
-    const cat = config?.categoriaTicketsId
-        ? (guild.channels.cache.get(config.categoriaTicketsId)?.name || 'definida')
-        : '_sin definir_';
+    const tieneRol = !!config?.rolStaffId;
+    const tieneCategoria = !!config?.categoriaTicketsId;
+
+    const paso1 = tieneRol ? '✅' : '1️⃣';
+    const paso2 = tieneCategoria ? '✅' : '2️⃣';
+    const paso3 = (tieneRol && tieneCategoria) ? '3️⃣ (¡ya puedes!)' : '3️⃣';
+
+    // Plan / trial
+    let planLinea = '';
+    if (config?.esPremium && config?.premiumHasta) {
+        const diasRestantes = Math.ceil((new Date(config.premiumHasta) - Date.now()) / 86400000);
+        planLinea = diasRestantes > 0
+            ? `\n> 🎁 **Prueba Pro activa** — ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''} restante${diasRestantes !== 1 ? 's' : ''}`
+            : '';
+    }
 
     const embed = new EmbedBuilder()
         .setColor(config?.colorEmbed || '#5865F2')
-        .setTitle('👋 ¡Gracias por añadir a Sokyo!')
-        .setDescription(`Soy tu bot de soporte y gestión de roles. Estos son los pasos para dejarlo todo listo en **${guild.name}**.`)
+        .setTitle('👋 ¡Hola! Soy Sokyo')
+        .setDescription(
+            `Acabo de unirme a **${guild.name}**. Solo necesitas **3 pasos rápidos** para empezar.${planLinea}`
+        )
         .addFields(
             {
-                name: '📋 Pasos iniciales',
+                name: '⚡ Pasos de configuración',
                 value: [
-                    `**1.** Abre el panel web: ${url}`,
-                    '**2.** Pulsa **"Soy staff"** e inicia sesión con tu Discord.',
-                    '**3.** En *Ajustes*, define el **rol de staff** y la **categoría de tickets**.',
-                    `**4.** Escribe \`${prefijo}sokyo\` en tu canal de soporte para publicar el botón de tickets.`,
+                    `${paso1} **Rol de staff** — quién puede gestionar tickets`,
+                    `${paso2} **Categoría de tickets** — dónde se crean los canales`,
+                    `${paso3} **Publicar el panel** — el botón que verán tus usuarios`,
                 ].join('\n'),
             },
             {
-                name: '✅ Estado actual de la configuración',
+                name: '🌐 Panel de control',
+                value: `Configura los pasos 1 y 2 en el panel web:\n${url}`,
+                inline: true,
+            },
+            {
+                name: '💡 Consejo',
+                value: 'Usa el botón **Ver Estado** para comprobar tu progreso en cualquier momento.',
+                inline: true,
+            },
+        );
+
+    if (guild.iconURL()) embed.setThumbnail(guild.iconURL({ size: 128 }));
+    aplicarPieMarca(embed, config);
+
+    const fila = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setLabel('🌐 Abrir Panel Web')
+            .setStyle(ButtonStyle.Link)
+            .setURL(url),
+        new ButtonBuilder()
+            .setCustomId(`setup_estado:${guildId}`)
+            .setLabel('📊 Ver Estado')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`setup_publicar:${guildId}`)
+            .setLabel('📩 Publicar Panel de Tickets')
+            .setStyle(ButtonStyle.Primary),
+    );
+
+    return { embeds: [embed], components: [fila] };
+}
+
+// Alias para retrocompatibilidad (setupSoporte, etc. que no usen botones).
+function construirGuia(guild, config) {
+    return construirBienvenida(guild, config);
+}
+
+// Embed de estado en vivo (respuesta efímera al botón "Ver Estado").
+function construirEmbedEstado(guild, config) {
+    const url = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const check = (ok) => (ok ? '✅' : '❌');
+
+    const rol = config?.rolStaffId
+        ? `<@&${config.rolStaffId}>`
+        : '_Sin configurar_';
+    const cat = config?.categoriaTicketsId
+        ? (guild?.channels?.cache?.get(config.categoriaTicketsId)?.name || '_(definida, no en caché)_')
+        : '_Sin configurar_';
+
+    let planTexto = 'Free';
+    if (config?.esPremium && config?.premiumHasta) {
+        const dias = Math.ceil((new Date(config.premiumHasta) - Date.now()) / 86400000);
+        planTexto = dias > 0 ? `Pro (trial, ${dias}d restantes)` : 'Pro';
+    } else if (config?.esPremium) {
+        planTexto = 'Pro';
+    }
+
+    const embed = new EmbedBuilder()
+        .setColor(config?.colorEmbed || '#5865F2')
+        .setTitle(`📊 Estado de configuración`)
+        .setDescription(`Servidor: **${guild?.name || 'desconocido'}**`)
+        .addFields(
+            {
+                name: 'Configuración',
                 value: [
                     `${check(!!config?.rolStaffId)} Rol de staff: ${rol}`,
                     `${check(!!config?.categoriaTicketsId)} Categoría de tickets: ${cat}`,
                 ].join('\n'),
             },
             {
-                name: '💡 Comandos útiles',
-                value: `\`${prefijo}setup\` — ver esta guía · \`${prefijo}sokyo\` — publicar panel de tickets · \`${prefijo}rol\` — gestionar roles`,
+                name: 'Plan actual',
+                value: planTexto,
+                inline: true,
             },
-        );
-    aplicarPieMarca(embed, config); // marca blanca
+        )
+        .setFooter({ text: 'Configura los ajustes en el panel web' });
 
-    if (guild.iconURL()) embed.setThumbnail(guild.iconURL({ size: 128 }));
-    return { embeds: [embed] };
+    const fila = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setLabel('🌐 Ir al Panel')
+            .setStyle(ButtonStyle.Link)
+            .setURL(url),
+        new ButtonBuilder()
+            .setCustomId(`setup_estado:${config?.guildId || guild?.id}`)
+            .setLabel('🔄 Actualizar')
+            .setStyle(ButtonStyle.Secondary),
+    );
+
+    return { embeds: [embed], components: [fila], flags: 64 }; // 64 = ephemeral
 }
 
-module.exports = { construirGuia };
+module.exports = { construirGuia, construirBienvenida, construirEmbedEstado };
