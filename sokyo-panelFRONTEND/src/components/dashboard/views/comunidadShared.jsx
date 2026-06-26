@@ -1,7 +1,7 @@
 // Componentes compartidos de la sección Comunidad: selector de hora amigable
 // (con preview en la zona horaria del usuario) y subida de imágenes desde el PC.
-import { useState } from 'react';
-import { Upload, Clock, Image as ImageIcon, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Upload, Clock, Image as ImageIcon, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
@@ -16,11 +16,116 @@ function isoLocalPreview(iso) {
   return d.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
 }
 
-// Convierte un valor de <input datetime-local> (hora local) a ISO UTC.
-function localAIso(v) {
-  if (!v) return '';
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? '' : d.toISOString();
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DIAS_SEM = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const dosDig = (n) => String(n).padStart(2, '0');
+
+// Selector visual de fecha + hora (calendario propio, sin librerías). Devuelve
+// un ISO UTC en onChange a partir de la hora LOCAL elegida.
+export function CalendarTimePicker({ value, onChange }) {
+  const base = value ? new Date(value) : null;
+  const valido = base && !isNaN(base.getTime());
+  const arranque = valido ? base : new Date(Date.now() + 3600000);
+
+  const [open, setOpen] = useState(false);
+  const [vista, setVista] = useState({ y: arranque.getFullYear(), m: arranque.getMonth() });
+  const [h, setH] = useState(arranque.getHours());
+  const [min, setMin] = useState(Math.floor(arranque.getMinutes() / 5) * 5);
+  const [sel, setSel] = useState(valido ? { y: base.getFullYear(), m: base.getMonth(), d: base.getDate() } : null);
+
+  // Si el padre limpia el valor (tras crear), reseteamos la selección.
+  useEffect(() => { if (!value) setSel(null); }, [value]);
+
+  const emitir = (dia, hh, mm) => {
+    if (!dia) return;
+    onChange(new Date(dia.y, dia.m, dia.d, hh, mm, 0, 0).toISOString());
+  };
+
+  const cambiarMes = (delta) => {
+    setVista((v) => {
+      const nm = v.m + delta;
+      return { y: v.y + Math.floor(nm / 12), m: ((nm % 12) + 12) % 12 };
+    });
+  };
+
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const primerDia = (new Date(vista.y, vista.m, 1).getDay() + 6) % 7; // 0 = lunes
+  const diasMes = new Date(vista.y, vista.m + 1, 0).getDate();
+
+  const textoBtn = valido
+    ? base.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    : 'Pulsa para elegir fecha y hora';
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${valido ? 'border-brand text-fg' : 'border-line text-muted'} bg-bg hover:border-brand`}>
+        <Calendar size={15} className="text-brand" />
+        {textoBtn}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute z-50 mt-2 w-[18rem] rounded-2xl border border-line bg-card p-3 shadow-soft">
+            {/* Navegación de mes */}
+            <div className="mb-2 flex items-center justify-between">
+              <button type="button" onClick={() => cambiarMes(-1)} className="rounded-lg p-1.5 text-muted transition-colors hover:bg-elevated hover:text-fg">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-sm font-bold text-fg">{MESES[vista.m]} {vista.y}</span>
+              <button type="button" onClick={() => cambiarMes(1)} className="rounded-lg p-1.5 text-muted transition-colors hover:bg-elevated hover:text-fg">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Cabecera de días */}
+            <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted">
+              {DIAS_SEM.map((d) => <span key={d}>{d}</span>)}
+            </div>
+
+            {/* Rejilla de días */}
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: primerDia }).map((_, i) => <span key={`b${i}`} />)}
+              {Array.from({ length: diasMes }).map((_, i) => {
+                const d = i + 1;
+                const fecha = new Date(vista.y, vista.m, d);
+                const pasado = fecha < hoy;
+                const elegido = sel && sel.y === vista.y && sel.m === vista.m && sel.d === d;
+                return (
+                  <button key={d} type="button" disabled={pasado}
+                    onClick={() => { const nd = { y: vista.y, m: vista.m, d }; setSel(nd); emitir(nd, h, min); }}
+                    className={`h-8 rounded-lg text-xs transition-colors ${
+                      elegido ? 'bg-gradient-brand font-bold text-white'
+                      : pasado ? 'cursor-not-allowed text-muted/30'
+                      : 'text-fg hover:bg-elevated'}`}>
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selector de hora */}
+            <div className="mt-3 flex items-center gap-2 border-t border-line pt-3">
+              <Clock size={15} className="text-brand" />
+              <select value={h} onChange={(e) => { const nh = Number(e.target.value); setH(nh); emitir(sel, nh, min); }}
+                className="rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-fg focus:border-brand focus:outline-none">
+                {Array.from({ length: 24 }).map((_, i) => <option key={i} value={i}>{dosDig(i)}</option>)}
+              </select>
+              <span className="font-bold text-muted">:</span>
+              <select value={min} onChange={(e) => { const nm = Number(e.target.value); setMin(nm); emitir(sel, h, nm); }}
+                className="rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-fg focus:border-brand focus:outline-none">
+                {Array.from({ length: 12 }).map((_, i) => <option key={i} value={i * 5}>{dosDig(i * 5)}</option>)}
+              </select>
+              <button type="button" onClick={() => setOpen(false)} className="ml-auto rounded-lg bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/20">
+                Listo
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // Presets de duración (minutos) para "cierra en…".
@@ -68,8 +173,7 @@ export function CierrePicker({ value, onChange, titulo = 'Cuándo se cierra' }) 
           {PRESETS.map((p) => <option key={p.min} value={p.min}>{p.label}</option>)}
         </select>
       ) : (
-        <input type="datetime-local" className={input}
-          onChange={(e) => onChange(localAIso(e.target.value))} />
+        <CalendarTimePicker value={value} onChange={onChange} />
       )}
 
       {preview && (
@@ -87,8 +191,7 @@ export function FechaPicker({ value, onChange, titulo = 'Fecha y hora' }) {
   return (
     <div>
       <span className={label}>{titulo} <span className="font-normal text-muted">· tu hora ({ZONA})</span></span>
-      <input type="datetime-local" className={input}
-        onChange={(e) => onChange(localAIso(e.target.value))} />
+      <CalendarTimePicker value={value} onChange={onChange} />
       {preview && (
         <p className="mt-1.5 flex items-center gap-1.5 text-xs text-success">
           <Clock size={11} /> {preview}
