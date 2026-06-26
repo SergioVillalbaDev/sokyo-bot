@@ -44,6 +44,11 @@ import AnaliticaView from './views/AnaliticaView';
 import ResumenView from './views/ResumenView';
 import MusicaView from './views/MusicaView';
 import IntegracionesView from './views/IntegracionesView';
+import SorteosView from './views/SorteosView';
+import EventosView from './views/EventosView';
+import EncuestasView from './views/EncuestasView';
+import SugerenciasView from './views/SugerenciasView';
+import PresentacionesView from './views/PresentacionesView';
 
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
@@ -114,6 +119,11 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'prod-anuncios') return <AnunciosView dash={dash} />;
     if (activeTab === 'prod-bienvenidas') return <BienvenidaView dash={dash} />;
     if (activeTab === 'cuenta-plan') return <PlanesView dash={dash} />;
+    if (activeTab === 'com-sorteos') return <SorteosView dash={dash} />;
+    if (activeTab === 'com-eventos') return <EventosView dash={dash} />;
+    if (activeTab === 'com-encuestas') return <EncuestasView dash={dash} />;
+    if (activeTab === 'com-sugerencias') return <SugerenciasView dash={dash} />;
+    if (activeTab === 'com-presentaciones') return <PresentacionesView dash={dash} />;
     if (activeTab === 'musica') return <MusicaView dash={dash} />;
     if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <ResumenView dash={dash} />;

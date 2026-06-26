@@ -92,6 +92,12 @@ export function useDashboard() {
   const [catalogoPresets, setCatalogoPresets] = useState({ ocultos: [], personalizados: [] });
   // Seguridad: reportes de usuarios.
   const [reportes, setReportes] = useState([]);
+  // Comunidad: sorteos, eventos, encuestas, sugerencias, presentaciones.
+  const [sorteos, setSorteos] = useState([]);
+  const [eventos, setEventos] = useState([]);
+  const [encuestas, setEncuestas] = useState([]);
+  const [sugerencias, setSugerencias] = useState([]);
+  const [presentaciones, setPresentaciones] = useState([]);
   // Productividad: anuncios programados + presets de anuncio.
   const [anuncios, setAnuncios] = useState([]);
   const [presetsAnuncio, setPresetsAnuncio] = useState([]);
@@ -747,6 +753,97 @@ export function useDashboard() {
     return false;
   };
 
+  // --- COMUNIDAD: sorteos ---
+  const cargarSorteos = () => apiFetch(`/api/sorteos${gp()}`).then(procesarRespuesta).then((d) => setSorteos(Array.isArray(d) ? d : [])).catch(reportarError('cargando sorteos'));
+  const crearSorteo = async (payload) => {
+    try {
+      const res = await apiFetch('/api/sorteos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { await cargarSorteos(); return data; }
+      return { error: data.error || 'No se pudo crear' };
+    } catch (error) { console.error('Error creando sorteo:', error); return { error: 'Fallo de red' }; }
+  };
+  const terminarSorteo = async (id) => {
+    try { const res = await apiFetch(`/api/sorteos/${id}/terminar`, { method: 'POST' }); if (res.ok) await cargarSorteos(); }
+    catch (error) { console.error('Error terminando sorteo:', error); }
+  };
+  const rerollSorteo = async (id) => {
+    try { const res = await apiFetch(`/api/sorteos/${id}/reroll`, { method: 'POST' }); if (res.ok) await cargarSorteos(); }
+    catch (error) { console.error('Error haciendo reroll:', error); }
+  };
+  const eliminarSorteo = async (id) => {
+    try { const res = await apiFetch(`/api/sorteos/${id}`, { method: 'DELETE' }); if (res.ok) await cargarSorteos(); }
+    catch (error) { console.error('Error eliminando sorteo:', error); }
+  };
+
+  // --- COMUNIDAD: eventos ---
+  const cargarEventos = () => apiFetch(`/api/eventos${gp()}`).then(procesarRespuesta).then((d) => setEventos(Array.isArray(d) ? d : [])).catch(reportarError('cargando eventos'));
+  const crearEvento = async (payload) => {
+    try {
+      const res = await apiFetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { await cargarEventos(); return data; }
+      return { error: data.error || 'No se pudo crear' };
+    } catch (error) { console.error('Error creando evento:', error); return { error: 'Fallo de red' }; }
+  };
+  const eliminarEvento = async (id) => {
+    try { const res = await apiFetch(`/api/eventos/${id}`, { method: 'DELETE' }); if (res.ok) await cargarEventos(); }
+    catch (error) { console.error('Error eliminando evento:', error); }
+  };
+
+  // --- COMUNIDAD: encuestas ---
+  const cargarEncuestas = () => apiFetch(`/api/encuestas${gp()}`).then(procesarRespuesta).then((d) => setEncuestas(Array.isArray(d) ? d : [])).catch(reportarError('cargando encuestas'));
+  const crearEncuesta = async (payload) => {
+    try {
+      const res = await apiFetch('/api/encuestas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { await cargarEncuestas(); return data; }
+      return { error: data.error || 'No se pudo crear' };
+    } catch (error) { console.error('Error creando encuesta:', error); return { error: 'Fallo de red' }; }
+  };
+  const eliminarEncuesta = async (id) => {
+    try { const res = await apiFetch(`/api/encuestas/${id}`, { method: 'DELETE' }); if (res.ok) await cargarEncuestas(); }
+    catch (error) { console.error('Error eliminando encuesta:', error); }
+  };
+
+  // --- COMUNIDAD: sugerencias ---
+  const cargarSugerencias = () => apiFetch(`/api/sugerencias${gp()}`).then(procesarRespuesta).then((d) => setSugerencias(Array.isArray(d) ? d : [])).catch(reportarError('cargando sugerencias'));
+  const actualizarSugerencia = async (id, datos) => {
+    try {
+      const res = await apiFetch(`/api/sugerencias/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      if (res.ok) await cargarSugerencias();
+    } catch (error) { console.error('Error actualizando sugerencia:', error); }
+  };
+  const eliminarSugerencia = async (id) => {
+    try { const res = await apiFetch(`/api/sugerencias/${id}`, { method: 'DELETE' }); if (res.ok) await cargarSugerencias(); }
+    catch (error) { console.error('Error eliminando sugerencia:', error); }
+  };
+  const guardarConfigSugerencias = async (datos) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/sugerencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando config sugerencias:', error); }
+    return false;
+  };
+
+  // --- COMUNIDAD: presentaciones ---
+  const cargarPresentaciones = () => apiFetch(`/api/presentaciones${gp()}`).then(procesarRespuesta).then((d) => setPresentaciones(Array.isArray(d) ? d : [])).catch(reportarError('cargando presentaciones'));
+  const eliminarPresentacion = async (id) => {
+    try { const res = await apiFetch(`/api/presentaciones/${id}`, { method: 'DELETE' }); if (res.ok) await cargarPresentaciones(); }
+    catch (error) { console.error('Error eliminando presentacion:', error); }
+  };
+  const guardarConfigPresentaciones = async (datos) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/presentaciones`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando config presentaciones:', error); }
+    return false;
+  };
+
   // --- PRODUCTIVIDAD: presets de anuncio (mensajes guardados) ---
   const cargarPresetsAnuncio = () => apiFetch(`/api/anuncios/presets${gp()}`).then(procesarRespuesta).then((d) => setPresetsAnuncio(Array.isArray(d) ? d : [])).catch(reportarError('cargando presets'));
   const guardarPresetAnuncio = async (payload) => {
@@ -1066,6 +1163,11 @@ export function useDashboard() {
     else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
     else if (activeTab === 'datos-analitica') { cargarConfiguracion(); cargarAnalitica(); }
     else if (activeTab === 'datos-resumen') { cargarConfiguracion(); cargarCanales(); }
+    else if (activeTab === 'com-sorteos') { cargarSorteos(); cargarCanales(); cargarRoles(); }
+    else if (activeTab === 'com-eventos') { cargarEventos(); cargarCanales(); }
+    else if (activeTab === 'com-encuestas') { cargarEncuestas(); cargarCanales(); }
+    else if (activeTab === 'com-sugerencias') { cargarSugerencias(); cargarCanales(); cargarConfiguracion(); }
+    else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarConfiguracion(); }
     else if (activeTab === 'musica') { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
@@ -1127,6 +1229,12 @@ export function useDashboard() {
     // IA en tickets + transcript + analítica (Pro)
     iaTicket, informeIA, descargarTranscript, analitica, cargarAnalitica,
     guardarResumen, probarResumen,
+    // comunidad: sorteos, eventos, encuestas, sugerencias, presentaciones
+    sorteos, crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo,
+    eventos, crearEvento, eliminarEvento,
+    encuestas, crearEncuesta, eliminarEncuesta,
+    sugerencias, actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias,
+    presentaciones, eliminarPresentacion, guardarConfigPresentaciones,
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,
