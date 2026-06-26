@@ -775,6 +775,10 @@ export function useDashboard() {
     try { const res = await apiFetch(`/api/sorteos/${id}`, { method: 'DELETE' }); if (res.ok) await cargarSorteos(); }
     catch (error) { console.error('Error eliminando sorteo:', error); }
   };
+  const cargarParticipantesSorteo = async (id) => {
+    try { const res = await apiFetch(`/api/sorteos/${id}/participantes`); return res.ok ? await res.json() : []; }
+    catch (error) { console.error('Error cargando participantes:', error); return []; }
+  };
 
   // --- COMUNIDAD: eventos ---
   const cargarEventos = () => apiFetch(`/api/eventos${gp()}`).then(procesarRespuesta).then((d) => setEventos(Array.isArray(d) ? d : [])).catch(reportarError('cargando eventos'));
@@ -1230,7 +1234,7 @@ export function useDashboard() {
     iaTicket, informeIA, descargarTranscript, analitica, cargarAnalitica,
     guardarResumen, probarResumen,
     // comunidad: sorteos, eventos, encuestas, sugerencias, presentaciones
-    sorteos, crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, cargarSorteos,
+    sorteos, crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, cargarSorteos, cargarParticipantesSorteo,
     eventos, crearEvento, eliminarEvento, cargarEventos,
     encuestas, crearEncuesta, eliminarEncuesta, cargarEncuestas,
     sugerencias, actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias, cargarSugerencias,

@@ -19,7 +19,15 @@ function tiempoRestante(fechaFin) {
 
 export default function SorteosView({ dash }) {
   const { t } = useTranslation();
-  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen } = dash;
+  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen, cargarParticipantesSorteo } = dash;
+
+  const [partLista, setPartLista] = useState({}); // id -> array (cargado) | null (cargando) | undefined (oculto)
+  const verParticipantes = async (id) => {
+    if (partLista[id] !== undefined) { setPartLista((p) => { const n = { ...p }; delete n[id]; return n; }); return; }
+    setPartLista((p) => ({ ...p, [id]: null }));
+    const lista = await cargarParticipantesSorteo(id);
+    setPartLista((p) => ({ ...p, [id]: lista }));
+  };
 
   const [nombre, setNombre] = useState('');
   const [premio, setPremio] = useState('');
@@ -96,7 +104,7 @@ export default function SorteosView({ dash }) {
                           <Trophy size={10} /> {s.ganadores} {t('dashboard.sorteos_v.winners')}
                         </span>
                         <span className="flex items-center gap-1 rounded-full bg-elevated px-2.5 py-0.5 text-xs text-muted">
-                          <Users size={10} /> {s.participantes || 0} {t('dashboard.sorteos_v.entries')}
+                          <Users size={10} /> {s.participantes?.length || 0} {t('dashboard.sorteos_v.entries')}
                         </span>
                         {restante && (
                           <span className="flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
@@ -114,6 +122,27 @@ export default function SorteosView({ dash }) {
                           </span>
                         )}
                       </div>
+
+                      {/* Participantes */}
+                      {s.participantes?.length > 0 && (
+                        <button type="button" onClick={() => verParticipantes(s._id)}
+                          className="mt-2 text-xs font-semibold text-brand transition-opacity hover:opacity-80">
+                          {partLista[s._id] !== undefined ? '▲ Ocultar' : '▼ Ver'} participantes ({s.participantes.length})
+                        </button>
+                      )}
+                      {partLista[s._id] === null && <p className="mt-1 text-xs text-muted">Cargando…</p>}
+                      {Array.isArray(partLista[s._id]) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {partLista[s._id].length === 0
+                            ? <span className="text-xs italic text-muted">Aún no se ha apuntado nadie.</span>
+                            : partLista[s._id].map((p) => (
+                                <span key={p.id} className="flex items-center gap-1.5 rounded-full bg-elevated px-2 py-1 text-xs text-fg">
+                                  {p.avatar && <img src={p.avatar} alt="" className="h-4 w-4 rounded-full" />}
+                                  {p.tag}
+                                </span>
+                              ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <button

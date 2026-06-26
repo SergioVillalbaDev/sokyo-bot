@@ -88,6 +88,33 @@ module.exports = function montarRutasComunidad(app, client) {
         } catch (e) { console.error('Reroll sorteo:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 
+    // Lista de participantes de un sorteo, resolviendo los IDs a nombres/avatares.
+    app.get('/api/sorteos/:id/participantes', async (req, res) => {
+        try {
+            const s = await Sorteo.findById(req.params.id);
+            if (!s) return res.status(404).json({ error: 'No encontrado' });
+            if (!puedeGestionar(req, s.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            const guild = client.guilds.cache.get(s.guildId);
+            const ids = (s.participantes || []).slice(0, 1000);
+
+            // Resolver en bloque (más rápido que uno a uno); con respaldo a la caché.
+            const miembros = new Map();
+            if (guild && ids.length) {
+                try {
+                    const col = await guild.members.fetch({ user: ids });
+                    col.forEach((m) => miembros.set(m.id, m));
+                } catch {
+                    ids.forEach((uid) => { const m = guild.members.cache.get(uid); if (m) miembros.set(uid, m); });
+                }
+            }
+            const out = ids.map((uid) => {
+                const m = miembros.get(uid);
+                return { id: uid, tag: m?.user?.tag || uid, avatar: m?.user?.displayAvatarURL?.({ size: 64 }) || null };
+            });
+            res.json(out);
+        } catch (e) { console.error('GET participantes sorteo:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
     app.delete('/api/sorteos/:id', async (req, res) => {
         try {
             const s = await Sorteo.findById(req.params.id);
