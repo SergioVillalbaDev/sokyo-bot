@@ -37,6 +37,16 @@ module.exports = {
                     return;
                 }
             } catch (e) { console.error('Sugerencia:', e.message); }
+
+            // 0.7. Comunidad · Dinámicas de chat (contador, palabra secreta, reto,
+            // QOTD). El contador "consume" el mensaje (su canal es de uso exclusivo).
+            try {
+                const cfgDin = await getConfigCached(message.guildId);
+                if (cfgDin?.dinamicas) {
+                    const consumido = await require('../utils/dinamicas.js').procesarMensaje(message, cfgDin, client);
+                    if (consumido) return;
+                }
+            } catch (e) { console.error('Dinámicas (mensaje):', e.message); }
         }
 
         // 1. Guardar mensajes de los tickets en la BD

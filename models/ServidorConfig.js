@@ -354,6 +354,106 @@ const ServidorConfigSchema = new mongoose.Schema({
         },
     },
 
+    // --- COMUNIDAD: DINÁMICAS ---
+    // Mini-juegos automáticos para mantener vivo el servidor. Cada uno tiene su
+    // interruptor y reparte XP (y oro, cableado pero oculto en el panel de momento)
+    // reusando los sistemas de niveles y economía que ya existen. La lógica vive en
+    // utils/dinamicas.js (chat: messageCreate · programadas/interactivas: scheduler).
+    // Los campos marcados "(interno)" los gestiona el bot, NO el panel.
+    dinamicas: {
+        // 1) Pregunta del día: el bot publica una pregunta a una hora fija; el primero
+        //    (o todos) en responder gana XP. Banco de preguntas rotativo.
+        qotd: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            hora: { type: Number, default: 12 },              // hora UTC (0-23) de publicación
+            xp: { type: Number, default: 50 },               // XP al primero que responde
+            oro: { type: Number, default: 0 },               // oro (oculto en panel por ahora)
+            mencionRolId: { type: String, default: null },   // rol al que avisar (opcional)
+            preguntas: { type: [String], default: [] },      // banco de preguntas
+            idx: { type: Number, default: 0 },               // (interno) próxima pregunta
+            lastDia: { type: String, default: '' },          // (interno) 'YYYY-MM-DD' del último envío
+            mensajeId: { type: String, default: null },      // (interno) mensaje publicado hoy
+            ganadorHoy: { type: String, default: null },     // (interno) ya premiado hoy
+        },
+        // 2) Gota de oro / Lluvia de XP: cada X minutos cae un mensaje y el primero en
+        //    reaccionar gana. Se muestra XP en el panel; el oro queda cableado y oculto.
+        gota: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            cadaMin: { type: Number, default: 120 },         // intervalo medio entre gotas (min)
+            ventanaSeg: { type: Number, default: 60 },        // tiempo para reclamarla
+            xp: { type: Number, default: 75 },
+            oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
+            emoji: { type: String, default: '🪙' },
+            proxima: { type: Date, default: null },           // (interno) cuándo cae la próxima
+        },
+        // 3) Contador colaborativo: un canal donde se cuenta 1,2,3… sin fallar. El
+        //    estado (número actual, récord, último) vive en el modelo Contador.
+        contador: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            repetirUsuario: { type: Boolean, default: false }, // ¿puede una persona contar dos veces seguidas?
+            xp: { type: Number, default: 1 },                  // XP por número correcto
+            borrarErrores: { type: Boolean, default: true },   // borrar mensajes que rompen la cuenta
+        },
+        // 4) Trivia: el bot lanza preguntas con botones; aciertos dan XP y suman al
+        //    ranking semanal. El banco de preguntas vive en el modelo TriviaPregunta.
+        trivia: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            hora: { type: Number, default: 18 },              // hora UTC de la pregunta diaria
+            xp: { type: Number, default: 30 },
+            oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
+            segundos: { type: Number, default: 30 },          // tiempo para responder
+            lastDia: { type: String, default: '' },           // (interno) 'YYYY-MM-DD' de la última
+        },
+        // 5) Reto diario / racha: manda N mensajes hoy y te llevas recompensa; días
+        //    seguidos = racha. El progreso por usuario vive en ActividadUsuario.
+        reto: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },         // null = cuenta en cualquier canal
+            objetivo: { type: Number, default: 20 },          // nº de mensajes para completar el reto
+            xp: { type: Number, default: 40 },
+            oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
+            avisarCanalId: { type: String, default: null },   // dónde felicitar al completarlo (null = el mismo)
+        },
+        // 6) Palabra secreta / caza del tesoro: el primero que escriba la palabra gana.
+        tesoro: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },         // null = cualquier canal
+            palabra: { type: String, default: '' },
+            xp: { type: Number, default: 60 },
+            oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
+            mensajeExito: { type: String, default: '🏆 ¡{user} ha encontrado la palabra secreta!' },
+            unaVez: { type: Boolean, default: true },          // se desactiva al primer acierto
+            encontrada: { type: Boolean, default: false },     // (interno) ya la encontró alguien
+            encontradaPor: { type: String, default: null },    // (interno) quién la encontró
+        },
+        // 7) Miembro de la semana: el más activo (por XP ganada) se lleva un rol
+        //    temporal y/o recompensa, un día fijo a la semana.
+        miembroSemana: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            rolId: { type: String, default: null },            // rol temporal para el ganador (opcional)
+            dia: { type: Number, default: 1 },                 // día de la semana (0=domingo … 6=sábado)
+            hora: { type: Number, default: 12 },               // hora UTC
+            xp: { type: Number, default: 200 },
+            oro: { type: Number, default: 0 },                 // (oculto en panel por ahora)
+            lastSemana: { type: String, default: '' },         // (interno) 'YYYY-Www' del último premio
+            ultimoGanador: { type: String, default: null },    // (interno) para retirarle el rol al siguiente
+        },
+        // 8) Tablón de logros: anuncia hitos automáticos del servidor (X miembros,
+        //    alguien llega a nivel Y…). Recuerda los ya anunciados para no repetir.
+        logros: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            hitosMiembros: { type: [Number], default: [100, 250, 500, 1000, 5000] },
+            hitosNivel: { type: [Number], default: [10, 25, 50, 100] },
+            anunciados: { type: [String], default: [] },       // (interno) claves de hitos ya celebrados
+        },
+    },
+
     // --- ACCESO Y PERMISOS ---
     rolesPanelAcceso: { type: [String], default: [] },  // roles que pueden entrar al panel web
     rolesModeracion: { type: [String], default: [] },   // roles que pueden moderar (panel + comandos)

@@ -8,6 +8,7 @@ const Sorteo = require('../models/Sorteo.js');
 const Evento = require('../models/Evento.js');
 const Sugerencia = require('../models/Sugerencia.js');
 const Presentacion = require('../models/Presentacion.js');
+const TriviaPregunta = require('../models/TriviaPregunta.js');
 const comunidad = require('../utils/comunidad.js');
 
 module.exports = function montarRutasComunidad(app, client) {
@@ -296,5 +297,93 @@ module.exports = function montarRutasComunidad(app, client) {
             await comunidad.publicarPanelPresentacion(client, req.params.guildId, config).catch(() => {});
             res.json({ success: true, config });
         } catch (e) { console.error('Config presentaciones:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+
+    // ===================== DINÁMICAS =====================
+    // Esquema de campos EDITABLES por dinámica (los de estado interno —idx, lastDia,
+    // proxima, encontrada…— se omiten a propósito para que el panel no los pise).
+    //   bool: activo/flags · int: [min,max,def] · str: texto (o null) · strArr / numArr.
+    const DINAMICAS_CAMPOS = {
+        qotd: { activo: 'bool', canalId: 'str', hora: [0, 23, 12], xp: [0, 100000, 50], oro: [0, 1000000, 0], mencionRolId: 'str', preguntas: 'strArr' },
+        gota: { activo: 'bool', canalId: 'str', cadaMin: [1, 10080, 120], ventanaSeg: [5, 3600, 60], xp: [0, 100000, 75], oro: [0, 1000000, 0], emoji: 'str' },
+        contador: { activo: 'bool', canalId: 'str', repetirUsuario: 'bool', xp: [0, 100000, 1], borrarErrores: 'bool' },
+        trivia: { activo: 'bool', canalId: 'str', hora: [0, 23, 18], xp: [0, 100000, 30], oro: [0, 1000000, 0], segundos: [5, 600, 30] },
+        reto: { activo: 'bool', canalId: 'str', objetivo: [1, 100000, 20], xp: [0, 100000, 40], oro: [0, 1000000, 0], avisarCanalId: 'str' },
+        tesoro: { activo: 'bool', canalId: 'str', palabra: 'str', xp: [0, 100000, 60], oro: [0, 1000000, 0], mensajeExito: 'str', unaVez: 'bool' },
+        miembroSemana: { activo: 'bool', canalId: 'str', rolId: 'str', dia: [0, 6, 1], hora: [0, 23, 12], xp: [0, 100000, 200], oro: [0, 1000000, 0] },
+        logros: { activo: 'bool', canalId: 'str', hitosMiembros: 'numArr', hitosNivel: 'numArr' },
+    };
+
+    function sanearCampo(tipo, valor) {
+        if (tipo === 'bool') return !!valor;
+        if (tipo === 'str') return (valor === '' || valor == null) ? null : String(valor).slice(0, 1000);
+        if (tipo === 'strArr') return (Array.isArray(valor) ? valor : []).map((v) => String(v).trim()).filter(Boolean).slice(0, 200);
+        if (tipo === 'numArr') return (Array.isArray(valor) ? valor : []).map((v) => parseInt(v, 10)).filter((n) => Number.isFinite(n) && n > 0).slice(0, 50);
+        if (Array.isArray(tipo)) { const [min, max, def] = tipo; const n = parseInt(valor, 10); return Number.isNaN(n) ? def : Math.min(max, Math.max(min, n)); }
+        return valor;
+    }
+
+    // Guarda la configuración de una o varias dinámicas. Acepta { qotd:{...}, ... }.
+    app.put('/api/config/:guildId/dinamicas', async (req, res) => {
+        try {
+            if (!puedeGestionar(req, req.params.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            const b = req.body || {};
+            const set = {};
+            for (const [dyn, campos] of Object.entries(DINAMICAS_CAMPOS)) {
+                const entrada = b[dyn];
+                if (!entrada || typeof entrada !== 'object') continue;
+                for (const [campo, tipo] of Object.entries(campos)) {
+                    if (entrada[campo] === undefined) continue;
+                    set[`dinamicas.${dyn}.${campo}`] = sanearCampo(tipo, entrada[campo]);
+                }
+                // Si cambian la palabra secreta o reactivan el tesoro, reiniciamos la caza.
+                if (dyn === 'tesoro' && (entrada.palabra !== undefined || entrada.activo === true)) {
+                    set['dinamicas.tesoro.encontrada'] = false;
+                    set['dinamicas.tesoro.encontradaPor'] = null;
+                }
+            }
+            if (!Object.keys(set).length) return res.status(400).json({ error: 'Nada que guardar' });
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (e) { console.error('Config dinámicas:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+
+    // ----- Banco de preguntas de Trivia -----
+    app.get('/api/trivia', async (req, res) => {
+        try { res.json(await TriviaPregunta.find(filtroGuild(req)).sort({ creadoFecha: -1 }).limit(500)); }
+        catch (e) { console.error('GET trivia:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
+    app.post('/api/trivia', async (req, res) => {
+        try {
+            const b = req.body || {};
+            const guildId = String(b.guildId || '');
+            if (!puedeGestionar(req, guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            const opciones = (Array.isArray(b.opciones) ? b.opciones : []).map((o) => String(o).trim()).filter(Boolean).slice(0, 4);
+            const correcta = parseInt(b.correcta, 10) || 0;
+            if (!b.pregunta || opciones.length < 2) return res.status(400).json({ error: 'Pon una pregunta y al menos 2 opciones' });
+            if (correcta < 0 || correcta >= opciones.length) return res.status(400).json({ error: 'Marca cuál es la opción correcta' });
+            const doc = await TriviaPregunta.create({
+                guildId,
+                pregunta: String(b.pregunta).slice(0, 300),
+                opciones,
+                correcta,
+                categoria: String(b.categoria || '').slice(0, 50),
+                creadoPor: (req.staff && req.staff.username) || 'Panel Web',
+            });
+            res.json({ success: true, pregunta: doc });
+        } catch (e) { console.error('POST trivia:', e.message); res.status(400).json({ error: 'No se pudo crear' }); }
+    });
+
+    app.delete('/api/trivia/:id', async (req, res) => {
+        try {
+            const p = await TriviaPregunta.findById(req.params.id);
+            if (!p) return res.status(404).json({ error: 'No encontrado' });
+            if (!puedeGestionar(req, p.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            await p.deleteOne();
+            res.json({ success: true });
+        } catch (e) { console.error('DELETE trivia:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 };

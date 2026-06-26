@@ -98,6 +98,7 @@ export function useDashboard() {
   const [encuestas, setEncuestas] = useState([]);
   const [sugerencias, setSugerencias] = useState([]);
   const [presentaciones, setPresentaciones] = useState([]);
+  const [trivia, setTrivia] = useState([]); // banco de preguntas de la dinámica Trivia
   // Productividad: anuncios programados + presets de anuncio.
   const [anuncios, setAnuncios] = useState([]);
   const [presetsAnuncio, setPresetsAnuncio] = useState([]);
@@ -810,6 +811,32 @@ export function useDashboard() {
     catch (error) { console.error('Error eliminando encuesta:', error); }
   };
 
+  // --- COMUNIDAD: dinámicas (config) + banco de trivia ---
+  const guardarDinamicas = async (cambios) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/dinamicas`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando dinámicas:', error); }
+    return false;
+  };
+  const cargarTrivia = () => apiFetch(`/api/trivia${gp()}`).then(procesarRespuesta).then((d) => setTrivia(Array.isArray(d) ? d : [])).catch(reportarError('cargando trivia'));
+  const crearTrivia = async (payload) => {
+    try {
+      const res = await apiFetch('/api/trivia', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json();
+      if (data.success) { await cargarTrivia(); return data; }
+      return { error: data.error || 'No se pudo crear' };
+    } catch (error) { console.error('Error creando pregunta de trivia:', error); return { error: 'Fallo de red' }; }
+  };
+  const eliminarTrivia = async (id) => {
+    try { const res = await apiFetch(`/api/trivia/${id}`, { method: 'DELETE' }); if (res.ok) await cargarTrivia(); }
+    catch (error) { console.error('Error eliminando pregunta de trivia:', error); }
+  };
+
   // --- COMUNIDAD: sugerencias ---
   const cargarSugerencias = () => apiFetch(`/api/sugerencias${gp()}`).then(procesarRespuesta).then((d) => setSugerencias(Array.isArray(d) ? d : [])).catch(reportarError('cargando sugerencias'));
   const actualizarSugerencia = async (id, datos) => {
@@ -1172,6 +1199,7 @@ export function useDashboard() {
     else if (activeTab === 'com-encuestas') { cargarEncuestas(); cargarCanales(); }
     else if (activeTab === 'com-sugerencias') { cargarSugerencias(); cargarCanales(); cargarConfiguracion(); }
     else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarConfiguracion(); }
+    else if (activeTab === 'com-dinamicas') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarTrivia(); }
     else if (activeTab === 'musica') { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
@@ -1239,6 +1267,8 @@ export function useDashboard() {
     encuestas, crearEncuesta, eliminarEncuesta, cargarEncuestas,
     sugerencias, actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias, cargarSugerencias,
     presentaciones, eliminarPresentacion, guardarConfigPresentaciones,
+    // comunidad: dinámicas (config + banco de trivia)
+    guardarDinamicas, trivia, cargarTrivia, crearTrivia, eliminarTrivia,
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,

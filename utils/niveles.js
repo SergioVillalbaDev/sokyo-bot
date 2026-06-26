@@ -123,6 +123,9 @@ async function aplicarXp(guild, member, ganada, cfg, canalFallback) {
         }
         await anunciar(guild, member, cfg, nivelNuevo, canalFallback, tarjeta).catch(() => {});
         await darRecompensas(guild, member, cfg, nivelNuevo).catch(() => {});
+        // Dinámicas · tablón de logros: celebra al primero que alcanza un nivel-hito.
+        // Require perezoso para evitar el ciclo niveles <-> dinamicas.
+        try { require('./dinamicas.js').comprobarLogroNivel(guild, member, nivelNuevo, cfg, canalFallback).catch(() => {}); } catch (_) { /* opcional */ }
     }
 }
 
@@ -201,4 +204,4 @@ async function darRecompensas(guild, member, cfg, nivel) {
     }
 }
 
-module.exports = { otorgarXp, otorgarXpVoz, progreso, nivelDeXp, xpDeNivel, xpTotalParaNivel, opcionesTarjeta, adjuntoTarjeta, construirBuffer };
+module.exports = { otorgarXp, otorgarXpVoz, aplicarXp, progreso, nivelDeXp, xpDeNivel, xpTotalParaNivel, opcionesTarjeta, adjuntoTarjeta, construirBuffer };

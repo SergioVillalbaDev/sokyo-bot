@@ -7,7 +7,7 @@ import {
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
   UserCheck, Flag, DatabaseBackup, FlaskConical,
   Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
-  Music, Webhook, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList,
+  Music, Webhook, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2,
 } from 'lucide-react';
 
 // Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
@@ -51,6 +51,7 @@ export const navGroups = [
       { tab: 'com-encuestas', icon: BarChart2 },
       { tab: 'com-sugerencias', icon: Lightbulb },
       { tab: 'com-presentaciones', icon: ClipboardList },
+      { tab: 'com-dinamicas', icon: Gamepad2 },
     ],
   },
   {

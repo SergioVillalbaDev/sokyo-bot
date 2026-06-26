@@ -49,6 +49,7 @@ import EventosView from './views/EventosView';
 import EncuestasView from './views/EncuestasView';
 import SugerenciasView from './views/SugerenciasView';
 import PresentacionesView from './views/PresentacionesView';
+import DinamicasView from './views/DinamicasView';
 
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
@@ -124,6 +125,7 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'com-encuestas') return <EncuestasView dash={dash} />;
     if (activeTab === 'com-sugerencias') return <SugerenciasView dash={dash} />;
     if (activeTab === 'com-presentaciones') return <PresentacionesView dash={dash} />;
+    if (activeTab === 'com-dinamicas') return <DinamicasView dash={dash} />;
     if (activeTab === 'musica') return <MusicaView dash={dash} />;
     if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <ResumenView dash={dash} />;

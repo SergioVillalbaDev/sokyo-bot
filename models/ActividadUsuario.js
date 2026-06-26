@@ -21,6 +21,16 @@ const ActividadUsuarioSchema = new mongoose.Schema({
     xp: { type: Number, default: 0 },
     nivel: { type: Number, default: 0 },
     ultimoXp: { type: Date, default: null }, // cooldown para no farmear XP con spam
+
+    // Dinámicas · Reto diario / racha (lo actualiza utils/dinamicas.js).
+    retoDia: { type: String, default: '' },      // 'YYYY-MM-DD' del reto en curso
+    retoConteo: { type: Number, default: 0 },    // mensajes contados hoy hacia el objetivo
+    retoCompletado: { type: Boolean, default: false }, // ¿ya se llevó la recompensa hoy?
+    retoRacha: { type: Number, default: 0 },     // días seguidos completando el reto
+
+    // Dinámicas · Trivia (ranking semanal).
+    triviaSemana: { type: String, default: '' }, // 'YYYY-Www' de la puntuación actual
+    triviaPuntos: { type: Number, default: 0 },  // aciertos en la semana en curso
 }, { timestamps: true });
 
 ActividadUsuarioSchema.index({ guildId: 1, userId: 1 }, { unique: true });

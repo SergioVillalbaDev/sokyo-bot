@@ -15,6 +15,7 @@ const Sancion = require('../models/Sancion.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { enviarResumen } = require('./resumenDiario.js');
 const { barrerComunidad } = require('./comunidad.js');
+const { barrerDinamicas } = require('./dinamicas.js');
 
 // Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -111,6 +112,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await enviarAnunciosPendientes(client); } catch (e) { console.error('Programador (anuncios):', e.message); }
         try { await enviarRecordatoriosPendientes(client); } catch (e) { console.error('Programador (recordatorios):', e.message); }
         try { await barrerComunidad(client); } catch (e) { console.error('Programador (comunidad):', e.message); }
+        try { await barrerDinamicas(client); } catch (e) { console.error('Programador (dinámicas):', e.message); }
     };
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
