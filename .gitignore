@@ -14,3 +14,6 @@ api/uploads/*
 lavalink/Lavalink.jar
 lavalink/plugins/
 lavalink/logs/
+
+# Copias de seguridad de la base de datos: llevan datos de clientes, NUNCA a git.
+backups/
