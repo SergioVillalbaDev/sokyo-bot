@@ -120,7 +120,7 @@ export default {
           name: 'Sokyo Agencia', price: '25€', period: '/mes',
           desc: 'Para quien gestiona varios servidores.',
           cta: 'Quiero Agencia',
-          features: ['Todo lo del plan Pro', 'Varios servidores', 'Bot con tu nombre y avatar', 'Marca 100% blanca', 'Soporte dedicado'],
+          features: ['Todo lo del plan Pro', 'Pro activo en varios servidores', 'Configuración inicial a medida', 'Soporte dedicado y prioritario'],
         },
       },
     },
@@ -717,11 +717,11 @@ export default {
         },
         pro: {
           name: 'Sokyo Pro', desc: 'Para servidores que van en serio.',
-          features: ['Todo lo del plan Free', 'Sin la marca Sokyo', 'Tarjetas animadas y temas premium', 'Automod y seguridad al completo', 'Transcripts en HTML/PDF', 'Estadísticas avanzadas', 'Soporte prioritario'],
+          features: ['Todo lo del plan Free', 'Sin la marca Sokyo', 'Tarjetas animadas y temas premium', 'Automod y seguridad al completo', 'Transcripts en HTML', 'Estadísticas avanzadas', 'Soporte prioritario'],
         },
         agency: {
           name: 'Sokyo Agencia', desc: 'Para quien gestiona varios servidores.',
-          features: ['Todo lo del plan Pro', 'Varios servidores', 'Bot con tu nombre y avatar', 'Marca 100% blanca', 'Soporte dedicado'],
+          features: ['Todo lo del plan Pro', 'Pro activo en varios servidores', 'Configuración inicial a medida', 'Soporte dedicado y prioritario'],
         },
       },
     },

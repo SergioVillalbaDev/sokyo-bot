@@ -120,7 +120,7 @@ export default {
           name: 'Sokyo Agency', price: '€25', period: '/mo',
           desc: 'For those managing several servers.',
           cta: 'Go Agency',
-          features: ['Everything in Pro', 'Multiple servers', 'Bot with your name & avatar', '100% white-label', 'Dedicated support'],
+          features: ['Everything in Pro', 'Pro active on multiple servers', 'Custom initial setup', 'Dedicated priority support'],
         },
       },
     },
@@ -717,11 +717,11 @@ export default {
         },
         pro: {
           name: 'Sokyo Pro', desc: 'For servers that mean business.',
-          features: ['Everything in Free', 'No Sokyo branding', 'Animated rank cards & premium themes', 'Full automod & security', 'HTML/PDF transcripts', 'Advanced analytics', 'Priority support'],
+          features: ['Everything in Free', 'No Sokyo branding', 'Animated rank cards & premium themes', 'Full automod & security', 'HTML transcripts', 'Advanced analytics', 'Priority support'],
         },
         agency: {
           name: 'Sokyo Agency', desc: 'For those managing several servers.',
-          features: ['Everything in Pro', 'Multiple servers', 'Bot with your name & avatar', '100% white-label', 'Dedicated support'],
+          features: ['Everything in Pro', 'Pro active on multiple servers', 'Custom initial setup', 'Dedicated priority support'],
         },
       },
     },
