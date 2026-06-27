@@ -36,7 +36,7 @@ function sello() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
-// Avisa por Discord (si hay webhook). Nunca tumba el backup si el aviso falla.
+// Avisa por Discord (solo texto). Para los errores, donde no hay archivo que subir.
 async function avisar(texto) {
   if (!WEBHOOK) return;
   try {
@@ -47,6 +47,29 @@ async function avisar(texto) {
     });
   } catch {
     /* el aviso es secundario: si falla, no pasa nada */
+  }
+}
+
+// Sube la COPIA al canal de Discord del webhook (copia externa: si muere la SD
+// de la Pi, el archivo sigue a salvo en Discord). Discord limita los adjuntos a
+// ~25 MB; si la copia es mayor, avisa pero no la adjunta.
+async function subirCopia(rutaArchivo, texto) {
+  if (!WEBHOOK) return;
+  const MAX = 24 * 1024 * 1024; // margen por debajo del límite de Discord
+  try {
+    const form = new FormData();
+    if (fs.statSync(rutaArchivo).size <= MAX) {
+      const buf = fs.readFileSync(rutaArchivo);
+      form.append('payload_json', JSON.stringify({ content: texto }));
+      form.append('files[0]', new Blob([buf]), path.basename(rutaArchivo));
+    } else {
+      form.append('payload_json', JSON.stringify({
+        content: `${texto}\n⚠️ Copia demasiado grande para adjuntar a Discord; queda solo en la Pi. Configura una copia externa dedicada.`,
+      }));
+    }
+    await fetch(WEBHOOK, { method: 'POST', body: form });
+  } catch {
+    /* la copia externa es un extra: si falla, la copia local ya está hecha */
   }
 }
 
@@ -107,7 +130,7 @@ function rotar() {
 
   const resumen = `✅ Backup OK · ${totalDocs} docs en ${colecciones.length} colecciones · ${mb} MB · ${path.basename(archivo)}${borradas ? ` · ${borradas} copia(s) vieja(s) borrada(s)` : ''}`;
   console.log(resumen);
-  await avisar(`🟢 **Sokyo** ${resumen}`);
+  await subirCopia(archivo, `🟢 **Sokyo** ${resumen}`);
   process.exit(0);
 })().catch(async (err) => {
   console.error('🔴 Error en el backup:', err.message);
