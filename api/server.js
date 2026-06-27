@@ -1652,7 +1652,8 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
             const canal = guild.channels.cache.get(String(req.body.canalId || ''));
             if (!canal || !canal.isTextBased()) return res.status(400).json({ error: 'Canal no válido' });
-            const payload = construirMensaje(req.body.contenido, sanearEmbed(req.body.embed), uploadsDir);
+            const cfg = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean().catch(() => null);
+            const payload = construirMensaje(req.body.contenido, sanearEmbed(req.body.embed), uploadsDir, cfg);
             if (!payload.content && !payload.embeds) return res.status(400).json({ error: 'El mensaje está vacío' });
             const msg = await canal.send(payload);
             res.json({ success: true, mensajeId: msg.id });

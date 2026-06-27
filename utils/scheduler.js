@@ -39,7 +39,8 @@ async function enviarAnunciosPendientes(client) {
         try {
             const canal = await client.channels.fetch(a.canalId).catch(() => null);
             if (canal && canal.isTextBased()) {
-                const payload = construirMensaje(a.contenido, a.embed, UPLOADS_DIR);
+                const cfg = await ServidorConfig.findOne({ guildId: a.guildId }).lean().catch(() => null);
+                const payload = construirMensaje(a.contenido, a.embed, UPLOADS_DIR, cfg);
                 if (payload.content || payload.embeds) await canal.send(payload);
             }
         } catch (e) {

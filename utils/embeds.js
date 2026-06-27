@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { garantizarMarca, lineaMarcaTexto } = require('./marca.js');
 
 // Pasa "#5865F2" (o un número) a un entero de color válido, o null si no lo es.
 function normalizarColor(c) {
@@ -105,10 +106,12 @@ function construirEmbed(e) {
 
 // Arma el payload de un mensaje: { content?, embeds?, files? }. Vacío si no hay nada.
 // `uploadsDir` (opcional) es la carpeta de /uploads para adjuntar imágenes subidas.
-function construirMensaje(contenido, e, uploadsDir) {
+// `cfg` (opcional) activa la MARCA BLANCA: si se pasa, los mensajes de servidores
+// Free llevan "Powered by Sokyo" (en el footer del embed o al final del texto) y
+// los de pago no. Si no se pasa cfg, el mensaje sale tal cual (sin marca).
+function construirMensaje(contenido, e, uploadsDir, cfg) {
     const payload = {};
-    const txt = String(contenido || '').slice(0, 2000);
-    if (txt) payload.content = txt;
+    let txt = String(contenido || '').slice(0, 2000);
     const embed = construirEmbed(e);
     if (embed) {
         const files = [];
@@ -123,15 +126,23 @@ function construirMensaje(contenido, e, uploadsDir) {
             if (ic) opt.iconURL = ic;
             embed.setAuthor(opt);
         }
-        if (e && e.footer) {
-            const opt = { text: String(e.footer).slice(0, 2048) };
-            const ic = resolverImagenRef(e.footerIconoArchivo, e.footerIconoUrl, uploadsDir, files);
+        // Footer del usuario + marca garantizada para Free (solo si se pasó cfg).
+        const footerText = cfg
+            ? garantizarMarca(e && e.footer, cfg)
+            : (e && e.footer ? String(e.footer).slice(0, 2048) : '');
+        if (footerText) {
+            const opt = { text: String(footerText).slice(0, 2048) };
+            const ic = resolverImagenRef(e && e.footerIconoArchivo, e && e.footerIconoUrl, uploadsDir, files);
             if (ic) opt.iconURL = ic;
             embed.setFooter(opt);
         }
         payload.embeds = [embed];
         if (files.length) payload.files = files;
+    } else if (cfg && txt) {
+        // Mensaje de solo texto: la marca de Free se añade al final (vacío para Pro).
+        txt = `${txt}${lineaMarcaTexto(cfg)}`.slice(0, 2000);
     }
+    if (txt) payload.content = txt;
     return payload;
 }
 

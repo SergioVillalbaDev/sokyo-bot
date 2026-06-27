@@ -12,12 +12,22 @@ const { esPro } = require('./billing.js');
 
 const MARCA = 'Powered by Sokyo';
 
-// Texto del footer de marca para un embed del sistema (o null si no procede).
-function pieMarca(cfg) {
-    const propio = (cfg && cfg.footerPersonalizado) ? String(cfg.footerPersonalizado).trim() : '';
-    if (esPro(cfg)) return propio || null;            // de pago: su marca (o ninguna)
-    if (!propio) return MARCA;                         // free sin footer: marca Sokyo
+// A partir de un footer ya existente, devuelve el footer final con la marca
+// garantizada para Free (o null si no procede). Reutilizable: lo usan tanto los
+// embeds del sistema como el Creador de Anuncios / auto-respuestas (donde el
+// footer lo escribe el propio usuario en el embed).
+//   · Free  -> garantiza "Powered by Sokyo" (lo añade si falta).
+//   · Pro / Agencia -> respeta el footer que haya (su marca), o nada.
+function garantizarMarca(footerActual, cfg) {
+    const propio = String(footerActual || '').trim();
+    if (esPro(cfg)) return propio || null;             // de pago: su marca (o ninguna)
+    if (!propio) return MARCA;                          // free sin footer: marca Sokyo
     return /sokyo/i.test(propio) ? propio : `${propio} · ${MARCA}`; // free con footer: garantiza la marca
+}
+
+// Texto del footer de marca para un embed del SISTEMA (usa el footer del config).
+function pieMarca(cfg) {
+    return garantizarMarca(cfg && cfg.footerPersonalizado, cfg);
 }
 
 // Aplica el footer de marca a un EmbedBuilder (si procede). Devuelve el mismo embed.
@@ -32,4 +42,4 @@ function lineaMarcaTexto(cfg) {
     return esPro(cfg) ? '' : `\n— ${MARCA}\n`;
 }
 
-module.exports = { pieMarca, aplicarPieMarca, lineaMarcaTexto, MARCA };
+module.exports = { garantizarMarca, pieMarca, aplicarPieMarca, lineaMarcaTexto, MARCA };

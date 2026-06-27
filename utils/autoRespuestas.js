@@ -30,8 +30,8 @@ async function revisarAutoRespuestas(message, cfg) {
 
         try {
             const payload = ar.comoEmbed
-                ? construirMensaje('', { descripcion: ar.respuesta, color: '#5865F2' })
-                : { content: String(ar.respuesta).slice(0, 2000) };
+                ? construirMensaje('', { descripcion: ar.respuesta, color: '#5865F2' }, undefined, cfg)
+                : construirMensaje(String(ar.respuesta), null, undefined, cfg);
             await message.channel.send(payload);
             if (ar.eliminarMensaje) await message.delete().catch(() => {});
         } catch (e) {
