@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const { ChannelType, PermissionsBitField, AttachmentBuilder } = require('discord.js');
@@ -95,6 +96,24 @@ module.exports = (client) => {
     });
 
     app.use(express.json({ limit: '12mb' })); // suficiente para imágenes/gifs en base64
+
+    // --- HEALTH-CHECK (público, sin login ni rate-limit) ---
+    // Pensado para un monitor externo (UptimeRobot, healthchecks.io…) que lo
+    // consulte cada pocos minutos y avise si algo se cae. Devuelve 200 solo si
+    // TODO está sano: servidor vivo + base de datos conectada + bot en Discord.
+    // Si Mongo o Discord están caídos devuelve 503 → el monitor te alerta.
+    app.get('/api/health', (req, res) => {
+        const mongoOk = mongoose.connection.readyState === 1; // 1 = conectado
+        const discordOk = !!(client && typeof client.isReady === 'function' && client.isReady());
+        const ok = mongoOk && discordOk;
+        res.status(ok ? 200 : 503).json({
+            ok,
+            uptime: Math.round(process.uptime()),
+            mongo: mongoOk ? 'up' : 'down',
+            discord: discordOk ? 'up' : 'down',
+            ts: new Date().toISOString(),
+        });
+    });
 
     // Carpeta donde se guardan las imágenes subidas para los paneles, servida públicamente.
     const uploadsDir = path.join(__dirname, 'uploads');
