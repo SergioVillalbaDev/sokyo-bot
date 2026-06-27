@@ -7,7 +7,7 @@ import { Crown, Check, Sparkles, ExternalLink, AlertCircle, Loader2 } from 'luci
 // Precios de ESCAPARATE (deben coincidir con los precios que crees en Stripe).
 const PRECIO = {
   free: { month: '0€', year: '0€' },
-  pro: { month: '5€', year: '50€' },
+  pro: { month: '7€', year: '70€' },
   agency: { month: '25€', year: '250€' },
 };
 

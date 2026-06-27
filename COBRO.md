@@ -16,14 +16,14 @@ igual). Esta es la receta para encenderlo.
 1. Entra en **https://dashboard.stripe.com** y crea la cuenta.
 2. Arriba a la derecha, activa **"Test mode"** (modo de prueba).
 3. Ve a **Productos → Añadir producto** y crea **dos productos**:
-   - **Sokyo Pro** — añade dos precios: **5 €/mes** y **50 €/año** (recurrentes).
+   - **Sokyo Pro** — añade dos precios: **7 €/mes** y **70 €/año** (recurrentes).
      (Opcional: un tercer precio de **pago único** para "de por vida".)
    - **Sokyo Agencia** — precios **25 €/mes** y **250 €/año** (recurrentes).
 4. En cada precio, copia su **ID** (empieza por `price_...`).
 
 > ⚠️ Los importes deben **coincidir** con los del panel
 > (`sokyo-panelFRONTEND/src/components/dashboard/views/PlanesView.jsx`, constante
-> `PRECIO`): pro 5/50, agency 25/250. Si cambias los precios, cámbialos en ambos sitios.
+> `PRECIO`): pro 7/70, agency 25/250. Si cambias los precios, cámbialos en ambos sitios.
 
 ## 2. Pega los IDs y la clave en el `.env`
 

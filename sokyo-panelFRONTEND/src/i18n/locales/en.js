@@ -111,7 +111,7 @@ export default {
           features: ['Full ticket system', 'Web panel + client Portal', 'Basic automod & security', 'Levels, economy & commands', 'Includes Sokyo branding'],
         },
         pro: {
-          name: 'Sokyo Pro', price: '€5', period: '/mo',
+          name: 'Sokyo Pro', price: '€7', period: '/mo',
           desc: 'For servers that mean business.',
           cta: 'Upgrade to Pro',
           features: ['Everything in Free', 'No Sokyo branding (white-label)', 'Animated rank cards & premium themes', 'Full automod & security', 'Unlimited panels, FAQs & announcements', 'Advanced statistics', 'Priority support'],
