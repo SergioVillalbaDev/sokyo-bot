@@ -1,5 +1,6 @@
 // Vista de Música (panel admin): reproductor en vivo · config · playlists propias · Spotify OAuth.
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Music, Save, Check, Play, Pause, SkipForward, Square, Volume2, Shuffle,
   Plus, Trash2, Search, X, ChevronRight, ChevronDown, Crown,
@@ -49,6 +50,7 @@ function MsgBanner({ msg }) {
 }
 
 export default function MusicaView({ dash }) {
+  const { t } = useTranslation();
   const { configServidor, roles, canales, guildId, guardarMusica, esPremium } = dash;
 
   // ── Config form ──
@@ -196,16 +198,16 @@ export default function MusicaView({ dash }) {
       if (data.error) { setPlMsg({ tipo: 'err', texto: data.error }); return; }
       setNuevaNombre('');
       setPlaylists((prev) => [data, ...(prev || [])]);
-    } catch { setPlMsg({ tipo: 'err', texto: 'No se pudo crear la playlist.' }); }
+    } catch { setPlMsg({ tipo: 'err', texto: t('dashboard.music_v.errCreate') }); }
   };
 
   const borrarPlaylist = async (id) => {
-    if (!confirm('¿Borrar esta playlist?')) return;
+    if (!confirm(t('dashboard.music_v.confirmDeletePlaylist'))) return;
     try {
       await apiFetch(`/api/portal/playlists/${id}`, { method: 'DELETE' });
       setPlaylists((prev) => prev?.filter((p) => p._id !== id) ?? []);
       if (playlistActiva?._id === id) setPlaylistActiva(null);
-    } catch { setPlMsg({ tipo: 'err', texto: 'No se pudo borrar.' }); }
+    } catch { setPlMsg({ tipo: 'err', texto: t('dashboard.music_v.errDelete') }); }
   };
 
   const togglePlaylist = async (id) => {
@@ -222,7 +224,7 @@ export default function MusicaView({ dash }) {
       setPlaylistActiva(data);
       setBusquedaCancion('');
       setResultadosBusqueda([]);
-    } catch { setPlMsg({ tipo: 'err', texto: 'No se pudo cargar la playlist.' }); }
+    } catch { setPlMsg({ tipo: 'err', texto: t('dashboard.music_v.errLoadPl') }); }
   };
 
   const reproducirPlaylist = async (id) => {
@@ -231,8 +233,8 @@ export default function MusicaView({ dash }) {
       const data = await r.json();
       setPlMsg(data.error
         ? { tipo: 'err', texto: data.error }
-        : { tipo: 'ok', texto: `▶ "${data.nombre}" — ${data.anadidas} canciones añadidas` });
-    } catch { setPlMsg({ tipo: 'err', texto: 'No se pudo reproducir.' }); }
+        : { tipo: 'ok', texto: t('dashboard.music_v.playMsg', { name: data.nombre, count: data.anadidas }) });
+    } catch { setPlMsg({ tipo: 'err', texto: t('dashboard.music_v.errPlay') }); }
   };
 
   const quitarCancion = async (idx) => {
@@ -244,7 +246,7 @@ export default function MusicaView({ dash }) {
       const nuevas = playlistActiva.canciones.filter((_, i) => i !== idx);
       setPlaylistActiva((prev) => ({ ...prev, canciones: nuevas }));
       setPlaylists((prev) => prev?.map((p) => p._id === playlistActiva._id ? { ...p, total: nuevas.length } : p) ?? prev);
-    } catch { setPlMsg({ tipo: 'err', texto: 'No se pudo quitar la canción.' }); }
+    } catch { setPlMsg({ tipo: 'err', texto: t('dashboard.music_v.errRemoveSong') }); }
   };
 
   const buscarCancion = useCallback((q) => {
@@ -282,8 +284,8 @@ export default function MusicaView({ dash }) {
       setPlaylists((prev) => prev?.map((p) => p._id === playlistActiva._id ? { ...p, total: p.total + 1 } : p) ?? prev);
       setBusquedaCancion('');
       setResultadosBusqueda([]);
-      setPlMsg({ tipo: 'ok', texto: `"${track.title}" añadida` });
-    } catch { setPlMsg({ tipo: 'err', texto: 'No se pudo añadir la canción.' }); }
+      setPlMsg({ tipo: 'ok', texto: t('dashboard.music_v.songAdded', { title: track.title }) });
+    } catch { setPlMsg({ tipo: 'err', texto: t('dashboard.music_v.errAddSong') }); }
   };
 
   // ══════════════════════════════════════════════
@@ -313,17 +315,17 @@ export default function MusicaView({ dash }) {
       const timer = setInterval(() => {
         if (!popup || popup.closed) { clearInterval(timer); cargarSpotifyStatus(); }
       }, 1000);
-    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudo obtener la URL de Spotify.' }); }
+    } catch { setSpMsg({ tipo: 'err', texto: t('dashboard.music_v.errSpotifyUrl') }); }
   };
 
   const desconectarSpotify = async () => {
-    if (!confirm('¿Desconectar tu cuenta de Spotify?')) return;
+    if (!confirm(t('dashboard.music_v.confirmDisconnect'))) return;
     try {
       await apiFetch('/api/portal/spotify/disconnect', { method: 'DELETE' });
       setSpotifyStatus((s) => ({ ...s, conectado: false, spotifyUsername: null }));
       setSpotifyPlaylists(null);
-      setSpMsg({ tipo: 'ok', texto: 'Spotify desconectado.' });
-    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudo desconectar.' }); }
+      setSpMsg({ tipo: 'ok', texto: t('dashboard.music_v.msgSpotifyDisconnected') });
+    } catch { setSpMsg({ tipo: 'err', texto: t('dashboard.music_v.errDisconnect') }); }
   };
 
   const cargarSpotifyPlaylists = async () => {
@@ -333,7 +335,7 @@ export default function MusicaView({ dash }) {
       const data = await r.json();
       if (data.error) { setSpMsg({ tipo: 'err', texto: data.error }); }
       else setSpotifyPlaylists(Array.isArray(data) ? data : []);
-    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudieron cargar las playlists.' }); }
+    } catch { setSpMsg({ tipo: 'err', texto: t('dashboard.music_v.errLoadPlaylists') }); }
     setCargandoSpotify(false);
   };
 
@@ -349,10 +351,10 @@ export default function MusicaView({ dash }) {
       const data = await r.json();
       if (data.error) { setSpMsg({ tipo: 'err', texto: data.error }); }
       else {
-        setSpMsg({ tipo: 'ok', texto: `"${data.nombre}" importada con ${data.total} canciones` });
+        setSpMsg({ tipo: 'ok', texto: t('dashboard.music_v.importedMsg', { name: data.nombre, total: data.total }) });
         setPlaylists(null); // forzar recarga de playlists propias al cambiar de tab
       }
-    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudo importar la playlist.' }); }
+    } catch { setSpMsg({ tipo: 'err', texto: t('dashboard.music_v.errImport') }); }
     setImportando((s) => { const n = new Set(s); n.delete(pl.id); return n; });
   };
 
@@ -366,7 +368,7 @@ export default function MusicaView({ dash }) {
       const data = await r.json();
       setSpMsg(data.error
         ? { tipo: 'err', texto: data.error }
-        : { tipo: 'ok', texto: `▶ ${etiqueta} añadida a la cola del bot` });
+        : { tipo: 'ok', texto: t('dashboard.music_v.spotifyAddedQueue', { label: etiqueta }) });
     } catch { setSpMsg({ tipo: 'err', texto: 'No se pudo reproducir.' }); }
   };
 
@@ -377,7 +379,7 @@ export default function MusicaView({ dash }) {
       const data = await r.json();
       if (data.error) setSpMsg({ tipo: 'err', texto: data.error });
       else setLiked(data);
-    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudieron cargar tus me gusta.' }); }
+    } catch { setSpMsg({ tipo: 'err', texto: t('dashboard.music_v.errLoadLiked') }); }
     setCargandoLiked(false);
   };
 
@@ -388,15 +390,15 @@ export default function MusicaView({ dash }) {
       const r = await apiFetch('/api/portal/spotify/liked/importar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: 'Mis me gusta de Spotify' }),
+        body: JSON.stringify({ nombre: t('dashboard.music_v.likedName') }),
       });
       const data = await r.json();
       if (data.error) setSpMsg({ tipo: 'err', texto: data.error });
       else {
-        setSpMsg({ tipo: 'ok', texto: `"${data.nombre}" importada con ${data.total} canciones` });
+        setSpMsg({ tipo: 'ok', texto: t('dashboard.music_v.importedMsg', { name: data.nombre, total: data.total }) });
         setPlaylists(null); // recargar playlists propias al volver a esa pestaña
       }
-    } catch { setSpMsg({ tipo: 'err', texto: 'No se pudieron importar tus me gusta.' }); }
+    } catch { setSpMsg({ tipo: 'err', texto: t('dashboard.music_v.errImportLiked') }); }
     setImportandoLiked(false);
   };
 
@@ -404,7 +406,7 @@ export default function MusicaView({ dash }) {
   // RENDER
   // ══════════════════════════════════════════════
 
-  if (!f) return <p className="text-muted">Cargando…</p>;
+  if (!f) return <p className="text-muted">{t('dashboard.music_v.loading')}</p>;
 
   const actual = estado?.actual;
 
@@ -415,10 +417,10 @@ export default function MusicaView({ dash }) {
       <Card data-help="musica-player" className={card}>
         <div className="mb-4 flex items-center gap-2">
           <Music size={18} style={{ color: VERDE }} />
-          <h3 className="text-lg font-bold text-fg">Sonando ahora</h3>
+          <h3 className="text-lg font-bold text-fg">{t('dashboard.music_v.nowPlaying')}</h3>
           {estado?.canalVoz && <span className="text-sm text-muted">· 🔊 {estado.canalVoz.nombre}</span>}
           {esPremium && f.autoplay === 'repetir' && (
-            <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">🔁 Repetir</span>
+            <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">🔁 {t('dashboard.music_v.repeat')}</span>
           )}
           {esPremium && f.autoplay === 'aleatorio' && (
             <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">🎲 Autoplay</span>
@@ -442,7 +444,7 @@ export default function MusicaView({ dash }) {
                   }} />
                 </div>
                 <div className="mt-1 flex justify-between text-xs text-muted">
-                  <span>{actual.isStream ? 'EN DIRECTO' : fmt(estado.posicion)}</span>
+                  <span>{actual.isStream ? t('dashboard.music_v.live') : fmt(estado.posicion)}</span>
                   <span>{actual.isStream ? '🔴' : fmt(actual.duration)}</span>
                 </div>
               </div>
@@ -467,7 +469,7 @@ export default function MusicaView({ dash }) {
 
             {estado.cola?.length > 0 && (
               <div className="mt-4 space-y-1.5">
-                <div className="text-sm font-bold text-muted">En cola ({estado.cola.length})</div>
+                <div className="text-sm font-bold text-muted">{t('dashboard.music_v.queue')} ({estado.cola.length})</div>
                 {estado.cola.slice(0, 8).map((c, i) => (
                   <div key={i} className="flex items-center gap-2 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm">
                     <span className="w-5 text-center font-bold text-muted">{i + 1}</span>
@@ -480,18 +482,16 @@ export default function MusicaView({ dash }) {
             )}
           </>
         ) : (
-          <p className="py-6 text-center text-muted">
-            No hay nada sonando. Cuando alguien ponga música la verás aquí en directo.
-          </p>
+          <p className="py-6 text-center text-muted">{t('dashboard.music_v.nothingPlaying')}</p>
         )}
       </Card>
 
       {/* ── TABS ── */}
       <div data-help="musica-tabs" className="flex border-b border-line">
         {[
-          ['config', 'Configuración'],
-          ['playlists', 'Mis Playlists'],
-          ...(esOwner ? [['spotify', 'Spotify']] : []),
+          ['config', t('dashboard.music_v.tabConfig')],
+          ['playlists', t('dashboard.music_v.tabPlaylists')],
+          ...(esOwner ? [['spotify', t('dashboard.music_v.tabSpotify')]] : []),
         ].map(([tabKey, tabLabel]) => (
           <button key={tabKey} onClick={() => setTab(tabKey)}
             className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === tabKey ? 'text-fg' : 'border-transparent text-muted hover:text-fg'}`}
@@ -504,98 +504,98 @@ export default function MusicaView({ dash }) {
       {/* ══ TAB CONFIGURACIÓN ══ */}
       {tab === 'config' && (
         <Card data-help="musica-config" className={card}>
-          <h3 className="mb-2 text-lg font-bold text-fg">Configuración del reproductor</h3>
+          <h3 className="mb-2 text-lg font-bold text-fg">{t('dashboard.music_v.configTitle')}</h3>
 
-          <Ajuste titulo="Música activada" desc="Interruptor general. Si lo apagas, nadie puede poner música.">
+          <Ajuste titulo={t('dashboard.music_v.musicOn')} desc={t('dashboard.music_v.musicOnDesc')}>
             <Toggle checked={f.activo} onChange={(v) => set('activo', v)} />
           </Ajuste>
 
-          <Ajuste titulo="Canal de música"
-            desc="Dónde se publica el panel 'reproduciendo ahora' con sus botones. Vacío = el canal donde se use /play.">
+          <Ajuste titulo={t('dashboard.music_v.channel')}
+            desc={t('dashboard.music_v.channelDesc')}>
             <select value={f.canalMusicaId} onChange={(e) => set('canalMusicaId', e.target.value)}
               className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg">
-              <option value="">Automático</option>
+              <option value="">{t('dashboard.music_v.auto')}</option>
               {(canales || []).map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
             </select>
           </Ajuste>
 
-          <Ajuste titulo="Rol DJ" desc="Si eliges un rol, solo ese rol (y los admins) controlan la música.">
+          <Ajuste titulo={t('dashboard.music_v.djRole')} desc={t('dashboard.music_v.djRoleDesc')}>
             <select value={f.djRolId} onChange={(e) => set('djRolId', e.target.value)}
               className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg">
-              <option value="">Cualquiera</option>
+              <option value="">{t('dashboard.music_v.anyone')}</option>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
             </select>
           </Ajuste>
 
-          <Ajuste titulo="Solo en el mismo canal" desc="Hay que estar en el mismo canal de voz que el bot para controlar.">
+          <Ajuste titulo={t('dashboard.music_v.sameChannel')} desc={t('dashboard.music_v.sameChannelDesc')}>
             <Toggle checked={f.soloMismoCanal} onChange={(v) => set('soloMismoCanal', v)} />
           </Ajuste>
 
-          <Ajuste titulo="Permitir playlists" desc="Dejar que se encolen playlists enteras de una vez.">
+          <Ajuste titulo={t('dashboard.music_v.allowPlaylists')} desc={t('dashboard.music_v.allowPlaylistsDesc')}>
             <Toggle checked={f.permitirPlaylists} onChange={(v) => set('permitirPlaylists', v)} />
           </Ajuste>
 
-          <Ajuste titulo="Anunciar 'reproduciendo ahora'" desc="Mandar un mensaje en Discord cada vez que empieza una canción.">
+          <Ajuste titulo={t('dashboard.music_v.announce')} desc={t('dashboard.music_v.announceDesc')}>
             <Toggle checked={f.anunciarAhora} onChange={(v) => set('anunciarAhora', v)} />
           </Ajuste>
 
-          <Ajuste titulo="Salir solo del canal" desc="Desconectarse al quedarse sin gente o sin cola.">
+          <Ajuste titulo={t('dashboard.music_v.autoLeave')} desc={t('dashboard.music_v.autoLeaveDesc')}>
             <Toggle checked={f.autoSalir} onChange={(v) => set('autoSalir', v)} />
           </Ajuste>
 
           <Ajuste
             titulo={(
               <span className="flex items-center gap-1.5">
-                Modo 24/7
+                {t('dashboard.music_v.mode247')}
                 <span className="inline-flex items-center gap-1 rounded-full bg-gradient-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">
                   <Crown size={10} /> Pro
                 </span>
               </span>
             )}
             desc={esPremium
-              ? 'El bot se queda en el canal aunque se vacíe la cola o el canal de voz. También puedes activarlo con /247.'
-              : 'Extra del plan Pro: el bot no sale del canal. Puedes dejarlo activado ahora; funcionará en cuanto subas a Pro.'}>
+              ? t('dashboard.music_v.mode247DescPremium')
+              : t('dashboard.music_v.mode247DescFree')}>
             <Toggle checked={f.modo247} onChange={(v) => set('modo247', v)} />
           </Ajuste>
 
           <Ajuste
             titulo={(
               <span className="flex items-center gap-1.5">
-                Autoplay al acabar la cola
+                {t('dashboard.music_v.autoplayLabel')}
                 <span className="inline-flex items-center gap-1 rounded-full bg-gradient-brand px-2 py-0.5 text-[10px] font-bold text-on-brand">
                   <Crown size={10} /> Pro
                 </span>
               </span>
             )}
-            desc="Qué hacer cuando se acaba la música: nada, poner música similar o repetir la cola. Funciona también sin 24/7.">
+            desc={t('dashboard.music_v.autoplayDesc')}>
             <select value={f.autoplay} onChange={(e) => set('autoplay', e.target.value)}
               className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg">
-              <option value="off">No (parar)</option>
-              <option value="aleatorio">🎲 Música aleatoria</option>
-              <option value="repetir">🔁 Repetir la cola</option>
+              <option value="off">{t('dashboard.music_v.autoplayOff')}</option>
+              <option value="aleatorio">{t('dashboard.music_v.autoplayRandom')}</option>
+              <option value="repetir">{t('dashboard.music_v.autoplayRepeat')}</option>
             </select>
           </Ajuste>
 
-          <Ajuste titulo="Volumen por defecto" desc={`Volumen al empezar: ${f.volumenDefecto}%`}>
+          <Ajuste titulo={t('dashboard.music_v.defaultVolume')} desc={t('dashboard.music_v.defaultVolumeDesc', { v: f.volumenDefecto })}>
             <input type="range" min="0" max={f.volumenMax} value={f.volumenDefecto}
               onChange={(e) => set('volumenDefecto', Number(e.target.value))}
               style={{ accentColor: VERDE }} className="w-40" />
           </Ajuste>
 
-          <Ajuste titulo="Volumen máximo" desc={`Tope que se puede poner: ${f.volumenMax}%`}>
+          <Ajuste titulo={t('dashboard.music_v.maxVolume')} desc={t('dashboard.music_v.maxVolumeDesc', { v: f.volumenMax })}>
             <input type="range" min="50" max="300" value={f.volumenMax}
               onChange={(e) => set('volumenMax', Number(e.target.value))}
               style={{ accentColor: VERDE }} className="w-40" />
           </Ajuste>
 
-          <Ajuste titulo="Tamaño máximo de cola" desc="0 = sin límite.">
+          <Ajuste titulo={t('dashboard.music_v.maxQueue')} desc={t('dashboard.music_v.maxQueueDesc')}>
             <input type="number" min="0" max="1000" value={f.maxCola}
               onChange={(e) => set('maxCola', Number(e.target.value))}
               className="w-24 rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg" />
           </Ajuste>
 
           <div className="pt-4">
-            <div className="mb-2 font-semibold text-fg">Fuentes permitidas</div>
+            <div className="mb-2 font-semibold text-fg">{t('dashboard.music_v.sources')}</div>
             <div className="flex flex-wrap gap-2">
               {[['youtube', 'YouTube'], ['spotify', 'Spotify'], ['soundcloud', 'SoundCloud']].map(([k, label]) => (
                 <button key={k} onClick={() => setFuente(k, !f.fuentes[k])}
@@ -609,11 +609,11 @@ export default function MusicaView({ dash }) {
           <div className="mt-5 flex items-center gap-3">
             <button onClick={guardar} disabled={guardando}
               className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50">
-              <Save size={16} /> {guardando ? 'Guardando…' : 'Guardar cambios'}
+              <Save size={16} /> {guardando ? t('dashboard.music_v.saving') : t('dashboard.music_v.saveChanges')}
             </button>
             {guardado && (
               <span className="flex items-center gap-1 font-semibold" style={{ color: VERDE }}>
-                <Check size={16} /> Guardado
+                <Check size={16} /> {t('dashboard.music_v.saved')}
               </span>
             )}
           </div>
@@ -623,29 +623,26 @@ export default function MusicaView({ dash }) {
       {/* ══ TAB MIS PLAYLISTS ══ */}
       {tab === 'playlists' && (
         <div className="space-y-4">
-          <p className="text-sm text-muted">
-            Guarda tus playlists aquí y reprodúcelas en el bot con un clic.
-            Para reproducir necesitas estar en un canal de voz de Discord.
-          </p>
+          <p className="text-sm text-muted">{t('dashboard.music_v.playlistsIntro')}</p>
 
           <MsgBanner msg={plMsg} />
 
           {/* Crear nueva playlist */}
           <form onSubmit={crearPlaylist} className="flex gap-2">
             <input value={nuevaNombre} onChange={(e) => setNuevaNombre(e.target.value)}
-              placeholder="Nombre de la nueva playlist…"
+              placeholder={t('dashboard.music_v.newPlaceholder')}
               className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/50" />
             <button type="submit" disabled={!nuevaNombre.trim()}
               className="flex items-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated disabled:opacity-40">
-              <Plus size={16} /> Crear
+              <Plus size={16} /> {t('dashboard.music_v.create')}
             </button>
           </form>
 
           {/* Lista */}
           {playlists === null ? (
-            <p className="py-8 text-center text-muted">Cargando playlists…</p>
+            <p className="py-8 text-center text-muted">{t('dashboard.music_v.loadingPlaylists')}</p>
           ) : playlists.length === 0 ? (
-            <p className="py-8 text-center text-muted">Aún no tienes playlists. Crea una arriba.</p>
+            <p className="py-8 text-center text-muted">{t('dashboard.music_v.noPlaylists')}</p>
           ) : (
             <div className="space-y-3">
               {playlists.map((pl) => (
@@ -659,22 +656,22 @@ export default function MusicaView({ dash }) {
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-bold text-fg">{pl.nombre}</div>
                       <div className="text-xs text-muted">
-                        {pl.total} {pl.total === 1 ? 'canción' : 'canciones'}
+                        {pl.total} {pl.total === 1 ? t('dashboard.music_v.song') : t('dashboard.music_v.songs')}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => reproducirPlaylist(pl._id)} title="Reproducir en el bot"
+                      <button onClick={() => reproducirPlaylist(pl._id)} title={t('dashboard.music_v.playInBot')}
                         className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-bg text-fg hover:bg-elevated transition-colors">
                         <Play size={16} style={{ color: VERDE }} />
                       </button>
                       <button onClick={() => togglePlaylist(pl._id)}
-                        title={playlistActiva?._id === pl._id ? 'Cerrar' : 'Ver y editar canciones'}
+                        title={playlistActiva?._id === pl._id ? t('dashboard.music_v.close') : t('dashboard.music_v.viewEdit')}
                         className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-bg text-fg hover:bg-elevated transition-colors">
                         {playlistActiva?._id === pl._id
                           ? <ChevronDown size={16} />
                           : <ChevronRight size={16} />}
                       </button>
-                      <button onClick={() => borrarPlaylist(pl._id)} title="Borrar playlist"
+                      <button onClick={() => borrarPlaylist(pl._id)} title={t('dashboard.music_v.deletePlaylist')}
                         className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-bg text-danger hover:bg-elevated transition-colors">
                         <Trash2 size={16} />
                       </button>
@@ -686,9 +683,7 @@ export default function MusicaView({ dash }) {
                     <div className="mt-4 space-y-3 border-t border-line/60 pt-4">
                       {/* Lista de canciones */}
                       {playlistActiva.canciones.length === 0 ? (
-                        <p className="py-2 text-center text-sm text-muted">
-                          Playlist vacía. Busca canciones abajo para añadirlas.
-                        </p>
+                        <p className="py-2 text-center text-sm text-muted">{t('dashboard.music_v.emptyPlaylist')}</p>
                       ) : (
                         <div className="max-h-64 space-y-1.5 overflow-y-auto">
                           {playlistActiva.canciones.map((c, i) => (
@@ -716,12 +711,10 @@ export default function MusicaView({ dash }) {
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
                         <input value={busquedaCancion}
                           onChange={(e) => buscarCancion(e.target.value)}
-                          placeholder="Buscar canción para añadir (nombre, URL de YouTube, Spotify…)"
+                          placeholder={t('dashboard.music_v.searchSong')}
                           className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-4 text-sm text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/50" />
                         {buscandoCancion && (
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted">
-                            Buscando…
-                          </span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted">{t('dashboard.music_v.searching')}</span>
                         )}
                       </div>
 
@@ -760,47 +753,42 @@ export default function MusicaView({ dash }) {
               style={{ background: VERDE }}>
               S
             </div>
-            <h3 className="text-lg font-bold text-fg">Conectar con Spotify</h3>
+            <h3 className="text-lg font-bold text-fg">{t('dashboard.music_v.spotifyConnect')}</h3>
           </div>
 
           <MsgBanner msg={spMsg} />
 
           {spotifyStatus === null ? (
-            <p className="text-muted">Comprobando estado…</p>
+            <p className="text-muted">{t('dashboard.music_v.checkingStatus')}</p>
 
           ) : !spotifyStatus.disponible ? (
             /* Spotify no configurado */
             <div className="rounded-2xl border border-line bg-bg p-5 text-sm">
-              <p className="mb-2 font-semibold text-fg">Spotify no está configurado en el servidor</p>
-              <p className="text-muted mb-3">
-                Para activar la conexión con Spotify, añade estas variables al <code className="rounded bg-elevated px-1">.env</code> del bot y reinícialo:
-              </p>
+              <p className="mb-2 font-semibold text-fg">{t('dashboard.music_v.notConfiguredTitle')}</p>
+              <p className="text-muted mb-3">{t('dashboard.music_v.notConfiguredDesc')}</p>
               <pre className="overflow-x-auto rounded-xl bg-elevated p-4 text-xs font-mono leading-relaxed text-fg">
 {`SPOTIFY_CLIENT_ID=tu_client_id
 SPOTIFY_CLIENT_SECRET=tu_client_secret
 SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
               </pre>
               <p className="mt-3 text-muted">
-                Regístralos gratis en{' '}
+                {t('dashboard.music_v.notConfiguredNote')}{' '}
                 <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer"
                   className="underline" style={{ color: VERDE }}>
                   developer.spotify.com
                 </a>{' '}
-                · En la app de Spotify añade la Redirect URI exacta de arriba.
+                {t('dashboard.music_v.notConfiguredNote2')}
               </p>
             </div>
 
           ) : !spotifyStatus.conectado ? (
             /* No conectado */
             <div className="space-y-4">
-              <p className="text-sm text-muted">
-                Conecta tu cuenta de Spotify para ver e importar tus playlists directamente al bot.
-                El audio siempre sale de YouTube — no es necesaria una suscripción Premium.
-              </p>
+              <p className="text-sm text-muted">{t('dashboard.music_v.connectDesc')}</p>
               <button onClick={conectarSpotify}
                 className="flex items-center gap-3 rounded-2xl px-6 py-3 font-bold text-black transition-opacity hover:opacity-90"
                 style={{ background: VERDE }}>
-                <span className="text-xl">🎵</span> Conectar con Spotify
+                <span className="text-xl">🎵</span> {t('dashboard.music_v.connectBtn')}
               </button>
             </div>
 
@@ -815,43 +803,39 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
                       style={{ background: VERDE }}>S</div>}
                 <div className="flex-1">
                   <div className="font-bold text-fg">{spotifyStatus.spotifyUsername}</div>
-                  <div className="text-xs text-muted">Cuenta de Spotify conectada</div>
+                  <div className="text-xs text-muted">{t('dashboard.music_v.accountConnected')}</div>
                 </div>
                 <button onClick={desconectarSpotify}
                   className="rounded-xl border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:text-fg">
-                  Desconectar
+                  {t('dashboard.music_v.disconnect')}
                 </button>
               </div>
 
-              <p className="text-sm text-muted">
-                Para reproducir directamente en el bot necesitas estar en un canal de voz de Discord.
-                <br />
-                Con «Importar» la playlist se guarda en el bot y la puedes usar desde la pestaña «Mis Playlists».
-              </p>
+              <p className="text-sm text-muted">{t('dashboard.music_v.playInfo')}<br />{t('dashboard.music_v.playInfo2')}</p>
 
               {/* ── Canciones que te gustan (Liked Songs) ── */}
               <div className="rounded-2xl border border-line bg-bg p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <span style={{ color: VERDE }}>❤</span>
-                  <span className="font-semibold text-fg">Canciones que te gustan</span>
+                  <span className="font-semibold text-fg">{t('dashboard.music_v.likedSongs')}</span>
                   {liked && <span className="text-sm text-muted">({liked.total})</span>}
                 </div>
 
                 {liked === null ? (
                   <button onClick={cargarLiked} disabled={cargandoLiked}
                     className="flex items-center gap-2 rounded-xl border border-line bg-elevated px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:opacity-80 disabled:opacity-50">
-                    {cargandoLiked ? 'Cargando…' : '❤ Ver mis me gusta'}
+                    {cargandoLiked ? t('dashboard.music_v.loading') : t('dashboard.music_v.viewLiked')}
                   </button>
                 ) : (
                   <div className="space-y-3">
                     <button onClick={importarLiked} disabled={importandoLiked}
                       className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
                       style={{ background: VERDE }}>
-                      {importandoLiked ? 'Importando…' : `Importar todas como playlist (${Math.min(liked.total, 200)})`}
+                      {importandoLiked ? t('dashboard.music_v.importing') : t('dashboard.music_v.importAllAs', { count: Math.min(liked.total, 200) })}
                     </button>
 
                     {liked.canciones.length === 0 ? (
-                      <p className="text-sm text-muted">No tienes canciones marcadas con me gusta.</p>
+                      <p className="text-sm text-muted">{t('dashboard.music_v.noLiked')}</p>
                     ) : (
                       <>
                         <div className="max-h-72 space-y-1.5 overflow-y-auto">
@@ -865,7 +849,7 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
                               </div>
                               <span className="shrink-0 text-muted">{fmt(c.duration)}</span>
                               <button onClick={() => reproducirSpotify(c.uri, c.title)}
-                                title="Reproducir esta canción en el bot"
+                                title={t('dashboard.music_v.playSong')}
                                 className="shrink-0 transition-opacity hover:opacity-70">
                                 <Play size={15} style={{ color: VERDE }} />
                               </button>
@@ -873,9 +857,7 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
                           ))}
                         </div>
                         {liked.total > liked.canciones.length && (
-                          <p className="text-xs text-muted">
-                            Mostrando las primeras {liked.canciones.length}. «Importar todas» guarda hasta 200.
-                          </p>
+                          <p className="text-xs text-muted">{t('dashboard.music_v.showingFirst', { count: liked.canciones.length })}</p>
                         )}
                       </>
                     )}
@@ -887,22 +869,22 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
               {spotifyPlaylists === null ? (
                 <button onClick={cargarSpotifyPlaylists} disabled={cargandoSpotify}
                   className="flex items-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated disabled:opacity-50">
-                  {cargandoSpotify ? 'Cargando…' : '🎵 Ver mis playlists de Spotify'}
+                  {cargandoSpotify ? t('dashboard.music_v.loading') : t('dashboard.music_v.viewSpotifyPlaylists')}
                 </button>
               ) : (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="font-semibold text-fg">
-                      Mis playlists ({spotifyPlaylists.length})
+                      {t('dashboard.music_v.myPlaylists', { count: spotifyPlaylists.length })}
                     </div>
                     <button onClick={cargarSpotifyPlaylists} disabled={cargandoSpotify}
                       className="text-xs text-muted hover:text-fg transition-colors disabled:opacity-50">
-                      Actualizar
+                      {t('dashboard.music_v.refresh')}
                     </button>
                   </div>
 
                   {spotifyPlaylists.length === 0 ? (
-                    <p className="text-sm text-muted">No tienes playlists en Spotify.</p>
+                    <p className="text-sm text-muted">{t('dashboard.music_v.noSpotifyPlaylists')}</p>
                   ) : (
                     <div className="max-h-[480px] space-y-2 overflow-y-auto">
                       {spotifyPlaylists.map((pl) => (
@@ -914,19 +896,19 @@ SPOTIFY_REDIRECT_URI=http://localhost:3000/api/spotify/callback`}
                           <div className="min-w-0 flex-1">
                             <div className="truncate font-semibold text-fg">{pl.nombre}</div>
                             <div className="text-xs text-muted">
-                              {pl.owner} · {pl.total} canciones
+                              {t('dashboard.music_v.spotifyCount', { owner: pl.owner, count: pl.total })}
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-1.5">
                             <button onClick={() => reproducirSpotify(pl.uri, pl.nombre)}
-                              title="Reproducir en el bot (necesitas estar en un canal de voz)"
+                              title={t('dashboard.music_v.playInBotVoice')}
                               className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-elevated text-fg hover:opacity-80 transition-opacity">
                               <Play size={15} style={{ color: VERDE }} />
                             </button>
                             <button onClick={() => importarSpotify(pl)} disabled={importando.has(pl.id)}
-                              title="Importar como playlist propia del bot"
+                              title={t('dashboard.music_v.importAsOwn')}
                               className="flex items-center gap-1.5 rounded-xl border border-line bg-elevated px-3 py-2 text-xs font-semibold text-fg transition-opacity hover:opacity-80 disabled:opacity-50">
-                              {importando.has(pl.id) ? 'Importando…' : 'Importar'}
+                              {importando.has(pl.id) ? t('dashboard.music_v.importing') : t('dashboard.music_v.import')}
                             </button>
                           </div>
                         </div>
