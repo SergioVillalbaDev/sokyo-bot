@@ -130,11 +130,11 @@ export default function SorteosView({ dash }) {
                           {partLista[s._id] !== undefined ? '▲ Ocultar' : '▼ Ver'} participantes ({s.participantes.length})
                         </button>
                       )}
-                      {partLista[s._id] === null && <p className="mt-1 text-xs text-muted">Cargando…</p>}
+                      {partLista[s._id] === null && <p className="mt-1 text-xs text-muted">{t('dashboard.sorteos_v.loading')}</p>}
                       {Array.isArray(partLista[s._id]) && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {partLista[s._id].length === 0
-                            ? <span className="text-xs italic text-muted">Aún no se ha apuntado nadie.</span>
+                            ? <span className="text-xs italic text-muted">{t('dashboard.sorteos_v.noParticipants')}</span>
                             : partLista[s._id].map((p) => (
                                 <span key={p.id} className="flex items-center gap-1.5 rounded-full bg-elevated px-2 py-1 text-xs text-fg">
                                   {p.avatar && <img src={p.avatar} alt="" className="h-4 w-4 rounded-full" />}
@@ -243,7 +243,7 @@ export default function SorteosView({ dash }) {
             </select>
           </label>
           <div className="block">
-            <CierrePicker value={fechaFin} onChange={(v) => { setEstado(''); setFechaFin(v); }} titulo="Cuándo se cierra" />
+            <CierrePicker value={fechaFin} onChange={(v) => { setEstado(''); setFechaFin(v); }} />
           </div>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sorteos_v.winnersLabel')}</span>
@@ -277,20 +277,20 @@ export default function SorteosView({ dash }) {
           </label>
 
           <div className="block sm:col-span-2">
-            <SubirImagen value={imagen} onChange={setImagen} subirImagen={subirImagen} titulo="Imagen del sorteo" />
+            <SubirImagen value={imagen} onChange={setImagen} subirImagen={subirImagen} titulo={t('dashboard.sorteos_v.imageTitle')} />
           </div>
 
           {/* Multiplicadores de roles */}
           <div className="block sm:col-span-2">
             <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg">
-              <Sparkles size={14} className="text-brand" /> Multiplicadores de probabilidad
+              <Sparkles size={14} className="text-brand" /> {t('dashboard.sorteos_v.multipliers')}
             </span>
-            <p className="mb-2 text-xs text-muted">Da más papeletas a ciertos roles (p. ej. boosters ×2). Se aplica el multiplicador más alto que tenga el participante.</p>
+            <p className="mb-2 text-xs text-muted">{t('dashboard.sorteos_v.multipliersDesc')}</p>
             <div className="space-y-2">
               {multiplicadores.map((m, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <select value={m.rolId} onChange={(e) => setMulti(i, 'rolId', e.target.value)} className={`${input} flex-1`}>
-                    <option value="">Elige un rol…</option>
+                    <option value="">{t('dashboard.sorteos_v.pickRole')}</option>
                     {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                   </select>
                   <div className="flex items-center gap-1">

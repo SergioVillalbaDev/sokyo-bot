@@ -2,10 +2,12 @@
 // varios servidores y aún no se eligió uno en este dispositivo, y también al
 // pulsar el servidor activo en la cabecera para cambiarlo.
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Check, X } from 'lucide-react';
 import { Avatar } from '../ui/primitives';
 
 export default function ServerPicker({ abierto, servidores = [], guildId, onSeleccionar, onCerrar }) {
+  const { t } = useTranslation();
   // Solo se puede cerrar sin elegir si ya hay un servidor activo (no en el
   // arranque, donde es obligatorio elegir uno para poder usar el panel).
   const puedeCerrar = !!guildId;
@@ -27,11 +29,11 @@ export default function ServerPicker({ abierto, servidores = [], guildId, onSele
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-fg">Elige un servidor</h2>
-                <p className="mt-0.5 text-sm text-muted">Gestionas varios; elige cuál ver ahora.</p>
+                <h2 className="text-lg font-bold text-fg">{t('dashboard.serverpicker.chooseServer')}</h2>
+                <p className="mt-0.5 text-sm text-muted">{t('dashboard.serverpicker.manageMultiple')}</p>
               </div>
               {puedeCerrar && (
-                <button onClick={onCerrar} aria-label="Cerrar"
+                <button onClick={onCerrar} aria-label={t('dashboard.serverpicker.close')}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-elevated hover:text-fg">
                   <X size={18} />
                 </button>

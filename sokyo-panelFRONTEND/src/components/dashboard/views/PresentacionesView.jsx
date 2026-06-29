@@ -138,25 +138,25 @@ export default function PresentacionesView({ dash }) {
 
       {/* Modo de presentación */}
       <div className={card}>
-        <h3 className="mb-3 font-bold text-fg">Formato de la presentación</h3>
+        <h3 className="mb-3 font-bold text-fg">{t('dashboard.presentaciones_v.formatTitle')}</h3>
         <div className="grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={() => setModo('preguntas')}
             className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'preguntas' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
-            <p className="text-sm font-semibold text-fg">📋 Preguntas sueltas</p>
-            <p className="mt-0.5 text-xs text-muted">Un campo por cada pregunta (hasta 5 en el formulario).</p>
+            <p className="text-sm font-semibold text-fg">{t('dashboard.presentaciones_v.modeQuestions')}</p>
+            <p className="mt-0.5 text-xs text-muted">{t('dashboard.presentaciones_v.modeQuestionsDesc')}</p>
           </button>
           <button type="button" onClick={() => setModo('plantilla')}
             className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'plantilla' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
-            <p className="text-sm font-semibold text-fg">📝 Plantilla rellenable</p>
-            <p className="mt-0.5 text-xs text-muted">Un único texto con tu propio formato que el usuario completa.</p>
+            <p className="text-sm font-semibold text-fg">{t('dashboard.presentaciones_v.modeTemplate')}</p>
+            <p className="mt-0.5 text-xs text-muted">{t('dashboard.presentaciones_v.modeTemplateDesc')}</p>
           </button>
         </div>
         {modo === 'plantilla' && (
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-sm font-semibold text-fg">Plantilla</span>
+            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.presentaciones_v.templateLabel')}</span>
             <textarea value={plantilla} onChange={(e) => setPlantilla(e.target.value)} rows={5} maxLength={1500}
               className={`${input} resize-none font-mono`} placeholder={'Age: \nWhere you’re from: \nHobbies: '} />
-            <span className="mt-1 block text-xs text-muted">Aparecerá prerellenada en el formulario. Los filtros de abajo se evalúan sobre todo el texto.</span>
+            <span className="mt-1 block text-xs text-muted">{t('dashboard.presentaciones_v.templateNote')}</span>
           </label>
         )}
       </div>

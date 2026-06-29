@@ -77,32 +77,32 @@ export default function SugerenciasView({ dash }) {
         </select>
 
         {/* Modo de envío */}
-        <span className="mb-1.5 block text-sm font-semibold text-fg">¿Cómo se envían las sugerencias?</span>
+        <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sugerencias_v.howSent')}</span>
         <div className="mb-3 grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={() => setModo('mensaje')}
             className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'mensaje' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
-            <p className="text-sm font-semibold text-fg">💬 Escribiendo en el canal</p>
-            <p className="mt-0.5 text-xs text-muted">Quien escriba en el canal genera una sugerencia con votos.</p>
+            <p className="text-sm font-semibold text-fg">{t('dashboard.sugerencias_v.modeMessage')}</p>
+            <p className="mt-0.5 text-xs text-muted">{t('dashboard.sugerencias_v.modeMessageDesc')}</p>
           </button>
           <button type="button" onClick={() => setModo('formulario')}
             className={`rounded-2xl border p-3 text-left transition-colors ${modo === 'formulario' ? 'border-brand bg-brand/10' : 'border-line hover:border-brand/50'}`}>
-            <p className="text-sm font-semibold text-fg">🔒 Solo formulario</p>
-            <p className="mt-0.5 text-xs text-muted">El chat se bloquea; se sugiere con un botón y una plantilla.</p>
+            <p className="text-sm font-semibold text-fg">{t('dashboard.sugerencias_v.modeForm')}</p>
+            <p className="mt-0.5 text-xs text-muted">{t('dashboard.sugerencias_v.modeFormDesc')}</p>
           </button>
         </div>
 
         {modo === 'formulario' && (
           <label className="mb-3 block">
-            <span className="mb-1.5 block text-sm font-semibold text-fg">Plantilla del formulario</span>
+            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sugerencias_v.formTemplate')}</span>
             <textarea value={plantilla} onChange={(e) => setPlantilla(e.target.value)} rows={3} maxLength={1000}
               className={`${input} resize-none`} placeholder={'Example:\nWhat you propose: \nWhy it would help: '} />
-            <span className="mt-1 block text-xs text-muted">Aparecerá prerellenada en el formulario para que el usuario la complete.</span>
+            <span className="mt-1 block text-xs text-muted">{t('dashboard.sugerencias_v.formTemplateNote')}</span>
           </label>
         )}
 
         <label className="mb-3 block">
-          <span className="mb-1.5 block text-sm font-semibold text-fg">Longitud mínima (caracteres)</span>
-          <input type="number" min={0} max={500} value={minLong} onChange={(e) => setMinLong(e.target.value)} className={input} placeholder="0 = sin mínimo" />
+          <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sugerencias_v.minLength')}</span>
+          <input type="number" min={0} max={500} value={minLong} onChange={(e) => setMinLong(e.target.value)} className={input} placeholder={t('dashboard.sugerencias_v.minLengthPh')} />
         </label>
 
         <button

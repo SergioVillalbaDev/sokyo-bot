@@ -697,6 +697,7 @@ export default {
       detail: 'Make sure the bot is running, that VITE_API_URL points to the right address and that the keys match. (Open the console with F12 for details.)',
     },
     planes_v: {
+      thisServer: 'this server',
       intro: 'Start free and upgrade when your community takes off. Cancel anytime.',
       currentPlan: 'Your current plan',
       renews: 'Renews on {{date}}',
@@ -845,6 +846,9 @@ export default {
       members: 'members', noSubscription: 'No subscription', expired: 'Expired',
       expires: 'Expires {{date}} ({{n}} day(s))', lifetime: 'Lifetime', cancelsAtEnd: 'cancels at end',
       agency: 'Agency', subDays: 'Subscription days (0 = lifetime)', days: 'days', done: 'Done', apply: 'Apply',
+    },
+    serverpicker: {
+      chooseServer: 'Choose a server', manageMultiple: 'You manage several; pick which one to view now.', close: 'Close',
     },
     roles_v: {
       intro: 'Create, edit and assign your server roles without fighting Discord.',
@@ -1160,6 +1164,7 @@ export default {
       cancel: 'Cancel', save: 'Save', saving: 'Saving…',
     },
     mod_v: {
+      uploadError: 'Upload failed',
       tiposIntro: 'Design the sanctions your team can apply with one click.',
       newType: 'New type', editType: 'Edit type', noTypes: 'You haven’t created any sanction types yet.',
       confirmDeleteType: 'Delete the type "{{name}}"?',
@@ -1322,6 +1327,10 @@ export default {
       embudoEmpty: 'No members have joined since you enabled the funnel. Once they do, the A/B split will show here.',
     },
     sorteos_v: {
+      loading: 'Loading…', noParticipants: 'Nobody has entered yet.',
+      imageTitle: 'Giveaway image', multipliers: 'Odds multipliers',
+      multipliersDesc: 'Give certain roles more entries (e.g. boosters ×2). The highest multiplier the participant has is applied.',
+      pickRole: 'Choose a role…',
       intro: 'Run giveaways directly on your Discord server. The bot announces the giveaway, collects entries with a button, and picks the winner(s) when time is up.',
       note: 'Members join by clicking the button in the giveaway message on Discord. You can set a minimum level or role requirement to filter who can enter.',
       active: 'Active giveaways',
@@ -1477,6 +1486,11 @@ export default {
       savedOk: 'Channel saved.',
       list: 'Suggestions',
       empty: 'No suggestions yet.',
+      howSent: 'How are suggestions submitted?',
+      modeMessage: '💬 Writing in the channel', modeMessageDesc: 'Anyone who writes in the channel creates a suggestion with votes.',
+      modeForm: '🔒 Form only', modeFormDesc: 'The chat is locked; suggestions are made with a button and a template.',
+      formTemplate: 'Form template', formTemplateNote: 'It will be pre-filled in the form for the user to complete.',
+      minLength: 'Minimum length (characters)', minLengthPh: '0 = no minimum',
       estados: {
         todos: 'All',
         pendiente: 'Pending',
@@ -1488,6 +1502,10 @@ export default {
     presentaciones_v: {
       intro: 'Ask new members to introduce themselves before accessing the server. Configure the form, set automatic discard rules and receive each introduction in the staff channel.',
       note: 'When someone joins, the bot sends the form via DM. If they pass the filters, their intro is posted to the chosen channel. If not, it is discarded — and the user can be notified automatically.',
+      formatTitle: 'Introduction format',
+      modeQuestions: '📋 Individual questions', modeQuestionsDesc: 'One field per question (up to 5 in the form).',
+      modeTemplate: '📝 Fillable template', modeTemplateDesc: 'A single text with your own format for the user to complete.',
+      templateLabel: 'Template', templateNote: 'It will be pre-filled in the form. The filters below are evaluated over the whole text.',
       channels: 'Channels',
       introChannel: 'Channel to post introductions',
       staffChannel: 'Staff notification channel',

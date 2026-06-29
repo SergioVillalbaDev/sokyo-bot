@@ -88,7 +88,7 @@ export default function PlanesView({ dash }) {
   const [ownerCargando, setOwnerCargando] = useState('');
   const [ownerMsg, setOwnerMsg] = useState(null);
   const planServidor = configServidor?.plan || 'free';
-  const nombreServidor = servidores?.find((s) => s.id === guildId)?.nombre || guildId || 'este servidor';
+  const nombreServidor = servidores?.find((s) => s.id === guildId)?.nombre || guildId || t('dashboard.planes_v.thisServer');
 
   const ownerAccion = async (plan) => {
     setOwnerCargando(plan);

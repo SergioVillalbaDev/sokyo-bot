@@ -697,6 +697,7 @@ export default {
       detail: 'Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que las claves coincidan. (Abre la consola con F12 para más detalles.)',
     },
     planes_v: {
+      thisServer: 'este servidor',
       intro: 'Empieza gratis y sube de plan cuando tu comunidad despegue. Cancela cuando quieras.',
       currentPlan: 'Tu plan actual',
       renews: 'Se renueva el {{date}}',
@@ -845,6 +846,9 @@ export default {
       members: 'miembros', noSubscription: 'Sin suscripción', expired: 'Caducada',
       expires: 'Caduca {{date}} ({{n}} día(s))', lifetime: 'De por vida', cancelsAtEnd: 'cancela al final',
       agency: 'Agencia', subDays: 'Días de suscripción (0 = de por vida)', days: 'días', done: 'Hecho', apply: 'Aplicar',
+    },
+    serverpicker: {
+      chooseServer: 'Elige un servidor', manageMultiple: 'Gestionas varios; elige cuál ver ahora.', close: 'Cerrar',
     },
     roles_v: {
       intro: 'Crea, edita y reparte los roles de tu servidor sin pelearte con Discord.',
@@ -1160,6 +1164,7 @@ export default {
       cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…',
     },
     mod_v: {
+      uploadError: 'Error al subir',
       tiposIntro: 'Diseña las sanciones que tu equipo podrá aplicar con un clic.',
       newType: 'Nuevo tipo', editType: 'Editar tipo', noTypes: 'Aún no has creado ningún tipo de sanción.',
       confirmDeleteType: '¿Eliminar el tipo "{{name}}"?',
@@ -1327,6 +1332,10 @@ export default {
       embudoEmpty: 'Aún no han entrado usuarios desde que activaste el embudo. Cuando entren, aquí verás el reparto A/B.',
     },
     sorteos_v: {
+      loading: 'Cargando…', noParticipants: 'Aún no se ha apuntado nadie.',
+      imageTitle: 'Imagen del sorteo', multipliers: 'Multiplicadores de probabilidad',
+      multipliersDesc: 'Da más papeletas a ciertos roles (p. ej. boosters ×2). Se aplica el multiplicador más alto que tenga el participante.',
+      pickRole: 'Elige un rol…',
       intro: 'Organiza sorteos directamente en tu servidor de Discord. El bot anuncia el sorteo, recoge participantes con un botón y escoge al ganador (o ganadores) cuando el tiempo acaba.',
       note: 'Los participantes hacen clic en el botón del mensaje del sorteo en Discord. Puedes poner requisitos de nivel mínimo o rol para filtrar quién puede entrar.',
       active: 'Sorteos activos',
@@ -1482,6 +1491,11 @@ export default {
       savedOk: 'Canal guardado correctamente.',
       list: 'Sugerencias',
       empty: 'No hay sugerencias todavía.',
+      howSent: '¿Cómo se envían las sugerencias?',
+      modeMessage: '💬 Escribiendo en el canal', modeMessageDesc: 'Quien escriba en el canal genera una sugerencia con votos.',
+      modeForm: '🔒 Solo formulario', modeFormDesc: 'El chat se bloquea; se sugiere con un botón y una plantilla.',
+      formTemplate: 'Plantilla del formulario', formTemplateNote: 'Aparecerá prerellenada en el formulario para que el usuario la complete.',
+      minLength: 'Longitud mínima (caracteres)', minLengthPh: '0 = sin mínimo',
       estados: {
         todos: 'Todas',
         pendiente: 'Pendiente',
@@ -1493,6 +1507,10 @@ export default {
     presentaciones_v: {
       intro: 'Pide a los nuevos miembros que se presenten antes de acceder al servidor. Configura el formulario, define las reglas de descarte automático y recibe cada presentación en el canal del staff.',
       note: 'Cuando alguien entra, el bot le envía el formulario por DM. Si pasa los filtros, publica la presentación en el canal elegido. Si no, la descarta y puede avisar al usuario automáticamente.',
+      formatTitle: 'Formato de la presentación',
+      modeQuestions: '📋 Preguntas sueltas', modeQuestionsDesc: 'Un campo por cada pregunta (hasta 5 en el formulario).',
+      modeTemplate: '📝 Plantilla rellenable', modeTemplateDesc: 'Un único texto con tu propio formato que el usuario completa.',
+      templateLabel: 'Plantilla', templateNote: 'Aparecerá prerellenada en el formulario. Los filtros de abajo se evalúan sobre todo el texto.',
       channels: 'Canales',
       introChannel: 'Canal donde publicar presentaciones',
       staffChannel: 'Canal de avisos al staff',

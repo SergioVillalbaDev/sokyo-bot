@@ -464,7 +464,7 @@ function AplicarModal({ tipo, usuario, dash, onClose, onAplicado }) {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
     const lector = new FileReader();
-    lector.onload = async () => { setSubiendo(true); const r = await subirPrueba(lector.result); setSubiendo(false); if (r?.url) setPruebas((p) => [...p, r.url]); else setError(r?.error || 'Error al subir'); };
+    lector.onload = async () => { setSubiendo(true); const r = await subirPrueba(lector.result); setSubiendo(false); if (r?.url) setPruebas((p) => [...p, r.url]); else setError(r?.error || t('dashboard.mod_v.uploadError')); };
     lector.readAsDataURL(file);
   };
 
