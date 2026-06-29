@@ -111,8 +111,8 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
   const editando = !!panel._id;
 
   const [tipo, setTipo] = useState(panel.tipo || 'boton');
-  const [titulo, setTitulo] = useState(panel.titulo ?? '🎭 Elige tus roles');
-  const [descripcion, setDescripcion] = useState(panel.descripcion ?? 'Pulsa para asignarte o quitarte un rol.');
+  const [titulo, setTitulo] = useState(panel.titulo ?? '🎭 Choose your roles');
+  const [descripcion, setDescripcion] = useState(panel.descripcion ?? 'Click to assign or remove a role.');
   const [color, setColor] = useState(panel.color || COLOR_DEFECTO);
   const [imagen, setImagen] = useState(panel.imagen || '');
   const [imagenArchivo, setImagenArchivo] = useState(panel.imagenArchivo || '');
@@ -140,7 +140,7 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
       const res = await subirImagen(lector.result);
       setSubiendo(false);
       if (res?.archivo) { setImagenArchivo(res.archivo); setImagen(''); }
-      else alert(res?.error || 'No se pudo subir la imagen');
+      else alert(res?.error || 'Couldn’t upload the image');
     };
     lector.readAsDataURL(file);
   };

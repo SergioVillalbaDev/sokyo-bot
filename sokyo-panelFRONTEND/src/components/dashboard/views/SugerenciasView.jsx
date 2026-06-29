@@ -95,7 +95,7 @@ export default function SugerenciasView({ dash }) {
           <label className="mb-3 block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">Plantilla del formulario</span>
             <textarea value={plantilla} onChange={(e) => setPlantilla(e.target.value)} rows={3} maxLength={1000}
-              className={`${input} resize-none`} placeholder={'Ejemplo:\nQué propones: \nPor qué ayudaría: '} />
+              className={`${input} resize-none`} placeholder={'Example:\nWhat you propose: \nWhy it would help: '} />
             <span className="mt-1 block text-xs text-muted">Aparecerá prerellenada en el formulario para que el usuario la complete.</span>
           </label>
         )}

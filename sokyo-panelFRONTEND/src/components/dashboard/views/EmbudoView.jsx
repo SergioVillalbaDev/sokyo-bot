@@ -11,8 +11,8 @@ const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text
 
 const POR_DEFECTO = {
   activo: false, entrega: 'panel', canalId: null, rolVerificadoId: null,
-  varianteA: { titulo: '📋 Bienvenido/a — Lee las normas', reglas: '', captcha: true, textoBoton: '✅ Aceptar y acceder' },
-  varianteB: { titulo: '👋 ¡Te damos la bienvenida!', descripcion: '', color: '#5865F2', reglas: '', textoBoton: '🎉 Unirme' },
+  varianteA: { titulo: '📋 Welcome — Read the rules', reglas: '', captcha: true, textoBoton: '✅ Accept and enter' },
+  varianteB: { titulo: '👋 Welcome!', descripcion: '', color: '#5865F2', reglas: '', textoBoton: '🎉 Join' },
 };
 
 function Select({ items, value, onChange, placeholder }) {

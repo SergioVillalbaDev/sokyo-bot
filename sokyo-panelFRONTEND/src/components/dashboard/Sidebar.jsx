@@ -70,7 +70,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         <button
           onClick={() => setMobileOpen(false)}
           className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-elevated hover:text-fg lg:hidden"
-          aria-label="Cerrar menú"
+          aria-label="Close menu"
         >
           <X size={18} />
         </button>
@@ -80,7 +80,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-6 z-30 hidden h-6 w-6 items-center justify-center rounded-full border border-line bg-card text-muted shadow-md transition-colors hover:text-fg lg:flex"
-        aria-label="Colapsar menú"
+        aria-label="Collapse menu"
       >
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>

@@ -50,8 +50,8 @@ export function useDashboard() {
   const [footerMensaje, setFooterMensaje] = useState('');
   // Personalización / marca (Fase 2)
   const [colorEmbed, setColorEmbed] = useState('#5865F2');
-  const [textoBoton, setTextoBoton] = useState('📩 Abrir Ticket');
-  const [mensajeBienvenida, setMensajeBienvenida] = useState('Un miembro del equipo lo revisará en breve.');
+  const [textoBoton, setTextoBoton] = useState('📩 Open a ticket');
+  const [mensajeBienvenida, setMensajeBienvenida] = useState('A team member will review it shortly.');
   const [prefijo, setPrefijo] = useState('!');
   const [categoriaArchivados, setCategoriaArchivados] = useState('🗄️ Tickets Archivados');
 
@@ -132,7 +132,7 @@ export function useDashboard() {
 
   const reportarError = (contexto) => (err) => {
     console.error(`Error ${contexto}:`, err);
-    setErrorConexion(`No se pudo conectar con la API en ${API_URL} — ${err.message}`);
+    setErrorConexion(`Couldn’t connect to the API at ${API_URL} — ${err.message}`);
   };
 
   const cargarUso = () => apiFetch(`/api/stats/uso${gp()}`).then(procesarRespuesta).then((datos) => {
@@ -577,7 +577,7 @@ export function useDashboard() {
       const res = await apiFetch(`/api/seguridad/${configServidor.guildId}/verificacion/publicar`, { method: 'POST' });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo publicar' };
-    } catch (error) { console.error('Error publicando verificación:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error publicando verificación:', error); return { error: 'Network error' }; }
   };
 
   // --- EMBUDO DE BIENVENIDA: Test A/B ---
@@ -598,7 +598,7 @@ export function useDashboard() {
       const res = await apiFetch(`/api/embudo/${configServidor.guildId}/publicar`, { method: 'POST' });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo publicar' };
-    } catch (error) { console.error('Error publicando embudo:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error publicando embudo:', error); return { error: 'Network error' }; }
   };
 
   // --- COMUNIDAD: mensajes de bienvenida / despedida ---
@@ -621,7 +621,7 @@ export function useDashboard() {
       });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo enviar la prueba' };
-    } catch (error) { console.error('Error probando bienvenida:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error probando bienvenida:', error); return { error: 'Network error' }; }
   };
 
   // --- SEGURIDAD: reportes ---
@@ -656,7 +656,7 @@ export function useDashboard() {
         return data;
       }
       return { error: data.error || 'No se pudo abrir el ticket' };
-    } catch (error) { console.error('Error abriendo ticket desde reporte:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error abriendo ticket desde reporte:', error); return { error: 'Network error' }; }
   };
 
   // --- SEGURIDAD: backup (exportar / importar config) ---
@@ -703,7 +703,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.url) { window.location.href = data.url; return { ok: true }; }
       return { error: data.error || 'No se pudo iniciar el pago' };
-    } catch (error) { console.error('Error en checkout:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error en checkout:', error); return { error: 'Network error' }; }
   };
   const abrirPortalPago = async () => {
     const gid = guildId || (configServidor && configServidor.guildId);
@@ -716,7 +716,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.url) { window.location.href = data.url; return { ok: true }; }
       return { error: data.error || 'No se pudo abrir el portal' };
-    } catch (error) { console.error('Error abriendo portal:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error abriendo portal:', error); return { error: 'Network error' }; }
   };
 
   // --- IA en tickets (Pro): resumen / respuesta sugerida ---
@@ -725,8 +725,8 @@ export function useDashboard() {
       const res = await apiFetch(`/api/tickets/${canalId}/ia/${accion}`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.texto) return { texto: data.texto, iaUsos: data.iaUsos, iaCuota: data.iaCuota };
-      return { error: data.error || 'La IA no respondió', iaUsos: data.iaUsos, iaCuota: data.iaCuota };
-    } catch (error) { console.error('Error IA:', error); return { error: 'Fallo de red' }; }
+      return { error: data.error || 'The AI didn’t respond', iaUsos: data.iaUsos, iaCuota: data.iaCuota };
+    } catch (error) { console.error('Error IA:', error); return { error: 'Network error' }; }
   };
   // Informe del servidor con IA (a partir de la analítica).
   const informeIA = async (dias = 30) => {
@@ -736,7 +736,7 @@ export function useDashboard() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.texto) return { texto: data.texto, iaUsos: data.iaUsos, iaCuota: data.iaCuota };
       return { error: data.error || 'No se pudo generar el informe' };
-    } catch (error) { console.error('Error informe IA:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error informe IA:', error); return { error: 'Network error' }; }
   };
   // Descarga el transcript HTML del ticket (Pro).
   const descargarTranscript = async (canalId) => {
@@ -750,7 +750,7 @@ export function useDashboard() {
       a.click();
       URL.revokeObjectURL(url);
       return { ok: true };
-    } catch (error) { console.error('Error transcript:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error transcript:', error); return { error: 'Network error' }; }
   };
 
   // --- RESUMEN DIARIO (Pro) ---
@@ -763,7 +763,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success && data.config) { setConfigServidor(data.config); return { ok: true }; }
       return { error: data.error || 'No se pudo guardar' };
-    } catch (error) { console.error('Error guardando resumen:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error guardando resumen:', error); return { error: 'Network error' }; }
   };
   const probarResumen = async () => {
     if (!configServidor) return { error: 'Sin servidor' };
@@ -772,7 +772,7 @@ export function useDashboard() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) return { ok: true };
       return { error: data.error || 'No se pudo enviar' };
-    } catch (error) { console.error('Error probando resumen:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error probando resumen:', error); return { error: 'Network error' }; }
   };
 
   // --- ANALÍTICA (Pro) ---
@@ -806,7 +806,7 @@ export function useDashboard() {
       });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo enviar' };
-    } catch (error) { console.error('Error enviando embed:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error enviando embed:', error); return { error: 'Network error' }; }
   };
 
   // --- PRODUCTIVIDAD: anuncios programados ---
@@ -817,7 +817,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success) { await cargarAnuncios(); return data; }
       return { error: data.error || 'No se pudo crear' };
-    } catch (error) { console.error('Error creando anuncio:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error creando anuncio:', error); return { error: 'Network error' }; }
   };
   const eliminarAnuncio = async (id) => {
     try { const res = await apiFetch(`/api/anuncios/${id}`, { method: 'DELETE' }); if (res.ok) { await cargarAnuncios(); return true; } }
@@ -833,7 +833,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success) { await cargarSorteos(); return data; }
       return { error: data.error || 'No se pudo crear' };
-    } catch (error) { console.error('Error creando sorteo:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error creando sorteo:', error); return { error: 'Network error' }; }
   };
   const terminarSorteo = async (id) => {
     try { const res = await apiFetch(`/api/sorteos/${id}/terminar`, { method: 'POST' }); if (res.ok) await cargarSorteos(); }
@@ -860,7 +860,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success) { await cargarEventos(); return data; }
       return { error: data.error || 'No se pudo crear' };
-    } catch (error) { console.error('Error creando evento:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error creando evento:', error); return { error: 'Network error' }; }
   };
   const eliminarEvento = async (id) => {
     try { const res = await apiFetch(`/api/eventos/${id}`, { method: 'DELETE' }); if (res.ok) await cargarEventos(); }
@@ -875,7 +875,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success) { await cargarEncuestas(); return data; }
       return { error: data.error || 'No se pudo crear' };
-    } catch (error) { console.error('Error creando encuesta:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error creando encuesta:', error); return { error: 'Network error' }; }
   };
   const eliminarEncuesta = async (id) => {
     try { const res = await apiFetch(`/api/encuestas/${id}`, { method: 'DELETE' }); if (res.ok) await cargarEncuestas(); }
@@ -901,7 +901,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success) { await cargarTrivia(); return data; }
       return { error: data.error || 'No se pudo crear' };
-    } catch (error) { console.error('Error creando pregunta de trivia:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error creando pregunta de trivia:', error); return { error: 'Network error' }; }
   };
   const eliminarTrivia = async (id) => {
     try { const res = await apiFetch(`/api/trivia/${id}`, { method: 'DELETE' }); if (res.ok) await cargarTrivia(); }
@@ -954,7 +954,7 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success) { await cargarPresetsAnuncio(); return data; }
       return { error: data.error || 'No se pudo guardar' };
-    } catch (error) { console.error('Error guardando preset:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error guardando preset:', error); return { error: 'Network error' }; }
   };
   const eliminarPresetAnuncio = async (id) => {
     try { const res = await apiFetch(`/api/anuncios/presets/${id}`, { method: 'DELETE' }); if (res.ok) { await cargarPresetsAnuncio(); return true; } }
@@ -974,7 +974,7 @@ export function useDashboard() {
       });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo difundir' };
-    } catch (error) { console.error('Error difundiendo:', error); return { error: 'Fallo de red' }; }
+    } catch (error) { console.error('Error difundiendo:', error); return { error: 'Network error' }; }
   };
 
   // Carga qué secciones puede ver el usuario actual en el servidor seleccionado.
@@ -1118,7 +1118,7 @@ export function useDashboard() {
 
   const handleCerrarTicket = async (canalId, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('¿Cerrar ticket en Discord?')) return;
+    if (!window.confirm('Close ticket in Discord?')) return;
     const res = await apiFetch(`/api/tickets/${canalId}/cerrar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autor: 'Admin' }) });
     if (res.ok) {
       setTicketsReales(ticketsReales.map((t) => t.canalId === canalId ? { ...t, estado: 'Cerrado' } : t));
@@ -1128,7 +1128,7 @@ export function useDashboard() {
 
   const handleReabrirTicket = async (canalId, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('¿Reabrir este ticket en Discord?')) return;
+    if (!window.confirm('Reopen this ticket in Discord?')) return;
     const res = await apiFetch(`/api/tickets/${canalId}/reabrir`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autor: 'Admin' }) });
     if (res.ok) {
       setTicketsReales(ticketsReales.map((t) => t.canalId === canalId ? { ...t, estado: 'Abierto' } : t));
@@ -1138,7 +1138,7 @@ export function useDashboard() {
 
   const handleOcultarTicket = async (canalId, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('¿Ocultar del panel web?')) return;
+    if (!window.confirm('Hide from the web panel?')) return;
     const res = await apiFetch(`/api/tickets/${canalId}/ocultar`, { method: 'PUT' });
     if (res.ok) { setTicketsReales(ticketsReales.filter((t) => t.canalId !== canalId)); if (ticketSeleccionado?.canalId === canalId) cerrarMensajes(); }
   };
@@ -1148,13 +1148,13 @@ export function useDashboard() {
       setErrorConexion('');
       if (datos && datos.length > 0) {
         setConfigServidor(datos[0]); setMotivos(datos[0].motivos || []);
-        setUrgencias(datos[0].urgencias || [{ nombre: 'Urgente', color: '#e74c3c', nivel: 4 }, { nombre: 'Alta', color: '#e67e22', nivel: 3 }, { nombre: 'Normal', color: '#3498db', nivel: 2 }, { nombre: 'Baja', color: '#95a5a6', nivel: 1 }]);
-        setTituloMensaje(datos[0].mensajeSoporteTitulo || '🎫 Soporte Técnico Activo'); setDescripcionMensaje(datos[0].mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.'); setFooterMensaje(datos[0].footerPersonalizado || 'Sistema de Gestión Sokyo');
+        setUrgencias(datos[0].urgencias || [{ nombre: 'Urgent', color: '#e74c3c', nivel: 4 }, { nombre: 'High', color: '#e67e22', nivel: 3 }, { nombre: 'Normal', color: '#3498db', nivel: 2 }, { nombre: 'Low', color: '#95a5a6', nivel: 1 }]);
+        setTituloMensaje(datos[0].mensajeSoporteTitulo || '🎫 Support is open'); setDescripcionMensaje(datos[0].mensajeSoporteDescripcion || 'Click the button below to open a support ticket.'); setFooterMensaje(datos[0].footerPersonalizado || 'Sokyo management system');
         setColorEmbed(datos[0].colorEmbed || '#5865F2');
-        setTextoBoton(datos[0].textoBoton || '📩 Abrir Ticket');
-        setMensajeBienvenida(datos[0].mensajeBienvenida || 'Un miembro del equipo lo revisará en breve.');
+        setTextoBoton(datos[0].textoBoton || '📩 Open a ticket');
+        setMensajeBienvenida(datos[0].mensajeBienvenida || 'A team member will review it shortly.');
         setPrefijo(datos[0].prefijo || '!');
-        setCategoriaArchivados(datos[0].categoriaArchivados || '🗄️ Tickets Archivados');
+        setCategoriaArchivados(datos[0].categoriaArchivados || '🗄️ Archived Tickets');
       }
     }).catch(reportarError('cargando configuración'));
   };
@@ -1169,7 +1169,7 @@ export function useDashboard() {
     const motivosFormateados = motivos.map((m) => typeof m === 'string' ? { nombre: m, urgencia: 'Normal' } : m);
     await apiFetch(`/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
     await apiFetch(`/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
-    alert('✅ ¡Sistema de Tickets actualizado en Discord exitosamente!'); setMotivos(motivosFormateados);
+    alert('✅ Ticket system updated in Discord successfully!'); setMotivos(motivosFormateados);
   };
 
   const guardarTextosConfig = async () => {
@@ -1181,7 +1181,7 @@ export function useDashboard() {
         colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados,
       }),
     });
-    if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(data.config); alert('✅ Personalización actualizada!'); }
+    if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(data.config); alert('✅ Customization updated!'); }
   };
 
   const getTicketsOrdenados = () => [...ticketsReales].sort((a, b) => (urgencias.find((u) => u.nombre === b.prioridad)?.nivel || 0) - (urgencias.find((u) => u.nombre === a.prioridad)?.nivel || 0));

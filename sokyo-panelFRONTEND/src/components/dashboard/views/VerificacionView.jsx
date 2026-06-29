@@ -10,7 +10,7 @@ const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text
 
 const POR_DEFECTO = {
   activo: false, canalId: null, rolVerificadoId: null, modo: 'boton',
-  titulo: '🔒 Verificación', descripcion: 'Pulsa el botón para verificarte y acceder al servidor.', textoBoton: '✅ Verificarme',
+  titulo: '🔒 Verification', descripcion: 'Click the button to verify and access the server.', textoBoton: '✅ Verify me',
 };
 
 function Select({ items, value, onChange, placeholder }) {

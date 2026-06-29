@@ -35,7 +35,7 @@ function Portal() {
     const params = new URLSearchParams(window.location.search);
     const t = params.get('token');
     const err = params.get('error');
-    if (err) setError(err === 'denegado' ? 'Has cancelado el inicio de sesión.' : 'No se pudo iniciar sesión con Discord.');
+    if (err) setError(err === 'denegado' ? 'You cancelled the login.' : 'Couldn’t log in with Discord.');
     if (t) {
       localStorage.setItem('portalToken', t);
       setToken(t);
@@ -65,7 +65,7 @@ function Portal() {
         setCatalogo({ ocultos: cat?.ocultos || [], personalizados: cat?.personalizados || [] });
         if (tj && tj.colorAcento) setTarjeta({ colorAcento: tj.colorAcento, fondoTipo: tj.fondoTipo || 'color', fondoColor: tj.fondoColor || '#1e2030', colorSecundario: tj.colorSecundario || '#9b59b6', fondoImagen: tj.fondoImagen || '', preset: tj.preset || null });
       })
-      .catch(() => { setError('Tu sesión ha caducado. Vuelve a entrar.'); logout(); })
+      .catch(() => { setError('Your session expired. Log in again.'); logout(); })
       .finally(() => setCargando(false));
   }, [token]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -144,7 +144,7 @@ function Portal() {
       const img = new Image();
       img.onload = async () => {
         if (img.naturalWidth < ANCHO_MIN || img.naturalHeight < ALTO_MIN) {
-          setError(`La imagen es demasiado pequeña (${img.naturalWidth}×${img.naturalHeight}). Mínimo ${ANCHO_MIN}×${ALTO_MIN} px.`);
+          setError(`The image is too small (${img.naturalWidth}×${img.naturalHeight}). Minimum ${ANCHO_MIN}×${ALTO_MIN} px.`);
           return;
         }
         const res = await portalFetch('/api/portal/tarjeta/upload', {
@@ -152,9 +152,9 @@ function Portal() {
         });
         const data = await res.json().catch(() => ({}));
         if (data.url) setT('fondoImagen', data.url);
-        else setError(data.error || 'No se pudo subir la imagen');
+        else setError(data.error || 'Couldn’t upload the image');
       };
-      img.onerror = () => setError('No se pudo leer la imagen.');
+      img.onerror = () => setError('Couldn’t read the image.');
       img.src = lector.result;
     };
     lector.readAsDataURL(file);
@@ -169,11 +169,11 @@ function Portal() {
       <div style={pantallaCentro}>
         <div style={tarjetaLogin}>
           <div style={{ fontSize: '3em', marginBottom: '10px' }}>🎫</div>
-          <h1 style={{ margin: '0 0 8px 0' }}>Portal de Soporte</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '25px' }}>Inicia sesión para ver y gestionar tus tickets.</p>
+          <h1 style={{ margin: '0 0 8px 0' }}>Support Portal</h1>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '25px' }}>Log in to view and manage your tickets.</p>
           {error && <div style={bannerError}>⚠️ {error}</div>}
           <a href={`${API_URL}/api/auth/discord`} style={botonDiscord}>
-            <span style={{ fontSize: '1.2em' }}>🔗</span> Iniciar sesión con Discord
+            <span style={{ fontSize: '1.2em' }}>🔗</span> Log in with Discord
           </a>
         </div>
       </div>
@@ -187,7 +187,7 @@ function Portal() {
       <div style={contenedor}>
         <Cabecera usuario={usuario} onLogout={logout} />
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-          <button onClick={() => { setTicketSel(null); setMensajes([]); }} style={botonVolver}>⬅ Volver a mis tickets</button>
+          <button onClick={() => { setTicketSel(null); setMensajes([]); }} style={botonVolver}>⬅ Back to my tickets</button>
           <div style={{ marginTop: '15px', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
             <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -198,7 +198,7 @@ function Portal() {
             </div>
             <div className="chat-box" style={{ minHeight: '350px', maxHeight: '50vh', overflowY: 'auto', padding: '20px' }}>
               {mensajes.length === 0
-                ? <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '40px' }}>Aún no hay mensajes en este ticket.</p>
+                ? <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '40px' }}>No messages in this ticket yet.</p>
                 : mensajes.map((m, i) => {
                     const mio = m.usuarioId === usuario?.id;
                     return (
@@ -206,7 +206,7 @@ function Portal() {
                         <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: '12px', backgroundColor: mio ? 'var(--accent-color)' : 'var(--bg-main)', color: mio ? '#fff' : 'var(--text-primary)' }}>
                           <div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: '3px' }}>{m.usuario}</div>
                           <div>{m.contenido}</div>
-                          {m.imagenes && m.imagenes.map((url, j) => <img key={j} src={url} alt="adjunto" style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '6px' }} />)}
+                          {m.imagenes && m.imagenes.map((url, j) => <img key={j} src={url} alt="attachment" style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '6px' }} />)}
                         </div>
                       </div>
                     );
@@ -214,10 +214,10 @@ function Portal() {
             </div>
             <div style={{ padding: '15px 20px', borderTop: '1px solid var(--border-color)' }}>
               {cerrado
-                ? <p style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: 0 }}>Este ticket está cerrado.</p>
+                ? <p style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: 0 }}>This ticket is closed.</p>
                 : <div style={{ display: 'flex', gap: '10px' }}>
-                    <input value={nuevoMensaje} onChange={e => setNuevoMensaje(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviar()} placeholder="Escribe tu mensaje..." style={input} />
-                    <button onClick={enviar} style={botonEnviar}>Enviar</button>
+                    <input value={nuevoMensaje} onChange={e => setNuevoMensaje(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviar()} placeholder="Type your message..." style={input} />
+                    <button onClick={enviar} style={botonEnviar}>Send</button>
                   </div>}
             </div>
           </div>
@@ -242,36 +242,36 @@ function Portal() {
         <Cabecera usuario={usuario} onLogout={logout} />
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
           <Nav vista={vista} setVista={setVista} />
-          <h1 style={{ marginBottom: '5px' }}>🎨 Mi tarjeta de nivel</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Personaliza tu tarjeta de rango. Los <strong>colores</strong> son gratis y se aplican en todos los servidores. La <strong style={{ color: '#f1c40f' }}>imagen propia es premium</strong> y solo se ve en servidores con Premium activo.</p>
+          <h1 style={{ marginBottom: '5px' }}>🎨 My level card</h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Customize your rank card. <strong>Colors</strong> are free and apply on every server. A <strong style={{ color: '#f1c40f' }}>custom image is premium</strong> and only shows on servers with Premium active.</p>
 
           {/* Vista previa REAL: la misma imagen que genera el bot (PNG o GIF animado) */}
           <div style={{ marginTop: '15px', position: 'relative', borderRadius: '16px', overflow: 'hidden', aspectRatio: '900 / 270', backgroundColor: '#0b0b14' }}>
             {previewUrl
-              ? <img src={previewUrl} alt="Vista previa de tu tarjeta" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>Generando vista previa…</div>}
-            {previewLoading && <div style={{ position: 'absolute', top: '10px', right: '12px', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: '0.78em', padding: '4px 9px', borderRadius: '6px' }}>Actualizando…</div>}
+              ? <img src={previewUrl} alt="Preview of your card" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>Generating preview…</div>}
+            {previewLoading && <div style={{ position: 'absolute', top: '10px', right: '12px', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: '0.78em', padding: '4px 9px', borderRadius: '6px' }}>Updating…</div>}
           </div>
 
           {/* Controles */}
           <div style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 600 }}>Color de acento</span>
+              <span style={{ fontWeight: 600 }}>Accent color</span>
               <input type="color" value={tarjeta.colorAcento} onChange={e => setManual('colorAcento', e.target.value)} style={{ width: '54px', height: '36px', border: 'none', background: 'none', cursor: 'pointer' }} />
             </label>
             <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 600 }}>Tipo de fondo</span>
+              <span style={{ fontWeight: 600 }}>Background type</span>
               <select value={tarjeta.fondoTipo} onChange={e => setManual('fondoTipo', e.target.value)} style={{ ...input, flex: 'none', width: '160px' }}>
-                <option value="color">Color sólido</option>
-                <option value="degradado">Degradado</option>
-                <option value="imagen" disabled={!usuario?.esPremium}>Imagen propia ⭐ Premium</option>
+                <option value="color">Solid color</option>
+                <option value="degradado">Gradient</option>
+                <option value="imagen" disabled={!usuario?.esPremium}>Custom image ⭐ Premium</option>
               </select>
             </label>
 
             {/* Color de fondo: para sólido y degradado */}
             {(tarjeta.fondoTipo === 'color' || tarjeta.fondoTipo === 'degradado') && (
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600 }}>Color de fondo</span>
+                <span style={{ fontWeight: 600 }}>Background color</span>
                 <input type="color" value={tarjeta.fondoColor} onChange={e => setManual('fondoColor', e.target.value)} style={{ width: '54px', height: '36px', border: 'none', background: 'none', cursor: 'pointer' }} />
               </label>
             )}
@@ -279,7 +279,7 @@ function Portal() {
             {/* Color secundario: solo en degradado */}
             {tarjeta.fondoTipo === 'degradado' && (
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600 }}>Color secundario</span>
+                <span style={{ fontWeight: 600 }}>Secondary color</span>
                 <input type="color" value={tarjeta.colorSecundario} onChange={e => setManual('colorSecundario', e.target.value)} style={{ width: '54px', height: '36px', border: 'none', background: 'none', cursor: 'pointer' }} />
               </label>
             )}
@@ -287,22 +287,22 @@ function Portal() {
             {/* Imagen propia: premium */}
             {tarjeta.fondoTipo === 'imagen' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontWeight: 600 }}>Imagen de fondo <strong style={{ color: '#f1c40f' }}>⭐ Premium</strong></span>
+                <span style={{ fontWeight: 600 }}>Background image <strong style={{ color: '#f1c40f' }}>⭐ Premium</strong></span>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <input value={tarjeta.fondoImagen} onChange={e => setT('fondoImagen', e.target.value)} placeholder="Pega una URL o sube un archivo →" style={input} />
+                  <input value={tarjeta.fondoImagen} onChange={e => setT('fondoImagen', e.target.value)} placeholder="Paste a URL or upload a file →" style={input} />
                   <label style={{ ...botonEnviar, padding: '0 18px', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-                    Subir
+                    Upload
                     <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={subirFondo} style={{ display: 'none' }} />
                   </label>
                 </div>
-                <span style={{ fontSize: '0.82em', color: 'var(--text-secondary)' }}>Recomendado: 900×270 px (ratio 10:3). Mínimo 900×270. Solo se aplica en servidores con Premium.</span>
-                {tarjeta.fondoImagen && <button onClick={() => setT('fondoImagen', '')} style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85em' }}>Quitar imagen</button>}
+                <span style={{ fontSize: '0.82em', color: 'var(--text-secondary)' }}>Recommended: 900×270 px (10:3 ratio). Minimum 900×270. Only applies on servers with Premium.</span>
+                {tarjeta.fondoImagen && <button onClick={() => setT('fondoImagen', '')} style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85em' }}>Remove image</button>}
               </div>
             )}
             {/* Diseños prediseñados (los premium bloqueados para free) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-              <span style={{ fontWeight: 600 }}>Diseños prediseñados</span>
-              {!usuario?.esPremium && <span style={{ fontSize: '0.82em', color: 'var(--text-secondary)' }}>Los marcados con 🔒 son Premium. Hazte Premium para desbloquear esos diseños únicos.</span>}
+              <span style={{ fontWeight: 600 }}>Preset designs</span>
+              {!usuario?.esPremium && <span style={{ fontSize: '0.82em', color: 'var(--text-secondary)' }}>The ones marked 🔒 are Premium. Go Premium to unlock those unique designs.</span>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
                 {presetsEfectivos.map(p => {
                   const bloqueado = p.premium !== false && !usuario?.esPremium;
@@ -323,8 +323,8 @@ function Portal() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button onClick={guardarTarjeta} style={{ ...botonEnviar, padding: '10px 22px' }}>Guardar tarjeta</button>
-              {guardadoT && <span style={{ color: '#2ecc71', fontWeight: 600 }}>✓ Guardado</span>}
+              <button onClick={guardarTarjeta} style={{ ...botonEnviar, padding: '10px 22px' }}>Save card</button>
+              {guardadoT && <span style={{ color: '#2ecc71', fontWeight: 600 }}>✓ Saved</span>}
             </div>
           </div>
         </div>
@@ -339,8 +339,8 @@ function Portal() {
         <Cabecera usuario={usuario} onLogout={logout} />
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
           <Nav vista={vista} setVista={setVista} />
-          <h1 style={{ marginBottom: '5px' }}>🎵 Música</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Pon música en tu canal de voz: busca o pega una URL y controla la cola desde aquí.</p>
+          <h1 style={{ marginBottom: '5px' }}>🎵 Music</h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Play music in your voice channel: search or paste a URL and control the queue from here.</p>
           <MusicaPortal portalFetch={portalFetch} />
         </div>
       </div>
@@ -353,12 +353,12 @@ function Portal() {
       <Cabecera usuario={usuario} onLogout={logout} />
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
         <Nav vista={vista} setVista={setVista} />
-        <h1 style={{ marginBottom: '5px' }}>Mis Tickets</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Aquí tienes todas tus solicitudes de soporte.</p>
+        <h1 style={{ marginBottom: '5px' }}>My Tickets</h1>
+        <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Here are all your support requests.</p>
         {error && <div style={bannerError}>⚠️ {error}</div>}
-        {cargando ? <p style={{ color: 'var(--text-secondary)' }}>Cargando...</p>
+        {cargando ? <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
           : tickets.length === 0
-            ? <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-secondary)' }}><div style={{ fontSize: '3em' }}>📭</div>No has abierto ningún ticket todavía.</div>
+            ? <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-secondary)' }}><div style={{ fontSize: '3em' }}>📭</div>You haven’t opened any tickets yet.</div>
             : <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {tickets.map((t, i) => (
                   <div key={i} onClick={() => setTicketSel(t)} style={tarjetaTicket}>
@@ -367,7 +367,7 @@ function Portal() {
                       <span style={{ fontSize: '0.75em', padding: '3px 10px', borderRadius: '12px', backgroundColor: colorEstado(t.estado), color: '#fff', fontWeight: 'bold' }}>{t.estado}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', fontSize: '0.85em', color: 'var(--text-secondary)' }}>
-                      <span>🏷️ {t.motivo} · {new Date(t.fechaCreacion).toLocaleDateString('es-ES')}</span>
+                      <span>🏷️ {t.motivo} · {new Date(t.fechaCreacion).toLocaleDateString()}</span>
                       {t.estado === 'Cerrado' && renderEstrellas(t.valoracionCSAT)}
                     </div>
                   </div>
@@ -385,18 +385,18 @@ function Nav({ vista, setVista }) {
       backgroundColor: vista === id ? 'var(--accent-color)' : 'transparent', color: vista === id ? '#fff' : 'var(--text-secondary)',
     }}>{etiqueta}</button>
   );
-  return <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>{tab('tickets', '🎫 Mis Tickets')}{tab('tarjeta', '🎨 Mi tarjeta')}{tab('musica', '🎵 Música')}</div>;
+  return <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>{tab('tickets', '🎫 My Tickets')}{tab('tarjeta', '🎨 My card')}{tab('musica', '🎵 Music')}</div>;
 }
 
 function Cabecera({ usuario, onLogout }) {
   return (
     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 25px', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-      <div style={{ fontWeight: 'bold', fontSize: '1.2em' }}>🤖 Sokyo · Soporte</div>
+      <div style={{ fontWeight: 'bold', fontSize: '1.2em' }}>🤖 Sokyo · Support</div>
       {usuario && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={usuario.avatar || `https://ui-avatars.com/api/?name=${usuario.username}&background=2c3e50&color=fff`} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
           <span style={{ fontWeight: '600' }}>{usuario.username}</span>
-          <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Salir</button>
+          <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Log out</button>
         </div>
       )}
     </header>

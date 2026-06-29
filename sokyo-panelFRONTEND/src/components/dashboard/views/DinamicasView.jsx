@@ -18,14 +18,14 @@ const label = 'mb-1.5 block text-sm font-semibold text-fg';
 // el servidor aún no tenga la dinámica guardada.
 const m = (texto = '') => ({ texto, imagen: null });
 const DEFAULTS = {
-  qotd: { activo: false, canalId: '', hora: 12, xp: 50, mencionRolId: '', preguntas: [], mensajes: { pregunta: m(), acierto: m('⭐ ¡{user} ha sido el primero en responder! +{xp} XP 🎉') } },
-  gota: { activo: false, canalId: '', cadaMin: 120, ventanaSeg: 60, xp: 75, emoji: '🪙', mensajes: { anuncio: m('¡Reacciona con {emoji} para llevarte **{xp} XP**!\nSolo el primero se la lleva. ¡Rápido! ⚡'), acierto: m('{emoji} ¡{user} ha recogido la gota y gana **{xp} XP**! 🎉'), fallo: m('Nadie la recogió a tiempo… 😢') } },
-  contador: { activo: false, canalId: '', repetirUsuario: false, xp: 1, borrarErrores: true, mensajes: { acierto: m(''), fallo: m('💥 ¡Se rompió la cuenta! El número correcto era **{numero}**. ¡Vuelta a empezar desde **1**!') } },
-  trivia: { activo: false, canalId: '', hora: 18, xp: 30, segundos: 30, mensajes: { pregunta: m(), acierto: m('✅ ¡Correcto! +{xp} XP'), fallo: m('❌ Respuesta incorrecta. ¡Suerte la próxima!') } },
-  reto: { activo: false, canalId: '', objetivo: 20, xp: 40, avisarCanalId: '', mensajes: { acierto: m('🎯 ¡{user} ha completado el reto diario! +{xp} XP · Racha 🔥 **{racha}** día(s).') } },
-  tesoro: { activo: false, canalId: '', palabra: '', xp: 60, unaVez: true, encontrada: false, mensajes: { acierto: m('🏆 ¡{user} ha encontrado la palabra secreta!') } },
-  miembroSemana: { activo: false, canalId: '', rolId: '', dia: 1, hora: 12, xp: 200, mensajes: { anuncio: m('¡Enhorabuena {user}! Has sido el miembro más activo de la semana con **{mensajes}** mensajes.') } },
-  logros: { activo: false, canalId: '', hitosMiembros: [100, 250, 500, 1000, 5000], hitosNivel: [10, 25, 50, 100], mensajes: { miembros: m('¡Ya somos **{miembros}** miembros en **{servidor}**! Gracias por estar aquí 💜'), nivel: m('¡{user} es el primero en alcanzar el **nivel {nivel}**! 🚀') } },
+  qotd: { activo: false, canalId: '', hora: 12, xp: 50, mencionRolId: '', preguntas: [], mensajes: { pregunta: m(), acierto: m('⭐ {user} was the first to answer! +{xp} XP 🎉') } },
+  gota: { activo: false, canalId: '', cadaMin: 120, ventanaSeg: 60, xp: 75, emoji: '🪙', mensajes: { anuncio: m('React with {emoji} to grab **{xp} XP**!\nOnly the first one gets it. Quick! ⚡'), acierto: m('{emoji} {user} grabbed the drop and wins **{xp} XP**! 🎉'), fallo: m('Nobody grabbed it in time… 😢') } },
+  contador: { activo: false, canalId: '', repetirUsuario: false, xp: 1, borrarErrores: true, mensajes: { acierto: m(''), fallo: m('💥 The count broke! The correct number was **{number}**. Start over from **1**!') } },
+  trivia: { activo: false, canalId: '', hora: 18, xp: 30, segundos: 30, mensajes: { pregunta: m(), acierto: m('✅ Correct! +{xp} XP'), fallo: m('❌ Wrong answer. Better luck next time!') } },
+  reto: { activo: false, canalId: '', objetivo: 20, xp: 40, avisarCanalId: '', mensajes: { acierto: m('🎯 {user} completed the daily challenge! +{xp} XP · Streak 🔥 **{streak}** day(s).') } },
+  tesoro: { activo: false, canalId: '', palabra: '', xp: 60, unaVez: true, encontrada: false, mensajes: { acierto: m('🏆 {user} found the secret word!') } },
+  miembroSemana: { activo: false, canalId: '', rolId: '', dia: 1, hora: 12, xp: 200, mensajes: { anuncio: m('Congrats {user}! You were the most active member of the week with **{messages}** messages.') } },
+  logros: { activo: false, canalId: '', hitosMiembros: [100, 250, 500, 1000, 5000], hitosNivel: [10, 25, 50, 100], mensajes: { miembros: m('We’re now **{members}** members in **{server}**! Thanks for being here 💜'), nivel: m('{user} is the first to reach **level {level}**! 🚀') } },
 };
 
 // Slots de mensaje por dinámica y placeholders disponibles en cada uno.

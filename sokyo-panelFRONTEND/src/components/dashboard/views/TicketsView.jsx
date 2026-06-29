@@ -76,7 +76,7 @@ export default function TicketsView({ dash }) {
 
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-bold leading-tight text-fg">
-                  {ticket.titulo || ticket.motivo || 'Ticket de Soporte'}
+                  {ticket.titulo || ticket.motivo || 'Support Ticket'}
                 </h3>
                 <Badge color={color}>{ticket.prioridad || 'Normal'}</Badge>
               </div>

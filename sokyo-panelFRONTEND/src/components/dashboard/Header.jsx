@@ -40,7 +40,7 @@ export default function Header({ dash, onOpenMenu }) {
         <button
           onClick={onOpenMenu}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated lg:hidden"
-          aria-label="Abrir menú"
+          aria-label="Open menu"
         >
           <Menu size={18} />
         </button>

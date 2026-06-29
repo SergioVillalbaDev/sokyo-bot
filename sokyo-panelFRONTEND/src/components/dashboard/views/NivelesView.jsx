@@ -60,7 +60,7 @@ export default function NivelesView({ dash }) {
         xpVozActivo: !!c.xpVozActivo, xpVozPorMin: c.xpVozPorMin ?? 5,
         dificultad: c.dificultad ?? 1,
         anuncioTipo: c.anuncioTipo || 'canal', canalNivelesId: c.canalNivelesId || '',
-        mensajeSubida: c.mensajeSubida || '🎉 ¡{mention} ha subido a **nivel {level}**!',
+        mensajeSubida: c.mensajeSubida || '🎉 {mention} reached **level {level}**!',
         recompensaAcumulativa: c.recompensaAcumulativa !== false,
         canalesSinXp: c.canalesSinXp || [], rolesSinXp: c.rolesSinXp || [],
         tarjetaActiva: c.tarjetaActiva !== false,

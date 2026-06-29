@@ -80,9 +80,9 @@ export default function MusicaPortal({ portalFetch }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }),
     });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) return flash(d.error || 'No se pudo añadir.', true);
+    if (!res.ok) return flash(d.error || 'Couldn’t add.', true);
     if (d.estado) setEstado((e) => ({ ...e, ...d.estado }));
-    flash(d.playlist ? `Añadidas ${d.anadidas} canciones de "${d.playlist}".` : `Añadida: ${d.track?.title || 'canción'}.`);
+    flash(d.playlist ? `Added ${d.anadidas} songs from "${d.playlist}".` : `Added: ${d.track?.title || 'song'}.`);
     cargarEstado();
   };
 
@@ -91,7 +91,7 @@ export default function MusicaPortal({ portalFetch }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion, valor }),
     });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) return flash(d.error || 'No se pudo.', true);
+    if (!res.ok) return flash(d.error || 'Couldn’t do that.', true);
     if (d.estado) { setEstado((e) => ({ ...e, ...d.estado })); if (d.estado.posicion != null) setPosLocal(d.estado.posicion); }
     cargarEstado();
   };
@@ -102,15 +102,15 @@ export default function MusicaPortal({ portalFetch }) {
   };
 
   // --- Estados especiales ---
-  if (cargandoEstado) return <p style={{ color: 'var(--text-secondary)' }}>Cargando reproductor…</p>;
+  if (cargandoEstado) return <p style={{ color: 'var(--text-secondary)' }}>Loading player…</p>;
 
   if (estado?.desactivado) {
-    return <Caja icono="🚫" titulo="Música desactivada" texto="Un administrador ha desactivado la música en este servidor." />;
+    return <Caja icono="🚫" titulo="Music disabled" texto="An administrator has disabled music on this server." />;
   }
   if (estado?.sinVoz) {
     return (
-      <Caja icono="🎧" titulo="Entra a un canal de voz" texto="Conéctate a un canal de voz en Discord y vuelve aquí para poner música.">
-        <button onClick={cargarEstado} style={btn(VERDE)}>🔄 Ya estoy dentro</button>
+      <Caja icono="🎧" titulo="Join a voice channel" texto="Connect to a voice channel in Discord and come back here to play music.">
+        <button onClick={cargarEstado} style={btn(VERDE)}>🔄 I’m in now</button>
       </Caja>
     );
   }
@@ -123,7 +123,7 @@ export default function MusicaPortal({ portalFetch }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       {/* Contexto: dónde está sonando */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '0.9em' }}>
-        🔊 Conectado en <strong style={{ color: 'var(--text-primary)' }}>{estado?.canalVoz?.nombre}</strong>
+        🔊 Connected in <strong style={{ color: 'var(--text-primary)' }}>{estado?.canalVoz?.nombre}</strong>
         {estado?.guild?.nombre && <span>· {estado.guild.nombre}</span>}
       </div>
 
@@ -137,7 +137,7 @@ export default function MusicaPortal({ portalFetch }) {
 
       {!puede && (
         <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(241,196,15,0.1)', border: '1px solid #f1c40f', color: '#f1c40f', fontSize: '0.9em' }}>
-          🎚️ Solo el rol <strong>DJ</strong> puede controlar la música aquí.
+          🎚️ Only the <strong>DJ</strong> role can control the music here.
         </div>
       )}
 
@@ -146,7 +146,7 @@ export default function MusicaPortal({ portalFetch }) {
         <div style={{ display: 'flex', gap: '18px', background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-main))', border: '1px solid var(--border-color)', borderRadius: '18px', padding: '18px', flexWrap: 'wrap' }}>
           <Caratula src={t.artwork} size={120} />
           <div style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
-            <div style={{ fontSize: '0.72em', fontWeight: 700, letterSpacing: '0.08em', color: VERDE }}>REPRODUCIENDO AHORA</div>
+            <div style={{ fontSize: '0.72em', fontWeight: 700, letterSpacing: '0.08em', color: VERDE }}>NOW PLAYING</div>
             <a href={t.uri || '#'} target="_blank" rel="noreferrer" style={{ fontSize: '1.25em', fontWeight: 700, color: 'var(--text-primary)', textDecoration: 'none' }}>{t.title}</a>
             <div style={{ color: 'var(--text-secondary)' }}>{t.author}</div>
 
@@ -156,14 +156,14 @@ export default function MusicaPortal({ portalFetch }) {
                 <div style={{ width: `${pct}%`, height: '100%', background: VERDE, transition: 'width 1s linear' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                <span>{t.isStream ? 'EN DIRECTO' : fmt(posLocal)}</span>
+                <span>{t.isStream ? 'LIVE' : fmt(posLocal)}</span>
                 <span>{t.isStream ? '🔴' : fmt(total)}</span>
               </div>
             </div>
           </div>
         </div>
       ) : (
-        <Caja icono="🎵" titulo="No hay nada sonando" texto="Busca una canción abajo para empezar la fiesta." />
+        <Caja icono="🎵" titulo="Nothing is playing" texto="Search for a song below to start the party." />
       )}
 
       {/* CONTROLES */}
@@ -191,16 +191,16 @@ export default function MusicaPortal({ portalFetch }) {
       {/* BUSCADOR */}
       <form onSubmit={onSubmit} style={{ display: 'flex', gap: '10px' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} disabled={!puede}
-          placeholder="Busca una canción o pega una URL de YouTube/Spotify…"
+          placeholder="Search a song or paste a YouTube/Spotify URL…"
           style={{ flex: 1, padding: '13px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: '0.95em' }} />
-        <button type="submit" disabled={!puede || !q.trim()} style={btn(VERDE)}>▶️ Poner</button>
+        <button type="submit" disabled={!puede || !q.trim()} style={btn(VERDE)}>▶️ Play</button>
       </form>
 
       {/* RESULTADOS DE BÚSQUEDA */}
       {(buscando || resultados.length > 0) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.85em' }}>
-            {buscando ? 'Buscando…' : 'Resultados — pulsa para añadir'}
+            {buscando ? 'Searching…' : 'Results — click to add'}
           </div>
           {resultados.map((r, i) => (
             <Fila key={i} track={r} disabled={!puede} accion={() => reproducir(r.uri || r.title)} icono="＋" />
@@ -212,7 +212,7 @@ export default function MusicaPortal({ portalFetch }) {
       {estado?.cola?.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.85em' }}>
-            📋 En cola ({estado.cola.length})
+            📋 In queue ({estado.cola.length})
           </div>
           {estado.cola.slice(0, 20).map((r, i) => (
             <Fila key={i} track={r} pos={i + 1} disabled={!puede} accion={() => control('remove', i)} icono="✕" />
@@ -242,7 +242,7 @@ function Fila({ track, pos, accion, icono, disabled }) {
           {track.author}{track.duration ? ` · ${fmt(track.duration)}` : ''}
         </div>
       </div>
-      <button onClick={accion} disabled={disabled} title={icono === '✕' ? 'Quitar' : 'Añadir'}
+      <button onClick={accion} disabled={disabled} title={icono === '✕' ? 'Remove' : 'Add'}
         style={{ flexShrink: 0, width: '34px', height: '34px', borderRadius: '9px', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', fontSize: '1.05em', fontWeight: 700, color: '#fff', opacity: disabled ? 0.4 : 1, background: icono === '✕' ? '#e74c3c' : VERDE }}>
         {icono}
       </button>

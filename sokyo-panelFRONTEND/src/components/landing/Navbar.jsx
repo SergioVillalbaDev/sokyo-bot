@@ -91,7 +91,7 @@ export default function Navbar({ onEnterDashboard }) {
             {/* Botón de menú (solo móvil) */}
             <button
               onClick={() => setMenuAbierto((v) => !v)}
-              aria-label="Menú"
+              aria-label="Menu"
               aria-expanded={menuAbierto}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card/60 text-fg transition-colors hover:bg-elevated md:hidden"
             >

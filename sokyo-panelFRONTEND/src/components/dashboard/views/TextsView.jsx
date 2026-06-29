@@ -44,7 +44,7 @@ export default function TextsView({ dash }) {
 
           <div className="flex flex-col gap-2">
             <label className={label}>{t('dashboard.texts_v.msgTitle')}</label>
-            <input type="text" value={tituloMensaje} onChange={(e) => setTituloMensaje(e.target.value)} placeholder="🎫 Soporte Técnico Activo" className={field} />
+            <input type="text" value={tituloMensaje} onChange={(e) => setTituloMensaje(e.target.value)} placeholder="🎫 Support is open" className={field} />
           </div>
 
           <div className="flex flex-col gap-2">
@@ -71,7 +71,7 @@ export default function TextsView({ dash }) {
             </div>
             <div className="flex flex-col gap-2">
               <label className={label}>{t('dashboard.texts_v.btnText')}</label>
-              <input type="text" value={textoBoton} onChange={(e) => setTextoBoton(e.target.value)} placeholder="📩 Abrir Ticket" className={field} />
+              <input type="text" value={textoBoton} onChange={(e) => setTextoBoton(e.target.value)} placeholder="📩 Open a ticket" className={field} />
             </div>
           </div>
 
@@ -94,7 +94,7 @@ export default function TextsView({ dash }) {
             className="mt-4 w-fit select-none rounded px-4 py-2.5 text-sm font-semibold text-white shadow-md"
             style={{ backgroundColor: colorEmbed || '#5865F2' }}
           >
-            {textoBoton || '📩 Abrir Ticket'}
+            {textoBoton || '📩 Open a ticket'}
           </div>
           <p className="mt-4 text-xs italic text-muted">{t('dashboard.texts_v.previewNote', { prefix: prefijo || '!' })}</p>
         </Card>
