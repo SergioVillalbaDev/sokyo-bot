@@ -11,7 +11,10 @@ const {
     UserSelectMenuBuilder,
 } = require('discord.js');
 const { getConfigCached } = require('./config.js');
+const { esPro } = require('./billing.js');
+const { aplicarPieMarca } = require('./marca.js');
 const CanalVozTemporal = require('../models/CanalVozTemporal.js');
+const PreferenciaVozUsuario = require('../models/PreferenciaVozUsuario.js');
 
 const Flags = PermissionsBitField.Flags;
 
@@ -19,6 +22,27 @@ const Flags = PermissionsBitField.Flags;
 async function getVozCfg(guildId) {
     const cfg = await getConfigCached(guildId);
     return cfg?.vozTemporal || null;
+}
+
+// ¿El servidor tiene plan de pago? (gatea las funciones Pro de esta característica).
+async function esGuildPro(guildId) {
+    const cfg = await getConfigCached(guildId);
+    return esPro(cfg);
+}
+
+// Lee las preferencias guardadas de un usuario (solo se aplican en servidores Pro).
+async function getPref(guildId, userId) {
+    return PreferenciaVozUsuario.findOne({ guildId, userId }).catch(() => null);
+}
+
+// Guarda/actualiza un trozo de las preferencias de un usuario (Pro). Silencioso si falla.
+async function guardarPref(guildId, userId, patch) {
+    try {
+        if (!(await esGuildPro(guildId))) return;
+        await PreferenciaVozUsuario.findOneAndUpdate(
+            { guildId, userId }, { $set: patch }, { upsert: true, new: true },
+        );
+    } catch (e) { console.error('voz-temporal pref:', e.message); }
 }
 
 // Rellena la plantilla del nombre. {user} = nombre · {count} = nº de su canal.
@@ -77,13 +101,23 @@ async function crearCanalTemporal(member, gen, vcfg) {
 
     const categoriaId = gen.categoriaId || guild.channels.cache.get(gen.canalId)?.parentId || null;
     const count = (await CanalVozTemporal.countDocuments({ guildId: guild.id })) + 1;
-    const nombre = nombreCanal(gen.nombre || '🔊 {user}', member, count);
+
+    // PRO: preferencias guardadas del usuario (nombre/límite/bloqueo/oculto/listas).
+    const pro = await esGuildPro(guild.id);
+    const pref = pro ? await getPref(guild.id, member.id) : null;
+
+    const nombre = pref?.nombre
+        ? nombreCanal(pref.nombre, member, count)
+        : nombreCanal(gen.nombre || '🔊 {user}', member, count);
+    const limite = Math.max(0, Math.min(99, (pref && pref.limite != null) ? pref.limite : (gen.limite || 0)));
+    const bloqueado = pref ? !!pref.bloqueado : !!gen.bloqueadoPorDefecto;
+    const oculto = pref ? !!pref.oculto : !!gen.ocultoPorDefecto;
 
     const me = guild.members.me;
     const maxBitrate = guild.maximumBitrate || 96000;
     const bitrate = Math.min(maxBitrate, Math.max(8000, (gen.bitrate || 64) * 1000));
 
-    // Permisos: el dueño manda en su canal; @everyone según los ajustes del generador.
+    // Permisos: el dueño manda en su canal; @everyone según los ajustes/preferencias.
     const overwrites = [
         {
             id: member.id,
@@ -92,15 +126,18 @@ async function crearCanalTemporal(member, gen, vcfg) {
         { id: me.id, allow: [Flags.Connect, Flags.ViewChannel, Flags.ManageChannels, Flags.MoveMembers] },
     ];
     const denyEveryone = [];
-    if (gen.bloqueadoPorDefecto) denyEveryone.push(Flags.Connect);
-    if (gen.ocultoPorDefecto) denyEveryone.push(Flags.ViewChannel);
+    if (bloqueado) denyEveryone.push(Flags.Connect);
+    if (oculto) denyEveryone.push(Flags.ViewChannel);
     if (denyEveryone.length) overwrites.push({ id: guild.id, deny: denyEveryone });
+    // PRO: invitados y vetados recordados del usuario.
+    for (const uid of (pref?.permitidos || [])) overwrites.push({ id: uid, allow: [Flags.Connect, Flags.ViewChannel] });
+    for (const uid of (pref?.bloqueados || [])) overwrites.push({ id: uid, deny: [Flags.Connect] });
 
     const canal = await guild.channels.create({
         name: nombre,
         type: ChannelType.GuildVoice,
         parent: categoriaId || undefined,
-        userLimit: Math.max(0, Math.min(99, gen.limite || 0)),
+        userLimit: limite,
         bitrate,
         permissionOverwrites: overwrites,
         reason: `Canal de voz temporal de ${member.user.tag}`,
@@ -112,9 +149,11 @@ async function crearCanalTemporal(member, gen, vcfg) {
         ownerId: member.id,
         generadorId: gen.canalId,
         nombre,
-        bloqueado: !!gen.bloqueadoPorDefecto,
-        oculto: !!gen.ocultoPorDefecto,
-        limite: Math.max(0, gen.limite || 0),
+        bloqueado,
+        oculto,
+        limite,
+        permitidos: pref?.permitidos || [],
+        bloqueados: pref?.bloqueados || [],
     });
 
     // Mover a la persona a su nuevo canal (si sigue conectada).
@@ -173,16 +212,22 @@ const BOTONES = {
 const ORDEN = ['renombrar', 'limite', 'bloquear', 'ocultar', 'bitrate',
     'invitar', 'expulsar', 'reclamar', 'transferir', 'eliminar'];
 
+const PANEL_TITULO_DEF = '🔊 Tu canal de voz';
+const PANEL_DESC_DEF = 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.';
+
 // Construye {embeds, components} del panel según los controles activos.
-function construirPanel(vcfg) {
+// La personalización (título, descripción y color) es Pro: en Free se fuerzan
+// los textos por defecto y se garantiza la marca "Powered by Sokyo" en el pie.
+function construirPanel(vcfg, cfg) {
     const ctrl = vcfg.controles || {};
     const activos = ORDEN.filter((k) => ctrl[k] !== false);
+    const pro = esPro(cfg);
 
     const embed = new EmbedBuilder()
-        .setColor('#5865F2')
-        .setTitle(vcfg.panelTitulo || '🔊 Tu canal de voz')
-        .setDescription(vcfg.panelDescripcion || 'Usa estos botones para gestionar tu sala.')
-        .setFooter({ text: 'Debes estar dentro de tu canal de voz para usar los botones.' });
+        .setColor(pro ? (vcfg.panelColor || '#5865F2') : '#5865F2')
+        .setTitle(pro ? (vcfg.panelTitulo || PANEL_TITULO_DEF) : PANEL_TITULO_DEF)
+        .setDescription(pro ? (vcfg.panelDescripcion || PANEL_DESC_DEF) : PANEL_DESC_DEF);
+    aplicarPieMarca(embed, cfg); // Free: "Powered by Sokyo" · Pro: su marca o ninguna
 
     const rows = [];
     for (let i = 0; i < activos.length; i += 5) {
@@ -207,7 +252,7 @@ async function publicarPanel(client, guildId) {
     const canal = guild?.channels.cache.get(vcfg.panelCanalId);
     if (!canal?.isTextBased()) throw new Error('canal-invalido');
 
-    const payload = construirPanel(vcfg);
+    const payload = construirPanel(vcfg, cfg);
 
     // Dejar el canal del panel en solo-lectura (o restaurarlo) según el ajuste.
     await aplicarBloqueoCanalPanel(canal, guild, !!vcfg.panelBloquearCanal).catch(() => {});
@@ -303,6 +348,7 @@ async function alternarBloqueo(interaction, ctx) {
     const nuevo = !ctx.doc.bloqueado;
     await ctx.canal.permissionOverwrites.edit(interaction.guild.id, { Connect: nuevo ? false : null }).catch(() => {});
     ctx.doc.bloqueado = nuevo; await ctx.doc.save();
+    await guardarPref(interaction.guild.id, ctx.doc.ownerId, { bloqueado: nuevo });
     return reply(interaction, nuevo ? '🔒 Canal bloqueado: nadie nuevo puede entrar.' : '🔓 Canal abierto: ya puede entrar cualquiera.');
 }
 
@@ -310,6 +356,7 @@ async function alternarOculto(interaction, ctx) {
     const nuevo = !ctx.doc.oculto;
     await ctx.canal.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: nuevo ? false : null }).catch(() => {});
     ctx.doc.oculto = nuevo; await ctx.doc.save();
+    await guardarPref(interaction.guild.id, ctx.doc.ownerId, { oculto: nuevo });
     return reply(interaction, nuevo ? '👁️ Canal oculto: solo lo ven los invitados.' : '👁️ Canal visible para todos.');
 }
 
@@ -350,12 +397,14 @@ async function manejarModal(interaction) {
         if (!nombre) return reply(interaction, '⚠️ El nombre no puede estar vacío.');
         await ctx.canal.setName(nombre).catch(() => {});
         ctx.doc.nombre = nombre; await ctx.doc.save();
+        await guardarPref(interaction.guild.id, ctx.doc.ownerId, { nombre });
         return reply(interaction, `✏️ Canal renombrado a **${nombre}**.`);
     }
     if (accion === 'limite') {
         const n = Math.max(0, Math.min(99, parseInt(valor, 10) || 0));
         await ctx.canal.setUserLimit(n).catch(() => {});
         ctx.doc.limite = n; await ctx.doc.save();
+        await guardarPref(interaction.guild.id, ctx.doc.ownerId, { limite: n });
         return reply(interaction, n === 0 ? '👥 Límite quitado (sin tope).' : `👥 Límite fijado en **${n}** personas.`);
     }
     if (accion === 'bitrate') {
@@ -386,6 +435,7 @@ async function manejarSelectUsuario(interaction) {
         if (!ctx.doc.permitidos.includes(objetivoId)) ctx.doc.permitidos.push(objetivoId);
         ctx.doc.bloqueados = ctx.doc.bloqueados.filter((id) => id !== objetivoId);
         await ctx.doc.save();
+        await guardarPref(interaction.guild.id, ctx.doc.ownerId, { permitidos: ctx.doc.permitidos, bloqueados: ctx.doc.bloqueados });
         return interaction.update({ content: `➕ <@${objetivoId}> ya tiene acceso a tu canal.`, components: [] }).catch(() => {});
     }
     if (accion === 'expulsar') {
@@ -397,6 +447,7 @@ async function manejarSelectUsuario(interaction) {
         if (!ctx.doc.bloqueados.includes(objetivoId)) ctx.doc.bloqueados.push(objetivoId);
         ctx.doc.permitidos = ctx.doc.permitidos.filter((id) => id !== objetivoId);
         await ctx.doc.save();
+        await guardarPref(interaction.guild.id, ctx.doc.ownerId, { permitidos: ctx.doc.permitidos, bloqueados: ctx.doc.bloqueados });
         return interaction.update({ content: `🚫 <@${objetivoId}> ha sido expulsado y vetado.`, components: [] }).catch(() => {});
     }
     if (accion === 'transferir') {

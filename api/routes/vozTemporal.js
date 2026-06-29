@@ -23,6 +23,7 @@ module.exports = ({ client }) => {
         activo: false, generadores: [], panelCanalId: null, panelMensajeId: null,
         panelTitulo: '🔊 Tu canal de voz',
         panelDescripcion: 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.',
+        panelColor: '#5865F2',
         panelBloquearCanal: false,
         controles: {
             renombrar: true, limite: true, bloquear: true, ocultar: true, bitrate: true,
@@ -66,6 +67,7 @@ module.exports = ({ client }) => {
                 panelCanalId: b.panelCanalId ? String(b.panelCanalId) : null,
                 panelTitulo: String(b.panelTitulo || VOZ_DEF.panelTitulo).slice(0, 100),
                 panelDescripcion: String(b.panelDescripcion || VOZ_DEF.panelDescripcion).slice(0, 500),
+                panelColor: /^#[0-9a-fA-F]{6}$/.test(b.panelColor) ? b.panelColor : '#5865F2',
                 panelBloquearCanal: !!b.panelBloquearCanal,
                 controles: {
                     renombrar: c.renombrar !== false,

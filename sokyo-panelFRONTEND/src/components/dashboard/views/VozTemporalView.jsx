@@ -3,7 +3,7 @@
 // ver/cerrar las salas activas en vivo.
 import { useState, useEffect } from 'react';
 import {
-  Mic2, Save, Check, Plus, Trash2, RefreshCw, Send, Lock, Eye, Users, X,
+  Mic2, Save, Check, Plus, Trash2, RefreshCw, Send, Lock, Eye, Users, X, Crown, Sparkles,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 
@@ -48,9 +48,27 @@ function Banner({ msg }) {
 
 const GEN_DEF = { canalId: '', nombre: '🔊 {user}', categoriaId: '', limite: 0, bitrate: 64, bloqueadoPorDefecto: false, ocultoPorDefecto: false };
 
+// Plantillas de generador (función Pro): rellenan los ajustes de un generador nuevo.
+const PLANTILLAS = [
+  { id: 'gaming', label: '🎮 Gaming', nombre: '🎮 Sala de {user}', limite: 5, bitrate: 96 },
+  { id: 'estudio', label: '📚 Estudio', nombre: '📚 {user} estudiando', limite: 4, bitrate: 64 },
+  { id: 'musica', label: '🎵 Música', nombre: '🎵 {user}', limite: 0, bitrate: 128 },
+  { id: 'privada', label: '🔒 Privada', nombre: '🔒 Sala de {user}', limite: 2, bitrate: 64, bloqueadoPorDefecto: true, ocultoPorDefecto: true },
+  { id: 'chill', label: '🛋️ Chill', nombre: '🛋️ {user}', limite: 0, bitrate: 64 },
+];
+
+// Etiqueta "Pro" reutilizable.
+function ProTag() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-brand px-2 py-0.5 text-[11px] font-bold text-on-brand">
+      <Crown size={11} /> Pro
+    </span>
+  );
+}
+
 export default function VozTemporalView({ dash }) {
   const {
-    configServidor, canales, canalesVoz, categorias, vozActivos,
+    configServidor, canales, canalesVoz, categorias, vozActivos, esPremium,
     guardarVozTemporal, publicarPanelVoz, cerrarSalaVoz, cargarVozActivos,
   } = dash;
 
@@ -71,6 +89,7 @@ export default function VozTemporalView({ dash }) {
       panelCanalId: v.panelCanalId || '',
       panelTitulo: v.panelTitulo || '🔊 Tu canal de voz',
       panelDescripcion: v.panelDescripcion || 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.',
+      panelColor: v.panelColor || '#5865F2',
       panelBloquearCanal: v.panelBloquearCanal ?? false,
       controles: Object.fromEntries(CONTROLES.map(([k]) => [k, c[k] !== false])),
       maxPorUsuario: v.maxPorUsuario ?? 1,
@@ -87,6 +106,14 @@ export default function VozTemporalView({ dash }) {
     setF((s) => ({ ...s, generadores: s.generadores.map((g, idx) => (idx === i ? { ...g, [campo]: valor } : g)) }));
   };
   const addGen = () => { setGuardado(false); setF((s) => ({ ...s, generadores: [...s.generadores, { ...GEN_DEF }] })); };
+  const addGenPlantilla = (id) => {
+    const p = PLANTILLAS.find((x) => x.id === id);
+    if (!p) return;
+    const { nombre, limite, bitrate, bloqueadoPorDefecto, ocultoPorDefecto } = p;
+    const campos = { nombre, limite, bitrate, bloqueadoPorDefecto: !!bloqueadoPorDefecto, ocultoPorDefecto: !!ocultoPorDefecto };
+    setGuardado(false);
+    setF((s) => ({ ...s, generadores: [...s.generadores, { ...GEN_DEF, ...campos }] }));
+  };
   const delGen = (i) => { setGuardado(false); setF((s) => ({ ...s, generadores: s.generadores.filter((_, idx) => idx !== i) })); };
 
   const guardar = async () => {
@@ -136,14 +163,42 @@ export default function VozTemporalView({ dash }) {
         </Ajuste>
       </Card>
 
+      {/* Preferencias por usuario (Pro): automático, sin configuración. */}
+      <Card className={`${card} ${esPremium ? 'border-brand/40' : ''}`}>
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-on-brand"><Crown size={18} /></span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-bold text-fg">Preferencias por usuario <ProTag /></div>
+            <p className="text-sm text-muted">
+              {esPremium
+                ? '✅ Activo. Cada persona conserva el nombre, límite, bloqueo/oculto y sus invitados/vetados: la próxima vez su sala se crea exactamente como la dejó. No hay que configurar nada.'
+                : 'Con Pro, la sala de cada miembro recuerda su nombre, límite, bloqueo/oculto e invitados/vetados, y se recrea igual cada vez. En Free siempre nace con los ajustes del generador.'}
+            </p>
+          </div>
+        </div>
+      </Card>
+
       {/* Generadores */}
       <Card className={card}>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-bold text-fg"><Mic2 size={18} /> Canales generadores</div>
-          <button onClick={addGen}
-            className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-fg hover:bg-elevated">
-            <Plus size={15} /> Añadir
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Plantillas (Pro): crean un generador con ajustes predefinidos. */}
+            <div className="flex items-center gap-1.5">
+              <select defaultValue="" disabled={!esPremium}
+                onChange={(e) => { if (e.target.value) { addGenPlantilla(e.target.value); e.target.value = ''; } }}
+                title={esPremium ? 'Añadir desde una plantilla' : 'Las plantillas son una función Pro'}
+                className={`rounded-xl border border-line bg-bg px-3 py-1.5 text-sm text-fg disabled:opacity-50 ${inputCls}`}>
+                <option value="">{esPremium ? '✨ Desde plantilla…' : '✨ Plantillas (Pro)'}</option>
+                {esPremium && PLANTILLAS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+              {!esPremium && <ProTag />}
+            </div>
+            <button onClick={addGen}
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-fg hover:bg-elevated">
+              <Plus size={15} /> Añadir
+            </button>
+          </div>
         </div>
 
         {f.generadores.length === 0 && (
@@ -213,14 +268,32 @@ export default function VozTemporalView({ dash }) {
               {canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted">Título del panel</span>
-            <input value={f.panelTitulo} onChange={(e) => set('panelTitulo', e.target.value)} className={inputCls} maxLength={100} />
-          </label>
-          <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            <span className="text-muted">Descripción del panel</span>
-            <textarea value={f.panelDescripcion} onChange={(e) => set('panelDescripcion', e.target.value)} rows={2} className={inputCls} maxLength={500} />
-          </label>
+        </div>
+
+        {/* Personalización del panel (Pro): título, descripción y color propios. */}
+        <div className="mt-4 rounded-2xl border border-line bg-bg/40 p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-fg">
+            <Sparkles size={15} /> Personalización del panel <ProTag />
+          </div>
+          {!esPremium && (
+            <p className="mb-3 text-xs text-muted">
+              En el plan Free el panel usa el diseño por defecto con la marca «Powered by Sokyo». Sube a Pro para poner tu título, descripción y color, y quitar la marca.
+            </p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">Título del panel</span>
+              <input value={f.panelTitulo} onChange={(e) => set('panelTitulo', e.target.value)} disabled={!esPremium} className={`${inputCls} disabled:opacity-50`} maxLength={100} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">Color del panel</span>
+              <input type="color" value={f.panelColor} onChange={(e) => set('panelColor', e.target.value)} disabled={!esPremium} className={`h-10 w-full cursor-pointer rounded-xl border border-line bg-bg disabled:opacity-50`} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              <span className="text-muted">Descripción del panel</span>
+              <textarea value={f.panelDescripcion} onChange={(e) => set('panelDescripcion', e.target.value)} disabled={!esPremium} rows={2} className={`${inputCls} disabled:opacity-50`} maxLength={500} />
+            </label>
+          </div>
         </div>
         <Ajuste
           titulo="🔒 Bloquear el canal del panel"
