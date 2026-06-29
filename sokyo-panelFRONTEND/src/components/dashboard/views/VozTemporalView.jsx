@@ -47,6 +47,7 @@ function Banner({ msg }) {
 }
 
 const GEN_DEF = { canalId: '', nombre: '🔊 {user}', categoriaId: '', limite: 0, bitrate: 64, bloqueadoPorDefecto: false, ocultoPorDefecto: false };
+const MAX_GENERADORES = 3; // tope global de canales generadores por servidor
 
 // Plantillas de generador (función Pro): rellenan los ajustes de un generador nuevo.
 const PLANTILLAS = [
@@ -105,14 +106,17 @@ export default function VozTemporalView({ dash }) {
     setGuardado(false);
     setF((s) => ({ ...s, generadores: s.generadores.map((g, idx) => (idx === i ? { ...g, [campo]: valor } : g)) }));
   };
-  const addGen = () => { setGuardado(false); setF((s) => ({ ...s, generadores: [...s.generadores, { ...GEN_DEF }] })); };
+  const addGen = () => {
+    setGuardado(false);
+    setF((s) => (s.generadores.length >= MAX_GENERADORES ? s : { ...s, generadores: [...s.generadores, { ...GEN_DEF }] }));
+  };
   const addGenPlantilla = (id) => {
     const p = PLANTILLAS.find((x) => x.id === id);
     if (!p) return;
     const { nombre, limite, bitrate, bloqueadoPorDefecto, ocultoPorDefecto } = p;
     const campos = { nombre, limite, bitrate, bloqueadoPorDefecto: !!bloqueadoPorDefecto, ocultoPorDefecto: !!ocultoPorDefecto };
     setGuardado(false);
-    setF((s) => ({ ...s, generadores: [...s.generadores, { ...GEN_DEF, ...campos }] }));
+    setF((s) => (s.generadores.length >= MAX_GENERADORES ? s : { ...s, generadores: [...s.generadores, { ...GEN_DEF, ...campos }] }));
   };
   const delGen = (i) => { setGuardado(false); setF((s) => ({ ...s, generadores: s.generadores.filter((_, idx) => idx !== i) })); };
 
@@ -181,11 +185,14 @@ export default function VozTemporalView({ dash }) {
       {/* Generadores */}
       <Card className={card}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-bold text-fg"><Mic2 size={18} /> Canales generadores</div>
+          <div className="flex items-center gap-2 font-bold text-fg">
+            <Mic2 size={18} /> Canales generadores
+            <span className="text-xs font-normal text-muted">({f.generadores.length}/{MAX_GENERADORES})</span>
+          </div>
           <div className="flex items-center gap-2">
             {/* Plantillas (Pro): crean un generador con ajustes predefinidos. */}
             <div className="flex items-center gap-1.5">
-              <select defaultValue="" disabled={!esPremium}
+              <select defaultValue="" disabled={!esPremium || f.generadores.length >= MAX_GENERADORES}
                 onChange={(e) => { if (e.target.value) { addGenPlantilla(e.target.value); e.target.value = ''; } }}
                 title={esPremium ? 'Añadir desde una plantilla' : 'Las plantillas son una función Pro'}
                 className={`rounded-xl border border-line bg-bg px-3 py-1.5 text-sm text-fg disabled:opacity-50 ${inputCls}`}>
@@ -194,12 +201,16 @@ export default function VozTemporalView({ dash }) {
               </select>
               {!esPremium && <ProTag />}
             </div>
-            <button onClick={addGen}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-fg hover:bg-elevated">
+            <button onClick={addGen} disabled={f.generadores.length >= MAX_GENERADORES}
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-fg hover:bg-elevated disabled:opacity-40">
               <Plus size={15} /> Añadir
             </button>
           </div>
         </div>
+
+        {f.generadores.length >= MAX_GENERADORES && (
+          <p className="mb-2 text-xs text-muted">Has llegado al máximo de {MAX_GENERADORES} canales generadores. Cada uno puede crear salas ilimitadas.</p>
+        )}
 
         {f.generadores.length === 0 && (
           <p className="py-4 text-center text-sm text-muted">

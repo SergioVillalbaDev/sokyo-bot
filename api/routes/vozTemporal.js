@@ -49,7 +49,7 @@ module.exports = ({ client }) => {
             const b = req.body || {};
             const generadores = Array.isArray(b.generadores) ? b.generadores
                 .filter((g) => g && g.canalId)
-                .slice(0, 10)
+                .slice(0, 3) // tope global: máximo 3 canales generadores por servidor
                 .map((g) => ({
                     canalId: String(g.canalId),
                     nombre: String(g.nombre || '🔊 {user}').slice(0, 100),
