@@ -43,6 +43,7 @@ import PlanesView from './views/PlanesView';
 import AnaliticaView from './views/AnaliticaView';
 import ResumenView from './views/ResumenView';
 import MusicaView from './views/MusicaView';
+import VozTemporalView from './views/VozTemporalView';
 import IntegracionesView from './views/IntegracionesView';
 import SorteosView from './views/SorteosView';
 import EventosView from './views/EventosView';
@@ -127,6 +128,7 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'com-presentaciones') return <PresentacionesView dash={dash} />;
     if (activeTab === 'com-dinamicas') return <DinamicasView dash={dash} />;
     if (activeTab === 'musica') return <MusicaView dash={dash} />;
+    if (activeTab === 'voz-temporal') return <VozTemporalView dash={dash} />;
     if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <ResumenView dash={dash} />;
     if (activeTab === 'config-webhooks') return <IntegracionesView dash={dash} />;

@@ -7,7 +7,7 @@ import {
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
   UserCheck, Flag, DatabaseBackup, FlaskConical,
   Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
-  Music, Webhook, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2,
+  Music, Webhook, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2, Mic2,
 } from 'lucide-react';
 
 // Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
@@ -59,6 +59,7 @@ export const navGroups = [
     icon: Music,
     items: [
       { tab: 'musica', icon: Music },
+      { tab: 'voz-temporal', icon: Mic2 },
     ],
   },
   {

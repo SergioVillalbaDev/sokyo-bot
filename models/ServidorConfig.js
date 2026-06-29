@@ -506,6 +506,48 @@ const ServidorConfigSchema = new mongoose.Schema({
         },
     },
 
+    // --- VOZ: CANALES TEMPORALES (Join-to-Create) ---
+    // Marcas uno o varios canales de voz como "generadores": al entrar a uno, el
+    // bot crea un canal de voz propio para esa persona, la mueve dentro y le da el
+    // control. Cuando el canal se queda vacío, se borra solo. El estado vivo de
+    // cada canal creado vive en el modelo CanalVozTemporal. Lógica en
+    // utils/vozTemporal.js (creación/borrado: voiceStateUpdate · panel: interactionCreate).
+    vozTemporal: {
+        activo: { type: Boolean, default: false },           // interruptor general
+        // Canales generadores. Cada uno con sus ajustes (sobreescriben los globales).
+        generadores: {
+            type: [{
+                canalId: { type: String },                   // canal de voz "➕ Crear" al que se entra
+                nombre: { type: String, default: '🔊 {user}' }, // plantilla; {user} {count}
+                categoriaId: { type: String, default: null },   // categoría donde crear (null = la del generador)
+                limite: { type: Number, default: 0 },        // límite de usuarios por defecto (0 = sin límite)
+                bitrate: { type: Number, default: 64 },      // bitrate en kbps
+                bloqueadoPorDefecto: { type: Boolean, default: false }, // nacen cerrados
+                ocultoPorDefecto: { type: Boolean, default: false },    // nacen ocultos
+            }],
+            default: [],
+        },
+        // Panel de control (chat de texto con botones) para que el dueño gestione su canal.
+        panelCanalId: { type: String, default: null },       // canal de texto donde se publica el panel
+        panelMensajeId: { type: String, default: null },     // (interno) id del mensaje del panel
+        panelTitulo: { type: String, default: '🔊 Tu canal de voz' },
+        panelDescripcion: { type: String, default: 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.' },
+        // Qué controles ofrecer en el panel (todos activables por separado).
+        controles: {
+            renombrar: { type: Boolean, default: true },
+            limite: { type: Boolean, default: true },
+            bloquear: { type: Boolean, default: true },      // cerrar/abrir (permiso conectar)
+            ocultar: { type: Boolean, default: true },       // ocultar/mostrar (permiso ver)
+            invitar: { type: Boolean, default: true },       // dar acceso a alguien
+            expulsar: { type: Boolean, default: true },      // echar + vetar a alguien
+            bitrate: { type: Boolean, default: true },
+            reclamar: { type: Boolean, default: true },      // tomar el mando si el dueño se fue
+            transferir: { type: Boolean, default: true },    // ceder el mando a otra persona
+            eliminar: { type: Boolean, default: true },      // borrar el canal manualmente
+        },
+        maxPorUsuario: { type: Number, default: 1 },         // canales simultáneos por persona (anti-abuso)
+    },
+
     // --- ACCESO Y PERMISOS ---
     rolesPanelAcceso: { type: [String], default: [] },  // roles que pueden entrar al panel web
     rolesModeracion: { type: [String], default: [] },   // roles que pueden moderar (panel + comandos)

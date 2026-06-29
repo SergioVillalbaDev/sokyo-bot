@@ -224,6 +224,9 @@ module.exports = (client) => {
     // --- Sistema de música (rutas en api/routes/musica.js) ---
     app.use('/api', require('./routes/musica.js')({ portalAuth, client }));
 
+    // --- Canales de voz temporales (rutas en api/routes/vozTemporal.js) ---
+    app.use('/api', require('./routes/vozTemporal.js')({ client }));
+
     // --- Playlists de usuario (guardadas en BD) ---
     app.use('/api', require('./routes/playlists.js')({ portalAuth, client }));
 
@@ -1202,6 +1205,22 @@ app.get('/api/stats/uso', async (req, res) => {
             res.json(categorias);
         } catch (error) {
             console.error('Error al obtener categorías:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- Canales de VOZ del servidor (para el selector de generadores) ---
+    app.get('/api/servidor/canales-voz', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.json([]);
+            const canales = guild.channels.cache
+                .filter((c) => c.type === ChannelType.GuildVoice)
+                .sort((a, b) => a.position - b.position)
+                .map((c) => ({ id: c.id, nombre: c.name }));
+            res.json(canales);
+        } catch (error) {
+            console.error('Error al obtener canales de voz:', error);
             res.status(500).json({ error: 'Error del servidor' });
         }
     });

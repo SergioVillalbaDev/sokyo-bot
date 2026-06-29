@@ -86,6 +86,8 @@ export function useDashboard() {
   // Paneles de autoasignación de roles + canales y emojis del servidor.
   const [paneles, setPaneles] = useState([]);
   const [canales, setCanales] = useState([]);
+  const [canalesVoz, setCanalesVoz] = useState([]);   // canales de voz (generadores)
+  const [vozActivos, setVozActivos] = useState([]);   // salas temporales en vivo
   const [emojisServidor, setEmojisServidor] = useState([]);
   const [stickers, setStickers] = useState([]);
   const [ranking, setRanking] = useState([]);
@@ -310,6 +312,43 @@ export function useDashboard() {
       const data = await res.json();
       if (data.success && data.config) { setConfigServidor(data.config); return true; }
     } catch (error) { console.error('Error guardando música:', error); }
+    return false;
+  };
+
+  // --- VOZ TEMPORAL (canales de voz Join-to-Create) ---
+  const cargarCanalesVoz = () => apiFetch(`/api/servidor/canales-voz${gp()}`).then(procesarRespuesta).then((datos) => setCanalesVoz(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando canales de voz'));
+  const cargarVozActivos = () => { if (!guildId) return; apiFetch(`/api/config/${guildId}/voztemporal/activos`).then(procesarRespuesta).then((datos) => setVozActivos(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando salas activas')); };
+
+  // Guarda la configuración de voz temporal.
+  const guardarVozTemporal = async (cambios) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/voztemporal`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando voz temporal:', error); }
+    return false;
+  };
+
+  // Publica/reedita el panel de control en Discord.
+  const publicarPanelVoz = async () => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/voztemporal/panel`, { method: 'POST' });
+      return await res.json();
+    } catch (error) { console.error('Error publicando panel de voz:', error); return { error: 'Error de conexión' }; }
+  };
+
+  // Cierra (borra) una sala temporal concreta.
+  const cerrarSalaVoz = async (canalId) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/voztemporal/activos/${canalId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { await cargarVozActivos(); return true; }
+    } catch (error) { console.error('Error cerrando sala:', error); }
     return false;
   };
 
@@ -1201,6 +1240,7 @@ export function useDashboard() {
     else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarConfiguracion(); }
     else if (activeTab === 'com-dinamicas') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarTrivia(); }
     else if (activeTab === 'musica') { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
+    else if (activeTab === 'voz-temporal') { cargarConfiguracion(); cargarCanales(); cargarCanalesVoz(); cargarCategorias(); cargarVozActivos(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
     else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); cargarPresetsAnuncio(); }
@@ -1282,6 +1322,8 @@ export function useDashboard() {
     // niveles
     ranking, guardarNiveles,
     guardarMusica,
+    // voz temporal (canales Join-to-Create)
+    canalesVoz, vozActivos, cargarCanalesVoz, cargarVozActivos, guardarVozTemporal, publicarPanelVoz, cerrarSalaVoz,
     catalogoPresets, guardarCatalogoPresets,
     // productividad: macros + etiquetas
     guardarMacros, guardarEtiquetas,

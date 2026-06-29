@@ -145,6 +145,17 @@ module.exports = {
             return require('../utils/musica.js').manejarBotonMusica(interaction, client);
         }
 
+        // --- VOZ TEMPORAL: panel de control (botones / modales / selección de usuario) ---
+        if (interaction.isButton() && interaction.customId.startsWith('vt:')) {
+            return require('../utils/vozTemporal.js').manejarBoton(interaction);
+        }
+        if (interaction.isModalSubmit() && interaction.customId.startsWith('vt_modal:')) {
+            return require('../utils/vozTemporal.js').manejarModal(interaction);
+        }
+        if (interaction.isUserSelectMenu() && interaction.customId.startsWith('vt_user:')) {
+            return require('../utils/vozTemporal.js').manejarSelectUsuario(interaction);
+        }
+
         // --- SEGURIDAD: verificación de entrada (botón + captcha) ---
         if (interaction.isButton() && interaction.customId === 'verif_inicio') return verificacion.manejarInicio(interaction);
         if (interaction.isButton() && interaction.customId === 'verif_introducir') return verificacion.manejarIntroducir(interaction);

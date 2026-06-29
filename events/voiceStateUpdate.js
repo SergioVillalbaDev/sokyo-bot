@@ -1,11 +1,15 @@
 const { Events } = require('discord.js');
 const { registrarVoz } = require('../utils/actividad.js');
 const { es247 } = require('../utils/musica.js');
+const { manejarVoz } = require('../utils/vozTemporal.js');
 
 module.exports = {
     name: Events.VoiceStateUpdate,
     async execute(oldState, newState, client) {
         try {
+            // CANALES DE VOZ TEMPORALES: crear al entrar a un generador / borrar al vaciarse.
+            await manejarVoz(oldState, newState, client).catch((e) => console.error('voz-temporal:', e.message));
+
             // Solo cuando ENTRA a un canal de voz (o cambia de uno a otro).
             if (newState.channelId && newState.channelId !== oldState.channelId) {
                 const member = newState.member;

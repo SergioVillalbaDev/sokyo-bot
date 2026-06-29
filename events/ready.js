@@ -6,6 +6,7 @@ const { barrerSancionesVencidas } = require('../utils/moderationManager.js');
 const { registrarVoz } = require('../utils/actividad.js');
 const { otorgarXpVoz } = require('../utils/niveles.js');
 const { getConfigCached } = require('../utils/config.js');
+const { barrerCanales: barrerCanalesVoz } = require('../utils/vozTemporal.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -29,6 +30,9 @@ module.exports = {
 
         // Barrido de bans temporales vencidos (cada 60 s).
         setInterval(() => barrerSancionesVencidas(client).catch((e) => console.error('Barrido sanciones:', e.message)), 60000);
+
+        // Limpieza de canales de voz temporales huérfanos/vacíos al arrancar.
+        barrerCanalesVoz(client).catch((e) => console.error('Barrido voz temporal:', e.message));
 
         // XP por voz: cada minuto, a quien esté en un canal de voz (acompañado).
         setInterval(async () => {
