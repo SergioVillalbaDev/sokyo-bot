@@ -1225,6 +1225,30 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- SOLO PROPIETARIO (OWNER_IDS): activar/cambiar plan de CUALQUIER servidor ---
+    // `req.staff.owner` se firma en el login a partir de OWNER_IDS (no es falsificable
+    // sin el JWT_SECRET). Esto deja a los dueños del bot conceder Pro/Agencia a mano
+    // desde el panel, sin tocar la consola. NADIE más puede llamar a esto.
+    const exigeOwner = (req, res, next) => {
+        if (req.staff && req.staff.owner) return next();
+        return res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' });
+    };
+    app.post('/api/owner/premium', exigeOwner, async (req, res) => {
+        try {
+            const guildId = String(req.body.guildId || '').trim();
+            const plan = String(req.body.plan || '').toLowerCase();
+            if (!guildId) return res.status(400).json({ error: 'Falta el guildId.' });
+            if (!['free', 'pro', 'agency'].includes(plan)) return res.status(400).json({ error: 'Plan no válido.' });
+            if (plan === 'free') await billing.desactivarPlan(guildId);
+            else await billing.activarPlan(guildId, { plan, premiumHasta: null }); // de por vida (sin caducidad)
+            const config = await ServidorConfig.findOne({ guildId });
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('owner/premium:', error.message);
+            res.status(500).json({ error: 'No se pudo cambiar el plan.' });
+        }
+    });
+
     // --- NUEVA RUTA: Respuestas rápidas / macros (productividad del staff) ---
     app.put('/api/config/:guildId/macros', async (req, res) => {
         try {

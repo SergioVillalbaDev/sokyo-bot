@@ -2,7 +2,8 @@
 // subir a Pro / Agencia (Stripe Checkout) o gestionar la suscripción (Portal).
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Crown, Check, Sparkles, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
+import { Crown, Check, Sparkles, ExternalLink, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { getStaffSession } from '../../../lib/api';
 
 // Precios de ESCAPARATE (deben coincidir con los precios que crees en Stripe).
 const PRECIO = {
@@ -76,11 +77,30 @@ function TierCard({ id, destacado, t, intervalo, planActual, pagosActivos, carga
 
 export default function PlanesView({ dash }) {
   const { t } = useTranslation();
-  const { billing, irACheckout, abrirPortalPago } = dash;
+  const { billing, irACheckout, abrirPortalPago, ownerCambiarPlan, cargarEstadoBilling, configServidor, servidores, guildId } = dash;
 
   const [intervalo, setIntervalo] = useState('month'); // 'month' | 'year'
   const [cargandoId, setCargandoId] = useState(''); // qué botón está en marcha
   const [error, setError] = useState('');
+
+  // Control SOLO para los dueños del bot (OWNER_IDS): conceder Pro/Agencia a mano.
+  const esOwner = !!getStaffSession()?.owner;
+  const [ownerCargando, setOwnerCargando] = useState('');
+  const [ownerMsg, setOwnerMsg] = useState(null);
+  const planServidor = configServidor?.plan || 'free';
+  const nombreServidor = servidores?.find((s) => s.id === guildId)?.nombre || guildId || 'este servidor';
+
+  const ownerAccion = async (plan) => {
+    setOwnerCargando(plan);
+    setOwnerMsg(null);
+    const ok = await ownerCambiarPlan(plan);
+    if (ok) await cargarEstadoBilling();
+    setOwnerCargando('');
+    setOwnerMsg(ok
+      ? { tipo: 'ok', texto: `Plan cambiado a ${plan.toUpperCase()} en ${nombreServidor}.` }
+      : { tipo: 'err', texto: 'No se pudo cambiar el plan.' });
+    setTimeout(() => setOwnerMsg(null), 4000);
+  };
 
   // Aviso de vuelta del pago (?pago=ok | ?pago=cancelado).
   const [aviso] = useState(() => new URLSearchParams(window.location.search).get('pago') || '');
@@ -144,6 +164,37 @@ export default function PlanesView({ dash }) {
           </p>
         )}
       </div>
+
+      {/* Panel del PROPIETARIO (OWNER_IDS): activar Pro/Agencia a mano en este servidor.
+          Solo visible para los dueños del bot; el backend lo refuerza con 403. */}
+      {esOwner && (
+        <div className="rounded-3xl border border-brand/40 bg-card p-5 shadow-soft">
+          <div className="mb-1 flex items-center gap-2 font-bold text-fg">
+            <ShieldCheck size={18} className="text-brand" /> Propietario · activar plan a mano
+          </div>
+          <p className="mb-3 text-sm text-muted">
+            Cambia el plan de <strong>{nombreServidor}</strong> sin pasar por Stripe (de por vida).
+            Plan actual de este servidor: <strong>{planServidor.toUpperCase()}</strong>.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => ownerAccion('pro')} disabled={!!ownerCargando}
+              className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+              {ownerCargando === 'pro' ? <Loader2 size={15} className="animate-spin" /> : <Crown size={15} />} Activar Pro
+            </button>
+            <button onClick={() => ownerAccion('agency')} disabled={!!ownerCargando}
+              className="flex items-center gap-2 rounded-xl border border-line bg-bg px-4 py-2 text-sm font-semibold text-fg hover:bg-elevated disabled:opacity-50">
+              {ownerCargando === 'agency' ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Activar Agencia
+            </button>
+            <button onClick={() => ownerAccion('free')} disabled={!!ownerCargando}
+              className="flex items-center gap-2 rounded-xl border border-line bg-bg px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50">
+              Quitar (Free)
+            </button>
+            {ownerMsg && (
+              <span className={`text-sm font-semibold ${ownerMsg.tipo === 'ok' ? 'text-green-400' : 'text-red-400'}`}>{ownerMsg.texto}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <p className="text-sm text-muted">{t('dashboard.planes_v.intro')}</p>
 

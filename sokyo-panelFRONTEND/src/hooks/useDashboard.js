@@ -352,6 +352,21 @@ export function useDashboard() {
     return false;
   };
 
+  // SOLO PROPIETARIO (OWNER_IDS): cambia el plan del servidor seleccionado.
+  // El backend rechaza a cualquiera que no sea owner (403).
+  const ownerCambiarPlan = async (plan) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch('/api/owner/premium', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId: configServidor.guildId, plan }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error cambiando plan (owner):', error); }
+    return false;
+  };
+
   // Crea un panel (el backend lo publica si trae canal). Refresca la lista.
   const crearPanel = async (datos) => {
     try {
@@ -1322,6 +1337,7 @@ export function useDashboard() {
     // niveles
     ranking, guardarNiveles,
     guardarMusica,
+    ownerCambiarPlan,
     // voz temporal (canales Join-to-Create)
     canalesVoz, vozActivos, cargarCanalesVoz, cargarVozActivos, guardarVozTemporal, publicarPanelVoz, cerrarSalaVoz,
     catalogoPresets, guardarCatalogoPresets,
