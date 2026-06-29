@@ -127,6 +127,15 @@ export const navGroups = [
       { tab: 'config', icon: Plug },
     ],
   },
+  {
+    // SOLO PROPIETARIOS DEL BOT (OWNER_IDS). El Sidebar lo oculta a los demás.
+    id: 'propietario',
+    icon: Crown,
+    owner: true,
+    items: [
+      { tab: 'owner-subs', icon: Crown },
+    ],
+  },
 ];
 
 // Clave de i18n para el título/subtítulo del header según la pestaña activa.

@@ -88,6 +88,7 @@ export function useDashboard() {
   const [canales, setCanales] = useState([]);
   const [canalesVoz, setCanalesVoz] = useState([]);   // canales de voz (generadores)
   const [vozActivos, setVozActivos] = useState([]);   // salas temporales en vivo
+  const [ownerServidores, setOwnerServidores] = useState([]); // (owner) todas las suscripciones
   const [emojisServidor, setEmojisServidor] = useState([]);
   const [stickers, setStickers] = useState([]);
   const [ranking, setRanking] = useState([]);
@@ -365,6 +366,22 @@ export function useDashboard() {
       if (data.success && data.config) { setConfigServidor(data.config); return true; }
     } catch (error) { console.error('Error cambiando plan (owner):', error); }
     return false;
+  };
+
+  // (Owner) Lista de todos los servidores con su suscripción.
+  const cargarOwnerServidores = () => apiFetch('/api/owner/servidores').then(procesarRespuesta).then((datos) => setOwnerServidores(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando suscripciones'));
+
+  // (Owner) Cambia el plan de CUALQUIER servidor con duración opcional (días; 0 = de por vida).
+  const ownerSetPlan = async (targetGuildId, plan, dias = 0) => {
+    try {
+      const res = await apiFetch('/api/owner/premium', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId: targetGuildId, plan, dias }),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarOwnerServidores(); return true; }
+      return false;
+    } catch (error) { console.error('Error ownerSetPlan:', error); return false; }
   };
 
   // Crea un panel (el backend lo publica si trae canal). Refresca la lista.
@@ -1246,6 +1263,7 @@ export function useDashboard() {
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
+    else if (activeTab === 'owner-subs') { cargarOwnerServidores(); }
     else if (activeTab === 'datos-analitica') { cargarConfiguracion(); cargarAnalitica(); }
     else if (activeTab === 'datos-resumen') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'com-sorteos') { cargarSorteos(); cargarCanales(); cargarRoles(); }
@@ -1337,7 +1355,7 @@ export function useDashboard() {
     // niveles
     ranking, guardarNiveles,
     guardarMusica,
-    ownerCambiarPlan,
+    ownerCambiarPlan, ownerServidores, cargarOwnerServidores, ownerSetPlan,
     // voz temporal (canales Join-to-Create)
     canalesVoz, vozActivos, cargarCanalesVoz, cargarVozActivos, guardarVozTemporal, publicarPanelVoz, cerrarSalaVoz,
     catalogoPresets, guardarCatalogoPresets,

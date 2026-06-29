@@ -1237,15 +1237,54 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const guildId = String(req.body.guildId || '').trim();
             const plan = String(req.body.plan || '').toLowerCase();
+            // `dias`: nº de días de suscripción. 0/ausente = de por vida (sin caducidad).
+            const dias = Number(req.body.dias);
             if (!guildId) return res.status(400).json({ error: 'Falta el guildId.' });
             if (!['free', 'pro', 'agency'].includes(plan)) return res.status(400).json({ error: 'Plan no válido.' });
-            if (plan === 'free') await billing.desactivarPlan(guildId);
-            else await billing.activarPlan(guildId, { plan, premiumHasta: null }); // de por vida (sin caducidad)
+            if (plan === 'free') {
+                await billing.desactivarPlan(guildId);
+            } else {
+                const premiumHasta = (Number.isFinite(dias) && dias > 0)
+                    ? new Date(Date.now() + dias * 24 * 60 * 60 * 1000)
+                    : null; // null = de por vida
+                await billing.activarPlan(guildId, { plan, premiumHasta, cancelaAlFinal: false });
+            }
             const config = await ServidorConfig.findOne({ guildId });
             res.json({ success: true, config });
         } catch (error) {
             console.error('owner/premium:', error.message);
             res.status(500).json({ error: 'No se pudo cambiar el plan.' });
+        }
+    });
+
+    // Listado de TODOS los servidores con su suscripción (solo owner). Para el
+    // panel de control de suscripciones (ver/ajustar plan y caducidad a mano).
+    app.get('/api/owner/servidores', exigeOwner, async (req, res) => {
+        try {
+            const docs = await ServidorConfig.find({}).select(
+                'guildId esPremium plan premiumHasta premiumCancelaAlFinal stripeSubscriptionId');
+            const lista = docs.map((c) => {
+                const guild = client.guilds.cache.get(c.guildId);
+                return {
+                    guildId: c.guildId,
+                    nombre: guild?.name || null,
+                    icono: guild?.iconURL?.({ size: 64 }) || null,
+                    miembros: guild?.memberCount ?? null,
+                    presente: !!guild, // ¿el bot sigue en ese servidor?
+                    plan: c.plan || 'free',
+                    esPremium: !!c.esPremium,
+                    activo: billing.premiumActivo(c),       // ¿la suscripción está vigente ahora?
+                    premiumHasta: c.premiumHasta || null,    // null = de por vida (si premium)
+                    cancelaAlFinal: !!c.premiumCancelaAlFinal,
+                    pagado: !!c.stripeSubscriptionId,        // viene de Stripe (no manual)
+                };
+            });
+            // Primero los premium, luego por nombre.
+            lista.sort((a, b) => (Number(b.activo) - Number(a.activo)) || String(a.nombre || a.guildId).localeCompare(String(b.nombre || b.guildId)));
+            res.json(lista);
+        } catch (error) {
+            console.error('owner/servidores:', error.message);
+            res.status(500).json({ error: 'No se pudo cargar la lista.' });
         }
     });
 

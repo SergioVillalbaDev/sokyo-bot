@@ -15,7 +15,8 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
   const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
 
   // Solo los grupos que el usuario puede ver (según su rol). Sin datos aún → todos.
-  const gruposVisibles = navGroups.filter((g) => !permisos || permisos[g.id] !== false);
+  // Los grupos `owner` solo se muestran a los propietarios del bot (OWNER_IDS).
+  const gruposVisibles = navGroups.filter((g) => (!g.owner || esOwner) && (!permisos || permisos[g.id] !== false));
 
   // Servidor seleccionado (de la lista) con fallback a la info del endpoint de uso.
   const seleccionado = servidores.find((s) => s.id === guildId);

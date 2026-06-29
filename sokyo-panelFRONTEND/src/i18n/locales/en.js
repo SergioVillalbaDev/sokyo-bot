@@ -222,7 +222,7 @@ export default {
     },
     loading: 'Loading server configuration...',
     nav: {
-      groups: { cuenta: 'My Plan', datos: 'Data', entrada: 'Onboarding & community', comunidad: 'Community', musica: 'Music', tickets: 'Ticket System', roles: 'Role System', moderacion: 'Moderation', logs: 'Bot Logs', mensajes: 'Automated messages', config: 'Settings' },
+      groups: { cuenta: 'My Plan', datos: 'Data', entrada: 'Onboarding & community', comunidad: 'Community', musica: 'Music', tickets: 'Ticket System', roles: 'Role System', moderacion: 'Moderation', logs: 'Bot Logs', mensajes: 'Automated messages', config: 'Settings', propietario: 'Owner' },
       items: {
         'cuenta-plan': 'Plans & subscription',
         'datos-analitica': 'Analytics',
@@ -269,6 +269,7 @@ export default {
         'config-textos': 'Text settings',
         'config-webhooks': 'Webhooks',
         config: 'Bot modules',
+        'owner-subs': 'Subscriptions',
       },
     },
     meta: {
@@ -278,6 +279,7 @@ export default {
       'datos-resumen': { title: 'Daily briefing', subtitle: 'Get your server briefing written by AI every day.' },
       musica: { title: 'Music', subtitle: 'Configure the player and control what is playing live.' },
       'voz-temporal': { title: 'Temporary voice channels', subtitle: 'When someone joins a generator channel, the bot creates their own voice room.' },
+      'owner-subs': { title: 'Subscriptions', subtitle: 'Control each server\'s plan and expiry. Bot owners only.' },
       'tickets-gestion': { title: 'Ticket Management', subtitle: 'Manage your server’s active requests.' },
       'tickets-usuarios': { title: 'User Registry', subtitle: 'Stats and global count of users in your server.' },
       'tickets-config': { title: 'Incident Settings', subtitle: 'Configure ticket rules, priorities and reasons.' },

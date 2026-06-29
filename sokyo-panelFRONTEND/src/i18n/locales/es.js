@@ -222,7 +222,7 @@ export default {
     },
     loading: 'Cargando configuración del servidor...',
     nav: {
-      groups: { cuenta: 'Mi Plan', datos: 'Datos', entrada: 'Entrada y comunidad', comunidad: 'Comunidad', musica: 'Música', tickets: 'Sistema de Tickets', roles: 'Sistema de Roles', moderacion: 'Moderación', logs: 'Logs del Bot', mensajes: 'Mensajes automáticos', config: 'Configuración' },
+      groups: { cuenta: 'Mi Plan', datos: 'Datos', entrada: 'Entrada y comunidad', comunidad: 'Comunidad', musica: 'Música', tickets: 'Sistema de Tickets', roles: 'Sistema de Roles', moderacion: 'Moderación', logs: 'Logs del Bot', mensajes: 'Mensajes automáticos', config: 'Configuración', propietario: 'Propietario' },
       items: {
         'cuenta-plan': 'Planes y suscripción',
         'datos-analitica': 'Analítica',
@@ -269,6 +269,7 @@ export default {
         'config-textos': 'Configuración de Textos',
         'config-webhooks': 'Webhooks',
         config: 'Módulos del Bot',
+        'owner-subs': 'Suscripciones',
       },
     },
     meta: {
@@ -278,6 +279,7 @@ export default {
       'datos-resumen': { title: 'Resumen diario', subtitle: 'Recibe cada día el parte del servidor escrito por la IA.' },
       musica: { title: 'Música', subtitle: 'Configura el reproductor y controla en directo lo que suena.' },
       'voz-temporal': { title: 'Canales de voz temporales', subtitle: 'Cuando alguien entra a un canal generador, el bot le crea su propia sala de voz.' },
+      'owner-subs': { title: 'Suscripciones', subtitle: 'Controla el plan y la caducidad de cada servidor. Solo para propietarios del bot.' },
       'tickets-gestion': { title: 'Gestión de Tickets', subtitle: 'Administra las solicitudes activas de tu servidor.' },
       'tickets-usuarios': { title: 'Registro de Usuarios', subtitle: 'Estadísticas y recuento global de los usuarios en tu servidor.' },
       'tickets-config': { title: 'Ajustes de Incidencias', subtitle: 'Configura las reglas, prioridades y motivos de los tickets.' },
