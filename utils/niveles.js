@@ -166,7 +166,7 @@ async function otorgarXpVoz(member, cfg) {
 async function anunciar(guild, member, cfg, nivel, canalFallback, tarjeta) {
     const tipo = cfg.anuncioTipo || 'canal';
     if (tipo === 'off') return;
-    const texto = (cfg.mensajeSubida || '🎉 ¡{mention} ha subido a **nivel {level}**!')
+    const texto = (cfg.mensajeSubida || '🎉 {mention} reached **level {level}**!')
         .replace(/{mention}/g, `<@${member.id}>`)
         .replace(/{user}/g, member.user.username)
         .replace(/{level}/g, nivel);

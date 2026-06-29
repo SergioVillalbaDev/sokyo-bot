@@ -1,6 +1,6 @@
-// /filtro — EXTRA del plan Pro: aplica un filtro de audio a lo que suena.
-// La música normal es GRATIS para todos; los filtros son un añadido de Pro
-// (no capan nada de la base). Requiere voz + rol DJ, igual que el resto.
+// /filter — Pro plan EXTRA: applies an audio filter to what's playing.
+// Regular music is FREE for everyone; filters are a Pro add-on (they don't cap
+// anything in the base experience). Requires voice + DJ role, like the rest.
 const { SlashCommandBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { gateMusica } = require('../utils/musica.js');
@@ -8,16 +8,16 @@ const { esPro } = require('../utils/billing.js');
 
 const NOMBRES = {
     bassboost: '🔊 Bassboost', nightcore: '⚡ Nightcore', vaporwave: '🌫️ Vaporwave',
-    '8d': '🎧 8D', karaoke: '🎤 Karaoke', tremolo: '🎶 Trémolo', off: 'sin filtros',
+    '8d': '🎧 8D', karaoke: '🎤 Karaoke', tremolo: '🎶 Tremolo', off: 'no filters',
 };
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('filtro')
-        .setDescription('Aplica un filtro de audio (Pro): bassboost, nightcore, 8D…')
+        .setName('filter')
+        .setDescription('Apply an audio filter (Pro): bassboost, nightcore, 8D…')
         .addStringOption((opt) =>
-            opt.setName('tipo')
-                .setDescription('Filtro a aplicar')
+            opt.setName('type')
+                .setDescription('Filter to apply')
                 .setRequired(true)
                 .addChoices(
                     { name: '🔊 Bassboost', value: 'bassboost' },
@@ -25,14 +25,14 @@ module.exports = {
                     { name: '🌫️ Vaporwave', value: 'vaporwave' },
                     { name: '🎧 8D', value: '8d' },
                     { name: '🎤 Karaoke', value: 'karaoke' },
-                    { name: '🎶 Trémolo', value: 'tremolo' },
-                    { name: '❌ Quitar filtros', value: 'off' },
+                    { name: '🎶 Tremolo', value: 'tremolo' },
+                    { name: '❌ Remove filters', value: 'off' },
                 )),
 
     async execute(interaction, client) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: '⏹️ No hay nada sonando.', ephemeral: true });
+            return interaction.reply({ content: '⏹️ Nothing is playing.', ephemeral: true });
         }
 
         // Voz + rol DJ (igual que el resto de comandos de música).
@@ -43,12 +43,12 @@ module.exports = {
         const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
         if (!esPro(cfg)) {
             return interaction.reply({
-                content: '✨ Los filtros de audio son un extra del plan **Pro**. La música normal es gratis; Pro añade filtros, ecualizador y más. Échale un ojo a los planes en el panel.',
+                content: '✨ Audio filters are a **Pro** plan extra. Regular music is free; Pro adds filters, an equalizer and more. Check out the plans in the panel.',
                 ephemeral: true,
             });
         }
 
-        const tipo = interaction.options.getString('tipo');
+        const tipo = interaction.options.getString('type');
         const fm = player.filterManager;
 
         try {
@@ -63,12 +63,12 @@ module.exports = {
                 case 'off': default: break; // ya está reseteado
             }
         } catch (e) {
-            console.error('Filtro de música:', e.message);
-            return interaction.reply({ content: '⚠️ No se pudo aplicar el filtro.', ephemeral: true });
+            console.error('Music filter:', e.message);
+            return interaction.reply({ content: '⚠️ Could not apply the filter.', ephemeral: true });
         }
 
         return interaction.reply(tipo === 'off'
-            ? '❌ Filtros quitados.'
-            : `✅ Filtro aplicado: **${NOMBRES[tipo]}**.`);
+            ? '❌ Filters removed.'
+            : `✅ Filter applied: **${NOMBRES[tipo]}**.`);
     },
 };

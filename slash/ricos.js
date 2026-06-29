@@ -3,24 +3,24 @@ const economia = require('../utils/economia.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('ricos')
-        .setDescription('Ranking de los aventureros con más oro'),
+        .setName('rich')
+        .setDescription('Leaderboard of the adventurers with the most gold'),
 
     async execute(interaction, client) {
         const top = await economia.topRicos(10);
-        if (!top.length) return interaction.reply({ content: '🪙 Aún no hay nadie con oro. ¡Empieza con `/daily`!', ephemeral: true });
+        if (!top.length) return interaction.reply({ content: '🪙 Nobody has any gold yet. Start with `/daily`!', ephemeral: true });
 
         const medallas = ['🥇', '🥈', '🥉'];
         const lineas = await Promise.all(top.map(async (u, i) => {
             const user = await client.users.fetch(u.discordId).catch(() => null);
-            const nombre = user ? user.username : `Usuario desconocido`;
+            const nombre = user ? user.username : `Unknown user`;
             const pos = medallas[i] || `\`${i + 1}.\``;
-            return `${pos} **${nombre}** — 🪙 ${u.balance.toLocaleString('es-ES')}`;
+            return `${pos} **${nombre}** — 🪙 ${u.balance.toLocaleString('en-US')}`;
         }));
 
         const embed = new EmbedBuilder()
             .setColor('#f5b942')
-            .setTitle('🏆 Los más ricos de Sokyo')
+            .setTitle('🏆 Sokyo’s richest')
             .setDescription(lineas.join('\n'));
 
         await interaction.reply({ embeds: [embed] });

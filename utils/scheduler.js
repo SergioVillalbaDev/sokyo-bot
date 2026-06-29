@@ -70,7 +70,7 @@ async function enviarRecordatoriosPendientes(client) {
                 await canal.send({ content: texto.slice(0, 2000), allowedMentions: { users: [r.userId] } });
             } else {
                 const user = await client.users.fetch(r.userId).catch(() => null);
-                if (user) await user.send(`⏰ Recordatorio: ${r.mensaje || '(sin texto)'}`).catch(() => {});
+                if (user) await user.send(`⏰ Reminder: ${r.mensaje || '(no text)'}`).catch(() => {});
             }
         } catch (e) {
             console.error('Error enviando recordatorio:', e.message);

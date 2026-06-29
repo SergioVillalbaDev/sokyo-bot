@@ -2,7 +2,7 @@ const { aplicarComando, parseDuracion } = require('../utils/modCommands.js');
 
 module.exports = {
     name: 'ban',
-    description: 'Banea a un usuario. Uso: !ban @usuario [tiempo] [motivo]',
+    description: 'Bans a user. Usage: !ban @user [time] [reason]',
 
     async execute(message, args, client) {
         // Tokens sin las menciones.

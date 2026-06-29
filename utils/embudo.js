@@ -123,15 +123,15 @@ async function conceder(member, e) {
 // (hay guild) y por MD (no hay guild; lo sacamos del customId y lo buscamos).
 async function resolverContexto(interaction, client) {
     const gid = (interaction.customId.split(':')[1]) || interaction.guildId;
-    if (!gid) return { error: '❌ No se ha podido identificar el servidor.' };
+    if (!gid) return { error: '❌ Couldn’t identify the server.' };
     const cfg = await ServidorConfig.findOne({ guildId: gid });
     const e = cfg && cfg.embudoAB;
-    if (!e || !e.activo) return { error: '❌ El embudo de bienvenida no está activo.' };
-    if (!esPro(cfg)) return { error: '❌ El embudo de bienvenida no está disponible en este momento.' };
+    if (!e || !e.activo) return { error: '❌ The welcome funnel is not active.' };
+    if (!esPro(cfg)) return { error: '❌ The welcome funnel isn’t available right now.' };
     const guild = client.guilds.cache.get(gid);
-    if (!guild) return { error: '❌ Servidor no encontrado.' };
+    if (!guild) return { error: '❌ Server not found.' };
     const member = await guild.members.fetch(interaction.user.id).catch(() => null);
-    if (!member) return { error: '❌ Ya no estás en ese servidor.' };
+    if (!member) return { error: '❌ You’re no longer in that server.' };
     return { gid, cfg, e, guild, member };
 }
 
@@ -143,7 +143,7 @@ function yaTieneAcceso(member, e) {
 // Construye los botones de captcha (variante A) embebiendo el guildId.
 function filaCaptcha(gid) {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`embudo_captcha:${gid}`).setLabel('⌨️ Introducir código').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`embudo_captcha:${gid}`).setLabel('⌨️ Enter code').setStyle(ButtonStyle.Primary),
     );
 }
 
@@ -152,11 +152,11 @@ function retoCaptcha(gid, userId, varA) {
     const { codigo, buffer } = generarCaptcha();
     captchasPendientes.set(`${gid}:${userId}`, { codigo, expira: Date.now() + 5 * 60000 });
     const payload = {
-        content: `🧩 **${varA.titulo || 'Verificación'}**\n\n${varA.reglas || ''}\n\nResuelve el captcha y pulsa **Introducir código** (caduca en 5 min).`,
+        content: `🧩 **${varA.titulo || 'Verification'}**\n\n${varA.reglas || ''}\n\nSolve the captcha and click **Enter code** (expires in 5 min).`,
         components: [filaCaptcha(gid)],
     };
     if (buffer) payload.files = [new AttachmentBuilder(buffer, { name: 'captcha.png' })];
-    else payload.content += `\n\nCódigo: \`${codigo}\``; // fallback sin canvas
+    else payload.content += `\n\nCode: \`${codigo}\``; // fallback sin canvas
     return payload;
 }
 
@@ -179,11 +179,11 @@ function contenidoVariante(gid, userId, e, variante) {
     const b = e.varianteB || {};
     const embed = new EmbedBuilder()
         .setColor(b.color || '#5865F2')
-        .setTitle(b.titulo || '👋 ¡Te damos la bienvenida!')
-        .setDescription(b.descripcion || 'Pulsa **Unirme** para acceder al servidor.');
+        .setTitle(b.titulo || '👋 Welcome!')
+        .setDescription(b.descripcion || 'Click **Join** to access the server.');
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`embudo_reglas:${gid}`).setLabel('📜 Ver normas').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId(`embudo_aceptar:${gid}`).setLabel(b.textoBoton || '🎉 Unirme').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`embudo_reglas:${gid}`).setLabel('📜 View rules').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`embudo_aceptar:${gid}`).setLabel(b.textoBoton || '🎉 Join').setStyle(ButtonStyle.Success),
     );
     return { embeds: [embed], components: [row] };
 }
@@ -192,10 +192,10 @@ function contenidoVariante(gid, userId, e, variante) {
 function contenidoPanel(gid, e) {
     const embed = new EmbedBuilder()
         .setColor((e.varianteB && e.varianteB.color) || '#5865F2')
-        .setTitle('👋 ¡Bienvenido/a al servidor!')
-        .setDescription('Pulsa el botón para empezar y acceder a todos los canales.');
+        .setTitle('👋 Welcome to the server!')
+        .setDescription('Click the button to get started and access all channels.');
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`embudo_inicio:${gid}`).setLabel('🚀 Empezar').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`embudo_inicio:${gid}`).setLabel('🚀 Get started').setStyle(ButtonStyle.Success),
     );
     return { embeds: [embed], components: [row] };
 }
@@ -243,7 +243,7 @@ async function manejarInicio(interaction, client) {
     if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
     const { gid, e, member } = ctx;
 
-    if (yaTieneAcceso(member, e)) return interaction.reply({ content: '✅ Ya tienes acceso al servidor.', ephemeral: true });
+    if (yaTieneAcceso(member, e)) return interaction.reply({ content: '✅ You already have access to the server.', ephemeral: true });
 
     // Recupera la ficha (o la crea si entró antes de activar el embudo).
     let cohorte = await EmbudoCohorte.findOne({ guildId: gid, userId: member.id });
@@ -259,8 +259,8 @@ async function manejarInicio(interaction, client) {
 async function manejarReglas(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
     if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
-    const reglas = (ctx.e.varianteB && ctx.e.varianteB.reglas) || 'No hay normas configuradas.';
-    return interaction.reply({ content: `📜 **Normas del servidor**\n\n${reglas}`, ephemeral: true });
+    const reglas = (ctx.e.varianteB && ctx.e.varianteB.reglas) || 'No rules configured.';
+    return interaction.reply({ content: `📜 **Server rules**\n\n${reglas}`, ephemeral: true });
 }
 
 // Botón "Aceptar/Unirme" (variante B y variante A sin captcha): concede el rol.
@@ -268,20 +268,20 @@ async function manejarAceptar(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
     if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
     const { gid, e, member } = ctx;
-    if (yaTieneAcceso(member, e)) return interaction.reply({ content: '✅ Ya tienes acceso al servidor.', ephemeral: true });
+    if (yaTieneAcceso(member, e)) return interaction.reply({ content: '✅ You already have access to the server.', ephemeral: true });
 
     const err = await conceder(member, e);
     if (!err) await marcarVerificado(gid, member.id);
-    return interaction.reply({ content: err || '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', ephemeral: true });
+    return interaction.reply({ content: err || '✅ Done! You now have access to the server. 🎉', ephemeral: true });
 }
 
 // Variante A — botón "Introducir código": abre el modal del captcha.
 async function manejarCaptcha(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
     if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
-    const modal = new ModalBuilder().setCustomId(`embudo_modal:${ctx.gid}`).setTitle('Verificación');
+    const modal = new ModalBuilder().setCustomId(`embudo_modal:${ctx.gid}`).setTitle('Verification');
     const input = new TextInputBuilder()
-        .setCustomId('codigo').setLabel('Escribe el código de la imagen')
+        .setCustomId('codigo').setLabel('Type the code from the image')
         .setStyle(TextInputStyle.Short).setMinLength(5).setMaxLength(5).setRequired(true);
     modal.addComponents(new ActionRowBuilder().addComponents(input));
     return interaction.showModal(modal);
@@ -297,17 +297,17 @@ async function manejarModal(interaction, client) {
     const reto = captchasPendientes.get(clave);
     if (!reto || reto.expira <= Date.now()) {
         captchasPendientes.delete(clave);
-        return interaction.reply({ content: '⏰ El captcha ha caducado. Pulsa **Empezar** otra vez.', ephemeral: true });
+        return interaction.reply({ content: '⏰ The captcha expired. Click **Get started** again.', ephemeral: true });
     }
     const respuesta = (interaction.fields.getTextInputValue('codigo') || '').trim().toUpperCase();
     if (respuesta !== reto.codigo) {
-        return interaction.reply({ content: '❌ Código incorrecto. Vuelve a intentarlo.', ephemeral: true });
+        return interaction.reply({ content: '❌ Wrong code. Try again.', ephemeral: true });
     }
     captchasPendientes.delete(clave);
 
     const err = await conceder(member, e);
     if (!err) await marcarVerificado(gid, member.id);
-    return interaction.reply({ content: err || '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', ephemeral: true });
+    return interaction.reply({ content: err || '✅ Done! You now have access to the server. 🎉', ephemeral: true });
 }
 
 module.exports = {

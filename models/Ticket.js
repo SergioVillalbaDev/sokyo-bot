@@ -7,9 +7,9 @@ const ticketSchema = new mongoose.Schema({
     creadorNombre: { type: String, required: true },
     creadorAvatar: { type: String, default: null },
     
-    motivo: { type: String, default: 'Sin especificar' }, 
-    titulo: { type: String, default: 'Ticket de Soporte' },
-    descripcion: { type: String, default: 'Sin descripción' },
+    motivo: { type: String, default: 'Not specified' }, 
+    titulo: { type: String, default: 'Support Ticket' },
+    descripcion: { type: String, default: 'No description' },
     
     // --- NUEVO: LISTA DE IMPLICADOS ---
     participantes: { type: Array, default: [] }, 

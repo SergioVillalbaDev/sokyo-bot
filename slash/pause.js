@@ -4,7 +4,7 @@ const { gateMusica } = require('../utils/musica.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('pause')
-        .setDescription('Pausa la canción actual'),
+        .setDescription('Pause the current song'),
 
     async execute(interaction, client) {
         const voz = await gateMusica(interaction);
@@ -12,13 +12,13 @@ module.exports = {
 
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: '⏹️ No hay nada sonando.', ephemeral: true });
+            return interaction.reply({ content: '⏹️ Nothing is playing.', ephemeral: true });
         }
         if (player.paused) {
-            return interaction.reply({ content: '⏸️ La música ya está en pausa. Usa `/resume`.', ephemeral: true });
+            return interaction.reply({ content: '⏸️ The music is already paused. Use `/resume`.', ephemeral: true });
         }
 
         await player.pause();
-        return interaction.reply('⏸️ Música en pausa. Usa `/resume` para continuar.');
+        return interaction.reply('⏸️ Music paused. Use `/resume` to continue.');
     },
 };

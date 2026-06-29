@@ -311,22 +311,22 @@ function construirEmbudo(docs, cfg) {
         if (ganadora) {
             const g = ganadora === 'A' ? A : B;
             const o = ganadora === 'A' ? B : A;
-            const etqMetrica = metrica === 'retencion' ? 'retención a 7 días' : 'participación la 1ª semana';
+            const etqMetrica = metrica === 'retencion' ? '7-day retention' : 'first-week participation';
             const vG = metrica === 'retencion' ? g.tasaRetencion : g.tasaParticipacion;
             const vO = metrica === 'retencion' ? o.tasaRetencion : o.tasaParticipacion;
             insight = {
                 tipo: 'ok',
-                titulo: `Test A/B: gana "${g.nombre}"`,
-                texto: `La variante "${g.nombre}" consigue mejor ${etqMetrica} (${vG}% frente a ${vO}% de "${o.nombre}").`
+                titulo: `A/B test: "${g.nombre}" wins`,
+                texto: `Variant "${g.nombre}" achieves better ${etqMetrica} (${vG}% vs ${vO}% for "${o.nombre}").`
                     + (confianza === 'alta'
-                        ? ` La muestra ya es fiable: plantéate dejar esta variante para todos.`
-                        : ` Aún con pocos datos: deja correr el test unos días más para confirmarlo.`),
+                        ? ` The sample is now reliable: consider rolling this variant out to everyone.`
+                        : ` Still few data points: let the test run a few more days to confirm.`),
             };
         } else {
             insight = {
                 tipo: 'tip',
-                titulo: 'Test A/B en marcha',
-                texto: `Tu embudo de bienvenida está repartiendo a los nuevos entre dos variantes (${total} hasta ahora). En cuanto pasen unos días verás aquí qué método retiene mejor.`,
+                titulo: 'A/B test running',
+                texto: `Your welcome funnel is splitting newcomers between two variants (${total} so far). In a few days you’ll see here which method retains better.`,
             };
         }
     }
@@ -338,48 +338,48 @@ function construirEmbudo(docs, cfg) {
 function construirInsights(d) {
     const out = [];
     if (d.totalEntradas + d.totalSalidas > 0) {
-        if (d.crecimientoNeto < 0) out.push({ tipo: 'warn', titulo: 'Estás perdiendo miembros', texto: `En ${d.dias} días entraron ${d.totalEntradas} y salieron ${d.totalSalidas} (neto ${d.crecimientoNeto}). Activa la bienvenida, el autorol y la verificación, y crea contenido los primeros días para retener a los nuevos.` });
-        else if (d.crecimientoNeto > 0) out.push({ tipo: 'ok', titulo: 'Tu comunidad crece', texto: `Saldo de +${d.crecimientoNeto} miembros en ${d.dias} días. Mantén el ritmo con eventos y sorteos recurrentes.` });
+        if (d.crecimientoNeto < 0) out.push({ tipo: 'warn', titulo: 'You’re losing members', texto: `In ${d.dias} days ${d.totalEntradas} joined and ${d.totalSalidas} left (net ${d.crecimientoNeto}). Turn on the welcome message, autorole and verification, and post content in the first days to keep newcomers.` });
+        else if (d.crecimientoNeto > 0) out.push({ tipo: 'ok', titulo: 'Your community is growing', texto: `Net +${d.crecimientoNeto} members in ${d.dias} days. Keep the momentum with recurring events and giveaways.` });
     }
     if (d.pctActivos != null) {
-        if (d.pctActivos < 10) out.push({ tipo: 'warn', titulo: 'Pocos miembros activos', texto: `Solo el ${d.pctActivos}% (${d.activos}) ha hablado en ${d.dias} días. Lanza un sorteo, activa los niveles con recompensas de rol y abre canales temáticos para despertar a la comunidad.` });
-        else if (d.pctActivos >= 30) out.push({ tipo: 'ok', titulo: 'Comunidad muy activa', texto: `El ${d.pctActivos}% participa activamente. Fideliza ese engagement con roles por nivel y eventos.` });
+        if (d.pctActivos < 10) out.push({ tipo: 'warn', titulo: 'Few active members', texto: `Only ${d.pctActivos}% (${d.activos}) have spoken in ${d.dias} days. Run a giveaway, enable levels with role rewards and open topic channels to wake up the community.` });
+        else if (d.pctActivos >= 30) out.push({ tipo: 'ok', titulo: 'Very active community', texto: `${d.pctActivos}% take part actively. Lock in that engagement with level roles and events.` });
     }
-    if (d.totalMensajes > 0) out.push({ tipo: 'tip', titulo: 'Mejor hora para publicar', texto: `Tu pico de actividad es a las ${d.horaPico} (UTC). Programa anuncios, eventos y sorteos a esa hora para máximo alcance.` });
+    if (d.totalMensajes > 0) out.push({ tipo: 'tip', titulo: 'Best time to post', texto: `Your activity peak is at ${d.horaPico} (UTC). Schedule announcements, events and giveaways at that time for maximum reach.` });
     if (d.topCanales && d.topCanales.length && d.totalMensajes > 0) {
         const top = d.topCanales[0];
         const pct = Math.round((top.n / d.totalMensajes) * 100);
-        if (pct >= 60) out.push({ tipo: 'tip', titulo: 'Actividad muy concentrada', texto: `El ${pct}% de los mensajes están en "${top.nombre}". Reparte la actividad con canales temáticos y eventos para no depender de un solo canal.` });
+        if (pct >= 60) out.push({ tipo: 'tip', titulo: 'Activity is very concentrated', texto: `${pct}% of messages are in "${top.nombre}". Spread activity out with topic channels and events so you don’t depend on a single channel.` });
     }
     if (d.csat != null) {
-        if (d.csat < 3.5) out.push({ tipo: 'warn', titulo: 'Satisfacción baja', texto: `Tu CSAT medio es ${d.csat}/5. Revisa los tickets peor valorados, usa respuestas rápidas y reduce los tiempos de respuesta.` });
-        else if (d.csat >= 4.5) out.push({ tipo: 'ok', titulo: 'Clientes contentos', texto: `CSAT de ${d.csat}/5. Excelente — pide testimonios para usarlos en tu marketing.` });
+        if (d.csat < 3.5) out.push({ tipo: 'warn', titulo: 'Low satisfaction', texto: `Your average CSAT is ${d.csat}/5. Review the worst-rated tickets, use quick replies and cut down response times.` });
+        else if (d.csat >= 4.5) out.push({ tipo: 'ok', titulo: 'Happy customers', texto: `CSAT of ${d.csat}/5. Excellent — ask for testimonials to use in your marketing.` });
     }
-    if (d.tiempoMedioCierreH != null && d.tiempoMedioCierreH > 24) out.push({ tipo: 'tip', titulo: 'Tickets lentos de cerrar', texto: `Tardas ${d.tiempoMedioCierreH}h de media en cerrar un ticket. Activa la auto-asignación, el cierre por inactividad y usa macros para responder antes.` });
-    if (d.reportePend > 0) out.push({ tipo: 'warn', titulo: 'Reportes sin resolver', texto: `Tienes ${d.reportePend} reporte(s) pendiente(s). Atiéndelos para mantener la comunidad sana.` });
-    if (d.abiertos > 5) out.push({ tipo: 'tip', titulo: 'Muchos tickets abiertos', texto: `Hay ${d.abiertos} tickets abiertos. Reparte la carga con la auto-asignación al equipo de soporte.` });
-    if (d.sancionesTotal > 0 && d.automod > 0) out.push({ tipo: 'ok', titulo: 'El automod te protege', texto: `El automoderador aplicó ${d.automod} de ${d.sancionesTotal} sanciones por su cuenta. Buen escudo; revisa que no haya falsos positivos.` });
-    if (d.nr && d.nr.total > 0 && d.nr.conXp === 0) out.push({ tipo: 'tip', titulo: 'Activa el sistema de niveles', texto: 'Nadie tiene XP todavía. Los niveles con recompensas de rol son de lo mejor para retener y enganchar a tu comunidad.' });
+    if (d.tiempoMedioCierreH != null && d.tiempoMedioCierreH > 24) out.push({ tipo: 'tip', titulo: 'Tickets are slow to close', texto: `It takes you ${d.tiempoMedioCierreH}h on average to close a ticket. Turn on auto-assign, auto-close on inactivity and use macros to reply faster.` });
+    if (d.reportePend > 0) out.push({ tipo: 'warn', titulo: 'Unresolved reports', texto: `You have ${d.reportePend} pending report(s). Handle them to keep the community healthy.` });
+    if (d.abiertos > 5) out.push({ tipo: 'tip', titulo: 'Many open tickets', texto: `There are ${d.abiertos} open tickets. Spread the load with auto-assign to the support team.` });
+    if (d.sancionesTotal > 0 && d.automod > 0) out.push({ tipo: 'ok', titulo: 'Automod is protecting you', texto: `The automoderator applied ${d.automod} of ${d.sancionesTotal} sanctions on its own. Good shield; check there are no false positives.` });
+    if (d.nr && d.nr.total > 0 && d.nr.conXp === 0) out.push({ tipo: 'tip', titulo: 'Turn on the leveling system', texto: 'Nobody has XP yet. Levels with role rewards are one of the best ways to retain and engage your community.' });
     // Salud del chat
-    if (d.totalMensajes > 50 && d.totalBorrados / d.totalMensajes > 0.15) out.push({ tipo: 'warn', titulo: 'Mucha limpieza de mensajes', texto: `Se han borrado ${d.totalBorrados} mensajes (más del 15% del total). Revisa las normas y ajusta el automod (spam, enlaces, palabras) para reducir el ruido.` });
+    if (d.totalMensajes > 50 && d.totalBorrados / d.totalMensajes > 0.15) out.push({ tipo: 'warn', titulo: 'Lots of message cleanup', texto: `${d.totalBorrados} messages were deleted (over 15% of the total). Review the rules and tune the automod (spam, links, words) to reduce the noise.` });
     // Reparto de carga del equipo
     if (d.agentes && d.agentes.length >= 2) {
         const totalAg = d.agentes.reduce((a, b) => a + b.tickets, 0);
         const top = d.agentes[0];
-        if (totalAg > 0 && top.tickets / totalAg > 0.6) out.push({ tipo: 'tip', titulo: 'Carga desigual en el equipo', texto: `"${top.nombre}" atiende el ${Math.round((top.tickets / totalAg) * 100)}% de los tickets. Activa la auto-asignación (round-robin) para repartir el trabajo y evitar quemar a tu staff.` });
+        if (totalAg > 0 && top.tickets / totalAg > 0.6) out.push({ tipo: 'tip', titulo: 'Uneven team workload', texto: `"${top.nombre}" handles ${Math.round((top.tickets / totalAg) * 100)}% of tickets. Turn on auto-assign (round-robin) to share the work and avoid burning out your staff.` });
     }
     // Voz
-    if (d.vozActivos === 0 && d.activos > 5) out.push({ tipo: 'tip', titulo: 'Nadie usa los canales de voz', texto: 'Tu comunidad escribe pero no habla por voz. Organiza eventos en voz (quedadas, gaming, AMAs) y crea canales de voz temáticos para subir el engagement.' });
+    if (d.vozActivos === 0 && d.activos > 5) out.push({ tipo: 'tip', titulo: 'Nobody uses voice channels', texto: 'Your community types but doesn’t talk over voice. Run voice events (hangouts, gaming, AMAs) and create topic voice channels to boost engagement.' });
     // Tendencia de miembros (histórico real de snapshots)
     if (d.hayMiembros && d.serieMiembros && d.serieMiembros.length > 1) {
         const conDato = d.serieMiembros.filter((p) => p.miembros != null);
         if (conDato.length >= 2) {
             const delta = conDato[conDato.length - 1].miembros - conDato[0].miembros;
-            if (delta <= -3) out.push({ tipo: 'warn', titulo: 'Tu base de miembros baja', texto: `Has pasado de ${conDato[0].miembros} a ${conDato[conDato.length - 1].miembros} miembros. Refuerza la retención: bienvenida cálida, roles de interés y eventos para los nuevos.` });
-            else if (delta >= 3) out.push({ tipo: 'ok', titulo: 'Base de miembros al alza', texto: `Has crecido de ${conDato[0].miembros} a ${conDato[conDato.length - 1].miembros} miembros. ¡Buen trabajo! Aprovecha el momento para campañas y colaboraciones.` });
+            if (delta <= -3) out.push({ tipo: 'warn', titulo: 'Your member base is shrinking', texto: `You’ve gone from ${conDato[0].miembros} to ${conDato[conDato.length - 1].miembros} members. Strengthen retention: a warm welcome, interest roles and events for newcomers.` });
+            else if (delta >= 3) out.push({ tipo: 'ok', titulo: 'Member base is rising', texto: `You’ve grown from ${conDato[0].miembros} to ${conDato[conDato.length - 1].miembros} members. Great work! Use the momentum for campaigns and collaborations.` });
         }
     }
-    if (out.length === 0) out.push({ tipo: 'tip', titulo: 'Recopilando datos', texto: 'Cuando tu servidor acumule más actividad, aquí verás recomendaciones personalizadas de crecimiento.' });
+    if (out.length === 0) out.push({ tipo: 'tip', titulo: 'Collecting data', texto: 'Once your server builds up more activity, you’ll see personalized growth recommendations here.' });
     return out;
 }
 

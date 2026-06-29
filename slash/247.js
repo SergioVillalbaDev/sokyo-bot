@@ -1,6 +1,6 @@
-// /247 — EXTRA del plan Pro: modo 24/7. El bot NO sale del canal de voz aunque
-// se vacíe la cola o el canal. La música base sigue gratis; esto es un añadido.
-// Es una configuración del servidor: requiere permiso de Gestionar servidor.
+// /247 — Pro plan EXTRA: 24/7 mode. The bot does NOT leave the voice channel
+// even if the queue or the channel empties. Base music stays free; this is an
+// add-on. It's a server setting: requires the Manage Server permission.
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { esPro } = require('../utils/billing.js');
@@ -8,11 +8,11 @@ const { esPro } = require('../utils/billing.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('247')
-        .setDescription('Activa o desactiva el modo 24/7 de música (Pro): el bot no sale del canal'),
+        .setDescription('Turn music 24/7 mode on or off (Pro): the bot stays in the channel'),
 
     async execute(interaction) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-            return interaction.reply({ content: '🔧 Necesitas el permiso **Gestionar servidor** para cambiar el modo 24/7.', ephemeral: true });
+            return interaction.reply({ content: '🔧 You need the **Manage Server** permission to change 24/7 mode.', ephemeral: true });
         }
 
         const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
@@ -20,7 +20,7 @@ module.exports = {
         // Gate Pro: el 24/7 es un extra. La música normal es gratis para todos.
         if (!esPro(cfg)) {
             return interaction.reply({
-                content: '✨ El modo **24/7** es un extra del plan **Pro**. La música normal es gratis; Pro añade 24/7, filtros y más. Échale un ojo a los planes en el panel.',
+                content: '✨ **24/7** mode is a **Pro** plan extra. Regular music is free; Pro adds 24/7, filters and more. Check out the plans in the panel.',
                 ephemeral: true,
             });
         }
@@ -33,7 +33,7 @@ module.exports = {
         );
 
         return interaction.reply(nuevo
-            ? '🔁 Modo **24/7 activado**. Me quedaré en el canal aunque se vacíe la cola o el canal de voz.'
-            : '⏹️ Modo **24/7 desactivado**. Saldré del canal cuando me quede solo o sin música.');
+            ? '🔁 **24/7 mode enabled**. I’ll stay in the channel even if the queue or voice channel empties.'
+            : '⏹️ **24/7 mode disabled**. I’ll leave the channel when I’m left alone or out of music.');
     },
 };

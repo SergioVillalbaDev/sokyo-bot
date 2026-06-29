@@ -4,7 +4,7 @@ const { gateMusica } = require('../utils/musica.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resume')
-        .setDescription('Reanuda la música pausada'),
+        .setDescription('Resume the paused music'),
 
     async execute(interaction, client) {
         const voz = await gateMusica(interaction);
@@ -12,13 +12,13 @@ module.exports = {
 
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: '⏹️ No hay nada que reanudar.', ephemeral: true });
+            return interaction.reply({ content: '⏹️ There’s nothing to resume.', ephemeral: true });
         }
         if (!player.paused) {
-            return interaction.reply({ content: '▶️ La música ya está sonando.', ephemeral: true });
+            return interaction.reply({ content: '▶️ The music is already playing.', ephemeral: true });
         }
 
         await player.resume();
-        return interaction.reply('▶️ ¡Seguimos! Música reanudada.');
+        return interaction.reply('▶️ Back on! Music resumed.');
     },
 };

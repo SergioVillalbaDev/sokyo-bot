@@ -19,9 +19,9 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
     try {
         item = await Item.findOne({ _id: itemDocId, activo: true });
     } catch {
-        return { ok: false, error: 'Objeto no válido.' }; // _id mal formado
+        return { ok: false, error: 'Invalid item.' }; // _id mal formado
     }
-    if (!item) return { ok: false, error: 'Ese objeto no existe o no está disponible.' };
+    if (!item) return { ok: false, error: 'That item doesn’t exist or isn’t available.' };
 
     const coste = precioEfectivo(item).precio * cantidad; // respeta la oferta relámpago si la hay
     await obtenerUsuario(discordId);
@@ -35,7 +35,7 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
             { $inc: { stock: -cantidad } },
             { returnDocument: 'after' }
         );
-        if (!reserva) return { ok: false, error: '¡Agotado! No queda stock de este objeto.' };
+        if (!reserva) return { ok: false, error: 'Sold out! No stock left for this item.' };
     }
 
     // 3) PUERTA ATÓMICA del oro: solo descuenta si en ESE mismo instante hay saldo
@@ -86,7 +86,7 @@ async function ponerOferta(itemDocId, porcentaje, duracionMin) {
     const expiraEn = new Date(Date.now() + duracionMin * 60000);
     let item;
     try { item = await Item.findByIdAndUpdate(itemDocId, { $set: { oferta: { porcentaje, expiraEn } } }, { returnDocument: 'after' }); }
-    catch { return { ok: false, error: 'Objeto no válido.' }; }
+    catch { return { ok: false, error: 'Invalid item.' }; }
     if (!item) return { ok: false, error: 'Objeto no encontrado.' };
     return { ok: true, item, porcentaje, expiraEn };
 }
@@ -172,22 +172,22 @@ async function elegirPremioDeCaja(caja) {
 async function usarItem(discordId, itemDocId, ctx = {}) {
     let item;
     try { item = await Item.findOne({ _id: itemDocId }); }
-    catch { return { ok: false, error: 'Objeto no válido.' }; }
-    if (!item) return { ok: false, error: 'Ese objeto no existe.' };
+    catch { return { ok: false, error: 'Invalid item.' }; }
+    if (!item) return { ok: false, error: 'That item doesn’t exist.' };
 
     const efecto = item.efecto || {};
     if (!efecto.tipo || efecto.tipo === 'ninguno') {
-        return { ok: false, error: 'Este objeto no tiene ningún efecto que usar.' };
+        return { ok: false, error: 'This item has no effect to use.' };
     }
 
     // ¿Lo tiene en la mochila?
     const tiene = await Usuario.findOne({ discordId, 'inventory.item': item._id }).select('_id');
-    if (!tiene) return { ok: false, error: 'No tienes ese objeto en tu mochila.' };
+    if (!tiene) return { ok: false, error: 'You don’t have that item in your bag.' };
 
     // Efecto CAJA: sortea un premio, lo añade al inventario y consume la caja.
     if (efecto.tipo === 'caja') {
         const premio = await elegirPremioDeCaja(item);
-        if (!premio) return { ok: false, error: 'Esta caja no tiene contenido configurado.' };
+        if (!premio) return { ok: false, error: 'This box has no contents configured.' };
         await consumirUnidad(discordId, item._id);
         await anadirAlInventario(discordId, premio._id, 1);
         return { ok: true, item, efecto, premio };
@@ -196,10 +196,10 @@ async function usarItem(discordId, itemDocId, ctx = {}) {
     // Efecto de ROL: solo desde un servidor (lo aplica el comando /usar).
     if (efecto.tipo === 'rol') {
         if (typeof ctx.aplicarRol !== 'function') {
-            return { ok: false, error: 'Este objeto otorga un rol: úsalo en un servidor con `/usar`.' };
+            return { ok: false, error: 'This item grants a role: use it in a server with `/use`.' };
         }
         const aplicado = await ctx.aplicarRol(efecto.rolId, efecto.duracionMin);
-        if (!aplicado) return { ok: false, error: 'No se pudo dar el rol (¿existe en este servidor y el bot tiene permisos?).' };
+        if (!aplicado) return { ok: false, error: 'Couldn’t grant the role (does it exist here and does the bot have permission?).' };
     }
 
     // Consumir 1 unidad (después de validar el efecto, para no perder el objeto si falla).

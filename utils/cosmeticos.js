@@ -28,19 +28,19 @@ const TIPOS = ['tarjeta', 'colorNombre', 'insignia'];
 // aquí van solo los que se desbloquean pagando oro.
 const CATALOGO = [
     // Estilos de tarjeta premium (reutilizan estilos ya existentes).
-    { id: 'tarjeta_galaxia', tipo: 'tarjeta', nombre: 'Tarjeta Galaxia', precio: 5000, valor: 'galaxia' },
-    { id: 'tarjeta_aurora', tipo: 'tarjeta', nombre: 'Tarjeta Aurora', precio: 5000, valor: 'aurora' },
-    { id: 'tarjeta_neon', tipo: 'tarjeta', nombre: 'Tarjeta Neón', precio: 7500, valor: 'neon' },
-    { id: 'tarjeta_cosmos', tipo: 'tarjeta', nombre: 'Tarjeta Cosmos', precio: 7500, valor: 'cosmos' },
-    { id: 'tarjeta_destello', tipo: 'tarjeta', nombre: 'Tarjeta Destello', precio: 10000, valor: 'destello' },
+    { id: 'tarjeta_galaxia', tipo: 'tarjeta', nombre: 'Galaxy Card', precio: 5000, valor: 'galaxia' },
+    { id: 'tarjeta_aurora', tipo: 'tarjeta', nombre: 'Aurora Card', precio: 5000, valor: 'aurora' },
+    { id: 'tarjeta_neon', tipo: 'tarjeta', nombre: 'Neon Card', precio: 7500, valor: 'neon' },
+    { id: 'tarjeta_cosmos', tipo: 'tarjeta', nombre: 'Cosmos Card', precio: 7500, valor: 'cosmos' },
+    { id: 'tarjeta_destello', tipo: 'tarjeta', nombre: 'Sparkle Card', precio: 10000, valor: 'destello' },
     // Colores de nombre (hex) para la tarjeta de rango.
-    { id: 'color_oro', tipo: 'colorNombre', nombre: 'Nombre Dorado', precio: 3000, valor: '#FFD700' },
-    { id: 'color_esmeralda', tipo: 'colorNombre', nombre: 'Nombre Esmeralda', precio: 3000, valor: '#2ECC71' },
-    { id: 'color_rubi', tipo: 'colorNombre', nombre: 'Nombre Rubí', precio: 3000, valor: '#E74C3C' },
+    { id: 'color_oro', tipo: 'colorNombre', nombre: 'Gold Name', precio: 3000, valor: '#FFD700' },
+    { id: 'color_esmeralda', tipo: 'colorNombre', nombre: 'Emerald Name', precio: 3000, valor: '#2ECC71' },
+    { id: 'color_rubi', tipo: 'colorNombre', nombre: 'Ruby Name', precio: 3000, valor: '#E74C3C' },
     // Insignias (emoji) para lucir en el perfil/tarjeta.
-    { id: 'insignia_corona', tipo: 'insignia', nombre: 'Insignia Corona', precio: 4000, valor: '👑' },
-    { id: 'insignia_estrella', tipo: 'insignia', nombre: 'Insignia Estrella', precio: 2000, valor: '⭐' },
-    { id: 'insignia_rayo', tipo: 'insignia', nombre: 'Insignia Rayo', precio: 2000, valor: '⚡' },
+    { id: 'insignia_corona', tipo: 'insignia', nombre: 'Crown Badge', precio: 4000, valor: '👑' },
+    { id: 'insignia_estrella', tipo: 'insignia', nombre: 'Star Badge', precio: 2000, valor: '⭐' },
+    { id: 'insignia_rayo', tipo: 'insignia', nombre: 'Lightning Badge', precio: 2000, valor: '⚡' },
 ];
 
 const porId = (id) => CATALOGO.find((c) => c.id === id) || null;
@@ -58,7 +58,7 @@ async function asegurarUsuario(discordId) {
 // Compra un cosmético con oro. Devuelve { ok, error?, cosmetico?, balance? }.
 async function comprarCosmetico(discordId, cosmeticoId) {
     const cos = porId(cosmeticoId);
-    if (!cos) return { ok: false, error: 'Ese cosmético no existe.' };
+    if (!cos) return { ok: false, error: 'That cosmetic doesn’t exist.' };
     await asegurarUsuario(discordId);
 
     // PUERTA ATÓMICA: descuenta el oro solo si hay saldo suficiente y el usuario
@@ -72,7 +72,7 @@ async function comprarCosmetico(discordId, cosmeticoId) {
     if (!actualizado) {
         // O no llega el oro, o ya lo tenía: distinguimos para dar buen mensaje.
         const u = await Usuario.findOne({ discordId });
-        if (u && (u.cosmeticos || []).includes(cos.id)) return { ok: false, error: 'Ya tienes este cosmético.' };
+        if (u && (u.cosmeticos || []).includes(cos.id)) return { ok: false, error: 'You already own this cosmetic.' };
         return { ok: false, error: 'No tienes oro suficiente.' };
     }
     return { ok: true, cosmetico: cos, balance: actualizado.balance };
@@ -81,16 +81,16 @@ async function comprarCosmetico(discordId, cosmeticoId) {
 // Equipa un cosmético que el usuario ya posee. Devuelve { ok, error?, cosmetico? }.
 async function equiparCosmetico(discordId, cosmeticoId) {
     const cos = porId(cosmeticoId);
-    if (!cos) return { ok: false, error: 'Ese cosmético no existe.' };
+    if (!cos) return { ok: false, error: 'That cosmetic doesn’t exist.' };
     const u = await Usuario.findOne({ discordId });
-    if (!u || !(u.cosmeticos || []).includes(cos.id)) return { ok: false, error: 'No tienes ese cosmético.' };
+    if (!u || !(u.cosmeticos || []).includes(cos.id)) return { ok: false, error: 'You don’t own that cosmetic.' };
     await Usuario.updateOne({ discordId }, { $set: { [`cosmeticosEquipados.${cos.tipo}`]: cos.valor } });
     return { ok: true, cosmetico: cos };
 }
 
 // Quita el cosmético equipado de un tipo (vuelve al de por defecto).
 async function desequiparTipo(discordId, tipo) {
-    if (!TIPOS.includes(tipo)) return { ok: false, error: 'Tipo de cosmético no válido.' };
+    if (!TIPOS.includes(tipo)) return { ok: false, error: 'Invalid cosmetic type.' };
     await Usuario.updateOne({ discordId }, { $set: { [`cosmeticosEquipados.${tipo}`]: null } });
     return { ok: true };
 }

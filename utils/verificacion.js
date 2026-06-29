@@ -17,10 +17,10 @@ setInterval(() => {
 // Concede el rol verificado al miembro. Devuelve un texto de error o null si OK.
 async function conceder(interaction, v) {
     const rid = v.rolVerificadoId;
-    if (!rid) return '❌ La verificación no tiene rol configurado. Avisa a un administrador.';
+    if (!rid) return '❌ Verification has no role set up. Let an administrator know.';
     const rol = interaction.guild.roles.cache.get(rid);
-    if (!rol) return '❌ El rol de verificación ya no existe.';
-    if (!rol.editable) return '❌ No puedo asignar ese rol (mi rol debe estar por encima). Avisa a un administrador.';
+    if (!rol) return '❌ The verification role no longer exists.';
+    if (!rol.editable) return '❌ I can’t assign that role (my role must be higher). Let an administrator know.';
     await interaction.member.roles.add(rid).catch(() => {});
     return null;
 }
@@ -29,10 +29,10 @@ async function conceder(interaction, v) {
 function contenidoPanel(v) {
     const embed = new EmbedBuilder()
         .setColor(0x5865f2)
-        .setTitle(v.titulo || '🔒 Verificación')
-        .setDescription(v.descripcion || 'Pulsa el botón para verificarte y acceder al servidor.');
+        .setTitle(v.titulo || '🔒 Verification')
+        .setDescription(v.descripcion || 'Click the button to verify and access the server.');
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('verif_inicio').setLabel(v.textoBoton || '✅ Verificarme').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('verif_inicio').setLabel(v.textoBoton || '✅ Verify me').setStyle(ButtonStyle.Success),
     );
     return { embeds: [embed], components: [row] };
 }
@@ -41,11 +41,11 @@ function contenidoPanel(v) {
 async function publicarPanel(client, guildId) {
     const cfg = await ServidorConfig.findOne({ guildId });
     const v = cfg && cfg.verificacion;
-    if (!v || !v.canalId) throw new Error('Configura primero el canal de verificación.');
+    if (!v || !v.canalId) throw new Error('Set up the verification channel first.');
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) throw new Error('Servidor no encontrado.');
+    if (!guild) throw new Error('Server not found.');
     const canal = guild.channels.cache.get(v.canalId);
-    if (!canal) throw new Error('El canal de verificación no existe.');
+    if (!canal) throw new Error('The verification channel doesn’t exist.');
 
     const contenido = contenidoPanel(v);
     let mensaje = null;
@@ -61,16 +61,16 @@ async function publicarPanel(client, guildId) {
 async function manejarInicio(interaction) {
     const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
     const v = cfg && cfg.verificacion;
-    if (!v || !v.activo) return interaction.reply({ content: '❌ La verificación no está activa.', ephemeral: true });
+    if (!v || !v.activo) return interaction.reply({ content: '❌ Verification is not active.', ephemeral: true });
 
     if (v.rolVerificadoId && interaction.member.roles.cache.has(v.rolVerificadoId)) {
-        return interaction.reply({ content: '✅ Ya estás verificado.', ephemeral: true });
+        return interaction.reply({ content: '✅ You’re already verified.', ephemeral: true });
     }
 
     // Modo botón: conceder directamente.
     if (v.modo !== 'captcha') {
         const err = await conceder(interaction, v);
-        return interaction.reply({ content: err || '✅ ¡Verificado! Ya tienes acceso al servidor.', ephemeral: true });
+        return interaction.reply({ content: err || '✅ Verified! You now have access to the server.', ephemeral: true });
     }
 
     // Modo captcha: generar y mostrar imagen.
@@ -78,24 +78,24 @@ async function manejarInicio(interaction) {
     pendientes.set(`${interaction.guildId}:${interaction.user.id}`, { codigo, expira: Date.now() + 5 * 60000 });
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('verif_introducir').setLabel('⌨️ Introducir código').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('verif_introducir').setLabel('⌨️ Enter code').setStyle(ButtonStyle.Primary),
     );
-    const payload = { content: '🧩 Resuelve el captcha y pulsa **Introducir código** (caduca en 5 min).', components: [row], ephemeral: true };
+    const payload = { content: '🧩 Solve the captcha and click **Enter code** (expires in 5 min).', components: [row], ephemeral: true };
     if (buffer) {
         payload.files = [new AttachmentBuilder(buffer, { name: 'captcha.png' })];
     } else {
         // Sin canvas: mostramos el código en texto (fallback).
-        payload.content += `\n\nCódigo: \`${codigo}\``;
+        payload.content += `\n\nCode: \`${codigo}\``;
     }
     return interaction.reply(payload);
 }
 
 // Botón "Introducir código" -> abre el modal.
 async function manejarIntroducir(interaction) {
-    const modal = new ModalBuilder().setCustomId('verif_modal').setTitle('Verificación');
+    const modal = new ModalBuilder().setCustomId('verif_modal').setTitle('Verification');
     const input = new TextInputBuilder()
         .setCustomId('codigo')
-        .setLabel('Escribe el código de la imagen')
+        .setLabel('Type the code from the image')
         .setStyle(TextInputStyle.Short)
         .setMinLength(5).setMaxLength(5).setRequired(true);
     modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -106,23 +106,23 @@ async function manejarIntroducir(interaction) {
 async function manejarModal(interaction) {
     const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
     const v = cfg && cfg.verificacion;
-    if (!v || !v.activo) return interaction.reply({ content: '❌ La verificación no está activa.', ephemeral: true });
+    if (!v || !v.activo) return interaction.reply({ content: '❌ Verification is not active.', ephemeral: true });
 
     const clave = `${interaction.guildId}:${interaction.user.id}`;
     const reto = pendientes.get(clave);
     if (!reto || reto.expira <= Date.now()) {
         pendientes.delete(clave);
-        return interaction.reply({ content: '⏰ El captcha ha caducado. Pulsa **Verificarme** otra vez.', ephemeral: true });
+        return interaction.reply({ content: '⏰ The captcha expired. Click **Verify me** again.', ephemeral: true });
     }
 
     const respuesta = (interaction.fields.getTextInputValue('codigo') || '').trim().toUpperCase();
     if (respuesta !== reto.codigo) {
-        return interaction.reply({ content: '❌ Código incorrecto. Pulsa **Verificarme** para intentarlo de nuevo.', ephemeral: true });
+        return interaction.reply({ content: '❌ Wrong code. Click **Verify me** to try again.', ephemeral: true });
     }
 
     pendientes.delete(clave);
     const err = await conceder(interaction, v);
-    return interaction.reply({ content: err || '✅ ¡Verificado! Ya tienes acceso al servidor.', ephemeral: true });
+    return interaction.reply({ content: err || '✅ Verified! You now have access to the server.', ephemeral: true });
 }
 
 module.exports = { publicarPanel, manejarInicio, manejarIntroducir, manejarModal };

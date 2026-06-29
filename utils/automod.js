@@ -98,7 +98,7 @@ async function revisarMensaje(message, cfg, client) {
         const texto = contenido.toLowerCase();
         const hit = am.palabras.lista.find((p) => p && texto.includes(p.toLowerCase()));
         if (hit) {
-            await castigar(message, client, am.palabras, am, `Palabra no permitida: "${hit}"`);
+            await castigar(message, client, am.palabras, am, `Banned word: "${hit}"`);
             return true;
         }
     }
@@ -114,8 +114,8 @@ async function revisarMensaje(message, cfg, client) {
         const enlaceFalso = e.nitroFalso && ENLACE_ESTAFA_RE.test(contenido);
 
         let motivo = null;
-        if (enlaceFalso) motivo = 'Enlace de estafa (Nitro/Steam falso)';
-        else if (hit && (!e.conEnlace || tieneEnlace || (e.conImagen && tieneImagen))) motivo = `Posible estafa: "${hit}"`;
+        if (enlaceFalso) motivo = 'Scam link (fake Nitro/Steam)';
+        else if (hit && (!e.conEnlace || tieneEnlace || (e.conImagen && tieneImagen))) motivo = `Possible scam: "${hit}"`;
 
         if (motivo) {
             await castigar(message, client, { accion: e.accion, timeoutMin: e.timeoutMin, borrarMensajesHoras: e.borrarHoras }, am, motivo);
@@ -125,7 +125,7 @@ async function revisarMensaje(message, cfg, client) {
 
     // 2. Invitaciones a otros servidores.
     if (am.invitaciones?.activo && INVITE_RE.test(contenido)) {
-        await castigar(message, client, am.invitaciones, am, 'Invitaciones de Discord no permitidas');
+        await castigar(message, client, am.invitaciones, am, 'Discord invites are not allowed');
         return true;
     }
 
@@ -134,7 +134,7 @@ async function revisarMensaje(message, cfg, client) {
         const texto = contenido.toLowerCase();
         const permitido = (am.enlaces.listaBlanca || []).some((d) => d && texto.includes(d.toLowerCase()));
         if (!permitido) {
-            await castigar(message, client, am.enlaces, am, 'Enlaces no permitidos');
+            await castigar(message, client, am.enlaces, am, 'Links are not allowed');
             return true;
         }
     }
@@ -144,7 +144,7 @@ async function revisarMensaje(message, cfg, client) {
         const everyone = message.mentions.everyone && am.menciones.bloquearEveryone;
         const total = message.mentions.users.size + message.mentions.roles.size;
         if (everyone || total > (am.menciones.max || 5)) {
-            await castigar(message, client, am.menciones, am, everyone ? 'No se permite @everyone/@here' : `Demasiadas menciones (${total})`);
+            await castigar(message, client, am.menciones, am, everyone ? '@everyone/@here is not allowed' : `Too many mentions (${total})`);
             return true;
         }
     }
@@ -156,7 +156,7 @@ async function revisarMensaje(message, cfg, client) {
             const mays = (letras.match(/[A-ZÁÉÍÓÚÑÜ]/g) || []).length;
             const pct = (mays / letras.length) * 100;
             if (pct >= (am.mayusculas.porcentaje || 70)) {
-                await castigar(message, client, am.mayusculas, am, `Exceso de mayúsculas (${Math.round(pct)}%)`);
+                await castigar(message, client, am.mayusculas, am, `Too many capital letters (${Math.round(pct)}%)`);
                 return true;
             }
         }
@@ -176,7 +176,7 @@ async function revisarMensaje(message, cfg, client) {
             && lista.slice(-3).every((e) => e.contenido === contenido);
         if (flood || repetido) {
             historial.delete(clave);
-            await castigar(message, client, am.spam, am, flood ? 'Spam (demasiados mensajes seguidos)' : 'Mensajes repetidos');
+            await castigar(message, client, am.spam, am, flood ? 'Spam (too many messages in a row)' : 'Repeated messages');
             return true;
         }
     }

@@ -25,12 +25,12 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
     const cfg = await getConfigCached(message.guild.id);
     const flag = PermissionsBitField.Flags[PERMISO[accion]];
     if (!miembroPuedeModerar(message.member, cfg, flag)) {
-        return message.reply('❌ No tienes permiso para esta acción.');
+        return message.reply('❌ You don’t have permission for this action.');
     }
 
     // 2. Usuario objetivo (por mención).
     const target = message.mentions.users.first();
-    if (!target) return message.reply('❌ Menciona a un usuario. Ej: `!ban @usuario motivo`');
+    if (!target) return message.reply('❌ Mention a user. e.g. `!ban @user reason`');
 
     // 3. Aplicar por el motor común (mismo registro, mod-log, MD y protecciones).
     try {
@@ -42,7 +42,7 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
             moderador: { id: message.author.id, tag: message.author.username },
         });
         const extra = duracionMin > 0 ? `, ${duracionTexto(duracionMin)}` : '';
-        return message.reply(`✅ Sanción aplicada a **${target.username}** (${nombre || accion}${extra}).`);
+        return message.reply(`✅ Sanction applied to **${target.username}** (${nombre || accion}${extra}).`);
     } catch (e) {
         return message.reply(`❌ ${e.message}`);
     }

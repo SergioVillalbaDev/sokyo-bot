@@ -2,12 +2,12 @@
 module.exports = {
 
     name: 'ping',
-    description: 'hace ping al bot',
+    description: 'Pings the bot',
 
     async execute(message, args, client){
 
         const ping = client.ws.ping
-        message.reply(`Actualmente tengo una latencia de ${ping}! ms`);
+        message.reply(`My current latency is ${ping} ms!`);
 
     }
 

@@ -37,7 +37,7 @@ function edadHoras(user) {
 // Acción directa contra un raider (sin DM ni registro individual: en un raid
 // pueden ser cientos de cuentas y saturaría logs/MD).
 async function actuarRaid(member, accion, timeoutMin) {
-    const motivo = 'Anti-raid: oleada de entradas detectada';
+    const motivo = 'Anti-raid: join surge detected';
     try {
         if (accion === 'ban') return member.ban({ reason: motivo, deleteMessageSeconds: 3600 }).catch(() => {});
         if (accion === 'timeout') return member.timeout(Math.min(timeoutMin || 60, 40320) * 60000, motivo).catch(() => {});
@@ -80,13 +80,13 @@ async function revisarEntrada(member, cfg, client) {
             lockdown.set(guild.id, ahora + (r.lockdownMin || 10) * 60000);
             const embed = new EmbedBuilder()
                 .setColor(0xe74c3c)
-                .setTitle('🚨 Posible RAID detectado')
-                .setDescription(`Se han unido **${lista.length}** cuentas en ~${r.enSegundos}s.\nBloqueo activado durante **${r.lockdownMin} min** (acción: ${r.accion}).`)
+                .setTitle('🚨 Possible RAID detected')
+                .setDescription(`**${lista.length}** accounts joined in ~${r.enSegundos}s.\nLockdown enabled for **${r.lockdownMin} min** (action: ${r.accion}).`)
                 .setTimestamp();
             await enviarAlerta(client, guild, am, { embeds: [embed] });
             // Webhook saliente (Pro): avisa del raid a un endpoint externo.
             enviarWebhook(cfg, 'raid', {
-                text: `🚨 Posible RAID en ${guild.name}: ${lista.length} cuentas en ~${r.enSegundos}s. Bloqueo ${r.lockdownMin} min.`,
+                text: `🚨 Possible RAID in ${guild.name}: ${lista.length} accounts in ~${r.enSegundos}s. Lockdown ${r.lockdownMin} min.`,
                 data: { uniones: lista.length, enSegundos: r.enSegundos, lockdownMin: r.lockdownMin, accion: r.accion },
             }).catch(() => {});
         }
@@ -109,9 +109,9 @@ async function revisarEntrada(member, cfg, client) {
 
         if (esNueva || sinAvatar) {
             const razones = [];
-            if (esNueva) razones.push(edadH < 1 ? `creada hace ${Math.max(1, Math.round(edadH * 60))} min` : `creada hace ${Math.round(edadH)} h`);
-            if (sinAvatar) razones.push('sin avatar');
-            const motivo = `Cuenta sospechosa (${razones.join(', ')})`;
+            if (esNueva) razones.push(edadH < 1 ? `created ${Math.max(1, Math.round(edadH * 60))} min ago` : `created ${Math.round(edadH)} h ago`);
+            if (sinAvatar) razones.push('no avatar');
+            const motivo = `Suspicious account (${razones.join(', ')})`;
 
             // Rol de cuarentena opcional.
             if (c.asignarRolId) {
@@ -123,7 +123,7 @@ async function revisarEntrada(member, cfg, client) {
                 const embed = new EmbedBuilder()
                     .setColor(0xf1c40f)
                     .setAuthor({ name: `⚠️ ${member.user.username}`, iconURL: member.user.displayAvatarURL?.() || undefined })
-                    .setDescription(`<@${member.id}> acaba de entrar. ${motivo}.`)
+                    .setDescription(`<@${member.id}> just joined. ${motivo}.`)
                     .setFooter({ text: `ID: ${member.id}` })
                     .setTimestamp();
                 await enviarAlerta(client, guild, am, { embeds: [embed] });

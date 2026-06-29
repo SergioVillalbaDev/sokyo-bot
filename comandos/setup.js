@@ -4,12 +4,12 @@ const { construirBienvenida } = require('../utils/onboarding.js');
 
 module.exports = {
     name: 'setup',
-    description: 'Muestra la guía de configuración inicial y el estado del servidor',
+    description: 'Show the initial setup guide and the server’s status',
 
     async execute(message) {
         // Solo administradores ven/relanzan la guía.
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Necesitas permisos de Administrador para ver la configuración.');
+            return message.reply('❌ You need Administrator permission to view the configuration.');
         }
 
         let config = await ServidorConfig.findOne({ guildId: message.guild.id });

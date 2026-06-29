@@ -4,12 +4,12 @@ const { formatDuration, COLOR_MUSICA } = require('../utils/musica.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('queue')
-        .setDescription('Muestra la cola de canciones'),
+        .setDescription('Show the song queue'),
 
     async execute(interaction, client) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: '📭 La cola está vacía y no hay nada sonando.', ephemeral: true });
+            return interaction.reply({ content: '📭 The queue is empty and nothing is playing.', ephemeral: true });
         }
 
         const actual = player.queue.current;
@@ -17,18 +17,18 @@ module.exports = {
 
         const lista = siguientes.length
             ? siguientes.map((t, i) => `**${i + 1}.** ${t.info.title} \`${formatDuration(t.info.duration)}\``).join('\n')
-            : '_No hay más canciones en la cola._';
+            : '_No more songs in the queue._';
 
         const embed = new EmbedBuilder()
             .setColor(COLOR_MUSICA)
-            .setTitle('🎶 Cola de música')
+            .setTitle('🎶 Music queue')
             .addFields(
-                { name: '▶️ Sonando ahora', value: `${actual.info.title} \`${formatDuration(actual.info.duration)}\`` },
-                { name: '⏭️ A continuación', value: lista },
+                { name: '▶️ Now playing', value: `${actual.info.title} \`${formatDuration(actual.info.duration)}\`` },
+                { name: '⏭️ Up next', value: lista },
             );
 
         const restantes = player.queue.tracks.length - siguientes.length;
-        if (restantes > 0) embed.setFooter({ text: `…y ${restantes} más en la cola` });
+        if (restantes > 0) embed.setFooter({ text: `…and ${restantes} more in the queue` });
 
         return interaction.reply({ embeds: [embed] });
     },

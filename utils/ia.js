@@ -41,21 +41,21 @@ const modelo = () => process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
 
 // Convierte los mensajes del ticket en un texto que la IA pueda leer.
 function transcripcion(mensajes, ticket) {
-    const lineas = (mensajes || []).map((m) => `${m.usuario || 'Usuario'}: ${m.contenido || '(sin texto)'}`);
+    const lineas = (mensajes || []).map((m) => `${m.usuario || 'User'}: ${m.contenido || '(no text)'}`);
     return [
-        `Cliente (abrió el ticket): ${(ticket && ticket.creadorNombre) || 'desconocido'}`,
-        `Asunto: ${(ticket && ticket.titulo) || '-'}`,
-        `Motivo: ${(ticket && ticket.motivo) || '-'}`,
+        `Customer (opened the ticket): ${(ticket && ticket.creadorNombre) || 'unknown'}`,
+        `Subject: ${(ticket && ticket.titulo) || '-'}`,
+        `Reason: ${(ticket && ticket.motivo) || '-'}`,
         '',
-        'Conversación:',
-        lineas.join('\n') || '(sin mensajes)',
+        'Conversation:',
+        lineas.join('\n') || '(no messages)',
     ].join('\n');
 }
 
 // Llamada base a la API. Devuelve el texto de la respuesta.
 async function pedir(system, contenido, maxTokens = 1024) {
     const cliente = getIA();
-    if (!cliente) throw new Error('IA no configurada');
+    if (!cliente) throw new Error('AI not configured');
     const r = await cliente.messages.create({
         model: modelo(),
         max_tokens: maxTokens,
@@ -67,22 +67,22 @@ async function pedir(system, contenido, maxTokens = 1024) {
         .map((b) => b.text)
         .join('\n')
         .trim();
-    return txt || '(la IA no devolvió texto)';
+    return txt || '(the AI returned no text)';
 }
 
 async function resumirTicket(mensajes, ticket) {
-    const system = 'Eres un asistente de soporte. Resume el ticket en español, breve y claro, para un agente que se incorpora. Estructura con viñetas: 1) problema del cliente, 2) qué se ha hecho ya, 3) estado actual, 4) próximos pasos sugeridos. No inventes datos que no aparezcan en la conversación.';
+    const system = 'You are a support assistant. Summarize the ticket in English, short and clear, for an agent picking it up. Structure it with bullet points: 1) the customer’s problem, 2) what has already been done, 3) current status, 4) suggested next steps. Don’t make up details that aren’t in the conversation.';
     return pedir(system, transcripcion(mensajes, ticket));
 }
 
 async function sugerirRespuesta(mensajes, ticket) {
-    const system = 'Eres un agente de soporte profesional y cercano. Redacta en español UNA respuesta lista para enviar al cliente, contestando a su último mensaje. Tono educado y resolutivo. No inventes información; si falta un dato para resolver, pídelo con amabilidad. Devuelve solo el texto de la respuesta, sin meta-comentarios ni "aquí tienes".';
+    const system = 'You are a professional, friendly support agent. Write in English ONE reply ready to send to the customer, answering their last message. Polite, solution-focused tone. Don’t make up information; if a detail is missing to resolve it, kindly ask for it. Return only the reply text, with no meta-comments or "here you go".';
     return pedir(system, transcripcion(mensajes, ticket));
 }
 
 // Informe ejecutivo del servidor a partir de las métricas de la analítica.
 async function informeServidor(data) {
-    const system = 'Eres un consultor experto en comunidades de Discord. A partir de estas métricas escribe en español un informe ejecutivo, claro y motivador, con esta estructura y encabezados: "Estado general" (2-3 frases), "Puntos fuertes" (3 viñetas), "A mejorar" (3 viñetas) y "Plan de acción" (5 pasos concretos y accionables para crecer el próximo mes). Sé específico citando los números. No inventes datos que no estén aquí.';
+    const system = 'You are an expert Discord community consultant. From these metrics, write in English a clear, motivating executive report with this structure and headings: "Overview" (2-3 sentences), "Strengths" (3 bullets), "To improve" (3 bullets) and "Action plan" (5 concrete, actionable steps to grow next month). Be specific and cite the numbers. Don’t make up data that isn’t here.';
     const r = data.resumen || {}, ac = data.actividad || {}, ni = data.niveles || {}, mo = data.moderacion || {}, ti = (data.tickets && data.tickets.totales) || {};
     const topCanal = (ac.topCanales && ac.topCanales[0] && ac.topCanales[0].nombre) || '-';
     const contenido = [
@@ -115,7 +115,7 @@ async function resumenDiario(data, nombre) {
         `Hora pico: ${data.actividad && data.actividad.horaPico} (UTC) · canal más activo: ${topCanal}`,
         `Señales: ${(data.insights || []).map((i) => i.titulo).join('; ') || 'ninguna'}`,
     ].join('\n');
-    const system = 'Eres el asistente del dueño de un servidor de Discord. Escribe en español un BRIEFING diario breve y cercano, estilo mensaje de buenos días (máx ~120 palabras): un saludo, 3-4 datos clave de AYER, cualquier ALERTA que requiera su atención hoy, y UNA recomendación concreta para hoy. Usa algún emoji con moderación. No inventes datos que no estén aquí.';
+    const system = 'You are the assistant to a Discord server owner. Write in English a short, friendly daily BRIEFING, good-morning message style (max ~120 words): a greeting, 3-4 key facts from YESTERDAY, any ALERT that needs their attention today, and ONE concrete recommendation for today. Use a few emojis sparingly. Don’t make up data that isn’t here.';
     return pedir(system, contenido, 700);
 }
 
@@ -126,22 +126,22 @@ async function moderarTexto(texto, opciones = {}) {
     const { categorias = [], sensibilidad = 'media' } = opciones;
     const cats = categorias.length ? categorias.join(', ') : 'toxicidad, acoso, amenazas, nsfw, autolesion';
     const system = [
-        'Eres un moderador de contenido para un chat de Discord.',
-        `Decide si el MENSAJE del usuario infringe alguna de estas categorías: ${cats}.`,
-        'Ten en cuenta jerga, ironía y los intentos de evadir filtros (l3tras, espacios, símbolos).',
-        `Sensibilidad: ${sensibilidad} (baja = solo casos claros y graves; media = equilibrado; alta = también casos límite).`,
-        'Responde SOLO con un JSON válido, sin nada más, con esta forma exacta:',
-        '{"accionar": true|false, "categoria": "<categoria o cadena vacía>", "motivo": "<máx 8 palabras en español>"}',
-        'accionar=true solo si infringe de verdad según la sensibilidad indicada.',
+        'You are a content moderator for a Discord chat.',
+        `Decide whether the user MESSAGE violates any of these categories: ${cats}.`,
+        'Account for slang, irony and attempts to evade filters (l3tt3rs, spaces, symbols).',
+        `Sensitivity: ${sensibilidad} (low = only clear, serious cases; medium = balanced; high = borderline cases too).`,
+        'Respond ONLY with valid JSON, nothing else, with this exact shape:',
+        '{"accionar": true|false, "categoria": "<category or empty string>", "motivo": "<max 8 words in English>"}',
+        'accionar=true only if it truly violates per the given sensitivity.',
     ].join(' ');
 
-    const raw = await pedir(system, `MENSAJE: ${texto}`, 200);
+    const raw = await pedir(system, `MESSAGE: ${texto}`, 200);
     try {
         const json = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
         return {
             accionar: json.accionar === true,
             categoria: typeof json.categoria === 'string' ? json.categoria : '',
-            motivo: (typeof json.motivo === 'string' && json.motivo) ? json.motivo : 'Contenido inapropiado',
+            motivo: (typeof json.motivo === 'string' && json.motivo) ? json.motivo : 'Inappropriate content',
         };
     } catch {
         return { accionar: false, categoria: '', motivo: '' };

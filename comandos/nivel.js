@@ -4,12 +4,12 @@ const { progreso, adjuntoTarjeta } = require('../utils/niveles.js');
 const { getConfigCached } = require('../utils/config.js');
 
 module.exports = {
-    name: 'nivel',
-    description: 'Muestra tu tarjeta de nivel. Uso: !nivel [@usuario]',
+    name: 'level',
+    description: 'Show your level card. Usage: !level [@user]',
 
     async execute(message) {
         const cfg = await getConfigCached(message.guild.id);
-        if (!cfg?.nivelesActivo) return message.reply('ℹ️ El sistema de niveles no está activado en este servidor.');
+        if (!cfg?.nivelesActivo) return message.reply('ℹ️ The leveling system isn’t enabled on this server.');
 
         const target = message.mentions.users.first() || message.author;
         const member = await message.guild.members.fetch(target.id).catch(() => null);
@@ -35,12 +35,12 @@ module.exports = {
         const barra = '█'.repeat(llenos) + '░'.repeat(12 - llenos);
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setAuthor({ name: `Nivel de ${target.username}`, iconURL: target.displayAvatarURL() })
+            .setAuthor({ name: `${target.username}’s level`, iconURL: target.displayAvatarURL() })
             .addFields(
                 { name: 'Rank', value: `**#${rank}**`, inline: true },
-                { name: 'Nivel', value: `**${nivel}**`, inline: true },
-                { name: 'XP total', value: `**${xp}**`, inline: true },
-                { name: 'Progreso', value: `${barra}\n${actual} / ${necesaria} XP` },
+                { name: 'Level', value: `**${nivel}**`, inline: true },
+                { name: 'Total XP', value: `**${xp}**`, inline: true },
+                { name: 'Progress', value: `${barra}\n${actual} / ${necesaria} XP` },
             );
         await message.reply({ embeds: [embed] });
     },

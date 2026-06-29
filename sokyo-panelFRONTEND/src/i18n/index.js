@@ -12,8 +12,9 @@ export const IDIOMAS = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
 ];
 
+// Idioma por defecto: inglés. Si el visitante ya eligió uno antes, se respeta.
 const guardado = localStorage.getItem('sokyoLang');
-const inicial = guardado && IDIOMAS.some((i) => i.code === guardado) ? guardado : 'es';
+const inicial = guardado && IDIOMAS.some((i) => i.code === guardado) ? guardado : 'en';
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -21,7 +22,7 @@ i18n.use(initReactI18next).init({
     en: { translation: en },
   },
   lng: inicial,
-  fallbackLng: 'es',
+  fallbackLng: 'en',
   interpolation: { escapeValue: false }, // React ya escapa por seguridad
 });
 

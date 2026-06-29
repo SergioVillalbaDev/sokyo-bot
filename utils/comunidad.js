@@ -46,17 +46,17 @@ function construirEmbedEncuesta(enc, color, cerrada = false) {
     const total = enc.opciones.reduce((s, o) => s + (o.votos || 0), 0);
     const lineas = enc.opciones.map((o, i) => {
         const pct = total === 0 ? 0 : Math.round((o.votos / total) * 100);
-        return `${EMOJIS[i]} **${o.texto}**\n\`${barra(pct)}\` ${pct}% · ${o.votos} voto${o.votos === 1 ? '' : 's'}`;
+        return `${EMOJIS[i]} **${o.texto}**\n\`${barra(pct)}\` ${pct}% · ${o.votos} vote${o.votos === 1 ? '' : 's'}`;
     });
     const embed = new EmbedBuilder()
         .setColor(color)
         .setTitle(`📊 ${enc.pregunta}`)
         .setDescription(lineas.join('\n\n'))
-        .setFooter({ text: `${total} voto${total === 1 ? '' : 's'}${enc.multiple ? ' · Opción múltiple' : ''}${enc.anonima ? ' · Anónima' : ''}` });
+        .setFooter({ text: `${total} vote${total === 1 ? '' : 's'}${enc.multiple ? ' · Multiple choice' : ''}${enc.anonima ? ' · Anonymous' : ''}` });
     if (cerrada) {
         const ganadora = enc.opciones.reduce((a, b) => (b.votos > (a?.votos ?? -1) ? b : a), null);
         embed.setTitle(`🔒 ${enc.pregunta}`)
-            .addFields({ name: 'Encuesta cerrada', value: total > 0 ? `🏆 Más votada: **${ganadora.texto}**` : 'No hubo votos.' });
+            .addFields({ name: 'Poll closed', value: total > 0 ? `🏆 Most voted: **${ganadora.texto}**` : 'No votes.' });
     }
     return embed;
 }
@@ -87,8 +87,8 @@ async function manejarVotoEncuesta(interaction) {
         const [, id, idxStr] = interaction.customId.split(':');
         const idx = Number(idxStr);
         const enc = await Encuesta.findById(id);
-        if (!enc || !enc.activa) return interaction.reply({ content: '⏹️ Esta encuesta ya no está activa.', ephemeral: true });
-        if (!enc.opciones[idx]) return interaction.reply({ content: '❌ Opción no válida.', ephemeral: true });
+        if (!enc || !enc.activa) return interaction.reply({ content: '⏹️ This poll is no longer active.', ephemeral: true });
+        if (!enc.opciones[idx]) return interaction.reply({ content: '❌ Invalid option.', ephemeral: true });
         const uid = interaction.user.id;
 
         const yaEnEsta = enc.opciones[idx].votantes.includes(uid);
@@ -138,7 +138,7 @@ function construirEmbedSorteo(s, color, finalizado = false) {
     const embed = new EmbedBuilder()
         .setColor(finalizado ? '#95a5a6' : color)
         .setTitle(`🎉 ${s.nombre}`)
-        .setDescription(`**Premio:** ${s.premio}`)
+        .setDescription(`**Prize:** ${s.premio}`)
         .addFields(
             { name: '🏆 Ganadores', value: `${s.ganadores}`, inline: true },
             { name: '👥 Participantes', value: `${s.participantes.length}`, inline: true },
@@ -160,17 +160,17 @@ function construirEmbedSorteo(s, color, finalizado = false) {
     if (finalizado) {
         const ganadores = s.ganadoresSeleccionados.length
             ? s.ganadoresSeleccionados.map((g) => `<@${g.id}>`).join(', ')
-            : 'Nadie cumplió los requisitos 😢';
-        embed.setTitle(`🎊 ${s.nombre} — ¡Finalizado!`).addFields({ name: '🏆 Ganador(es)', value: ganadores });
+            : 'Nobody met the requirements 😢';
+        embed.setTitle(`🎊 ${s.nombre} — Ended!`).addFields({ name: '🏆 Winner(s)', value: ganadores });
     } else {
-        embed.addFields({ name: '⏰ Finaliza', value: `<t:${Math.floor(new Date(s.fechaFin).getTime() / 1000)}:R>`, inline: false });
+        embed.addFields({ name: '⏰ Ends', value: `<t:${Math.floor(new Date(s.fechaFin).getTime() / 1000)}:R>`, inline: false });
     }
     return embed;
 }
 
 function filaSorteo(s) {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`sorteo_join:${s._id}`).setLabel(`🎉 Participar (${s.participantes.length})`).setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`sorteo_join:${s._id}`).setLabel(`🎉 Join (${s.participantes.length})`).setStyle(ButtonStyle.Primary),
     );
 }
 
@@ -189,34 +189,34 @@ async function manejarEntradaSorteo(interaction) {
     try {
         const id = interaction.customId.split(':')[1];
         const s = await Sorteo.findById(id);
-        if (!s || !s.activo) return interaction.reply({ content: '⏹️ Este sorteo ya ha terminado.', ephemeral: true });
+        if (!s || !s.activo) return interaction.reply({ content: '⏹️ This giveaway has already ended.', ephemeral: true });
         const uid = interaction.user.id;
 
         if (s.participantes.includes(uid)) {
             s.participantes = s.participantes.filter((p) => p !== uid);
             await s.save();
             await actualizarMensajeSorteo(interaction.client, s).catch(() => {});
-            return interaction.reply({ content: '➖ Has salido del sorteo.', ephemeral: true });
+            return interaction.reply({ content: '➖ You left the giveaway.', ephemeral: true });
         }
 
         // Requisitos.
         if (s.rolRequerido && !interaction.member.roles.cache.has(s.rolRequerido)) {
-            return interaction.reply({ content: `❌ Necesitas el rol <@&${s.rolRequerido}> para participar.`, ephemeral: true });
+            return interaction.reply({ content: `❌ You need the <@&${s.rolRequerido}> role to join.`, ephemeral: true });
         }
         if (s.nivelMin > 0) {
             const act = await ActividadUsuario.findOne({ guildId: s.guildId, userId: uid }).select('nivel').lean();
             if ((act?.nivel || 0) < s.nivelMin) {
-                return interaction.reply({ content: `❌ Necesitas ser **nivel ${s.nivelMin}** o superior para participar.`, ephemeral: true });
+                return interaction.reply({ content: `❌ You need to be **level ${s.nivelMin}** or higher to join.`, ephemeral: true });
             }
         }
 
         s.participantes.push(uid);
         await s.save();
         await actualizarMensajeSorteo(interaction.client, s).catch(() => {});
-        return interaction.reply({ content: '✅ ¡Estás dentro del sorteo! Mucha suerte 🍀', ephemeral: true });
+        return interaction.reply({ content: '✅ You’re in the giveaway! Good luck 🍀', ephemeral: true });
     } catch (e) {
         console.error('Entrada sorteo:', e.message);
-        if (!interaction.replied) interaction.reply({ content: '❌ Error al participar.', ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: '❌ Error joining.', ephemeral: true }).catch(() => {});
     }
 }
 
@@ -283,8 +283,8 @@ async function finalizarSorteo(client, s, { reroll = false } = {}) {
             if (msg) await msg.edit({ embeds: [construirEmbedSorteo(s, color, true)], components: [] }).catch(() => {});
         }
         const aviso = ganadores.length
-            ? `🎊 ${reroll ? '**Nuevo sorteo**' : 'El sorteo'} **${s.nombre}** ha terminado.\n🏆 Ganador(es): ${ganadores.map((g) => `<@${g.id}>`).join(', ')}\n🎁 Premio: **${s.premio}**`
-            : `😢 El sorteo **${s.nombre}** terminó sin participantes válidos.`;
+            ? `🎊 ${reroll ? '**New draw**' : 'The giveaway'} **${s.nombre}** has ended.\n🏆 Winner(s): ${ganadores.map((g) => `<@${g.id}>`).join(', ')}\n🎁 Prize: **${s.premio}**`
+            : `😢 The giveaway **${s.nombre}** ended with no valid participants.`;
         await canal.send({ content: aviso, allowedMentions: { users: ganadores.map((g) => g.id) } }).catch(() => {});
     }
     return ganadores;
@@ -298,7 +298,7 @@ function construirEmbedEvento(e, color) {
         .setColor(color)
         .setTitle(`${ICONO[e.tipo] || '📅'} ${e.titulo}`)
         .addFields(
-            { name: '🗓️ Cuándo', value: `<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:F> (<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:R>)` },
+            { name: '🗓️ When', value: `<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:F> (<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:R>)` },
         );
     if (e.descripcion) embed.setDescription(e.descripcion);
     const img = urlAbs(e.portada);
@@ -322,19 +322,19 @@ async function publicarEvento(client, e) {
 function construirEmbedSugerencia(sug, color) {
     const neto = (sug.votos_pos || 0) - (sug.votos_neg || 0);
     const ESTADO = {
-        pendiente: { t: '⏳ Pendiente', c: color },
-        revision: { t: '👀 En revisión', c: '#e67e22' },
-        aceptada: { t: '✅ Aceptada', c: '#2ecc71' },
-        rechazada: { t: '❌ Rechazada', c: '#e74c3c' },
+        pendiente: { t: '⏳ Pending', c: color },
+        revision: { t: '👀 Under review', c: '#e67e22' },
+        aceptada: { t: '✅ Accepted', c: '#2ecc71' },
+        rechazada: { t: '❌ Rejected', c: '#e74c3c' },
     };
     const est = ESTADO[sug.estado] || ESTADO.pendiente;
     return new EmbedBuilder()
         .setColor(est.c)
-        .setAuthor({ name: sug.autor || 'Anónimo' })
+        .setAuthor({ name: sug.autor || 'Anonymous' })
         .setDescription(sug.texto)
         .addFields(
-            { name: 'Votos', value: `👍 ${sug.votos_pos || 0}  ·  👎 ${sug.votos_neg || 0}  ·  Neto: **${neto >= 0 ? '+' : ''}${neto}**`, inline: true },
-            { name: 'Estado', value: est.t, inline: true },
+            { name: 'Votes', value: `👍 ${sug.votos_pos || 0}  ·  👎 ${sug.votos_neg || 0}  ·  Net: **${neto >= 0 ? '+' : ''}${neto}**`, inline: true },
+            { name: 'Status', value: est.t, inline: true },
         );
 }
 
@@ -370,7 +370,7 @@ async function manejarMensajeSugerencia(message, cfg) {
         if (!texto) return false;
         if (cfg.sugerenciasMinLong > 0 && texto.length < cfg.sugerenciasMinLong) {
             await message.delete().catch(() => {});
-            await message.author.send(`✍️ Tu sugerencia en **${message.guild?.name}** es demasiado corta (mínimo ${cfg.sugerenciasMinLong} caracteres).`).catch(() => {});
+            await message.author.send(`✍️ Your suggestion in **${message.guild?.name}** is too short (minimum ${cfg.sugerenciasMinLong} characters).`).catch(() => {});
             return true;
         }
 
@@ -397,11 +397,11 @@ async function publicarPanelSugerencias(client, guildId, cfg) {
         const color = cfg.colorEmbed || COLOR;
         const embed = new EmbedBuilder()
             .setColor(color)
-            .setTitle('💡 Sugerencias')
-            .setDescription('Pulsa el botón para enviar tu sugerencia. La comunidad podrá votarla 👍/👎.');
+            .setTitle('💡 Suggestions')
+            .setDescription('Click the button to submit your suggestion. The community can vote it up/down 👍/👎.');
         aplicarPieMarca(embed, cfg);
         const fila = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`sug_nueva:${guildId}`).setLabel('💡 Nueva sugerencia').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`sug_nueva:${guildId}`).setLabel('💡 New suggestion').setStyle(ButtonStyle.Primary),
         );
         await canal.send({ embeds: [embed], components: [fila] }).catch(() => {});
         return true;
@@ -415,12 +415,12 @@ async function abrirModalSugerencia(interaction) {
         const cfg = await ServidorConfig.findOne({ guildId }).select('sugerenciasPlantilla').lean();
         const input = new TextInputBuilder()
             .setCustomId('texto')
-            .setLabel('Tu sugerencia')
+            .setLabel('Your suggestion')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true)
             .setMaxLength(1000);
         if (cfg?.sugerenciasPlantilla) input.setValue(cfg.sugerenciasPlantilla.slice(0, 1000));
-        const modal = new ModalBuilder().setCustomId(`sug_modal:${guildId}`).setTitle('Nueva sugerencia')
+        const modal = new ModalBuilder().setCustomId(`sug_modal:${guildId}`).setTitle('New suggestion')
             .addComponents(new ActionRowBuilder().addComponents(input));
         await interaction.showModal(modal);
     } catch (e) {
@@ -435,16 +435,16 @@ async function procesarModalSugerencia(interaction) {
         const guildId = interaction.customId.split(':')[1];
         const cfg = await ServidorConfig.findOne({ guildId }).lean();
         const texto = (interaction.fields.getTextInputValue('texto') || '').trim();
-        if (!texto) return interaction.reply({ content: '❌ La sugerencia está vacía.', ephemeral: true });
+        if (!texto) return interaction.reply({ content: '❌ The suggestion is empty.', ephemeral: true });
         if (cfg?.sugerenciasMinLong > 0 && texto.length < cfg.sugerenciasMinLong) {
-            return interaction.reply({ content: `✍️ Demasiado corta (mínimo ${cfg.sugerenciasMinLong} caracteres).`, ephemeral: true });
+            return interaction.reply({ content: `✍️ Too short (minimum ${cfg.sugerenciasMinLong} characters).`, ephemeral: true });
         }
         const canal = interaction.channel;
         await crearYPublicarSugerencia(canal, guildId, interaction.user, texto, cfg?.colorEmbed || COLOR);
-        await interaction.reply({ content: '✅ ¡Sugerencia enviada! Gracias.', ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: '✅ Suggestion submitted! Thank you.', ephemeral: true }).catch(() => {});
     } catch (e) {
         console.error('Procesar modal sugerencia:', e.message);
-        if (!interaction.replied) interaction.reply({ content: '❌ Error al enviar la sugerencia.', ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: '❌ Error submitting the suggestion.', ephemeral: true }).catch(() => {});
     }
 }
 
@@ -452,7 +452,7 @@ async function manejarVotoSugerencia(interaction) {
     try {
         const [tipo, id] = interaction.customId.split(':');
         const sug = await Sugerencia.findById(id);
-        if (!sug) return interaction.reply({ content: '❌ Esta sugerencia ya no existe.', ephemeral: true });
+        if (!sug) return interaction.reply({ content: '❌ This suggestion no longer exists.', ephemeral: true });
         const uid = interaction.user.id;
         const positivo = tipo === 'sug_up';
 
@@ -498,8 +498,8 @@ async function publicarPanelPresentacion(client, guildId, cfg) {
         const color = cfg.colorEmbed || COLOR;
         const embed = new EmbedBuilder()
             .setColor(color)
-            .setTitle('👋 ¡Preséntate a la comunidad!')
-            .setDescription('Pulsa el botón para rellenar una breve presentación y que todos te conozcan.');
+            .setTitle('👋 Introduce yourself to the community!')
+            .setDescription('Click the button to fill out a short intro so everyone gets to know you.');
         aplicarPieMarca(embed, cfg);
         const fila = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`intro_start:${guildId}`).setLabel('📝 Presentarme').setStyle(ButtonStyle.Primary),
@@ -516,12 +516,12 @@ async function abrirModalPresentacion(interaction) {
         const guildId = interaction.customId.split(':')[1];
         const cfg = await ServidorConfig.findOne({ guildId }).select('presentaciones').lean();
         const pres = cfg?.presentaciones || {};
-        const modal = new ModalBuilder().setCustomId(`intro_modal:${guildId}`).setTitle('Tu presentación');
+        const modal = new ModalBuilder().setCustomId(`intro_modal:${guildId}`).setTitle('Your intro');
 
         if (pres.modo === 'plantilla') {
             const input = new TextInputBuilder()
                 .setCustomId('_plantilla')
-                .setLabel('Rellena tu presentación')
+                .setLabel('Fill out your intro')
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true)
                 .setMaxLength(1500);
@@ -529,7 +529,7 @@ async function abrirModalPresentacion(interaction) {
             modal.addComponents(new ActionRowBuilder().addComponents(input));
         } else {
             const preguntas = (pres.preguntas || []).slice(0, 5);
-            if (!preguntas.length) return interaction.reply({ content: '❌ No hay preguntas configuradas.', ephemeral: true });
+            if (!preguntas.length) return interaction.reply({ content: '❌ No questions are configured.', ephemeral: true });
             preguntas.forEach((p) => {
                 const input = new TextInputBuilder()
                     .setCustomId(p.id)
@@ -583,7 +583,7 @@ async function procesarPresentacion(interaction) {
         if (modoPlantilla) {
             let v = '';
             try { v = interaction.fields.getTextInputValue('_plantilla') || ''; } catch { v = ''; }
-            respuestas.push({ pregunta: 'Presentación', respuesta: v });
+            respuestas.push({ pregunta: 'Intro', respuesta: v });
             respuestasPorId._plantilla = v;
         } else {
             (pres.preguntas || []).slice(0, 5).forEach((p) => {
@@ -599,9 +599,9 @@ async function procesarPresentacion(interaction) {
         const accionMod = filtro && ['banear', 'expulsar', 'aislar'].includes(filtro.accion);
         if (accionMod && interaction.member) {
             try {
-                if (filtro.accion === 'banear') await interaction.member.ban({ reason: 'Filtro de presentación' });
-                else if (filtro.accion === 'expulsar') await interaction.member.kick('Filtro de presentación');
-                else if (filtro.accion === 'aislar') await interaction.member.timeout(60 * 60 * 1000, 'Filtro de presentación'); // 1 hora
+                if (filtro.accion === 'banear') await interaction.member.ban({ reason: 'Intro filter' });
+                else if (filtro.accion === 'expulsar') await interaction.member.kick('Intro filter');
+                else if (filtro.accion === 'aislar') await interaction.member.timeout(60 * 60 * 1000, 'Intro filter'); // 1 hora
             } catch (e) { console.error('Acción mod presentación:', e.message); }
         }
         const descartada = !!(filtro && (filtro.accion === 'descartar' || accionMod));
@@ -630,7 +630,7 @@ async function procesarPresentacion(interaction) {
                 const embed = new EmbedBuilder()
                     .setColor(marcada ? '#e67e22' : color)
                     .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
-                    .setTitle('📝 Nueva presentación')
+                    .setTitle('📝 New intro')
                     .addFields(respuestas.map((r) => ({ name: r.pregunta.slice(0, 256), value: (r.respuesta || '—').slice(0, 1024) })));
                 if (marcada) embed.setFooter({ text: `⚠️ Marcada por filtro: ${filtro.campo} ${filtro.operador} ${filtro.valor}` });
                 await canal.send({ embeds: [embed] }).catch(() => {});
@@ -638,12 +638,12 @@ async function procesarPresentacion(interaction) {
         }
 
         const respuesta = descartada
-            ? (filtro?.mensajeAviso ? '📩 Te hemos enviado un mensaje con más información.' : '❌ Tu presentación no cumple los requisitos del servidor.')
-            : '✅ ¡Gracias! Tu presentación se ha enviado correctamente.';
+            ? (filtro?.mensajeAviso ? '📩 We’ve sent you a message with more info.' : '❌ Your intro doesn’t meet the server’s requirements.')
+            : '✅ Thanks! Your intro was submitted successfully.';
         await interaction.reply({ content: respuesta, ephemeral: true }).catch(() => {});
     } catch (e) {
         console.error('Procesar presentación:', e.message);
-        if (!interaction.replied) interaction.reply({ content: '❌ Error al enviar tu presentación.', ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: '❌ Error submitting your intro.', ephemeral: true }).catch(() => {});
     }
 }
 

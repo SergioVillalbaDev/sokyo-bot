@@ -4,12 +4,12 @@ const { aplicarPieMarca } = require('../utils/marca.js');
 
 module.exports = {
     name: 'sokyo', // O el nombre que uses en tu gestor de comandos
-    description: 'Lanza el panel de soporte personalizado de marca blanca',
+    description: 'Launch the custom white-label support panel',
     async execute(message, args) { // Si usas comandos por mensaje (!sokyo)
-        
+
         // 1. Verificación de seguridad básica (Solo administradores)
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Necesitas permisos de Administrador para ejecutar este comando.');
+            return message.reply('❌ You need Administrator permission to run this command.');
         }
 
         try {
@@ -23,8 +23,8 @@ module.exports = {
 
             // 3. Construimos el Embed MÁGICO devorando los datos dinámicos de tu web
             const embedPanel = new EmbedBuilder()
-                .setTitle(config.mensajeSoporteTitulo || '🎫 Soporte Técnico Activo')
-                .setDescription(config.mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.')
+                .setTitle(config.mensajeSoporteTitulo || '🎫 Support is open')
+                .setDescription(config.mensajeSoporteDescripcion || 'Click the button below to open a support ticket.')
                 .setColor(config.colorEmbed || '#5865F2') // Color configurable desde el panel
                 .setTimestamp();
             aplicarPieMarca(embedPanel, config); // marca blanca: Sokyo en Free, su marca en Pro
@@ -32,7 +32,7 @@ module.exports = {
             // 4. Creamos el botón interactivo que dispara el evento "create_ticket"
             const botonAbrir = new ButtonBuilder()
                 .setCustomId('create_ticket')
-                .setLabel(config.textoBoton || '📩 Abrir Ticket')
+                .setLabel(config.textoBoton || '📩 Open a ticket')
                 .setStyle(ButtonStyle.Primary);
 
             const filaComponentes = new ActionRowBuilder().addComponents(botonAbrir);
@@ -47,7 +47,7 @@ module.exports = {
 
         } catch (error) {
             console.error('Error al ejecutar el setup del soporte:', error);
-            message.reply('❌ Hubo un fallo interno al intentar lanzar el panel de soporte.');
+            message.reply('❌ Something went wrong while launching the support panel.');
         }
     }
 };

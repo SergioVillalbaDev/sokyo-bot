@@ -4,7 +4,7 @@ const economia = require('../utils/economia.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('daily')
-        .setDescription('Reclama tu recompensa diaria de oro (con racha)'),
+        .setDescription('Claim your daily gold reward (with streak)'),
 
     async execute(interaction) {
         const r = await economia.reclamarDaily(interaction.user.id);
@@ -12,18 +12,18 @@ module.exports = {
         if (!r.ok) {
             const h = Math.floor(r.esperaHoras);
             const m = Math.round((r.esperaHoras - h) * 60);
-            return interaction.reply({ content: `⏳ Ya has reclamado hace poco. Vuelve en **${h}h ${m}m**.`, ephemeral: true });
+            return interaction.reply({ content: `⏳ You already claimed recently. Come back in **${h}h ${m}m**.`, ephemeral: true });
         }
 
         const embed = new EmbedBuilder()
             .setColor('#f5b942')
-            .setTitle('🪙 ¡Recompensa diaria reclamada!')
-            .setDescription(`Has recibido **${r.total}** de oro.${r.jackpot ? `\n🎉 ¡Premio de racha! **+${r.jackpot}** extra por llegar a ${r.racha} días.` : ''}`)
+            .setTitle('🪙 Daily reward claimed!')
+            .setDescription(`You received **${r.total}** gold.${r.jackpot ? `\n🎉 Streak bonus! **+${r.jackpot}** extra for reaching ${r.racha} days.` : ''}`)
             .addFields(
-                { name: 'Racha', value: `🔥 **${r.racha}** día(s) seguidos`, inline: true },
-                { name: 'Saldo', value: `🪙 **${r.balance.toLocaleString('es-ES')}**`, inline: true },
+                { name: 'Streak', value: `🔥 **${r.racha}** day(s) in a row`, inline: true },
+                { name: 'Balance', value: `🪙 **${r.balance.toLocaleString('en-US')}**`, inline: true },
             )
-            .setFooter({ text: 'Vuelve mañana para no perder la racha · premio gordo cada 7 días' });
+            .setFooter({ text: 'Come back tomorrow to keep your streak · jackpot every 7 days' });
 
         await interaction.reply({ embeds: [embed] });
     },

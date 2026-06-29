@@ -4,7 +4,7 @@ const { gateMusica } = require('../utils/musica.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stop')
-        .setDescription('Para la música, vacía la cola y sale del canal de voz'),
+        .setDescription('Stop the music, clear the queue and leave the voice channel'),
 
     async execute(interaction, client) {
         const voz = await gateMusica(interaction);
@@ -12,10 +12,10 @@ module.exports = {
 
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player) {
-            return interaction.reply({ content: '⏹️ No hay nada que parar.', ephemeral: true });
+            return interaction.reply({ content: '⏹️ There’s nothing to stop.', ephemeral: true });
         }
 
         await player.destroy();
-        return interaction.reply('⏹️ Música detenida y cola vaciada. ¡Hasta la próxima!');
+        return interaction.reply('⏹️ Music stopped and queue cleared. See you next time!');
     },
 };

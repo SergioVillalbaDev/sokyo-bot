@@ -60,9 +60,9 @@ module.exports = {
             await Log.create({
                 guildId: member.guild.id,
                 categoria: 'Entradas',
-                accion: '👋 Usuario Entró',
+                accion: '👋 User joined',
                 usuario: member.user.username,
-                detalles: `Cuenta creada el: ${member.user.createdAt.toLocaleDateString('es-ES')}`,
+                detalles: `Account created on: ${member.user.createdAt.toLocaleDateString('en-US')}`,
                 color: '#2ecc71'
             });
         } catch (error) { console.error('Error guardando log Join:', error); }

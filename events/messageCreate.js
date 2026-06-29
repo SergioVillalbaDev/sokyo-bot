@@ -103,7 +103,7 @@ module.exports = {
             await command.execute(message, args, client);
         } catch (error) {
             console.error(error);
-            message.reply('❌ Hubo un error al intentar ejecutar ese comando.');
+            message.reply('❌ There was an error trying to run that command.');
         }
     },
 };

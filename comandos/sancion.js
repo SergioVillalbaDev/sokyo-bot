@@ -2,8 +2,8 @@ const TipoSancion = require('../models/TipoSancion.js');
 const { aplicarComando } = require('../utils/modCommands.js');
 
 module.exports = {
-    name: 'sancion',
-    description: 'Aplica un tipo de sanción del panel. Uso: !sancion @usuario <tipo> [motivo]',
+    name: 'sanction',
+    description: 'Applies a sanction type from the panel. Usage: !sanction @user <type> [reason]',
 
     async execute(message, args, client) {
         const tipos = await TipoSancion.find({ guildId: message.guild.id }).sort({ orden: 1 });
@@ -11,8 +11,8 @@ module.exports = {
 
         // Sin usuario: mostramos la lista de tipos disponibles.
         if (!target) {
-            if (tipos.length === 0) return message.reply('No hay tipos de sanción. Créalos en el panel (Moderación → Tipos de sanción).');
-            return message.reply(`📋 Tipos disponibles: ${tipos.map((t) => `\`${t.nombre}\``).join(', ')}\nUso: \`!sancion @usuario <tipo> [motivo]\``);
+            if (tipos.length === 0) return message.reply('No sanction types yet. Create them in the panel (Moderation → Sanction types).');
+            return message.reply(`📋 Available types: ${tipos.map((t) => `\`${t.nombre}\``).join(', ')}\nUsage: \`!sanction @user <type> [reason]\``);
         }
 
         // Texto tras quitar la mención: empieza por el nombre del tipo, luego el motivo.
@@ -22,7 +22,7 @@ module.exports = {
             .filter((t) => rest.toLowerCase().startsWith(t.nombre.toLowerCase()))
             .sort((a, b) => b.nombre.length - a.nombre.length)[0];
 
-        if (!match) return message.reply('❌ Tipo no encontrado. Escribe `!sancion` para ver la lista.');
+        if (!match) return message.reply('❌ Type not found. Type `!sanction` to see the list.');
 
         const motivo = rest.slice(match.nombre.length).trim();
         await aplicarComando(message, client, {

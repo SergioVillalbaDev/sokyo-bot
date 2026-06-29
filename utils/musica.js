@@ -138,22 +138,22 @@ function formatDuration(ms) {
 function ensureVoice(interaction) {
     const channel = interaction.member?.voice?.channel;
     if (!channel) {
-        return { ok: false, error: '🔇 Tienes que estar en un canal de voz para usar la música.' };
+        return { ok: false, error: '🔇 You need to be in a voice channel to use music.' };
     }
     const me = interaction.guild.members.me;
     const permisos = channel.permissionsFor(me);
     if (!permisos?.has('Connect') || !permisos?.has('Speak')) {
-        return { ok: false, error: '🚫 No tengo permiso para **entrar o hablar** en tu canal de voz.' };
+        return { ok: false, error: '🚫 I don’t have permission to **join or speak** in your voice channel.' };
     }
     if (me.voice.channelId && me.voice.channelId !== channel.id) {
-        return { ok: false, error: '🎧 Ya estoy reproduciendo en otro canal de voz.' };
+        return { ok: false, error: '🎧 I’m already playing in another voice channel.' };
     }
     return { ok: true, channel };
 }
 
 // Barra de progreso de texto para el embed (▬▬🔘▬▬).
 function progresoBarra(pos, total, len = 16) {
-    if (!total) return '🔴 EN DIRECTO';
+    if (!total) return '🔴 LIVE';
     const llenos = Math.min(len, Math.round((pos / total) * len));
     return '▬'.repeat(llenos) + '🔘' + '▬'.repeat(Math.max(0, len - llenos));
 }
@@ -186,10 +186,10 @@ function construirPanel(player, cfg) {
 
     // Línea de estado en el autor.
     const estadoIcon = player.paused ? '⏸️' : '▶️';
-    const modoSufijo = modo === 'repetir' ? '  ·  🔁 Repetir cola'
+    const modoSufijo = modo === 'repetir' ? '  ·  🔁 Loop queue'
         : modo === 'aleatorio' ? '  ·  🎲 Autoplay'
         : '';
-    const autorTxt = `${estadoIcon} Reproduciendo ahora${modoSufijo}`;
+    const autorTxt = `${estadoIcon} Now playing${modoSufijo}`;
 
     // Fuente con icono.
     const FUENTE_ICONO = { youtube: '▶️ YouTube', spotify: '🎵 Spotify', soundcloud: '🔶 SoundCloud' };
@@ -201,23 +201,23 @@ function construirPanel(player, cfg) {
         .setTitle(t.info.title)
         .setURL(t.info.uri || null)
         .setDescription(
-            `**${t.info.author || 'Desconocido'}**\n\n` +
+            `**${t.info.author || 'Unknown'}**\n\n` +
             `\`${formatDuration(player.position)}\`  ${progresoBarra(player.position, t.info.duration)}  \`${formatDuration(t.info.duration)}\``
         )
         .addFields(
-            { name: '🔊 Volumen', value: `${player.volume}%`, inline: true },
-            { name: '📋 En cola', value: `${enCola} ${enCola === 1 ? 'canción' : 'canciones'}`, inline: true },
-            { name: '🎚️ Fuente', value: fuente, inline: true },
+            { name: '🔊 Volume', value: `${player.volume}%`, inline: true },
+            { name: '📋 In queue', value: `${enCola} ${enCola === 1 ? 'song' : 'songs'}`, inline: true },
+            { name: '🎚️ Source', value: fuente, inline: true },
         );
 
     if (t.info.artworkUrl) embed.setThumbnail(t.info.artworkUrl);
     if (t.requester?.username) {
-        embed.setFooter({ text: `Pedida por ${t.requester.username}`, iconURL: avatarUrl(t.requester) });
+        embed.setFooter({ text: `Requested by ${t.requester.username}`, iconURL: avatarUrl(t.requester) });
     }
 
     // Botón de autoplay: muestra el estado actual y cicla al hacer clic.
     const autoplayLabel = modo === 'aleatorio' ? '🎲 Autoplay: ON'
-        : modo === 'repetir' ? '🔁 Repetir: ON'
+        : modo === 'repetir' ? '🔁 Loop: ON'
         : '🎲 Autoplay';
     const autoplayStyle = modo && modo !== 'off' ? ButtonStyle.Primary : ButtonStyle.Secondary;
 
@@ -260,18 +260,18 @@ async function enviarPanel(client, player, cfg) {
 async function manejarBotonMusica(interaction, client) {
     const player = client.lavalink.getPlayer(interaction.guildId);
     if (!player || !player.queue.current) {
-        return interaction.reply({ content: '⏹️ No hay nada sonando ahora mismo.', ephemeral: true });
+        return interaction.reply({ content: '⏹️ Nothing is playing right now.', ephemeral: true });
     }
     const cfg = await getMusicaConfig(interaction.guildId);
     const canalUsuario = interaction.member?.voice?.channel;
     if (!canalUsuario) {
-        return interaction.reply({ content: '🔇 Entra a un canal de voz para controlar la música.', ephemeral: true });
+        return interaction.reply({ content: '🔇 Join a voice channel to control the music.', ephemeral: true });
     }
     if (cfg.soloMismoCanal && player.voiceChannelId && canalUsuario.id !== player.voiceChannelId) {
-        return interaction.reply({ content: '🎧 Tienes que estar en el mismo canal de voz que el bot.', ephemeral: true });
+        return interaction.reply({ content: '🎧 You need to be in the same voice channel as the bot.', ephemeral: true });
     }
     if (!puedeControlar(interaction.member, cfg)) {
-        return interaction.reply({ content: '🎚️ Necesitas el rol **DJ** para controlar la música.', ephemeral: true });
+        return interaction.reply({ content: '🎚️ You need the **DJ** role to control the music.', ephemeral: true });
     }
 
     let parar = false;
@@ -291,7 +291,7 @@ async function manejarBotonMusica(interaction, client) {
         case 'music_autoplay': {
             const cfgDoc = await ServidorConfig.findOne({ guildId: interaction.guildId });
             if (!cfgDoc || !esPro(cfgDoc)) {
-                return interaction.reply({ content: '⭐ El **Autoplay** es una función **Pro**. Actívala desde el panel web.', ephemeral: true });
+                return interaction.reply({ content: '⭐ **Autoplay** is a **Pro** feature. Enable it from the web panel.', ephemeral: true });
             }
             // Ciclo: off → aleatorio → repetir → off
             const modoActual = cfgDoc.musica?.autoplay || 'off';
@@ -311,8 +311,8 @@ async function manejarBotonMusica(interaction, client) {
     if (parar) {
         panelMsgs.delete(interaction.guildId);
         const fin = new EmbedBuilder().setColor(COLOR_MUSICA)
-            .setAuthor({ name: '⏹️ Música detenida' })
-            .setDescription('La reproducción ha terminado. ¡Hasta la próxima!');
+            .setAuthor({ name: '⏹️ Music stopped' })
+            .setDescription('Playback has ended. See you next time!');
         return interaction.update({ embeds: [fin], components: [] }).catch(() => {});
     }
     // Skip: el nuevo trackStart repostea el panel; aquí solo confirmamos.
@@ -327,9 +327,9 @@ async function gateMusica(interaction) {
     const voz = ensureVoice(interaction);
     if (!voz.ok) return voz;
     const cfg = await getMusicaConfig(interaction.guildId);
-    if (!cfg.activo) return { ok: false, error: '🚫 La música está desactivada en este servidor.' };
+    if (!cfg.activo) return { ok: false, error: '🚫 Music is disabled on this server.' };
     if (!puedeControlar(interaction.member, cfg)) {
-        return { ok: false, error: '🎧 Necesitas el rol **DJ** para controlar la música.' };
+        return { ok: false, error: '🎧 You need the **DJ** role to control the music.' };
     }
     return { ok: true, channel: voz.channel, cfg };
 }
@@ -425,8 +425,8 @@ function initMusica(client) {
         if (canal?.isTextBased()) {
             const seQueda = await es247(player.guildId);
             canal.send(seQueda
-                ? '🎵 Se acabó la cola. Sigo en el canal (modo 24/7). Añade más música cuando quieras.'
-                : '🎵 Se acabó la cola. Saldré del canal si no añades más música.').catch(() => {});
+                ? '🎵 The queue is empty. I’m staying in the channel (24/7 mode). Add more music whenever you like.'
+                : '🎵 The queue is empty. I’ll leave the channel if you don’t add more music.').catch(() => {});
         }
     });
 

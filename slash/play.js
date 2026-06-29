@@ -4,10 +4,10 @@ const { gateMusica, formatDuration, COLOR_MUSICA, buscarMusica } = require('../u
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Reproduce música (pega una URL de YouTube/Spotify o busca por nombre)')
+        .setDescription('Play music (paste a YouTube/Spotify URL or search by name)')
         .addStringOption((opt) =>
-            opt.setName('busqueda')
-                .setDescription('URL de YouTube/Spotify, o el nombre de la canción')
+            opt.setName('search')
+                .setDescription('YouTube/Spotify URL, or the song name')
                 .setRequired(true)),
 
     async execute(interaction, client) {
@@ -15,7 +15,7 @@ module.exports = {
         const voz = await gateMusica(interaction);
         if (!voz.ok) return interaction.reply({ content: voz.error, ephemeral: true });
 
-        const query = interaction.options.getString('busqueda');
+        const query = interaction.options.getString('search');
         await interaction.deferReply();
 
         // 2. Crear (o recuperar) el reproductor de este servidor.
@@ -35,11 +35,11 @@ module.exports = {
         try {
             res = await buscarMusica(player, query, interaction.user);
         } catch (e) {
-            return interaction.editReply(`❌ No pude buscar eso: ${e.message}`);
+            return interaction.editReply(`❌ I couldn't search for that: ${e.message}`);
         }
 
         if (!res || !res.tracks?.length || res.loadType === 'error' || res.loadType === 'empty') {
-            return interaction.editReply('🔍 No encontré nada con esa búsqueda.');
+            return interaction.editReply('🔍 I couldn’t find anything for that search.');
         }
 
         // 4. ¿Ya había algo sonando? (para saber si esto empieza ya o va a la cola).
@@ -61,19 +61,19 @@ module.exports = {
         // 6. Responder con un embed.
         const embed = new EmbedBuilder().setColor(COLOR_MUSICA);
         if (esPlaylist) {
-            embed.setAuthor({ name: '➕ Playlist añadida a la cola' })
+            embed.setAuthor({ name: '➕ Playlist added to the queue' })
                 .setTitle(res.playlist?.name || 'Playlist')
-                .setDescription(`**${res.tracks.length}** canciones añadidas.${yaSonaba ? '' : ' Empezando ahora.'}`);
+                .setDescription(`**${res.tracks.length}** songs added.${yaSonaba ? '' : ' Starting now.'}`);
         } else {
             const t = res.tracks[0];
-            embed.setAuthor({ name: yaSonaba ? '➕ Añadida a la cola' : '▶️ Reproduciendo ahora' })
+            embed.setAuthor({ name: yaSonaba ? '➕ Added to the queue' : '▶️ Now playing' })
                 .setTitle(t.info.title)
                 .setURL(t.info.uri || null)
                 .addFields(
-                    { name: 'Artista', value: t.info.author || 'Desconocido', inline: true },
-                    { name: 'Duración', value: formatDuration(t.info.duration), inline: true },
+                    { name: 'Artist', value: t.info.author || 'Unknown', inline: true },
+                    { name: 'Duration', value: formatDuration(t.info.duration), inline: true },
                     // Solo mostramos posición si de verdad va a esperar en la cola.
-                    ...(yaSonaba ? [{ name: 'Posición en cola', value: `#${posicion}`, inline: true }] : []),
+                    ...(yaSonaba ? [{ name: 'Queue position', value: `#${posicion}`, inline: true }] : []),
                 );
             if (t.info.artworkUrl) embed.setThumbnail(t.info.artworkUrl);
         }

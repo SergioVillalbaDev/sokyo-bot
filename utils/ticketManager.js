@@ -10,7 +10,7 @@ const { aplicarPieMarca, lineaMarcaTexto } = require('./marca.js');
 const { esPro } = require('./billing.js');
 const { enviarWebhook } = require('./webhooks.js');
 
-const CATEGORIA_ARCHIVO = '🗄️ Tickets Archivados';
+const CATEGORIA_ARCHIVO = '🗄️ Archived Tickets';
 
 // Registra un evento del ciclo de vida del ticket en la auditoría (pestaña "Tickets").
 async function registrarLogTicket(ticket, accion, color, autor) {
@@ -21,8 +21,8 @@ async function registrarLogTicket(ticket, accion, color, autor) {
             guildId: ticket.guildId,
             categoria: 'Tickets',
             accion,
-            usuario: autor || 'Sistema',
-            detalles: `Ticket: **${ticket.titulo || ticket.motivo}** de ${ticket.creadorNombre}`,
+            usuario: autor || 'System',
+            detalles: `Ticket: **${ticket.titulo || ticket.motivo}** from ${ticket.creadorNombre}`,
             color
         });
     } catch (e) { console.error('Error guardando log de ticket:', e); }
@@ -31,16 +31,16 @@ async function registrarLogTicket(ticket, accion, color, autor) {
 // Genera el archivo .txt con la conversación completa del ticket.
 async function generarTranscript(canalId, ticket, cfg) {
     const historial = await Mensaje.find({ ticketId: canalId }).sort({ fecha: 1 });
-    let txt = `=== TRANSCRIPCIÓN DEL TICKET ===\n` +
-        `Usuario: ${ticket.creadorNombre}\n` +
-        `Motivo: ${ticket.motivo}\n` +
-        `Asunto: ${ticket.titulo || '-'}\n` +
-        `Fecha de cierre: ${new Date().toLocaleString('es-ES')}\n` +
-        `=================================\n\n`;
+    let txt = `=== TICKET TRANSCRIPT ===\n` +
+        `User: ${ticket.creadorNombre}\n` +
+        `Reason: ${ticket.motivo}\n` +
+        `Subject: ${ticket.titulo || '-'}\n` +
+        `Closed on: ${new Date().toLocaleString('en-US')}\n` +
+        `=========================\n\n`;
 
-    if (historial.length === 0) txt += '(No se registraron mensajes)\n';
+    if (historial.length === 0) txt += '(No messages were recorded)\n';
     else historial.forEach(m => {
-        const fecha = m.fecha ? new Date(m.fecha).toLocaleTimeString('es-ES') : '';
+        const fecha = m.fecha ? new Date(m.fecha).toLocaleTimeString('en-US') : '';
         txt += `[${fecha}] ${m.usuario}: ${m.contenido}\n`;
     });
 
@@ -55,14 +55,14 @@ async function construirTranscriptHTML(canalId, ticket) {
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const filas = historial.length
         ? historial.map((m) => {
-            const fecha = m.fecha ? new Date(m.fecha).toLocaleString('es-ES') : '';
-            const cuerpo = m.contenido ? esc(m.contenido).replace(/\n/g, '<br>') : '<i>(sin texto)</i>';
+            const fecha = m.fecha ? new Date(m.fecha).toLocaleString('en-US') : '';
+            const cuerpo = m.contenido ? esc(m.contenido).replace(/\n/g, '<br>') : '<i>(no text)</i>';
             return `<div class="msg"><div class="meta"><span class="user">${esc(m.usuario)}</span><span class="time">${esc(fecha)}</span></div><div class="body">${cuerpo}</div></div>`;
         }).join('\n')
-        : '<p class="empty">No se registraron mensajes.</p>';
+        : '<p class="empty">No messages were recorded.</p>';
 
     return `<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Transcript · ${esc(ticket.titulo || ticket.creadorNombre)}</title>
 <style>
   :root { color-scheme: light dark; }
@@ -83,15 +83,15 @@ async function construirTranscriptHTML(canalId, ticket) {
 </style></head>
 <body><div class="wrap">
 <header>
-  <h1>🎫 ${esc(ticket.titulo || 'Ticket de soporte')}</h1>
+  <h1>🎫 ${esc(ticket.titulo || 'Support ticket')}</h1>
   <div class="sub">
-    <div><b>Cliente:</b> ${esc(ticket.creadorNombre)}</div>
-    <div><b>Motivo:</b> ${esc(ticket.motivo || '-')} &nbsp;·&nbsp; <b>Prioridad:</b> ${esc(ticket.prioridad || '-')}</div>
-    <div><b>Cierre:</b> ${esc(new Date().toLocaleString('es-ES'))}</div>
+    <div><b>User:</b> ${esc(ticket.creadorNombre)}</div>
+    <div><b>Reason:</b> ${esc(ticket.motivo || '-')} &nbsp;·&nbsp; <b>Priority:</b> ${esc(ticket.prioridad || '-')}</div>
+    <div><b>Closed:</b> ${esc(new Date().toLocaleString('en-US'))}</div>
   </div>
 </header>
 ${filas}
-<footer>Transcript generado el ${esc(new Date().toLocaleString('es-ES'))}</footer>
+<footer>Transcript generated on ${esc(new Date().toLocaleString('en-US'))}</footer>
 </div></body></html>`;
 }
 
@@ -112,8 +112,8 @@ async function archivarCanal(canal, ticket, categoriaNombre = CATEGORIA_ARCHIVO)
         }
         await canal.setParent(categoria.id, { lockPermissions: false }).catch(() => {});
         await canal.permissionOverwrites.edit(ticket.creadorId, { SendMessages: false }).catch(() => {});
-        if (!canal.name.startsWith('cerrado-')) {
-            await canal.setName(`cerrado-${ticket.creadorNombre}`).catch(() => {});
+        if (!canal.name.startsWith('closed-')) {
+            await canal.setName(`closed-${ticket.creadorNombre}`).catch(() => {});
         }
     } catch (e) { console.error('Error archivando el canal:', e); }
 }
@@ -121,9 +121,9 @@ async function archivarCanal(canal, ticket, categoriaNombre = CATEGORIA_ARCHIVO)
 // Crea un ticket (canal de Discord + documento + mensaje de bienvenida con los
 // botones estándar). Reutilizable desde el flujo normal y desde otros sistemas
 // (p. ej. los reportes). Devuelve { ok, ticket, canal } o { ok: false, error }.
-async function crearTicket(client, { guildId, creador, motivo = 'Soporte', titulo = 'Ticket de Soporte', descripcion = '', prioridad = 'Normal', darAccesoCreador = true } = {}) {
+async function crearTicket(client, { guildId, creador, motivo = 'Support', titulo = 'Support Ticket', descripcion = '', prioridad = 'Normal', darAccesoCreador = true } = {}) {
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) return { ok: false, error: 'Servidor no encontrado' };
+    if (!guild) return { ok: false, error: 'Server not found' };
 
     const cfg = await getConfig(guildId);
     const parentId = (cfg && cfg.categoriaTicketsId && guild.channels.cache.get(cfg.categoriaTicketsId)) ? cfg.categoriaTicketsId : null;
@@ -157,26 +157,26 @@ async function crearTicket(client, { guildId, creador, motivo = 'Soporte', titul
         visibleWeb: true,
     });
 
-    await registrarLogTicket(ticket, '🎫 Ticket Abierto', '#2ecc71', (creador && creador.username) || 'Sistema');
+    await registrarLogTicket(ticket, '🎫 Ticket opened', '#2ecc71', (creador && creador.username) || 'System');
 
     // Webhook saliente (Pro): avisa de un ticket nuevo (útil para los urgentes).
     enviarWebhook(cfg, 'ticketNuevo', {
-        text: `🎫 Nuevo ticket [${prioridad}]: "${titulo}" de ${(creador && creador.username) || 'Sistema'} — ${motivo}`,
+        text: `🎫 New ticket [${prioridad}]: "${titulo}" from ${(creador && creador.username) || 'System'} — ${motivo}`,
         data: { canalId: canal.id, titulo, motivo, prioridad, creadorId: (creador && creador.id) || null },
     }).catch(() => {});
 
     const embed = new EmbedBuilder()
         .setTitle(`🎫 ${titulo}`)
         .setColor('#3498db')
-        .setDescription(`**Motivo:** ${motivo}${descripcion ? `\n\n${descripcion}` : ''}`)
-        .addFields({ name: '🚨 Urgencia', value: `**${prioridad}**`, inline: true });
+        .setDescription(`**Reason:** ${motivo}${descripcion ? `\n\n${descripcion}` : ''}`)
+        .addFields({ name: '🚨 Priority', value: `**${prioridad}**`, inline: true });
     aplicarPieMarca(embed, cfg); // marca blanca
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Reclamar Ticket').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Añadir Usuario').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Cerrar Ticket').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Claim ticket').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Add user').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Close ticket').setStyle(ButtonStyle.Danger),
     );
-    const saludo = (darAccesoCreador && creador && creador.id) ? `¡Hola <@${creador.id}>! Aquí tienes tu ticket. 👇` : 'Nuevo ticket 👇';
+    const saludo = (darAccesoCreador && creador && creador.id) ? `Hi <@${creador.id}>! Here’s your ticket. 👇` : 'New ticket 👇';
     await canal.send({ content: saludo, embeds: [embed], components: [row] });
 
     return { ok: true, ticket, canal };
@@ -190,7 +190,7 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
         { estado: 'Cerrado', fechaCierre: new Date() },
         { new: true }
     );
-    if (!ticket) return { ok: false, error: 'Ticket no encontrado' };
+    if (!ticket) return { ok: false, error: 'Ticket not found' };
 
     // Ajustes configurables (por defecto = comportamiento de siempre).
     const cfg = await getConfig(ticket.guildId);
@@ -202,18 +202,18 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
     if (ratingActivo || enviarTranscript) {
         try {
             const files = [];
-            let descripcion = `Hola **${ticket.creadorNombre}**, tu ticket de soporte ha sido cerrado.`;
+            let descripcion = `Hi **${ticket.creadorNombre}**, your support ticket has been closed.`;
             if (enviarTranscript) {
                 // Pro: transcript en HTML con estilo. Free: texto plano.
                 files.push(esPro(cfg) ? await generarTranscriptHTML(canalId, ticket) : await generarTranscript(canalId, ticket, cfg));
-                descripcion += ` Adjunto tienes una copia de la conversación.`;
+                descripcion += ` Attached is a copy of the conversation.`;
             }
             if (ratingActivo) {
-                descripcion += `\n\nPor favor, **valora la atención recibida** pulsando en las estrellas de abajo. ¡Nos ayuda a mejorar!`;
+                descripcion += `\n\nPlease **rate the support you received** by clicking the stars below. It helps us improve!`;
             }
             const embedCSAT = new EmbedBuilder()
                 .setColor('#f1c40f')
-                .setTitle('📊 ¡Tu ticket ha sido cerrado!')
+                .setTitle('📊 Your ticket has been closed!')
                 .setDescription(descripcion);
 
             const componentes = [];
@@ -232,12 +232,12 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
         } catch (e) { /* DMs cerrados u otro fallo: no debe bloquear el cierre */ }
     }
 
-    await registrarLogTicket(ticket, '🔒 Ticket Cerrado', '#e74c3c', autor);
+    await registrarLogTicket(ticket, '🔒 Ticket closed', '#e74c3c', autor);
 
     const canal = client.channels.cache.get(canalId);
     if (canal) {
         if (avisarCanal && avisoCierreCanal) {
-            await canal.send('🔒 **Este ticket ha sido cerrado.** Queda archivado en modo solo lectura.').catch(() => {});
+            await canal.send('🔒 **This ticket has been closed.** It’s archived in read-only mode.').catch(() => {});
         }
         await archivarCanal(canal, ticket, cfg && cfg.categoriaArchivados);
     }
@@ -251,16 +251,16 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
         { estado: 'Abierto', fechaCierre: null },
         { new: true }
     );
-    if (!ticket) return { ok: false, error: 'Ticket no encontrado' };
+    if (!ticket) return { ok: false, error: 'Ticket not found' };
 
     const canal = client.channels.cache.get(canalId);
     if (canal) {
         await canal.permissionOverwrites.edit(ticket.creadorId, { ViewChannel: true, SendMessages: true }).catch(() => {});
         await canal.setParent(null).catch(() => {});
         await canal.setName(`ticket-${ticket.creadorNombre}`).catch(() => {});
-        await canal.send('🔓 **Este ticket ha sido reabierto.** Ya puedes volver a escribir.').catch(() => {});
+        await canal.send('🔓 **This ticket has been reopened.** You can write again.').catch(() => {});
     }
-    await registrarLogTicket(ticket, '🔓 Ticket Reabierto', '#2ecc71', autor);
+    await registrarLogTicket(ticket, '🔓 Ticket reopened', '#2ecc71', autor);
     return { ok: true, ticket };
 }
 

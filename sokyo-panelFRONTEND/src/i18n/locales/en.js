@@ -580,7 +580,7 @@ export default {
       } },
       'prod-bienvenidas': { steps: {
         tabs: { title: '🚪 Welcome and farewell', desc: 'Two independent tabs: configure separately the message for when someone joins and for when someone leaves.' },
-        mensaje: { title: '✍️ Message and variables', desc: 'Enable the message, pick the channel and write the text. Use variables like {mention} or {servidor} to personalize it per member.' },
+        mensaje: { title: '✍️ Message and variables', desc: 'Enable the message, pick the channel and write the text. Use variables like {mention} or {server} to personalize it per member.' },
         embed: { title: '🖼️ Optional embed', desc: 'For something flashier, add an embed with color, images and GIFs using the same builder as in announcements.' },
         acciones: { title: '👀 Save and preview', desc: 'Save and use “Test” to have the bot send you the real message in the channel so you see exactly how it looks.' },
       } },
@@ -937,7 +937,7 @@ export default {
       channel: 'Channel', channelPh: 'Pick a channel…',
       content: 'Message text', contentPh: 'Write the message… you can use variables like {mention}',
       variables: 'Variables',
-      varsHelp: '{mention} pings the user · {user} their name · {servidor} the server · {miembros} member count · {avatar} their avatar URL (use it in the embed image/thumbnail).',
+      varsHelp: '{mention} pings the user · {user} their name · {server} the server · {members} member count · {avatar} their avatar URL (use it in the embed image/thumbnail).',
       mention: 'Mention the user', mentionDesc: 'Pings them when welcoming.',
       embedTitle: 'Embed (optional)', embedDesc: 'Add an embed with color, images and GIFs. Leave it empty to send text only.',
       save: 'Save', saving: 'Saving…', saved: 'Saved',

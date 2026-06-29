@@ -4,13 +4,13 @@ const { formatDuration, COLOR_MUSICA } = require('../utils/musica.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('nowplaying')
-        .setDescription('Muestra la canción que está sonando ahora'),
+        .setDescription('Show the song that’s playing right now'),
 
     async execute(interaction, client) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         const track = player?.queue.current;
         if (!player || !track) {
-            return interaction.reply({ content: '⏹️ No hay nada sonando ahora mismo.', ephemeral: true });
+            return interaction.reply({ content: '⏹️ Nothing is playing right now.', ephemeral: true });
         }
 
         // Barra de progreso visual.
@@ -26,13 +26,13 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setColor(COLOR_MUSICA)
-            .setAuthor({ name: '🎶 Reproduciendo ahora' })
+            .setAuthor({ name: '🎶 Now playing' })
             .setTitle(track.info.title)
             .setURL(track.info.uri || null)
-            .setDescription(`**${track.info.author || 'Desconocido'}**${barra}`);
+            .setDescription(`**${track.info.author || 'Unknown'}**${barra}`);
 
         if (track.info.artworkUrl) embed.setThumbnail(track.info.artworkUrl);
-        if (track.requester?.username) embed.setFooter({ text: `Pedida por ${track.requester.username}` });
+        if (track.requester?.username) embed.setFooter({ text: `Requested by ${track.requester.username}` });
 
         return interaction.reply({ embeds: [embed] });
     },

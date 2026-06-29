@@ -6,7 +6,9 @@
 // momento del envío. Lo usan los eventos guildMemberAdd / guildMemberRemove y
 // el botón "Probar" del panel.
 //
-// Placeholders: {mention} {user} {servidor} {miembros} {avatar}
+// Placeholders: {mention} {user} {server} {members} {avatar}
+// (Se aceptan {servidor} y {miembros} como alias en español por compatibilidad
+//  con configuraciones guardadas antes del cambio a inglés.)
 // ============================================================================
 const path = require('path');
 const { construirMensaje } = require('./embeds.js');
@@ -19,8 +21,10 @@ function reemplazar(texto, datos) {
     return String(texto || '')
         .replace(/{mention}/g, datos.mention)
         .replace(/{user}/g, datos.user)
-        .replace(/{servidor}/g, datos.servidor)
-        .replace(/{miembros}/g, String(datos.miembros))
+        .replace(/{server}/g, datos.servidor)
+        .replace(/{servidor}/g, datos.servidor)   // alias ES (compatibilidad)
+        .replace(/{members}/g, String(datos.miembros))
+        .replace(/{miembros}/g, String(datos.miembros)) // alias ES (compatibilidad)
         .replace(/{avatar}/g, datos.avatar);
 }
 
@@ -55,16 +59,16 @@ function datosDe(member) {
 // Envía el mensaje (bienvenida o despedida) según su config. Devuelve true si se
 // envió, o un objeto { error } si algo falló (lo usa el botón "Probar").
 async function enviar(member, conf) {
-    if (!conf || !conf.activo) return { error: 'Desactivado.' };
-    if (!conf.canalId) return { error: 'Sin canal configurado.' };
+    if (!conf || !conf.activo) return { error: 'Disabled.' };
+    if (!conf.canalId) return { error: 'No channel configured.' };
     const canal = member.guild.channels.cache.get(conf.canalId);
-    if (!canal || typeof canal.send !== 'function') return { error: 'El canal no existe o no es de texto.' };
+    if (!canal || typeof canal.send !== 'function') return { error: 'The channel doesn’t exist or isn’t a text channel.' };
 
     const datos = datosDe(member);
     const contenido = reemplazar(conf.contenido, datos);
     const embed = reemplazarEmbed(conf.embed, datos);
     const payload = construirMensaje(contenido, embed, UPLOADS_DIR);
-    if (!payload.content && !(payload.embeds && payload.embeds.length)) return { error: 'El mensaje está vacío.' };
+    if (!payload.content && !(payload.embeds && payload.embeds.length)) return { error: 'The message is empty.' };
 
     // Solo se pingea al usuario si está activado; nunca @everyone/roles por accidente.
     payload.allowedMentions = conf.mencionar ? { users: [member.id] } : { parse: [] };

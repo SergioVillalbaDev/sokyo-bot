@@ -4,8 +4,8 @@ const economia = require('../utils/economia.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('inventario')
-        .setDescription('Muestra tu oro y los objetos que posees'),
+        .setName('inventory')
+        .setDescription('Show your gold and the items you own'),
 
     async execute(interaction) {
         await economia.obtenerUsuario(interaction.user.id); // lo crea si es nuevo
@@ -18,9 +18,9 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setColor('#c9a227')
-            .setAuthor({ name: `Inventario de ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
-            .addFields({ name: '🪙 Oro', value: `**${usuario.balance}**`, inline: true })
-            .setDescription(lineas.length ? lineas.join('\n') : '_Tu mochila está vacía. Visita `/tienda`._');
+            .setAuthor({ name: `${interaction.user.username}'s inventory`, iconURL: interaction.user.displayAvatarURL() })
+            .addFields({ name: '🪙 Gold', value: `**${usuario.balance}**`, inline: true })
+            .setDescription(lineas.length ? lineas.join('\n') : '_Your bag is empty. Visit `/shop`._');
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
     },

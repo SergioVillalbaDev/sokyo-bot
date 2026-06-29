@@ -580,7 +580,7 @@ export default {
       } },
       'prod-bienvenidas': { steps: {
         tabs: { title: '🚪 Bienvenida y despedida', desc: 'Dos pestañas independientes: configura por separado el mensaje de cuando alguien entra y el de cuando alguien se va.' },
-        mensaje: { title: '✍️ Mensaje y variables', desc: 'Activa el mensaje, elige el canal y escribe el texto. Usa variables como {mention} o {servidor} para personalizarlo por miembro.' },
+        mensaje: { title: '✍️ Mensaje y variables', desc: 'Activa el mensaje, elige el canal y escribe el texto. Usa variables como {mention} o {server} para personalizarlo por miembro.' },
         embed: { title: '🖼️ Embed opcional', desc: 'Si quieres algo más vistoso, añade un embed con color, imágenes y GIFs usando el mismo constructor que en los anuncios.' },
         acciones: { title: '👀 Guardar y previsualizar', desc: 'Guarda y usa «Probar» para que el bot te envíe el mensaje real al canal y veas exactamente cómo queda.' },
       } },
@@ -937,7 +937,7 @@ export default {
       channel: 'Canal', channelPh: 'Elige un canal…',
       content: 'Texto del mensaje', contentPh: 'Escribe el mensaje… puedes usar variables como {mention}',
       variables: 'Variables',
-      varsHelp: '{mention} menciona al usuario · {user} su nombre · {servidor} el servidor · {miembros} total de miembros · {avatar} URL de su avatar (úsala en imagen/miniatura del embed).',
+      varsHelp: '{mention} menciona al usuario · {user} su nombre · {server} el servidor · {members} total de miembros · {avatar} URL de su avatar (úsala en imagen/miniatura del embed).',
       mention: 'Mencionar al usuario', mentionDesc: 'Le notifica con un ping al darle la bienvenida.',
       embedTitle: 'Embed (opcional)', embedDesc: 'Añade un embed con color, imágenes y GIFs. Déjalo vacío para enviar solo texto.',
       save: 'Guardar', saving: 'Guardando…', saved: 'Guardado',

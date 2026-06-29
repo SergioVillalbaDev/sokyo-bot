@@ -9,36 +9,36 @@ const msgDin = (texto = '') => ({
 
 const ServidorConfigSchema = new mongoose.Schema({
     guildId: { type: String, required: true, unique: true },
-    motivos: { 
-        type: [{ nombre: String, urgencia: String }], 
+    motivos: {
+        type: [{ nombre: String, urgencia: String }],
         default: [
-            { nombre: 'Soporte General', urgencia: 'Normal' },
-            { nombre: 'Reportar Usuario', urgencia: 'Alta' },
-            { nombre: 'Donaciones', urgencia: 'Baja' }
-        ] 
+            { nombre: 'General support', urgencia: 'Normal' },
+            { nombre: 'Report a user', urgencia: 'High' },
+            { nombre: 'Donations', urgencia: 'Low' }
+        ]
     },
-    
+
     // --- NUEVO SISTEMA DE URGENCIAS PERSONALIZADAS ---
     urgencias: {
         type: [{ nombre: String, color: String, nivel: Number }],
         default: [
-            { nombre: 'Urgente', color: '#e74c3c', nivel: 4 },
-            { nombre: 'Alta', color: '#e67e22', nivel: 3 },
+            { nombre: 'Urgent', color: '#e74c3c', nivel: 4 },
+            { nombre: 'High', color: '#e67e22', nivel: 3 },
             { nombre: 'Normal', color: '#3498db', nivel: 2 },
-            { nombre: 'Baja', color: '#95a5a6', nivel: 1 }
+            { nombre: 'Low', color: '#95a5a6', nivel: 1 }
         ]
     },
 
-    mensajeSoporteTitulo: { type: String, default: '🎫 Soporte Técnico Activo' },
-    mensajeSoporteDescripcion: { type: String, default: 'Haz clic en el botón de abajo para abrir un ticket de soporte.' },
-    footerPersonalizado: { type: String, default: 'Sistema de Gestión Sokyo' },
+    mensajeSoporteTitulo: { type: String, default: '🎫 Support is open' },
+    mensajeSoporteDescripcion: { type: String, default: 'Click the button below to open a support ticket.' },
+    footerPersonalizado: { type: String, default: 'Sokyo management system' },
 
     // --- PERSONALIZACIÓN / MARCA (Fase 2) ---
     colorEmbed: { type: String, default: '#5865F2' },                                  // color del panel !sokyo
-    textoBoton: { type: String, default: '📩 Abrir Ticket' },                          // texto del botón del panel
-    mensajeBienvenida: { type: String, default: 'Un miembro del equipo lo revisará en breve.' }, // nota al abrir ticket
+    textoBoton: { type: String, default: '📩 Open a ticket' },                          // texto del botón del panel
+    mensajeBienvenida: { type: String, default: 'A team member will review it shortly.' }, // nota al abrir ticket
     prefijo: { type: String, default: '!' },                                           // prefijo de comandos
-    categoriaArchivados: { type: String, default: '🗄️ Tickets Archivados' },          // categoría de tickets cerrados
+    categoriaArchivados: { type: String, default: '🗄️ Archived Tickets' },          // categoría de tickets cerrados
 
     // --- REGLAS Y CONTROL (Fase 3) ---
     rolStaffId: { type: String, default: null },              // rol que puede reclamar/cerrar (además de admins)
@@ -238,7 +238,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     // Anuncios de subida
     anuncioTipo: { type: String, enum: ['canal', 'dm', 'off'], default: 'canal' },
     canalNivelesId: { type: String, default: null },         // canal de anuncios (null = donde escribió)
-    mensajeSubida: { type: String, default: '🎉 ¡{mention} ha subido a **nivel {level}**!' },
+    mensajeSubida: { type: String, default: '🎉 {mention} reached **level {level}**!' },
     // Recompensas por nivel
     recompensasNivel: { type: [{ nivel: Number, rolId: String }], default: [] },
     recompensaAcumulativa: { type: Boolean, default: true }, // true = acumula roles; false = sustituye por el más alto
@@ -256,9 +256,9 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalId: { type: String, default: null },          // canal donde se publica el panel de verificación
         rolVerificadoId: { type: String, default: null },  // rol que se concede al verificarse
         modo: { type: String, enum: ['boton', 'captcha'], default: 'boton' }, // botón directo o captcha
-        titulo: { type: String, default: '🔒 Verificación' },
-        descripcion: { type: String, default: 'Pulsa el botón para verificarte y acceder al servidor.' },
-        textoBoton: { type: String, default: '✅ Verificarme' },
+        titulo: { type: String, default: '🔒 Verification' },
+        descripcion: { type: String, default: 'Click the button to verify and access the server.' },
+        textoBoton: { type: String, default: '✅ Verify me' },
         mensajeId: { type: String, default: null },         // id del mensaje publicado (para republicar/editar)
     },
 
@@ -275,36 +275,36 @@ const ServidorConfigSchema = new mongoose.Schema({
 
         // Variante A — reglas en texto plano + captcha
         varianteA: {
-            titulo: { type: String, default: '📋 Bienvenido/a — Lee las normas' },
-            reglas: { type: String, default: '1. Sé respetuoso con todos.\n2. Nada de spam ni publicidad.\n3. Usa los canales para su tema.\n\nResuelve el captcha para acceder.' },
+            titulo: { type: String, default: '📋 Welcome — Read the rules' },
+            reglas: { type: String, default: '1. Be respectful to everyone.\n2. No spam or advertising.\n3. Use channels for their topic.\n\nSolve the captcha to get access.' },
             captcha: { type: Boolean, default: true },       // exigir captcha de imagen
-            textoBoton: { type: String, default: '✅ Aceptar y acceder' },
+            textoBoton: { type: String, default: '✅ Accept and enter' },
         },
         // Variante B — embed visual con botones interactivos
         varianteB: {
-            titulo: { type: String, default: '👋 ¡Te damos la bienvenida!' },
-            descripcion: { type: String, default: 'Nos alegra tenerte aquí. Pulsa **Ver normas** para conocer la comunidad y luego **Unirme** para acceder a todos los canales.' },
+            titulo: { type: String, default: '👋 Welcome!' },
+            descripcion: { type: String, default: 'We’re glad to have you here. Click **View rules** to get to know the community, then **Join** to access all channels.' },
             color: { type: String, default: '#5865F2' },
-            reglas: { type: String, default: '1. Sé respetuoso con todos.\n2. Nada de spam ni publicidad.\n3. Usa los canales para su tema.' },
-            textoBoton: { type: String, default: '🎉 Unirme' },
+            reglas: { type: String, default: '1. Be respectful to everyone.\n2. No spam or advertising.\n3. Use channels for their topic.' },
+            textoBoton: { type: String, default: '🎉 Join' },
         },
     },
 
     // --- COMUNIDAD: mensajes de bienvenida y despedida ---
     // Mensaje totalmente editable (texto + embed con imágenes/GIFs, reutiliza el
     // creador de embeds) que se publica en un canal cuando alguien entra/sale.
-    // Placeholders: {mention} {user} {servidor} {miembros} {avatar}.
+    // Placeholders: {mention} {user} {server} {members} {avatar}.
     bienvenida: {
         activo: { type: Boolean, default: false },
         canalId: { type: String, default: null },
-        contenido: { type: String, default: '¡Bienvenido/a {mention} a **{servidor}**! 🎉 Ya sois {miembros} miembros.' },
+        contenido: { type: String, default: 'Welcome {mention} to **{server}**! 🎉 We are now {members} members.' },
         mencionar: { type: Boolean, default: true },        // pingear al usuario que entra
         embed: { type: mongoose.Schema.Types.Mixed, default: null }, // embed opcional (null = solo texto)
     },
     despedida: {
         activo: { type: Boolean, default: false },
         canalId: { type: String, default: null },
-        contenido: { type: String, default: '👋 **{user}** ha dejado **{servidor}**. Ahora sois {miembros}.' },
+        contenido: { type: String, default: '👋 **{user}** left **{server}**. We are now {members}.' },
         mencionar: { type: Boolean, default: false },
         embed: { type: mongoose.Schema.Types.Mixed, default: null },
     },
@@ -337,7 +337,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         // modo 'preguntas' = campos sueltos (uno por pregunta).
         // modo 'plantilla' = un único texto rellenable que el usuario edita.
         modo: { type: String, enum: ['preguntas', 'plantilla'], default: 'preguntas' },
-        plantilla: { type: String, default: 'Edad: \nDe dónde eres: \nAficiones: \nPor qué te unes: ' },
+        plantilla: { type: String, default: 'Age: \nWhere you’re from: \nHobbies: \nWhy you’re joining: ' },
         preguntas: {
             type: [{
                 id: { type: String },
@@ -386,7 +386,7 @@ const ServidorConfigSchema = new mongoose.Schema({
                 // pregunta: texto extra (encima de la pregunta del banco) + banner.
                 pregunta: msgDin(''),
                 // acierto: primero en responder. Placeholders {user} {xp}.
-                acierto: msgDin('⭐ ¡{user} ha sido el primero en responder! +{xp} XP 🎉'),
+                acierto: msgDin('⭐ {user} was the first to answer! +{xp} XP 🎉'),
             },
         },
         // 2) Gota de oro / Lluvia de XP: cada X minutos cae un mensaje y el primero en
@@ -402,11 +402,11 @@ const ServidorConfigSchema = new mongoose.Schema({
             proxima: { type: Date, default: null },           // (interno) cuándo cae la próxima
             mensajes: {
                 // anuncio: el mensaje de la gota al caer. Placeholders {emoji} {xp}.
-                anuncio: msgDin('¡Reacciona con {emoji} para llevarte **{xp} XP**!\nSolo el primero se la lleva. ¡Rápido! ⚡'),
+                anuncio: msgDin('React with {emoji} to grab **{xp} XP**!\nOnly the first one gets it. Quick! ⚡'),
                 // acierto: cuando alguien la recoge. Placeholders {user} {xp} {emoji}.
-                acierto: msgDin('{emoji} ¡{user} ha recogido la gota y gana **{xp} XP**! 🎉'),
+                acierto: msgDin('{emoji} {user} grabbed the drop and wins **{xp} XP**! 🎉'),
                 // fallo: si nadie reacciona a tiempo.
-                fallo: msgDin('Nadie la recogió a tiempo… 😢'),
+                fallo: msgDin('Nobody grabbed it in time… 😢'),
             },
         },
         // 3) Contador colaborativo: un canal donde se cuenta 1,2,3… sin fallar. El
@@ -418,10 +418,10 @@ const ServidorConfigSchema = new mongoose.Schema({
             xp: { type: Number, default: 1 },                  // XP por número correcto
             borrarErrores: { type: Boolean, default: true },   // borrar mensajes que rompen la cuenta
             mensajes: {
-                // acierto: opcional (vacío = solo reacción ✅). Placeholders {user} {numero}.
+                // acierto: opcional (vacío = solo reacción ✅). Placeholders {user} {number}.
                 acierto: msgDin(''),
-                // fallo: al romper la cuenta. Placeholders {user} {numero} (el que tocaba).
-                fallo: msgDin('💥 ¡Se rompió la cuenta! El número correcto era **{numero}**. ¡Vuelta a empezar desde **1**!'),
+                // fallo: al romper la cuenta. Placeholders {user} {number} (el que tocaba).
+                fallo: msgDin('💥 The count broke! The correct number was **{number}**. Start over from **1**!'),
             },
         },
         // 4) Trivia: el bot lanza preguntas con botones; aciertos dan XP y suman al
@@ -438,9 +438,9 @@ const ServidorConfigSchema = new mongoose.Schema({
                 // pregunta: texto extra (encima de la pregunta) + banner.
                 pregunta: msgDin(''),
                 // acierto: respuesta correcta (privado). Placeholders {user} {xp}.
-                acierto: msgDin('✅ ¡Correcto! +{xp} XP'),
+                acierto: msgDin('✅ Correct! +{xp} XP'),
                 // fallo: respuesta incorrecta (privado).
-                fallo: msgDin('❌ Respuesta incorrecta. ¡Suerte la próxima!'),
+                fallo: msgDin('❌ Wrong answer. Better luck next time!'),
             },
         },
         // 5) Reto diario / racha: manda N mensajes hoy y te llevas recompensa; días
@@ -453,8 +453,8 @@ const ServidorConfigSchema = new mongoose.Schema({
             oro: { type: Number, default: 0 },                // (oculto en panel por ahora)
             avisarCanalId: { type: String, default: null },   // dónde felicitar al completarlo (null = el mismo)
             mensajes: {
-                // acierto: al completar el reto. Placeholders {user} {xp} {racha}.
-                acierto: msgDin('🎯 ¡{user} ha completado el reto diario! +{xp} XP · Racha 🔥 **{racha}** día(s).'),
+                // acierto: al completar el reto. Placeholders {user} {xp} {streak}.
+                acierto: msgDin('🎯 {user} completed the daily challenge! +{xp} XP · Streak 🔥 **{streak}** day(s).'),
             },
         },
         // 6) Palabra secreta / caza del tesoro: el primero que escriba la palabra gana.
@@ -468,8 +468,8 @@ const ServidorConfigSchema = new mongoose.Schema({
             encontrada: { type: Boolean, default: false },     // (interno) ya la encontró alguien
             encontradaPor: { type: String, default: null },    // (interno) quién la encontró
             mensajes: {
-                // acierto: al encontrar la palabra. Placeholders {user} {palabra}.
-                acierto: msgDin('🏆 ¡{user} ha encontrado la palabra secreta!'),
+                // acierto: al encontrar la palabra. Placeholders {user} {word}.
+                acierto: msgDin('🏆 {user} found the secret word!'),
             },
         },
         // 7) Miembro de la semana: el más activo (por XP ganada) se lleva un rol
@@ -485,8 +485,8 @@ const ServidorConfigSchema = new mongoose.Schema({
             lastSemana: { type: String, default: '' },         // (interno) 'YYYY-Www' del último premio
             ultimoGanador: { type: String, default: null },    // (interno) para retirarle el rol al siguiente
             mensajes: {
-                // anuncio: al coronar al ganador. Placeholders {user} {xp} {mensajes}.
-                anuncio: msgDin('¡Enhorabuena {user}! Has sido el miembro más activo de la semana con **{mensajes}** mensajes.'),
+                // anuncio: al coronar al ganador. Placeholders {user} {xp} {messages}.
+                anuncio: msgDin('Congrats {user}! You were the most active member of the week with **{messages}** messages.'),
             },
         },
         // 8) Tablón de logros: anuncia hitos automáticos del servidor (X miembros,
@@ -498,10 +498,10 @@ const ServidorConfigSchema = new mongoose.Schema({
             hitosNivel: { type: [Number], default: [10, 25, 50, 100] },
             anunciados: { type: [String], default: [] },       // (interno) claves de hitos ya celebrados
             mensajes: {
-                // miembros: hito de nº de miembros. Placeholders {miembros} {servidor}.
-                miembros: msgDin('¡Ya somos **{miembros}** miembros en **{servidor}**! Gracias por estar aquí 💜'),
-                // nivel: primero en alcanzar un nivel-hito. Placeholders {user} {nivel}.
-                nivel: msgDin('¡{user} es el primero en alcanzar el **nivel {nivel}**! 🚀'),
+                // miembros: hito de nº de miembros. Placeholders {members} {server}.
+                miembros: msgDin('We’re now **{members}** members in **{server}**! Thanks for being here 💜'),
+                // nivel: primero en alcanzar un nivel-hito. Placeholders {user} {level}.
+                nivel: msgDin('{user} is the first to reach **level {level}**! 🚀'),
             },
         },
     },
@@ -530,8 +530,8 @@ const ServidorConfigSchema = new mongoose.Schema({
         // Panel de control (chat de texto con botones) para que el dueño gestione su canal.
         panelCanalId: { type: String, default: null },       // canal de texto donde se publica el panel
         panelMensajeId: { type: String, default: null },     // (interno) id del mensaje del panel
-        panelTitulo: { type: String, default: '🔊 Tu canal de voz' },
-        panelDescripcion: { type: String, default: 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.' },
+        panelTitulo: { type: String, default: '🔊 Your voice channel' },
+        panelDescripcion: { type: String, default: 'Join the generator channel to create your room. Then use these buttons to manage it.' },
         panelColor: { type: String, default: '#5865F2' },     // color del embed del panel (personalización Pro)
         panelImagen: { type: String, default: null },          // imagen/GIF del embed del panel (Pro): /uploads/… o URL externa
         panelBloquearCanal: { type: Boolean, default: false }, // al publicar, deja el canal del panel en solo-lectura (nadie escribe/reacciona)

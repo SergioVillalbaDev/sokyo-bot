@@ -13,4 +13,4 @@ export const statsAccent = ['text-brand', 'text-emerald-400', 'text-lime-300', '
 export const prioridadBar = ['bg-red-400', 'bg-amber-400', 'bg-brand', 'bg-emerald-400'];
 
 // Comandos de ejemplo (no se traducen: son literales del bot).
-export const comandos = ['!sokyo', '!user', '!dado', '!moneda'];
+export const comandos = ['!sokyo', '!user', '!dice', '!coin'];

@@ -4,7 +4,7 @@ const { gateMusica } = require('../utils/musica.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('skip')
-        .setDescription('Salta a la siguiente canción de la cola'),
+        .setDescription('Skip to the next song in the queue'),
 
     async execute(interaction, client) {
         const voz = await gateMusica(interaction);
@@ -12,14 +12,14 @@ module.exports = {
 
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: '⏹️ No hay nada sonando ahora mismo.', ephemeral: true });
+            return interaction.reply({ content: '⏹️ Nothing is playing right now.', ephemeral: true });
         }
         if (!player.queue.tracks.length) {
-            return interaction.reply({ content: '🚫 No hay más canciones en la cola. Usa `/stop` para parar.', ephemeral: true });
+            return interaction.reply({ content: '🚫 No more songs in the queue. Use `/stop` to stop.', ephemeral: true });
         }
 
         const saltada = player.queue.current;
         await player.skip();
-        return interaction.reply(`⏭️ Saltada: **${saltada.info.title}**`);
+        return interaction.reply(`⏭️ Skipped: **${saltada.info.title}**`);
     },
 };

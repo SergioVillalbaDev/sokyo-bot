@@ -2,36 +2,36 @@ const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     name: 'sticker',
-    description: 'Gestiona stickers. !sticker add <nombre> (adjunta PNG) · !sticker remove <nombre>',
+    description: 'Manage stickers. !sticker add <name> (attach a PNG) · !sticker remove <name>',
 
     async execute(message, args) {
         const p = message.member.permissions;
         if (!p.has(PermissionsBitField.Flags.Administrator) && !p.has(PermissionsBitField.Flags.ManageGuildExpressions)) {
-            return message.reply('❌ Necesitas permiso de **Gestionar expresiones**.');
+            return message.reply('❌ You need the **Manage Expressions** permission.');
         }
 
         const sub = args[0]?.toLowerCase();
 
         if (sub === 'add') {
             const nombre = String(args[1] || '').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32);
-            if (!nombre || nombre.length < 2) return message.reply('❌ Indica un nombre. Ej: `!sticker add nombre` con un PNG adjunto.');
+            if (!nombre || nombre.length < 2) return message.reply('❌ Provide a name. e.g. `!sticker add name` with a PNG attached.');
             const att = message.attachments.first();
-            if (!att) return message.reply('❌ Adjunta una imagen PNG (≤512 KB, ideal 320×320).');
+            if (!att) return message.reply('❌ Attach a PNG image (≤512 KB, ideally 320×320).');
 
             try {
                 const sticker = await message.guild.stickers.create({ file: att.url, name: nombre, tags: nombre });
-                return message.reply(`✅ Sticker **${sticker.name}** creado.`);
-            } catch (e) { return message.reply(`❌ No se pudo crear (¿slots llenos, formato o tamaño?). ${e.message}`); }
+                return message.reply(`✅ Sticker **${sticker.name}** created.`);
+            } catch (e) { return message.reply(`❌ Couldn’t create it (slots full, format or size?). ${e.message}`); }
         }
 
         if (sub === 'remove') {
             await message.guild.stickers.fetch().catch(() => {});
             const sticker = message.guild.stickers.cache.find((s) => s.name === args[1]);
-            if (!sticker) return message.reply('❌ Sticker no encontrado.');
-            try { await sticker.delete(); return message.reply(`✅ Sticker **${sticker.name}** eliminado.`); }
+            if (!sticker) return message.reply('❌ Sticker not found.');
+            try { await sticker.delete(); return message.reply(`✅ Sticker **${sticker.name}** removed.`); }
             catch (e) { return message.reply(`❌ ${e.message}`); }
         }
 
-        return message.reply('Uso: `!sticker add <nombre>` (adjunta PNG) · `!sticker remove <nombre>`');
+        return message.reply('Usage: `!sticker add <name>` (attach a PNG) · `!sticker remove <name>`');
     },
 };

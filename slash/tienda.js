@@ -4,31 +4,31 @@ const economia = require('../utils/economia.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('tienda')
-        .setDescription('Abre la tienda de Sokyo y compra objetos con tu oro'),
+        .setName('shop')
+        .setDescription('Open the Sokyo shop and buy items with your gold'),
 
     async execute(interaction) {
         const items = await Item.find({ activo: true }).sort({ precio: 1 }).limit(25); // Discord: máx 25 opciones
-        if (!items.length) return interaction.reply({ content: '🛒 La tienda está vacía por ahora.', ephemeral: true });
+        if (!items.length) return interaction.reply({ content: '🛒 The shop is empty for now.', ephemeral: true });
 
         const embed = new EmbedBuilder()
             .setColor('#c9a227')
-            .setTitle('🏪 Tienda de Sokyo')
-            .setDescription('Elige un objeto en el menú de abajo para comprarlo al instante.')
+            .setTitle('🏪 Sokyo Shop')
+            .setDescription('Pick an item from the menu below to buy it instantly.')
             .addFields(items.map(i => {
                 const pe = economia.precioEfectivo(i);
                 const precioTxt = pe.oferta ? `~~🪙 ${i.precio}~~ → 🪙 ${pe.precio} **(-${pe.porcentaje}%)**` : `🪙 ${pe.precio}`;
                 return {
                     name: `${i.nombre} — ${precioTxt}`,
-                    value: `${i.descripcion || 'Sin descripción'} · *(${i.tipo})*`,
+                    value: `${i.descripcion || 'No description'} · *(${i.tipo})*`,
                 };
             }));
 
         const menu = new StringSelectMenuBuilder()
             .setCustomId('tienda_comprar')
-            .setPlaceholder('Selecciona un objeto para comprar...')
+            .setPlaceholder('Select an item to buy...')
             .addOptions(items.map(i => ({
-                label: `${i.nombre} (${economia.precioEfectivo(i).precio} oro)`.slice(0, 100),
+                label: `${i.nombre} (${economia.precioEfectivo(i).precio} gold)`.slice(0, 100),
                 description: (i.descripcion || i.tipo).slice(0, 100),
                 value: i._id.toString(), // el MISMO _id que usa la web
             })));

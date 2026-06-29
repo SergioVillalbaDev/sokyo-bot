@@ -54,13 +54,13 @@ function discoRaiz() {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('sistema')
-        .setDescription('📊 Estado del servidor donde corre el bot (solo propietarios)'),
+        .setName('system')
+        .setDescription('📊 Status of the server running the bot (owners only)'),
 
     async execute(interaction, client) {
         // Control de acceso: solo propietarios.
         if (!OWNER_IDS.has(interaction.user.id)) {
-            return interaction.reply({ content: '⛔ Este comando es solo para los propietarios del bot.', ephemeral: true });
+            return interaction.reply({ content: '⛔ This command is only for the bot owners.', ephemeral: true });
         }
 
         await interaction.deferReply({ ephemeral: true });
@@ -78,14 +78,14 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setColor(cpuUso > 85 ? 0xe74c3c : cpuUso > 60 ? 0xf1c40f : 0x2ecc71)
-            .setTitle('📊 Estado del sistema')
+            .setTitle('📊 System status')
             .addFields(
-                { name: '🖥️ CPU', value: `${cpuUso.toFixed(1)}%${temp !== null ? ` · ${temp.toFixed(1)}°C` : ''}\nCarga: ${carga}`, inline: true },
+                { name: '🖥️ CPU', value: `${cpuUso.toFixed(1)}%${temp !== null ? ` · ${temp.toFixed(1)}°C` : ''}\nLoad: ${carga}`, inline: true },
                 { name: '🧠 RAM', value: `${fmtBytes(usadaMem)} / ${fmtBytes(totalMem)}\nBot: ${fmtBytes(process.memoryUsage().rss)}`, inline: true },
-                ...(disco ? [{ name: '💾 Disco', value: `${fmtBytes(disco.usado)} / ${fmtBytes(disco.total)}`, inline: true }] : []),
+                ...(disco ? [{ name: '💾 Disk', value: `${fmtBytes(disco.usado)} / ${fmtBytes(disco.total)}`, inline: true }] : []),
                 { name: '⏱️ Uptime', value: `Pi: ${fmtUptime(os.uptime())}\nBot: ${fmtUptime(process.uptime())}`, inline: true },
-                { name: '🤖 Discord', value: `Servidores: ${client.guilds.cache.size}\nPing: ${Math.round(client.ws.ping)} ms`, inline: true },
-                { name: '🎵 Música', value: `Lavalink: ${lavalinkOk ? '🟢 conectado' : '🔴 caído'}\nReproduciendo: ${reproduciendo}`, inline: true },
+                { name: '🤖 Discord', value: `Servers: ${client.guilds.cache.size}\nPing: ${Math.round(client.ws.ping)} ms`, inline: true },
+                { name: '🎵 Music', value: `Lavalink: ${lavalinkOk ? '🟢 connected' : '🔴 down'}\nPlaying: ${reproduciendo}`, inline: true },
             )
             .setFooter({ text: `${os.hostname()} · ${os.type()} ${os.arch()}` })
             .setTimestamp();

@@ -26,7 +26,7 @@ module.exports = {
                 // En modo 24/7 (Pro) el bot se queda aunque el canal se vacíe.
                 if (humanos === 0 && !(await es247(oldState.guild.id))) {
                     const texto = client.channels.cache.get(player.textChannelId);
-                    if (texto?.isTextBased()) texto.send('👋 Me he quedado solo, salgo del canal de voz.').catch(() => {});
+                    if (texto?.isTextBased()) texto.send('👋 I’m alone now, leaving the voice channel.').catch(() => {});
                     await player.destroy();
                 }
             }

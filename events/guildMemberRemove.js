@@ -28,9 +28,9 @@ module.exports = {
             await Log.create({
                 guildId: member.guild.id,
                 categoria: 'Salidas',
-                accion: '🚶‍♂️ Usuario Salió',
+                accion: '🚶‍♂️ User left',
                 usuario: member.user.username,
-                detalles: `Roles que tenía: ${member.roles.cache.size - 1}`,
+                detalles: `Roles they had: ${member.roles.cache.size - 1}`,
                 color: '#95a5a6'
             });
         } catch (error) { console.error('Error guardando log Leave:', error); }
