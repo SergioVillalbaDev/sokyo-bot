@@ -2,6 +2,7 @@
 // Configura generadores, el panel de control, qué botones se ofrecen y permite
 // ver/cerrar las salas activas en vivo.
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Mic2, Save, Check, Plus, Trash2, RefreshCw, Send, Lock, Eye, Users, X, Crown, Sparkles,
 } from 'lucide-react';
@@ -51,10 +52,10 @@ const MAX_GENERADORES = 3; // tope global de canales generadores por servidor
 
 // Plantillas de generador (función Pro): rellenan los ajustes de un generador nuevo.
 const PLANTILLAS = [
-  { id: 'gaming', label: '🎮 Gaming', nombre: '🎮 Sala de {user}', limite: 5, bitrate: 96 },
-  { id: 'estudio', label: '📚 Estudio', nombre: '📚 {user} estudiando', limite: 4, bitrate: 64 },
+  { id: 'gaming', label: '🎮 Gaming', nombre: '🎮 {user}’s room', limite: 5, bitrate: 96 },
+  { id: 'estudio', label: '📚 Estudio', nombre: '📚 {user} studying', limite: 4, bitrate: 64 },
   { id: 'musica', label: '🎵 Música', nombre: '🎵 {user}', limite: 0, bitrate: 128 },
-  { id: 'privada', label: '🔒 Privada', nombre: '🔒 Sala de {user}', limite: 2, bitrate: 64, bloqueadoPorDefecto: true, ocultoPorDefecto: true },
+  { id: 'privada', label: '🔒 Privada', nombre: '🔒 {user}’s room', limite: 2, bitrate: 64, bloqueadoPorDefecto: true, ocultoPorDefecto: true },
   { id: 'chill', label: '🛋️ Chill', nombre: '🛋️ {user}', limite: 0, bitrate: 64 },
 ];
 
@@ -68,6 +69,7 @@ function ProTag() {
 }
 
 export default function VozTemporalView({ dash }) {
+  const { t } = useTranslation();
   const {
     configServidor, canales, canalesVoz, categorias, vozActivos, esPremium,
     guardarVozTemporal, publicarPanelVoz, cerrarSalaVoz, cargarVozActivos, subirImagen,
@@ -127,7 +129,7 @@ export default function VozTemporalView({ dash }) {
     const ok = await guardarVozTemporal(f);
     setGuardando(false);
     setGuardado(ok);
-    setMsg(ok ? { tipo: 'ok', texto: 'Guardado.' } : { tipo: 'err', texto: 'No se pudo guardar.' });
+    setMsg(ok ? { tipo: 'ok', texto: t('dashboard.voztemporal_v.msgSaved') } : { tipo: 'err', texto: t('dashboard.voztemporal_v.msgSaveError') });
     setTimeout(() => setMsg(null), 3000);
   };
 
@@ -146,30 +148,30 @@ export default function VozTemporalView({ dash }) {
         r.readAsDataURL(file);
       });
       const r = await subirImagen(dataUrl);
-      if (r?.url) { set('panelImagen', r.url); setMsg({ tipo: 'ok', texto: 'Imagen subida. No olvides Guardar/Publicar.' }); }
-      else setMsg({ tipo: 'err', texto: r?.error || 'No se pudo subir la imagen.' });
-    } catch { setMsg({ tipo: 'err', texto: 'No se pudo leer el archivo.' }); }
+      if (r?.url) { set('panelImagen', r.url); setMsg({ tipo: 'ok', texto: t('dashboard.voztemporal_v.msgImgUploaded') }); }
+      else setMsg({ tipo: 'err', texto: r?.error || t('dashboard.voztemporal_v.msgImgError') });
+    } catch { setMsg({ tipo: 'err', texto: t('dashboard.voztemporal_v.msgReadError') }); }
     setSubiendoImg(false);
     setTimeout(() => setMsg(null), 4000);
   };
 
   const publicar = async () => {
-    if (!f.panelCanalId) { setPubMsg({ tipo: 'err', texto: 'Elige primero un canal de texto.' }); return; }
+    if (!f.panelCanalId) { setPubMsg({ tipo: 'err', texto: t('dashboard.voztemporal_v.pickTextFirst') }); return; }
     setPublicando(true);
-    setPubMsg({ tipo: 'ok', texto: 'Guardando y publicando…' });
+    setPubMsg({ tipo: 'ok', texto: t('dashboard.voztemporal_v.savingPublishing') });
     // Guardamos primero para que el servidor tenga el canal/título actualizados.
     const okGuardado = await guardarVozTemporal(f);
     if (!okGuardado) {
       setPublicando(false);
-      setPubMsg({ tipo: 'err', texto: 'No se pudo guardar la configuración.' });
+      setPubMsg({ tipo: 'err', texto: t('dashboard.voztemporal_v.saveConfigError') });
       return;
     }
     setGuardado(true);
     const r = await publicarPanelVoz();
     setPublicando(false);
     setPubMsg(r?.success
-      ? { tipo: 'ok', texto: '📨 Panel publicado en Discord.' }
-      : { tipo: 'err', texto: r?.error || 'No se pudo publicar.' });
+      ? { tipo: 'ok', texto: t('dashboard.voztemporal_v.panelPublished') }
+      : { tipo: 'err', texto: r?.error || t('dashboard.voztemporal_v.publishError') });
   };
 
   return (
@@ -179,12 +181,12 @@ export default function VozTemporalView({ dash }) {
       {/* Interruptor general */}
       <Card className={card}>
         <Ajuste
-          titulo="Activar canales de voz temporales"
-          desc="Cuando alguien entra a un canal generador, el bot le crea su propia sala y la borra al quedarse vacía."
+          titulo={t('dashboard.voztemporal_v.enableTitle')}
+          desc={t('dashboard.voztemporal_v.enableDesc')}
         >
           <Toggle checked={f.activo} onChange={(v) => set('activo', v)} />
         </Ajuste>
-        <Ajuste titulo="Máximo de salas por persona" desc="Evita que una misma persona cree muchas salas a la vez.">
+        <Ajuste titulo={t('dashboard.voztemporal_v.maxRooms')} desc={t('dashboard.voztemporal_v.maxRoomsDesc')}>
           <input type="number" min="1" max="10" value={f.maxPorUsuario}
             onChange={(e) => set('maxPorUsuario', Number(e.target.value))}
             className={`w-24 ${inputCls}`} />
@@ -196,11 +198,9 @@ export default function VozTemporalView({ dash }) {
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-on-brand"><Crown size={18} /></span>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 font-bold text-fg">Preferencias por usuario <ProTag /></div>
+            <div className="flex items-center gap-2 font-bold text-fg">{t('dashboard.voztemporal_v.userPrefs')} <ProTag /></div>
             <p className="text-sm text-muted">
-              {esPremium
-                ? '✅ Activo. Cada persona conserva el nombre, límite, bloqueo/oculto y sus invitados/vetados: la próxima vez su sala se crea exactamente como la dejó. No hay que configurar nada.'
-                : 'Con Pro, la sala de cada miembro recuerda su nombre, límite, bloqueo/oculto e invitados/vetados, y se recrea igual cada vez. En Free siempre nace con los ajustes del generador.'}
+              {esPremium ? t('dashboard.voztemporal_v.userPrefsOn') : t('dashboard.voztemporal_v.userPrefsOff')}
             </p>
           </div>
         </div>
@@ -210,7 +210,7 @@ export default function VozTemporalView({ dash }) {
       <Card className={card}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-bold text-fg">
-            <Mic2 size={18} /> Canales generadores
+            <Mic2 size={18} /> {t('dashboard.voztemporal_v.generators')}
             <span className="text-xs font-normal text-muted">({f.generadores.length}/{MAX_GENERADORES})</span>
           </div>
           <div className="flex items-center gap-2">
@@ -218,73 +218,71 @@ export default function VozTemporalView({ dash }) {
             <div className="flex items-center gap-1.5">
               <select defaultValue="" disabled={!esPremium || f.generadores.length >= MAX_GENERADORES}
                 onChange={(e) => { if (e.target.value) { addGenPlantilla(e.target.value); e.target.value = ''; } }}
-                title={esPremium ? 'Añadir desde una plantilla' : 'Las plantillas son una función Pro'}
+                title={esPremium ? t('dashboard.voztemporal_v.addFromTemplate') : t('dashboard.voztemporal_v.templatesPro')}
                 className={`rounded-xl border border-line bg-bg px-3 py-1.5 text-sm text-fg disabled:opacity-50 ${inputCls}`}>
-                <option value="">{esPremium ? '✨ Desde plantilla…' : '✨ Plantillas (Pro)'}</option>
-                {esPremium && PLANTILLAS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                <option value="">{esPremium ? t('dashboard.voztemporal_v.fromTemplate') : t('dashboard.voztemporal_v.templatesProOpt')}</option>
+                {esPremium && PLANTILLAS.map((p) => <option key={p.id} value={p.id}>{t(`dashboard.voztemporal_v.templates.${p.id}`)}</option>)}
               </select>
               {!esPremium && <ProTag />}
             </div>
             <button onClick={addGen} disabled={f.generadores.length >= MAX_GENERADORES}
               className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-fg hover:bg-elevated disabled:opacity-40">
-              <Plus size={15} /> Añadir
+              <Plus size={15} /> {t('dashboard.voztemporal_v.add')}
             </button>
           </div>
         </div>
 
         {f.generadores.length >= MAX_GENERADORES && (
-          <p className="mb-2 text-xs text-muted">Has llegado al máximo de {MAX_GENERADORES} canales generadores. Cada uno puede crear salas ilimitadas.</p>
+          <p className="mb-2 text-xs text-muted">{t('dashboard.voztemporal_v.maxReached', { max: MAX_GENERADORES })}</p>
         )}
 
         {f.generadores.length === 0 && (
-          <p className="py-4 text-center text-sm text-muted">
-            Aún no hay generadores. Crea un canal de voz vacío en Discord (p. ej. «➕ Crear sala») y añádelo aquí.
-          </p>
+          <p className="py-4 text-center text-sm text-muted">{t('dashboard.voztemporal_v.noGenerators')}</p>
         )}
 
         <div className="space-y-4">
           {f.generadores.map((g, i) => (
             <div key={i} className="rounded-2xl border border-line bg-bg/40 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-muted">Generador #{i + 1}</span>
+                <span className="text-sm font-semibold text-muted">{t('dashboard.voztemporal_v.generator', { n: i + 1 })}</span>
                 <button onClick={() => delGen(i)} className="text-red-400 hover:text-red-300"><Trash2 size={16} /></button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-muted">Canal de voz al que se entra</span>
+                  <span className="text-muted">{t('dashboard.voztemporal_v.voiceChannelIn')}</span>
                   <select value={g.canalId} onChange={(e) => setGen(i, 'canalId', e.target.value)} className={inputCls}>
-                    <option value="">— Elige un canal de voz —</option>
+                    <option value="">{t('dashboard.voztemporal_v.pickVoice')}</option>
                     {canalesVoz.map((c) => <option key={c.id} value={c.id}>🔊 {c.nombre}</option>)}
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-muted">Categoría donde crear (opcional)</span>
+                  <span className="text-muted">{t('dashboard.voztemporal_v.categoryCreate')}</span>
                   <select value={g.categoriaId} onChange={(e) => setGen(i, 'categoriaId', e.target.value)} className={inputCls}>
-                    <option value="">— La del canal generador —</option>
+                    <option value="">{t('dashboard.voztemporal_v.sameAsGen')}</option>
                     {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-                  <span className="text-muted">Nombre de las salas creadas — usa {'{user}'} y {'{count}'}</span>
+                  <span className="text-muted">{t('dashboard.voztemporal_v.roomName')}</span>
                   <input value={g.nombre} onChange={(e) => setGen(i, 'nombre', e.target.value)} className={inputCls} maxLength={100} />
                 </label>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-muted">Límite de usuarios (0 = sin tope)</span>
+                  <span className="text-muted">{t('dashboard.voztemporal_v.userLimit')}</span>
                   <input type="number" min="0" max="99" value={g.limite} onChange={(e) => setGen(i, 'limite', Number(e.target.value))} className={inputCls} />
                 </label>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-muted">Calidad (kbps)</span>
+                  <span className="text-muted">{t('dashboard.voztemporal_v.quality')}</span>
                   <input type="number" min="8" max="384" value={g.bitrate} onChange={(e) => setGen(i, 'bitrate', Number(e.target.value))} className={inputCls} />
                 </label>
               </div>
               <div className="mt-3 flex flex-wrap gap-5">
                 <label className="flex items-center gap-2 text-sm text-fg">
                   <Toggle checked={g.bloqueadoPorDefecto} onChange={(v) => setGen(i, 'bloqueadoPorDefecto', v)} />
-                  <span className="flex items-center gap-1"><Lock size={14} /> Nacen bloqueadas</span>
+                  <span className="flex items-center gap-1"><Lock size={14} /> {t('dashboard.voztemporal_v.bornLocked')}</span>
                 </label>
                 <label className="flex items-center gap-2 text-sm text-fg">
                   <Toggle checked={g.ocultoPorDefecto} onChange={(v) => setGen(i, 'ocultoPorDefecto', v)} />
-                  <span className="flex items-center gap-1"><Eye size={14} /> Nacen ocultas</span>
+                  <span className="flex items-center gap-1"><Eye size={14} /> {t('dashboard.voztemporal_v.bornHidden')}</span>
                 </label>
               </div>
             </div>
@@ -294,12 +292,12 @@ export default function VozTemporalView({ dash }) {
 
       {/* Panel de control */}
       <Card className={card}>
-        <div className="mb-3 font-bold text-fg">Panel de control (en un chat de texto)</div>
+        <div className="mb-3 font-bold text-fg">{t('dashboard.voztemporal_v.controlPanel')}</div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted">Canal de texto del panel</span>
+            <span className="text-muted">{t('dashboard.voztemporal_v.panelTextChannel')}</span>
             <select value={f.panelCanalId} onChange={(e) => set('panelCanalId', e.target.value)} className={inputCls}>
-              <option value="">— Elige un canal de texto —</option>
+              <option value="">{t('dashboard.voztemporal_v.pickText')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
             </select>
           </label>
@@ -308,52 +306,50 @@ export default function VozTemporalView({ dash }) {
         {/* Personalización del panel (Pro): título, descripción y color propios. */}
         <div className="mt-4 rounded-2xl border border-line bg-bg/40 p-4">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-fg">
-            <Sparkles size={15} /> Personalización del panel <ProTag />
+            <Sparkles size={15} /> {t('dashboard.voztemporal_v.panelCustom')} <ProTag />
           </div>
           {!esPremium && (
-            <p className="mb-3 text-xs text-muted">
-              En el plan Free el panel usa el diseño por defecto con la marca «Powered by Sokyo». Sube a Pro para poner tu título, descripción y color, y quitar la marca.
-            </p>
+            <p className="mb-3 text-xs text-muted">{t('dashboard.voztemporal_v.panelCustomFree')}</p>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted">Título del panel</span>
+              <span className="text-muted">{t('dashboard.voztemporal_v.panelTitle')}</span>
               <input value={f.panelTitulo} onChange={(e) => set('panelTitulo', e.target.value)} disabled={!esPremium} className={`${inputCls} disabled:opacity-50`} maxLength={100} />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted">Color del panel</span>
+              <span className="text-muted">{t('dashboard.voztemporal_v.panelColor')}</span>
               <input type="color" value={f.panelColor} onChange={(e) => set('panelColor', e.target.value)} disabled={!esPremium} className={`h-10 w-full cursor-pointer rounded-xl border border-line bg-bg disabled:opacity-50`} />
             </label>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-              <span className="text-muted">Descripción del panel</span>
+              <span className="text-muted">{t('dashboard.voztemporal_v.panelDesc')}</span>
               <textarea value={f.panelDescripcion} onChange={(e) => set('panelDescripcion', e.target.value)} disabled={!esPremium} rows={2} className={`${inputCls} disabled:opacity-50`} maxLength={500} />
             </label>
 
             {/* Imagen / GIF del panel */}
             <div className="flex flex-col gap-1 text-sm sm:col-span-2">
-              <span className="text-muted">Imagen o GIF del panel</span>
+              <span className="text-muted">{t('dashboard.voztemporal_v.panelImage')}</span>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   value={f.panelImagen}
                   onChange={(e) => set('panelImagen', e.target.value)}
                   disabled={!esPremium}
-                  placeholder="Pega una URL (Tenor/Giphy) o sube un archivo →"
+                  placeholder={t('dashboard.voztemporal_v.panelImagePh')}
                   className={`min-w-0 flex-1 ${inputCls} disabled:opacity-50`}
                   maxLength={500}
                 />
                 <label className={`flex cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-sm font-semibold text-fg hover:bg-elevated ${!esPremium || subiendoImg ? 'pointer-events-none opacity-50' : ''}`}>
-                  {subiendoImg ? 'Subiendo…' : 'Subir'}
+                  {subiendoImg ? t('dashboard.voztemporal_v.uploading') : t('dashboard.voztemporal_v.upload')}
                   <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={onSubirImagen} disabled={!esPremium || subiendoImg} />
                 </label>
                 {f.panelImagen && esPremium && (
                   <button type="button" onClick={() => set('panelImagen', '')}
                     className="flex items-center gap-1 rounded-xl border border-line bg-bg px-3 py-2 text-sm text-red-400 hover:bg-red-500/10">
-                    <X size={14} /> Quitar
+                    <X size={14} /> {t('dashboard.voztemporal_v.remove')}
                   </button>
                 )}
               </div>
               {f.panelImagen && (
-                <img src={f.panelImagen} alt="Vista previa"
+                <img src={f.panelImagen} alt="preview"
                   className="mt-2 max-h-40 w-auto rounded-xl border border-line object-contain"
                   onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
               )}
@@ -361,17 +357,17 @@ export default function VozTemporalView({ dash }) {
           </div>
         </div>
         <Ajuste
-          titulo="🔒 Bloquear el canal del panel"
-          desc="Deja el canal en solo-lectura: los usuarios solo ven el panel, no pueden escribir ni reaccionar. (El bot sigue pudiendo publicar.)"
+          titulo={t('dashboard.voztemporal_v.lockPanelChannel')}
+          desc={t('dashboard.voztemporal_v.lockPanelChannelDesc')}
         >
           <Toggle checked={f.panelBloquearCanal} onChange={(v) => set('panelBloquearCanal', v)} />
         </Ajuste>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button onClick={publicar} disabled={publicando || !f.panelCanalId}
             className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
-            <Send size={16} /> {publicando ? 'Publicando…' : 'Publicar / actualizar panel'}
+            <Send size={16} /> {publicando ? t('dashboard.voztemporal_v.publishing') : t('dashboard.voztemporal_v.publishPanel')}
           </button>
-          <span className="text-xs text-muted">Guarda y publica el panel. Se reedita si ya existía.</span>
+          <span className="text-xs text-muted">{t('dashboard.voztemporal_v.publishHint')}</span>
           {pubMsg && (
             <span className={`text-sm font-semibold ${pubMsg.tipo === 'ok' ? 'text-green-400' : 'text-red-400'}`}>
               {pubMsg.texto}
@@ -382,10 +378,10 @@ export default function VozTemporalView({ dash }) {
 
       {/* Controles disponibles */}
       <Card className={card}>
-        <div className="mb-1 font-bold text-fg">Botones del panel</div>
-        <p className="mb-2 text-sm text-muted">Elige qué puede hacer el dueño de cada sala desde Discord.</p>
-        {CONTROLES.map(([k, label, emoji]) => (
-          <Ajuste key={k} titulo={`${emoji} ${label}`}>
+        <div className="mb-1 font-bold text-fg">{t('dashboard.voztemporal_v.panelButtons')}</div>
+        <p className="mb-2 text-sm text-muted">{t('dashboard.voztemporal_v.panelButtonsDesc')}</p>
+        {CONTROLES.map(([k, , emoji]) => (
+          <Ajuste key={k} titulo={`${emoji} ${t(`dashboard.voztemporal_v.controls.${k}`)}`}>
             <Toggle checked={f.controles[k]} onChange={(v) => setCtrl(k, v)} />
           </Ajuste>
         ))}
@@ -396,20 +392,20 @@ export default function VozTemporalView({ dash }) {
         <button onClick={guardar} disabled={guardando}
           className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
           {guardado ? <Check size={16} /> : <Save size={16} />}
-          {guardando ? 'Guardando…' : guardado ? 'Guardado' : 'Guardar cambios'}
+          {guardando ? t('dashboard.voztemporal_v.saving') : guardado ? t('dashboard.voztemporal_v.saved') : t('dashboard.voztemporal_v.saveChanges')}
         </button>
       </div>
 
       {/* Salas activas en vivo */}
       <Card className={card}>
         <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-fg"><Users size={18} /> Salas activas ahora</div>
+          <div className="flex items-center gap-2 font-bold text-fg"><Users size={18} /> {t('dashboard.voztemporal_v.activeRooms')}</div>
           <button onClick={cargarVozActivos} className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm text-fg hover:bg-elevated">
-            <RefreshCw size={14} /> Actualizar
+            <RefreshCw size={14} /> {t('dashboard.voztemporal_v.refresh')}
           </button>
         </div>
         {(!vozActivos || vozActivos.length === 0) ? (
-          <p className="py-4 text-center text-sm text-muted">No hay salas temporales abiertas ahora mismo.</p>
+          <p className="py-4 text-center text-sm text-muted">{t('dashboard.voztemporal_v.noActiveRooms')}</p>
         ) : (
           <div className="space-y-2">
             {vozActivos.map((s) => (
@@ -417,13 +413,13 @@ export default function VozTemporalView({ dash }) {
                 <div className="min-w-0">
                   <div className="truncate font-semibold text-fg">🔊 {s.nombre}</div>
                   <div className="text-xs text-muted">
-                    Dueño: {s.dueno?.nombre || '—'} · {s.miembros} conectado(s)
+                    {t('dashboard.voztemporal_v.owner')}: {s.dueno?.nombre || '—'} · {s.miembros} {t('dashboard.voztemporal_v.connected')}
                     {s.bloqueado ? ' · 🔒' : ''}{s.oculto ? ' · 👁️' : ''}
                   </div>
                 </div>
                 <button onClick={() => cerrarSalaVoz(s.canalId)}
                   className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">
-                  <X size={14} /> Cerrar
+                  <X size={14} /> {t('dashboard.voztemporal_v.close')}
                 </button>
               </div>
             ))}
