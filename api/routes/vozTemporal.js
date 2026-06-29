@@ -104,11 +104,12 @@ module.exports = ({ client }) => {
             const id = await publicarPanel(client, req.params.guildId);
             res.json({ success: true, mensajeId: id });
         } catch (e) {
+            console.error('voztemporal panel publicar:', e.message);
             const map = {
                 'sin-canal': 'Elige primero un canal de texto para el panel y guarda.',
                 'canal-invalido': 'El canal del panel no es válido o el bot no puede escribir en él.',
             };
-            res.status(400).json({ error: map[e.message] || 'No se pudo publicar el panel.' });
+            res.status(400).json({ error: map[e.message] || `No se pudo publicar el panel: ${e.message}` });
         }
     });
 

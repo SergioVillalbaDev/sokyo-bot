@@ -59,6 +59,7 @@ export default function VozTemporalView({ dash }) {
   const [guardado, setGuardado] = useState(false);
   const [msg, setMsg] = useState(null);
   const [publicando, setPublicando] = useState(false);
+  const [pubMsg, setPubMsg] = useState(null);   // resultado de publicar, junto al botón
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -97,11 +98,22 @@ export default function VozTemporalView({ dash }) {
   };
 
   const publicar = async () => {
+    if (!f.panelCanalId) { setPubMsg({ tipo: 'err', texto: 'Elige primero un canal de texto.' }); return; }
     setPublicando(true);
+    setPubMsg({ tipo: 'ok', texto: 'Guardando y publicando…' });
+    // Guardamos primero para que el servidor tenga el canal/título actualizados.
+    const okGuardado = await guardarVozTemporal(f);
+    if (!okGuardado) {
+      setPublicando(false);
+      setPubMsg({ tipo: 'err', texto: 'No se pudo guardar la configuración.' });
+      return;
+    }
+    setGuardado(true);
     const r = await publicarPanelVoz();
     setPublicando(false);
-    setMsg(r?.success ? { tipo: 'ok', texto: '📨 Panel publicado en Discord.' } : { tipo: 'err', texto: r?.error || 'No se pudo publicar.' });
-    setTimeout(() => setMsg(null), 4000);
+    setPubMsg(r?.success
+      ? { tipo: 'ok', texto: '📨 Panel publicado en Discord.' }
+      : { tipo: 'err', texto: r?.error || 'No se pudo publicar.' });
   };
 
   return (
@@ -209,12 +221,17 @@ export default function VozTemporalView({ dash }) {
             <textarea value={f.panelDescripcion} onChange={(e) => set('panelDescripcion', e.target.value)} rows={2} className={inputCls} maxLength={500} />
           </label>
         </div>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <button onClick={publicar} disabled={publicando || !f.panelCanalId}
             className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
             <Send size={16} /> {publicando ? 'Publicando…' : 'Publicar / actualizar panel'}
           </button>
-          <span className="text-xs text-muted">Guarda primero los cambios. El panel se reedita si ya existía.</span>
+          <span className="text-xs text-muted">Guarda y publica el panel. Se reedita si ya existía.</span>
+          {pubMsg && (
+            <span className={`text-sm font-semibold ${pubMsg.tipo === 'ok' ? 'text-green-400' : 'text-red-400'}`}>
+              {pubMsg.texto}
+            </span>
+          )}
         </div>
       </Card>
 
