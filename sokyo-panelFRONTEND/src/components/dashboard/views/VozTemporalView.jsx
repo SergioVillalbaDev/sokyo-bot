@@ -70,7 +70,7 @@ function ProTag() {
 export default function VozTemporalView({ dash }) {
   const {
     configServidor, canales, canalesVoz, categorias, vozActivos, esPremium,
-    guardarVozTemporal, publicarPanelVoz, cerrarSalaVoz, cargarVozActivos,
+    guardarVozTemporal, publicarPanelVoz, cerrarSalaVoz, cargarVozActivos, subirImagen,
   } = dash;
 
   const [f, setF] = useState(null);
@@ -79,6 +79,7 @@ export default function VozTemporalView({ dash }) {
   const [msg, setMsg] = useState(null);
   const [publicando, setPublicando] = useState(false);
   const [pubMsg, setPubMsg] = useState(null);   // resultado de publicar, junto al botón
+  const [subiendoImg, setSubiendoImg] = useState(false);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function VozTemporalView({ dash }) {
       panelTitulo: v.panelTitulo || '🔊 Tu canal de voz',
       panelDescripcion: v.panelDescripcion || 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.',
       panelColor: v.panelColor || '#5865F2',
+      panelImagen: v.panelImagen || '',
       panelBloquearCanal: v.panelBloquearCanal ?? false,
       controles: Object.fromEntries(CONTROLES.map(([k]) => [k, c[k] !== false])),
       maxPorUsuario: v.maxPorUsuario ?? 1,
@@ -127,6 +129,28 @@ export default function VozTemporalView({ dash }) {
     setGuardado(ok);
     setMsg(ok ? { tipo: 'ok', texto: 'Guardado.' } : { tipo: 'err', texto: 'No se pudo guardar.' });
     setTimeout(() => setMsg(null), 3000);
+  };
+
+  // Sube un archivo (imagen/GIF) a /uploads y guarda la ruta en panelImagen.
+  const onSubirImagen = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setSubiendoImg(true);
+    setMsg(null);
+    try {
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const r = await subirImagen(dataUrl);
+      if (r?.url) { set('panelImagen', r.url); setMsg({ tipo: 'ok', texto: 'Imagen subida. No olvides Guardar/Publicar.' }); }
+      else setMsg({ tipo: 'err', texto: r?.error || 'No se pudo subir la imagen.' });
+    } catch { setMsg({ tipo: 'err', texto: 'No se pudo leer el archivo.' }); }
+    setSubiendoImg(false);
+    setTimeout(() => setMsg(null), 4000);
   };
 
   const publicar = async () => {
@@ -304,6 +328,36 @@ export default function VozTemporalView({ dash }) {
               <span className="text-muted">Descripción del panel</span>
               <textarea value={f.panelDescripcion} onChange={(e) => set('panelDescripcion', e.target.value)} disabled={!esPremium} rows={2} className={`${inputCls} disabled:opacity-50`} maxLength={500} />
             </label>
+
+            {/* Imagen / GIF del panel */}
+            <div className="flex flex-col gap-1 text-sm sm:col-span-2">
+              <span className="text-muted">Imagen o GIF del panel</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={f.panelImagen}
+                  onChange={(e) => set('panelImagen', e.target.value)}
+                  disabled={!esPremium}
+                  placeholder="Pega una URL (Tenor/Giphy) o sube un archivo →"
+                  className={`min-w-0 flex-1 ${inputCls} disabled:opacity-50`}
+                  maxLength={500}
+                />
+                <label className={`flex cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-sm font-semibold text-fg hover:bg-elevated ${!esPremium || subiendoImg ? 'pointer-events-none opacity-50' : ''}`}>
+                  {subiendoImg ? 'Subiendo…' : 'Subir'}
+                  <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={onSubirImagen} disabled={!esPremium || subiendoImg} />
+                </label>
+                {f.panelImagen && esPremium && (
+                  <button type="button" onClick={() => set('panelImagen', '')}
+                    className="flex items-center gap-1 rounded-xl border border-line bg-bg px-3 py-2 text-sm text-red-400 hover:bg-red-500/10">
+                    <X size={14} /> Quitar
+                  </button>
+                )}
+              </div>
+              {f.panelImagen && (
+                <img src={f.panelImagen} alt="Vista previa"
+                  className="mt-2 max-h-40 w-auto rounded-xl border border-line object-contain"
+                  onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
+              )}
+            </div>
           </div>
         </div>
         <Ajuste

@@ -5,10 +5,12 @@
 //   • Un panel de botones en un chat de texto deja al dueño gestionar su sala.
 // Config en ServidorConfig.vozTemporal · estado vivo en modelo CanalVozTemporal.
 // ============================================================================
+const fs = require('fs');
+const path = require('path');
 const {
     ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder,
     ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
-    UserSelectMenuBuilder,
+    UserSelectMenuBuilder, AttachmentBuilder,
 } = require('discord.js');
 const { getConfigCached } = require('./config.js');
 const { esPro } = require('./billing.js');
@@ -214,19 +216,40 @@ const ORDEN = ['renombrar', 'limite', 'bloquear', 'ocultar', 'bitrate',
 
 const PANEL_TITULO_DEF = '🔊 Tu canal de voz';
 const PANEL_DESC_DEF = 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.';
+const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 
-// Construye {embeds, components} del panel según los controles activos.
-// La personalización (título, descripción y color) es Pro: en Free se fuerzan
-// los textos por defecto y se garantiza la marca "Powered by Sokyo" en el pie.
+// Resuelve la imagen/GIF del panel a una referencia usable por el embed.
+// Acepta una URL externa (http/https) o una ruta /uploads/… subida desde el
+// panel (se adjunta como archivo → attachment://, funciona también en local).
+function refImagenPanel(valor, files) {
+    if (!valor || typeof valor !== 'string') return null;
+    if (/^https?:\/\//i.test(valor)) return valor;
+    const nombre = path.basename(valor);
+    const ruta = path.join(UPLOADS_DIR, nombre);
+    if (fs.existsSync(ruta)) {
+        files.push(new AttachmentBuilder(ruta, { name: nombre }));
+        return `attachment://${nombre}`;
+    }
+    return null;
+}
+
+// Construye {embeds, components, files} del panel según los controles activos.
+// La personalización (título, descripción, color e imagen/GIF) es Pro: en Free
+// se fuerzan los textos por defecto y se garantiza la marca "Powered by Sokyo".
 function construirPanel(vcfg, cfg) {
     const ctrl = vcfg.controles || {};
     const activos = ORDEN.filter((k) => ctrl[k] !== false);
     const pro = esPro(cfg);
+    const files = [];
 
     const embed = new EmbedBuilder()
         .setColor(pro ? (vcfg.panelColor || '#5865F2') : '#5865F2')
         .setTitle(pro ? (vcfg.panelTitulo || PANEL_TITULO_DEF) : PANEL_TITULO_DEF)
         .setDescription(pro ? (vcfg.panelDescripcion || PANEL_DESC_DEF) : PANEL_DESC_DEF);
+    if (pro) {
+        const img = refImagenPanel(vcfg.panelImagen, files);
+        if (img) embed.setImage(img);
+    }
     aplicarPieMarca(embed, cfg); // Free: "Powered by Sokyo" · Pro: su marca o ninguna
 
     const rows = [];
@@ -239,7 +262,7 @@ function construirPanel(vcfg, cfg) {
         }
         rows.push(fila);
     }
-    return { embeds: [embed], components: rows };
+    return { embeds: [embed], components: rows, files };
 }
 
 // Publica (o reedita) el panel en el canal configurado. Devuelve el id del mensaje.
@@ -260,7 +283,8 @@ async function publicarPanel(client, guildId) {
     // Intentar reeditar el panel anterior; si no existe, publicar uno nuevo.
     if (vcfg.panelMensajeId) {
         const antiguo = await canal.messages.fetch(vcfg.panelMensajeId).catch(() => null);
-        if (antiguo) { await antiguo.edit(payload); return antiguo.id; }
+        // attachments: [] limpia el adjunto anterior para que no se acumulen al reeditar.
+        if (antiguo) { await antiguo.edit({ ...payload, attachments: [] }); return antiguo.id; }
     }
     const msg = await canal.send(payload);
     cfg.vozTemporal.panelMensajeId = msg.id;

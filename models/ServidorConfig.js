@@ -533,6 +533,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         panelTitulo: { type: String, default: '🔊 Tu canal de voz' },
         panelDescripcion: { type: String, default: 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.' },
         panelColor: { type: String, default: '#5865F2' },     // color del embed del panel (personalización Pro)
+        panelImagen: { type: String, default: null },          // imagen/GIF del embed del panel (Pro): /uploads/… o URL externa
         panelBloquearCanal: { type: Boolean, default: false }, // al publicar, deja el canal del panel en solo-lectura (nadie escribe/reacciona)
         // Qué controles ofrecer en el panel (todos activables por separado).
         controles: {
