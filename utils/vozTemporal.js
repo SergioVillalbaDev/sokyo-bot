@@ -209,6 +209,9 @@ async function publicarPanel(client, guildId) {
 
     const payload = construirPanel(vcfg);
 
+    // Dejar el canal del panel en solo-lectura (o restaurarlo) según el ajuste.
+    await aplicarBloqueoCanalPanel(canal, guild, !!vcfg.panelBloquearCanal).catch(() => {});
+
     // Intentar reeditar el panel anterior; si no existe, publicar uno nuevo.
     if (vcfg.panelMensajeId) {
         const antiguo = await canal.messages.fetch(vcfg.panelMensajeId).catch(() => null);
@@ -218,6 +221,25 @@ async function publicarPanel(client, guildId) {
     cfg.vozTemporal.panelMensajeId = msg.id;
     await cfg.save();
     return msg.id;
+}
+
+// Bloquea (solo-lectura) o restaura el canal de texto del panel para @everyone.
+// El bot conserva permiso de escritura para poder publicar/editar el panel.
+async function aplicarBloqueoCanalPanel(canal, guild, bloquear) {
+    const restriccion = {
+        SendMessages: bloquear ? false : null,
+        AddReactions: bloquear ? false : null,
+        CreatePublicThreads: bloquear ? false : null,
+        CreatePrivateThreads: bloquear ? false : null,
+        SendMessagesInThreads: bloquear ? false : null,
+    };
+    await canal.permissionOverwrites.edit(guild.id, restriccion, { reason: 'Canal del panel de voz temporal' });
+    if (bloquear) {
+        // Asegurar que el bot sí puede escribir aunque @everyone esté bloqueado.
+        await canal.permissionOverwrites.edit(guild.members.me.id, {
+            SendMessages: true, ViewChannel: true,
+        }, { reason: 'El bot debe poder publicar el panel' });
+    }
 }
 
 // ---------------------------------------------------------------------------

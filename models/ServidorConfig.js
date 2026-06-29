@@ -532,6 +532,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         panelMensajeId: { type: String, default: null },     // (interno) id del mensaje del panel
         panelTitulo: { type: String, default: '🔊 Tu canal de voz' },
         panelDescripcion: { type: String, default: 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.' },
+        panelBloquearCanal: { type: Boolean, default: false }, // al publicar, deja el canal del panel en solo-lectura (nadie escribe/reacciona)
         // Qué controles ofrecer en el panel (todos activables por separado).
         controles: {
             renombrar: { type: Boolean, default: true },

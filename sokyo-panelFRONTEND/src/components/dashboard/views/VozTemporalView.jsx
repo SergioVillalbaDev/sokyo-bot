@@ -71,6 +71,7 @@ export default function VozTemporalView({ dash }) {
       panelCanalId: v.panelCanalId || '',
       panelTitulo: v.panelTitulo || '🔊 Tu canal de voz',
       panelDescripcion: v.panelDescripcion || 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.',
+      panelBloquearCanal: v.panelBloquearCanal ?? false,
       controles: Object.fromEntries(CONTROLES.map(([k]) => [k, c[k] !== false])),
       maxPorUsuario: v.maxPorUsuario ?? 1,
     });
@@ -221,6 +222,12 @@ export default function VozTemporalView({ dash }) {
             <textarea value={f.panelDescripcion} onChange={(e) => set('panelDescripcion', e.target.value)} rows={2} className={inputCls} maxLength={500} />
           </label>
         </div>
+        <Ajuste
+          titulo="🔒 Bloquear el canal del panel"
+          desc="Deja el canal en solo-lectura: los usuarios solo ven el panel, no pueden escribir ni reaccionar. (El bot sigue pudiendo publicar.)"
+        >
+          <Toggle checked={f.panelBloquearCanal} onChange={(v) => set('panelBloquearCanal', v)} />
+        </Ajuste>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button onClick={publicar} disabled={publicando || !f.panelCanalId}
             className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
