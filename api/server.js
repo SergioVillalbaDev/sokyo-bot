@@ -205,7 +205,21 @@ module.exports = (client) => {
         // (2) API key del propietario
         if (!API_KEY) return next(); // sin key configurada: API abierta (ver aviso de arranque)
         const enviada = req.headers['x-api-key'] || bearer;
-        if (enviada !== API_KEY) return res.status(401).json({ error: 'No autorizado' });
+        if (enviada !== API_KEY) {
+            // Distinguimos el motivo para que el panel muestre el mensaje correcto:
+            // - Había un token (Bearer) pero no es válido -> sesión caducada/ inválida.
+            // - No había token -> es la API key (VITE_API_KEY) la que no coincide.
+            if (bearer) {
+                return res.status(401).json({
+                    error: 'Tu sesión ha caducado o no es válida. Cierra sesión y vuelve a entrar con Discord.',
+                    code: 'session_invalid',
+                });
+            }
+            return res.status(401).json({
+                error: 'La clave del panel (VITE_API_KEY) no coincide con la API_KEY del bot.',
+                code: 'apikey_mismatch',
+            });
+        }
         next();
     });
 
@@ -620,7 +634,12 @@ module.exports = (client) => {
     // =============================================================================
 
     // --- RUTAS API ---
-    app.get('/api/estado', (req, res) => res.json({ message: 'Sokyo Bot está operativo' }));
+    app.get('/api/estado', (req, res) => res.json({
+        message: 'Sokyo Bot está operativo',
+        ok: true,
+        ready: !!(client && typeof client.isReady === 'function' && client.isReady()),
+        apiKeyRequired: !!API_KEY, // si es true, el panel necesita sesión de Discord o la API key correcta
+    }));
 
     // Lista de servidores para el selector del panel.
     // Sesión de staff -> solo SUS servidores. API key (propietario) -> todos.

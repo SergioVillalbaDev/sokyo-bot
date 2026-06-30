@@ -43,11 +43,20 @@ export const apiFetch = (path, options = {}) => {
 };
 
 // Comprueba la respuesta y lanza un error legible si algo va mal.
+// Para el 401 distinguimos el motivo (lo manda el servidor en `code`):
+//  - 'session_invalid'  -> el login de Discord caducó / no es válido.
+//  - 'apikey_mismatch'  -> la VITE_API_KEY del panel no coincide con la del bot.
 export const procesarRespuesta = async (res) => {
-  if (res.status === 401)
-    throw new Error(
-      '401 No autorizado: la VITE_API_KEY del panel no coincide con la API_KEY del bot.'
-    );
+  if (res.status === 401) {
+    let code = '';
+    let msg = '';
+    try { const b = await res.json(); code = b.code || ''; msg = b.error || ''; } catch { /* sin cuerpo JSON */ }
+    if (code === 'session_invalid')
+      throw new Error(msg || 'Tu sesión ha caducado. Cierra sesión y vuelve a entrar con Discord.');
+    if (code === 'apikey_mismatch')
+      throw new Error(msg || 'La VITE_API_KEY del panel no coincide con la API_KEY del bot.');
+    throw new Error(msg || '401 No autorizado.');
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 };
