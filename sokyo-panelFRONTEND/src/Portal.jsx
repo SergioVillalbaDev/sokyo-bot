@@ -18,7 +18,7 @@ function Portal() {
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
   const [vista, setVista] = useState('tickets');
-  const [tarjeta, setTarjeta] = useState({ colorAcento: '#5865F2', fondoTipo: 'color', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoImagen: '', preset: null });
+  const [tarjeta, setTarjeta] = useState({ colorAcento: '#5865F2', fondoTipo: 'color', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoImagen: '', preset: null, animado: false });
   const [guardadoT, setGuardadoT] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -63,7 +63,7 @@ function Portal() {
       .then(([yo, tks, tj, cat]) => {
         setUsuario(yo); setTickets(Array.isArray(tks) ? tks : []); setError('');
         setCatalogo({ ocultos: cat?.ocultos || [], personalizados: cat?.personalizados || [] });
-        if (tj && tj.colorAcento) setTarjeta({ colorAcento: tj.colorAcento, fondoTipo: tj.fondoTipo || 'color', fondoColor: tj.fondoColor || '#1e2030', colorSecundario: tj.colorSecundario || '#9b59b6', fondoImagen: tj.fondoImagen || '', preset: tj.preset || null });
+        if (tj && tj.colorAcento) setTarjeta({ colorAcento: tj.colorAcento, fondoTipo: tj.fondoTipo || 'color', fondoColor: tj.fondoColor || '#1e2030', colorSecundario: tj.colorSecundario || '#9b59b6', fondoImagen: tj.fondoImagen || '', preset: tj.preset || null, animado: !!tj.animado });
       })
       .catch(() => { setError('Your session expired. Log in again.'); logout(); })
       .finally(() => setCargando(false));
@@ -117,13 +117,13 @@ function Portal() {
 
   const setT = (campo, valor) => { setGuardadoT(false); setTarjeta(t => ({ ...t, [campo]: valor })); };
   // Edición manual de un color/fondo: deja de coincidir con un preset, lo deselecciona.
-  const setManual = (campo, valor) => { setGuardadoT(false); setTarjeta(t => ({ ...t, [campo]: valor, preset: null })); };
+  const setManual = (campo, valor) => { setGuardadoT(false); setTarjeta(t => ({ ...t, [campo]: valor, preset: null, animado: false })); };
   // Aplica un diseño prediseñado: vuelca sus colores. Los premium están
   // bloqueados para no-premium; los personalizados gratis los puede usar todo el mundo.
   const aplicarPreset = (p) => {
     if (p.premium !== false && !usuario?.esPremium) return; // bloqueado
     setGuardadoT(false);
-    setTarjeta(t => ({ ...t, colorAcento: p.colorAcento, fondoColor: p.fondoColor, colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo, preset: p.id }));
+    setTarjeta(t => ({ ...t, colorAcento: p.colorAcento, fondoColor: p.fondoColor, colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo, preset: p.id, animado: !!p.animado }));
   };
   const guardarTarjeta = async () => {
     const res = await portalFetch('/api/portal/tarjeta', {
@@ -233,7 +233,7 @@ function Portal() {
       ...PRESETS_TARJETA.filter(p => !catalogo.ocultos.includes(p.id)).map(p => ({ ...p, premium: true })),
       ...catalogo.personalizados.map(p => ({
         id: p.id, nombre: p.nombre, colorAcento: p.colorAcento, fondoColor: p.fondoColor,
-        colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo || 'degradado', animado: false, premium: !!p.premium,
+        colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo || 'degradado', animado: !!p.animado, premium: !!p.premium,
         swatch: p.fondoTipo === 'color' ? p.fondoColor : `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})`,
       })),
     ];

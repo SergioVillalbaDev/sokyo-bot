@@ -580,27 +580,6 @@ export function useDashboard() {
     } catch (error) { console.error('Error publicando verificación:', error); return { error: 'Network error' }; }
   };
 
-  // --- EMBUDO DE BIENVENIDA: Test A/B ---
-  const guardarEmbudo = async (embudoAB) => {
-    if (!configServidor) return false;
-    try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/embudo`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embudoAB }),
-      });
-      const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
-    } catch (error) { console.error('Error guardando embudo:', error); }
-    return false;
-  };
-  const publicarEmbudo = async () => {
-    if (!configServidor) return { error: 'Sin servidor' };
-    try {
-      const res = await apiFetch(`/api/embudo/${configServidor.guildId}/publicar`, { method: 'POST' });
-      const data = await res.json();
-      return data.success ? data : { error: data.error || 'No se pudo publicar' };
-    } catch (error) { console.error('Error publicando embudo:', error); return { error: 'Network error' }; }
-  };
-
   // --- COMUNIDAD: mensajes de bienvenida / despedida ---
   const guardarBienvenidas = async (bienvenida, despedida) => {
     if (!configServidor) return false;
@@ -994,29 +973,6 @@ export function useDashboard() {
     return false;
   };
 
-  // Guarda la configuración de webhooks salientes (Pro).
-  const guardarWebhooks = async (datos) => {
-    if (!configServidor) return false;
-    try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/webhooks`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
-      });
-      const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
-    } catch (error) { console.error('Error guardando webhooks:', error); }
-    return false;
-  };
-
-  // Envía un webhook de prueba a la URL indicada. Devuelve { success, status?, error? }.
-  const probarWebhook = async ({ url, secret }) => {
-    if (!configServidor) return { success: false, error: 'Sin servidor' };
-    try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/webhooks/test`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, secret }),
-      });
-      return await res.json();
-    } catch (error) { console.error('Error probando webhook:', error); return { success: false, error: 'Fallo de conexión' }; }
-  };
 
   // Sube una imagen de prueba (dataURL). Devuelve { archivo, url } o { error }.
   const subirPrueba = async (dataUrl) => {
@@ -1246,8 +1202,6 @@ export function useDashboard() {
   useEffect(() => {
     if (activeTab === 'inicio') { cargarUso(); cargarTickets(); cargarLogs(); cargarUsuariosStats(); cargarConfiguracion(); cargarPing(); }
     else if (activeTab === 'tickets-gestion') { cargarTickets(); cargarConfiguracion(); }
-    else if (activeTab === 'config-comportamiento') { cargarConfiguracion(); cargarRoles(); }
-    else if (activeTab === 'config-reglas') { cargarConfiguracion(); cargarRoles(); cargarCategorias(); }
     else if (activeTab === 'config-acceso') { cargarConfiguracion(); cargarRoles(); }
     else if (activeTab === 'config-expresiones') { cargarEmojisServidor(); cargarStickers(); }
     else if (activeTab === 'config-niveles') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarRanking(); cargarCatalogoPresets(); }
@@ -1258,7 +1212,6 @@ export function useDashboard() {
     else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
     else if (activeTab === 'mod-automod') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
     else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
-    else if (activeTab === 'seg-embudo') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
     else if (activeTab === 'prod-bienvenidas') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
@@ -1278,8 +1231,10 @@ export function useDashboard() {
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
     else if (activeTab === 'prod-anuncios') { cargarConfiguracion(); cargarCanales(); cargarAnuncios(); cargarPresetsAnuncio(); }
     else if (activeTab === 'mod-registro') { cargarSanciones(); cargarTiposSancion(); cargarConfiguracion(); cargarCanales(); }
-    else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos' || activeTab === 'config-macros') cargarConfiguracion();
+    else if (activeTab === 'tickets-config') { cargarConfiguracion(); cargarRoles(); cargarCategorias(); cargarCanales(); }
+    else if (activeTab === 'config-textos') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
+    else if (activeTab === 'logs-todos') { cargarLogs(); cargarConfiguracion(); }
     else if (activeTab.startsWith('logs-')) cargarLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, guildId]);
@@ -1297,7 +1252,28 @@ export function useDashboard() {
     return () => clearInterval(intervalo);
   }, [ticketSeleccionado, activeTab]);
 
+  // Estado on/off de los módulos activables, para el indicador del menú lateral.
+  // Solo incluye las pestañas que tienen interruptor; el Sidebar pinta un punto
+  // verde (activo) o gris (configurable pero apagado). Vacío hasta cargar config.
+  const estadoModulos = (() => {
+    const c = configServidor;
+    if (!c) return {};
+    const b = (v) => !!v;
+    return {
+      'seg-verificacion': b(c.verificacion && c.verificacion.activo),
+      'prod-bienvenidas': b((c.bienvenida && c.bienvenida.activo) || (c.despedida && c.despedida.activo)),
+      'config-niveles': b(c.nivelesActivo),
+      'mod-automod': b(c.automod && c.automod.activo),
+      'mod-reportes': b(c.reportes && c.reportes.activo),
+      'seg-reportes': b(c.reportes && c.reportes.activo),
+      'voz-temporal': b(c.vozTemporal && c.vozTemporal.activo),
+      'datos-resumen': b(c.resumenDiario && c.resumenDiario.activo),
+      'com-sugerencias': b(c.canalSugerencias),
+    };
+  })();
+
   return {
+    estadoModulos,
     // estado tema / navegación
     theme, setTheme, activeTab, setActiveTab,
     // multi-servidor
@@ -1325,7 +1301,6 @@ export function useDashboard() {
     guardarAutomod,
     // seguridad
     guardarVerificacion, publicarVerificacion,
-    guardarEmbudo, publicarEmbudo,
     guardarBienvenidas, probarBienvenida,
     reportes, guardarReportes, cargarReportes, actualizarReporte, abrirTicketReporte,
     exportarConfig, importarConfig,
@@ -1349,7 +1324,7 @@ export function useDashboard() {
     esBroadcaster, servidoresBot, difundir,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
-    guardarAcceso, misPermisos, guardarWebhooks, probarWebhook,
+    guardarAcceso, misPermisos,
     // emojis y stickers
     stickers, crearEmoji, eliminarEmoji, crearSticker, eliminarSticker,
     // niveles

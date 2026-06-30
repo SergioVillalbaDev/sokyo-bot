@@ -10,6 +10,7 @@ const PresetPersonalizadoSchema = new mongoose.Schema({
     colorSecundario: { type: String, default: '#9b59b6' },
     fondoTipo: { type: String, enum: ['color', 'degradado'], default: 'degradado' },
     premium: { type: Boolean, default: false }, // bloquea su selección a no-premium
+    animado: { type: Boolean, default: false },  // se renderiza como GIF (solo en servidores premium)
 }, { _id: false });
 
 // Catálogo GLOBAL de presets de tarjeta (un único documento, clave 'global').

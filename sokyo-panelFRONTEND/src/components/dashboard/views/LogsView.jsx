@@ -1,8 +1,8 @@
 // Vista de logs — timeline con filtro por "pills" e indicador de capacidad del plan.
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Inbox, Crown } from 'lucide-react';
-import { Card } from '../../ui/primitives';
+import { Inbox, Crown, ScrollText } from 'lucide-react';
+import { Card, Toggle } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
 
 const pills = [
@@ -14,6 +14,46 @@ const pills = [
   { tab: 'logs-salidas', key: 'salidas' },
 ];
 
+// Qué eventos registra el bot (antes vivía en "Comportamiento").
+const LOG_ROWS = [
+  { k: 'tickets', titleKey: 'logTickets', descKey: 'logTicketsDesc' },
+  { k: 'entradas', titleKey: 'logEntradas', descKey: 'logEntradasDesc' },
+  { k: 'salidas', titleKey: 'logSalidas', descKey: 'logSalidasDesc' },
+  { k: 'mensajesBorrados', titleKey: 'logBorrados', descKey: 'logBorradosDesc' },
+  { k: 'mensajesEditados', titleKey: 'logEditados', descKey: 'logEditadosDesc' },
+];
+
+// Panel de ajustes de logs (qué se registra). Vive en la propia categoría Logs.
+function AjustesLogs({ dash }) {
+  const { t } = useTranslation();
+  const { configServidor, guardarComportamiento } = dash;
+  if (!configServidor) return null;
+  const b = (k) => t(`dashboard.behavior_v.${k}`);
+  const logsActivos = configServidor.logsActivos || {};
+  const val = (v, def = true) => (v === undefined || v === null ? def : v);
+
+  return (
+    <Card className="mb-6 p-6 shadow-soft">
+      <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><ScrollText size={18} className="text-brand" /> {b('logsTitle')}</h3>
+      <p className="mb-2 text-xs text-muted">{b('logsSub')}</p>
+      <div className="divide-y divide-line">
+        {LOG_ROWS.map((it) => (
+          <div key={it.k} className="flex items-center justify-between gap-4 py-3.5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-muted"><ScrollText size={18} /></span>
+              <div>
+                <p className="text-sm font-semibold text-fg">{b(it.titleKey)}</p>
+                <p className="text-xs text-muted">{b(it.descKey)}</p>
+              </div>
+            </div>
+            <Toggle checked={val(logsActivos[it.k])} onChange={(v) => guardarComportamiento({ logsActivos: { [it.k]: v } })} />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export default function LogsView({ dash }) {
   const { t } = useTranslation();
   const { obtenerLogsFiltrados, logsRegistrados, limiteLogs, esPremium, activeTab, setActiveTab } = dash;
@@ -21,6 +61,8 @@ export default function LogsView({ dash }) {
   const pct = Math.min(100, Math.round((logsRegistrados.length / limiteLogs) * 100));
 
   return (
+    <>
+    {activeTab === 'logs-todos' && <AjustesLogs dash={dash} />}
     <Card className="p-6">
       {/* Cabecera con capacidad del plan */}
       <div data-help="logs-capacidad" className="flex flex-col items-start justify-between gap-4 border-b border-line pb-5 sm:flex-row sm:items-center">
@@ -106,5 +148,6 @@ export default function LogsView({ dash }) {
         </div>
       )}
     </Card>
+    </>
   );
 }

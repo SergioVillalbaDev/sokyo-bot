@@ -454,6 +454,7 @@ module.exports = (client) => {
             if (req.body.fondoColor !== undefined) cambios.fondoColor = req.body.fondoColor;
             if (req.body.colorSecundario !== undefined) cambios.colorSecundario = req.body.colorSecundario;
             if (req.body.preset !== undefined) cambios.preset = req.body.preset ? String(req.body.preset).slice(0, 40) : null;
+            if (req.body.animado !== undefined) cambios.animado = !!req.body.animado;
             if (req.body.fondoImagen !== undefined) {
                 const v = req.body.fondoImagen;
                 cambios.fondoImagen = (v && (/^https?:\/\//i.test(v) || v.startsWith('/uploads/'))) ? String(v).slice(0, 500) : null;
@@ -496,6 +497,7 @@ module.exports = (client) => {
                 fondoColor: b.fondoColor || '#1e2030',
                 colorSecundario: b.colorSecundario || null,
                 preset: b.preset || null,
+                animado: !!b.animado,
             };
             // La imagen propia solo aplica con premium (igual que en el bot).
             if (b.fondoTipo === 'imagen') {
@@ -551,6 +553,7 @@ module.exports = (client) => {
                 colorSecundario: p.colorSecundario || '#9b59b6',
                 fondoTipo: ['color', 'degradado'].includes(p.fondoTipo) ? p.fondoTipo : 'degradado',
                 premium: !!p.premium,
+                animado: !!p.animado,
             }));
             const cat = await CatalogoPresets.findOneAndUpdate(
                 { clave: 'global' }, { $set: { ocultos, personalizados } },
@@ -1047,6 +1050,7 @@ app.get('/api/stats/uso', async (req, res) => {
                 'resumenDiario.activo': !!b.activo,
                 'resumenDiario.hora': Math.min(23, Math.max(0, parseInt(b.hora, 10) || 9)),
                 'resumenDiario.canalId': b.canalId ? String(b.canalId) : null,
+                'resumenDiario.destinatarioId': b.destinatarioId ? String(b.destinatarioId).trim() : null,
             };
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
@@ -1581,7 +1585,10 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!cfg) return res.status(404).json({ error: 'Servidor sin configurar.' });
             const guild = client.guilds.cache.get(gid);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado.' });
-            const member = await guild.members.fetch(req.usuario.id).catch(() => null);
+            // El panel autentica como staff (req.staff); el portal como usuario (req.usuario).
+            const probadorId = (req.staff && req.staff.id) || (req.usuario && req.usuario.id);
+            if (!probadorId) return res.status(401).json({ error: 'Sesión no válida.' });
+            const member = await guild.members.fetch(probadorId).catch(() => null);
             if (!member) return res.status(400).json({ error: 'No estás en ese servidor para la prueba.' });
             const r = await (tipo === 'despedida' ? enviarDespedida : enviarBienvenida)(member, cfg);
             if (r && r.error) return res.status(400).json({ error: r.error });

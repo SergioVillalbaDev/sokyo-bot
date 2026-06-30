@@ -1,5 +1,6 @@
-// Resumen diario (Pro) — briefing del servidor escrito por IA, por MD al dueño
-// (+ canal opcional) a la hora elegida. Gasta 1 uso de la cuota de IA al día.
+// Parte diario del servidor (Pro) — estadísticas (crecimiento, actividad,
+// tickets, moderación, niveles e ideas de crecimiento) por MD al dueño o al
+// destinatario configurado (+ canal opcional) a la hora elegida.
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mail, Send, Save, Check, AlertTriangle, Loader2, Info } from 'lucide-react';
@@ -14,6 +15,7 @@ export default function ResumenView({ dash }) {
   const [activo, setActivo] = useState(false);
   const [hora, setHora] = useState(9);
   const [canalId, setCanalId] = useState('');
+  const [destinatario, setDestinatario] = useState('');
   const [estado, setEstado] = useState(''); // '', 'guardado', 'error'
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -25,6 +27,7 @@ export default function ResumenView({ dash }) {
     setActivo(!!rd.activo);
     setHora(typeof rd.hora === 'number' ? rd.hora : 9);
     setCanalId(rd.canalId || '');
+    setDestinatario(rd.destinatarioId || '');
   }, [configServidor]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -32,7 +35,7 @@ export default function ResumenView({ dash }) {
 
   const guardar = async () => {
     setEstado(''); setAviso('');
-    const r = await guardarResumen({ activo, hora, canalId: canalId || null });
+    const r = await guardarResumen({ activo, hora, canalId: canalId || null, destinatarioId: destinatario.trim() || null });
     setEstado(r.ok ? 'guardado' : 'error');
     if (r.error) setAviso(r.error);
   };
@@ -75,6 +78,12 @@ export default function ResumenView({ dash }) {
               {canalesTexto.map((c) => <option key={c.id} value={c.id}># {c.nombre || c.name}</option>)}
             </select>
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-muted">{t('dashboard.resumen_v.recipient')}</label>
+          <input type="text" value={destinatario} onChange={(e) => setDestinatario(e.target.value)} placeholder={t('dashboard.resumen_v.recipientPh')} className={field} />
+          <p className="text-xs text-muted">{t('dashboard.resumen_v.recipientHint')}</p>
         </div>
 
         <div data-help="resumen-acciones" className="mt-5 flex flex-wrap items-center gap-2.5">

@@ -67,12 +67,6 @@ export const sectionTours = {
     { id: 'guardar', sel: '[data-help="autorol-guardar"]', side: 'top', align: 'start' },
   ],
 
-  'seg-embudo': [
-    { id: 'config', sel: '[data-help="embudo-config"]', side: 'bottom', align: 'start' },
-    { id: 'variantes', sel: '[data-help="embudo-variantes"]', side: 'top', align: 'start' },
-    { id: 'acciones', sel: '[data-help="embudo-acciones"]', side: 'top', align: 'start' },
-  ],
-
   'prod-bienvenidas': [
     { id: 'tabs', sel: '[data-help="bienvenida-tabs"]', side: 'bottom', align: 'start' },
     { id: 'mensaje', sel: '[data-help="bienvenida-mensaje"]', side: 'top', align: 'start' },

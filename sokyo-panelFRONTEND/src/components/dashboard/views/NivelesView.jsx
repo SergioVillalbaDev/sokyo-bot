@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, Trophy, Save, Check, Plus, X, Mic, Gauge, Megaphone, Ban, Image, Zap, Palette, Eye, EyeOff } from 'lucide-react';
+import { TrendingUp, Trophy, Save, Check, Plus, X, Mic, Gauge, Megaphone, Ban, Image, Zap, Palette, Eye, EyeOff, Info, Sparkles } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
 import { PRESETS_TARJETA } from '../../../presetsTarjeta';
 
@@ -97,7 +97,7 @@ export default function NivelesView({ dash }) {
   // --- Catálogo de presets ---
   const toggleOculto = (id) => { setGuardadoCat(false); setOcultos((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id])); };
   const setCustomCampo = (i, c, v) => { setGuardadoCat(false); setCustom(custom.map((p, j) => (j === i ? { ...p, [c]: v } : p))); };
-  const addCustom = () => { setGuardadoCat(false); setCustom([...custom, { id: `custom-${Date.now()}`, nombre: t('dashboard.niveles_v.catNewName'), colorAcento: '#5865F2', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoTipo: 'degradado', premium: false }]); };
+  const addCustom = () => { setGuardadoCat(false); setCustom([...custom, { id: `custom-${Date.now()}`, nombre: t('dashboard.niveles_v.catNewName'), colorAcento: '#5865F2', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoTipo: 'degradado', premium: false, animado: false }]); };
   const removeCustom = (i) => { setGuardadoCat(false); setCustom(custom.filter((_, j) => j !== i)); };
   const guardarCatalogo = async () => {
     setGuardandoCat(true);
@@ -229,7 +229,12 @@ export default function NivelesView({ dash }) {
                       <option value="degradado">{t('dashboard.niveles_v.catGradient')}</option>
                       <option value="color">{t('dashboard.niveles_v.catSolid')}</option>
                     </select>
-                    <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-muted">{t('dashboard.niveles_v.catPremium')} <Toggle checked={!!p.premium} onChange={(v) => setCustomCampo(i, 'premium', v)} /></label>
+                    <label className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-muted" title={t('dashboard.niveles_v.catAnimatedHelp')}>
+                      <Sparkles size={13} className="text-brand" /> {t('dashboard.niveles_v.catAnimated')} <Toggle checked={!!p.animado} onChange={(v) => setCustomCampo(i, 'animado', v)} />
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-muted" title={t('dashboard.niveles_v.catPremiumHelp')}>
+                      <Info size={13} className="text-brand" /> {t('dashboard.niveles_v.catPremium')} <Toggle checked={!!p.premium} onChange={(v) => setCustomCampo(i, 'premium', v)} />
+                    </label>
                   </div>
                   <div className="mt-2 h-8 rounded-lg" style={{ background: p.fondoTipo === 'color' ? p.fondoColor : `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})`, border: `2px solid ${p.colorAcento}` }} />
                 </div>

@@ -77,6 +77,19 @@ function dibujarTarjeta(ctx, opts, imgs, fase = 0) {
             ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); dibujado = true;
         }
         if (!dibujado) { ctx.fillStyle = fondoColor || FONDO; ctx.fillRect(0, 0, W, H); }
+
+        // Animación genérica para diseños personalizados animados (sin arte de
+        // fábrica): un barrido de luz diagonal que recorre la tarjeta. La fase va
+        // de 0 a 1, así que el barrido entra y sale fuera del lienzo y el bucle es
+        // continuo.
+        if (opts.animado) {
+            const cx = -150 + fase * (W + 300);
+            const sheen = ctx.createLinearGradient(cx - 130, 0, cx + 130, H);
+            sheen.addColorStop(0, 'rgba(255,255,255,0)');
+            sheen.addColorStop(0.5, 'rgba(255,255,255,0.16)');
+            sheen.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = sheen; ctx.fillRect(0, 0, W, H);
+        }
     }
     ctx.restore();
 
@@ -84,7 +97,10 @@ function dibujarTarjeta(ctx, opts, imgs, fase = 0) {
     if (estilo && estilo.borde) {
         estilo.borde(ctx, W, H, fase, acento);
     } else {
-        ctx.strokeStyle = acento; ctx.lineWidth = 6; roundRect(ctx, 3, 3, W - 6, H - 6, 28); ctx.stroke();
+        // En diseños personalizados animados, el borde late suavemente.
+        ctx.strokeStyle = acento;
+        ctx.lineWidth = opts.animado ? 6 + 2 * Math.sin(fase * Math.PI * 2) : 6;
+        roundRect(ctx, 3, 3, W - 6, H - 6, 28); ctx.stroke();
     }
 
     // --- Avatar circular ---

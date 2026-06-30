@@ -15,12 +15,8 @@ import TicketsView from './views/TicketsView';
 import ChatView from './views/ChatView';
 import UsersView from './views/UsersView';
 import TextsView from './views/TextsView';
-import ComportamientoView from './views/ComportamientoView';
-import RulesView from './views/RulesView';
-import MacrosView from './views/MacrosView';
-import IncidentsView from './views/IncidentsView';
+import TicketsAjustesView from './views/TicketsAjustesView';
 import LogsView from './views/LogsView';
-import ModulesView from './views/ModulesView';
 import RolesView from './views/RolesView';
 import AutoRolView from './views/AutoRolView';
 import PanelesView from './views/PanelesView';
@@ -29,7 +25,6 @@ import TiposSancionView from './views/TiposSancionView';
 import RegistroSancionesView from './views/RegistroSancionesView';
 import AutomodView from './views/AutomodView';
 import VerificacionView from './views/VerificacionView';
-import EmbudoView from './views/EmbudoView';
 import ReportesView from './views/ReportesView';
 import BackupView from './views/BackupView';
 import AccesoView from './views/AccesoView';
@@ -45,7 +40,6 @@ import ResumenView from './views/ResumenView';
 import MusicaView from './views/MusicaView';
 import VozTemporalView from './views/VozTemporalView';
 import OwnerSubsView from './views/OwnerSubsView';
-import IntegracionesView from './views/IntegracionesView';
 import SorteosView from './views/SorteosView';
 import EventosView from './views/EventosView';
 import EncuestasView from './views/EncuestasView';
@@ -56,7 +50,7 @@ import DinamicasView from './views/DinamicasView';
 export default function Dashboard({ onExitToLanding, onLogout }) {
   const { t } = useTranslation();
   const dash = useDashboard();
-  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId, misPermisos, mostrarSelectorServidor, setMostrarSelectorServidor } = dash;
+  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId, misPermisos, mostrarSelectorServidor, setMostrarSelectorServidor, estadoModulos } = dash;
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sokyoSidebarCollapsed') === '1');
   const toggleCollapsed = (value) => {
@@ -98,11 +92,8 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'inicio') return <InicioView dash={dash} />;
     if (activeTab === 'tickets-gestion') return ticketSeleccionado ? <ChatView dash={dash} /> : <TicketsView dash={dash} />;
     if (activeTab === 'tickets-usuarios') return <UsersView dash={dash} />;
-    if (activeTab === 'tickets-config') return <IncidentsView dash={dash} />;
+    if (activeTab === 'tickets-config') return <TicketsAjustesView dash={dash} />;
     if (activeTab === 'config-textos') return <TextsView dash={dash} />;
-    if (activeTab === 'config-comportamiento') return <ComportamientoView dash={dash} />;
-    if (activeTab === 'config-reglas') return <RulesView dash={dash} />;
-    if (activeTab === 'config-macros') return <MacrosView dash={dash} />;
     if (activeTab === 'config-acceso') return <AccesoView dash={dash} />;
     if (activeTab === 'config-expresiones') return <ExpresionesView dash={dash} />;
     if (activeTab === 'config-niveles') return <NivelesView dash={dash} />;
@@ -114,7 +105,6 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'mod-automod') return <AutomodView dash={dash} />;
     if (activeTab === 'mod-registro') return <RegistroSancionesView dash={dash} />;
     if (activeTab === 'seg-verificacion') return <VerificacionView dash={dash} />;
-    if (activeTab === 'seg-embudo') return <EmbudoView dash={dash} />;
     if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') return <ReportesView dash={dash} />;
     if (activeTab === 'seg-backup') return <BackupView dash={dash} />;
     if (activeTab === 'prod-autorespuestas') return <AutoRespuestasView dash={dash} />;
@@ -133,8 +123,6 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'owner-subs') return <OwnerSubsView dash={dash} />;
     if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <ResumenView dash={dash} />;
-    if (activeTab === 'config-webhooks') return <IntegracionesView dash={dash} />;
-    if (activeTab === 'config') return <ModulesView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
     return <InicioView dash={dash} />;
   };
@@ -158,6 +146,7 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
         guildId={guildId}
         setGuildId={setGuildId}
         permisos={misPermisos}
+        moduleStatus={estadoModulos}
         onLogout={onLogout}
       />
 

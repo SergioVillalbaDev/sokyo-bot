@@ -591,6 +591,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         activo: { type: Boolean, default: false },
         hora: { type: Number, default: 9 },               // hora UTC (0-23) del envío
         canalId: { type: String, default: null },         // canal opcional donde publicarlo además del MD
+        destinatarioId: { type: String, default: null },  // usuario que recibe el MD (vacío = dueño del servidor)
         lastDia: { type: String, default: '' },           // 'YYYY-MM-DD' del último envío (anti-duplicado)
     },
 

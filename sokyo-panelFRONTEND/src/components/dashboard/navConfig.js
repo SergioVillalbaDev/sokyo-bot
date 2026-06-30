@@ -3,11 +3,11 @@
 // y dashboard.meta.<key>. Cada `tab` coincide con los valores de activeTab.
 import {
   Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
-  Pencil, LogIn, LogOut, Settings, Type, Plug, LayoutGrid, SlidersVertical, ShieldCheck, Zap, UsersRound,
+  Pencil, LogIn, LogOut, Settings, Type, LayoutGrid, UsersRound,
   UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
-  UserCheck, Flag, DatabaseBackup, FlaskConical,
+  UserCheck, Flag, DatabaseBackup,
   Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
-  Music, Webhook, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2, Mic2,
+  Music, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2, Mic2,
 } from 'lucide-react';
 
 // Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
@@ -36,7 +36,6 @@ export const navGroups = [
     icon: DoorOpen,
     items: [
       { tab: 'seg-verificacion', icon: UserCheck },
-      { tab: 'seg-embudo', icon: FlaskConical, premium: true },
       { tab: 'prod-bienvenidas', icon: Sparkles },
       { tab: 'roles-autorol', icon: UserPlus },
       { tab: 'config-niveles', icon: TrendingUp },
@@ -59,6 +58,13 @@ export const navGroups = [
     icon: Music,
     items: [
       { tab: 'musica', icon: Music },
+    ],
+  },
+  {
+    // Canales de voz temporales: categoría propia (antes colgaba de Música).
+    id: 'voz',
+    icon: Mic2,
+    items: [
       { tab: 'voz-temporal', icon: Mic2 },
     ],
   },
@@ -116,15 +122,10 @@ export const navGroups = [
     id: 'config',
     icon: Settings,
     items: [
-      { tab: 'config-comportamiento', icon: SlidersVertical },
-      { tab: 'config-reglas', icon: ShieldCheck },
       { tab: 'config-acceso', icon: KeyRound },
       { tab: 'config-expresiones', icon: Smile },
-      { tab: 'config-macros', icon: Zap },
       { tab: 'config-textos', icon: Type },
-      { tab: 'config-webhooks', icon: Webhook, premium: true },
       { tab: 'seg-backup', icon: DatabaseBackup, premium: true },
-      { tab: 'config', icon: Plug },
     ],
   },
   {

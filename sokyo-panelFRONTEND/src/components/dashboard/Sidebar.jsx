@@ -10,7 +10,7 @@ import { getStaffSession } from '../../lib/api';
 
 const esOwner = !!getStaffSession()?.owner;
 
-export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, mobileOpen, setMobileOpen, onExitToLanding, servidorInfo, esPremium, onRequestUpgrade, servidores = [], guildId, setGuildId, permisos, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, mobileOpen, setMobileOpen, onExitToLanding, servidorInfo, esPremium, onRequestUpgrade, servidores = [], guildId, setGuildId, permisos, moduleStatus = {}, onLogout }) {
   const { t } = useTranslation();
   const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
 
@@ -180,11 +180,13 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                         const active = activeTab === item.tab;
                         // Función de pago en un servidor Free (el propietario lo ve todo).
                         const locked = item.premium && !esPremium && !esOwner;
+                        // Estado on/off del módulo (si es activable). undefined = no aplica.
+                        const estado = Object.prototype.hasOwnProperty.call(moduleStatus, item.tab) ? moduleStatus[item.tab] : undefined;
                         return (
                           <button
                             key={item.tab}
                             onClick={() => (locked ? onRequestUpgrade?.(item.tab) : setActiveTab(item.tab))}
-                            title={locked ? t('dashboard.plan.upgrade') : undefined}
+                            title={locked ? t('dashboard.plan.upgrade') : (estado === false ? t('dashboard.nav.moduleOff') : (estado === true ? t('dashboard.nav.moduleOn') : undefined))}
                             className={cn(
                               'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
                               active ? 'bg-gradient-brand font-semibold text-on-brand shadow-md' : 'text-muted hover:bg-elevated hover:text-fg'
@@ -192,6 +194,14 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                           >
                             <item.icon size={16} className="shrink-0" />
                             <span className="flex-1 truncate text-left">{t(`dashboard.nav.items.${item.tab}`)}</span>
+                            {estado !== undefined && (
+                              <span
+                                aria-hidden="true"
+                                className={cn('h-2 w-2 shrink-0 rounded-full', estado
+                                  ? (active ? 'bg-on-brand' : 'bg-success')
+                                  : (active ? 'bg-on-brand/40 ring-1 ring-on-brand/60' : 'bg-line ring-1 ring-muted/40'))}
+                              />
+                            )}
                             {locked && <Crown size={13} className="shrink-0 text-amber-400" />}
                           </button>
                         );

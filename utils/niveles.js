@@ -20,6 +20,7 @@ async function opcionesTarjeta(userId, cfg) {
         fondoColor: tp.fondoColor,
         colorSecundario: tp.colorSecundario,
         preset: tp.preset || null,
+        animado: !!tp.animado, // diseño personalizado animado (GIF, solo premium)
     };
     if (tp.fondoTipo === 'imagen') {
         if (cfg?.esPremium) {
@@ -38,7 +39,9 @@ async function opcionesTarjeta(userId, cfg) {
 // `render` = { avatarURL, nombre, nivel, rank, xpActual, xpNecesaria }.
 async function construirBuffer(opc, esPremium, render) {
     const estiloId = (esPremium && opc.preset && ESTILOS[opc.preset]) ? opc.preset : null;
-    const animado = estiloId ? ESTILOS[estiloId].animado : false;
+    // Animado si: es un estilo de fábrica animado, O un diseño personalizado
+    // marcado como animado (ambos casos requieren premium).
+    const animado = estiloId ? ESTILOS[estiloId].animado : (esPremium && !!opc.animado);
     let buffer = null;
     let ext = 'png';
     if (animado) {

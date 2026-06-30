@@ -11,6 +11,7 @@ const TarjetaPersonalSchema = new mongoose.Schema({
     colorSecundario: { type: String, default: '#9b59b6' }, // 2º color del degradado
     fondoImagen: { type: String, default: null }, // URL externa o /uploads (solo premium)
     preset: { type: String, default: null }, // id del diseño prediseñado elegido (premium)
+    animado: { type: Boolean, default: false }, // diseño personalizado animado (GIF, solo premium)
 }, { timestamps: true });
 
 module.exports = mongoose.model('TarjetaPersonal', TarjetaPersonalSchema);
