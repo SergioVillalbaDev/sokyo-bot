@@ -738,15 +738,16 @@ export function useDashboard() {
       return { error: data.error || 'No se pudo generar el informe' };
     } catch (error) { console.error('Error informe IA:', error); return { error: 'Network error' }; }
   };
-  // Descarga el transcript HTML del ticket (Pro).
-  const descargarTranscript = async (canalId) => {
+  // Descarga el transcript del ticket (Pro). format: 'html' | 'pdf'.
+  const descargarTranscript = async (canalId, format = 'html') => {
     try {
-      const res = await apiFetch(`/api/tickets/${canalId}/transcript`);
+      const query = format === 'pdf' ? '?format=pdf' : '';
+      const res = await apiFetch(`/api/tickets/${canalId}/transcript${query}`);
       if (!res.ok) { const d = await res.json().catch(() => ({})); return { error: d.error || 'No disponible' }; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `transcript-${canalId}.html`;
+      a.href = url; a.download = `transcript-${canalId}.${format === 'pdf' ? 'pdf' : 'html'}`;
       a.click();
       URL.revokeObjectURL(url);
       return { ok: true };

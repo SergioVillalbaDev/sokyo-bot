@@ -1187,7 +1187,7 @@ export default {
       addNote: 'Add a private note...', saveNote: 'Save note',
       tags: 'Tags', addTag: 'Add tag...',
       history: 'User history', historyNone: 'No other tickets.',
-      transcript: 'HTML transcript',
+      transcript: 'HTML transcript', transcriptPdf: 'PDF transcript',
       aiTitle: 'AI assistant', aiSummarize: 'Summarize ticket', aiSuggest: 'Suggest reply',
       aiSummaryTitle: 'Ticket summary (AI)', aiUsage: 'AI {{usos}}/{{cuota}} this month',
     },
@@ -1243,6 +1243,8 @@ export default {
       logSalidas: 'Server leaves', logSalidasDesc: 'When a user leaves.',
       logBorrados: 'Deleted messages', logBorradosDesc: 'Records deleted messages.',
       logEditados: 'Edited messages', logEditadosDesc: 'Records message edits.',
+      logsChannel: 'Logs channel', logsChannelHint: 'Every recorded event (tickets, joins/leaves, deleted/edited messages) is also posted to this Discord channel, including any images.',
+      logsChannelNone: 'No channel (web panel only)',
     },
     rules_v: {
       autosave: 'Changes are saved automatically. Restart the bot if you just updated the code.',

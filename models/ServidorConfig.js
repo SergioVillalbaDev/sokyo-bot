@@ -92,6 +92,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     // --- MODERACIÓN ---
     canalModLogId: { type: String, default: null },   // canal donde se registran las sanciones
     dmSancion: { type: Boolean, default: true },       // avisar por MD al usuario sancionado
+    canalLogsId: { type: String, default: null },     // canal donde se publican los logs (tickets, entradas/salidas, mensajes borrados/editados)
 
     // --- MÚSICA (Lavalink) ---
     // Controla quién puede usar la música y cómo se comporta el reproductor.

@@ -1192,7 +1192,7 @@ export default {
       addNote: 'Añade un apunte secreto...', saveNote: 'Guardar Nota',
       tags: 'Etiquetas', addTag: 'Añadir etiqueta...',
       history: 'Historial del usuario', historyNone: 'No tiene otros tickets.',
-      transcript: 'Transcript HTML',
+      transcript: 'Transcript HTML', transcriptPdf: 'Transcript PDF',
       aiTitle: 'Asistente IA', aiSummarize: 'Resumir ticket', aiSuggest: 'Sugerir respuesta',
       aiSummaryTitle: 'Resumen del ticket (IA)', aiUsage: 'IA {{usos}}/{{cuota}} este mes',
     },
@@ -1248,6 +1248,8 @@ export default {
       logSalidas: 'Salidas del servidor', logSalidasDesc: 'Cuando un usuario se va.',
       logBorrados: 'Mensajes eliminados', logBorradosDesc: 'Registra los mensajes borrados.',
       logEditados: 'Mensajes editados', logEditadosDesc: 'Registra las ediciones de mensajes.',
+      logsChannel: 'Canal de logs', logsChannelHint: 'Cada evento registrado (tickets, entradas/salidas, mensajes borrados/editados) se publica también en este canal de Discord, incluidas las imágenes.',
+      logsChannelNone: 'Sin canal (solo panel web)',
     },
     rules_v: {
       autosave: 'Los cambios se guardan automáticamente. Reinicia el bot si acabas de actualizar el código.',

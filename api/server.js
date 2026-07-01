@@ -25,7 +25,7 @@ const { publicarPanel: publicarPanelEmbudo } = require('../utils/embudo.js');
 const { enviarBienvenida, enviarDespedida } = require('../utils/bienvenida.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
 const { construirMensaje, sanearEmbed, embedTieneContenido } = require('../utils/embeds.js');
-const { cerrarTicket, reabrirTicket, construirTranscriptHTML } = require('../utils/ticketManager.js');
+const { cerrarTicket, reabrirTicket, construirTranscriptHTML, generarTranscriptPDF } = require('../utils/ticketManager.js');
 const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
@@ -1044,19 +1044,27 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    // --- TRANSCRIPT HTML (Pro): descarga la conversación del ticket en HTML ---
+    // --- TRANSCRIPT HTML/PDF (Pro): descarga la conversación del ticket ---
     app.get('/api/tickets/:canalId/transcript', scopeTicket, async (req, res) => {
         try {
             const ticket = await Ticket.findOne({ canalId: req.params.canalId });
             if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
             const cfg = await ServidorConfig.findOne({ guildId: ticket.guildId });
-            if (!billing.esPro(cfg)) return res.status(402).json({ error: 'Los transcripts en HTML son una función Pro.' });
+            if (!billing.esPro(cfg)) return res.status(402).json({ error: 'Los transcripts en HTML/PDF son una función Pro.' });
+
+            if (req.query.format === 'pdf') {
+                const buffer = await generarTranscriptPDF(req.params.canalId, ticket);
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename="transcript-${req.params.canalId}.pdf"`);
+                return res.send(buffer);
+            }
+
             const html = await construirTranscriptHTML(req.params.canalId, ticket);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename="transcript-${req.params.canalId}.html"`);
             res.send(html);
         } catch (error) {
-            console.error('Error generando transcript HTML:', error.message);
+            console.error('Error generando transcript:', error.message);
             res.status(500).json({ error: 'No se pudo generar el transcript' });
         }
     });
@@ -1162,7 +1170,7 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/comportamiento', async (req, res) => {
         try {
             const { guildId } = req.params;
-            const { ratingActivo, enviarTranscript, avisoCierreCanal, pingSoporte, rolSoporteId, logsActivos } = req.body;
+            const { ratingActivo, enviarTranscript, avisoCierreCanal, pingSoporte, rolSoporteId, logsActivos, canalLogsId } = req.body;
 
             // Construimos solo con los campos que llegan (evita pisar con undefined).
             const cambios = {};
@@ -1171,6 +1179,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (avisoCierreCanal !== undefined) cambios.avisoCierreCanal = !!avisoCierreCanal;
             if (pingSoporte !== undefined) cambios.pingSoporte = !!pingSoporte;
             if (rolSoporteId !== undefined) cambios.rolSoporteId = rolSoporteId || null;
+            if (canalLogsId !== undefined) cambios.canalLogsId = canalLogsId || null;
             if (logsActivos && typeof logsActivos === 'object') {
                 ['entradas', 'salidas', 'mensajesBorrados', 'mensajesEditados', 'tickets'].forEach((k) => {
                     if (logsActivos[k] !== undefined) cambios[`logsActivos.${k}`] = !!logsActivos[k];

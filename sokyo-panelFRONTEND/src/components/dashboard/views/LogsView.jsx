@@ -1,7 +1,8 @@
 // Vista de logs — timeline con filtro por "pills" e indicador de capacidad del plan.
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Inbox, Crown, ScrollText } from 'lucide-react';
+import { Inbox, Crown, ScrollText, Hash, Save, Check } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
 
@@ -23,14 +24,24 @@ const LOG_ROWS = [
   { k: 'mensajesEditados', titleKey: 'logEditados', descKey: 'logEditadosDesc' },
 ];
 
-// Panel de ajustes de logs (qué se registra). Vive en la propia categoría Logs.
+// Panel de ajustes de logs (qué se registra + canal de Discord). Vive en la
+// propia categoría Logs.
 function AjustesLogs({ dash }) {
   const { t } = useTranslation();
-  const { configServidor, guardarComportamiento } = dash;
+  const { configServidor, guardarComportamiento, canales } = dash;
+  const [canalSel, setCanalSel] = useState('');
+  const [guardado, setGuardado] = useState(false);
   if (!configServidor) return null;
   const b = (k) => t(`dashboard.behavior_v.${k}`);
   const logsActivos = configServidor.logsActivos || {};
   const val = (v, def = true) => (v === undefined || v === null ? def : v);
+  const canalActual = configServidor.canalLogsId || '';
+  const canalValor = canalSel || canalActual;
+
+  const guardarCanal = async () => {
+    const ok = await guardarComportamiento({ canalLogsId: canalValor || null });
+    setGuardado(!!ok);
+  };
 
   return (
     <Card className="mb-6 p-6 shadow-soft">
@@ -49,6 +60,26 @@ function AjustesLogs({ dash }) {
             <Toggle checked={val(logsActivos[it.k])} onChange={(v) => guardarComportamiento({ logsActivos: { [it.k]: v } })} />
           </div>
         ))}
+      </div>
+
+      {/* Canal de Discord donde se publican los logs */}
+      <div className="mt-4 rounded-2xl border border-line bg-bg p-4">
+        <h4 className="mb-1 flex items-center gap-2 text-sm font-bold text-fg"><Hash size={16} className="text-brand" /> {b('logsChannel')}</h4>
+        <p className="mb-3 text-xs text-muted">{b('logsChannelHint')}</p>
+        <select
+          value={canalValor}
+          onChange={(e) => { setCanalSel(e.target.value); setGuardado(false); }}
+          className="w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand"
+        >
+          <option value="">{b('logsChannelNone')}</option>
+          {(canales || []).map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+        </select>
+        <div className="mt-3 flex items-center gap-3">
+          <button onClick={guardarCanal} className="flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90">
+            <Save size={15} /> {t('dashboard.mod_v.save')}
+          </button>
+          {guardado && <span className="flex items-center gap-1.5 text-xs font-semibold text-success"><Check size={14} /> {t('dashboard.mod_v.saved')}</span>}
+        </div>
       </div>
     </Card>
   );
@@ -141,6 +172,15 @@ export default function LogsView({ dash }) {
                 <div className="mt-1 text-sm text-fg">👤 {t('dashboard.logs_v.involvedUser')} <strong>{log.usuario}</strong></div>
                 {log.detalles && (
                   <div className="mt-2 whitespace-pre-wrap rounded-lg bg-card px-3 py-2 text-sm italic text-muted">{log.detalles}</div>
+                )}
+                {log.imagenes?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {log.imagenes.map((url, j) => (
+                      <a key={j} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt="adjunto" className="h-20 w-20 rounded-lg border border-line object-cover" />
+                      </a>
+                    ))}
+                  </div>
                 )}
               </div>
             </motion.div>

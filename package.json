@@ -24,6 +24,7 @@
     "helmet": "^8.2.0",
     "lavalink-client": "^2.10.3",
     "mongoose": "^9.6.3",
+    "pdfkit": "^0.19.1",
     "stripe": "^22.2.2"
   }
 }

@@ -29,8 +29,8 @@ export default function ChatView({ dash }) {
     if (accion === 'sugerir') setNuevoMensaje((prev) => (prev ? `${prev} ${r.texto}` : r.texto));
     else setIaResumen(r.texto);
   };
-  const bajarTranscript = async () => {
-    const r = await descargarTranscript(ticket.canalId);
+  const bajarTranscript = async (format) => {
+    const r = await descargarTranscript(ticket.canalId, format);
     if (r.error) setIaError(r.error);
   };
 
@@ -75,14 +75,24 @@ export default function ChatView({ dash }) {
         </div>
         <div className="flex items-center gap-2">
           {esPremium && (
-            <button
-              type="button"
-              onClick={bajarTranscript}
-              title={t('dashboard.chat_v.transcript')}
-              className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
-            >
-              <FileDown size={15} /> {t('dashboard.chat_v.transcript')}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => bajarTranscript('html')}
+                title={t('dashboard.chat_v.transcript')}
+                className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+              >
+                <FileDown size={15} /> {t('dashboard.chat_v.transcript')}
+              </button>
+              <button
+                type="button"
+                onClick={() => bajarTranscript('pdf')}
+                title={t('dashboard.chat_v.transcriptPdf')}
+                className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+              >
+                <FileDown size={15} /> {t('dashboard.chat_v.transcriptPdf')}
+              </button>
+            </>
           )}
           {!cerrado ? (
             <button

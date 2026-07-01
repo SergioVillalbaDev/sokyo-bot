@@ -4,6 +4,7 @@ const { getConfig, logActivo } = require('../utils/config.js');
 const { revisarEntrada } = require('../utils/antiRaid.js');
 const { asignarCohorte, enviarMD } = require('../utils/embudo.js');
 const { enviarBienvenida } = require('../utils/bienvenida.js');
+const { enviarLogADiscord } = require('../utils/logsManager.js');
 
 module.exports = {
     name: Events.GuildMemberAdd,
@@ -57,7 +58,7 @@ module.exports = {
         // --- Log de entrada (comportamiento existente) ---
         try {
             if (!logActivo(cfg, 'entradas')) return;
-            await Log.create({
+            const log = await Log.create({
                 guildId: member.guild.id,
                 categoria: 'Entradas',
                 accion: '👋 User joined',
@@ -65,6 +66,7 @@ module.exports = {
                 detalles: `Account created on: ${member.user.createdAt.toLocaleDateString('en-US')}`,
                 color: '#2ecc71'
             });
+            await enviarLogADiscord(client, log);
         } catch (error) { console.error('Error guardando log Join:', error); }
     }
 };

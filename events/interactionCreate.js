@@ -329,7 +329,7 @@ module.exports = {
                 ticket.ultimaInteractStaff = new Date();
                 await ticket.save();
 
-                await registrarLogTicket(ticket, '🙋 Ticket claimed', '#3498db', interaction.user.username);
+                await registrarLogTicket(client, ticket, '🙋 Ticket claimed', '#3498db', interaction.user.username);
 
                 const embedOriginal = interaction.message.embeds[0];
                 const embedModificado = EmbedBuilder.from(embedOriginal).addFields({ name: '👀 Handled by', value: `🙋‍♂️ ${interaction.user.username}`, inline: true });
@@ -384,7 +384,7 @@ module.exports = {
                 const valoracion = parseInt(partes[1]);
                 try {
                     const ticket = await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion }, { new: true });
-                    if (ticket) await registrarLogTicket(ticket, `⭐ Ticket rated (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
+                    if (ticket) await registrarLogTicket(client, ticket, `⭐ Ticket rated (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
                     const embedGracias = new EmbedBuilder().setColor('#2ecc71').setTitle('💖 Thanks for your feedback!').setDescription(`You rated the support you received with **${valoracion} stars**.`);
                     await interaction.update({ embeds: [embedGracias], components: [] });
                 } catch (e) { await interaction.reply({ content: 'Error saving.', ephemeral: true }); }
@@ -487,7 +487,7 @@ module.exports = {
                     visibleWeb: true
                 });
 
-                await registrarLogTicket(nuevoTicket, '🎫 Ticket opened', '#2ecc71', interaction.user.username);
+                await registrarLogTicket(client, nuevoTicket, '🎫 Ticket opened', '#2ecc71', interaction.user.username);
 
                 const notaBienvenida = (config && config.mensajeBienvenida) || 'A team member will review it shortly.';
                 const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(`**Reason:** ${motivo}\n\n**User’s description:**\n${descripcion}\n\n*${notaBienvenida}*`).setColor(colorHex).addFields({ name: '🚨 Priority', value: `**${urgencia}**`, inline: true });
@@ -525,7 +525,7 @@ module.exports = {
                                 nuevoTicket.participantes.push({ id: agente.id, username: agente.user.username, avatar: avatarAgente, rol: 'Staff' });
                             }
                             await nuevoTicket.save();
-                            await registrarLogTicket(nuevoTicket, '🤖 Auto-assigned', '#3498db', agente.user.username);
+                            await registrarLogTicket(client, nuevoTicket, '🤖 Auto-assigned', '#3498db', agente.user.username);
                             await canalTicket.send({ content: `🙋 Automatically assigned to <@${agente.id}>.`, allowedMentions: { users: [agente.id] } }).catch(() => {});
                         }
                     } catch (e) { console.error('Error en auto-asignación:', e); }

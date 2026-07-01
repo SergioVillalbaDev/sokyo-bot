@@ -6,6 +6,7 @@ const logSchema = new mongoose.Schema({
     accion: { type: String, required: true },
     usuario: { type: String, required: true },
     detalles: { type: String, default: '' },
+    imagenes: { type: [String], default: [] }, // adjuntos del mensaje borrado/editado (si tenía)
     color: { type: String, default: '#3498db' },
     fecha: { type: Date, default: Date.now }
 });
