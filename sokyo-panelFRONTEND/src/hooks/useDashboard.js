@@ -1256,7 +1256,7 @@ export function useDashboard() {
     else if (activeTab === 'tickets-config') { cargarConfiguracion(); cargarRoles(); cargarCategorias(); cargarCanales(); }
     else if (activeTab === 'config-textos') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
-    else if (activeTab === 'logs-todos') { cargarLogs(); cargarConfiguracion(); }
+    else if (activeTab === 'logs-todos') { cargarLogs(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab.startsWith('logs-')) cargarLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, guildId]);
