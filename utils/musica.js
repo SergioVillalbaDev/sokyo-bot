@@ -454,8 +454,14 @@ async function buscarMusica(buscador, query, requester) {
 
     const hayResultados = (r) => r && r.tracks?.length && r.loadType !== 'empty' && r.loadType !== 'error';
 
-    const enMusic = await buscador.search({ query, source: 'ytmsearch' }, requester);
-    if (hayResultados(enMusic)) return enMusic;
+    // Si YouTube Music falla (no solo "sin resultados", sino un error del nodo),
+    // no abortamos: probamos igualmente el respaldo en YouTube normal.
+    try {
+        const enMusic = await buscador.search({ query, source: 'ytmsearch' }, requester);
+        if (hayResultados(enMusic)) return enMusic;
+    } catch (e) {
+        console.warn('Búsqueda en YouTube Music falló, probando YouTube normal:', e.message);
+    }
 
     return buscador.search({ query, source: 'ytsearch' }, requester); // respaldo
 }

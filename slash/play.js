@@ -35,6 +35,7 @@ module.exports = {
         try {
             res = await buscarMusica(player, query, interaction.user);
         } catch (e) {
+            console.error('Error buscando música (/play):', e);
             return interaction.editReply(`❌ I couldn't search for that: ${e.message}`);
         }
 
