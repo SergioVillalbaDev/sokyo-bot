@@ -318,6 +318,7 @@ export default {
       notifReportes: 'Pending reports',
       notifSugerencias: 'Pending suggestions',
       notifEmpty: 'Nothing pending',
+      notifDismiss: 'Dismiss',
     },
     onboarding: {
       skip: 'Skip tour',

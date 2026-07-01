@@ -318,6 +318,7 @@ export default {
       notifReportes: 'Reportes pendientes',
       notifSugerencias: 'Sugerencias pendientes',
       notifEmpty: 'No hay nada pendiente',
+      notifDismiss: 'Descartar',
     },
     onboarding: {
       skip: 'Saltar tutorial',
