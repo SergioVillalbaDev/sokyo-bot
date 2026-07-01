@@ -308,8 +308,14 @@ export default {
     header: {
       greeting: '¡Hola, {{name}}! 👋',
       greetingSub: 'Este es el estado de tu sistema de soporte hoy.',
-      search: 'Buscar tickets...',
+      search: 'Búsqueda...',
+      searchEmpty: 'Sin resultados',
+      searchSections: 'Secciones',
+      searchTickets: 'Tickets',
       changeServer: 'Cambiar de servidor',
+      notifications: 'Notificaciones',
+      notifOpenTickets: 'Tickets abiertos',
+      notifEmpty: 'No hay tickets abiertos',
     },
     onboarding: {
       skip: 'Saltar tutorial',
