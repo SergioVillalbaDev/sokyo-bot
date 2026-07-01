@@ -16,10 +16,14 @@ module.exports = {
         if (message.guild) {
             try {
                 const cfgAct = await getConfigCached(message.guildId);
+                // Los comandos del propio bot (mensaje empieza por el prefijo) no son
+                // contenido a moderar: se excluyen del automod y de la IA de moderación.
+                const prefijoAct = (cfgAct && cfgAct.prefijo) || '!';
+                const esComando = message.content.startsWith(prefijoAct);
                 // Automod primero: si actúa (borra el mensaje), no seguimos con XP ni comandos.
-                if (await revisarMensaje(message, cfgAct, client)) return;
+                if (!esComando && await revisarMensaje(message, cfgAct, client)) return;
                 // Moderación por IA (Pro): no bloquea el flujo; actúa por su cuenta si toca.
-                revisarConIA(message, cfgAct, client).catch(() => {});
+                if (!esComando) revisarConIA(message, cfgAct, client).catch(() => {});
                 await registrarMensaje(message, !!(cfgAct && cfgAct.esPremium));
                 await otorgarXp(message, cfgAct);
                 // Embudo A/B: anota el primer mensaje del usuario (participación).
