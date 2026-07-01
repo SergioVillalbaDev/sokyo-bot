@@ -5,7 +5,7 @@
 //    bienvenida y mide cuál retiene mejor (motor embudoAB del backend).
 // El mensaje del panel (modos Un clic/Captcha) es un embed totalmente
 // personalizable (color, imagen, GIF, campos…), como el resto del panel.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { ShieldCheck, Save, Check, Info, Send, MousePointerClick, Puzzle, Users, Crown, Lock, FileText, LayoutTemplate, BarChart3 } from 'lucide-react';
@@ -71,6 +71,7 @@ export default function VerificacionView({ dash }) {
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [pub, setPub] = useState('');
+  const modoInit = useRef(false); // el modo se elige una vez; guardar no debe cambiarlo
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -83,8 +84,12 @@ export default function VerificacionView({ dash }) {
       varianteA: { ...AB_DEF.varianteA, ...(ab.varianteA || {}) },
       varianteB: { ...AB_DEF.varianteB, ...(ab.varianteB || {}) },
     });
-    // Modo inicial: si la Doble bienvenida está activa, arrancamos ahí.
-    setModo(ab.activo ? 'ab' : (vv.modo === 'captcha' ? 'captcha' : 'boton'));
+    // Modo inicial SOLO la primera vez: si la Doble bienvenida está activa,
+    // arrancamos ahí. Después lo controla el usuario (guardar no lo cambia).
+    if (!modoInit.current) {
+      modoInit.current = true;
+      setModo(ab.activo ? 'ab' : (vv.modo === 'captcha' ? 'captcha' : 'boton'));
+    }
   }, [configServidor]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -136,6 +141,7 @@ export default function VerificacionView({ dash }) {
           <ModoCard activo={modo === 'ab'} onClick={() => elegirModo('ab')} icon={Users}
             titulo={t('dashboard.verif_v.modeAb')} desc={t('dashboard.verif_v.modeAbDesc')} premium bloqueado={abBloqueado} />
         </div>
+        <p className="mt-2 text-xs text-muted">{t('dashboard.verif_v.modeExclusive')}</p>
       </div>
 
       {/* ─────────── DOBLE BIENVENIDA bloqueada (Free) ─────────── */}

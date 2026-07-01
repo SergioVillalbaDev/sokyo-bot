@@ -983,6 +983,7 @@ export default {
       modeButton: 'Un clic', modeButtonDesc: 'Concede el rol al pulsar el botón. Sencillo y rápido.',
       modeCaptcha: 'Captcha', modeCaptchaDesc: 'El usuario resuelve un código de imagen. Frena bots.',
       modeAb: 'Doble bienvenida', modeAbDesc: 'Reparte a los nuevos entre dos versiones y mide cuál retiene mejor. (Pro)',
+      modeExclusive: 'Solo puede haber un modo activo a la vez: al activar uno se desactiva el otro (sin perder su configuración).',
       role: 'Rol verificado', rolePh: 'Elige un rol…',
       channel: 'Canal del panel', channelPh: 'Elige un canal…',
       title: 'Título del panel', desc: 'Descripción', buttonText: 'Texto del botón',

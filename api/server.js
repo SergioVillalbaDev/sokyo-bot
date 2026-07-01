@@ -1495,9 +1495,13 @@ app.get('/api/stats/uso', async (req, res) => {
                 textoBoton: String(b.textoBoton || '✅ Verificarme').slice(0, 80),
                 embed: sanearEmbed(b.embed), // embed personalizable del panel (null = básico)
             };
+            const set = Object.fromEntries(Object.entries(v).map(([k, val]) => [`verificacion.${k}`, val]));
+            // Puertas de entrada excluyentes: al activar la verificación normal se
+            // apaga la doble bienvenida (solo el flag, sin tocar sus versiones).
+            if (v.activo) set['embudoAB.activo'] = false;
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
-                { $set: Object.fromEntries(Object.entries(v).map(([k, val]) => [`verificacion.${k}`, val])) },
+                { $set: set },
                 { returnDocument: 'after', upsert: true },
             );
             res.json({ success: true, config });
@@ -1541,6 +1545,9 @@ app.get('/api/stats/uso', async (req, res) => {
                 'embudoAB.varianteB.reglas': String(bb.reglas || '').slice(0, 2000),
                 'embudoAB.varianteB.textoBoton': String(bb.textoBoton || '🎉 Unirme').slice(0, 80),
             };
+            // Puertas de entrada excluyentes: al activar la doble bienvenida se
+            // apaga la verificación normal (solo el flag, sin tocar su config).
+            if (b.activo) set['verificacion.activo'] = false;
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: set },

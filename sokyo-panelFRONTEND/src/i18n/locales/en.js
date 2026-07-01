@@ -983,6 +983,7 @@ export default {
       modeButton: 'One click', modeButtonDesc: 'Grants the role on button press. Simple and fast.',
       modeCaptcha: 'Captcha', modeCaptchaDesc: 'User solves an image code. Stops bots.',
       modeAb: 'Dual welcome', modeAbDesc: 'Splits newcomers between two versions and measures which retains better. (Pro)',
+      modeExclusive: 'Only one mode can be active at a time: enabling one disables the other (its settings are kept).',
       role: 'Verified role', rolePh: 'Pick a role…',
       channel: 'Panel channel', channelPh: 'Pick a channel…',
       title: 'Panel title', desc: 'Description', buttonText: 'Button text',
