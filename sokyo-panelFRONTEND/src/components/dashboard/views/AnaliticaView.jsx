@@ -255,7 +255,7 @@ export default function AnaliticaView({ dash }) {
           {!a.embudo.activo && !a.embudo.hayDatos ? (
             <div className="flex flex-col items-start gap-3">
               <p className="text-sm text-muted">{t('dashboard.analitica_v.embudoOff')}</p>
-              <button type="button" onClick={() => setActiveTab('seg-embudo')}
+              <button type="button" onClick={() => setActiveTab('seg-verificacion')}
                 className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2 text-xs font-bold text-on-brand shadow-soft transition-transform hover:scale-[1.02]">
                 <FlaskConical size={14} /> {t('dashboard.analitica_v.embudoConfig')}
               </button>

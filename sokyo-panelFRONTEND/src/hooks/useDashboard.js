@@ -580,6 +580,27 @@ export function useDashboard() {
     } catch (error) { console.error('Error publicando verificación:', error); return { error: 'Network error' }; }
   };
 
+  // --- DOBLE BIENVENIDA (Test A/B, Pro) — usa el motor embudoAB del backend ---
+  const guardarEmbudo = async (embudoAB) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/embudo`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embudoAB }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+    } catch (error) { console.error('Error guardando doble bienvenida:', error); }
+    return false;
+  };
+  const publicarEmbudo = async () => {
+    if (!configServidor) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/embudo/${configServidor.guildId}/publicar`, { method: 'POST' });
+      const data = await res.json();
+      return data.success ? data : { error: data.error || 'No se pudo publicar' };
+    } catch (error) { console.error('Error publicando doble bienvenida:', error); return { error: 'Network error' }; }
+  };
+
   // --- COMUNIDAD: mensajes de bienvenida / despedida ---
   const guardarBienvenidas = async (bienvenida, despedida) => {
     if (!configServidor) return false;
@@ -1260,7 +1281,7 @@ export function useDashboard() {
     if (!c) return {};
     const b = (v) => !!v;
     return {
-      'seg-verificacion': b(c.verificacion && c.verificacion.activo),
+      'seg-verificacion': b((c.verificacion && c.verificacion.activo) || (c.embudoAB && c.embudoAB.activo)),
       'prod-bienvenidas': b((c.bienvenida && c.bienvenida.activo) || (c.despedida && c.despedida.activo)),
       'config-niveles': b(c.nivelesActivo),
       'mod-automod': b(c.automod && c.automod.activo),
@@ -1301,6 +1322,7 @@ export function useDashboard() {
     guardarAutomod,
     // seguridad
     guardarVerificacion, publicarVerificacion,
+    guardarEmbudo, publicarEmbudo,
     guardarBienvenidas, probarBienvenida,
     reportes, guardarReportes, cargarReportes, actualizarReporte, abrirTicketReporte,
     exportarConfig, importarConfig,

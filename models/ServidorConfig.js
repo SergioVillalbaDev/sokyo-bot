@@ -259,6 +259,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         titulo: { type: String, default: '🔒 Verification' },
         descripcion: { type: String, default: 'Click the button to verify and access the server.' },
         textoBoton: { type: String, default: '✅ Verify me' },
+        embed: { type: mongoose.Schema.Types.Mixed, default: null }, // embed personalizable del panel (null = usa titulo/descripcion)
         mensajeId: { type: String, default: null },         // id del mensaje publicado (para republicar/editar)
     },
 

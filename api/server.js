@@ -1493,6 +1493,7 @@ app.get('/api/stats/uso', async (req, res) => {
                 titulo: String(b.titulo || '🔒 Verificación').slice(0, 256),
                 descripcion: String(b.descripcion || '').slice(0, 2000),
                 textoBoton: String(b.textoBoton || '✅ Verificarme').slice(0, 80),
+                embed: sanearEmbed(b.embed), // embed personalizable del panel (null = básico)
             };
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },

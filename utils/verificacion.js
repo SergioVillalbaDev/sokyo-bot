@@ -3,9 +3,14 @@
 // al pulsarlo el usuario obtiene el rol verificado (modo 'boton') o debe
 // resolver un captcha de imagen (modo 'captcha'). Lo orquesta interactionCreate.
 // ============================================================================
+const path = require('path');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { generarCaptcha } = require('./captcha.js');
+const { construirMensaje, embedTieneContenido } = require('./embeds.js');
+
+// Carpeta de imágenes subidas (para los embeds personalizados con imagen/GIF).
+const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 
 // Captchas pendientes: `${guildId}:${userId}` -> { codigo, expira }
 const pendientes = new Map();
@@ -25,15 +30,24 @@ async function conceder(interaction, v) {
     return null;
 }
 
-// Construye el contenido del panel (embed + botón).
+// Construye el contenido del panel (embed + botón). Si hay un embed personalizado
+// con contenido, se usa ese (color, imagen, GIF, campos…); si no, se cae al
+// título/descripción básicos. El botón siempre se añade al final.
 function contenidoPanel(v) {
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('verif_inicio').setLabel(v.textoBoton || '✅ Verify me').setStyle(ButtonStyle.Success),
+    );
+
+    if (v.embed && embedTieneContenido(v.embed)) {
+        const payload = construirMensaje('', v.embed, UPLOADS_DIR);
+        payload.components = [row];
+        return payload;
+    }
+
     const embed = new EmbedBuilder()
         .setColor(0x5865f2)
         .setTitle(v.titulo || '🔒 Verification')
         .setDescription(v.descripcion || 'Click the button to verify and access the server.');
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('verif_inicio').setLabel(v.textoBoton || '✅ Verify me').setStyle(ButtonStyle.Success),
-    );
     return { embeds: [embed], components: [row] };
 }
 
