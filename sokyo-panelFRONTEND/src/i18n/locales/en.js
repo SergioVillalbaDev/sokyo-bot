@@ -1055,6 +1055,8 @@ export default {
       save: 'Save changes', saving: 'Saving…', saved: 'Saved',
     },
     embed_b: {
+      presetsTitle: 'Templates', presetLoad: 'Load template…', presetNone: 'No saved templates',
+      presetName: 'Template name', presetSave: 'Save as template', presetSaved: 'Saved',
       preview: 'Preview', previewEmpty: 'Fill in a field to see the preview.',
       author: 'Author', authorPh: 'Name shown at the very top',
       authorUrl: 'Author link', authorIcon: 'Author icon',

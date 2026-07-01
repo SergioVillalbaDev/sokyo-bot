@@ -5,7 +5,7 @@
 // attachment://). Lo usan EmbedsView y AnunciosView.
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Upload, X, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading1, Heading2, Heading3, List, Link2, Minus } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading1, Heading2, Heading3, List, Link2, Minus, LayoutTemplate, Save, Check } from 'lucide-react';
 import { API_URL } from '../../../lib/api';
 import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
 import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
@@ -217,12 +217,30 @@ function Preview({ e, t }) {
   );
 }
 
-export default function EmbedBuilder({ value, onChange, subirImagen }) {
+export default function EmbedBuilder({ value, onChange, subirImagen, presets, onGuardarPreset }) {
   const { t } = useTranslation();
   const e = { ...EMBED_VACIO, ...value, campos: value?.campos || [] };
   const set = (k, v) => onChange({ ...e, [k]: v });
   const descRef = useRef(null);
   const [fuenteActiva, setFuenteActiva] = useState('normal'); // modo type-through de la descripción
+
+  // Plantillas (presets) reutilizables — solo si el padre habilita la función.
+  const [nombrePreset, setNombrePreset] = useState('');
+  const [msgPreset, setMsgPreset] = useState(''); // '', 'ok', 'error:<x>'
+  const conPlantillas = typeof onGuardarPreset === 'function';
+  const plantillasConEmbed = (presets || []).filter((p) => p.embed);
+  const cargarPlantilla = (id) => {
+    const p = plantillasConEmbed.find((x) => x._id === id);
+    if (p) onChange({ ...EMBED_VACIO, ...(p.embed || {}), campos: (p.embed && p.embed.campos) || [] });
+  };
+  const guardarPlantilla = async () => {
+    const nombre = nombrePreset.trim();
+    if (!nombre) return;
+    setMsgPreset('');
+    const r = await onGuardarPreset({ nombre, embed: e });
+    if (r && r.error) setMsgPreset(`error:${r.error}`);
+    else { setMsgPreset('ok'); setNombrePreset(''); }
+  };
 
   const setCampo = (i, k, v) => onChange({ ...e, campos: e.campos.map((c, idx) => (idx === i ? { ...c, [k]: v } : c)) });
   const addCampo = () => onChange({ ...e, campos: [...e.campos, { nombre: '', valor: '', inline: false }] });
@@ -282,6 +300,41 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
   };
 
   return (
+    <div className="space-y-4">
+      {/* Barra de PLANTILLAS: cargar una guardada o guardar la actual. */}
+      {conPlantillas && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-elevated px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-fg"><LayoutTemplate size={15} className="text-brand" /> {t('dashboard.embed_b.presetsTitle')}</span>
+          <select
+            value=""
+            onChange={(ev) => { cargarPlantilla(ev.target.value); ev.target.value = ''; }}
+            className={input + ' max-w-[12rem]'}
+            disabled={plantillasConEmbed.length === 0}
+          >
+            <option value="">{plantillasConEmbed.length ? t('dashboard.embed_b.presetLoad') : t('dashboard.embed_b.presetNone')}</option>
+            {plantillasConEmbed.map((p) => <option key={p._id} value={p._id}>{p.nombre}</option>)}
+          </select>
+          <span className="mx-1 h-5 w-px bg-line" />
+          <input
+            value={nombrePreset}
+            onChange={(ev) => { setNombrePreset(ev.target.value); setMsgPreset(''); }}
+            placeholder={t('dashboard.embed_b.presetName')}
+            maxLength={80}
+            className={input + ' max-w-[11rem]'}
+          />
+          <button
+            type="button"
+            onClick={guardarPlantilla}
+            disabled={!nombrePreset.trim()}
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-brand px-3 py-2 text-xs font-bold text-on-brand transition-transform hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Save size={14} /> {t('dashboard.embed_b.presetSave')}
+          </button>
+          {msgPreset === 'ok' && <span className="flex items-center gap-1 text-xs font-semibold text-success"><Check size={14} /> {t('dashboard.embed_b.presetSaved')}</span>}
+          {msgPreset.startsWith('error:') && <span className="text-xs font-semibold text-danger">{msgPreset.slice(6)}</span>}
+        </div>
+      )}
+
     <div className="grid gap-5 lg:grid-cols-2">
       {/* Formulario */}
       <div className="space-y-4">
@@ -384,6 +437,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen }) {
       <div className="lg:sticky lg:top-4 lg:self-start">
         <Preview e={e} t={t} />
       </div>
+    </div>
     </div>
   );
 }

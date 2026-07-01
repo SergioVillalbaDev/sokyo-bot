@@ -1055,6 +1055,8 @@ export default {
       save: 'Guardar cambios', saving: 'Guardando…', saved: 'Guardado',
     },
     embed_b: {
+      presetsTitle: 'Plantillas', presetLoad: 'Cargar plantilla…', presetNone: 'No hay plantillas guardadas',
+      presetName: 'Nombre de la plantilla', presetSave: 'Guardar como plantilla', presetSaved: 'Guardada',
       preview: 'Vista previa', previewEmpty: 'Rellena algún campo para ver la vista previa.',
       author: 'Autor', authorPh: 'Nombre que aparece arriba del todo',
       authorUrl: 'Enlace del autor', authorIcon: 'Icono del autor',

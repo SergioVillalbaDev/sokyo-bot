@@ -63,6 +63,7 @@ export default function VerificacionView({ dash }) {
   const {
     roles, canales, configServidor, esPremium, setActiveTab, subirImagen,
     guardarVerificacion, publicarVerificacion, guardarEmbudo, publicarEmbudo,
+    presetsAnuncio, guardarPresetAnuncio,
   } = dash;
 
   const [modo, setModo] = useState('boton'); // 'boton' | 'captcha' | 'ab'
@@ -193,7 +194,7 @@ export default function VerificacionView({ dash }) {
             <h3 className="flex items-center gap-2 font-bold text-fg"><LayoutTemplate size={18} className="text-brand" /> {t('dashboard.verif_v.embedTitle')}</h3>
             <p className="mt-1 text-xs text-muted">{t('dashboard.verif_v.embedDesc')}</p>
             <div className="mt-4 border-t border-line pt-4">
-              <EmbedBuilder value={v.embed || EMBED_VACIO} onChange={(emb) => setVerif('embed', emb)} subirImagen={subirImagen} />
+              <EmbedBuilder value={v.embed || EMBED_VACIO} onChange={(emb) => setVerif('embed', emb)} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })} />
             </div>
           </div>
         </>

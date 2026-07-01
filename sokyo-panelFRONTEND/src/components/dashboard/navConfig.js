@@ -51,6 +51,7 @@ export const navGroups = [
       { tab: 'com-sugerencias', icon: Lightbulb },
       { tab: 'com-presentaciones', icon: ClipboardList },
       { tab: 'com-dinamicas', icon: Gamepad2 },
+      { tab: 'prod-embeds', icon: LayoutTemplate },
     ],
   },
   {
@@ -114,7 +115,6 @@ export const navGroups = [
     icon: MessagesSquare,
     items: [
       { tab: 'prod-autorespuestas', icon: MessagesSquare },
-      { tab: 'prod-embeds', icon: LayoutTemplate },
       { tab: 'prod-anuncios', icon: Megaphone },
     ],
   },

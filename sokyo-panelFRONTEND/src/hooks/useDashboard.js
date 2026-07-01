@@ -1232,8 +1232,8 @@ export function useDashboard() {
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
     else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
     else if (activeTab === 'mod-automod') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
-    else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
-    else if (activeTab === 'prod-bienvenidas') { cargarConfiguracion(); cargarCanales(); }
+    else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); cargarPresetsAnuncio(); }
+    else if (activeTab === 'prod-bienvenidas') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); }
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
