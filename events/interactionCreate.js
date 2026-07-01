@@ -211,6 +211,19 @@ module.exports = {
             }
         }
 
+        if (interaction.isButton() && interaction.customId.startsWith('setup_lang:')) {
+            const [, lang, guildId] = interaction.customId.split(':');
+            try {
+                const { construirBienvenida } = require('../utils/onboarding.js');
+                const config = await ServidorConfig.findOne({ guildId });
+                const guild = interaction.guild || client.guilds.cache.get(guildId);
+                return interaction.update(construirBienvenida(guild, config, lang));
+            } catch (e) {
+                console.error('Error en setup_lang:', e);
+                return interaction.reply({ content: '❌ Could not switch language.', flags: 64 });
+            }
+        }
+
         if (interaction.isButton() && interaction.customId.startsWith('setup_publicar:')) {
             const guildId = interaction.customId.split(':')[1];
             const menu = new ChannelSelectMenuBuilder()

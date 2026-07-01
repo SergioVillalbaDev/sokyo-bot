@@ -4,8 +4,52 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { aplicarPieMarca } = require('./marca.js');
 
+// Textos del mensaje de bienvenida. Apostamos por mercado global -> inglés por
+// defecto, con un botón en el propio mensaje para cambiar a español al vuelo
+// (ver setup_lang: en interactionCreate.js).
+const TEXTOS_BIENVENIDA = {
+    en: {
+        title: '👋 Hi! I’m Sokyo',
+        desc: (name) => `I just joined **${name}**. You only need **3 quick steps** to get started.`,
+        trial: (d) => `\n> 🎁 **Pro trial active** — ${d} day${d !== 1 ? 's' : ''} left`,
+        stepsTitle: '⚡ Setup steps',
+        step1: '**Staff role** — who can manage tickets',
+        step2: '**Ticket category** — where the channels are created',
+        step3: '**Publish the panel** — the button your users will see',
+        step3Ready: '3️⃣ (you’re ready!)',
+        panelTitle: '🌐 Control panel',
+        panelValue: (url) => `Set up steps 1 and 2 in the web panel:\n${url}`,
+        tipTitle: '💡 Tip',
+        tipValue: 'Use the **View status** button to check your progress anytime.',
+        btnOpenPanel: '🌐 Open web panel',
+        btnStatus: '📊 View status',
+        btnPublish: '📩 Publish ticket panel',
+        btnLang: '🌐 Español',
+    },
+    es: {
+        title: '👋 ¡Hola! Soy Sokyo',
+        desc: (name) => `Me acabo de unir a **${name}**. Solo necesitas **3 pasos rápidos** para empezar.`,
+        trial: (d) => `\n> 🎁 **Prueba Pro activa** — quedan ${d} día${d !== 1 ? 's' : ''}`,
+        stepsTitle: '⚡ Pasos de configuración',
+        step1: '**Rol de staff** — quién puede gestionar los tickets',
+        step2: '**Categoría de tickets** — dónde se crean los canales',
+        step3: '**Publica el panel** — el botón que verán tus usuarios',
+        step3Ready: '3️⃣ (¡todo listo!)',
+        panelTitle: '🌐 Panel de control',
+        panelValue: (url) => `Configura los pasos 1 y 2 en el panel web:\n${url}`,
+        tipTitle: '💡 Consejo',
+        tipValue: 'Usa el botón **Ver estado** para consultar tu progreso cuando quieras.',
+        btnOpenPanel: '🌐 Abrir panel web',
+        btnStatus: '📊 Ver estado',
+        btnPublish: '📩 Publicar panel de tickets',
+        btnLang: '🌐 English',
+    },
+};
+
 // Mensaje interactivo enviado al unirse el bot y en !setup.
-function construirBienvenida(guild, config) {
+// lang: 'en' (por defecto, mercado global) o 'es' — se cambia con el botón del propio mensaje.
+function construirBienvenida(guild, config, lang = 'en') {
+    const t = TEXTOS_BIENVENIDA[lang] || TEXTOS_BIENVENIDA.en;
     const url = process.env.FRONTEND_URL || 'http://localhost:5173';
     const guildId = guild.id;
 
@@ -14,40 +58,36 @@ function construirBienvenida(guild, config) {
 
     const paso1 = tieneRol ? '✅' : '1️⃣';
     const paso2 = tieneCategoria ? '✅' : '2️⃣';
-    const paso3 = (tieneRol && tieneCategoria) ? '3️⃣ (you’re ready!)' : '3️⃣';
+    const paso3 = (tieneRol && tieneCategoria) ? t.step3Ready : '3️⃣';
 
     // Plan / trial
     let planLinea = '';
     if (config?.esPremium && config?.premiumHasta) {
         const diasRestantes = Math.ceil((new Date(config.premiumHasta) - Date.now()) / 86400000);
-        planLinea = diasRestantes > 0
-            ? `\n> 🎁 **Pro trial active** — ${diasRestantes} day${diasRestantes !== 1 ? 's' : ''} left`
-            : '';
+        planLinea = diasRestantes > 0 ? t.trial(diasRestantes) : '';
     }
 
     const embed = new EmbedBuilder()
         .setColor(config?.colorEmbed || '#5865F2')
-        .setTitle('👋 Hi! I’m Sokyo')
-        .setDescription(
-            `I just joined **${guild.name}**. You only need **3 quick steps** to get started.${planLinea}`
-        )
+        .setTitle(t.title)
+        .setDescription(`${t.desc(guild.name)}${planLinea}`)
         .addFields(
             {
-                name: '⚡ Setup steps',
+                name: t.stepsTitle,
                 value: [
-                    `${paso1} **Staff role** — who can manage tickets`,
-                    `${paso2} **Ticket category** — where the channels are created`,
-                    `${paso3} **Publish the panel** — the button your users will see`,
+                    `${paso1} ${t.step1}`,
+                    `${paso2} ${t.step2}`,
+                    `${paso3} ${t.step3}`,
                 ].join('\n'),
             },
             {
-                name: '🌐 Control panel',
-                value: `Set up steps 1 and 2 in the web panel:\n${url}`,
+                name: t.panelTitle,
+                value: t.panelValue(url),
                 inline: true,
             },
             {
-                name: '💡 Tip',
-                value: 'Use the **View status** button to check your progress anytime.',
+                name: t.tipTitle,
+                value: t.tipValue,
                 inline: true,
             },
         );
@@ -57,17 +97,21 @@ function construirBienvenida(guild, config) {
 
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setLabel('🌐 Open web panel')
+            .setLabel(t.btnOpenPanel)
             .setStyle(ButtonStyle.Link)
             .setURL(url),
         new ButtonBuilder()
             .setCustomId(`setup_estado:${guildId}`)
-            .setLabel('📊 View status')
+            .setLabel(t.btnStatus)
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId(`setup_publicar:${guildId}`)
-            .setLabel('📩 Publish ticket panel')
+            .setLabel(t.btnPublish)
             .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId(`setup_lang:${lang === 'en' ? 'es' : 'en'}:${guildId}`)
+            .setLabel(t.btnLang)
+            .setStyle(ButtonStyle.Secondary),
     );
 
     return { embeds: [embed], components: [fila] };

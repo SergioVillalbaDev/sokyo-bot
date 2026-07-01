@@ -14,10 +14,24 @@ module.exports = {
     execute(client) {
         console.log(`🚀 Bienvenidos a la órbita. Logged in as ${client.user.tag}!`);
 
-        client.user.setPresence({
-            activities: [{ name: '🎫 support tickets', type: ActivityType.Watching }],
-            status: 'online'
-        });
+        // Estado rotativo: cada vistazo a la lista de miembros muestra un gancho distinto
+        // (ticket, moderación, niveles, música, economía, posicionamiento) en vez de
+        // anclarse solo a tickets. Sin contador de servidores: con pocos, resta más de lo que suma.
+        const presencias = [
+            () => ({ name: '🎫 Support Tickets', type: ActivityType.Watching }),
+            () => ({ name: '🛡️ Your Server 24/7', type: ActivityType.Watching }),
+            () => ({ name: '📈 XP Roll In', type: ActivityType.Watching }),
+            () => ({ name: '🎧 Lofi & Bangers', type: ActivityType.Listening }),
+            () => ({ name: '🎉 Giveaways & Polls', type: ActivityType.Watching }),
+            () => ({ name: '🤖 5 Bots, 1 Brain', type: ActivityType.Watching }),
+        ];
+        let presenciaIdx = 0;
+        const rotarPresencia = () => {
+            client.user.setPresence({ activities: [presencias[presenciaIdx % presencias.length]()], status: 'online' });
+            presenciaIdx++;
+        };
+        rotarPresencia();
+        setInterval(rotarPresencia, 25000);
 
         // Arranca el barrido de auto-cierre por inactividad (configurable por servidor).
         iniciarAutoCierre(client);
