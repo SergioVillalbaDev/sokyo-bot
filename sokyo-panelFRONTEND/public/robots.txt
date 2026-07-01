@@ -1,7 +1,7 @@
-# https://sokyo.studio — Sokyo, bot de Discord todo en uno
+# https://dashboard.sokyo.studio — Sokyo, bot de Discord todo en uno
 User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /uploads/
 
-Sitemap: https://sokyo.studio/sitemap.xml
+Sitemap: https://dashboard.sokyo.studio/sitemap.xml
