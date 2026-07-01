@@ -6,13 +6,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
   FolderTree, FolderPlus, Plus, Pencil, Trash2, X, ChevronDown,
-  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus,
+  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search,
 } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
 import { ESTILOS_FUENTE, aplicarEstilo } from '../../../lib/fancyText';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const ICONO_TIPO = { texto: Hash, voz: Volume2, anuncios: Megaphone, foro: MessagesSquare, escenario: Radio };
+const COLOR_DEFECTO = '#99AAB5';
+const colorVisible = (c) => (!c || c === '#000000' ? COLOR_DEFECTO : c);
 
 export default function CanalesView({ dash }) {
   const { t } = useTranslation();
@@ -188,15 +190,18 @@ function CanalRow({ canal, onEditar, onEliminar }) {
 function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
   const { t } = useTranslation();
   const etiquetaPermiso = (flag) => t(`dashboard.roles_v.perms.${flag}`, flag);
-  const [rolNuevo, setRolNuevo] = useState('');
+  const [busqueda, setBusqueda] = useState('');
 
-  const disponibles = (roles || []).filter((r) => !overwrites.some((o) => o.id === r.id));
+  const colorDe = (id) => colorVisible((roles || []).find((r) => r.id === id)?.color);
 
-  const añadir = () => {
-    if (!rolNuevo) return;
-    const rol = roles.find((r) => r.id === rolNuevo);
-    setOverwrites([...overwrites, { id: rolNuevo, nombre: rol?.nombre || rolNuevo, allow: [], deny: [] }]);
-    setRolNuevo('');
+  const disponibles = (roles || [])
+    .filter((r) => !overwrites.some((o) => o.id === r.id))
+    .filter((r) => !busqueda.trim() || r.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()));
+
+  // Clic directo en un rol de la lista: se añade al instante (sin desplegable ni botón aparte).
+  const añadir = (rolId) => {
+    const rol = roles.find((r) => r.id === rolId);
+    setOverwrites([...overwrites, { id: rolId, nombre: rol?.nombre || rolId, allow: [], deny: [] }]);
   };
 
   const quitar = (id) => setOverwrites(overwrites.filter((o) => o.id !== id));
@@ -225,7 +230,10 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
         {overwrites.map((o) => (
           <div key={o.id} className="rounded-2xl border border-line bg-bg p-3.5">
             <div className="mb-2.5 flex items-center justify-between">
-              <span className="text-sm font-bold text-fg">{o.nombre}</span>
+              <span className="flex items-center gap-2 text-sm font-bold text-fg">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorDe(o.id) }} />
+                {o.nombre}
+              </span>
               <button onClick={() => quitar(o.id)} className="text-muted transition-colors hover:text-danger"><X size={15} /></button>
             </div>
             <div className="space-y-2.5">
@@ -259,18 +267,34 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
         ))}
       </div>
 
-      {disponibles.length > 0 && (
-        <div className="mt-3 flex gap-2">
-          <select
-            value={rolNuevo} onChange={(e) => setRolNuevo(e.target.value)}
-            className="flex-1 rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand"
-          >
-            <option value="">{t('dashboard.canales_v.pickRole')}</option>
-            {disponibles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-          </select>
-          <button onClick={añadir} disabled={!rolNuevo} className="rounded-xl border border-line px-4 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-40">
-            {t('dashboard.canales_v.addOverwrite')}
-          </button>
+      {(roles || []).length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.canales_v.addOverwrite')}</p>
+          <div className="relative">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+              placeholder={t('dashboard.canales_v.searchRolePlaceholder')}
+              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-3 text-sm text-fg outline-none focus:border-brand"
+            />
+          </div>
+          <div className="mt-2 max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-line p-1.5">
+            {disponibles.length === 0 ? (
+              <p className="px-2.5 py-2 text-xs italic text-muted">{t('dashboard.canales_v.noMoreRoles')}</p>
+            ) : disponibles.map((r) => (
+              <button
+                key={r.id} onClick={() => añadir(r.id)}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-elevated"
+              >
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorVisible(r.color) }} />
+                <span className="min-w-0 flex-1 truncate text-fg">{r.nombre}</span>
+                {typeof r.miembros === 'number' && (
+                  <span className="shrink-0 text-xs text-muted">{t('dashboard.roles_v.memberCount', { count: r.miembros })}</span>
+                )}
+                <Plus size={14} className="shrink-0 text-muted" />
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

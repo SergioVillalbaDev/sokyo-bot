@@ -897,6 +897,7 @@ export default {
       fieldNsfw: 'NSFW channel (+18)', fieldSlowmode: 'Slowmode (seconds)',
       fieldBitrate: 'Bitrate (kbps)', fieldUserLimit: 'User limit (0 = unlimited)',
       fieldPerms: 'Per-role permissions', addOverwrite: 'Add a role', pickRole: 'Pick a role…',
+      searchRolePlaceholder: 'Search a role by name…', noMoreRoles: 'No more roles to add.',
       noOverwrites: 'No custom permissions: inherits from the server.',
       permAllow: 'Allow', permDeny: 'Deny', permNeutral: 'Inherit',
       cancel: 'Cancel', save: 'Save', saving: 'Saving…',

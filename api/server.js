@@ -1353,7 +1353,7 @@ app.get('/api/stats/uso', async (req, res) => {
             const roles = guild.roles.cache
                 .filter((r) => r.name !== '@everyone' && !r.managed)
                 .sort((a, b) => b.position - a.position)
-                .map((r) => ({ id: r.id, nombre: r.name, color: r.hexColor }));
+                .map((r) => ({ id: r.id, nombre: r.name, color: r.hexColor, miembros: r.members.size }));
             res.json(roles);
         } catch (error) {
             console.error('Error al obtener roles:', error);
