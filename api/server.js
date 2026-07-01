@@ -237,6 +237,7 @@ module.exports = (client) => {
 
     // --- Sistema de música (rutas en api/routes/musica.js) ---
     app.use('/api', require('./routes/musica.js')({ portalAuth, client }));
+    app.use('/api', require('./routes/canales.js')({ client }));
 
     // --- Canales de voz temporales (rutas en api/routes/vozTemporal.js) ---
     app.use('/api', require('./routes/vozTemporal.js')({ client }));

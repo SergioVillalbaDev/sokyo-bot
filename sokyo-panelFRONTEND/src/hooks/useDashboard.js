@@ -83,6 +83,9 @@ export function useDashboard() {
   // Gestión de roles (panel mejorado): lista detallada + catálogo de permisos.
   const [rolesDetalle, setRolesDetalle] = useState([]);
   const [permisosCatalogo, setPermisosCatalogo] = useState([]);
+  // Gestión de categorías y canales del servidor (árbol completo + catálogo de permisos por canal).
+  const [estructuraCanales, setEstructuraCanales] = useState({ categorias: [], sinCategoria: [] });
+  const [permisosCanalCatalogo, setPermisosCanalCatalogo] = useState([]);
   // Paneles de autoasignación de roles + canales y emojis del servidor.
   const [paneles, setPaneles] = useState([]);
   const [canales, setCanales] = useState([]);
@@ -226,6 +229,81 @@ export function useDashboard() {
       const res = await apiFetch(`/api/roles/${roleId}/miembros/${userId}${gp()}`, { method: 'DELETE' });
       if (res.ok) { await cargarRolesDetalle(); return true; }
     } catch (error) { console.error('Error quitando rol:', error); }
+    return false;
+  };
+
+  // --- Gestión de categorías y canales (crear/editar/eliminar con todas las opciones) ---
+  const cargarEstructuraCanales = () => {
+    if (!configServidor) return Promise.resolve();
+    return apiFetch(`/api/config/${configServidor.guildId}/canales/estructura`).then(procesarRespuesta)
+      .then((datos) => setEstructuraCanales({ categorias: datos?.categorias || [], sinCategoria: datos?.sinCategoria || [] }))
+      .catch(reportarError('cargando la estructura de canales'));
+  };
+  const cargarPermisosCanalCatalogo = () => apiFetch('/api/servidor/permisos-canal').then(procesarRespuesta).then((datos) => setPermisosCanalCatalogo(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando catálogo de permisos de canal'));
+
+  const crearCategoriaCanal = async ({ nombre, overwrites }) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/categorias`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre, overwrites }),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarEstructuraCanales(); return true; }
+    } catch (error) { console.error('Error creando categoría:', error); }
+    return false;
+  };
+
+  const editarCategoriaCanal = async (categoriaId, cambios) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/categorias/${categoriaId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarEstructuraCanales(); return true; }
+    } catch (error) { console.error('Error editando categoría:', error); }
+    return false;
+  };
+
+  const eliminarCategoriaCanal = async (categoriaId) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/categorias/${categoriaId}`, { method: 'DELETE' });
+      if (res.ok) { await cargarEstructuraCanales(); return true; }
+    } catch (error) { console.error('Error eliminando categoría:', error); }
+    return false;
+  };
+
+  const crearCanalServidor = async (datos) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarEstructuraCanales(); return true; }
+    } catch (error) { console.error('Error creando canal:', error); }
+    return false;
+  };
+
+  const editarCanalServidor = async (canalId, cambios) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/${canalId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
+      });
+      const data = await res.json();
+      if (data.success) { await cargarEstructuraCanales(); return true; }
+    } catch (error) { console.error('Error editando canal:', error); }
+    return false;
+  };
+
+  const eliminarCanalServidor = async (canalId) => {
+    if (!configServidor) return false;
+    try {
+      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/${canalId}`, { method: 'DELETE' });
+      if (res.ok) { await cargarEstructuraCanales(); return true; }
+    } catch (error) { console.error('Error eliminando canal:', error); }
     return false;
   };
 
@@ -1228,6 +1306,7 @@ export function useDashboard() {
     else if (activeTab === 'config-expresiones') { cargarEmojisServidor(); cargarStickers(); }
     else if (activeTab === 'config-niveles') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarRanking(); cargarCatalogoPresets(); }
     else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); }
+    else if (activeTab === 'config-canales') { cargarEstructuraCanales(); cargarPermisosCanalCatalogo(); cargarRoles(); }
     else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
     else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
@@ -1311,6 +1390,10 @@ export function useDashboard() {
     // gestión de roles (panel mejorado)
     rolesDetalle, permisosCatalogo, crearRol, editarRol, eliminarRol,
     listarMiembrosRol, buscarMiembros, asignarRolMiembro, quitarRolMiembro,
+    // gestión de categorías y canales (texto/voz/anuncios/foro/escenario, con permisos)
+    estructuraCanales, permisosCanalCatalogo,
+    crearCategoriaCanal, editarCategoriaCanal, eliminarCategoriaCanal,
+    crearCanalServidor, editarCanalServidor, eliminarCanalServidor,
     // sistema de roles: autorol + paneles
     guardarAutoRoles,
     paneles, canales, emojisServidor, crearPanel, editarPanel, publicarPanel, eliminarPanel, subirImagenPanel,

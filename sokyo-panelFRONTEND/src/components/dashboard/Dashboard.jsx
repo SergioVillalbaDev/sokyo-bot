@@ -28,6 +28,7 @@ import VerificacionView from './views/VerificacionView';
 import ReportesView from './views/ReportesView';
 import BackupView from './views/BackupView';
 import AccesoView from './views/AccesoView';
+import CanalesView from './views/CanalesView';
 import ExpresionesView from './views/ExpresionesView';
 import NivelesView from './views/NivelesView';
 import AutoRespuestasView from './views/AutoRespuestasView';
@@ -95,6 +96,7 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
     if (activeTab === 'tickets-config') return <TicketsAjustesView dash={dash} />;
     if (activeTab === 'config-textos') return <TextsView dash={dash} />;
     if (activeTab === 'config-acceso') return <AccesoView dash={dash} />;
+    if (activeTab === 'config-canales') return <CanalesView dash={dash} />;
     if (activeTab === 'config-expresiones') return <ExpresionesView dash={dash} />;
     if (activeTab === 'config-niveles') return <NivelesView dash={dash} />;
     if (activeTab === 'roles-gestion') return <RolesView dash={dash} />;

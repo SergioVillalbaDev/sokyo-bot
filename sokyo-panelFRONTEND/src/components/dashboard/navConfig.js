@@ -8,6 +8,7 @@ import {
   UserCheck, Flag, DatabaseBackup,
   Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
   Music, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2, Mic2,
+  FolderTree,
 } from 'lucide-react';
 
 // Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
@@ -123,6 +124,7 @@ export const navGroups = [
     icon: Settings,
     items: [
       { tab: 'config-acceso', icon: KeyRound },
+      { tab: 'config-canales', icon: FolderTree },
       { tab: 'config-expresiones', icon: Smile },
       { tab: 'config-textos', icon: Type },
       { tab: 'seg-backup', icon: DatabaseBackup, premium: true },
