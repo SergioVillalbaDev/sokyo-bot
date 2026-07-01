@@ -6,26 +6,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- SEO -->
-    <title>Sokyo · El único bot que tu servidor de Discord necesita</title>
-    <meta name="description" content="Moderación, tickets, niveles, economía y música en un solo bot, gestionados desde un panel web de verdad. Empieza gratis, sin tarjeta." />
+    <title>Sokyo | Bot de Discord Todo en Uno: Moderación, Tickets y Panel Web</title>
+    <meta name="description" content="Sokyo es el bot de Discord todo en uno: moderación con IA, tickets con SLA, niveles, economía y música, gestionados desde un panel web real. Empieza gratis, sin tarjeta." />
+    <meta name="keywords" content="bot de discord, bot de moderación discord, bot de tickets discord, panel web discord, bot todo en uno discord" />
+    <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0a0a0a" />
     <link rel="canonical" href="https://sokyo.studio/" />
+
+    <!-- Rendimiento: precarga de las fuentes de Google (evita el bloqueo de render del @import en CSS, ver src/index.css) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" />
 
     <!-- Open Graph (previsualización al compartir el enlace en Discord, etc.) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Sokyo" />
-    <meta property="og:title" content="Sokyo · El único bot que tu servidor de Discord necesita" />
-    <meta property="og:description" content="Moderación, tickets, niveles, economía y música en un solo bot, gestionados desde un panel web de verdad. Empieza gratis, sin tarjeta." />
+    <meta property="og:title" content="Sokyo | Bot de Discord Todo en Uno: Moderación, Tickets y Panel Web" />
+    <meta property="og:description" content="Moderación con IA, tickets con SLA, niveles, economía y música en un solo bot, gestionados desde un panel web real. Empieza gratis, sin tarjeta." />
     <meta property="og:url" content="https://sokyo.studio/" />
     <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
     <!-- // TODO: DESIGN — añadir /og-image.png (1200x630) en public/ para el preview visual -->
     <meta property="og:image" content="https://sokyo.studio/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Sokyo — panel web del bot de Discord todo en uno" />
 
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Sokyo · El único bot que tu servidor de Discord necesita" />
-    <meta name="twitter:description" content="Moderación, tickets, niveles, economía y música en un solo bot, desde un panel web de verdad. Empieza gratis." />
+    <meta name="twitter:title" content="Sokyo | Bot de Discord Todo en Uno: Moderación, Tickets y Panel Web" />
+    <meta name="twitter:description" content="Moderación con IA, tickets con SLA, niveles, economía y música en un solo bot, desde un panel web real. Empieza gratis." />
     <meta name="twitter:image" content="https://sokyo.studio/og-image.png" />
+
+    <!-- Datos estructurados (schema.org): identifica a Sokyo como software + sitio web ante Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://sokyo.studio/#software",
+          "name": "Sokyo",
+          "url": "https://sokyo.studio/",
+          "description": "Bot de Discord todo en uno con moderación por IA, sistema de tickets con SLA, niveles, economía y música, gestionado desde un panel web.",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Discord, Web",
+          "image": "https://sokyo.studio/og-image.png",
+          "offers": [
+            { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "EUR", "category": "free" },
+            { "@type": "Offer", "name": "Sokyo Pro", "price": "7", "priceCurrency": "EUR", "category": "subscription" },
+            { "@type": "Offer", "name": "Sokyo Agencia", "price": "25", "priceCurrency": "EUR", "category": "subscription" }
+          ],
+          "publisher": { "@id": "https://sokyo.studio/#organization" }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://sokyo.studio/#website",
+          "url": "https://sokyo.studio/",
+          "name": "Sokyo",
+          "inLanguage": ["es", "en"],
+          "publisher": { "@id": "https://sokyo.studio/#organization" }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://sokyo.studio/#organization",
+          "name": "Sokyo",
+          "url": "https://sokyo.studio/",
+          "email": "soporte@sokyo.studio"
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap');
+/* Las fuentes de Google se cargan desde index.html (<link rel="preconnect"/stylesheet>)
+   en vez de con @import aquí: un @import dentro del CSS es render-blocking (el navegador
+   debe descargar y parsear el bundle CSS entero antes de descubrir y pedir la fuente). */
 @import 'tailwindcss';
 
 /*

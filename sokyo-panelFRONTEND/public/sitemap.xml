@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sokyo es una SPA de una sola página real (Landing.jsx): el dashboard, el
+  portal del cliente y las páginas legales se navegan con hash (#dashboard,
+  #legal/...) o con ?portal=1, que NO son URLs distintas para Google (todo
+  responde el mismo index.html en la misma URL). Por eso el sitemap solo
+  lista la home. Si en el futuro se migran esas vistas a rutas reales de
+  servidor (p. ej. /legal/privacidad, /blog/...), añade aquí una entrada
+  <url> por cada una con su propio <loc>.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://sokyo.studio/</loc>
+    <lastmod>2026-07-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

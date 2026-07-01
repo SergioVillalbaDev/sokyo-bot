@@ -3,12 +3,16 @@
 // El Dashboard requiere sesión de staff (login con Discord), salvo en "modo
 // propietario" (cuando el panel tiene configurada VITE_API_KEY).
 // El Portal del Cliente se enruta aparte en main.jsx mediante ?portal=1.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import Landing from './components/landing/Landing';
-import Legal from './components/landing/Legal';
-import Dashboard from './components/dashboard/Dashboard';
-import StaffLogin from './components/dashboard/StaffLogin';
 import { API_URL } from './lib/api';
+
+// Cargados solo cuando hacen falta (rutas #legal y #dashboard): el Dashboard por sí
+// solo son ~40 vistas (764 KB de código fuente) que un visitante de la landing —o
+// Googlebot— nunca necesita descargar para ver la página pública.
+const Legal = lazy(() => import('./components/landing/Legal'));
+const Dashboard = lazy(() => import('./components/dashboard/Dashboard'));
+const StaffLogin = lazy(() => import('./components/dashboard/StaffLogin'));
 
 const getRoute = () => {
   const h = window.location.hash.replace('#', '');
@@ -75,16 +79,16 @@ function App() {
     if (!staffToken && !hasApiKey) {
       // Si hubo un error en el login, mostramos la pantalla con el mensaje
       // (si no, entraríamos en un bucle de redirección).
-      if (authError) return <StaffLogin error={authError} />;
+      if (authError) return <Suspense fallback={null}><StaffLogin error={authError} /></Suspense>;
       // Sin sesión y sin error: vamos DIRECTOS al login de Discord, sin
       // pantalla intermedia.
       window.location.href = `${API_URL}/api/auth/discord?state=staff`;
       return null;
     }
-    return <Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} />;
+    return <Suspense fallback={null}><Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} /></Suspense>;
   }
   if (route === 'legal') {
-    return <Legal page={getLegalPage()} onBack={(e) => { if (e) e.preventDefault(); goLanding(); }} />;
+    return <Suspense fallback={null}><Legal page={getLegalPage()} onBack={(e) => { if (e) e.preventDefault(); goLanding(); }} /></Suspense>;
   }
   return <Landing onEnterDashboard={goDashboard} />;
 }

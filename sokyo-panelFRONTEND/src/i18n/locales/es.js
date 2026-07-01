@@ -48,8 +48,8 @@ export default {
     },
     hero: {
       badge: 'Nuevo · Portal del cliente con login de Discord',
-      titleLine1: 'El único bot que',
-      titleLine2: 'tu servidor necesita.',
+      titleLine1: 'El único bot de Discord',
+      titleLine2: 'que tu servidor necesita.',
       subtitle: 'Moderación, tickets, niveles, economía y música — todo gestionado desde un panel web de verdad, no a base de comandos sueltos. Menos caos, más control.',
       ctaPrimary: 'Añadir a Discord',
       ctaSecondary: 'Ver Panel en vivo',
@@ -74,8 +74,8 @@ export default {
     ],
     features: {
       eyebrow: 'Capacidades',
-      title: 'Todo tu servidor,',
-      titleHighlight: 'en una superficie',
+      title: 'Todo tu servidor de Discord,',
+      titleHighlight: 'en un solo panel',
       subtitle: 'Piezas que encajan: moderación, tickets, niveles, economía, música y más — todo desde el panel.',
       items: {
         tickets: { title: 'Tickets avanzados', desc: 'Categorías, prioridades con SLA, asignación a staff, participantes y valoración CSAT al cerrar. Cada ticket es su propio canal privado en Discord.' },

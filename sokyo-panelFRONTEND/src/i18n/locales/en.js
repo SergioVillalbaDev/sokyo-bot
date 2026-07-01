@@ -48,8 +48,8 @@ export default {
     },
     hero: {
       badge: 'New · Client portal with Discord login',
-      titleLine1: 'The only bot your',
-      titleLine2: 'server needs.',
+      titleLine1: 'The only Discord bot',
+      titleLine2: 'your server needs.',
       subtitle: 'Moderation, tickets, levels, economy and music — all managed from a real web panel, not scattered slash commands. Less chaos, more control.',
       ctaPrimary: 'Add to Discord',
       ctaSecondary: 'See the panel live',
@@ -74,8 +74,8 @@ export default {
     ],
     features: {
       eyebrow: 'Capabilities',
-      title: 'Your whole server,',
-      titleHighlight: 'on one surface',
+      title: 'Your whole Discord server,',
+      titleHighlight: 'on one panel',
       subtitle: 'Pieces that fit together: moderation, tickets, levels, economy, music and more — all from the panel.',
       items: {
         tickets: { title: 'Advanced tickets', desc: 'Categories, SLA priorities, staff assignment, participants and a CSAT rating on close. Each ticket is its own private Discord channel.' },

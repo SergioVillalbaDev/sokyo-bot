@@ -23,7 +23,7 @@ export default function Footer({ onEnterDashboard }) {
           <div className="col-span-2">
             <div className="flex items-center gap-2.5">
               {/* // TODO: DESIGN TEAM — logo oficial */}
-              <img src="/assets/logo-placeholder.svg" alt="Sokyo" className="h-9 w-9" />
+              <img src="/assets/logo-placeholder.svg" alt="Sokyo" width="36" height="36" className="h-9 w-9" />
               <span className="text-lg font-extrabold text-fg">{t('landing.nav.brand')}</span>
             </div>
             <p className="mt-4 max-w-xs text-sm text-muted">{t('landing.footer.brandDesc')}</p>
