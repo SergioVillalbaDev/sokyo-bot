@@ -8,7 +8,7 @@ import { Card } from '../../ui/primitives';
 // Guía de comandos. `s` = comando slash (/), `p` = comando de texto (prefijo).
 const GUIA = [
   { cat: 'music', icon: '🎵', cmds: [
-    ['play', 's'], ['search', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'],
+    ['play', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'],
     ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's'],
   ] },
   { cat: 'economy', icon: '🪙', cmds: [

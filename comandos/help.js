@@ -5,7 +5,7 @@ const { getConfigCached } = require('../utils/config.js');
 
 // 's' = comando slash (/), 'p' = comando de texto (prefijo del servidor).
 const CATEGORIAS = [
-    { titulo: '🎵 Music', cmds: [['play', 's'], ['search', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'], ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's']] },
+    { titulo: '🎵 Music', cmds: [['play', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'], ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's']] },
     { titulo: '🪙 Economy', cmds: [['daily', 's'], ['shop', 's'], ['inventory', 's'], ['use', 's'], ['givegold', 's'], ['rich', 's'], ['system', 's']] },
     { titulo: '📈 Levels', cmds: [['level', 's'], ['ranking', 'p'], ['xp', 'p']] },
     { titulo: '🛡️ Moderation', cmds: [['ban', 'p'], ['unban', 'p'], ['kick', 'p'], ['timeout', 'p'], ['warn', 'p'], ['sanction', 'p'], ['history', 'p'], ['report', 'p']] },
