@@ -17,11 +17,24 @@ const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 //                                     está el bot (la 1ª vez tardan hasta ~1h en salir).
 //   node deploy-commands.js dev    -> SOLO en el servidor de pruebas (GUILD_ID),
 //                                     aparecen al instante. Ideal para desarrollar.
+//   node deploy-commands.js clear-dev -> BORRA todos los comandos guild-scoped de
+//                                     GUILD_ID (deja solo los globales). Úsalo si ves
+//                                     comandos duplicados/viejos (p. ej. en español)
+//                                     en el servidor de pruebas.
 const modoDev = process.argv[2] === 'dev';
+const modoClearDev = process.argv[2] === 'clear-dev';
 
 (async () => {
     try {
-        if (modoDev) {
+        if (modoClearDev) {
+            if (!process.env.GUILD_ID) throw new Error('Falta GUILD_ID en el .env para clear-dev.');
+            console.log('Borrando todos los comandos guild-scoped del servidor de pruebas...');
+            await rest.put(
+                Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.GUILD_ID),
+                { body: [] },
+            );
+            console.log('✅ Comandos guild-scoped borrados. Solo quedan los globales.');
+        } else if (modoDev) {
             if (!process.env.GUILD_ID) throw new Error('Falta GUILD_ID en el .env para el modo dev.');
             console.log(`Registrando ${commands.length} slash commands en el servidor de pruebas...`);
             await rest.put(
