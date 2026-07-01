@@ -16,6 +16,12 @@ module.exports = {
         if (!voz.ok) return interaction.reply({ content: voz.error, ephemeral: true });
 
         const query = interaction.options.getString('search');
+        if (!query || !query.trim()) {
+            // Discord no debería permitir esto (la opción es obligatoria), pero si
+            // el comando registrado en Discord está desactualizado respecto al
+            // código (falta re-ejecutar deploy-commands.js), esta opción llega null.
+            return interaction.reply({ content: '❌ I didn’t receive anything to search for. If this keeps happening, ask the bot owner to re-sync the slash commands.', ephemeral: true });
+        }
         await interaction.deferReply();
 
         // 2. Crear (o recuperar) el reproductor de este servidor.
