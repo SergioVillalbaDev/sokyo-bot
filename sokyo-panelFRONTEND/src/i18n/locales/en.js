@@ -315,7 +315,9 @@ export default {
       changeServer: 'Switch server',
       notifications: 'Notifications',
       notifOpenTickets: 'Open tickets',
-      notifEmpty: 'No open tickets',
+      notifReportes: 'Pending reports',
+      notifSugerencias: 'Pending suggestions',
+      notifEmpty: 'Nothing pending',
     },
     onboarding: {
       skip: 'Skip tour',

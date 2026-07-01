@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell, HelpCircle, Menu, ChevronDown, Ticket as TicketIcon, LayoutGrid } from 'lucide-react';
+import { Search, Bell, HelpCircle, Menu, ChevronDown, Ticket as TicketIcon, LayoutGrid, Flag, Lightbulb } from 'lucide-react';
 import { metaKey, navGroups } from './navConfig';
 import { startOnboarding, startSectionTour, hasSectionTour } from '../../lib/onboarding';
 import { getStaffSession } from '../../lib/api';
@@ -18,7 +18,7 @@ export default function Header({ dash, onOpenMenu }) {
   const {
     activeTab, theme, setTheme, esPremium, servidorInfo, query, setQuery,
     ticketsReales, servidores, guildId, setMostrarSelectorServidor,
-    setActiveTab, verMensajes, misPermisos,
+    setActiveTab, verMensajes, misPermisos, reportes, sugerencias,
   } = dash;
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [notifAbiertas, setNotifAbiertas] = useState(false);
@@ -69,7 +69,12 @@ export default function Header({ dash, onOpenMenu }) {
   // se está gestionando. Si hay varios, al pulsarlo se abre el selector.
   const servActivo = (servidores || []).find((s) => s.id === guildId);
   const variosServidores = (servidores || []).length > 1;
-  const ticketsAbiertos = ticketsReales.filter((tk) => tk.estado !== 'Cerrado').length;
+  // Notificaciones de todo el panel, no solo tickets: tickets abiertos +
+  // reportes pendientes + sugerencias pendientes (los 3 "necesitan tu atención").
+  const ticketsAbiertosList = ticketsReales.filter((tk) => tk.estado !== 'Cerrado');
+  const reportesPendientesList = (reportes || []).filter((r) => r.estado === 'pendiente');
+  const sugerenciasPendientesList = (sugerencias || []).filter((s) => s.estado === 'pendiente');
+  const totalNotificaciones = ticketsAbiertosList.length + reportesPendientesList.length + sugerenciasPendientesList.length;
   const enInicio = activeTab === 'inicio';
   const mk = metaKey(activeTab);
 
@@ -216,9 +221,9 @@ export default function Header({ dash, onOpenMenu }) {
             title={t('dashboard.header.notifications')}
           >
             <Bell size={17} />
-            {ticketsAbiertos > 0 && (
+            {totalNotificaciones > 0 && (
               <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
-                {ticketsAbiertos}
+                {totalNotificaciones}
               </span>
             )}
           </button>
@@ -231,23 +236,57 @@ export default function Header({ dash, onOpenMenu }) {
                 transition={{ duration: 0.15 }}
                 className="absolute right-0 top-[calc(100%+8px)] z-30 max-h-96 w-80 overflow-y-auto rounded-2xl border border-line bg-card p-2 shadow-xl"
               >
-                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.notifOpenTickets')}</p>
-                {ticketsAbiertos === 0 ? (
+                {totalNotificaciones === 0 ? (
                   <p className="px-3 py-4 text-center text-sm text-muted">{t('dashboard.header.notifEmpty')}</p>
                 ) : (
-                  ticketsReales
-                    .filter((tk) => tk.estado !== 'Cerrado')
-                    .map((tk) => (
-                      <button
-                        key={tk.canalId}
-                        onClick={() => { setActiveTab('tickets-gestion'); verMensajes(tk); setNotifAbiertas(false); }}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
-                      >
-                        <TicketIcon size={15} className="shrink-0 text-muted" />
-                        <span className="min-w-0 flex-1 truncate">{tk.titulo || tk.creadorNombre || tk.canalId}</span>
-                        <span className="shrink-0 text-xs text-muted">{tk.estado}</span>
-                      </button>
-                    ))
+                  <>
+                    {ticketsAbiertosList.length > 0 && (
+                      <div className="mb-1">
+                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.notifOpenTickets')}</p>
+                        {ticketsAbiertosList.map((tk) => (
+                          <button
+                            key={tk.canalId}
+                            onClick={() => { setActiveTab('tickets-gestion'); verMensajes(tk); setNotifAbiertas(false); }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
+                          >
+                            <TicketIcon size={15} className="shrink-0 text-muted" />
+                            <span className="min-w-0 flex-1 truncate">{tk.titulo || tk.creadorNombre || tk.canalId}</span>
+                            <span className="shrink-0 text-xs text-muted">{tk.estado}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {reportesPendientesList.length > 0 && (
+                      <div className="mb-1">
+                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.notifReportes')}</p>
+                        {reportesPendientesList.map((r) => (
+                          <button
+                            key={r._id}
+                            onClick={() => { setActiveTab('mod-reportes'); setNotifAbiertas(false); }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
+                          >
+                            <Flag size={15} className="shrink-0 text-muted" />
+                            <span className="min-w-0 flex-1 truncate">{r.reportadoTag || r.motivo || r._id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {sugerenciasPendientesList.length > 0 && (
+                      <div>
+                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.notifSugerencias')}</p>
+                        {sugerenciasPendientesList.map((s) => (
+                          <button
+                            key={s._id}
+                            onClick={() => { setActiveTab('com-sugerencias'); setNotifAbiertas(false); }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
+                          >
+                            <Lightbulb size={15} className="shrink-0 text-muted" />
+                            <span className="min-w-0 flex-1 truncate">{s.autor || s.texto || s._id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </motion.div>
             )}

@@ -1340,6 +1340,18 @@ export function useDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, guildId]);
 
+  // Notificaciones generales (campanita del header): mantiene tickets,
+  // reportes y sugerencias frescos aunque no estés en su pestaña, para que
+  // la campanita avise desde cualquier sitio del panel, no solo en tickets.
+  useEffect(() => {
+    if (!guildId) return;
+    const cargarNotificaciones = () => { cargarTickets(); cargarReportes(); cargarSugerencias(); };
+    cargarNotificaciones();
+    const intervalo = setInterval(cargarNotificaciones, 30000);
+    return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guildId]);
+
   useEffect(() => {
     let intervalo;
     if (ticketSeleccionado && activeTab === 'tickets-gestion') {
