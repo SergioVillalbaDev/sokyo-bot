@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Usuario = require('../models/Usuario.js');
 const Item = require('../models/Item.js');
 
@@ -11,6 +12,9 @@ async function obtenerUsuario(discordId) {
 }
 
 // Compra atómica y segura contra "doble gasto". `itemDocId` es el _id de Mongo del ítem.
+// Todo el descuento de stock + cobro de oro + inventario va en UNA transacción de
+// Mongo: si el proceso se cae a medias (o falla cualquier paso), se deshace entero
+// en vez de dejar stock descontado sin cobrar el oro (o viceversa).
 async function comprarItem(discordId, itemDocId, cantidad = 1) {
     cantidad = Math.max(1, parseInt(cantidad, 10) || 1);
 
@@ -26,48 +30,59 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
     const coste = precioEfectivo(item).precio * cantidad; // respeta la oferta relámpago si la hay
     await obtenerUsuario(discordId);
 
-    // 2) STOCK: si el ítem lleva unidades limitadas, las reservamos de forma atómica
-    //    (solo resta si quedan suficientes). Si no, evitamos vender lo que no hay.
-    const llevaStock = typeof item.stock === 'number';
-    if (llevaStock) {
-        const reserva = await Item.findOneAndUpdate(
-            { _id: item._id, stock: { $gte: cantidad } },
-            { $inc: { stock: -cantidad } },
-            { returnDocument: 'after' }
-        );
-        if (!reserva) return { ok: false, error: 'Sold out! No stock left for this item.' };
+    const session = await mongoose.startSession();
+    try {
+        let balanceFinal;
+        await session.withTransaction(async () => {
+            // 2) STOCK: si el ítem lleva unidades limitadas, las reservamos de forma atómica
+            //    (solo resta si quedan suficientes). Si no, evitamos vender lo que no hay.
+            const llevaStock = typeof item.stock === 'number';
+            if (llevaStock) {
+                const reserva = await Item.findOneAndUpdate(
+                    { _id: item._id, stock: { $gte: cantidad } },
+                    { $inc: { stock: -cantidad } },
+                    { returnDocument: 'after', session }
+                );
+                if (!reserva) throw new Error('SIN_STOCK');
+            }
+
+            // 3) PUERTA ATÓMICA del oro: solo descuenta si en ESE mismo instante hay saldo
+            //    suficiente. Si dos compras llegan a la vez, MongoDB serializa este update:
+            //    una pasa y la otra falla la condición `balance >= coste`.
+            const usuario = await Usuario.findOneAndUpdate(
+                { discordId, balance: { $gte: coste } },
+                { $inc: { balance: -coste } },
+                { returnDocument: 'after', session }
+            );
+            if (!usuario) throw new Error('SIN_ORO');
+
+            // 4) Añadir al inventario (misma transacción: si esto fallara, deshace todo).
+            await anadirAlInventario(discordId, item._id, cantidad, session);
+            balanceFinal = usuario.balance;
+        });
+        return { ok: true, item, coste, balance: balanceFinal };
+    } catch (e) {
+        if (e.message === 'SIN_STOCK') return { ok: false, error: 'Sold out! No stock left for this item.' };
+        if (e.message === 'SIN_ORO') return { ok: false, error: 'No tienes suficiente oro para comprar esto.' };
+        console.error('comprarItem: transacción abortada:', e.message);
+        return { ok: false, error: 'No se pudo completar la compra, inténtalo de nuevo.' };
+    } finally {
+        await session.endSession();
     }
-
-    // 3) PUERTA ATÓMICA del oro: solo descuenta si en ESE mismo instante hay saldo
-    //    suficiente. Si dos compras llegan a la vez, MongoDB serializa este update:
-    //    una pasa y la otra falla la condición `balance >= coste`.
-    const usuario = await Usuario.findOneAndUpdate(
-        { discordId, balance: { $gte: coste } },
-        { $inc: { balance: -coste } },
-        { returnDocument: 'after' }
-    );
-    if (!usuario) {
-        // El oro falló: devolvemos el stock que habíamos reservado para no perderlo.
-        if (llevaStock) await Item.updateOne({ _id: item._id }, { $inc: { stock: cantidad } });
-        return { ok: false, error: 'No tienes suficiente oro para comprar esto.' };
-    }
-
-    // 4) Añadir al inventario.
-    await anadirAlInventario(discordId, item._id, cantidad);
-
-    const final = await Usuario.findOne({ discordId });
-    return { ok: true, item, coste, balance: final.balance };
 }
 
 // Añade un objeto al inventario: suma cantidad si ya lo tiene, o crea la entrada.
-async function anadirAlInventario(discordId, itemId, cantidad = 1) {
+// `session` opcional: si viene de una transacción (p. ej. comprarItem), la reutiliza
+// para que el find-then-push sea parte del mismo todo-o-nada.
+async function anadirAlInventario(discordId, itemId, cantidad = 1, session = null) {
+    const opts = session ? { session } : {};
     const yaLoTiene = await Usuario.findOneAndUpdate(
         { discordId, 'inventory.item': itemId },
         { $inc: { 'inventory.$.cantidad': cantidad } }, // $ = el elemento que coincidió
-        { returnDocument: 'after' }
+        { returnDocument: 'after', ...opts }
     );
     if (!yaLoTiene) {
-        await Usuario.updateOne({ discordId }, { $push: { inventory: { item: itemId, cantidad } } });
+        await Usuario.updateOne({ discordId }, { $push: { inventory: { item: itemId, cantidad } } }, opts);
     }
 }
 
@@ -99,7 +114,7 @@ async function darOro(discordId, cantidad) {
     const u = await Usuario.findOneAndUpdate(
         { discordId },
         [{ $set: { balance: { $max: [0, { $add: ['$balance', cantidad] }] } } }],
-        { returnDocument: 'after', updatePipeline: true } // el array es una pipeline (Mongoose 9 lo exige)
+        { returnDocument: 'after' } // el array ya se detecta como pipeline de agregación automáticamente
     );
     return u.balance;
 }
@@ -122,12 +137,17 @@ async function reclamarDaily(discordId) {
     const jackpot = (racha % 7 === 0) ? 500 : 0;    // premio gordo cada 7 días
     const total = base + bonus + jackpot;
 
-    await Usuario.updateOne(
-        { discordId },
-        { $set: { ultimoDaily: ahora, rachaDaily: racha }, $inc: { balance: total } }
+    // Puerta atómica: solo se aplica si `ultimoDaily` sigue siendo el mismo que
+    // acabamos de leer. Si dos /daily llegan a la vez (doble clic, reintento de
+    // Discord), la segunda encuentra el documento ya cambiado y esta condición
+    // falla, así que no duplica el premio.
+    const actualizado = await Usuario.findOneAndUpdate(
+        { discordId, ultimoDaily: u.ultimoDaily ?? null },
+        { $set: { ultimoDaily: ahora, rachaDaily: racha }, $inc: { balance: total } },
+        { returnDocument: 'after' }
     );
-    const final = await Usuario.findOne({ discordId });
-    return { ok: true, total, racha, jackpot, balance: final.balance };
+    if (!actualizado) return { ok: false, esperaHoras: 20 }; // otra petición ganó la carrera justo antes
+    return { ok: true, total, racha, jackpot, balance: actualizado.balance };
 }
 
 // Ranking de los usuarios con más oro.

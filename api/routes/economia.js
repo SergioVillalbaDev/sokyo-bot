@@ -12,12 +12,17 @@ module.exports = ({ portalAuth }) => {
     // CREAR OBJETO. Abierto a cualquier usuario logueado (fase actual): cuelga de
     // /portal, que el middleware global deja pasar, y lo protege portalAuth.
     // Guardamos creadorId para el futuro MMO (saber de quién es cada objeto).
+    // URL de imagen válida: http(s) absoluta o /uploads/... propia (nunca javascript:/data: sueltos).
+    const urlImagenValida = (v) => !v || /^https?:\/\//i.test(v) || /^\/uploads\//.test(v);
+
     router.post('/portal/items', portalAuth, async (req, res) => {
         try {
-            const { itemId, nombre, descripcion, precio, imageUrl, tipo, rareza, stock } = req.body;
+            const { itemId, nombre, precio, tipo, rareza, stock } = req.body;
             if (!itemId || !nombre || precio == null) {
                 return res.status(400).json({ error: 'Faltan campos: ID, nombre y precio son obligatorios.' });
             }
+            const imageUrl = req.body.imageUrl ? String(req.body.imageUrl).trim().slice(0, 500) : '';
+            if (!urlImagenValida(imageUrl)) return res.status(400).json({ error: 'URL de imagen no válida.' });
             // Stock vacío = ilimitado (null). Si llega un número, lo usamos.
             const stockNum = (stock === '' || stock == null) ? null : Math.max(0, parseInt(stock, 10) || 0);
             // Efecto al usar (campos planos desde el formulario web).
@@ -28,7 +33,10 @@ module.exports = ({ portalAuth }) => {
                 rolId: req.body.efectoRolId ? String(req.body.efectoRolId).trim() : null,
             };
             const item = await Item.create({
-                itemId, nombre, descripcion, precio, imageUrl, tipo, rareza,
+                itemId: String(itemId).trim().slice(0, 60),
+                nombre: String(nombre).trim().slice(0, 80),
+                descripcion: String(req.body.descripcion || '').trim().slice(0, 300),
+                precio, imageUrl, tipo, rareza,
                 stock: stockNum, efecto, activo: true, creadorId: req.usuario.id,
             });
             res.status(201).json({ success: true, item });
@@ -42,17 +50,22 @@ module.exports = ({ portalAuth }) => {
     // CREAR CAJA de botín con su contenido. Abierto a usuarios logueados.
     router.post('/portal/cajas', portalAuth, async (req, res) => {
         try {
-            const { itemId, nombre, descripcion, precio, imageUrl, rareza, contenido } = req.body;
+            const { itemId, nombre, precio, rareza, contenido } = req.body;
             if (!itemId || !nombre || precio == null) {
                 return res.status(400).json({ error: 'Faltan campos: ID, nombre y precio son obligatorios.' });
             }
+            const imageUrl = req.body.imageUrl ? String(req.body.imageUrl).trim().slice(0, 500) : '';
+            if (!urlImagenValida(imageUrl)) return res.status(400).json({ error: 'URL de imagen no válida.' });
             const lista = Array.isArray(contenido)
                 ? contenido.filter(c => c && c.item).map(c => ({ item: c.item, peso: Math.max(1, parseInt(c.peso, 10) || 1) }))
                 : [];
             if (!lista.length) return res.status(400).json({ error: 'Marca al menos un objeto que pueda soltar la caja.' });
 
             const caja = await Item.create({
-                itemId, nombre, descripcion, precio, imageUrl, rareza,
+                itemId: String(itemId).trim().slice(0, 60),
+                nombre: String(nombre).trim().slice(0, 80),
+                descripcion: String(req.body.descripcion || '').trim().slice(0, 300),
+                precio, imageUrl, rareza,
                 tipo: 'material', efecto: { tipo: 'caja' }, contenido: lista,
                 activo: true, creadorId: req.usuario.id,
             });
@@ -79,8 +92,13 @@ module.exports = ({ portalAuth }) => {
         res.json({ success: true, url: `/uploads/${archivo}` });
     });
 
-    // LANZAR OFERTA RELÁMPAGO sobre un objeto.
+    // LANZAR OFERTA RELÁMPAGO sobre un objeto. Solo quien lo creó puede rebajarlo:
+    // sin esto, cualquier usuario logueado podía poner el objeto de OTRO al 99% de
+    // descuento y comprarlo barato.
     router.post('/portal/items/:id/oferta', portalAuth, async (req, res) => {
+        const item = await Item.findById(req.params.id).select('creadorId').catch(() => null);
+        if (!item) return res.status(404).json({ error: 'Objeto no encontrado.' });
+        if (item.creadorId !== req.usuario.id) return res.status(403).json({ error: 'Solo quien creó el objeto puede ponerlo en oferta.' });
         const r = await economia.ponerOferta(req.params.id, req.body.porcentaje, req.body.duracionMin);
         if (!r.ok) return res.status(400).json({ error: r.error });
         res.json({ success: true, porcentaje: r.porcentaje, expiraEn: r.expiraEn });

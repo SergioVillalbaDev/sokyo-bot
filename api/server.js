@@ -5,6 +5,9 @@ const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const dns = require('dns').promises;
+const net = require('net');
 const { ChannelType, PermissionsBitField, AttachmentBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
@@ -61,7 +64,27 @@ module.exports = (client) => {
     // concreto o a TODOS los servidores del bot. Exclusivo de estas IDs.
     const BROADCAST_IDS = new Set((process.env.BROADCAST_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 
-    app.use(cors());
+    // --- Secretos obligatorios en producción ---
+    // TRUST_PROXY ya se usa en este archivo como señal de "estamos detrás de un
+    // proxy/HTTPS real" (ver arriba). La reutilizamos aquí: en ese entorno NO
+    // toleramos arrancar sin JWT_SECRET/API_KEY propios, porque si faltan el
+    // servidor cae al secreto por defecto (público, está en el repo) o deja la
+    // API sin proteger.
+    if (process.env.TRUST_PROXY && (!process.env.JWT_SECRET || !process.env.API_KEY)) {
+        console.error('🔴 Faltan JWT_SECRET y/o API_KEY en el .env de producción. Defínelos (valores propios y secretos) antes de arrancar.');
+        process.exit(1);
+    }
+
+    // --- CORS: solo el panel y la tienda, nunca cualquier origen ---
+    const ORIGENES_PERMITIDOS = [FRONTEND_URL, ...(process.env.CORS_EXTRA_ORIGINS || '').split(',').map((s) => s.trim())].filter(Boolean);
+    app.use(cors({
+        origin(origin, callback) {
+            // Sin origin (curl, apps nativas, la propia tienda servida en el mismo origen) o en la whitelist.
+            // callback(null, false) en vez de un Error: así cors() simplemente omite las cabeceras
+            // (el navegador bloquea la respuesta) sin propagar una excepción con stack trace al cliente.
+            callback(null, !origin || ORIGENES_PERMITIDOS.includes(origin));
+        },
+    }));
 
     // --- CABECERAS DE SEGURIDAD (helmet) ---
     // Añade cabeceras que protegen frente a ataques comunes (clickjacking, sniffing…).
@@ -88,7 +111,7 @@ module.exports = (client) => {
             return res.status(400).send(`Webhook Error: ${e.message}`);
         }
         try {
-            await billing.procesarEvento(event);
+            await billing.procesarEvento(event, client);
         } catch (e) {
             console.error('🔴 Error procesando webhook de Stripe:', e.message);
         }
@@ -347,6 +370,90 @@ module.exports = (client) => {
         }
     };
 
+    // ¿El solicitante tiene acceso al ÁREA indicada en este guild? Dueño/API key: sí.
+    // Staff: Administrator, o su rol está en accesoAreas[area] (lista vacía = todos).
+    // Además exige que el guild esté entre los suyos (igual que el resto de scopers).
+    async function tieneAreaAcceso(req, guildId, area) {
+        if (!req.staff || req.staff.owner) return true;
+        if (!guildId || !(req.staff.guilds || []).includes(guildId)) return false;
+        try {
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) return false;
+            const member = await guild.members.fetch(req.staff.id);
+            if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
+            const cfg = await ServidorConfig.findOne({ guildId });
+            const lista = (cfg && cfg.accesoAreas && cfg.accesoAreas[area]) || [];
+            return lista.length === 0 || lista.some((id) => member.roles.cache.has(id));
+        } catch { return false; }
+    }
+
+    // Middleware: exige acceso al ÁREA indicada para escribir en la config del guild
+    // (tomado de :guildId en la ruta, o de guildId en el body/query). A diferencia del
+    // guardado de solo pertenencia al guild, esto respeta accesoAreas del panel: un
+    // miembro del staff con acceso limitado (p. ej. solo a tickets) no puede tocar
+    // secciones para las que no tiene el área concedida, aunque llame a la API directamente.
+    const exigeArea = (area) => async (req, res, next) => {
+        const guildId = req.params.guildId || (req.body && req.body.guildId) || req.query.guildId;
+        if (!guildId) return res.status(400).json({ error: 'Indica un servidor' });
+        if (await tieneAreaAcceso(req, guildId, area)) return next();
+        return res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
+    };
+
+    // Middleware: exige ser Administrator de Discord en el guild (o dueño/API key).
+    // Reservado para operaciones que OTORGAN permisos a otros (quién modera, quién
+    // entra al panel): no basta con tener acceso al área, hace falta ser admin real.
+    const exigeAdmin = async (req, res, next) => {
+        const guildId = req.params.guildId || (req.body && req.body.guildId) || req.query.guildId;
+        if (!req.staff || req.staff.owner) return next();
+        if (!guildId || !(req.staff.guilds || []).includes(guildId)) {
+            return res.status(guildId ? 403 : 400).json({ error: guildId ? 'Sin acceso a ese servidor' : 'Indica un servidor' });
+        }
+        try {
+            const guild = client.guilds.cache.get(guildId);
+            const member = guild && await guild.members.fetch(req.staff.id).catch(() => null);
+            if (member && member.permissions.has(PermissionsBitField.Flags.Administrator)) return next();
+        } catch { /* cae al 403 de abajo */ }
+        return res.status(403).json({ error: 'Necesitas ser administrador de este servidor' });
+    };
+
+    // --- Utilidades para el nonce anti-CSRF del login OAuth (cookie <-> state) ---
+    function leerCookie(req, nombre) {
+        const raw = req.headers.cookie || '';
+        for (const parte of raw.split(';')) {
+            const i = parte.indexOf('=');
+            if (i === -1) continue;
+            if (parte.slice(0, i).trim() === nombre) return decodeURIComponent(parte.slice(i + 1).trim());
+        }
+        return null;
+    }
+    function nonceValido(a, b) {
+        if (!a || !b || a.length !== b.length) return false;
+        try { return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b)); } catch { return false; }
+    }
+
+    // --- Utilidad anti-SSRF para URLs de webhooks salientes proporcionadas por el staff ---
+    // Resuelve el host y rechaza IPs privadas/loopback/link-local, para que un webhook
+    // "de prueba" (o guardado) no pueda usarse para sondear la red interna del servidor.
+    function ipEnRangoPrivado(ip) {
+        if (net.isIP(ip) === 4) {
+            const [a, b] = ip.split('.').map(Number);
+            return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+        }
+        if (net.isIP(ip) === 6) {
+            const low = ip.toLowerCase();
+            return low === '::1' || low.startsWith('fe80:') || low.startsWith('fc') || low.startsWith('fd') || low.includes('::ffff:127.') || low.includes('::ffff:10.');
+        }
+        return true; // no es una IP reconocible: por precaución, la tratamos como no segura
+    }
+    async function urlEsSegura(urlStr) {
+        let host;
+        try { host = new URL(urlStr).hostname; } catch { return false; }
+        try {
+            const { address } = await dns.lookup(host);
+            return !ipEnRangoPrivado(address);
+        } catch { return false; }
+    }
+
     // ===================== PORTAL DEL CLIENTE (OAuth Discord) =====================
 
     // 1. Inicio del login: redirige a Discord
@@ -354,27 +461,37 @@ module.exports = (client) => {
         if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
             return res.status(500).send('El login con Discord no está configurado en el servidor.');
         }
+        const tipo = ['staff', 'tienda'].includes(req.query.state) ? req.query.state : 'portal'; // staff / tienda / portal
+        // Nonce anti-CSRF: se guarda en una cookie httpOnly y viaja también en el
+        // `state` de OAuth. El callback exige que coincidan, así un atacante no puede
+        // completar el login-CSRF clásico (colar SU code en la sesión de la víctima),
+        // porque no puede leer/forzar la cookie del navegador de la víctima.
+        const nonce = crypto.randomBytes(24).toString('base64url');
+        res.cookie('sokyo_oauth_state', nonce, {
+            httpOnly: true, sameSite: 'lax', secure: !!process.env.TRUST_PROXY, maxAge: 10 * 60 * 1000, path: '/',
+        });
         const params = new URLSearchParams({
             client_id: DISCORD_CLIENT_ID,
             redirect_uri: OAUTH_REDIRECT_URI,
             response_type: 'code',
             scope: 'identify',
-            state: ['staff', 'tienda'].includes(req.query.state) ? req.query.state : 'portal', // staff / tienda / portal
+            state: `${tipo}.${nonce}`,
         });
         res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
     });
 
-    
-
     // 2. Callback: intercambia el code, obtiene el usuario y emite la sesión
     app.get('/api/auth/discord/callback', async (req, res) => {
         const { code, state } = req.query;
-        const esStaff = state === 'staff';
-        const esTienda = state === 'tienda';
+        const [tipoRaw, nonce] = String(state || '').split('.');
+        const esStaff = tipoRaw === 'staff';
+        const esTienda = tipoRaw === 'tienda';
         const destinoError = esStaff ? `${FRONTEND_URL}/?staff=1&error=denegado`
             : esTienda ? `/tienda.html?error=denegado`
             : `${FRONTEND_URL}/?portal=1&error=denegado`;
-        if (!code) return res.redirect(destinoError);
+        const cookieNonce = leerCookie(req, 'sokyo_oauth_state');
+        res.clearCookie('sokyo_oauth_state', { path: '/' });
+        if (!code || !nonceValido(nonce, cookieNonce)) return res.redirect(destinoError);
         try {
             const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
                 method: 'POST',
@@ -640,6 +757,7 @@ module.exports = (client) => {
         ok: true,
         ready: !!(client && typeof client.isReady === 'function' && client.isReady()),
         apiKeyRequired: !!API_KEY, // si es true, el panel necesita sesión de Discord o la API key correcta
+        soporteEmail: process.env.SUPPORT_EMAIL || null, // contacto de soporte para el panel/tienda (plan Free)
     }));
 
     // Lista de servidores para el selector del panel.
@@ -915,11 +1033,14 @@ app.get('/api/stats/uso', async (req, res) => {
     app.post('/api/mensajes/:ticketId', scopeTicket, async (req, res) => {
         try {
             const { ticketId } = req.params;
-            const { usuario, contenido } = req.body; 
+            const { contenido } = req.body;
+            // El remitente se toma de la sesión autenticada, no del body: si no, cualquiera
+            // con acceso a la API podría firmar el mensaje con el nombre que quisiera.
+            const usuario = (req.staff && req.staff.username) || String(req.body.usuario || 'Panel Web').slice(0, 80);
 
             const nuevoMsg = await Mensaje.create({
                 ticketId: ticketId,
-                usuarioId: 'sokyo-web', 
+                usuarioId: 'sokyo-web',
                 usuario: usuario,
                 contenido: contenido
             });
@@ -1071,7 +1192,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- RESUMEN DIARIO (Pro): guardar config + enviar prueba ---
-    app.put('/api/config/:guildId/resumen', async (req, res) => {
+    app.put('/api/config/:guildId/resumen', exigeArea('config'), async (req, res) => {
         try {
             const b = req.body || {};
             const set = {
@@ -1090,7 +1211,7 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    app.post('/api/resumen/:guildId/probar', async (req, res) => {
+    app.post('/api/resumen/:guildId/probar', exigeArea('config'), async (req, res) => {
         try {
             const r = await enviarResumen(client, req.params.guildId, { prueba: true });
             if (r.ok) return res.json({ success: true });
@@ -1101,7 +1222,7 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    app.put('/api/config/:guildId/motivos', async (req, res) => {
+    app.put('/api/config/:guildId/motivos', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
             const { motivos } = req.body; 
@@ -1119,7 +1240,7 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    app.put('/api/config/:guildId/urgencias', async (req, res) => {
+    app.put('/api/config/:guildId/urgencias', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
             const { urgencias } = req.body; 
@@ -1138,7 +1259,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- NUEVA RUTA: Actualizar textos de Marca Blanca + personalización (Fase 2) ---
-    app.put('/api/config/:guildId/textos', async (req, res) => {
+    app.put('/api/config/:guildId/textos', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
             const { titulo, descripcion, footer, colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados } = req.body;
@@ -1168,7 +1289,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- NUEVA RUTA: Ajustes de comportamiento (Fase 1) ---
-    app.put('/api/config/:guildId/comportamiento', async (req, res) => {
+    app.put('/api/config/:guildId/comportamiento', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
             const { ratingActivo, enviarTranscript, avisoCierreCanal, pingSoporte, rolSoporteId, logsActivos, canalLogsId } = req.body;
@@ -1201,7 +1322,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- NUEVA RUTA: Reglas y control (Fase 3) ---
-    app.put('/api/config/:guildId/reglas', async (req, res) => {
+    app.put('/api/config/:guildId/reglas', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
             const { rolStaffId, categoriaTicketsId, maxTicketsAbiertos, autoCierreDias, autoAsignar } = req.body;
@@ -1275,7 +1396,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!guildId) return res.status(400).json({ error: 'Falta el guildId.' });
             if (!['free', 'pro', 'agency'].includes(plan)) return res.status(400).json({ error: 'Plan no válido.' });
             if (plan === 'free') {
-                await billing.desactivarPlan(guildId);
+                await billing.desactivarPlan(guildId, client);
             } else {
                 const premiumHasta = (Number.isFinite(dias) && dias > 0)
                     ? new Date(Date.now() + dias * 24 * 60 * 60 * 1000)
@@ -1322,7 +1443,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- NUEVA RUTA: Respuestas rápidas / macros (productividad del staff) ---
-    app.put('/api/config/:guildId/macros', async (req, res) => {
+    app.put('/api/config/:guildId/macros', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
             const { respuestasRapidas } = req.body;
@@ -1362,7 +1483,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- MODERACIÓN: ajustes (canal de registro + aviso por MD) ---
-    app.put('/api/config/:guildId/modlog', async (req, res) => {
+    app.put('/api/config/:guildId/modlog', exigeArea('moderacion'), async (req, res) => {
         try {
             const cambios = {};
             if (req.body.canalModLogId !== undefined) cambios.canalModLogId = req.body.canalModLogId || null;
@@ -1380,7 +1501,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- AUTOMODERADOR: filtros automáticos de mensajes ---
-    app.put('/api/config/:guildId/automod', async (req, res) => {
+    app.put('/api/config/:guildId/automod', exigeArea('moderacion'), async (req, res) => {
         try {
             const ACC = ['borrar', 'aviso', 'timeout', 'expulsion', 'ban'];
             const accion = (a, def) => (ACC.includes(a) ? a : def);
@@ -1492,7 +1613,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- SEGURIDAD: verificación de entrada ---
-    app.put('/api/config/:guildId/verificacion', async (req, res) => {
+    app.put('/api/config/:guildId/verificacion', exigeArea('config'), async (req, res) => {
         try {
             const b = req.body.verificacion || req.body || {};
             const v = {
@@ -1522,7 +1643,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Publica (o reedita) el panel de verificación en el canal configurado.
-    app.post('/api/seguridad/:guildId/verificacion/publicar', async (req, res) => {
+    app.post('/api/seguridad/:guildId/verificacion/publicar', exigeArea('config'), async (req, res) => {
         try {
             const mensajeId = await publicarPanelVerificacion(client, req.params.guildId);
             res.json({ success: true, mensajeId });
@@ -1533,7 +1654,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- EMBUDO DE BIENVENIDA: Test A/B de retención ---
-    app.put('/api/config/:guildId/embudo', async (req, res) => {
+    app.put('/api/config/:guildId/embudo', exigeArea('config'), async (req, res) => {
         try {
             const cfgActual = await ServidorConfig.findOne({ guildId: req.params.guildId });
             if (!billing.esPro(cfgActual)) return res.status(402).json({ error: 'El embudo de bienvenida A/B es una función Pro.' });
@@ -1571,7 +1692,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Publica (o reedita) el panel del embudo en el canal configurado.
-    app.post('/api/embudo/:guildId/publicar', async (req, res) => {
+    app.post('/api/embudo/:guildId/publicar', exigeArea('config'), async (req, res) => {
         try {
             const cfgActual = await ServidorConfig.findOne({ guildId: req.params.guildId });
             if (!billing.esPro(cfgActual)) return res.status(402).json({ error: 'El embudo de bienvenida A/B es una función Pro.' });
@@ -1584,7 +1705,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- COMUNIDAD: mensajes de bienvenida y despedida ---
-    app.put('/api/config/:guildId/bienvenidas', async (req, res) => {
+    app.put('/api/config/:guildId/bienvenidas', exigeArea('config'), async (req, res) => {
         try {
             const norm = (b) => {
                 b = b || {};
@@ -1614,7 +1735,7 @@ app.get('/api/stats/uso', async (req, res) => {
 
     // Envía un mensaje de prueba (bienvenida/despedida) al canal, usando al propio
     // staff que lo solicita como miembro de ejemplo.
-    app.post('/api/bienvenidas/:guildId/probar', async (req, res) => {
+    app.post('/api/bienvenidas/:guildId/probar', exigeArea('config'), async (req, res) => {
         try {
             const gid = req.params.guildId;
             const tipo = req.body.tipo === 'despedida' ? 'despedida' : 'bienvenida';
@@ -1637,7 +1758,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- SEGURIDAD: ajustes de reportes ---
-    app.put('/api/config/:guildId/reportes', async (req, res) => {
+    app.put('/api/config/:guildId/reportes', exigeArea('config'), async (req, res) => {
         try {
             const b = req.body.reportes || req.body || {};
             const config = await ServidorConfig.findOneAndUpdate(
@@ -1706,7 +1827,7 @@ app.get('/api/stats/uso', async (req, res) => {
     // --- SEGURIDAD: exportar / importar configuración del servidor ---
     // Campos que NO se exportan/importan (identidad, estado interno, premium).
     const CAMPOS_NO_BACKUP = ['_id', '__v', 'guildId', 'esPremium', 'premiumHasta', 'autoAsignarIndex'];
-    app.get('/api/config/:guildId/export', async (req, res) => {
+    app.get('/api/config/:guildId/export', exigeArea('config'), async (req, res) => {
         try {
             const cfg = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean();
             if (!cfg) return res.status(404).json({ error: 'Sin configuración' });
@@ -1718,7 +1839,7 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    app.post('/api/config/:guildId/import', async (req, res) => {
+    app.post('/api/config/:guildId/import', exigeArea('config'), async (req, res) => {
         try {
             const entrante = (req.body && (req.body.config || req.body)) || {};
             if (typeof entrante !== 'object' || Array.isArray(entrante)) return res.status(400).json({ error: 'Formato no válido' });
@@ -1742,7 +1863,7 @@ app.get('/api/stats/uso', async (req, res) => {
 
     // --- Auto-respuestas / triggers ---
     const TIPOS_AR = ['contiene', 'exacto', 'empieza'];
-    app.put('/api/config/:guildId/autorespuestas', async (req, res) => {
+    app.put('/api/config/:guildId/autorespuestas', exigeArea('mensajes'), async (req, res) => {
         try {
             const arr = Array.isArray(req.body.autoRespuestas) ? req.body.autoRespuestas : [];
             const cfgAR = await ServidorConfig.findOne({ guildId: req.params.guildId });
@@ -1772,7 +1893,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- Constructor de embeds: enviar un embed/anuncio AHORA a un canal ---
-    app.post('/api/embed/:guildId/enviar', async (req, res) => {
+    app.post('/api/embed/:guildId/enviar', exigeArea('mensajes'), async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -1956,7 +2077,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- ACCESO Y PERMISOS: roles que entran al panel + roles de moderación ---
-    app.put('/api/config/:guildId/acceso', async (req, res) => {
+    app.put('/api/config/:guildId/acceso', exigeAdmin, async (req, res) => {
         try {
             const cambios = {};
             if (Array.isArray(req.body.rolesPanelAcceso)) cambios.rolesPanelAcceso = req.body.rolesPanelAcceso.filter(Boolean);
@@ -1979,13 +2100,17 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- Webhooks salientes (Pro): guardar configuración ---
-    app.put('/api/config/:guildId/webhooks', async (req, res) => {
+    app.put('/api/config/:guildId/webhooks', exigeArea('config'), async (req, res) => {
         try {
             const b = req.body || {};
             const ev = b.eventos || {};
+            const url = typeof b.url === 'string' ? b.url.trim().slice(0, 500) : '';
+            if (url && (!/^https:\/\//i.test(url) || !(await urlEsSegura(url)))) {
+                return res.status(400).json({ error: 'Esa URL de webhook no está permitida (debe ser https:// y no apuntar a una red privada/local).' });
+            }
             const cambios = {
                 'webhooksSalientes.activo': !!b.activo,
-                'webhooksSalientes.url': typeof b.url === 'string' ? b.url.trim().slice(0, 500) : '',
+                'webhooksSalientes.url': url,
                 'webhooksSalientes.secret': typeof b.secret === 'string' ? b.secret.trim().slice(0, 200) : '',
                 'webhooksSalientes.eventos.ticketNuevo': ev.ticketNuevo !== false,
                 'webhooksSalientes.eventos.sancion': ev.sancion !== false,
@@ -2004,11 +2129,12 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- Webhooks salientes: enviar una prueba a la URL indicada ---
-    app.post('/api/config/:guildId/webhooks/test', async (req, res) => {
+    app.post('/api/config/:guildId/webhooks/test', exigeArea('config'), async (req, res) => {
         try {
             const url = String(req.body.url || '').trim();
             const secret = String(req.body.secret || '').trim();
             if (!/^https:\/\//i.test(url)) return res.status(400).json({ error: 'La URL debe empezar por https://' });
+            if (!(await urlEsSegura(url))) return res.status(400).json({ error: 'Esa URL no está permitida (apunta a una red privada/local).' });
             const headers = { 'Content-Type': 'application/json' };
             if (secret) headers['X-Sokyo-Secret'] = secret;
             const payload = {
@@ -2024,7 +2150,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- SISTEMA DE ROLES: guardar autorol al entrar (personas / bots) ---
-    app.put('/api/config/:guildId/autoroles', async (req, res) => {
+    app.put('/api/config/:guildId/autoroles', exigeArea('roles'), async (req, res) => {
         try {
             const { guildId } = req.params;
             const { autoRoles, autoRolesBots } = req.body;
@@ -2103,7 +2229,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Crear un rol nuevo.
-    app.post('/api/roles', async (req, res) => {
+    app.post('/api/roles', exigeArea('roles'), async (req, res) => {
         try {
             const { guildId, nombre, color, permisos } = req.body;
             const guild = await resolverGuild(guildId, req.staff);
@@ -2123,7 +2249,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Editar un rol (nombre / color / permisos).
-    app.put('/api/roles/:roleId', async (req, res) => {
+    app.put('/api/roles/:roleId', exigeArea('roles'), async (req, res) => {
         try {
             const { guildId, nombre, color, permisos } = req.body;
             const guild = await resolverGuild(guildId, req.staff);
@@ -2147,7 +2273,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Eliminar un rol.
-    app.delete('/api/roles/:roleId', async (req, res) => {
+    app.delete('/api/roles/:roleId', exigeArea('roles'), async (req, res) => {
         try {
             const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -2228,7 +2354,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Asignar un rol a un miembro.
-    app.post('/api/roles/:roleId/miembros', async (req, res) => {
+    app.post('/api/roles/:roleId/miembros', exigeArea('roles'), async (req, res) => {
         try {
             const { guildId, userId } = req.body;
             const guild = await resolverGuild(guildId, req.staff);
@@ -2247,7 +2373,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Quitar un rol a un miembro.
-    app.delete('/api/roles/:roleId/miembros/:userId', async (req, res) => {
+    app.delete('/api/roles/:roleId/miembros/:userId', exigeArea('roles'), async (req, res) => {
         try {
             const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -2329,7 +2455,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Crear un panel (y publicarlo si trae canal).
-    app.post('/api/paneles', async (req, res) => {
+    app.post('/api/paneles', exigeArea('roles'), async (req, res) => {
         try {
             const { guildId } = req.body;
             if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
@@ -2806,7 +2932,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- NIVELES: guardar configuración ---
-    app.put('/api/config/:guildId/niveles', async (req, res) => {
+    app.put('/api/config/:guildId/niveles', exigeArea('config'), async (req, res) => {
         try {
             const b = req.body;
             const cambios = {};
@@ -2911,8 +3037,12 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!precio) return res.status(400).json({ error: 'Ese plan o periodo no está disponible todavía' });
 
             const cfg = await ServidorConfig.findOne({ guildId });
+            // compradorId = quién pulsa "comprar" en el panel (su sesión de staff). Lo
+            // guardamos en los metadatos de Stripe para saber a quién dar/quitar el
+            // acceso al servidor de soporte prioritario (Premium).
             const sesion = await billing.crearSesionCheckout({
                 guildId, plan, intervalo: intv, precio,
+                compradorId: req.staff && req.staff.id,
                 clienteExistenteId: cfg && cfg.stripeCustomerId,
                 exitoUrl: `${FRONTEND_URL}/?pago=ok`,
                 cancelUrl: `${FRONTEND_URL}/?pago=cancelado`,

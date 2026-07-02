@@ -100,6 +100,35 @@ module.exports = {
                     if (!rolId || !interaction.guild) return false;
                     const rol = interaction.guild.roles.cache.get(rolId);
                     if (!rol) return false;
+
+                    // Un ítem de la tienda (creable por cualquier usuario logueado) NUNCA puede
+                    // convertirse en una vía para auto-concederse permisos o el rol de staff.
+                    const PERMISOS_PROHIBIDOS = [
+                        PermissionsBitField.Flags.Administrator,
+                        PermissionsBitField.Flags.ManageGuild,
+                        PermissionsBitField.Flags.ManageRoles,
+                        PermissionsBitField.Flags.ManageChannels,
+                        PermissionsBitField.Flags.BanMembers,
+                        PermissionsBitField.Flags.KickMembers,
+                        PermissionsBitField.Flags.ModerateMembers,
+                        PermissionsBitField.Flags.ManageWebhooks,
+                        PermissionsBitField.Flags.ManageMessages,
+                    ];
+                    if (PERMISOS_PROHIBIDOS.some((p) => rol.permissions.has(p))) {
+                        console.warn(`🚨 Rol vía ítem: ${interaction.user.tag} intentó auto-concederse el rol peligroso "${rol.name}" (${rolId}) en ${interaction.guild.id}`);
+                        return false;
+                    }
+                    const cfg = await ServidorConfig.findOne({ guildId: interaction.guild.id });
+                    const rolesSensibles = new Set([
+                        cfg?.rolStaffId,
+                        ...(cfg?.rolesModeracion || []),
+                        ...(cfg?.rolesPanelAcceso || []),
+                    ].filter(Boolean));
+                    if (rolesSensibles.has(rolId)) {
+                        console.warn(`🚨 Rol vía ítem: ${interaction.user.tag} intentó auto-concederse el rol de staff "${rol.name}" en ${interaction.guild.id}`);
+                        return false;
+                    }
+
                     try {
                         await interaction.member.roles.add(rolId);
                         if (durMin > 0) {

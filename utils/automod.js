@@ -58,7 +58,9 @@ async function castigar(message, client, regla, am, motivo) {
     // Aviso efímero al usuario en el canal (se autoborra a los 6s).
     if (am.avisarEnCanal) {
         message.channel
-            .send({ content: `<@${message.author.id}> ⚠️ ${motivo}.` })
+            // allowedMentions acota el ping al propio autor: si `motivo` viene de la IA
+            // y contiene texto tipo @everyone/@rol inyectado, no se convierte en mención real.
+            .send({ content: `<@${message.author.id}> ⚠️ ${motivo}.`, allowedMentions: { users: [message.author.id] } })
             .then((m) => setTimeout(() => m.delete().catch(() => {}), 6000))
             .catch(() => {});
     }

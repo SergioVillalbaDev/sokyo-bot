@@ -445,6 +445,9 @@ const rar = (r) => RAREZA[r] || RAREZA.comun;
 const TIPO = { consumible: 'Consumible', equipo: 'Equipo', material: 'Material' };
 const ICONO = { consumible: '🧪', equipo: '🛡️', material: '💎' };
 const fmt = (n) => Number(n).toLocaleString('es-ES');
+// Escapa HTML: los objetos de la tienda (nombre, descripción...) los puede crear
+// cualquier usuario logueado (fase MMO actual), así que nunca se insertan crudos.
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // --- Notificaciones tipo juego ---
 function toast(msg, tipo = 'ok') {
@@ -550,7 +553,7 @@ function renderMochila() {
   cont.innerHTML = INV.map((i, idx) => {
     const R = rar(i.rareza);
     const visual = i.imageUrl
-      ? `<img src="${i.imageUrl}" style="animation-delay:${(idx % 6) * .45}s" />`
+      ? `<img src="${esc(i.imageUrl)}" style="animation-delay:${(idx % 6) * .45}s" />`
       : `<div class="ph" style="animation-delay:${(idx % 6) * .45}s">${ICONO[i.tipo] || '📦'}</div>`;
     return `
     <article class="carta" style="--rar:${R.color}; --rar-glow:${R.glow}">
@@ -563,12 +566,12 @@ function renderMochila() {
         <span class="qty">×${fmt(i.cantidad)}</span>
       </div>
       <div class="px-4 pb-4 flex flex-col flex-1">
-        <h3 class="text-lg font-bold text-white leading-tight">${i.nombre}</h3>
-        <p class="text-sm text-[var(--tenue)] mt-1 mb-3 flex-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${i.descripcion || ''}</p>
+        <h3 class="text-lg font-bold text-white leading-tight">${esc(i.nombre)}</h3>
+        <p class="text-sm text-[var(--tenue)] mt-1 mb-3 flex-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(i.descripcion || '')}</p>
         <div class="flex items-center justify-between mt-auto gap-2">
           <span class="brand text-lg" style="color:${R.color}">×${fmt(i.cantidad)}</span>
           ${(i.efecto && i.efecto.tipo && i.efecto.tipo !== 'ninguno')
-            ? `<button class="btn-comprar" onclick='usar(${JSON.stringify(i._id)}, ${JSON.stringify(i.nombre)})'>${i.efecto.tipo === 'caja' ? 'Abrir' : 'Usar'}</button>`
+            ? `<button class="btn-comprar" onclick='usar(${JSON.stringify(i._id)})'>${i.efecto.tipo === 'caja' ? 'Abrir' : 'Usar'}</button>`
             : `<span class="tech text-xs text-[var(--tenue)]">En posesión</span>`}
         </div>
       </div>
@@ -576,20 +579,23 @@ function renderMochila() {
   }).join('');
 }
 
-async function usar(itemId, nombre) {
+// El nombre se busca en INV (nunca se pasa como string por el atributo onclick:
+// así un nombre con comillas no puede romper fuera del atributo e inyectar HTML/JS).
+async function usar(itemId) {
+  const nombre = (INV.find(x => x._id === itemId) || {}).nombre || '';
   const res = await fetch(`${API}/api/portal/shop/use`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify({ itemId }),
   });
   const data = await res.json();
-  if (!res.ok) { toast(`❌ ${data.error}`, 'error'); return; }
+  if (!res.ok) { toast(`❌ ${esc(data.error)}`, 'error'); return; }
   const ef = data.efecto || {};
   if (ef.tipo === 'caja' && data.premio) {
     abrirRevelacion(nombre, data.premio); // animación de apertura
   } else {
     const txt = ef.tipo === 'xpBoost' ? `XP x${ef.multiplicador} durante ${ef.duracionMin} min 📈` : 'efecto activado';
-    toast(`✨ Has usado <b>${nombre}</b>: ${txt}`, 'oro');
+    toast(`✨ Has usado <b>${esc(nombre)}</b>: ${txt}`, 'oro');
   }
   actualizarOro(); // refresca el inventario
 }
@@ -598,16 +604,16 @@ async function usar(itemId, nombre) {
 function abrirRevelacion(cajaNombre, premio) {
   const R = rar(premio.rareza);
   const visual = premio.imageUrl
-    ? `<img src="${premio.imageUrl}" class="rev-img" />`
+    ? `<img src="${esc(premio.imageUrl)}" class="rev-img" />`
     : `<div class="rev-ph">${ICONO[premio.tipo] || '🎁'}</div>`;
   const ov = $('#revelacion');
   ov.style.setProperty('--rar', R.color);
   ov.style.setProperty('--rar-glow', R.glow);
   ov.querySelector('.rev-card').innerHTML = `
-    <p class="tech text-xs" style="color:var(--tenue)">Has abierto · ${cajaNombre}</p>
+    <p class="tech text-xs" style="color:var(--tenue)">Has abierto · ${esc(cajaNombre)}</p>
     <div class="rev-escena">${visual}</div>
     <span class="badge-rar" style="--rar:${R.color}">${R.label}</span>
-    <h3 class="brand text-2xl text-white mt-2">${premio.nombre}</h3>
+    <h3 class="brand text-2xl text-white mt-2">${esc(premio.nombre)}</h3>
     <p class="tech text-[10px] mt-4" style="color:var(--tenue)">Toca para cerrar</p>`;
   ov.classList.add('mostrar');
 }
@@ -656,7 +662,7 @@ function render() {
          </span>`
       : `<span class="brand text-base text-white flex items-center gap-1.5">${gema}${fmt(p.precio)}</span>`;
     const visual = i.imageUrl
-      ? `<img src="${i.imageUrl}" style="animation-delay:${(idx % 6) * .45}s" />`
+      ? `<img src="${esc(i.imageUrl)}" style="animation-delay:${(idx % 6) * .45}s" />`
       : `<div class="ph" style="animation-delay:${(idx % 6) * .45}s">${ICONO[i.tipo] || '📦'}</div>`;
     return `
     <article class="carta" style="--rar:${R.color}; --rar-glow:${R.glow}">
@@ -670,12 +676,12 @@ function render() {
         <span class="qty">${qty}</span>
       </div>
       <div class="px-4 pb-4 flex flex-col flex-1">
-        <h3 class="text-lg font-bold text-white leading-tight">${i.nombre}</h3>
-        <p class="text-sm text-[var(--tenue)] mt-1 mb-3 flex-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${i.descripcion || ''}</p>
+        <h3 class="text-lg font-bold text-white leading-tight">${esc(i.nombre)}</h3>
+        <p class="text-sm text-[var(--tenue)] mt-1 mb-3 flex-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(i.descripcion || '')}</p>
         <div class="flex items-center justify-between mt-auto gap-2">
           ${precioBloque}
           <button class="btn-comprar" ${agotado ? 'disabled' : ''}
-                  onclick='comprar(${JSON.stringify(i._id)}, ${JSON.stringify(i.nombre)})'>
+                  onclick='comprar(${JSON.stringify(i._id)})'>
             ${agotado ? 'Agotado' : 'Comprar'}
           </button>
         </div>
@@ -684,9 +690,11 @@ function render() {
   }).join('');
 }
 
-async function comprar(itemId, nombre) {
+// El nombre se busca en ITEMS (nunca se pasa por el atributo onclick, ver nota en usar()).
+async function comprar(itemId) {
   const token = getToken();
   if (!token) return login();
+  const nombre = (ITEMS.find(x => x._id === itemId) || {}).nombre || '';
   const res = await fetch(`${API}/api/portal/shop/buy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -697,9 +705,9 @@ async function comprar(itemId, nombre) {
     setGold(data.balance, true);
     cargarCatalogo();  // refresca stock del mercado
     actualizarOro();   // refresca oro + inventario (Mi mochila)
-    toast(`✨ <b>${nombre}</b> adquirido.<br><span style="opacity:.8">Saldo: ⬡ ${fmt(data.balance)} de oro.</span>`, 'oro');
+    toast(`✨ <b>${esc(nombre)}</b> adquirido.<br><span style="opacity:.8">Saldo: ⬡ ${fmt(data.balance)} de oro.</span>`, 'oro');
   } else {
-    toast(`❌ ${data.error}`, 'error');
+    toast(`❌ ${esc(data.error)}`, 'error');
   }
 }
 
@@ -722,7 +730,7 @@ async function subirImagen(input, target = '#imageUrl') {
   });
   const data = await r.json();
   if (r.ok) { $(target).value = data.url; toast('🖼️ Imagen subida correctamente.', 'ok'); }
-  else { toast(`❌ ${data.error}`, 'error'); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
 }
 
 $('#formItem').addEventListener('submit', async (e) => {
@@ -734,15 +742,15 @@ $('#formItem').addEventListener('submit', async (e) => {
     body: JSON.stringify(Object.fromEntries(f)),
   });
   const data = await res.json();
-  if (res.ok) { toast(`⚒ <b>${data.item.nombre}</b> forjado y a la venta.`, 'ok'); e.target.reset(); cargarCatalogo(); }
-  else { toast(`❌ ${data.error}`, 'error'); }
+  if (res.ok) { toast(`⚒ <b>${esc(data.item.nombre)}</b> forjado y a la venta.`, 'ok'); e.target.reset(); cargarCatalogo(); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
 });
 
 // Rellena el selector de objetos del formulario de ofertas.
 function poblarSelectOferta() {
   const sel = $('#ofertaItem');
   if (!sel) return;
-  sel.innerHTML = ITEMS.map(i => `<option value="${i._id}">${i.nombre} (🪙 ${fmt(i.precio)})</option>`).join('');
+  sel.innerHTML = ITEMS.map(i => `<option value="${esc(i._id)}">${esc(i.nombre)} (🪙 ${fmt(i.precio)})</option>`).join('');
 }
 
 // Rellena la lista de objetos que se pueden meter en una caja (todos menos cajas).
@@ -757,11 +765,11 @@ function poblarContenidoCaja() {
   cont.innerHTML = candidatos.map(i => {
     const R = rar(i.rareza);
     return `<label class="flex items-center gap-3 py-1.5 border-b border-white/5">
-      <input type="checkbox" class="caja-check" value="${i._id}" />
+      <input type="checkbox" class="caja-check" value="${esc(i._id)}" />
       <span class="badge-rar" style="--rar:${R.color}">${R.label}</span>
-      <span class="flex-1 text-sm">${i.nombre}</span>
+      <span class="flex-1 text-sm">${esc(i.nombre)}</span>
       <span class="tech text-[10px] text-[var(--tenue)]">peso</span>
-      <input type="number" min="1" value="1" class="caja-peso" data-id="${i._id}" style="width:64px" />
+      <input type="number" min="1" value="1" class="caja-peso" data-id="${esc(i._id)}" style="width:64px" />
     </label>`;
   }).join('');
 }
@@ -782,8 +790,8 @@ $('#formCaja').addEventListener('submit', async (e) => {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (res.ok) { toast(`🎁 Caja <b>${data.item.nombre}</b> creada.`, 'oro'); e.target.reset(); cargarCatalogo(); }
-  else { toast(`❌ ${data.error}`, 'error'); }
+  if (res.ok) { toast(`🎁 Caja <b>${esc(data.item.nombre)}</b> creada.`, 'oro'); e.target.reset(); cargarCatalogo(); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
 });
 
 // Lanzar oferta relámpago (admin).
@@ -798,7 +806,7 @@ $('#formOferta').addEventListener('submit', async (e) => {
   });
   const data = await res.json();
   if (res.ok) { toast(`⚡ Oferta lanzada: <b>-${data.porcentaje}%</b>`, 'oro'); cargarCatalogo(); }
-  else { toast(`❌ ${data.error}`, 'error'); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
 });
 
 // Cuenta atrás en vivo de las ofertas (actualiza cada segundo).
