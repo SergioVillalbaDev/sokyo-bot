@@ -107,37 +107,49 @@ async function snapshotDiario(client) {
     }
 }
 
+// Envuelve un tick para que no se solape consigo mismo: si la pasada anterior
+// sigue en marcha (DB lenta, muchos servidores...) cuando toca la siguiente,
+// esta se salta en vez de arrancar en paralelo y duplicar envíos.
+function conGuardiaDeReentrancia(nombre, fn) {
+    let ejecutando = false;
+    return async () => {
+        if (ejecutando) { console.warn(`⏱️ Programador (${nombre}): la pasada anterior seguía en marcha, se salta esta.`); return; }
+        ejecutando = true;
+        try { await fn(); } finally { ejecutando = false; }
+    };
+}
+
 // Arranca el barrido: primera pasada a los 15s, luego cada `intervaloMs` (30s).
 function iniciarProgramador(client, intervaloMs = 30 * 1000) {
-    const tick = async () => {
+    const tick = conGuardiaDeReentrancia('principal', async () => {
         try { await enviarAnunciosPendientes(client); } catch (e) { console.error('Programador (anuncios):', e.message); }
         try { await enviarRecordatoriosPendientes(client); } catch (e) { console.error('Programador (recordatorios):', e.message); }
         try { await barrerComunidad(client); } catch (e) { console.error('Programador (comunidad):', e.message); }
         try { await barrerDinamicas(client); } catch (e) { console.error('Programador (dinámicas):', e.message); }
-    };
+    });
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
 
     // Red de seguridad: devuelve a Free los servidores con premium caducado (cada hora).
-    const tickPremium = async () => {
+    const tickPremium = conGuardiaDeReentrancia('premium', async () => {
         try {
-            const n = await barrerPremiumCaducado();
+            const n = await barrerPremiumCaducado(client);
             if (n) console.log(`⏳ Premium caducado en ${n} servidor(es) -> Free.`);
         } catch (e) { console.error('Barrido de premium:', e.message); }
-    };
+    });
     setTimeout(tickPremium, 20 * 1000);
     setInterval(tickPremium, 60 * 60 * 1000);
 
     // Foto diaria de cada servidor: primera a los 30s, luego cada 6h (upsert por día).
-    const tickSnapshot = async () => {
+    const tickSnapshot = conGuardiaDeReentrancia('snapshot', async () => {
         try { await snapshotDiario(client); } catch (e) { console.error('Snapshot diario:', e.message); }
-    };
+    });
     setTimeout(tickSnapshot, 30 * 1000);
     setInterval(tickSnapshot, 6 * 60 * 60 * 1000);
 
     // Briefing diario: cada 30 min mira qué servidores tienen el resumen activo,
     // ha llegado su hora (UTC) y no se ha enviado hoy.
-    const tickResumen = async () => {
+    const tickResumen = conGuardiaDeReentrancia('resumen', async () => {
         try {
             const hoy = new Date().toISOString().slice(0, 10);
             const horaAhora = new Date().getUTCHours();
@@ -150,7 +162,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
                 catch (e) { console.error(`Resumen diario ${cfg.guildId}:`, e.message); }
             }
         } catch (e) { console.error('Barrido de resúmenes:', e.message); }
-    };
+    });
     setTimeout(tickResumen, 45 * 1000);
     setInterval(tickResumen, 30 * 60 * 1000);
 }

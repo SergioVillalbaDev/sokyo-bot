@@ -37,6 +37,32 @@ function restaurar() {
     for (const k of Object.keys(originales)) delete originales[k];
 }
 
+// --- Mini evaluador de expresiones de agregación de Mongo (para simular en el
+// stub lo que un findOneAndUpdate con pipeline haría de verdad en la BD real) ---
+function evalExpr(expr, doc) {
+    if (Array.isArray(expr)) return expr.map((e) => evalExpr(e, doc));
+    if (expr && typeof expr === 'object') {
+        const [op, args] = Object.entries(expr)[0];
+        switch (op) {
+            case '$cond': { const [c, t, f] = args; return evalExpr(c, doc) ? evalExpr(t, doc) : evalExpr(f, doc); }
+            case '$eq': { const [a, b] = args; return evalExpr(a, doc) === evalExpr(b, doc); }
+            case '$add': return args.reduce((s, a) => s + evalExpr(a, doc), 0);
+            case '$ifNull': { const [a, def] = args; const v = evalExpr(a, doc); return v == null ? evalExpr(def, doc) : v; }
+            case '$max': return Math.max(...evalExpr(args, doc));
+            default: throw new Error(`operador no soportado en el test: ${op}`);
+        }
+    }
+    if (typeof expr === 'string' && expr.startsWith('$')) return doc[expr.slice(1)];
+    return expr;
+}
+function aplicarPipeline(docActual, pipeline) {
+    let out = { ...docActual };
+    for (const etapa of pipeline) {
+        if (etapa.$set) for (const [k, v] of Object.entries(etapa.$set)) out[k] = evalExpr(v, out);
+    }
+    return out;
+}
+
 // ----------------------------------------------------------------------------
 describe('premiumActivo (¿plan de pago vigente?)', () => {
     it('un servidor free no tiene premium', () => assert.equal(billing.premiumActivo(cfgFree()), false));
@@ -143,23 +169,39 @@ describe('activarPlan / desactivarPlan (escritura en BD)', () => {
     });
 });
 
-describe('consumirIA (suma 1 uso)', () => {
+describe('consumirIA (suma 1 uso, atómico vía pipeline)', () => {
     afterEach(restaurar);
 
     it('incrementa el uso del mes en curso', async () => {
         let args;
-        stub('updateOne', async (...a) => { args = a; return {}; });
-        const r = await billing.consumirIA('G1', { ...cfgPro(), iaUsos: 4, iaMesRef: mesActual() });
+        // Simula el documento TAL COMO estaría en la BD real (iaUsos:4, mes en curso),
+        // y evalúa la pipeline de agregación exactamente como lo haría Mongo.
+        stub('findOneAndUpdate', async (...a) => {
+            args = a;
+            return aplicarPipeline({ iaUsos: 4, iaMesRef: mesActual() }, a[1]);
+        });
+        const r = await billing.consumirIA('G1', cfgPro());
         assert.equal(r.usos, 5);
         assert.equal(r.restantes, 145);
-        assert.equal(args[1].$set.iaUsos, 5);
-        assert.equal(args[1].$set.iaMesRef, mesActual());
+        assert.deepEqual(args[0], { guildId: 'G1' });
     });
 
     it('reinicia el contador si el mes cambió', async () => {
-        stub('updateOne', async () => ({}));
-        const r = await billing.consumirIA('G1', { ...cfgPro(), iaUsos: 100, iaMesRef: '2020-01' });
+        stub('findOneAndUpdate', async (...a) => aplicarPipeline({ iaUsos: 100, iaMesRef: '2020-01' }, a[1]));
+        const r = await billing.consumirIA('G1', cfgPro());
         assert.equal(r.usos, 1); // arranca de 0 y suma 1
+    });
+
+    it('dos incrementos concurrentes sobre el MISMO documento no se pisan (simulado en serie)', async () => {
+        // La atomicidad real la da Mongo al serializar los findOneAndUpdate sobre el
+        // mismo documento; aquí comprobamos que, aplicados en serie (como lo haría el
+        // servidor real uno tras otro), los incrementos se acumulan sin perderse.
+        let doc = { iaUsos: 0, iaMesRef: mesActual() };
+        stub('findOneAndUpdate', async (...a) => { doc = aplicarPipeline(doc, a[1]); return doc; });
+        const r1 = await billing.consumirIA('G1', cfgPro());
+        const r2 = await billing.consumirIA('G1', cfgPro());
+        assert.equal(r1.usos, 1);
+        assert.equal(r2.usos, 2);
     });
 });
 

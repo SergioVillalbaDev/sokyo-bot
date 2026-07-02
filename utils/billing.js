@@ -14,6 +14,7 @@
 // del bot funciona igual) y los endpoints responden 503.
 // ============================================================================
 const ServidorConfig = require('../models/ServidorConfig.js');
+const soporte = require('./soporte.js');
 
 let _stripe = null;
 let _intentado = false;
@@ -97,13 +98,22 @@ function estadoIA(cfg) {
 }
 
 // Suma 1 uso de IA al servidor (tras una llamada con éxito). Devuelve el estado nuevo.
+// Incremento ATÓMICO en la propia BD (pipeline de agregación): si varias llamadas de
+// IA llegan a la vez (varios mensajes moderados en paralelo), Mongo serializa cada
+// incremento en vez de perderlos por un leer-y-escribir en memoria.
 async function consumirIA(guildId, cfg) {
     const cuota = cuotaIA(cfg);
     const mes = mesActual();
-    const usos = (cfg && cfg.iaMesRef === mes) ? (cfg.iaUsos || 0) : 0;
-    const nuevo = usos + 1;
-    await ServidorConfig.updateOne({ guildId }, { $set: { iaUsos: nuevo, iaMesRef: mes } });
-    return { cuota, usos: nuevo, restantes: Math.max(0, cuota - nuevo), mes };
+    const r = await ServidorConfig.findOneAndUpdate(
+        { guildId },
+        [{ $set: {
+            iaUsos: { $cond: [{ $eq: ['$iaMesRef', mes] }, { $add: [{ $ifNull: ['$iaUsos', 0] }, 1] }, 1] },
+            iaMesRef: mes,
+        } }],
+        { returnDocument: 'after' },
+    );
+    const usos = r.iaUsos;
+    return { cuota, usos, restantes: Math.max(0, cuota - usos), mes };
 }
 
 // Activa / renueva un plan en la BD. `premiumHasta === null` = de por vida.
@@ -113,32 +123,40 @@ async function activarPlan(guildId, datos) {
     if (datos.stripeCustomerId) set.stripeCustomerId = datos.stripeCustomerId;
     if (datos.stripeSubscriptionId !== undefined) set.stripeSubscriptionId = datos.stripeSubscriptionId;
     if (datos.cancelaAlFinal !== undefined) set.premiumCancelaAlFinal = datos.cancelaAlFinal;
+    if (datos.compradorId) set.soporteCompradorId = datos.compradorId;
     await ServidorConfig.findOneAndUpdate({ guildId }, { $set: set }, { upsert: true });
 }
 
-// Devuelve el servidor a Free.
-async function desactivarPlan(guildId) {
-    await ServidorConfig.findOneAndUpdate(
+// Devuelve el servidor a Free. `client` (opcional): si se pasa, además quita el
+// acceso al servidor de soporte prioritario a quien lo compró.
+async function desactivarPlan(guildId, client = null) {
+    const cfg = await ServidorConfig.findOneAndUpdate(
         { guildId },
         { $set: { esPremium: false, plan: 'free', premiumCancelaAlFinal: false, stripeSubscriptionId: null } },
     );
+    if (client && cfg && cfg.soporteCompradorId) {
+        await soporte.revocarAcceso(client, cfg.soporteCompradorId).catch((e) => console.error('Soporte prioritario (revocar):', e.message));
+    }
 }
 
 // Crea una sesión de Checkout (la página de pago de Stripe). Devuelve la sesión (.url).
-async function crearSesionCheckout({ guildId, plan, intervalo, precio, clienteExistenteId, exitoUrl, cancelUrl }) {
+// `compradorId` (Discord ID de quien paga) viaja en los metadatos para poder darle
+// después acceso al servidor de soporte prioritario (Premium).
+async function crearSesionCheckout({ guildId, plan, intervalo, precio, compradorId, clienteExistenteId, exitoUrl, cancelUrl }) {
     const stripe = getStripe();
     const modo = intervalo === 'lifetime' ? 'payment' : 'subscription';
+    const metadata = { guildId, plan, ...(compradorId ? { compradorId } : {}) };
     const params = {
         mode: modo,
         line_items: [{ price: precio, quantity: 1 }],
         success_url: exitoUrl,
         cancel_url: cancelUrl,
         allow_promotion_codes: true,
-        metadata: { guildId, plan },
+        metadata,
     };
     if (clienteExistenteId) params.customer = clienteExistenteId;
-    if (modo === 'subscription') params.subscription_data = { metadata: { guildId, plan } };
-    else params.payment_intent_data = { metadata: { guildId, plan } };
+    if (modo === 'subscription') params.subscription_data = { metadata };
+    else params.payment_intent_data = { metadata };
     return stripe.checkout.sessions.create(params);
 }
 
@@ -155,7 +173,9 @@ function construirEvento(rawBody, signature) {
 }
 
 // Procesa un evento de Stripe ya verificado y actualiza la BD.
-async function procesarEvento(event) {
+// `client` (opcional): si se pasa, sincroniza el acceso al servidor de soporte
+// prioritario (lo concede en el primer pago, lo revoca al cancelar/caducar).
+async function procesarEvento(event, client = null) {
     const stripe = getStripe();
     const obj = event.data.object;
 
@@ -163,12 +183,13 @@ async function procesarEvento(event) {
         case 'checkout.session.completed': {
             const guildId = obj.metadata && obj.metadata.guildId;
             const plan = (obj.metadata && obj.metadata.plan) || 'pro';
+            const compradorId = obj.metadata && obj.metadata.compradorId;
             if (!guildId) break;
             if (obj.mode === 'payment') {
                 // Pago único (lifetime): premium de por vida.
                 await activarPlan(guildId, {
                     plan, premiumHasta: null, stripeCustomerId: obj.customer,
-                    stripeSubscriptionId: null, cancelaAlFinal: false,
+                    stripeSubscriptionId: null, cancelaAlFinal: false, compradorId,
                 });
             } else {
                 let hasta;
@@ -179,8 +200,12 @@ async function procesarEvento(event) {
                 }
                 await activarPlan(guildId, {
                     plan, premiumHasta: hasta, stripeCustomerId: obj.customer,
-                    stripeSubscriptionId: subId, cancelaAlFinal: false,
+                    stripeSubscriptionId: subId, cancelaAlFinal: false, compradorId,
                 });
+            }
+            // Primer pago confirmado: le mandamos el acceso al soporte prioritario.
+            if (client && compradorId) {
+                await soporte.otorgarAcceso(client, compradorId).catch((e) => console.error('Soporte prioritario (otorgar):', e.message));
             }
             break;
         }
@@ -189,24 +214,28 @@ async function procesarEvento(event) {
             const sub = obj;
             const guildId = sub.metadata && sub.metadata.guildId;
             const plan = (sub.metadata && sub.metadata.plan) || 'pro';
+            const compradorId = sub.metadata && sub.metadata.compradorId;
             if (!guildId) break;
             const activa = ['active', 'trialing', 'past_due'].includes(sub.status);
             if (activa) {
+                // Solo renovación/actualización de la suscripción: NO se vuelve a mandar
+                // el invite (eso ya pasó en checkout.session.completed la primera vez).
                 await activarPlan(guildId, {
                     plan,
                     premiumHasta: sub.current_period_end ? new Date(sub.current_period_end * 1000) : undefined,
                     stripeCustomerId: sub.customer,
                     stripeSubscriptionId: sub.id,
                     cancelaAlFinal: !!sub.cancel_at_period_end,
+                    compradorId,
                 });
             } else {
-                await desactivarPlan(guildId);
+                await desactivarPlan(guildId, client);
             }
             break;
         }
         case 'customer.subscription.deleted': {
             const guildId = obj.metadata && obj.metadata.guildId;
-            if (guildId) await desactivarPlan(guildId);
+            if (guildId) await desactivarPlan(guildId, client);
             break;
         }
         default:
@@ -216,11 +245,22 @@ async function procesarEvento(event) {
 
 // Devuelve a Free los servidores cuyo periodo pagado ya venció (red de seguridad
 // además de los webhooks). Los planes de por vida (premiumHasta = null) se respetan.
-async function barrerPremiumCaducado() {
+// `client` (opcional): si se pasa, también revoca el acceso al soporte prioritario
+// de quien compró cada uno de esos servidores.
+async function barrerPremiumCaducado(client = null) {
+    const filtro = { esPremium: true, premiumHasta: { $ne: null, $lt: new Date() } };
+    const caducados = client ? await ServidorConfig.find(filtro).select('soporteCompradorId') : [];
     const res = await ServidorConfig.updateMany(
-        { esPremium: true, premiumHasta: { $ne: null, $lt: new Date() } },
+        filtro,
         { $set: { esPremium: false, plan: 'free', premiumCancelaAlFinal: false } },
     );
+    if (client) {
+        for (const cfg of caducados) {
+            if (cfg.soporteCompradorId) {
+                await soporte.revocarAcceso(client, cfg.soporteCompradorId).catch((e) => console.error('Soporte prioritario (revocar por caducidad):', e.message));
+            }
+        }
+    }
     return res.modifiedCount || 0;
 }
 

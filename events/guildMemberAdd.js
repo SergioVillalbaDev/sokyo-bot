@@ -5,10 +5,19 @@ const { revisarEntrada } = require('../utils/antiRaid.js');
 const { asignarCohorte, enviarMD } = require('../utils/embudo.js');
 const { enviarBienvenida } = require('../utils/bienvenida.js');
 const { enviarLogADiscord } = require('../utils/logsManager.js');
+const { manejarEntradaServidorSoporte } = require('../utils/soporte.js');
 
 module.exports = {
     name: Events.GuildMemberAdd,
     async execute(member, client) {
+        // El servidor de soporte prioritario NO es un servidor de cliente: no lleva
+        // autorol/embudo/bienvenida/logs de ese sistema, solo el auto-rol de Premium.
+        if (member.guild.id === process.env.SUPPORT_GUILD_ID) {
+            try { await manejarEntradaServidorSoporte(member); }
+            catch (e) { console.error('Soporte: error en guildMemberAdd:', e.message); }
+            return;
+        }
+
         let cfg;
         try {
             cfg = await getConfig(member.guild.id);

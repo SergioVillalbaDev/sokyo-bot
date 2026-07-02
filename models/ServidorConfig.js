@@ -584,6 +584,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     premiumCancelaAlFinal: { type: Boolean, default: false }, // suscripción cancelada: activa hasta que caduque
     stripeCustomerId: { type: String, default: null },    // cliente en Stripe (para renovar / portal)
     stripeSubscriptionId: { type: String, default: null }, // suscripción en Stripe (null si es pago único/lifetime)
+    soporteCompradorId: { type: String, default: null },  // Discord ID de quien pagó (para el acceso al soporte prioritario)
     trialUsado: { type: Boolean, default: false },        // ya disfrutó la prueba gratuita de Pro
     iaUsos: { type: Number, default: 0 },                 // usos de IA consumidos en el mes en curso
     iaMesRef: { type: String, default: '' },              // 'YYYY-MM' del contador (se reinicia al cambiar de mes)

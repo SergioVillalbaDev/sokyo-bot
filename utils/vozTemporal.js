@@ -86,8 +86,25 @@ async function manejarVoz(oldState, newState, client) {
     }
 }
 
+// Serializa las creaciones DEL MISMO usuario dentro de este proceso: si dos
+// eventos voiceStateUpdate llegan casi a la vez (reconexión rápida/flaky), la
+// segunda espera a que la primera termine antes de comprobar su cupo, así no
+// se salta el límite `maxPorUsuario` por una comprobación-y-creación no atómica.
+const bloqueosCreacion = new Map();
+
+function crearCanalTemporal(member, gen, vcfg) {
+    const clave = `${member.guild.id}:${member.id}`;
+    const previo = bloqueosCreacion.get(clave) || Promise.resolve();
+    const actual = previo.then(
+        () => crearCanalTemporalInterno(member, gen, vcfg),
+        () => crearCanalTemporalInterno(member, gen, vcfg),
+    );
+    bloqueosCreacion.set(clave, actual.catch(() => {}));
+    return actual;
+}
+
 // Crea el canal de voz para `member` a partir del generador `gen`.
-async function crearCanalTemporal(member, gen, vcfg) {
+async function crearCanalTemporalInterno(member, gen, vcfg) {
     const guild = member.guild;
 
     // Anti-abuso: máximo de canales simultáneos por persona.
@@ -158,7 +175,17 @@ async function crearCanalTemporal(member, gen, vcfg) {
         bloqueados: pref?.bloqueados || [],
     });
 
-    // Mover a la persona a su nuevo canal (si sigue conectada).
+    // El dueño pudo desconectarse (conexión inestable) mientras se creaba el canal
+    // (guild.channels.create tarda). Si ya no está en ninguna voz, nadie más entrará
+    // nunca a este canal nuevo y `borrarSiVacio` jamás se dispararía para él: quedaría
+    // huérfano hasta el próximo reinicio. Lo comprobamos y limpiamos aquí mismo.
+    if (!member.voice?.channelId) {
+        await canal.delete('Dueño desconectado antes de entrar a su sala').catch(() => {});
+        await CanalVozTemporal.deleteOne({ canalId: canal.id });
+        return null;
+    }
+
+    // Mover a la persona a su nuevo canal.
     await member.voice.setChannel(canal).catch(() => {});
     return canal;
 }
