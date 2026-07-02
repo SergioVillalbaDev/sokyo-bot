@@ -92,7 +92,7 @@ function NotifItem({ icon: Icon, color, titulo, meta, fecha, onClick, onDismiss 
         onClick={onDismiss}
         aria-label={t('dashboard.header.notifDismiss')}
         title={t('dashboard.header.notifDismiss')}
-        className="shrink-0 rounded-full p-1.5 text-muted opacity-50 transition-opacity hover:bg-danger/20 hover:text-danger hover:opacity-100 focus-visible:opacity-100"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted opacity-50 transition-opacity hover:bg-danger/20 hover:text-danger hover:opacity-100 focus-visible:opacity-100"
       >
         <X size={13} />
       </button>
@@ -112,6 +112,21 @@ export default function Header({ dash, onOpenMenu }) {
   const [vistos, setVistos] = useState(() => cargarVistos(guildId));
   const buscadorRef = useRef(null);
   const notifRef = useRef(null);
+  const headerRef = useRef(null);
+  // En móvil el header pasa a 2 filas y la campana puede acabar cerca del
+  // borde izquierdo — anclar el panel con "right-0" (pensado para escritorio,
+  // donde este bloque de iconos siempre está pegado al borde derecho) lo
+  // dejaba casi entero fuera de la pantalla. Por debajo de `sm` el panel usa
+  // posición fija medida contra el borde inferior real del header en vez de
+  // depender de dónde caiga el botón.
+  const [notifTop, setNotifTop] = useState(64);
+  useEffect(() => {
+    if (!notifAbiertas) return;
+    const medir = () => { if (headerRef.current) setNotifTop(headerRef.current.getBoundingClientRect().bottom + 8); };
+    medir();
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
+  }, [notifAbiertas]);
   // Evita que la poda de más abajo borre descartes válidos justo después de
   // montar o cambiar de servidor, mientras tickets/reportes/sugerencias aún
   // están en su [] inicial (la API todavía no ha respondido). Sin esto, cada
@@ -258,7 +273,7 @@ export default function Header({ dash, onOpenMenu }) {
   ) : null;
 
   return (
-    <header className="sticky top-0 z-20 flex flex-col gap-4 border-b border-line bg-bg/80 px-6 py-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-8">
+    <header ref={headerRef} className="sticky top-0 z-20 flex flex-col gap-4 border-b border-line bg-bg/80 px-6 py-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-8">
       <div className="flex items-center gap-3">
         {/* Abrir menú (solo móvil) */}
         <button
@@ -400,7 +415,8 @@ export default function Header({ dash, onOpenMenu }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-[calc(100%+8px)] z-30 w-80 overflow-hidden rounded-2xl border border-line bg-card shadow-xl sm:w-96"
+                style={{ '--notif-top': `${notifTop}px` }}
+                className="fixed inset-x-3 top-[var(--notif-top)] z-30 overflow-hidden rounded-2xl border border-line bg-card shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-96"
               >
                 <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
                   <span className="flex items-center gap-2 text-sm font-bold text-fg">

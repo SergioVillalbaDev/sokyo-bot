@@ -28,6 +28,11 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
     setOpenGroups((g) => ({ ...g, [id]: !g[id] }));
   };
 
+  // Navegar a una sección también cierra el drawer en móvil (en escritorio
+  // setMobileOpen no afecta nada, el sidebar ya es fijo ahí). Sin esto había
+  // que cerrar el menú a mano después de cada toque — incómodo en móvil.
+  const irA = (tab) => { setActiveTab(tab); setMobileOpen(false); };
+
   const inicioActivo = activeTab === 'inicio';
 
   return (
@@ -115,7 +120,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
           a la sección de cuenta/facturación). */}
       {!esOwner && !esPremium && (!permisos || permisos.cuenta !== false) && (
         <button
-          onClick={() => setActiveTab('cuenta-plan')}
+          onClick={() => irA('cuenta-plan')}
           className={cn(
             'mt-3 flex items-center gap-2 rounded-2xl bg-gradient-brand px-3 py-2.5 text-on-brand shadow-soft transition-transform hover:scale-[1.02]',
             collapsed ? 'justify-center' : 'w-full'
@@ -136,7 +141,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       <nav className="mt-4 flex-1 space-y-1 overflow-y-auto pr-1">
         {/* Inicio (standalone) */}
         <button
-          onClick={() => setActiveTab('inicio')}
+          onClick={() => irA('inicio')}
           className={cn(
             'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
             inicioActivo ? 'bg-gradient-brand text-on-brand shadow-md' : 'text-muted hover:bg-elevated hover:text-fg',
@@ -184,7 +189,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
                         return (
                           <button
                             key={item.tab}
-                            onClick={() => (locked ? onRequestUpgrade?.(item.tab) : setActiveTab(item.tab))}
+                            onClick={() => (locked ? onRequestUpgrade?.(item.tab) : irA(item.tab))}
                             title={locked ? t('dashboard.plan.upgrade') : (estado === false ? t('dashboard.nav.moduleOff') : (estado === true ? t('dashboard.nav.moduleOn') : undefined))}
                             className={cn(
                               'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
