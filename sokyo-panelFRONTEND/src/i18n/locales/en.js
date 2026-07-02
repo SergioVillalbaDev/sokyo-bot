@@ -529,6 +529,38 @@ export default {
         title: '📜 Audit log',
         desc: 'Monitor the server’s inner workings: joins and leaves, edited or deleted messages and all key activity, sorted by type.',
       },
+      'com-sorteos': {
+        title: '🎁 Giveaways',
+        desc: 'Run giveaways on your server: set the prize, duration, requirements (minimum level, role) and multipliers, and let the bot pick winners automatically.',
+      },
+      'com-eventos': {
+        title: '📅 Events',
+        desc: 'Create voice, stage or external events with a date, description and cover image, and the bot reminds everyone who signed up before it starts.',
+      },
+      'com-encuestas': {
+        title: '📊 Polls',
+        desc: 'Run votes with live results: multiple choice, anonymous mode and bar charts showing each option’s percentage.',
+      },
+      'com-sugerencias': {
+        title: '💡 Suggestions',
+        desc: 'Your community’s idea box: members propose, vote, and your staff decides the status of each suggestion.',
+      },
+      'com-presentaciones': {
+        title: '📝 Introductions',
+        desc: 'A custom welcome form for newcomers: questions or a free-text template, with automatic filters that screen out anyone who doesn’t meet your requirements.',
+      },
+      'com-dinamicas': {
+        title: '🎮 Dynamics',
+        desc: 'Automatic mini-games that keep your server active: question of the day, gold drop, counter, trivia, daily challenges and more — each with its own XP reward.',
+      },
+      'voz-temporal': {
+        title: '🔊 Temporary voice channels',
+        desc: 'When someone joins a generator channel, the bot creates their own private voice room with controls to manage it.',
+      },
+      'owner-subs': {
+        title: '👑 Subscriptions',
+        desc: 'Bot owners only: manually control each server’s plan and expiry. Handy for fixing billing issues or granting trials.',
+      },
     },
     sectionTours: {
       inicio: { steps: {
@@ -681,6 +713,43 @@ export default {
       'seg-backup': { steps: {
         exportar: { title: '⬇️ Export', desc: 'Download the whole server configuration to a file. Your backup or to clone it onto another server.' },
         importar: { title: '⬆️ Import', desc: 'Load a backup file to restore the configuration. Careful: it overwrites the current settings.' },
+      } },
+      'com-sorteos': { steps: {
+        activos: { title: '🎉 Active giveaways', desc: 'Giveaways currently running: entries, time left and requirements. End it early with ▶️ or delete it with the trash icon.' },
+        crear: { title: '✨ Create a giveaway', desc: 'Set a name, prize, channel and end date. Optionally require a minimum level, a role, or add XP multipliers for certain roles.' },
+      } },
+      'com-eventos': { steps: {
+        proximos: { title: '🗓️ Upcoming events', desc: 'Scheduled events: type, channel, date and how many joined. Delete it with the trash icon if plans change.' },
+        crear: { title: '➕ Create an event', desc: 'Set a title, description, channel, start date and type (voice, stage or external). Add a cover image and turn on the automatic reminder.' },
+      } },
+      'com-encuestas': { steps: {
+        activas: { title: '📈 Active polls', desc: 'Live results for each poll: votes per option, time left, and whether it’s multiple-choice or anonymous. Turn on “Live” to watch them update on their own.' },
+        crear: { title: '🗳️ Create a poll', desc: 'Write the question, add as many options as you need, pick a channel and end date, and choose whether it allows multiple answers or is anonymous.' },
+      } },
+      'com-sugerencias': { steps: {
+        config: { title: '⚙️ Channel and format', desc: 'Pick the suggestions channel and how they’re submitted: a direct message or a form with a template. Set a minimum text length too.' },
+        lista: { title: '📋 List and votes', desc: 'Filter by status (pending, in review, accepted, rejected) and manage each suggestion: change its status as your team decides.' },
+      } },
+      'com-presentaciones': { steps: {
+        canales: { title: '📌 Channels', desc: 'Pick the channel where people introduce themselves and, optionally, a private channel where staff gets a copy.' },
+        formato: { title: '🎛️ Questions or template', desc: 'Choose the format: a custom questionnaire or a free-text template that every new member fills in.' },
+        preguntas: { title: '❓ Your questions', desc: 'Add, edit and order the questions: text, number or multiple choice, and mark which ones are required.' },
+        filtros: { title: '🚦 Automatic filters', desc: 'Set conditions (“if age is less than X”) and an automatic action: discard, flag, timeout, kick or ban.' },
+        recibidas: { title: '📥 Received introductions', desc: 'The history of who has introduced themselves, with their answers and whether — and why — they were auto-discarded.' },
+      } },
+      'com-dinamicas': { steps: {
+        lista: { title: '🕹️ Turn on each dynamic', desc: 'Click any one to expand it: turn it on, set its channel, timing and rewards, customize its messages, and save. Each one runs independently.' },
+      } },
+      'voz-temporal': { steps: {
+        general: { title: '✅ Enable and limits', desc: 'Turn the system on and set how many rooms each person can have at once.' },
+        generadores: { title: '🎙️ Generator channels', desc: 'The channels that trigger a new room: choose where people join, which category it’s created in, the name, user limit and audio quality. Up to 3 generators.' },
+        panel: { title: '🖼️ Control panel', desc: 'The message with buttons that manages each room: pick the text channel where it’s posted and, with Pro, customize its title, color, description and image.' },
+        controles: { title: '🔘 Available buttons', desc: 'Decide which buttons people see on their panel: rename, limit, lock, hide, invite, kick, claim, transfer or delete the channel.' },
+        activas: { title: '🟢 Active rooms', desc: 'Who has a room open right now, how many people are in it, and whether it’s locked or hidden. Close it with the button if needed.' },
+      } },
+      'owner-subs': { steps: {
+        header: { title: '📊 Overview and search', desc: 'How many servers there are in total, how many have Pro or Agency active, and a search box by server name or ID.' },
+        lista: { title: '⚙️ Adjust each server', desc: 'Pick the plan and duration in days (0 = lifetime) and hit “Apply”. You’ll see the expiry date and status of each subscription.' },
       } },
     },
     theme: {

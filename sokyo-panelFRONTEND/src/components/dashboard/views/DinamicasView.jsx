@@ -253,7 +253,7 @@ export default function DinamicasView({ dash }) {
         <p className="text-xs text-muted">{t('dashboard.dinamicas_v.note')}</p>
       </div>
 
-      <div className="space-y-3">
+      <div data-help="dinamicas-lista" className="space-y-3">
         {ORDEN.map((dyn) => {
           const f = form[dyn];
           const Icono = ICONOS[dyn];

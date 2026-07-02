@@ -179,7 +179,7 @@ export default function VozTemporalView({ dash }) {
       <Banner msg={msg} />
 
       {/* Interruptor general */}
-      <Card className={card}>
+      <Card data-help="voztemporal-general" className={card}>
         <Ajuste
           titulo={t('dashboard.voztemporal_v.enableTitle')}
           desc={t('dashboard.voztemporal_v.enableDesc')}
@@ -207,7 +207,7 @@ export default function VozTemporalView({ dash }) {
       </Card>
 
       {/* Generadores */}
-      <Card className={card}>
+      <Card data-help="voztemporal-generadores" className={card}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-bold text-fg">
             <Mic2 size={18} /> {t('dashboard.voztemporal_v.generators')}
@@ -291,7 +291,7 @@ export default function VozTemporalView({ dash }) {
       </Card>
 
       {/* Panel de control */}
-      <Card className={card}>
+      <Card data-help="voztemporal-panel" className={card}>
         <div className="mb-3 font-bold text-fg">{t('dashboard.voztemporal_v.controlPanel')}</div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
@@ -377,7 +377,7 @@ export default function VozTemporalView({ dash }) {
       </Card>
 
       {/* Controles disponibles */}
-      <Card className={card}>
+      <Card data-help="voztemporal-controles" className={card}>
         <div className="mb-1 font-bold text-fg">{t('dashboard.voztemporal_v.panelButtons')}</div>
         <p className="mb-2 text-sm text-muted">{t('dashboard.voztemporal_v.panelButtonsDesc')}</p>
         {CONTROLES.map(([k, , emoji]) => (
@@ -397,7 +397,7 @@ export default function VozTemporalView({ dash }) {
       </div>
 
       {/* Salas activas en vivo */}
-      <Card className={card}>
+      <Card data-help="voztemporal-activas" className={card}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-fg"><Users size={18} /> {t('dashboard.voztemporal_v.activeRooms')}</div>
           <button onClick={cargarVozActivos} className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-sm text-fg hover:bg-elevated">

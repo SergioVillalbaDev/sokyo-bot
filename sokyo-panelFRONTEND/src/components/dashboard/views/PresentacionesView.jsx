@@ -116,7 +116,7 @@ export default function PresentacionesView({ dash }) {
       </div>
 
       {/* Canales */}
-      <div className={card}>
+      <div data-help="presentaciones-canales" className={card}>
         <h3 className="mb-3 font-bold text-fg">{t('dashboard.presentaciones_v.channels')}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
@@ -137,7 +137,7 @@ export default function PresentacionesView({ dash }) {
       </div>
 
       {/* Modo de presentación */}
-      <div className={card}>
+      <div data-help="presentaciones-formato" className={card}>
         <h3 className="mb-3 font-bold text-fg">{t('dashboard.presentaciones_v.formatTitle')}</h3>
         <div className="grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={() => setModo('preguntas')}
@@ -163,7 +163,7 @@ export default function PresentacionesView({ dash }) {
 
       {/* Preguntas (acordeón) — solo en modo preguntas */}
       {modo === 'preguntas' && (
-      <div className={card}>
+      <div data-help="presentaciones-preguntas" className={card}>
         <button
           type="button"
           onClick={() => toggle('preguntas')}
@@ -236,7 +236,7 @@ export default function PresentacionesView({ dash }) {
       )}
 
       {/* Filtros automáticos (acordeón) */}
-      <div className={`${card} ${filtros.length > 0 ? 'border-warning/40' : ''}`}>
+      <div data-help="presentaciones-filtros" className={`${card} ${filtros.length > 0 ? 'border-warning/40' : ''}`}>
         <button
           type="button"
           onClick={() => toggle('filtros')}
@@ -383,7 +383,7 @@ export default function PresentacionesView({ dash }) {
 
       {/* Presentaciones recibidas */}
       {(pendientes.length > 0 || procesadas.length > 0) && (
-        <div className={card}>
+        <div data-help="presentaciones-recibidas" className={card}>
           <h3 className="mb-3 font-bold text-fg">
             {t('dashboard.presentaciones_v.received')}
             {pendientes.length > 0 && (

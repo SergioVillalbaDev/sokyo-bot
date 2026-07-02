@@ -196,4 +196,49 @@ export const sectionTours = {
     { id: 'exportar', sel: '[data-help="backup-exportar"]', side: 'bottom', align: 'start' },
     { id: 'importar', sel: '[data-help="backup-importar"]', side: 'bottom', align: 'start' },
   ],
+
+  'com-sorteos': [
+    { id: 'activos', sel: '[data-help="sorteos-activos"]', side: 'bottom', align: 'start' },
+    { id: 'crear', sel: '[data-help="sorteos-crear"]', side: 'top', align: 'start' },
+  ],
+
+  'com-eventos': [
+    { id: 'proximos', sel: '[data-help="eventos-proximos"]', side: 'bottom', align: 'start' },
+    { id: 'crear', sel: '[data-help="eventos-crear"]', side: 'top', align: 'start' },
+  ],
+
+  'com-encuestas': [
+    { id: 'activas', sel: '[data-help="encuestas-activas"]', side: 'bottom', align: 'start' },
+    { id: 'crear', sel: '[data-help="encuestas-crear"]', side: 'top', align: 'start' },
+  ],
+
+  'com-sugerencias': [
+    { id: 'config', sel: '[data-help="sugerencias-config"]', side: 'bottom', align: 'start' },
+    { id: 'lista', sel: '[data-help="sugerencias-lista"]', side: 'top', align: 'start' },
+  ],
+
+  'com-presentaciones': [
+    { id: 'canales', sel: '[data-help="presentaciones-canales"]', side: 'bottom', align: 'start' },
+    { id: 'formato', sel: '[data-help="presentaciones-formato"]', side: 'bottom', align: 'start' },
+    { id: 'preguntas', sel: '[data-help="presentaciones-preguntas"]', side: 'top', align: 'start' },
+    { id: 'filtros', sel: '[data-help="presentaciones-filtros"]', side: 'top', align: 'start' },
+    { id: 'recibidas', sel: '[data-help="presentaciones-recibidas"]', side: 'top', align: 'start' },
+  ],
+
+  'com-dinamicas': [
+    { id: 'lista', sel: '[data-help="dinamicas-lista"]', side: 'top', align: 'start' },
+  ],
+
+  'voz-temporal': [
+    { id: 'general', sel: '[data-help="voztemporal-general"]', side: 'bottom', align: 'start' },
+    { id: 'generadores', sel: '[data-help="voztemporal-generadores"]', side: 'top', align: 'start' },
+    { id: 'panel', sel: '[data-help="voztemporal-panel"]', side: 'top', align: 'start' },
+    { id: 'controles', sel: '[data-help="voztemporal-controles"]', side: 'top', align: 'start' },
+    { id: 'activas', sel: '[data-help="voztemporal-activas"]', side: 'top', align: 'start' },
+  ],
+
+  'owner-subs': [
+    { id: 'header', sel: '[data-help="ownersubs-header"]', side: 'bottom', align: 'start' },
+    { id: 'lista', sel: '[data-help="ownersubs-lista"]', side: 'top', align: 'start' },
+  ],
 };

@@ -131,7 +131,7 @@ export default function OwnerSubsView({ dash }) {
 
   return (
     <div className="space-y-5">
-      <Card className={card}>
+      <Card data-help="ownersubs-header" className={card}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 font-bold text-fg"><ShieldCheck size={18} className="text-brand" /> {t('dashboard.ownersubs_v.title')}</div>
           <button onClick={cargarOwnerServidores}
@@ -153,7 +153,7 @@ export default function OwnerSubsView({ dash }) {
         <p className="mt-2 text-xs text-muted">{t('dashboard.ownersubs_v.help')}</p>
       </Card>
 
-      <div className="space-y-2">
+      <div data-help="ownersubs-lista" className="space-y-2">
         {lista.length === 0
           ? <Card className={card}><p className="text-center text-sm text-muted">{t('dashboard.ownersubs_v.noMatch')}</p></Card>
           : lista.map((s) => <FilaServidor key={s.guildId} s={s} onAplicar={ownerSetPlan} />)}

@@ -529,6 +529,38 @@ export default {
         title: '📜 Registro de Auditoría',
         desc: 'Supervisa el funcionamiento interno del servidor: entradas y salidas, mensajes editados o borrados y toda la actividad clave, ordenada por tipo.',
       },
+      'com-sorteos': {
+        title: '🎁 Sorteos',
+        desc: 'Organiza sorteos en tu servidor: define premio, duración, requisitos (nivel mínimo, rol) y multiplicadores, y deja que el bot elija ganadores automáticamente.',
+      },
+      'com-eventos': {
+        title: '📅 Eventos',
+        desc: 'Crea eventos de voz, escenario o presenciales con fecha, descripción e imagen de portada, y el bot recuerda a los apuntados antes de que empiecen.',
+      },
+      'com-encuestas': {
+        title: '📊 Encuestas',
+        desc: 'Lanza votaciones con resultados en tiempo real: opción múltiple, modo anónimo y gráficas de barras con el porcentaje de cada opción.',
+      },
+      'com-sugerencias': {
+        title: '💡 Sugerencias',
+        desc: 'El buzón de ideas de tu comunidad: la gente propone, vota y tu staff decide el estado de cada sugerencia.',
+      },
+      'com-presentaciones': {
+        title: '📝 Presentaciones',
+        desc: 'Un formulario de bienvenida a medida para quien entra: preguntas o plantilla libre, con filtros automáticos que descartan a quien no cumple tus requisitos.',
+      },
+      'com-dinamicas': {
+        title: '🎮 Dinámicas',
+        desc: 'Mini-juegos automáticos que mantienen tu servidor activo: pregunta del día, gota de oro, contador, trivia, retos diarios y más — cada uno con su propia recompensa en XP.',
+      },
+      'voz-temporal': {
+        title: '🔊 Canales de voz temporales',
+        desc: 'Cuando alguien entra a un canal generador, el bot le crea su propia sala de voz privada con controles para gestionarla.',
+      },
+      'owner-subs': {
+        title: '👑 Suscripciones',
+        desc: 'Solo para propietarios del bot: controla el plan y la caducidad de cada servidor a mano. Útil para corregir errores de cobro o activar pruebas.',
+      },
     },
     sectionTours: {
       inicio: { steps: {
@@ -681,6 +713,43 @@ export default {
       'seg-backup': { steps: {
         exportar: { title: '⬇️ Exportar', desc: 'Descarga toda la configuración del servidor en un archivo. Tu copia de seguridad o para clonarla en otro servidor.' },
         importar: { title: '⬆️ Importar', desc: 'Carga un archivo de backup para restaurar la configuración. Ojo: sobrescribe los ajustes actuales.' },
+      } },
+      'com-sorteos': { steps: {
+        activos: { title: '🎉 Sorteos activos', desc: 'Los sorteos en marcha: participantes, tiempo restante y requisitos. Termínalo ya con ▶️ o bórralo con la papelera.' },
+        crear: { title: '✨ Crear un sorteo', desc: 'Define nombre, premio, canal y fecha de cierre. Opcionalmente exige nivel mínimo, un rol, o añade multiplicadores de XP para ciertos roles.' },
+      } },
+      'com-eventos': { steps: {
+        proximos: { title: '🗓️ Próximos eventos', desc: 'Los eventos programados: tipo, canal, fecha y cuántos se han apuntado. Bórralo con la papelera si cambian los planes.' },
+        crear: { title: '➕ Crear un evento', desc: 'Ponle título, descripción, canal, fecha de inicio y tipo (voz, escenario o externo). Añade una portada y activa el recordatorio automático.' },
+      } },
+      'com-encuestas': { steps: {
+        activas: { title: '📈 Encuestas activas', desc: 'Resultados en vivo de cada encuesta: votos por opción, tiempo restante y si es de opción múltiple o anónima. Activa «En vivo» para verlas actualizarse solas.' },
+        crear: { title: '🗳️ Crear una encuesta', desc: 'Escribe la pregunta, añade tantas opciones como quieras, elige canal y fecha de cierre, y marca si permite varias respuestas o es anónima.' },
+      } },
+      'com-sugerencias': { steps: {
+        config: { title: '⚙️ Canal y formato', desc: 'Elige el canal de sugerencias y cómo se envían: mensaje directo o un formulario con plantilla. Define también el largo mínimo del texto.' },
+        lista: { title: '📋 Lista y votos', desc: 'Filtra por estado (pendiente, en revisión, aceptada, rechazada) y gestiona cada sugerencia: cambia su estado según lo que decida tu equipo.' },
+      } },
+      'com-presentaciones': { steps: {
+        canales: { title: '📌 Canales', desc: 'Elige el canal donde la gente se presenta y, si quieres, un canal privado donde el staff recibe una copia.' },
+        formato: { title: '🎛️ Preguntas o plantilla', desc: 'Elige el formato: un cuestionario con preguntas propias o una plantilla de texto libre que rellena cada nuevo miembro.' },
+        preguntas: { title: '❓ Tus preguntas', desc: 'Añade, edita y ordena las preguntas: texto, número o selección, y marca cuáles son obligatorias.' },
+        filtros: { title: '🚦 Filtros automáticos', desc: 'Define condiciones («si la edad es menor que X») y una acción automática: descartar, marcar, aislar, expulsar o banear.' },
+        recibidas: { title: '📥 Presentaciones recibidas', desc: 'El historial de quien se ha presentado, con sus respuestas y si fue descartada automáticamente, y por qué.' },
+      } },
+      'com-dinamicas': { steps: {
+        lista: { title: '🕹️ Activa cada dinámica', desc: 'Pulsa cualquiera para desplegarla: enciéndela, configura canal, horarios y recompensas, personaliza sus mensajes y guarda. Cada una funciona de forma independiente.' },
+      } },
+      'voz-temporal': { steps: {
+        general: { title: '✅ Activar y límites', desc: 'Enciende el sistema y define cuántas salas puede tener cada persona a la vez.' },
+        generadores: { title: '🎙️ Canales generadores', desc: 'Los canales que disparan la creación de una sala: elige dónde entra la gente, en qué categoría se crea, el nombre, el límite de usuarios y la calidad de audio. Hasta 3 generadores.' },
+        panel: { title: '🖼️ Panel de control', desc: 'El mensaje con botones que gestiona cada sala: elige el canal de texto donde se publica y, si tienes Pro, personaliza su título, color, descripción e imagen.' },
+        controles: { title: '🔘 Botones disponibles', desc: 'Decide qué botones ve la gente en su panel: renombrar, límite, bloquear, ocultar, invitar, expulsar, reclamar, transferir o eliminar el canal.' },
+        activas: { title: '🟢 Salas activas', desc: 'Quién tiene una sala abierta ahora mismo, cuánta gente hay dentro y si está bloqueada u oculta. Ciérrala con el botón si hace falta.' },
+      } },
+      'owner-subs': { steps: {
+        header: { title: '📊 Resumen y búsqueda', desc: 'Cuántos servidores hay en total, cuántos tienen Pro o Agencia activo, y un buscador por nombre o ID de servidor.' },
+        lista: { title: '⚙️ Ajusta cada servidor', desc: 'Elige el plan y los días de duración (0 = de por vida) y pulsa «Aplicar». Verás la fecha de caducidad y el estado de cada suscripción.' },
       } },
     },
     theme: {
