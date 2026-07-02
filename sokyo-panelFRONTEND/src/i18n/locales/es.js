@@ -319,6 +319,11 @@ export default {
       notifSugerencias: 'Sugerencias pendientes',
       notifEmpty: 'No hay nada pendiente',
       notifDismiss: 'Descartar',
+      notifMarkAllRead: 'Marcar todo como leído',
+      notifJustNow: 'justo ahora',
+      notifMinsAgo: 'hace {{n}}m',
+      notifHoursAgo: 'hace {{n}}h',
+      notifDaysAgo: 'hace {{n}}d',
     },
     onboarding: {
       skip: 'Saltar tutorial',

@@ -319,6 +319,11 @@ export default {
       notifSugerencias: 'Pending suggestions',
       notifEmpty: 'Nothing pending',
       notifDismiss: 'Dismiss',
+      notifMarkAllRead: 'Mark all as read',
+      notifJustNow: 'just now',
+      notifMinsAgo: '{{n}}m ago',
+      notifHoursAgo: '{{n}}h ago',
+      notifDaysAgo: '{{n}}d ago',
     },
     onboarding: {
       skip: 'Skip tour',

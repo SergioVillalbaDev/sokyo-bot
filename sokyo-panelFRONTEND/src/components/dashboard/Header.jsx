@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell, HelpCircle, Menu, ChevronDown, Ticket as TicketIcon, LayoutGrid, Flag, Lightbulb, X } from 'lucide-react';
+import { Search, Bell, HelpCircle, Menu, ChevronDown, Ticket as TicketIcon, LayoutGrid, Flag, Lightbulb, X, CheckCircle2, CheckCheck } from 'lucide-react';
 import { metaKey, navGroups } from './navConfig';
 import { startOnboarding, startSectionTour, hasSectionTour } from '../../lib/onboarding';
 import { getStaffSession } from '../../lib/api';
@@ -32,6 +32,74 @@ const guardarVistos = (guildId, vistos) => {
   } catch { /* localStorage no disponible, no es crítico */ }
 };
 
+// "hace 5m" / "5m ago" a partir de una fecha. Sin dependencias: solo lo usa
+// este menú, no hace falta un helper compartido.
+const tiempoRelativo = (fecha, t) => {
+  if (!fecha) return '';
+  const ms = Date.now() - new Date(fecha).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return t('dashboard.header.notifJustNow');
+  if (min < 60) return t('dashboard.header.notifMinsAgo', { n: min });
+  const horas = Math.floor(min / 60);
+  if (horas < 24) return t('dashboard.header.notifHoursAgo', { n: horas });
+  return t('dashboard.header.notifDaysAgo', { n: Math.floor(horas / 24) });
+};
+
+// Bloque "Tickets abiertos" / "Reportes pendientes" / "Sugerencias pendientes"
+// dentro del panel de notificaciones: una etiqueta y sus filas.
+function NotifGroup({ label, children }) {
+  return (
+    <div>
+      <p className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+const NOTIF_COLORS = {
+  brand: 'bg-brand/10 text-brand',
+  danger: 'bg-danger/10 text-danger',
+  warn: 'bg-warn/10 text-warn',
+};
+
+// Una fila de notificación: icono en su badge de color, título + detalle +
+// hora relativa, y una X para descartarla al instante. La X es siempre algo
+// visible (no solo al pasar el ratón) para que también funcione en móvil.
+function NotifItem({ icon: Icon, color, titulo, meta, fecha, onClick, onDismiss }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      className="group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-elevated"
+    >
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${NOTIF_COLORS[color]}`}>
+        <Icon size={14} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-fg">{titulo}</span>
+        <span className="flex items-center gap-1.5 text-xs text-muted">
+          {meta && <span className="truncate">{meta}</span>}
+          {meta && fecha && <span className="shrink-0 opacity-60">·</span>}
+          {fecha && <span className="shrink-0">{tiempoRelativo(fecha, t)}</span>}
+        </span>
+      </span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label={t('dashboard.header.notifDismiss')}
+        title={t('dashboard.header.notifDismiss')}
+        className="shrink-0 rounded-full p-1.5 text-muted opacity-50 transition-opacity hover:bg-danger/20 hover:text-danger hover:opacity-100 focus-visible:opacity-100"
+      >
+        <X size={13} />
+      </button>
+    </div>
+  );
+}
+
 export default function Header({ dash, onOpenMenu }) {
   const { t } = useTranslation();
   const {
@@ -44,10 +112,20 @@ export default function Header({ dash, onOpenMenu }) {
   const [vistos, setVistos] = useState(() => cargarVistos(guildId));
   const buscadorRef = useRef(null);
   const notifRef = useRef(null);
+  // Evita que la poda de más abajo borre descartes válidos justo después de
+  // montar o cambiar de servidor, mientras tickets/reportes/sugerencias aún
+  // están en su [] inicial (la API todavía no ha respondido). Sin esto, cada
+  // recarga de página (F5) confundía "todavía no ha llegado" con "ya no
+  // existe" y vaciaba lo guardado en localStorage — las notificaciones
+  // descartadas volvían a aparecer.
+  const primeraPodaRef = useRef(true);
 
   // Recarga los descartes al cambiar de servidor (son por-servidor).
   /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => { setVistos(cargarVistos(guildId)); }, [guildId]);
+  useEffect(() => {
+    setVistos(cargarVistos(guildId));
+    primeraPodaRef.current = true;
+  }, [guildId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const marcarVistos = (tipo, ids) => {
@@ -63,10 +141,36 @@ export default function Header({ dash, onOpenMenu }) {
     marcarVistos(tipo, [id]);
   };
 
+  // Notificaciones pendientes ahora mismo (las ya descartadas no cuentan).
+  // Se calculan aquí arriba (y no solo más abajo, junto al resto del JSX) porque
+  // el listener de "click fuera" las necesita antes en el render.
+  const ticketsAbiertosList = (ticketsReales || []).filter((tk) => tk.estado !== 'Cerrado' && !vistos.tickets.includes(tk.canalId));
+  const reportesPendientesList = (reportes || []).filter((r) => r.estado === 'pendiente' && !vistos.reportes.includes(r._id));
+  const sugerenciasPendientesList = (sugerencias || []).filter((s) => s.estado === 'pendiente' && !vistos.sugerencias.includes(s._id));
+  const totalNotificaciones = ticketsAbiertosList.length + reportesPendientesList.length + sugerenciasPendientesList.length;
+
+  // Cerrar el panel (clic fuera, tecla Esc o pulsar la campana otra vez) ya
+  // NO descarta nada — antes lo hacía y sorprendía: abrías la campana solo
+  // para mirar y, al cerrarla, desaparecía todo. Descartar es siempre una
+  // acción explícita: la X de cada fila, "Marcar todo como leído", o
+  // visitar la sección correspondiente (más abajo).
+  const cerrarNotif = () => setNotifAbiertas(false);
+
+  // Marcar todo como leído: acción explícita y visible, ya no un efecto
+  // secundario de cerrar el panel.
+  const marcarTodoLeido = () => {
+    if (ticketsAbiertosList.length) marcarVistos('tickets', ticketsAbiertosList.map((tk) => tk.canalId));
+    if (reportesPendientesList.length) marcarVistos('reportes', reportesPendientesList.map((r) => r._id));
+    if (sugerenciasPendientesList.length) marcarVistos('sugerencias', sugerenciasPendientesList.map((s) => s._id));
+  };
+
   // Poda: si un ticket/reporte/sugerencia ya no existe (borrado), no hace
   // falta seguir recordando que se descartó — evita que crezca sin límite.
+  // Se salta la primera pasada tras montar/cambiar de servidor (ver
+  // primeraPodaRef arriba) para no confundir "aún cargando" con "borrado".
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    if (primeraPodaRef.current) { primeraPodaRef.current = false; return; }
     const idsTickets = new Set((ticketsReales || []).map((t) => t.canalId));
     const idsReportes = new Set((reportes || []).map((r) => r._id));
     const idsSugerencias = new Set((sugerencias || []).map((s) => s._id));
@@ -92,14 +196,16 @@ export default function Header({ dash, onOpenMenu }) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Cierra los desplegables (buscador/notificaciones) al hacer clic fuera.
+  // Sin array de dependencias: se re-suscribe en cada render para que
+  // cerrarNotif() siempre vea las listas de notificaciones más recientes.
   useEffect(() => {
     const alClicar = (e) => {
       if (buscadorRef.current && !buscadorRef.current.contains(e.target)) setBuscadorAbierto(false);
-      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifAbiertas(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) cerrarNotif();
     };
     document.addEventListener('mousedown', alClicar);
     return () => document.removeEventListener('mousedown', alClicar);
-  }, []);
+  });
 
   // Todas las secciones del menú a las que el usuario tiene acceso, con su título traducido.
   const seccionesBuscables = useMemo(() => (
@@ -135,12 +241,6 @@ export default function Header({ dash, onOpenMenu }) {
   // se está gestionando. Si hay varios, al pulsarlo se abre el selector.
   const servActivo = (servidores || []).find((s) => s.id === guildId);
   const variosServidores = (servidores || []).length > 1;
-  // Notificaciones de todo el panel, no solo tickets: tickets abiertos +
-  // reportes pendientes + sugerencias pendientes (los 3 "necesitan tu atención").
-  const ticketsAbiertosList = ticketsReales.filter((tk) => tk.estado !== 'Cerrado' && !vistos.tickets.includes(tk.canalId));
-  const reportesPendientesList = (reportes || []).filter((r) => r.estado === 'pendiente' && !vistos.reportes.includes(r._id));
-  const sugerenciasPendientesList = (sugerencias || []).filter((s) => s.estado === 'pendiente' && !vistos.sugerencias.includes(s._id));
-  const totalNotificaciones = ticketsAbiertosList.length + reportesPendientesList.length + sugerenciasPendientesList.length;
   const enInicio = activeTab === 'inicio';
   const mk = metaKey(activeTab);
 
@@ -281,7 +381,7 @@ export default function Header({ dash, onOpenMenu }) {
 
         <div ref={notifRef} className="relative">
           <button
-            onClick={() => setNotifAbiertas((v) => !v)}
+            onClick={() => (notifAbiertas ? cerrarNotif() : setNotifAbiertas(true))}
             className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated"
             aria-label={t('dashboard.header.notifications')}
             title={t('dashboard.header.notifications')}
@@ -289,7 +389,7 @@ export default function Header({ dash, onOpenMenu }) {
             <Bell size={17} />
             {totalNotificaciones > 0 && (
               <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
-                {totalNotificaciones}
+                {totalNotificaciones > 9 ? '9+' : totalNotificaciones}
               </span>
             )}
           </button>
@@ -300,90 +400,85 @@ export default function Header({ dash, onOpenMenu }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-[calc(100%+8px)] z-30 max-h-96 w-80 overflow-y-auto rounded-2xl border border-line bg-card p-2 shadow-xl"
+                className="absolute right-0 top-[calc(100%+8px)] z-30 w-80 overflow-hidden rounded-2xl border border-line bg-card shadow-xl sm:w-96"
               >
-                {totalNotificaciones === 0 ? (
-                  <p className="px-3 py-4 text-center text-sm text-muted">{t('dashboard.header.notifEmpty')}</p>
-                ) : (
-                  <>
-                    {ticketsAbiertosList.length > 0 && (
-                      <div className="mb-1">
-                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.notifOpenTickets')}</p>
-                        {ticketsAbiertosList.map((tk) => (
-                          <div
-                            key={tk.canalId}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => { setActiveTab('tickets-gestion'); verMensajes(tk); setNotifAbiertas(false); }}
-                            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
-                          >
-                            <TicketIcon size={15} className="shrink-0 text-brand" />
-                            <span className="min-w-0 flex-1 truncate">{tk.titulo || tk.creadorNombre || tk.canalId}</span>
-                            <span className="shrink-0 text-xs text-muted group-hover:hidden">{tk.estado}</span>
-                            <button
-                              onClick={(e) => descartarNotif('tickets', tk.canalId, e)}
-                              aria-label={t('dashboard.header.notifDismiss')}
-                              title={t('dashboard.header.notifDismiss')}
-                              className="hidden shrink-0 rounded-full p-1 text-muted transition-colors hover:bg-danger/20 hover:text-danger group-hover:block"
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+                  <span className="flex items-center gap-2 text-sm font-bold text-fg">
+                    {t('dashboard.header.notifications')}
+                    {totalNotificaciones > 0 && (
+                      <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-bold text-brand">{totalNotificaciones}</span>
                     )}
-                    {reportesPendientesList.length > 0 && (
-                      <div className="mb-1">
-                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.notifReportes')}</p>
-                        {reportesPendientesList.map((r) => (
-                          <div
-                            key={r._id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => { setActiveTab('mod-reportes'); setNotifAbiertas(false); }}
-                            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
-                          >
-                            <Flag size={15} className="shrink-0 text-danger" />
-                            <span className="min-w-0 flex-1 truncate">{r.reportadoTag || r.motivo || r._id}</span>
-                            <button
-                              onClick={(e) => descartarNotif('reportes', r._id, e)}
-                              aria-label={t('dashboard.header.notifDismiss')}
-                              title={t('dashboard.header.notifDismiss')}
-                              className="hidden shrink-0 rounded-full p-1 text-muted transition-colors hover:bg-danger/20 hover:text-danger group-hover:block"
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {sugerenciasPendientesList.length > 0 && (
-                      <div>
-                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.notifSugerencias')}</p>
-                        {sugerenciasPendientesList.map((s) => (
-                          <div
-                            key={s._id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => { setActiveTab('com-sugerencias'); setNotifAbiertas(false); }}
-                            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
-                          >
-                            <Lightbulb size={15} className="shrink-0 text-warn" />
-                            <span className="min-w-0 flex-1 truncate">{s.autor || s.texto || s._id}</span>
-                            <button
-                              onClick={(e) => descartarNotif('sugerencias', s._id, e)}
-                              aria-label={t('dashboard.header.notifDismiss')}
-                              title={t('dashboard.header.notifDismiss')}
-                              className="hidden shrink-0 rounded-full p-1 text-muted transition-colors hover:bg-danger/20 hover:text-danger group-hover:block"
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
+                  </span>
+                  {totalNotificaciones > 0 && (
+                    <button
+                      type="button"
+                      onClick={marcarTodoLeido}
+                      className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-muted transition-colors hover:bg-elevated hover:text-fg"
+                    >
+                      <CheckCheck size={13} /> {t('dashboard.header.notifMarkAllRead')}
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-96 overflow-y-auto p-2">
+                  {totalNotificaciones === 0 ? (
+                    <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-elevated text-muted">
+                        <CheckCircle2 size={18} />
+                      </span>
+                      <p className="text-sm text-muted">{t('dashboard.header.notifEmpty')}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {ticketsAbiertosList.length > 0 && (
+                        <NotifGroup label={t('dashboard.header.notifOpenTickets')}>
+                          {ticketsAbiertosList.map((tk) => (
+                            <NotifItem
+                              key={tk.canalId}
+                              icon={TicketIcon}
+                              color="brand"
+                              titulo={tk.titulo || tk.creadorNombre || tk.canalId}
+                              meta={tk.estado}
+                              fecha={tk.fechaCreacion}
+                              onClick={() => { setActiveTab('tickets-gestion'); verMensajes(tk); cerrarNotif(); }}
+                              onDismiss={(e) => descartarNotif('tickets', tk.canalId, e)}
+                            />
+                          ))}
+                        </NotifGroup>
+                      )}
+                      {reportesPendientesList.length > 0 && (
+                        <NotifGroup label={t('dashboard.header.notifReportes')}>
+                          {reportesPendientesList.map((r) => (
+                            <NotifItem
+                              key={r._id}
+                              icon={Flag}
+                              color="danger"
+                              titulo={r.reportadoTag || r.motivo || r._id}
+                              fecha={r.fecha}
+                              onClick={() => { setActiveTab('mod-reportes'); cerrarNotif(); }}
+                              onDismiss={(e) => descartarNotif('reportes', r._id, e)}
+                            />
+                          ))}
+                        </NotifGroup>
+                      )}
+                      {sugerenciasPendientesList.length > 0 && (
+                        <NotifGroup label={t('dashboard.header.notifSugerencias')}>
+                          {sugerenciasPendientesList.map((s) => (
+                            <NotifItem
+                              key={s._id}
+                              icon={Lightbulb}
+                              color="warn"
+                              titulo={s.autor || s.texto || s._id}
+                              fecha={s.creadoFecha}
+                              onClick={() => { setActiveTab('com-sugerencias'); cerrarNotif(); }}
+                              onDismiss={(e) => descartarNotif('sugerencias', s._id, e)}
+                            />
+                          ))}
+                        </NotifGroup>
+                      )}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
