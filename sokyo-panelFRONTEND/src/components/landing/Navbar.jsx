@@ -48,8 +48,7 @@ export default function Navbar({ onEnterDashboard }) {
           className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4"
         >
           <a href="#top" className="flex items-center gap-2.5">
-            {/* // TODO: DESIGN TEAM — logo oficial. Sustituir /assets/logo-placeholder.svg */}
-            <img src="/assets/logo-placeholder.svg" alt="Sokyo" width="36" height="36" className="h-9 w-9" />
+            <img src="/assets/logo.jpg" alt="Sokyo" width="36" height="36" className="h-9 w-9 rounded-full object-cover" />
             <span className="text-lg font-extrabold tracking-tight text-fg">{t('landing.nav.brand')}</span>
           </a>
 

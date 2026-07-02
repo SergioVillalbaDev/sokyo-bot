@@ -20,8 +20,7 @@ export default function Legal({ page = 'privacidad', onBack }) {
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <a href="#top" onClick={onBack} className="flex items-center gap-2.5">
-            {/* // TODO: DESIGN TEAM — logo oficial */}
-            <img src="/assets/logo-placeholder.svg" alt="Sokyo" className="h-8 w-8" />
+            <img src="/assets/logo.jpg" alt="Sokyo" className="h-8 w-8 rounded-full object-cover" />
             <span className="text-lg font-extrabold tracking-tight text-fg">{t('landing.nav.brand')}</span>
           </a>
           <button

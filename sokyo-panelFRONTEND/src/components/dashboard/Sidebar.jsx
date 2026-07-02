@@ -55,8 +55,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
       >
       {/* Logo */}
       <div className="flex h-12 items-center gap-2.5 px-2">
-        {/* // TODO: DESIGN TEAM — logo oficial */}
-        <img src="/assets/logo-placeholder.svg" alt="Sokyo" className="h-8 w-8 shrink-0" />
+        <img src="/assets/logo.jpg" alt="Sokyo" className="h-8 w-8 shrink-0 rounded-full object-cover" />
         <AnimatePresence>
           {!collapsed && (
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

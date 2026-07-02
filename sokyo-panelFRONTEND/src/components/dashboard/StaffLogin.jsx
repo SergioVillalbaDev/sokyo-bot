@@ -19,7 +19,7 @@ export default function StaffLogin({ error }) {
     <div className="flex min-h-screen items-center justify-center bg-bg p-4 text-fg">
       <div className="absolute right-5 top-5"><LanguageSwitcher /></div>
       <div className="w-full max-w-sm rounded-3xl border border-line bg-card p-8 text-center shadow-soft">
-        <img src="/assets/logo-placeholder.svg" alt="Sokyo" className="mx-auto h-14 w-14" />
+        <img src="/assets/logo.jpg" alt="Sokyo" className="mx-auto h-14 w-14 rounded-full object-cover" />
         <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-fg">{t('dashboard.auth.loginTitle')}</h1>
         <p className="mt-2 text-sm text-muted">{t('dashboard.auth.loginSubtitle')}</p>
 
