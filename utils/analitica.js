@@ -193,7 +193,7 @@ async function construirAnalitica(client, gid, cfg, dias) {
 
     const insights = construirInsights({
         dias, crecimientoNeto, totalEntradas, totalSalidas, pctActivos, activos, miembros,
-        horaPico, topCanales, totalMensajes, csat, reportePend, tiempoMedioCierreH, abiertos,
+        horaPico: horaPico.label, topCanales, totalMensajes, csat, reportePend, tiempoMedioCierreH, abiertos,
         sancionesTotal: sancionesDocs.length, automod, nr,
         totalBorrados, totalEditados, agentes, vozActivos, mensajesPorActivo, hayMiembros, serieMiembros,
     });

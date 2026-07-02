@@ -16,6 +16,7 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const { enviarResumen } = require('./resumenDiario.js');
 const { barrerComunidad } = require('./comunidad.js');
 const { barrerDinamicas } = require('./dinamicas.js');
+const { t } = require('./i18n.js');
 
 // Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -64,13 +65,16 @@ async function enviarRecordatoriosPendientes(client) {
     const pendientes = await Recordatorio.find({ avisado: false, fechaAviso: { $lte: ahora } });
     for (const r of pendientes) {
         try {
+            const cfg = r.guildId ? await ServidorConfig.findOne({ guildId: r.guildId }).lean().catch(() => null) : null;
             const canal = await client.channels.fetch(r.canalId).catch(() => null);
-            const texto = `⏰ <@${r.userId}>, recordatorio: ${r.mensaje || '(sin texto)'}`;
+            const texto = t(cfg,
+                `⏰ <@${r.userId}>, recordatorio: ${r.mensaje || '(sin texto)'}`,
+                `⏰ <@${r.userId}>, reminder: ${r.mensaje || '(no text)'}`);
             if (canal && canal.isTextBased()) {
                 await canal.send({ content: texto.slice(0, 2000), allowedMentions: { users: [r.userId] } });
             } else {
                 const user = await client.users.fetch(r.userId).catch(() => null);
-                if (user) await user.send(`⏰ Reminder: ${r.mensaje || '(no text)'}`).catch(() => {});
+                if (user) await user.send(t(cfg, `⏰ Recordatorio: ${r.mensaje || '(sin texto)'}`, `⏰ Reminder: ${r.mensaje || '(no text)'}`)).catch(() => {});
             }
         } catch (e) {
             console.error('Error enviando recordatorio:', e.message);

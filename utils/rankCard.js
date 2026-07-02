@@ -6,6 +6,7 @@
 const path = require('path');
 const { ESTILOS } = require('./cardStyles.js');
 const { FUENTE } = require('./fonts.js');
+const { t } = require('./i18n.js');
 let canvasLib = null;
 let gifLib = null;
 try { canvasLib = require('@napi-rs/canvas'); } catch { canvasLib = null; }
@@ -52,7 +53,7 @@ function nombreLegible(s) {
 // fase ∈ [0,1). opts.estilo = id de estilo premium (o null para el tier gratis).
 function dibujarTarjeta(ctx, opts, imgs, fase = 0) {
     const { fondoTipo = 'color', fondoColor = FONDO, colorSecundario = null,
-        nombre, nivel, rank, xpActual, xpNecesaria, estilo: estiloId = null } = opts;
+        nombre, nivel, rank, xpActual, xpNecesaria, estilo: estiloId = null, idioma = null } = opts;
     const { avatar, bg } = imgs;
     const estilo = estiloId && ESTILOS[estiloId] ? ESTILOS[estiloId] : null;
     const acento = estilo ? estilo.acento : (opts.color || '#5865F2');
@@ -124,9 +125,9 @@ function dibujarTarjeta(ctx, opts, imgs, fase = 0) {
 
     ctx.textAlign = 'right';
     ctx.fillStyle = estilo ? '#e9ecf5' : SUB; ctx.font = `bold 28px ${FUENTE}`;
-    ctx.fillText(`RANK #${rank}`, W - 50, 75);
+    ctx.fillText(`${t(idioma, 'RANGO', 'RANK')} #${rank}`, W - 50, 75);
     ctx.fillStyle = acento; ctx.font = `bold 40px ${FUENTE}`;
-    ctx.fillText(`NIVEL ${nivel}`, W - 50, 120);
+    ctx.fillText(`${t(idioma, 'NIVEL', 'LEVEL')} ${nivel}`, W - 50, 120);
     ctx.textAlign = 'left';
 
     const bx = x, by = 150, bw = W - 50 - x, bh = 40;

@@ -4,6 +4,7 @@
 const os = require('os');
 const fs = require('fs');
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { t } = require('../utils/i18n.js');
 
 // Mismo patrón de propietarios que api/server.js.
 const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
@@ -57,10 +58,10 @@ module.exports = {
         .setName('system')
         .setDescription('📊 Status of the server running the bot (owners only)'),
 
-    async execute(interaction, client) {
+    async execute(interaction, client, cfg) {
         // Control de acceso: solo propietarios.
         if (!OWNER_IDS.has(interaction.user.id)) {
-            return interaction.reply({ content: '⛔ This command is only for the bot owners.', ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⛔ Este comando es solo para los propietarios del bot.', '⛔ This command is only for the bot owners.'), ephemeral: true });
         }
 
         await interaction.deferReply({ ephemeral: true });
@@ -78,14 +79,14 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setColor(cpuUso > 85 ? 0xe74c3c : cpuUso > 60 ? 0xf1c40f : 0x2ecc71)
-            .setTitle('📊 System status')
+            .setTitle(t(cfg, '📊 Estado del sistema', '📊 System status'))
             .addFields(
-                { name: '🖥️ CPU', value: `${cpuUso.toFixed(1)}%${temp !== null ? ` · ${temp.toFixed(1)}°C` : ''}\nLoad: ${carga}`, inline: true },
+                { name: '🖥️ CPU', value: `${cpuUso.toFixed(1)}%${temp !== null ? ` · ${temp.toFixed(1)}°C` : ''}\n${t(cfg, 'Carga', 'Load')}: ${carga}`, inline: true },
                 { name: '🧠 RAM', value: `${fmtBytes(usadaMem)} / ${fmtBytes(totalMem)}\nBot: ${fmtBytes(process.memoryUsage().rss)}`, inline: true },
-                ...(disco ? [{ name: '💾 Disk', value: `${fmtBytes(disco.usado)} / ${fmtBytes(disco.total)}`, inline: true }] : []),
-                { name: '⏱️ Uptime', value: `Pi: ${fmtUptime(os.uptime())}\nBot: ${fmtUptime(process.uptime())}`, inline: true },
-                { name: '🤖 Discord', value: `Servers: ${client.guilds.cache.size}\nPing: ${Math.round(client.ws.ping)} ms`, inline: true },
-                { name: '🎵 Music', value: `Lavalink: ${lavalinkOk ? '🟢 connected' : '🔴 down'}\nPlaying: ${reproduciendo}`, inline: true },
+                ...(disco ? [{ name: t(cfg, '💾 Disco', '💾 Disk'), value: `${fmtBytes(disco.usado)} / ${fmtBytes(disco.total)}`, inline: true }] : []),
+                { name: t(cfg, '⏱️ Tiempo activo', '⏱️ Uptime'), value: `Pi: ${fmtUptime(os.uptime())}\nBot: ${fmtUptime(process.uptime())}`, inline: true },
+                { name: '🤖 Discord', value: `${t(cfg, 'Servidores', 'Servers')}: ${client.guilds.cache.size}\nPing: ${Math.round(client.ws.ping)} ms`, inline: true },
+                { name: t(cfg, '🎵 Música', '🎵 Music'), value: `Lavalink: ${lavalinkOk ? t(cfg, '🟢 conectado', '🟢 connected') : t(cfg, '🔴 caído', '🔴 down')}\n${t(cfg, 'Reproduciendo', 'Playing')}: ${reproduciendo}`, inline: true },
             )
             .setFooter({ text: `${os.hostname()} · ${os.type()} ${os.arch()}` })
             .setTimestamp();

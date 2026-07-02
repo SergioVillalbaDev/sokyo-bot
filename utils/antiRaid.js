@@ -8,6 +8,7 @@ const { EmbedBuilder } = require('discord.js');
 const { aplicarSancion } = require('./moderationManager.js');
 const { enviarAlerta } = require('./automod.js');
 const { enviarWebhook } = require('./webhooks.js');
+const { t } = require('./i18n.js');
 
 // Entradas recientes por servidor (ventana deslizante en memoria).
 const entradas = new Map();   // guildId -> [timestamps]
@@ -36,8 +37,8 @@ function edadHoras(user) {
 
 // Acción directa contra un raider (sin DM ni registro individual: en un raid
 // pueden ser cientos de cuentas y saturaría logs/MD).
-async function actuarRaid(member, accion, timeoutMin) {
-    const motivo = 'Anti-raid: join surge detected';
+async function actuarRaid(member, accion, timeoutMin, cfg) {
+    const motivo = t(cfg, 'Anti-raid: oleada de entradas detectada', 'Anti-raid: join surge detected');
     try {
         if (accion === 'ban') return member.ban({ reason: motivo, deleteMessageSeconds: 3600 }).catch(() => {});
         if (accion === 'timeout') return member.timeout(Math.min(timeoutMin || 60, 40320) * 60000, motivo).catch(() => {});
@@ -80,8 +81,10 @@ async function revisarEntrada(member, cfg, client) {
             lockdown.set(guild.id, ahora + (r.lockdownMin || 10) * 60000);
             const embed = new EmbedBuilder()
                 .setColor(0xe74c3c)
-                .setTitle('🚨 Possible RAID detected')
-                .setDescription(`**${lista.length}** accounts joined in ~${r.enSegundos}s.\nLockdown enabled for **${r.lockdownMin} min** (action: ${r.accion}).`)
+                .setTitle(t(cfg, '🚨 Posible RAID detectado', '🚨 Possible RAID detected'))
+                .setDescription(t(cfg,
+                    `**${lista.length}** cuentas se unieron en ~${r.enSegundos}s.\nBloqueo activado durante **${r.lockdownMin} min** (acción: ${r.accion}).`,
+                    `**${lista.length}** accounts joined in ~${r.enSegundos}s.\nLockdown enabled for **${r.lockdownMin} min** (action: ${r.accion}).`))
                 .setTimestamp();
             await enviarAlerta(client, guild, am, { embeds: [embed] });
             // Webhook saliente (Pro): avisa del raid a un endpoint externo.
@@ -94,7 +97,7 @@ async function revisarEntrada(member, cfg, client) {
         if (enRaid(guild.id)) {
             // Filtro opcional por edad de cuenta (0 = todas).
             if (!r.edadMinHoras || edadHoras(member.user) < r.edadMinHoras) {
-                await actuarRaid(member, r.accion, r.timeoutMin);
+                await actuarRaid(member, r.accion, r.timeoutMin, cfg);
                 return true; // gestionado: no seguimos con cuentas nuevas ni autorol
             }
         }
@@ -109,9 +112,11 @@ async function revisarEntrada(member, cfg, client) {
 
         if (esNueva || sinAvatar) {
             const razones = [];
-            if (esNueva) razones.push(edadH < 1 ? `created ${Math.max(1, Math.round(edadH * 60))} min ago` : `created ${Math.round(edadH)} h ago`);
-            if (sinAvatar) razones.push('no avatar');
-            const motivo = `Suspicious account (${razones.join(', ')})`;
+            if (esNueva) razones.push(t(cfg,
+                edadH < 1 ? `creada hace ${Math.max(1, Math.round(edadH * 60))} min` : `creada hace ${Math.round(edadH)} h`,
+                edadH < 1 ? `created ${Math.max(1, Math.round(edadH * 60))} min ago` : `created ${Math.round(edadH)} h ago`));
+            if (sinAvatar) razones.push(t(cfg, 'sin avatar', 'no avatar'));
+            const motivo = t(cfg, `Cuenta sospechosa (${razones.join(', ')})`, `Suspicious account (${razones.join(', ')})`);
 
             // Rol de cuarentena opcional.
             if (c.asignarRolId) {
@@ -123,7 +128,7 @@ async function revisarEntrada(member, cfg, client) {
                 const embed = new EmbedBuilder()
                     .setColor(0xf1c40f)
                     .setAuthor({ name: `⚠️ ${member.user.username}`, iconURL: member.user.displayAvatarURL?.() || undefined })
-                    .setDescription(`<@${member.id}> just joined. ${motivo}.`)
+                    .setDescription(t(cfg, `<@${member.id}> acaba de entrar. ${motivo}.`, `<@${member.id}> just joined. ${motivo}.`))
                     .setFooter({ text: `ID: ${member.id}` })
                     .setTimestamp();
                 await enviarAlerta(client, guild, am, { embeds: [embed] });

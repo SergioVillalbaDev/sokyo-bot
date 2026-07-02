@@ -53,6 +53,7 @@ export function useDashboard() {
   const [textoBoton, setTextoBoton] = useState('📩 Open a ticket');
   const [mensajeBienvenida, setMensajeBienvenida] = useState('A team member will review it shortly.');
   const [prefijo, setPrefijo] = useState('!');
+  const [idioma, setIdioma] = useState('en');
   const [categoriaArchivados, setCategoriaArchivados] = useState('🗄️ Tickets Archivados');
 
   // Estados de Incidencias
@@ -1210,6 +1211,7 @@ export function useDashboard() {
         setTextoBoton(datos[0].textoBoton || '📩 Open a ticket');
         setMensajeBienvenida(datos[0].mensajeBienvenida || 'A team member will review it shortly.');
         setPrefijo(datos[0].prefijo || '!');
+        setIdioma(datos[0].idioma || 'en');
         setCategoriaArchivados(datos[0].categoriaArchivados || '🗄️ Archived Tickets');
       }
     }).catch(reportarError('cargando configuración'));
@@ -1234,7 +1236,7 @@ export function useDashboard() {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         titulo: tituloMensaje, descripcion: descripcionMensaje, footer: footerMensaje,
-        colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados,
+        colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados, idioma,
       }),
     });
     if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(data.config); alert('✅ Customization updated!'); }
@@ -1461,7 +1463,7 @@ export function useDashboard() {
     // config textos
     configServidor, tituloMensaje, setTituloMensaje, descripcionMensaje, setDescripcionMensaje, footerMensaje, setFooterMensaje,
     // personalización (Fase 2)
-    colorEmbed, setColorEmbed, textoBoton, setTextoBoton, mensajeBienvenida, setMensajeBienvenida, prefijo, setPrefijo, categoriaArchivados, setCategoriaArchivados,
+    colorEmbed, setColorEmbed, textoBoton, setTextoBoton, mensajeBienvenida, setMensajeBienvenida, prefijo, setPrefijo, idioma, setIdioma, categoriaArchivados, setCategoriaArchivados,
     // incidencias
     motivos, nuevoMotivo, setNuevoMotivo, nuevaUrgencia, setNuevaUrgencia,
     urgencias, nuevaUrgNombre, setNuevaUrgNombre, nuevaUrgColor, setNuevaUrgColor, nuevaUrgNivel, setNuevaUrgNivel,

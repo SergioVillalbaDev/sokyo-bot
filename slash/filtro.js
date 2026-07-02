@@ -5,11 +5,14 @@ const { SlashCommandBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { gateMusica } = require('../utils/musica.js');
 const { esPro } = require('../utils/billing.js');
+const { t } = require('../utils/i18n.js');
 
-const NOMBRES = {
-    bassboost: '🔊 Bassboost', nightcore: '⚡ Nightcore', vaporwave: '🌫️ Vaporwave',
-    '8d': '🎧 8D', karaoke: '🎤 Karaoke', tremolo: '🎶 Tremolo', off: 'no filters',
-};
+function nombresFiltro(cfg) {
+    return {
+        bassboost: '🔊 Bassboost', nightcore: '⚡ Nightcore', vaporwave: '🌫️ Vaporwave',
+        '8d': '🎧 8D', karaoke: '🎤 Karaoke', tremolo: '🎶 Tremolo', off: t(cfg, 'sin filtros', 'no filters'),
+    };
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -29,10 +32,10 @@ module.exports = {
                     { name: '❌ Remove filters', value: 'off' },
                 )),
 
-    async execute(interaction, client) {
+    async execute(interaction, client, cfgArg) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: '⏹️ Nothing is playing.', ephemeral: true });
+            return interaction.reply({ content: t(cfgArg, '⏹️ No hay nada sonando.', '⏹️ Nothing is playing.'), ephemeral: true });
         }
 
         // Voz + rol DJ (igual que el resto de comandos de música).
@@ -43,7 +46,7 @@ module.exports = {
         const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
         if (!esPro(cfg)) {
             return interaction.reply({
-                content: '✨ Audio filters are a **Pro** plan extra. Regular music is free; Pro adds filters, an equalizer and more. Check out the plans in the panel.',
+                content: t(cfg, '✨ Los filtros de audio son un extra del plan **Pro**. La música normal es gratis; Pro añade filtros, ecualizador y más. Echa un vistazo a los planes en el panel.', '✨ Audio filters are a **Pro** plan extra. Regular music is free; Pro adds filters, an equalizer and more. Check out the plans in the panel.'),
                 ephemeral: true,
             });
         }
@@ -64,11 +67,11 @@ module.exports = {
             }
         } catch (e) {
             console.error('Music filter:', e.message);
-            return interaction.reply({ content: '⚠️ Could not apply the filter.', ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⚠️ No se pudo aplicar el filtro.', '⚠️ Could not apply the filter.'), ephemeral: true });
         }
 
         return interaction.reply(tipo === 'off'
-            ? '❌ Filters removed.'
-            : `✅ Filter applied: **${NOMBRES[tipo]}**.`);
+            ? t(cfg, '❌ Filtros eliminados.', '❌ Filters removed.')
+            : t(cfg, `✅ Filtro aplicado: **${nombresFiltro(cfg)[tipo]}**.`, `✅ Filter applied: **${nombresFiltro(cfg)[tipo]}**.`));
     },
 };

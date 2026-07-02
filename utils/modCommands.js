@@ -5,6 +5,7 @@ const { PermissionsBitField } = require('discord.js');
 const { aplicarSancion, duracionTexto } = require('./moderationManager.js');
 const { getConfigCached } = require('./config.js');
 const { miembroPuedeModerar } = require('./permisos.js');
+const { t } = require('./i18n.js');
 
 // Permiso de Discord requerido para cada acción.
 const PERMISO = { ban: 'BanMembers', expulsion: 'KickMembers', timeout: 'ModerateMembers', aviso: 'ModerateMembers' };
@@ -25,12 +26,12 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
     const cfg = await getConfigCached(message.guild.id);
     const flag = PermissionsBitField.Flags[PERMISO[accion]];
     if (!miembroPuedeModerar(message.member, cfg, flag)) {
-        return message.reply('❌ You don’t have permission for this action.');
+        return message.reply(t(cfg, '❌ No tienes permiso para esta acción.', '❌ You don’t have permission for this action.'));
     }
 
     // 2. Usuario objetivo (por mención).
     const target = message.mentions.users.first();
-    if (!target) return message.reply('❌ Mention a user. e.g. `!ban @user reason`');
+    if (!target) return message.reply(t(cfg, '❌ Menciona a un usuario. p. ej. `!ban @usuario motivo`', '❌ Mention a user. e.g. `!ban @user reason`'));
 
     // 3. Aplicar por el motor común (mismo registro, mod-log, MD y protecciones).
     try {
@@ -41,8 +42,10 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
             motivo,
             moderador: { id: message.author.id, tag: message.author.username },
         });
-        const extra = duracionMin > 0 ? `, ${duracionTexto(duracionMin)}` : '';
-        return message.reply(`✅ Sanction applied to **${target.username}** (${nombre || accion}${extra}).`);
+        const extra = duracionMin > 0 ? `, ${duracionTexto(duracionMin, cfg)}` : '';
+        return message.reply(t(cfg,
+            `✅ Sanción aplicada a **${target.username}** (${nombre || accion}${extra}).`,
+            `✅ Sanction applied to **${target.username}** (${nombre || accion}${extra}).`));
     } catch (e) {
         return message.reply(`❌ ${e.message}`);
     }

@@ -38,6 +38,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     textoBoton: { type: String, default: '📩 Open a ticket' },                          // texto del botón del panel
     mensajeBienvenida: { type: String, default: 'A team member will review it shortly.' }, // nota al abrir ticket
     prefijo: { type: String, default: '!' },                                           // prefijo de comandos
+    idioma: { type: String, enum: ['en', 'es'], default: 'en' },                       // idioma de los mensajes del bot en Discord
     categoriaArchivados: { type: String, default: '🗄️ Archived Tickets' },          // categoría de tickets cerrados
 
     // --- REGLAS Y CONTROL (Fase 3) ---

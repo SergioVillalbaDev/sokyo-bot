@@ -7,6 +7,7 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const TarjetaPersonal = require('../models/TarjetaPersonal.js');
 const { generarTarjeta, generarTarjetaAnimada, ESTILOS } = require('./rankCard.js');
 const economia = require('./economia.js'); // para el boost de XP comprado en la tienda
+const { t, resolverIdioma } = require('./i18n.js');
 
 // Opciones de tarjeta personalizada del usuario.
 // Los COLORES (acento, fondo, secundario/degradado) se aplican siempre.
@@ -55,7 +56,9 @@ async function construirBuffer(opc, esPremium, render) {
 // Construye el adjunto de la tarjeta (PNG o GIF) ya listo para enviar a Discord.
 async function adjuntoTarjeta(userId, cfg, render) {
     const opc = await opcionesTarjeta(userId, cfg);
-    const r = await construirBuffer(opc, !!cfg?.esPremium, render);
+    // Se cuela el idioma del servidor dentro de `render` para que rankCard.js
+    // pueda dibujar los textos fijos de la tarjeta (RANK/NIVEL/XP) en el idioma correcto.
+    const r = await construirBuffer(opc, !!cfg?.esPremium, { ...render, idioma: resolverIdioma(cfg) });
     return r ? new AttachmentBuilder(r.buffer, { name: `rank.${r.ext}` }) : null;
 }
 
@@ -169,7 +172,7 @@ async function otorgarXpVoz(member, cfg) {
 async function anunciar(guild, member, cfg, nivel, canalFallback, tarjeta) {
     const tipo = cfg.anuncioTipo || 'canal';
     if (tipo === 'off') return;
-    const texto = (cfg.mensajeSubida || '🎉 {mention} reached **level {level}**!')
+    const texto = (cfg.mensajeSubida || t(cfg, '🎉 {mention} alcanzó el **nivel {level}**!', '🎉 {mention} reached **level {level}**!'))
         .replace(/{mention}/g, `<@${member.id}>`)
         .replace(/{user}/g, member.user.username)
         .replace(/{level}/g, nivel);

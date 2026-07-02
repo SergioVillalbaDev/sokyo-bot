@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { gateMusica, formatDuration, COLOR_MUSICA, buscarMusica } = require('../utils/musica.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -10,7 +11,7 @@ module.exports = {
                 .setDescription('YouTube/Spotify URL, or the song name')
                 .setRequired(true)),
 
-    async execute(interaction, client) {
+    async execute(interaction, client, cfg) {
         // 1. Validar voz + música activa + rol DJ.
         const voz = await gateMusica(interaction);
         if (!voz.ok) return interaction.reply({ content: voz.error, ephemeral: true });
@@ -20,7 +21,7 @@ module.exports = {
             // Discord no debería permitir esto (la opción es obligatoria), pero si
             // el comando registrado en Discord está desactualizado respecto al
             // código (falta re-ejecutar deploy-commands.js), esta opción llega null.
-            return interaction.reply({ content: '❌ I didn’t receive anything to search for. If this keeps happening, ask the bot owner to re-sync the slash commands.', ephemeral: true });
+            return interaction.reply({ content: t(cfg, '❌ No he recibido nada que buscar. Si esto sigue pasando, pide al dueño del bot que resincronice los slash commands.', '❌ I didn’t receive anything to search for. If this keeps happening, ask the bot owner to re-sync the slash commands.'), ephemeral: true });
         }
         await interaction.deferReply();
 
@@ -42,11 +43,11 @@ module.exports = {
             res = await buscarMusica(player, query, interaction.user);
         } catch (e) {
             console.error('Error buscando música (/play):', e);
-            return interaction.editReply(`❌ I couldn't search for that: ${e.message}`);
+            return interaction.editReply(t(cfg, `❌ No he podido buscar eso: ${e.message}`, `❌ I couldn't search for that: ${e.message}`));
         }
 
         if (!res || !res.tracks?.length || res.loadType === 'error' || res.loadType === 'empty') {
-            return interaction.editReply('🔍 I couldn’t find anything for that search.');
+            return interaction.editReply(t(cfg, '🔍 No he encontrado nada para esa búsqueda.', '🔍 I couldn’t find anything for that search.'));
         }
 
         // 4. ¿Ya había algo sonando? (para saber si esto empieza ya o va a la cola).
@@ -68,21 +69,23 @@ module.exports = {
         // 6. Responder con un embed.
         const embed = new EmbedBuilder().setColor(COLOR_MUSICA);
         if (esPlaylist) {
-            embed.setAuthor({ name: '➕ Playlist added to the queue' })
-                .setTitle(res.playlist?.name || 'Playlist')
-                .setDescription(`**${res.tracks.length}** songs added.${yaSonaba ? '' : ' Starting now.'}`);
+            embed.setAuthor({ name: t(cfg, '➕ Playlist añadida a la cola', '➕ Playlist added to the queue') })
+                .setTitle(res.playlist?.name || t(cfg, 'Playlist', 'Playlist'))
+                .setDescription(t(cfg,
+                    `**${res.tracks.length}** canciones añadidas.${yaSonaba ? '' : ' Empezando ahora.'}`,
+                    `**${res.tracks.length}** songs added.${yaSonaba ? '' : ' Starting now.'}`));
         } else {
-            const t = res.tracks[0];
-            embed.setAuthor({ name: yaSonaba ? '➕ Added to the queue' : '▶️ Now playing' })
-                .setTitle(t.info.title)
-                .setURL(t.info.uri || null)
+            const track = res.tracks[0];
+            embed.setAuthor({ name: yaSonaba ? t(cfg, '➕ Añadida a la cola', '➕ Added to the queue') : t(cfg, '▶️ Sonando ahora', '▶️ Now playing') })
+                .setTitle(track.info.title)
+                .setURL(track.info.uri || null)
                 .addFields(
-                    { name: 'Artist', value: t.info.author || 'Unknown', inline: true },
-                    { name: 'Duration', value: formatDuration(t.info.duration), inline: true },
+                    { name: t(cfg, 'Artista', 'Artist'), value: track.info.author || t(cfg, 'Desconocido', 'Unknown'), inline: true },
+                    { name: t(cfg, 'Duración', 'Duration'), value: formatDuration(track.info.duration), inline: true },
                     // Solo mostramos posición si de verdad va a esperar en la cola.
-                    ...(yaSonaba ? [{ name: 'Queue position', value: `#${posicion}`, inline: true }] : []),
+                    ...(yaSonaba ? [{ name: t(cfg, 'Posición en la cola', 'Queue position'), value: `#${posicion}`, inline: true }] : []),
                 );
-            if (t.info.artworkUrl) embed.setThumbnail(t.info.artworkUrl);
+            if (track.info.artworkUrl) embed.setThumbnail(track.info.artworkUrl);
         }
 
         return interaction.editReply({ embeds: [embed] });

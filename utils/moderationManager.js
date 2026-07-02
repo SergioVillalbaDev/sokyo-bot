@@ -8,9 +8,20 @@ const { EmbedBuilder } = require('discord.js');
 const Sancion = require('../models/Sancion.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { enviarWebhook } = require('./webhooks.js');
+const { t } = require('./i18n.js');
 
 const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000; // límite nativo de Discord: 28 días
 
+function metaFor(cfg) {
+    return {
+        aviso: { etiqueta: t(cfg, 'Aviso', 'Warning'), color: 0xf1c40f, emoji: '⚠️' },
+        timeout: { etiqueta: t(cfg, 'Timeout', 'Timeout'), color: 0xe67e22, emoji: '🔇' },
+        expulsion: { etiqueta: t(cfg, 'Expulsión', 'Kick'), color: 0xe74c3c, emoji: '👢' },
+        ban: { etiqueta: t(cfg, 'Ban', 'Ban'), color: 0x992d22, emoji: '🔨' },
+    };
+}
+// Metadatos por defecto (inglés) para los sitios que aún no tienen cfg a mano
+// (p. ej. claves internas / fallback de tipoNombre en la BD).
 const META = {
     aviso: { etiqueta: 'Warning', color: 0xf1c40f, emoji: '⚠️' },
     timeout: { etiqueta: 'Timeout', color: 0xe67e22, emoji: '🔇' },
@@ -19,44 +30,47 @@ const META = {
 };
 
 // Texto legible de la duración (para DMs y logs).
-function duracionTexto(min) {
-    if (!min || min <= 0) return 'permanent';
+function duracionTexto(min, cfg) {
+    if (!min || min <= 0) return t(cfg, 'permanente', 'permanent');
     if (min < 60) return `${min} min`;
-    if (min < 1440) return `${Math.round(min / 60)} h`;
-    return `${Math.round(min / 1440)} days`;
+    if (min < 1440) return t(cfg, `${Math.round(min / 60)} h`, `${Math.round(min / 60)} h`);
+    return t(cfg, `${Math.round(min / 1440)} días`, `${Math.round(min / 1440)} days`);
 }
 
 // Aplica una sanción completa. `tipo` puede ser un TipoSancion o un objeto suelto.
 // Devuelve el documento Sancion creado.
 async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', pruebas = [], moderador = null }) {
+    // Cargamos la config primero (solo necesitamos el guildId) para poder
+    // traducir también los mensajes de error que vienen a continuación.
+    const cfg = await ServidorConfig.findOne({ guildId });
+
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) throw new Error('Server not found');
+    if (!guild) throw new Error(t(cfg, 'Servidor no encontrado', 'Server not found'));
 
     const member = await guild.members.fetch(usuarioId).catch(() => null);
     const usuario = member ? member.user : await client.users.fetch(usuarioId).catch(() => null);
-    if (!usuario) throw new Error('User not found');
+    if (!usuario) throw new Error(t(cfg, 'Usuario no encontrado', 'User not found'));
 
     // Protecciones de jerarquía/seguridad.
-    if (usuarioId === guild.ownerId) throw new Error('You can’t sanction the server owner');
+    if (usuarioId === guild.ownerId) throw new Error(t(cfg, 'No puedes sancionar al dueño del servidor', 'You can’t sanction the server owner'));
     if (member && !member.manageable && tipo.accion !== 'aviso') {
-        throw new Error('The bot can’t sanction this user (role hierarchy)');
+        throw new Error(t(cfg, 'El bot no puede sancionar a este usuario (jerarquía de roles)', 'The bot can’t sanction this user (role hierarchy)'));
     }
 
     const expiraEn = tipo.duracionMin > 0 ? new Date(Date.now() + tipo.duracionMin * 60000) : null;
 
     // Aviso por DM (configurable). ANTES de expulsar/banear, que después ya no se puede contactar.
-    const cfg = await ServidorConfig.findOne({ guildId });
     if (cfg?.dmSancion !== false) {
-        await enviarDM(guild, usuario, tipo, motivo).catch(() => {});
+        await enviarDM(guild, usuario, tipo, motivo, cfg).catch(() => {});
     }
 
     // Acción en Discord.
     if (tipo.accion === 'timeout') {
-        if (!member) throw new Error('The user is not in the server');
+        if (!member) throw new Error(t(cfg, 'El usuario no está en el servidor', 'The user is not in the server'));
         const ms = Math.min((tipo.duracionMin || 0) * 60000 || 60000, MAX_TIMEOUT_MS);
         await member.timeout(ms, motivo || tipo.nombre);
     } else if (tipo.accion === 'expulsion') {
-        if (!member) throw new Error('The user is not in the server');
+        if (!member) throw new Error(t(cfg, 'El usuario no está en el servidor', 'The user is not in the server'));
         await member.kick(motivo || tipo.nombre);
     } else if (tipo.accion === 'ban') {
         await guild.members.ban(usuarioId, {
@@ -73,7 +87,7 @@ async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', p
         usuarioAvatar: usuario.displayAvatarURL?.({ size: 64 }) || null,
         moderadorId: moderador?.id || null,
         moderadorTag: moderador?.tag || 'Web Panel',
-        tipoNombre: tipo.nombre || META[tipo.accion]?.etiqueta,
+        tipoNombre: tipo.nombre || metaFor(cfg)[tipo.accion]?.etiqueta,
         accion: tipo.accion,
         motivo,
         duracionMin: tipo.duracionMin || 0,
@@ -120,7 +134,8 @@ async function aplicarSancionMasiva(client, { guildId, usuarioIds = [], tipo, mo
 async function revocarSancion(client, sancionId, moderador = null) {
     const s = await Sancion.findById(sancionId);
     if (!s) throw new Error('Sanction not found');
-    if (s.revocada) throw new Error('This sanction was already revoked');
+    const cfg = await ServidorConfig.findOne({ guildId: s.guildId });
+    if (s.revocada) throw new Error(t(cfg, 'Esta sanción ya había sido revocada', 'This sanction was already revoked'));
 
     const guild = client.guilds.cache.get(s.guildId);
     if (guild) {
@@ -155,16 +170,16 @@ async function barrerSancionesVencidas(client) {
 
 // --- Helpers ---
 
-async function enviarDM(guild, usuario, tipo, motivo) {
-    const meta = META[tipo.accion] || META.aviso;
+async function enviarDM(guild, usuario, tipo, motivo, cfg) {
+    const meta = metaFor(cfg)[tipo.accion] || metaFor(cfg).aviso;
     const embed = new EmbedBuilder()
         .setColor(meta.color)
-        .setTitle(`${meta.emoji} You’ve received a sanction in ${guild.name}`)
+        .setTitle(t(cfg, `${meta.emoji} Has recibido una sanción en ${guild.name}`, `${meta.emoji} You’ve received a sanction in ${guild.name}`))
         .addFields(
-            { name: 'Type', value: tipo.nombre || meta.etiqueta, inline: true },
-            { name: 'Action', value: meta.etiqueta, inline: true },
-            ...(tipo.duracionMin ? [{ name: 'Duration', value: duracionTexto(tipo.duracionMin), inline: true }] : []),
-            { name: 'Reason', value: motivo || '_No reason given_' },
+            { name: t(cfg, 'Tipo', 'Type'), value: tipo.nombre || meta.etiqueta, inline: true },
+            { name: t(cfg, 'Acción', 'Action'), value: meta.etiqueta, inline: true },
+            ...(tipo.duracionMin ? [{ name: t(cfg, 'Duración', 'Duration'), value: duracionTexto(tipo.duracionMin, cfg), inline: true }] : []),
+            { name: t(cfg, 'Motivo', 'Reason'), value: motivo || t(cfg, '_Sin motivo indicado_', '_No reason given_') },
         )
         .setTimestamp();
     await usuario.send({ embeds: [embed] });
@@ -176,16 +191,16 @@ async function registrarEnCanal(client, guild, sancion) {
     const canal = guild.channels.cache.get(cfg.canalModLogId);
     if (!canal) return;
 
-    const meta = META[sancion.accion] || META.aviso;
+    const meta = metaFor(cfg)[sancion.accion] || metaFor(cfg).aviso;
     const embed = new EmbedBuilder()
         .setColor(meta.color)
         .setAuthor({ name: `${meta.emoji} ${meta.etiqueta} · ${sancion.tipoNombre || ''}`.trim() })
         .setThumbnail(sancion.usuarioAvatar || null)
         .addFields(
-            { name: 'User', value: `<@${sancion.usuarioId}> (\`${sancion.usuarioId}\`)`, inline: false },
-            { name: 'Moderator', value: sancion.moderadorTag || 'Web Panel', inline: true },
-            { name: 'Duration', value: duracionTexto(sancion.duracionMin), inline: true },
-            { name: 'Reason', value: sancion.motivo || '_No reason_' },
+            { name: t(cfg, 'Usuario', 'User'), value: `<@${sancion.usuarioId}> (\`${sancion.usuarioId}\`)`, inline: false },
+            { name: t(cfg, 'Moderador', 'Moderator'), value: sancion.moderadorTag || 'Web Panel', inline: true },
+            { name: t(cfg, 'Duración', 'Duration'), value: duracionTexto(sancion.duracionMin, cfg), inline: true },
+            { name: t(cfg, 'Motivo', 'Reason'), value: sancion.motivo || t(cfg, '_Sin motivo_', '_No reason_') },
         )
         .setFooter({ text: `ID: ${sancion._id}` })
         .setTimestamp(sancion.fecha);
@@ -194,9 +209,9 @@ async function registrarEnCanal(client, guild, sancion) {
         // relativas) se ven en el panel web. Aquí enlazamos solo las absolutas.
         const enlazables = sancion.pruebas.filter((p) => /^https?:\/\//i.test(p));
         const valor = enlazables.length
-            ? enlazables.map((p, i) => `[Evidence ${i + 1}](${p})`).join(' · ')
-            : `${sancion.pruebas.length} attachment(s) — see in the panel`;
-        embed.addFields({ name: 'Evidence', value: valor });
+            ? enlazables.map((p, i) => `[${t(cfg, 'Prueba', 'Evidence')} ${i + 1}](${p})`).join(' · ')
+            : t(cfg, `${sancion.pruebas.length} archivo(s) adjunto(s) — mira el panel`, `${sancion.pruebas.length} attachment(s) — see in the panel`);
+        embed.addFields({ name: t(cfg, 'Pruebas', 'Evidence'), value: valor });
     }
     await canal.send({ embeds: [embed] }).catch(() => {});
 }

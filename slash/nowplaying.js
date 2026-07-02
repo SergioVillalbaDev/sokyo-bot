@@ -1,16 +1,17 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { formatDuration, COLOR_MUSICA } = require('../utils/musica.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('nowplaying')
         .setDescription('Show the song that’s playing right now'),
 
-    async execute(interaction, client) {
+    async execute(interaction, client, cfg) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         const track = player?.queue.current;
         if (!player || !track) {
-            return interaction.reply({ content: '⏹️ Nothing is playing right now.', ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⏹️ Ahora mismo no hay nada sonando.', '⏹️ Nothing is playing right now.'), ephemeral: true });
         }
 
         // Barra de progreso visual.
@@ -26,13 +27,13 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setColor(COLOR_MUSICA)
-            .setAuthor({ name: '🎶 Now playing' })
+            .setAuthor({ name: t(cfg, '🎶 Sonando ahora', '🎶 Now playing') })
             .setTitle(track.info.title)
             .setURL(track.info.uri || null)
-            .setDescription(`**${track.info.author || 'Unknown'}**${barra}`);
+            .setDescription(`**${track.info.author || t(cfg, 'Desconocido', 'Unknown')}**${barra}`);
 
         if (track.info.artworkUrl) embed.setThumbnail(track.info.artworkUrl);
-        if (track.requester?.username) embed.setFooter({ text: `Requested by ${track.requester.username}` });
+        if (track.requester?.username) embed.setFooter({ text: t(cfg, `Pedido por ${track.requester.username}`, `Requested by ${track.requester.username}`) });
 
         return interaction.reply({ embeds: [embed] });
     },

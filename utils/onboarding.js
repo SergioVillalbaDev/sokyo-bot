@@ -3,6 +3,7 @@
 // construirGuia se mantiene por compatibilidad si algo la llama directamente.
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { aplicarPieMarca } = require('./marca.js');
+const { t } = require('./i18n.js');
 
 // Textos del mensaje de bienvenida. Apostamos por mercado global -> inglés por
 // defecto, con un botón en el propio mensaje para cambiar a español al vuelo
@@ -129,47 +130,47 @@ function construirEmbedEstado(guild, config) {
 
     const rol = config?.rolStaffId
         ? `<@&${config.rolStaffId}>`
-        : '_Not set_';
+        : t(config, '_Sin definir_', '_Not set_');
     const cat = config?.categoriaTicketsId
-        ? (guild?.channels?.cache?.get(config.categoriaTicketsId)?.name || '_(set, not in cache)_')
-        : '_Not set_';
+        ? (guild?.channels?.cache?.get(config.categoriaTicketsId)?.name || t(config, '_(definido, no está en caché)_', '_(set, not in cache)_'))
+        : t(config, '_Sin definir_', '_Not set_');
 
-    let planTexto = 'Free';
+    let planTexto = t(config, 'Gratis', 'Free');
     if (config?.esPremium && config?.premiumHasta) {
         const dias = Math.ceil((new Date(config.premiumHasta) - Date.now()) / 86400000);
-        planTexto = dias > 0 ? `Pro (trial, ${dias}d left)` : 'Pro';
+        planTexto = dias > 0 ? t(config, `Pro (prueba, quedan ${dias}d)`, `Pro (trial, ${dias}d left)`) : 'Pro';
     } else if (config?.esPremium) {
         planTexto = 'Pro';
     }
 
     const embed = new EmbedBuilder()
         .setColor(config?.colorEmbed || '#5865F2')
-        .setTitle(`📊 Setup status`)
-        .setDescription(`Server: **${guild?.name || 'unknown'}**`)
+        .setTitle(t(config, '📊 Estado de la configuración', '📊 Setup status'))
+        .setDescription(t(config, `Servidor: **${guild?.name || 'desconocido'}**`, `Server: **${guild?.name || 'unknown'}**`))
         .addFields(
             {
-                name: 'Configuration',
+                name: t(config, 'Configuración', 'Configuration'),
                 value: [
-                    `${check(!!config?.rolStaffId)} Staff role: ${rol}`,
-                    `${check(!!config?.categoriaTicketsId)} Ticket category: ${cat}`,
+                    `${check(!!config?.rolStaffId)} ${t(config, 'Rol de staff:', 'Staff role:')} ${rol}`,
+                    `${check(!!config?.categoriaTicketsId)} ${t(config, 'Categoría de tickets:', 'Ticket category:')} ${cat}`,
                 ].join('\n'),
             },
             {
-                name: 'Current plan',
+                name: t(config, 'Plan actual', 'Current plan'),
                 value: planTexto,
                 inline: true,
             },
         )
-        .setFooter({ text: 'Configure the settings in the web panel' });
+        .setFooter({ text: t(config, 'Configura los ajustes en el panel web', 'Configure the settings in the web panel') });
 
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setLabel('🌐 Go to panel')
+            .setLabel(t(config, '🌐 Ir al panel', '🌐 Go to panel'))
             .setStyle(ButtonStyle.Link)
             .setURL(url),
         new ButtonBuilder()
             .setCustomId(`setup_estado:${config?.guildId || guild?.id}`)
-            .setLabel('🔄 Refresh')
+            .setLabel(t(config, '🔄 Actualizar', '🔄 Refresh'))
             .setStyle(ButtonStyle.Secondary),
     );
 

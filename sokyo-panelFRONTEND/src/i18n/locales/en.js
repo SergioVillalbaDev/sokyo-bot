@@ -1301,6 +1301,7 @@ export default {
       preview: 'Preview (Discord)', previewTitle: 'Panel title', previewDesc: 'Instructions will appear here...', previewFooter: 'Footer',
       previewNote: 'This is how the panel looks when you run {{prefix}}sokyo in Discord.',
       advanced: 'Advanced', prefix: 'Command prefix', prefixHint: 'E.g. with {{prefix}} the command would be {{prefix}}sokyo.',
+      botLanguage: 'Bot language', botLanguageHint: 'What language the bot replies in on this server. Can also be changed with the sokyolanguage command.',
       archiveCat: 'Archived tickets category', archiveHint: 'Where tickets move when closed.',
       reminder: 'Remember to click Save changes (top) and relaunch the panel with {{prefix}}sokyo to see the new color and button.',
     },

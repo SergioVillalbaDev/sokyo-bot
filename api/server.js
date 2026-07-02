@@ -1021,7 +1021,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (est.restantes <= 0) return res.status(402).json({ error: `Has agotado tus ${est.cuota} usos de IA de este mes. Se renueva el día 1.`, iaUsos: est.usos, iaCuota: est.cuota });
             const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
             const data = await construirAnalitica(client, gid, cfg, dias);
-            const texto = await ia.informeServidor(data);
+            const texto = await ia.informeServidor(data, cfg && cfg.idioma);
             const consumo = await billing.consumirIA(gid, cfg);
             res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
         } catch (error) {
@@ -1156,8 +1156,8 @@ app.get('/api/stats/uso', async (req, res) => {
             }
             const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 }).limit(100);
             const texto = accion === 'resumen'
-                ? await ia.resumirTicket(mensajes, ticket)
-                : await ia.sugerirRespuesta(mensajes, ticket);
+                ? await ia.resumirTicket(mensajes, ticket, cfg && cfg.idioma)
+                : await ia.sugerirRespuesta(mensajes, ticket, cfg && cfg.idioma);
             const consumo = await billing.consumirIA(ticket.guildId, cfg); // solo cuenta si tuvo éxito
             res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
         } catch (error) {
@@ -1262,7 +1262,7 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/textos', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
-            const { titulo, descripcion, footer, colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados } = req.body;
+            const { titulo, descripcion, footer, colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados, idioma } = req.body;
 
             // Solo escribimos los campos que llegan (evita pisar con undefined).
             const cambios = {};
@@ -1274,6 +1274,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (mensajeBienvenida !== undefined) cambios.mensajeBienvenida = mensajeBienvenida;
             if (prefijo !== undefined) cambios.prefijo = (prefijo || '!').trim() || '!';
             if (categoriaArchivados !== undefined) cambios.categoriaArchivados = categoriaArchivados;
+            if (idioma !== undefined) cambios.idioma = idioma === 'es' ? 'es' : 'en';
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId: guildId },

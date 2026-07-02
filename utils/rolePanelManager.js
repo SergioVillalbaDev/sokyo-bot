@@ -8,6 +8,8 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const fs = require('fs');
 const path = require('path');
 const RolTemporal = require('../models/RolTemporal.js');
+const { getConfigCached } = require('./config.js');
+const { t } = require('./i18n.js');
 
 // Carpeta donde la API guarda las imágenes subidas.
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -29,9 +31,10 @@ function emojiDeReaccion(reaction) {
 }
 
 // Construye { embeds, components } a partir del panel y el servidor (para los nombres de rol).
-function construirMensaje(panel, guild) {
+async function construirMensaje(panel, guild) {
+    const cfg = await getConfigCached(panel.guildId).catch(() => null);
     const embed = new EmbedBuilder()
-        .setTitle(panel.titulo || '🎭 Roles')
+        .setTitle(panel.titulo || t(cfg, '🎭 Roles', '🎭 Roles'))
         .setColor(panel.color || '#5865F2');
 
     let desc = panel.descripcion || '';
@@ -40,7 +43,7 @@ function construirMensaje(panel, guild) {
     if (panel.tipo === 'reaccion') {
         const lineas = panel.items.map((it) => {
             const rol = guild.roles.cache.get(it.roleId);
-            return `${it.emoji || '•'} — ${it.label || (rol ? rol.name : 'rol')}`;
+            return `${it.emoji || '•'} — ${it.label || (rol ? rol.name : t(cfg, 'rol', 'role'))}`;
         });
         desc += (desc ? '\n\n' : '') + lineas.join('\n');
     }
@@ -56,7 +59,7 @@ function construirMensaje(panel, guild) {
             const rol = guild.roles.cache.get(it.roleId);
             const btn = new ButtonBuilder()
                 .setCustomId(`rp_btn:${panel._id}:${it.roleId}`)
-                .setLabel((it.label || (rol ? rol.name : 'Rol')).slice(0, 80))
+                .setLabel((it.label || (rol ? rol.name : t(cfg, 'Rol', 'Role'))).slice(0, 80))
                 .setStyle(ESTILOS[it.estilo] || ButtonStyle.Secondary);
             if (it.emoji) btn.setEmoji(it.emoji);
             row.addComponents(btn);
@@ -66,12 +69,12 @@ function construirMensaje(panel, guild) {
         const maxVals = panel.exclusivo ? 1 : (panel.maxRoles > 0 ? Math.min(panel.maxRoles, panel.items.length) : panel.items.length || 1);
         const menu = new StringSelectMenuBuilder()
             .setCustomId(`rp_menu:${panel._id}`)
-            .setPlaceholder('Selecciona tus roles...')
+            .setPlaceholder(t(cfg, 'Selecciona tus roles...', 'Select your roles...'))
             .setMinValues(0)
             .setMaxValues(Math.max(1, maxVals));
         panel.items.forEach((it) => {
             const rol = guild.roles.cache.get(it.roleId);
-            const opt = { label: (it.label || (rol ? rol.name : 'Rol')).slice(0, 100), value: it.roleId };
+            const opt = { label: (it.label || (rol ? rol.name : t(cfg, 'Rol', 'Role'))).slice(0, 100), value: it.roleId };
             if (it.descripcion) opt.description = it.descripcion.slice(0, 100);
             if (it.emoji) opt.emoji = it.emoji;
             menu.addOptions(opt);
@@ -81,7 +84,7 @@ function construirMensaje(panel, guild) {
         const it = panel.items[0] || {};
         const btn = new ButtonBuilder()
             .setCustomId(`rp_verify:${panel._id}`)
-            .setLabel((it.label || '✅ Verificarme').slice(0, 80))
+            .setLabel((it.label || t(cfg, '✅ Verificarme', '✅ Verify me')).slice(0, 80))
             .setStyle(ButtonStyle.Success);
         if (it.emoji) btn.setEmoji(it.emoji);
         components.push(new ActionRowBuilder().addComponents(btn));
@@ -92,13 +95,14 @@ function construirMensaje(panel, guild) {
 
 // Publica el panel en su canal (o edita el mensaje si ya existe). Sincroniza reacciones.
 async function publicarPanel(client, panel) {
+    const cfg = await getConfigCached(panel.guildId).catch(() => null);
     const guild = client.guilds.cache.get(panel.guildId);
-    if (!guild) throw new Error('Servidor no encontrado');
+    if (!guild) throw new Error(t(cfg, 'Servidor no encontrado', 'Server not found'));
     const canal = guild.channels.cache.get(panel.channelId);
-    if (!canal) throw new Error('Canal no encontrado');
+    if (!canal) throw new Error(t(cfg, 'Canal no encontrado', 'Channel not found'));
     await guild.roles.fetch().catch(() => {}); // nombres de rol al día
 
-    const { embeds, components } = construirMensaje(panel, guild);
+    const { embeds, components } = await construirMensaje(panel, guild);
     const payload = { embeds, components: panel.tipo === 'reaccion' ? [] : components };
 
     // Imagen subida: la adjuntamos al mensaje y la referenciamos con attachment://.

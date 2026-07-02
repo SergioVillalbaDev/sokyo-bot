@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { gateMusica } = require('../utils/musica.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,16 +13,16 @@ module.exports = {
                 .setMaxValue(150)
                 .setRequired(false)),
 
-    async execute(interaction, client) {
+    async execute(interaction, client, cfg) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: '⏹️ Nothing is playing.', ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⏹️ No hay nada sonando.', '⏹️ Nothing is playing.'), ephemeral: true });
         }
 
         const nivel = interaction.options.getInteger('level');
         // Sin número: solo mostrar el volumen actual.
         if (nivel === null) {
-            return interaction.reply(`🔊 Current volume: **${player.volume}%**`);
+            return interaction.reply(t(cfg, `🔊 Volumen actual: **${player.volume}%**`, `🔊 Current volume: **${player.volume}%**`));
         }
 
         // Cambiar el volumen requiere voz + música activa + rol DJ.
@@ -30,10 +31,10 @@ module.exports = {
 
         // Respetar el tope de volumen configurado.
         if (nivel > voz.cfg.volumenMax) {
-            return interaction.reply({ content: `🔊 The maximum allowed here is **${voz.cfg.volumenMax}%**.`, ephemeral: true });
+            return interaction.reply({ content: t(cfg, `🔊 El máximo permitido aquí es **${voz.cfg.volumenMax}%**.`, `🔊 The maximum allowed here is **${voz.cfg.volumenMax}%**.`), ephemeral: true });
         }
         await player.setVolume(nivel);
         const icono = nivel === 0 ? '🔇' : nivel < 50 ? '🔉' : '🔊';
-        return interaction.reply(`${icono} Volume set to **${nivel}%**.`);
+        return interaction.reply(t(cfg, `${icono} Volumen fijado a **${nivel}%**.`, `${icono} Volume set to **${nivel}%**.`));
     },
 };

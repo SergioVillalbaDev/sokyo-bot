@@ -13,6 +13,7 @@ const {
     UserSelectMenuBuilder, AttachmentBuilder,
 } = require('discord.js');
 const { getConfigCached } = require('./config.js');
+const { t } = require('./i18n.js');
 const { esPro } = require('./billing.js');
 const { aplicarPieMarca } = require('./marca.js');
 const CanalVozTemporal = require('../models/CanalVozTemporal.js');
@@ -223,26 +224,26 @@ async function barrerCanales(client) {
 // PANEL DE CONTROL (botones en un chat de texto)
 // ---------------------------------------------------------------------------
 
-// Catálogo de botones: clave de control → definición del botón.
+// Catálogo de botones: clave de control → definición del botón (label bilingüe).
 const BOTONES = {
-    renombrar: { id: 'vt:renombrar', label: 'Rename', emoji: '✏️', style: ButtonStyle.Secondary },
-    limite: { id: 'vt:limite', label: 'Limit', emoji: '👥', style: ButtonStyle.Secondary },
-    bloquear: { id: 'vt:bloquear', label: 'Lock/Unlock', emoji: '🔒', style: ButtonStyle.Secondary },
-    ocultar: { id: 'vt:ocultar', label: 'Hide/Show', emoji: '👁️', style: ButtonStyle.Secondary },
-    bitrate: { id: 'vt:bitrate', label: 'Quality', emoji: '🎚️', style: ButtonStyle.Secondary },
-    invitar: { id: 'vt:invitar', label: 'Invite', emoji: '➕', style: ButtonStyle.Success },
-    expulsar: { id: 'vt:expulsar', label: 'Kick', emoji: '🚫', style: ButtonStyle.Danger },
-    reclamar: { id: 'vt:reclamar', label: 'Claim', emoji: '👑', style: ButtonStyle.Primary },
-    transferir: { id: 'vt:transferir', label: 'Transfer', emoji: '🔄', style: ButtonStyle.Primary },
-    eliminar: { id: 'vt:eliminar', label: 'Delete', emoji: '🗑️', style: ButtonStyle.Danger },
+    renombrar: { id: 'vt:renombrar', label: { es: 'Renombrar', en: 'Rename' }, emoji: '✏️', style: ButtonStyle.Secondary },
+    limite: { id: 'vt:limite', label: { es: 'Límite', en: 'Limit' }, emoji: '👥', style: ButtonStyle.Secondary },
+    bloquear: { id: 'vt:bloquear', label: { es: 'Bloquear/Desbloquear', en: 'Lock/Unlock' }, emoji: '🔒', style: ButtonStyle.Secondary },
+    ocultar: { id: 'vt:ocultar', label: { es: 'Ocultar/Mostrar', en: 'Hide/Show' }, emoji: '👁️', style: ButtonStyle.Secondary },
+    bitrate: { id: 'vt:bitrate', label: { es: 'Calidad', en: 'Quality' }, emoji: '🎚️', style: ButtonStyle.Secondary },
+    invitar: { id: 'vt:invitar', label: { es: 'Invitar', en: 'Invite' }, emoji: '➕', style: ButtonStyle.Success },
+    expulsar: { id: 'vt:expulsar', label: { es: 'Expulsar', en: 'Kick' }, emoji: '🚫', style: ButtonStyle.Danger },
+    reclamar: { id: 'vt:reclamar', label: { es: 'Reclamar', en: 'Claim' }, emoji: '👑', style: ButtonStyle.Primary },
+    transferir: { id: 'vt:transferir', label: { es: 'Transferir', en: 'Transfer' }, emoji: '🔄', style: ButtonStyle.Primary },
+    eliminar: { id: 'vt:eliminar', label: { es: 'Eliminar', en: 'Delete' }, emoji: '🗑️', style: ButtonStyle.Danger },
 };
 
 // Orden en que se muestran los botones en el panel.
 const ORDEN = ['renombrar', 'limite', 'bloquear', 'ocultar', 'bitrate',
     'invitar', 'expulsar', 'reclamar', 'transferir', 'eliminar'];
 
-const PANEL_TITULO_DEF = '🔊 Your voice channel';
-const PANEL_DESC_DEF = 'Join the generator channel to create your room. Then use these buttons to manage it.';
+const panelTituloDef = (idioma) => t(idioma, '🔊 Tu canal de voz', '🔊 Your voice channel');
+const panelDescDef = (idioma) => t(idioma, 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.', 'Join the generator channel to create your room. Then use these buttons to manage it.');
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 
 // Resuelve la imagen/GIF del panel a una referencia usable por el embed.
@@ -268,11 +269,13 @@ function construirPanel(vcfg, cfg) {
     const activos = ORDEN.filter((k) => ctrl[k] !== false);
     const pro = esPro(cfg);
     const files = [];
+    const tituloDef = panelTituloDef(cfg);
+    const descDef = panelDescDef(cfg);
 
     const embed = new EmbedBuilder()
         .setColor(pro ? (vcfg.panelColor || '#5865F2') : '#5865F2')
-        .setTitle(pro ? (vcfg.panelTitulo || PANEL_TITULO_DEF) : PANEL_TITULO_DEF)
-        .setDescription(pro ? (vcfg.panelDescripcion || PANEL_DESC_DEF) : PANEL_DESC_DEF);
+        .setTitle(pro ? (vcfg.panelTitulo || tituloDef) : tituloDef)
+        .setDescription(pro ? (vcfg.panelDescripcion || descDef) : descDef);
     if (pro) {
         const img = refImagenPanel(vcfg.panelImagen, files);
         if (img) embed.setImage(img);
@@ -285,7 +288,7 @@ function construirPanel(vcfg, cfg) {
         for (const k of activos.slice(i, i + 5)) {
             const b = BOTONES[k];
             fila.addComponents(new ButtonBuilder()
-                .setCustomId(b.id).setLabel(b.label).setEmoji(b.emoji).setStyle(b.style));
+                .setCustomId(b.id).setLabel(t(cfg, b.label.es, b.label.en)).setEmoji(b.emoji).setStyle(b.style));
         }
         rows.push(fila);
     }
@@ -345,18 +348,19 @@ async function aplicarBloqueoCanalPanel(canal, guild, bloquear) {
 // Localiza el canal temporal en el que está el miembro y comprueba que pueda
 // gestionarlo (es el dueño o es admin). Devuelve { canal, doc } o un mensaje de error.
 async function contextoMiembro(interaction, { permitirReclamar = false } = {}) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const member = interaction.member;
     const canalId = member.voice?.channelId;
-    if (!canalId) return { error: '⚠️ You need to be connected to your voice channel to use this.' };
+    if (!canalId) return { error: t(cfg, '⚠️ Tienes que estar conectado a tu canal de voz para usar esto.', '⚠️ You need to be connected to your voice channel to use this.') };
     const doc = await CanalVozTemporal.findOne({ canalId });
-    if (!doc) return { error: '⚠️ Your current voice channel isn’t a temporary room.' };
+    if (!doc) return { error: t(cfg, '⚠️ Tu canal de voz actual no es una sala temporal.', '⚠️ Your current voice channel isn’t a temporary room.') };
     const canal = interaction.guild.channels.cache.get(canalId);
-    if (!canal) return { error: '⚠️ I can’t find your voice channel.' };
+    if (!canal) return { error: t(cfg, '⚠️ No encuentro tu canal de voz.', '⚠️ I can’t find your voice channel.') };
 
     const esAdmin = member.permissions.has(Flags.ManageChannels);
     const esDueno = doc.ownerId === member.id;
     if (!esDueno && !esAdmin && !permitirReclamar) {
-        return { error: '⛔ Only the channel owner can use this control.' };
+        return { error: t(cfg, '⛔ Solo el dueño del canal puede usar este control.', '⛔ Only the channel owner can use this control.') };
     }
     return { canal, doc, esDueno, esAdmin };
 }
@@ -366,20 +370,21 @@ const reply = (interaction, content) =>
 
 // Despacha los botones del panel (customId que empieza por `vt:`).
 async function manejarBoton(interaction) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const accion = interaction.customId.split(':')[1];
 
     // Reclamar tiene su propia comprobación (el dueño debe estar ausente).
     if (accion === 'reclamar') return reclamar(interaction);
 
     // Botones que abren un modal.
-    if (accion === 'renombrar') return abrirModal(interaction, 'renombrar', 'New name', 'Channel name', TextInputStyle.Short);
-    if (accion === 'limite') return abrirModal(interaction, 'limite', 'User limit', 'Number (0 = no limit)', TextInputStyle.Short);
-    if (accion === 'bitrate') return abrirModal(interaction, 'bitrate', 'Quality (kbps)', 'e.g. 64, 96, 128', TextInputStyle.Short);
+    if (accion === 'renombrar') return abrirModal(interaction, 'renombrar', t(cfg, 'Nuevo nombre', 'New name'), t(cfg, 'Nombre del canal', 'Channel name'), TextInputStyle.Short);
+    if (accion === 'limite') return abrirModal(interaction, 'limite', t(cfg, 'Límite de usuarios', 'User limit'), t(cfg, 'Número (0 = sin límite)', 'Number (0 = no limit)'), TextInputStyle.Short);
+    if (accion === 'bitrate') return abrirModal(interaction, 'bitrate', t(cfg, 'Calidad (kbps)', 'Quality (kbps)'), t(cfg, 'p. ej. 64, 96, 128', 'e.g. 64, 96, 128'), TextInputStyle.Short);
 
     // Botones que abren un selector de usuario.
-    if (accion === 'invitar') return abrirSelectorUsuario(interaction, 'invitar', '➕ Choose who to give access');
-    if (accion === 'expulsar') return abrirSelectorUsuario(interaction, 'expulsar', '🚫 Choose who to kick and ban');
-    if (accion === 'transferir') return abrirSelectorUsuario(interaction, 'transferir', '🔄 Choose the new owner');
+    if (accion === 'invitar') return abrirSelectorUsuario(interaction, 'invitar', t(cfg, '➕ Elige a quién dar acceso', '➕ Choose who to give access'));
+    if (accion === 'expulsar') return abrirSelectorUsuario(interaction, 'expulsar', t(cfg, '🚫 Elige a quién expulsar y banear', '🚫 Choose who to kick and ban'));
+    if (accion === 'transferir') return abrirSelectorUsuario(interaction, 'transferir', t(cfg, '🔄 Elige el nuevo dueño', '🔄 Choose the new owner'));
 
     // Botones de acción directa.
     const ctx = await contextoMiembro(interaction);
@@ -390,40 +395,47 @@ async function manejarBoton(interaction) {
     if (accion === 'eliminar') {
         await ctx.canal.delete('Deleted by its owner from the panel').catch(() => {});
         await CanalVozTemporal.deleteOne({ canalId: ctx.canal.id });
-        return reply(interaction, '🗑️ Channel deleted.');
+        return reply(interaction, t(cfg, '🗑️ Canal eliminado.', '🗑️ Channel deleted.'));
     }
-    return reply(interaction, '❔ Unknown action.');
+    return reply(interaction, t(cfg, '❔ Acción desconocida.', '❔ Unknown action.'));
 }
 
 async function alternarBloqueo(interaction, ctx) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const nuevo = !ctx.doc.bloqueado;
     await ctx.canal.permissionOverwrites.edit(interaction.guild.id, { Connect: nuevo ? false : null }).catch(() => {});
     ctx.doc.bloqueado = nuevo; await ctx.doc.save();
     await guardarPref(interaction.guild.id, ctx.doc.ownerId, { bloqueado: nuevo });
-    return reply(interaction, nuevo ? '🔒 Channel locked: no one new can join.' : '🔓 Channel unlocked: anyone can join.');
+    return reply(interaction, nuevo
+        ? t(cfg, '🔒 Canal bloqueado: nadie nuevo puede entrar.', '🔒 Channel locked: no one new can join.')
+        : t(cfg, '🔓 Canal desbloqueado: cualquiera puede entrar.', '🔓 Channel unlocked: anyone can join.'));
 }
 
 async function alternarOculto(interaction, ctx) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const nuevo = !ctx.doc.oculto;
     await ctx.canal.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: nuevo ? false : null }).catch(() => {});
     ctx.doc.oculto = nuevo; await ctx.doc.save();
     await guardarPref(interaction.guild.id, ctx.doc.ownerId, { oculto: nuevo });
-    return reply(interaction, nuevo ? '👁️ Channel hidden: only invited members see it.' : '👁️ Channel visible to everyone.');
+    return reply(interaction, nuevo
+        ? t(cfg, '👁️ Canal oculto: solo lo ven los miembros invitados.', '👁️ Channel hidden: only invited members see it.')
+        : t(cfg, '👁️ Canal visible para todos.', '👁️ Channel visible to everyone.'));
 }
 
 async function reclamar(interaction) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const ctx = await contextoMiembro(interaction, { permitirReclamar: true });
     if (ctx.error) return reply(interaction, ctx.error);
-    if (ctx.esDueno) return reply(interaction, 'ℹ️ You’re already the owner of this channel.');
+    if (ctx.esDueno) return reply(interaction, t(cfg, 'ℹ️ Ya eres el dueño de este canal.', 'ℹ️ You’re already the owner of this channel.'));
     // Solo se puede reclamar si el dueño actual NO está en el canal.
     const duenoPresente = ctx.canal.members.has(ctx.doc.ownerId);
-    if (duenoPresente && !ctx.esAdmin) return reply(interaction, '⛔ You can’t claim it: the owner is still inside.');
+    if (duenoPresente && !ctx.esAdmin) return reply(interaction, t(cfg, '⛔ No puedes reclamarlo: el dueño sigue dentro.', '⛔ You can’t claim it: the owner is still inside.'));
 
     await ctx.canal.permissionOverwrites.edit(interaction.member.id, {
         Connect: true, ViewChannel: true, Speak: true, MoveMembers: true,
     }).catch(() => {});
     ctx.doc.ownerId = interaction.member.id; await ctx.doc.save();
-    return reply(interaction, '👑 You’re now the owner of this channel!');
+    return reply(interaction, t(cfg, '👑 ¡Ahora eres el dueño de este canal!', '👑 You’re now the owner of this channel!'));
 }
 
 // Abre un modal para renombrar / límite / bitrate.
@@ -438,6 +450,7 @@ function abrirModal(interaction, accion, titulo, placeholder, estilo) {
 
 // Procesa el envío de un modal (customId `vt_modal:<accion>`).
 async function manejarModal(interaction) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const accion = interaction.customId.split(':')[1];
     const ctx = await contextoMiembro(interaction);
     if (ctx.error) return reply(interaction, ctx.error);
@@ -445,26 +458,28 @@ async function manejarModal(interaction) {
 
     if (accion === 'renombrar') {
         const nombre = valor.slice(0, 100);
-        if (!nombre) return reply(interaction, '⚠️ The name can’t be empty.');
+        if (!nombre) return reply(interaction, t(cfg, '⚠️ El nombre no puede estar vacío.', '⚠️ The name can’t be empty.'));
         await ctx.canal.setName(nombre).catch(() => {});
         ctx.doc.nombre = nombre; await ctx.doc.save();
         await guardarPref(interaction.guild.id, ctx.doc.ownerId, { nombre });
-        return reply(interaction, `✏️ Channel renamed to **${nombre}**.`);
+        return reply(interaction, t(cfg, `✏️ Canal renombrado a **${nombre}**.`, `✏️ Channel renamed to **${nombre}**.`));
     }
     if (accion === 'limite') {
         const n = Math.max(0, Math.min(99, parseInt(valor, 10) || 0));
         await ctx.canal.setUserLimit(n).catch(() => {});
         ctx.doc.limite = n; await ctx.doc.save();
         await guardarPref(interaction.guild.id, ctx.doc.ownerId, { limite: n });
-        return reply(interaction, n === 0 ? '👥 Limit removed (no cap).' : `👥 Limit set to **${n}** people.`);
+        return reply(interaction, n === 0
+            ? t(cfg, '👥 Límite eliminado (sin tope).', '👥 Limit removed (no cap).')
+            : t(cfg, `👥 Límite ajustado a **${n}** personas.`, `👥 Limit set to **${n}** people.`));
     }
     if (accion === 'bitrate') {
         const max = (interaction.guild.maximumBitrate || 96000) / 1000;
         const kbps = Math.max(8, Math.min(max, parseInt(valor, 10) || 64));
         await ctx.canal.setBitrate(kbps * 1000).catch(() => {});
-        return reply(interaction, `🎚️ Quality set to **${kbps} kbps**.`);
+        return reply(interaction, t(cfg, `🎚️ Calidad ajustada a **${kbps} kbps**.`, `🎚️ Quality set to **${kbps} kbps**.`));
     }
-    return reply(interaction, '❔ Unknown action.');
+    return reply(interaction, t(cfg, '❔ Acción desconocida.', '❔ Unknown action.'));
 }
 
 // Abre un selector de usuario efímero (customId `vt_user:<accion>`).
@@ -476,6 +491,7 @@ function abrirSelectorUsuario(interaction, accion, titulo) {
 
 // Procesa la selección de usuario (customId `vt_user:<accion>`).
 async function manejarSelectUsuario(interaction) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const accion = interaction.customId.split(':')[1];
     const ctx = await contextoMiembro(interaction);
     if (ctx.error) return interaction.update({ content: ctx.error, components: [] }).catch(() => {});
@@ -487,10 +503,10 @@ async function manejarSelectUsuario(interaction) {
         ctx.doc.bloqueados = ctx.doc.bloqueados.filter((id) => id !== objetivoId);
         await ctx.doc.save();
         await guardarPref(interaction.guild.id, ctx.doc.ownerId, { permitidos: ctx.doc.permitidos, bloqueados: ctx.doc.bloqueados });
-        return interaction.update({ content: `➕ <@${objetivoId}> already has access to your channel.`, components: [] }).catch(() => {});
+        return interaction.update({ content: t(cfg, `➕ <@${objetivoId}> ya tiene acceso a tu canal.`, `➕ <@${objetivoId}> already has access to your channel.`), components: [] }).catch(() => {});
     }
     if (accion === 'expulsar') {
-        if (objetivoId === ctx.doc.ownerId) return interaction.update({ content: '⚠️ You can’t kick yourself.', components: [] }).catch(() => {});
+        if (objetivoId === ctx.doc.ownerId) return interaction.update({ content: t(cfg, '⚠️ No puedes expulsarte a ti mismo.', '⚠️ You can’t kick yourself.'), components: [] }).catch(() => {});
         await ctx.canal.permissionOverwrites.edit(objetivoId, { Connect: false }).catch(() => {});
         // Si está dentro, desconectarlo.
         const miembro = interaction.guild.members.cache.get(objetivoId);
@@ -499,17 +515,17 @@ async function manejarSelectUsuario(interaction) {
         ctx.doc.permitidos = ctx.doc.permitidos.filter((id) => id !== objetivoId);
         await ctx.doc.save();
         await guardarPref(interaction.guild.id, ctx.doc.ownerId, { permitidos: ctx.doc.permitidos, bloqueados: ctx.doc.bloqueados });
-        return interaction.update({ content: `🚫 <@${objetivoId}> has been kicked and banned.`, components: [] }).catch(() => {});
+        return interaction.update({ content: t(cfg, `🚫 <@${objetivoId}> ha sido expulsado y baneado.`, `🚫 <@${objetivoId}> has been kicked and banned.`), components: [] }).catch(() => {});
     }
     if (accion === 'transferir') {
-        if (objetivoId === ctx.doc.ownerId) return interaction.update({ content: 'ℹ️ They’re already the owner.', components: [] }).catch(() => {});
+        if (objetivoId === ctx.doc.ownerId) return interaction.update({ content: t(cfg, 'ℹ️ Ya es el dueño.', 'ℹ️ They’re already the owner.'), components: [] }).catch(() => {});
         await ctx.canal.permissionOverwrites.edit(objetivoId, {
             Connect: true, ViewChannel: true, Speak: true, MoveMembers: true,
         }).catch(() => {});
         ctx.doc.ownerId = objetivoId; await ctx.doc.save();
-        return interaction.update({ content: `🔄 You handed the channel over to <@${objetivoId}>.`, components: [] }).catch(() => {});
+        return interaction.update({ content: t(cfg, `🔄 Le has cedido el canal a <@${objetivoId}>.`, `🔄 You handed the channel over to <@${objetivoId}>.`), components: [] }).catch(() => {});
     }
-    return interaction.update({ content: '❔ Unknown action.', components: [] }).catch(() => {});
+    return interaction.update({ content: t(cfg, '❔ Acción desconocida.', '❔ Unknown action.'), components: [] }).catch(() => {});
 }
 
 module.exports = {

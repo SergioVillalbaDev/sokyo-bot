@@ -9,6 +9,7 @@ const { EmbedBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { construirAnalitica } = require('./analitica.js');
 const { aplicarPieMarca } = require('./marca.js');
+const { t } = require('./i18n.js');
 const billing = require('./billing.js');
 
 const n = (v) => (v === null || v === undefined ? '—' : String(v));
@@ -25,17 +26,17 @@ function construirEmbed(data, guild, cfg) {
     const act = data.actividad || {};
 
     const embed = new EmbedBuilder()
-        .setTitle(`📊 Server report · ${guild.name}`)
+        .setTitle(t(cfg, `📊 Informe del servidor · ${guild.name}`, `📊 Server report · ${guild.name}`))
         .setColor(cfg && cfg.colorEmbed ? cfg.colorEmbed : '#5865F2')
-        .setDescription(`Stats from the last **${data.dias} days**.`)
+        .setDescription(t(cfg, `Estadísticas de los últimos **${data.dias} días**.`, `Stats from the last **${data.dias} days**.`))
         .addFields(
-            { name: '👥 Members', value: `${n(s.miembros)}${s.boosts ? ` · 🚀 ${s.boosts} boosts` : ''}`, inline: true },
-            { name: '📈 Growth', value: `${signo(c.neto)} net\n↗ ${n(c.totalEntradas)} joined · ↘ ${n(c.totalSalidas)} left`, inline: true },
-            { name: '💬 Activity', value: `${n(act.total)} messages\n${n(r.activos)} active${r.pctActivos != null ? ` (${r.pctActivos}%)` : ''}${act.horaPico ? ` · peak ${act.horaPico}` : ''}`, inline: true },
-            { name: '🔊 Voice', value: `${n(r.vozActivos)} active`, inline: true },
-            { name: '🎫 Tickets', value: `${n(tk.total)} total\n🟢 ${n(tk.abiertos)} open · 🔒 ${n(tk.cerrados)} closed${tk.csat != null ? `\n⭐ CSAT ${tk.csat}` : ''}`, inline: true },
-            { name: '🛡️ Moderation', value: `${n(mod.total)} sanctions${mod.automod != null ? ` · ${mod.automod} automod` : ''}${mod.reportesPendientes ? `\n⚠ ${mod.reportesPendientes} reports pending` : ''}`, inline: true },
-            { name: '🏆 Levels', value: `${n(niv.conXp)}/${n(niv.total)} with XP · avg lvl ${n(niv.nivelMedio)}`, inline: true },
+            { name: t(cfg, '👥 Miembros', '👥 Members'), value: `${n(s.miembros)}${s.boosts ? t(cfg, ` · 🚀 ${s.boosts} boosts`, ` · 🚀 ${s.boosts} boosts`) : ''}`, inline: true },
+            { name: t(cfg, '📈 Crecimiento', '📈 Growth'), value: t(cfg, `${signo(c.neto)} neto\n↗ ${n(c.totalEntradas)} entraron · ↘ ${n(c.totalSalidas)} se fueron`, `${signo(c.neto)} net\n↗ ${n(c.totalEntradas)} joined · ↘ ${n(c.totalSalidas)} left`), inline: true },
+            { name: t(cfg, '💬 Actividad', '💬 Activity'), value: t(cfg, `${n(act.total)} mensajes\n${n(r.activos)} activos${r.pctActivos != null ? ` (${r.pctActivos}%)` : ''}${act.horaPico ? ` · pico ${act.horaPico}` : ''}`, `${n(act.total)} messages\n${n(r.activos)} active${r.pctActivos != null ? ` (${r.pctActivos}%)` : ''}${act.horaPico ? ` · peak ${act.horaPico}` : ''}`), inline: true },
+            { name: t(cfg, '🔊 Voz', '🔊 Voice'), value: t(cfg, `${n(r.vozActivos)} activos`, `${n(r.vozActivos)} active`), inline: true },
+            { name: t(cfg, '🎫 Tickets', '🎫 Tickets'), value: t(cfg, `${n(tk.total)} totales\n🟢 ${n(tk.abiertos)} abiertos · 🔒 ${n(tk.cerrados)} cerrados${tk.csat != null ? `\n⭐ CSAT ${tk.csat}` : ''}`, `${n(tk.total)} total\n🟢 ${n(tk.abiertos)} open · 🔒 ${n(tk.cerrados)} closed${tk.csat != null ? `\n⭐ CSAT ${tk.csat}` : ''}`), inline: true },
+            { name: t(cfg, '🛡️ Moderación', '🛡️ Moderation'), value: t(cfg, `${n(mod.total)} sanciones${mod.automod != null ? ` · ${mod.automod} automod` : ''}${mod.reportesPendientes ? `\n⚠ ${mod.reportesPendientes} reportes pendientes` : ''}`, `${n(mod.total)} sanctions${mod.automod != null ? ` · ${mod.automod} automod` : ''}${mod.reportesPendientes ? `\n⚠ ${mod.reportesPendientes} reports pending` : ''}`), inline: true },
+            { name: t(cfg, '🏆 Niveles', '🏆 Levels'), value: t(cfg, `${n(niv.conXp)}/${n(niv.total)} con XP · nivel medio ${n(niv.nivelMedio)}`, `${n(niv.conXp)}/${n(niv.total)} with XP · avg lvl ${n(niv.nivelMedio)}`), inline: true },
         )
         .setTimestamp();
 
@@ -46,7 +47,7 @@ function construirEmbed(data, guild, cfg) {
             const icono = i.tipo === 'warn' ? '⚠️' : i.tipo === 'ok' ? '✅' : '💡';
             return `${icono} **${i.titulo}** — ${i.texto}`;
         }).join('\n\n').slice(0, 1024);
-        embed.addFields({ name: '🌱 Growth tips', value: linea, inline: false });
+        embed.addFields({ name: t(cfg, '🌱 Ideas de crecimiento', '🌱 Growth tips'), value: linea, inline: false });
     }
 
     aplicarPieMarca(embed, cfg);

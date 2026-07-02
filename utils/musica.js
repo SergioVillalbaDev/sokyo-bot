@@ -9,6 +9,8 @@ const { LavalinkManager } = require('lavalink-client');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { esPro } = require('./billing.js');
+const { getConfigCached } = require('./config.js');
+const { t } = require('./i18n.js');
 
 const COLOR_MUSICA = '#1db954'; // verde "música"
 
@@ -123,8 +125,8 @@ function serializarEstado(player) {
 }
 
 // Convierte milisegundos a un texto tipo "3:45" o "1:02:30".
-function formatDuration(ms) {
-    if (!ms || ms <= 0) return 'EN DIRECTO';
+function formatDuration(ms, idioma) {
+    if (!ms || ms <= 0) return t(idioma, 'EN DIRECTO', 'LIVE');
     const totalSeg = Math.floor(ms / 1000);
     const h = Math.floor(totalSeg / 3600);
     const m = Math.floor((totalSeg % 3600) / 60);
@@ -135,25 +137,26 @@ function formatDuration(ms) {
 
 // Comprueba que el usuario está en un canal de voz y que el bot puede entrar.
 // Devuelve { ok, channel, error } para usar en los comandos.
-function ensureVoice(interaction) {
+async function ensureVoice(interaction) {
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const channel = interaction.member?.voice?.channel;
     if (!channel) {
-        return { ok: false, error: '🔇 You need to be in a voice channel to use music.' };
+        return { ok: false, error: t(cfg, '🔇 Tienes que estar en un canal de voz para usar la música.', '🔇 You need to be in a voice channel to use music.') };
     }
     const me = interaction.guild.members.me;
     const permisos = channel.permissionsFor(me);
     if (!permisos?.has('Connect') || !permisos?.has('Speak')) {
-        return { ok: false, error: '🚫 I don’t have permission to **join or speak** in your voice channel.' };
+        return { ok: false, error: t(cfg, '🚫 No tengo permiso para **unirme o hablar** en tu canal de voz.', '🚫 I don’t have permission to **join or speak** in your voice channel.') };
     }
     if (me.voice.channelId && me.voice.channelId !== channel.id) {
-        return { ok: false, error: '🎧 I’m already playing in another voice channel.' };
+        return { ok: false, error: t(cfg, '🎧 Ya estoy reproduciendo en otro canal de voz.', '🎧 I’m already playing in another voice channel.') };
     }
     return { ok: true, channel };
 }
 
 // Barra de progreso de texto para el embed (▬▬🔘▬▬).
-function progresoBarra(pos, total, len = 16) {
-    if (!total) return '🔴 LIVE';
+function progresoBarra(pos, total, len = 16, idioma) {
+    if (!total) return t(idioma, '🔴 EN DIRECTO', '🔴 LIVE');
     const llenos = Math.min(len, Math.round((pos / total) * len));
     return '▬'.repeat(llenos) + '🔘' + '▬'.repeat(Math.max(0, len - llenos));
 }
@@ -172,9 +175,9 @@ const btnMusica = (id, emoji, style, disabled = false) =>
     new ButtonBuilder().setCustomId(id).setEmoji(emoji).setStyle(style).setDisabled(!!disabled);
 
 // Construye el PANEL visual (embed + 2 filas de botones) del reproductor.
-function construirPanel(player, cfg) {
-    const t = player.queue.current;
-    if (!t) return null;
+function construirPanel(player, cfg, idioma) {
+    const t2 = player.queue.current;
+    if (!t2) return null;
     const enCola = player.queue.tracks.length;
     const modo = typeof player.getData === 'function' ? player.getData('sokyoAutoplay') : null;
 
@@ -186,39 +189,39 @@ function construirPanel(player, cfg) {
 
     // Línea de estado en el autor.
     const estadoIcon = player.paused ? '⏸️' : '▶️';
-    const modoSufijo = modo === 'repetir' ? '  ·  🔁 Loop queue'
-        : modo === 'aleatorio' ? '  ·  🎲 Autoplay'
+    const modoSufijo = modo === 'repetir' ? t(idioma, '  ·  🔁 Cola en bucle', '  ·  🔁 Loop queue')
+        : modo === 'aleatorio' ? t(idioma, '  ·  🎲 Autoplay', '  ·  🎲 Autoplay')
         : '';
-    const autorTxt = `${estadoIcon} Now playing${modoSufijo}`;
+    const autorTxt = `${estadoIcon} ${t(idioma, 'Sonando ahora', 'Now playing')}${modoSufijo}`;
 
     // Fuente con icono.
     const FUENTE_ICONO = { youtube: '▶️ YouTube', spotify: '🎵 Spotify', soundcloud: '🔶 SoundCloud' };
-    const fuente = FUENTE_ICONO[t.info.sourceName?.toLowerCase()] || capitalizar(t.info.sourceName);
+    const fuente = FUENTE_ICONO[t2.info.sourceName?.toLowerCase()] || capitalizar(t2.info.sourceName);
 
     const embed = new EmbedBuilder()
         .setColor(color)
         .setAuthor({ name: autorTxt })
-        .setTitle(t.info.title)
-        .setURL(t.info.uri || null)
+        .setTitle(t2.info.title)
+        .setURL(t2.info.uri || null)
         .setDescription(
-            `**${t.info.author || 'Unknown'}**\n\n` +
-            `\`${formatDuration(player.position)}\`  ${progresoBarra(player.position, t.info.duration)}  \`${formatDuration(t.info.duration)}\``
+            `**${t2.info.author || t(idioma, 'Desconocido', 'Unknown')}**\n\n` +
+            `\`${formatDuration(player.position, idioma)}\`  ${progresoBarra(player.position, t2.info.duration, 16, idioma)}  \`${formatDuration(t2.info.duration, idioma)}\``
         )
         .addFields(
-            { name: '🔊 Volume', value: `${player.volume}%`, inline: true },
-            { name: '📋 In queue', value: `${enCola} ${enCola === 1 ? 'song' : 'songs'}`, inline: true },
-            { name: '🎚️ Source', value: fuente, inline: true },
+            { name: t(idioma, '🔊 Volumen', '🔊 Volume'), value: `${player.volume}%`, inline: true },
+            { name: t(idioma, '📋 En cola', '📋 In queue'), value: t(idioma, `${enCola} ${enCola === 1 ? 'canción' : 'canciones'}`, `${enCola} ${enCola === 1 ? 'song' : 'songs'}`), inline: true },
+            { name: t(idioma, '🎚️ Fuente', '🎚️ Source'), value: fuente, inline: true },
         );
 
-    if (t.info.artworkUrl) embed.setThumbnail(t.info.artworkUrl);
-    if (t.requester?.username) {
-        embed.setFooter({ text: `Requested by ${t.requester.username}`, iconURL: avatarUrl(t.requester) });
+    if (t2.info.artworkUrl) embed.setThumbnail(t2.info.artworkUrl);
+    if (t2.requester?.username) {
+        embed.setFooter({ text: t(idioma, `Pedido por ${t2.requester.username}`, `Requested by ${t2.requester.username}`), iconURL: avatarUrl(t2.requester) });
     }
 
     // Botón de autoplay: muestra el estado actual y cicla al hacer clic.
-    const autoplayLabel = modo === 'aleatorio' ? '🎲 Autoplay: ON'
-        : modo === 'repetir' ? '🔁 Loop: ON'
-        : '🎲 Autoplay';
+    const autoplayLabel = modo === 'aleatorio' ? t(idioma, '🎲 Autoplay: ON', '🎲 Autoplay: ON')
+        : modo === 'repetir' ? t(idioma, '🔁 Bucle: ON', '🔁 Loop: ON')
+        : t(idioma, '🎲 Autoplay', '🎲 Autoplay');
     const autoplayStyle = modo && modo !== 'off' ? ButtonStyle.Primary : ButtonStyle.Secondary;
 
     const fila1 = new ActionRowBuilder().addComponents(
@@ -239,7 +242,8 @@ function construirPanel(player, cfg) {
 // Todo va dentro de try/catch: un fallo del panel nunca debe tumbar el bot.
 async function enviarPanel(client, player, cfg) {
     try {
-        const panel = construirPanel(player, cfg);
+        const idioma = await getConfigCached(player.guildId).catch(() => null);
+        const panel = construirPanel(player, cfg, idioma);
         if (!panel) return;
         const channelId = cfg.canalMusicaId || player.textChannelId;
         const canal = client.channels.cache.get(channelId);
@@ -258,20 +262,21 @@ async function enviarPanel(client, player, cfg) {
 
 // Maneja los botones del panel (⏯️ ⏭️ ⏹️ 🔀 🔉 🔊).
 async function manejarBotonMusica(interaction, client) {
+    const idioma = await getConfigCached(interaction.guildId).catch(() => null);
     const player = client.lavalink.getPlayer(interaction.guildId);
     if (!player || !player.queue.current) {
-        return interaction.reply({ content: '⏹️ Nothing is playing right now.', ephemeral: true });
+        return interaction.reply({ content: t(idioma, '⏹️ Ahora mismo no suena nada.', '⏹️ Nothing is playing right now.'), ephemeral: true });
     }
     const cfg = await getMusicaConfig(interaction.guildId);
     const canalUsuario = interaction.member?.voice?.channel;
     if (!canalUsuario) {
-        return interaction.reply({ content: '🔇 Join a voice channel to control the music.', ephemeral: true });
+        return interaction.reply({ content: t(idioma, '🔇 Únete a un canal de voz para controlar la música.', '🔇 Join a voice channel to control the music.'), ephemeral: true });
     }
     if (cfg.soloMismoCanal && player.voiceChannelId && canalUsuario.id !== player.voiceChannelId) {
-        return interaction.reply({ content: '🎧 You need to be in the same voice channel as the bot.', ephemeral: true });
+        return interaction.reply({ content: t(idioma, '🎧 Tienes que estar en el mismo canal de voz que el bot.', '🎧 You need to be in the same voice channel as the bot.'), ephemeral: true });
     }
     if (!puedeControlar(interaction.member, cfg)) {
-        return interaction.reply({ content: '🎚️ You need the **DJ** role to control the music.', ephemeral: true });
+        return interaction.reply({ content: t(idioma, '🎚️ Necesitas el rol de **DJ** para controlar la música.', '🎚️ You need the **DJ** role to control the music.'), ephemeral: true });
     }
 
     let parar = false;
@@ -291,7 +296,7 @@ async function manejarBotonMusica(interaction, client) {
         case 'music_autoplay': {
             const cfgDoc = await ServidorConfig.findOne({ guildId: interaction.guildId });
             if (!cfgDoc || !esPro(cfgDoc)) {
-                return interaction.reply({ content: '⭐ **Autoplay** is a **Pro** feature. Enable it from the web panel.', ephemeral: true });
+                return interaction.reply({ content: t(idioma, '⭐ **Autoplay** es una función **Pro**. Actívala desde el panel web.', '⭐ **Autoplay** is a **Pro** feature. Enable it from the web panel.'), ephemeral: true });
             }
             // Ciclo: off → aleatorio → repetir → off
             const modoActual = cfgDoc.musica?.autoplay || 'off';
@@ -311,25 +316,26 @@ async function manejarBotonMusica(interaction, client) {
     if (parar) {
         panelMsgs.delete(interaction.guildId);
         const fin = new EmbedBuilder().setColor(COLOR_MUSICA)
-            .setAuthor({ name: '⏹️ Music stopped' })
-            .setDescription('Playback has ended. See you next time!');
+            .setAuthor({ name: t(idioma, '⏹️ Música detenida', '⏹️ Music stopped') })
+            .setDescription(t(idioma, '¡La reproducción ha terminado. Hasta la próxima!', 'Playback has ended. See you next time!'));
         return interaction.update({ embeds: [fin], components: [] }).catch(() => {});
     }
     // Skip: el nuevo trackStart repostea el panel; aquí solo confirmamos.
     if (interaction.customId === 'music_skip') return interaction.deferUpdate().catch(() => {});
     // Resto: actualizamos el panel en el sitio.
-    return interaction.update(construirPanel(player, cfg)).catch(() => {});
+    return interaction.update(construirPanel(player, cfg, idioma)).catch(() => {});
 }
 
 // Puerta de entrada para los comandos: está en voz + música activa + rol DJ.
 // Devuelve { ok, channel, cfg } o { ok:false, error }.
 async function gateMusica(interaction) {
-    const voz = ensureVoice(interaction);
+    const idioma = await getConfigCached(interaction.guildId).catch(() => null);
+    const voz = await ensureVoice(interaction);
     if (!voz.ok) return voz;
     const cfg = await getMusicaConfig(interaction.guildId);
-    if (!cfg.activo) return { ok: false, error: '🚫 Music is disabled on this server.' };
+    if (!cfg.activo) return { ok: false, error: t(idioma, '🚫 La música está desactivada en este servidor.', '🚫 Music is disabled on this server.') };
     if (!puedeControlar(interaction.member, cfg)) {
-        return { ok: false, error: '🎧 You need the **DJ** role to control the music.' };
+        return { ok: false, error: t(idioma, '🎧 Necesitas el rol de **DJ** para controlar la música.', '🎧 You need the **DJ** role to control the music.') };
     }
     return { ok: true, channel: voz.channel, cfg };
 }
@@ -421,12 +427,13 @@ function initMusica(client) {
             panelMsgs.delete(player.guildId);
         }
         const cfg = await getMusicaConfig(player.guildId);
+        const idioma = await getConfigCached(player.guildId).catch(() => null);
         const canal = client.channels.cache.get(cfg.canalMusicaId || player.textChannelId);
         if (canal?.isTextBased()) {
             const seQueda = await es247(player.guildId);
             canal.send(seQueda
-                ? '🎵 The queue is empty. I’m staying in the channel (24/7 mode). Add more music whenever you like.'
-                : '🎵 The queue is empty. I’ll leave the channel if you don’t add more music.').catch(() => {});
+                ? t(idioma, '🎵 La cola está vacía. Me quedo en el canal (modo 24/7). Añade más música cuando quieras.', '🎵 The queue is empty. I’m staying in the channel (24/7 mode). Add more music whenever you like.')
+                : t(idioma, '🎵 La cola está vacía. Saldré del canal si no añades más música.', '🎵 The queue is empty. I’ll leave the channel if you don’t add more music.')).catch(() => {});
         }
     });
 

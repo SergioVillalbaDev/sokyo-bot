@@ -25,6 +25,8 @@ const Contador = require('../models/Contador.js');
 const TriviaPregunta = require('../models/TriviaPregunta.js');
 const niveles = require('./niveles.js');
 const economia = require('./economia.js');
+const { getConfigCached } = require('./config.js');
+const { t } = require('./i18n.js');
 
 const COLOR = '#5865F2';
 
@@ -153,7 +155,7 @@ async function dinContador(message, c, cfg) {
             await message.react('❌').catch(() => {});
             const p = payloadMensaje(c.mensajes?.fallo, {
                 color, vars: { user: `<@${message.author.id}>`, numero: esperado, number: esperado },
-                fallback: '💥 The count broke! The correct number was **{number}**. Start over from **1**!',
+                fallback: t(cfg, '💥 ¡Se rompió la cuenta! El número correcto era **{number}**. ¡Empezad de nuevo desde **1**!', '💥 The count broke! The correct number was **{number}**. Start over from **1**!'),
             });
             if (p) await message.channel.send(p).catch(() => {});
             return true;
@@ -187,22 +189,22 @@ async function dinQotdRespuesta(message, q, cfg) {
     await darRecompensa(message.guild, message.member, { xp: q.xp, oro: q.oro }, cfg, message.channel);
     const p = payloadMensaje(q.mensajes?.acierto, {
         color: cfg.colorEmbed || COLOR, vars: { user: `<@${message.author.id}>`, xp: q.xp },
-        fallback: '⭐ {user} was the first to answer! +{xp} XP 🎉', mention: message.author.id,
+        fallback: t(cfg, '⭐ ¡{user} ha sido el primero en responder! +{xp} XP 🎉', '⭐ {user} was the first to answer! +{xp} XP 🎉'), mention: message.author.id,
     });
     if (p) await message.reply(p).catch(() => {});
 }
 
 // --- Palabra secreta / caza del tesoro ---
-async function dinTesoro(message, t, cfg) {
-    if (t.unaVez && t.encontrada) return;
-    if (t.canalId && message.channel.id !== t.canalId) return;
-    const palabra = (t.palabra || '').trim();
+async function dinTesoro(message, tesoroCfg, cfg) {
+    if (tesoroCfg.unaVez && tesoroCfg.encontrada) return;
+    if (tesoroCfg.canalId && message.channel.id !== tesoroCfg.canalId) return;
+    const palabra = (tesoroCfg.palabra || '').trim();
     if (!palabra) return;
     // Coincidencia de palabra completa (no dentro de otra palabra).
     const re = new RegExp(`(^|[^\\p{L}\\p{N}])${escaparRegex(palabra)}([^\\p{L}\\p{N}]|$)`, 'iu');
     if (!re.test(message.content || '')) return;
 
-    if (t.unaVez) {
+    if (tesoroCfg.unaVez) {
         // Un único ganador: cierre atómico + se desactiva.
         const r = await ServidorConfig.updateOne(
             { guildId: message.guildId, 'dinamicas.tesoro.encontrada': false },
@@ -211,16 +213,16 @@ async function dinTesoro(message, t, cfg) {
         if (!r.modifiedCount) return; // ya la encontró otro
     } else {
         // Reusable: premia a cada quien, pero no dos veces seguidas a la misma persona.
-        if (t.encontradaPor === message.author.id) return;
+        if (tesoroCfg.encontradaPor === message.author.id) return;
         await ServidorConfig.updateOne({ guildId: message.guildId }, { $set: { 'dinamicas.tesoro.encontradaPor': message.author.id } });
     }
 
-    const p = payloadMensaje(t.mensajes?.acierto, {
+    const p = payloadMensaje(tesoroCfg.mensajes?.acierto, {
         color: cfg.colorEmbed || COLOR, vars: { user: `<@${message.author.id}>`, palabra, word: palabra },
-        fallback: '🏆 {user} found the secret word!', mention: message.author.id,
+        fallback: t(cfg, '🏆 ¡{user} ha encontrado la palabra secreta!', '🏆 {user} found the secret word!'), mention: message.author.id,
     });
     if (p) await message.channel.send(p).catch(() => {});
-    await darRecompensa(message.guild, message.member, { xp: t.xp, oro: t.oro }, cfg, message.channel);
+    await darRecompensa(message.guild, message.member, { xp: tesoroCfg.xp, oro: tesoroCfg.oro }, cfg, message.channel);
 }
 
 // --- Reto diario / racha ---
@@ -261,7 +263,7 @@ async function dinReto(message, r, cfg, client) {
         }
         const p = payloadMensaje(r.mensajes?.acierto, {
             color: cfg.colorEmbed || COLOR, vars: { user: `<@${userId}>`, xp: r.xp, racha, streak: racha },
-            fallback: '🎯 {user} completed the daily challenge! +{xp} XP · Streak 🔥 **{streak}** day(s).', mention: userId,
+            fallback: t(cfg, '🎯 ¡{user} ha completado el reto diario! +{xp} XP · Racha 🔥 **{streak}** día(s).', '🎯 {user} completed the daily challenge! +{xp} XP · Streak 🔥 **{streak}** day(s).'), mention: userId,
         });
         if (p) await canal.send(p).catch(() => {});
     }
@@ -319,9 +321,9 @@ async function tickQotd(client, guild, cfg, q, hoy, horaUTC) {
     const desc = (pre?.texto ? `${rellenar(pre.texto)}\n\n` : '') + pregunta;
     const embed = new EmbedBuilder()
         .setColor(cfg.colorEmbed || COLOR)
-        .setTitle('❓ Question of the day')
+        .setTitle(t(cfg, '❓ Pregunta del día', '❓ Question of the day'))
         .setDescription(desc)
-        .setFooter({ text: `First to answer wins ${q.xp} XP` });
+        .setFooter({ text: t(cfg, `El primero en responder gana ${q.xp} XP`, `First to answer wins ${q.xp} XP`) });
     const img = urlAbs(pre?.imagen);
     if (img) embed.setImage(img);
     const msg = await canal.send({
@@ -349,8 +351,8 @@ async function tickGota(client, guild, cfg, g, ahora) {
     const color = cfg.colorEmbed || COLOR;
     const dropEmbed = new EmbedBuilder()
         .setColor(color)
-        .setTitle(`${emoji} Gold drop!`)
-        .setDescription(rellenar(g.mensajes?.anuncio?.texto || 'React with {emoji} to grab **{xp} XP**!\nOnly the first one gets it. Quick! ⚡', { emoji, xp: g.xp }));
+        .setTitle(`${emoji} ${t(cfg, '¡Gota de oro!', 'Gold drop!')}`)
+        .setDescription(rellenar(g.mensajes?.anuncio?.texto || t(cfg, 'Reacciona con {emoji} para llevarte **{xp} XP**!\nSolo el primero se lo lleva. ¡Rápido! ⚡', 'React with {emoji} to grab **{xp} XP**!\nOnly the first one gets it. Quick! ⚡'), { emoji, xp: g.xp }));
     const dropImg = urlAbs(g.mensajes?.anuncio?.imagen);
     if (dropImg) dropEmbed.setImage(dropImg);
     const msg = await canal.send({ embeds: [dropEmbed] }).catch(() => null);
@@ -369,38 +371,38 @@ async function tickGota(client, guild, cfg, g, ahora) {
         await darRecompensa(guild, member, { xp: g.xp, oro: g.oro }, cfg, canal);
         const p = payloadMensaje(g.mensajes?.acierto, {
             color, vars: { user: `<@${user.id}>`, xp: g.xp, emoji },
-            fallback: '{emoji} {user} grabbed the drop and wins **{xp} XP**! 🎉', mention: user.id,
+            fallback: t(cfg, '{emoji} ¡{user} ha cogido la gota y gana **{xp} XP**! 🎉', '{emoji} {user} grabbed the drop and wins **{xp} XP**! 🎉'), mention: user.id,
         });
         if (p) await canal.send(p).catch(() => {});
-        const recogida = EmbedBuilder.from(dropEmbed).setColor('#2ecc71').setDescription(`Collected by <@${user.id}> 🎉`).setImage(null);
+        const recogida = EmbedBuilder.from(dropEmbed).setColor('#2ecc71').setDescription(t(cfg, `Recogida por <@${user.id}> 🎉`, `Collected by <@${user.id}> 🎉`)).setImage(null);
         await msg.edit({ embeds: [recogida] }).catch(() => {});
     });
     collector.on('end', async (collected) => {
         if (collected.size) return;
         const fallo = EmbedBuilder.from(dropEmbed)
             .setColor('#95a5a6')
-            .setDescription(rellenar(g.mensajes?.fallo?.texto || 'Nobody grabbed it in time… 😢', { emoji }))
+            .setDescription(rellenar(g.mensajes?.fallo?.texto || t(cfg, 'Nadie la cogió a tiempo… 😢', 'Nobody grabbed it in time… 😢'), { emoji }))
             .setImage(urlAbs(g.mensajes?.fallo?.imagen) || null);
         await msg.edit({ embeds: [fallo] }).catch(() => {});
     });
 }
 
 // --- Trivia diaria con botones + ranking semanal ---
-async function tickTrivia(client, guild, cfg, t, hoy, horaUTC) {
-    if (!t.canalId || t.lastDia === hoy || horaUTC < (t.hora ?? 18)) return;
+async function tickTrivia(client, guild, cfg, triviaCfg, hoy, horaUTC) {
+    if (!triviaCfg.canalId || triviaCfg.lastDia === hoy || horaUTC < (triviaCfg.hora ?? 18)) return;
     const banco = await TriviaPregunta.find({ guildId: guild.id });
     if (!banco.length) return; // sin preguntas: no marcamos el día, se lanzará en cuanto haya
 
     await ServidorConfig.updateOne({ guildId: guild.id }, { $set: { 'dinamicas.trivia.lastDia': hoy } });
-    const canal = await client.channels.fetch(t.canalId).catch(() => null);
+    const canal = await client.channels.fetch(triviaCfg.canalId).catch(() => null);
     if (!canal?.isTextBased()) return;
 
     const q = banco[Math.floor(Math.random() * banco.length)];
     const opciones = (q.opciones || []).slice(0, 4);
     const color = cfg.colorEmbed || COLOR;
-    const pre = t.mensajes?.pregunta;
+    const pre = triviaCfg.mensajes?.pregunta;
     const desc = (pre?.texto ? `${rellenar(pre.texto)}\n\n` : '') + q.pregunta;
-    const embed = new EmbedBuilder().setColor(color).setTitle('🧠 Trivia').setDescription(desc).setFooter({ text: `You have ${t.segundos}s · +${t.xp} XP for a correct answer` });
+    const embed = new EmbedBuilder().setColor(color).setTitle(t(cfg, '🧠 Trivia', '🧠 Trivia')).setDescription(desc).setFooter({ text: t(cfg, `Tienes ${triviaCfg.segundos}s · +${triviaCfg.xp} XP por acertar`, `You have ${triviaCfg.segundos}s · +${triviaCfg.xp} XP for a correct answer`) });
     const preImg = urlAbs(pre?.imagen);
     if (preImg) embed.setImage(preImg);
     const fila = new ActionRowBuilder().addComponents(
@@ -411,29 +413,29 @@ async function tickTrivia(client, guild, cfg, t, hoy, horaUTC) {
 
     const respondieron = new Set();
     const aciertos = [];
-    const collector = msg.createMessageComponentCollector({ time: Math.max(5, t.segundos || 30) * 1000 });
+    const collector = msg.createMessageComponentCollector({ time: Math.max(5, triviaCfg.segundos || 30) * 1000 });
     collector.on('collect', async (i) => {
         if (!i.customId.startsWith('trivia_ans:')) return;
-        if (respondieron.has(i.user.id)) { await i.reply({ content: 'You already answered 😉', ephemeral: true }).catch(() => {}); return; }
+        if (respondieron.has(i.user.id)) { await i.reply({ content: t(cfg, 'Ya has respondido 😉', 'You already answered 😉'), ephemeral: true }).catch(() => {}); return; }
         respondieron.add(i.user.id);
         const elegido = parseInt(i.customId.split(':')[1], 10);
         if (elegido === q.correcta) {
             aciertos.push(i.user.id);
             const member = await guild.members.fetch(i.user.id).catch(() => null);
-            if (member) { await darRecompensa(guild, member, { xp: t.xp, oro: t.oro }, cfg, canal); await sumarPuntoTrivia(guild.id, i.user.id); }
-            const p = payloadMensaje(t.mensajes?.acierto, { color, vars: { user: `<@${i.user.id}>`, xp: t.xp }, fallback: '✅ Correct! +{xp} XP' });
-            await i.reply({ ...(p || { content: '✅ Correct!' }), ephemeral: true }).catch(() => {});
+            if (member) { await darRecompensa(guild, member, { xp: triviaCfg.xp, oro: triviaCfg.oro }, cfg, canal); await sumarPuntoTrivia(guild.id, i.user.id); }
+            const p = payloadMensaje(triviaCfg.mensajes?.acierto, { color, vars: { user: `<@${i.user.id}>`, xp: triviaCfg.xp }, fallback: t(cfg, '✅ ¡Correcto! +{xp} XP', '✅ Correct! +{xp} XP') });
+            await i.reply({ ...(p || { content: t(cfg, '✅ ¡Correcto!', '✅ Correct!') }), ephemeral: true }).catch(() => {});
         } else {
-            const p = payloadMensaje(t.mensajes?.fallo, { color, vars: { user: `<@${i.user.id}>` }, fallback: '❌ Wrong answer. Better luck next time!' });
-            await i.reply({ ...(p || { content: '❌ Incorrect' }), ephemeral: true }).catch(() => {});
+            const p = payloadMensaje(triviaCfg.mensajes?.fallo, { color, vars: { user: `<@${i.user.id}>` }, fallback: t(cfg, '❌ Respuesta incorrecta. ¡Mejor suerte la próxima vez!', '❌ Wrong answer. Better luck next time!') });
+            await i.reply({ ...(p || { content: t(cfg, '❌ Incorrecto', '❌ Incorrect') }), ephemeral: true }).catch(() => {});
         }
     });
     collector.on('end', async () => {
         try { q.vecesUsada = (q.vecesUsada || 0) + 1; await q.save(); } catch { /* da igual */ }
-        const cerrado = EmbedBuilder.from(embed).addFields({ name: '✔️ Correct answer', value: `**${opciones[q.correcta] ?? '—'}**` });
-        if (aciertos.length) cerrado.addFields({ name: `Got it right (${aciertos.length})`, value: aciertos.slice(0, 15).map((id) => `<@${id}>`).join(', ') });
+        const cerrado = EmbedBuilder.from(embed).addFields({ name: t(cfg, '✔️ Respuesta correcta', '✔️ Correct answer'), value: `**${opciones[q.correcta] ?? '—'}**` });
+        if (aciertos.length) cerrado.addFields({ name: t(cfg, `Acertaron (${aciertos.length})`, `Got it right (${aciertos.length})`), value: aciertos.slice(0, 15).map((id) => `<@${id}>`).join(', ') });
         const top = await topTriviaSemana(guild.id, 5);
-        if (top.length) cerrado.addFields({ name: '🏆 Weekly leaderboard', value: top.map((u, i) => `**${i + 1}.** <@${u.userId}> — ${u.triviaPuntos} pts`).join('\n') });
+        if (top.length) cerrado.addFields({ name: t(cfg, '🏆 Ranking semanal', '🏆 Weekly leaderboard'), value: top.map((u, i) => `**${i + 1}.** <@${u.userId}> — ${u.triviaPuntos} pts`).join('\n') });
         const filaFinal = new ActionRowBuilder().addComponents(
             opciones.map((op, idx) => new ButtonBuilder().setCustomId(`trivia_done:${idx}`).setLabel(String(op).slice(0, 80)).setStyle(idx === q.correcta ? ButtonStyle.Success : ButtonStyle.Secondary).setDisabled(true)),
         );
@@ -493,14 +495,14 @@ async function tickMiembroSemana(client, guild, cfg, m, ahora, semana, horaUTC) 
     const canal = await client.channels.fetch(m.canalId).catch(() => null);
     if (!canal?.isTextBased()) return;
     const detalle = [
-        m.xp ? `🎁 Reward: **${m.xp} XP**` : '',
-        m.rolId ? '🎖️ Special role granted' : '',
+        m.xp ? t(cfg, `🎁 Recompensa: **${m.xp} XP**`, `🎁 Reward: **${m.xp} XP**`) : '',
+        m.rolId ? t(cfg, '🎖️ Rol especial concedido', '🎖️ Special role granted') : '',
     ].filter(Boolean).join('\n');
     const an = m.mensajes?.anuncio;
-    const desc = rellenar(an?.texto || 'Congrats {user}! You were the most active member of the week with **{messages}** messages.', { user: `<@${ganadorId}>`, xp: m.xp, mensajes: agg[0].n, messages: agg[0].n });
+    const desc = rellenar(an?.texto || t(cfg, '¡Enhorabuena {user}! Has sido el miembro más activo de la semana con **{messages}** mensajes.', 'Congrats {user}! You were the most active member of the week with **{messages}** messages.'), { user: `<@${ganadorId}>`, xp: m.xp, mensajes: agg[0].n, messages: agg[0].n });
     const embed = new EmbedBuilder()
         .setColor(cfg.colorEmbed || COLOR)
-        .setTitle('👑 Member of the week')
+        .setTitle(t(cfg, '👑 Miembro de la semana', '👑 Member of the week'))
         .setDescription(`${desc}${detalle ? `\n\n${detalle}` : ''}`)
         .setThumbnail(member.user.displayAvatarURL());
     const anImg = urlAbs(an?.imagen);
@@ -525,8 +527,8 @@ async function tickLogrosMiembros(client, guild, cfg, l) {
         if ((count - h) <= 50 && canal?.isTextBased()) {
             const embed = new EmbedBuilder()
                 .setColor(cfg.colorEmbed || COLOR)
-                .setTitle('🎉 New milestone!')
-                .setDescription(rellenar(l.mensajes?.miembros?.texto || 'We’re now **{members}** members in **{server}**! Thanks for being here 💜', { miembros: h, servidor: guild.name, members: h, server: guild.name }));
+                .setTitle(t(cfg, '🎉 ¡Nuevo hito!', '🎉 New milestone!'))
+                .setDescription(rellenar(l.mensajes?.miembros?.texto || t(cfg, '¡Ya somos **{members}** miembros en **{server}**! Gracias por estar aquí 💜', 'We’re now **{members}** members in **{server}**! Thanks for being here 💜'), { miembros: h, servidor: guild.name, members: h, server: guild.name }));
             const img = urlAbs(l.mensajes?.miembros?.imagen);
             if (img) embed.setImage(img);
             await canal.send({ embeds: [embed] }).catch(() => {});
@@ -552,8 +554,8 @@ async function comprobarLogroNivel(guild, member, nivelNuevo, cfg, canalFallback
     if (!canal?.isTextBased?.()) return;
     const embed = new EmbedBuilder()
         .setColor(cfg.colorEmbed || COLOR)
-        .setTitle('🏅 Level achievement!')
-        .setDescription(rellenar(l.mensajes?.nivel?.texto || '{user} is the first to reach **level {level}**! 🚀', { user: `<@${member.id}>`, nivel: nivelNuevo, level: nivelNuevo }));
+        .setTitle(t(cfg, '🏅 ¡Logro de nivel!', '🏅 Level achievement!'))
+        .setDescription(rellenar(l.mensajes?.nivel?.texto || t(cfg, '¡{user} es el primero en llegar al **nivel {level}**! 🚀', '{user} is the first to reach **level {level}**! 🚀'), { user: `<@${member.id}>`, nivel: nivelNuevo, level: nivelNuevo }));
     const img = urlAbs(l.mensajes?.nivel?.imagen);
     if (img) embed.setImage(img);
     await canal.send({ embeds: [embed] }).catch(() => {});

@@ -4,6 +4,7 @@ const { getConfig, logActivo } = require('../utils/config.js');
 const { marcarSalida } = require('../utils/embudo.js');
 const { enviarDespedida } = require('../utils/bienvenida.js');
 const { enviarLogADiscord } = require('../utils/logsManager.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: Events.GuildMemberRemove,
@@ -29,9 +30,9 @@ module.exports = {
             const log = await Log.create({
                 guildId: member.guild.id,
                 categoria: 'Salidas',
-                accion: '🚶‍♂️ User left',
+                accion: t(cfg, '🚶‍♂️ El usuario se ha ido', '🚶‍♂️ User left'),
                 usuario: member.user.username,
-                detalles: `Roles they had: ${member.roles.cache.size - 1}`,
+                detalles: t(cfg, `Roles que tenía: ${member.roles.cache.size - 1}`, `Roles they had: ${member.roles.cache.size - 1}`),
                 color: '#95a5a6'
             });
             await enviarLogADiscord(client, log);

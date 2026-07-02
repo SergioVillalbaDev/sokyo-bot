@@ -6,6 +6,7 @@ const { otorgarXp } = require('../utils/niveles.js');
 const { revisarMensaje, revisarConIA } = require('../utils/automod.js');
 const { revisarAutoRespuestas } = require('../utils/autoRespuestas.js');
 const { marcarParticipacion } = require('../utils/embudo.js');
+const { t, resolverIdioma } = require('../utils/i18n.js');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -105,10 +106,10 @@ module.exports = {
         if (!command) return;
 
         try {
-            await command.execute(message, args, client);
+            await command.execute(message, args, client, cfg);
         } catch (error) {
             console.error(error);
-            message.reply('❌ There was an error trying to run that command.');
+            message.reply(t(cfg, '❌ Hubo un error al ejecutar ese comando.', '❌ There was an error trying to run that command.'));
         }
     },
 };

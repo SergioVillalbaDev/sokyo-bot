@@ -1306,6 +1306,7 @@ export default {
       preview: 'Vista Previa (Discord)', previewTitle: 'Título del panel', previewDesc: 'Aquí aparecerán las instrucciones...', previewFooter: 'Pie de página',
       previewNote: 'Así se verá el panel cuando ejecutes {{prefix}}sokyo en Discord.',
       advanced: 'Avanzado', prefix: 'Prefijo de comandos', prefixHint: 'Ej: con {{prefix}} el comando sería {{prefix}}sokyo.',
+      botLanguage: 'Idioma del bot', botLanguageHint: 'En qué idioma responde el bot en este servidor. También se puede cambiar con el comando sokyolanguage.',
       archiveCat: 'Categoría de tickets archivados', archiveHint: 'Dónde se mueven los tickets al cerrarse.',
       reminder: 'Recuerda pulsar Guardar cambios (arriba) y volver a lanzar el panel con {{prefix}}sokyo para ver el color y el botón nuevos.',
     },

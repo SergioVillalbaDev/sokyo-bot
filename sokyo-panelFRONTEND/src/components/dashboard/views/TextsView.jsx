@@ -2,7 +2,7 @@
 // muestra la guía completa de comandos (slash y de texto), agrupada por
 // categoría. Los textos del panel de tickets se movieron a Tickets > Ajustes.
 import { useTranslation } from 'react-i18next';
-import { Save, Terminal, BookOpen } from 'lucide-react';
+import { Save, Terminal, BookOpen, Languages } from 'lucide-react';
 import { Card } from '../../ui/primitives';
 
 // Guía de comandos. `s` = comando slash (/), `p` = comando de texto (prefijo).
@@ -21,13 +21,13 @@ const GUIA = [
   ] },
   { cat: 'utility', icon: '🧰', cmds: [
     ['ping', 'p'], ['user', 'p'], ['activity', 'p'], ['role', 'p'], ['remind', 'p'],
-    ['emoji', 'p'], ['sticker', 'p'], ['dice', 'p'], ['setup', 'p'], ['sokyo', 'p'],
+    ['emoji', 'p'], ['sticker', 'p'], ['dice', 'p'], ['setup', 'p'], ['sokyo', 'p'], ['sokyolanguage', 'p'],
   ] },
 ];
 
 export default function TextsView({ dash }) {
   const { t } = useTranslation();
-  const { configServidor, prefijo, setPrefijo, guardarTextosConfig } = dash;
+  const { configServidor, prefijo, setPrefijo, idioma, setIdioma, guardarTextosConfig } = dash;
 
   if (!configServidor) {
     return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
@@ -50,10 +50,20 @@ export default function TextsView({ dash }) {
             <Save size={16} /> {t('dashboard.texts_v.save')}
           </button>
         </div>
-        <div className="max-w-xs">
-          <label className={label}>{t('dashboard.texts_v.prefix')}</label>
-          <input type="text" value={prefijo} onChange={(e) => setPrefijo(e.target.value)} maxLength={5} placeholder="!" className={`${field} mt-2`} />
-          <p className="mt-1 text-xs text-muted">{t('dashboard.texts_v.prefixHint', { prefix: pfx })}</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="max-w-xs">
+            <label className={label}>{t('dashboard.texts_v.prefix')}</label>
+            <input type="text" value={prefijo} onChange={(e) => setPrefijo(e.target.value)} maxLength={5} placeholder="!" className={`${field} mt-2`} />
+            <p className="mt-1 text-xs text-muted">{t('dashboard.texts_v.prefixHint', { prefix: pfx })}</p>
+          </div>
+          <div className="max-w-xs">
+            <label className={label}><Languages size={12} className="mr-1 inline-block text-brand" />{t('dashboard.texts_v.botLanguage')}</label>
+            <select value={idioma} onChange={(e) => setIdioma(e.target.value)} className={`${field} mt-2`}>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+            <p className="mt-1 text-xs text-muted">{t('dashboard.texts_v.botLanguageHint')}</p>
+          </div>
         </div>
       </Card>
 

@@ -70,19 +70,23 @@ async function pedir(system, contenido, maxTokens = 1024) {
     return txt || '(the AI returned no text)';
 }
 
-async function resumirTicket(mensajes, ticket) {
-    const system = 'You are a support assistant. Summarize the ticket in English, short and clear, for an agent picking it up. Structure it with bullet points: 1) the customer’s problem, 2) what has already been done, 3) current status, 4) suggested next steps. Don’t make up details that aren’t in the conversation.';
+// Nombre del idioma para el prompt de sistema, tal y como lo entiende el
+// modelo ("in Spanish" / "in English") a partir de idioma ('es'/'en').
+const nombreIdioma = (idioma) => (idioma === 'es' ? 'Spanish' : 'English');
+
+async function resumirTicket(mensajes, ticket, idioma) {
+    const system = `You are a support assistant. Summarize the ticket in ${nombreIdioma(idioma)}, short and clear, for an agent picking it up. Structure it with bullet points: 1) the customer’s problem, 2) what has already been done, 3) current status, 4) suggested next steps. Don’t make up details that aren’t in the conversation.`;
     return pedir(system, transcripcion(mensajes, ticket));
 }
 
-async function sugerirRespuesta(mensajes, ticket) {
-    const system = 'You are a professional, friendly support agent. Write in English ONE reply ready to send to the customer, answering their last message. Polite, solution-focused tone. Don’t make up information; if a detail is missing to resolve it, kindly ask for it. Return only the reply text, with no meta-comments or "here you go".';
+async function sugerirRespuesta(mensajes, ticket, idioma) {
+    const system = `You are a professional, friendly support agent. Write in ${nombreIdioma(idioma)} ONE reply ready to send to the customer, answering their last message. Polite, solution-focused tone. Don’t make up information; if a detail is missing to resolve it, kindly ask for it. Return only the reply text, with no meta-comments or "here you go".`;
     return pedir(system, transcripcion(mensajes, ticket));
 }
 
 // Informe ejecutivo del servidor a partir de las métricas de la analítica.
-async function informeServidor(data) {
-    const system = 'You are an expert Discord community consultant. From these metrics, write in English a clear, motivating executive report with this structure and headings: "Overview" (2-3 sentences), "Strengths" (3 bullets), "To improve" (3 bullets) and "Action plan" (5 concrete, actionable steps to grow next month). Be specific and cite the numbers. Don’t make up data that isn’t here.';
+async function informeServidor(data, idioma) {
+    const system = `You are an expert Discord community consultant. From these metrics, write in ${nombreIdioma(idioma)} a clear, motivating executive report with this structure and headings: "Overview" (2-3 sentences), "Strengths" (3 bullets), "To improve" (3 bullets) and "Action plan" (5 concrete, actionable steps to grow next month). Be specific and cite the numbers. Don’t make up data that isn’t here.`;
     const r = data.resumen || {}, ac = data.actividad || {}, ni = data.niveles || {}, mo = data.moderacion || {}, ti = (data.tickets && data.tickets.totales) || {};
     const topCanal = (ac.topCanales && ac.topCanales[0] && ac.topCanales[0].nombre) || '-';
     const contenido = [

@@ -6,6 +6,7 @@ const { asignarCohorte, enviarMD } = require('../utils/embudo.js');
 const { enviarBienvenida } = require('../utils/bienvenida.js');
 const { enviarLogADiscord } = require('../utils/logsManager.js');
 const { manejarEntradaServidorSoporte } = require('../utils/soporte.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: Events.GuildMemberAdd,
@@ -70,9 +71,9 @@ module.exports = {
             const log = await Log.create({
                 guildId: member.guild.id,
                 categoria: 'Entradas',
-                accion: '👋 User joined',
+                accion: t(cfg, '👋 El usuario se ha unido', '👋 User joined'),
                 usuario: member.user.username,
-                detalles: `Account created on: ${member.user.createdAt.toLocaleDateString('en-US')}`,
+                detalles: t(cfg, `Cuenta creada el: ${member.user.createdAt.toLocaleDateString('es-ES')}`, `Account created on: ${member.user.createdAt.toLocaleDateString('en-US')}`),
                 color: '#2ecc71'
             });
             await enviarLogADiscord(client, log);

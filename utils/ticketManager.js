@@ -12,6 +12,7 @@ const { aplicarPieMarca, lineaMarcaTexto } = require('./marca.js');
 const { esPro } = require('./billing.js');
 const { enviarWebhook } = require('./webhooks.js');
 const { enviarLogADiscord } = require('./logsManager.js');
+const { t } = require('./i18n.js');
 
 const CATEGORIA_ARCHIVO = '🗄️ Archived Tickets';
 
@@ -51,16 +52,23 @@ function descargarImagen(url) {
 // Genera el archivo .txt con la conversación completa del ticket.
 async function generarTranscript(canalId, ticket, cfg) {
     const historial = await Mensaje.find({ ticketId: canalId }).sort({ fecha: 1 });
-    let txt = `=== TICKET TRANSCRIPT ===\n` +
+    let txt = t(cfg,
+        `=== TRANSCRIPCIÓN DEL TICKET ===\n` +
+        `Usuario: ${ticket.creadorNombre}\n` +
+        `Motivo: ${ticket.motivo}\n` +
+        `Asunto: ${ticket.titulo || '-'}\n` +
+        `Cerrado el: ${new Date().toLocaleString('es-ES')}\n` +
+        `=================================\n\n`,
+        `=== TICKET TRANSCRIPT ===\n` +
         `User: ${ticket.creadorNombre}\n` +
         `Reason: ${ticket.motivo}\n` +
         `Subject: ${ticket.titulo || '-'}\n` +
         `Closed on: ${new Date().toLocaleString('en-US')}\n` +
-        `=========================\n\n`;
+        `=========================\n\n`);
 
-    if (historial.length === 0) txt += '(No messages were recorded)\n';
+    if (historial.length === 0) txt += t(cfg, '(No se registraron mensajes)\n', '(No messages were recorded)\n');
     else historial.forEach(m => {
-        const fecha = m.fecha ? new Date(m.fecha).toLocaleTimeString('en-US') : '';
+        const fecha = m.fecha ? new Date(m.fecha).toLocaleTimeString(t(cfg, 'es-ES', 'en-US')) : '';
         txt += `[${fecha}] ${m.usuario}: ${m.contenido}\n`;
     });
 
@@ -70,23 +78,24 @@ async function generarTranscript(canalId, ticket, cfg) {
 }
 
 // Transcript en HTML con estilo (función Pro). Devuelve el HTML como string.
-async function construirTranscriptHTML(canalId, ticket) {
+async function construirTranscriptHTML(canalId, ticket, cfg) {
     const historial = await Mensaje.find({ ticketId: canalId }).sort({ fecha: 1 });
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const localeFechas = t(cfg, 'es-ES', 'en-US');
     const filas = historial.length
         ? historial.map((m) => {
-            const fecha = m.fecha ? new Date(m.fecha).toLocaleString('en-US') : '';
-            const cuerpo = m.contenido ? esc(m.contenido).replace(/\n/g, '<br>') : (m.imagenes?.length ? '' : '<i>(no text)</i>');
+            const fecha = m.fecha ? new Date(m.fecha).toLocaleString(localeFechas) : '';
+            const cuerpo = m.contenido ? esc(m.contenido).replace(/\n/g, '<br>') : (m.imagenes?.length ? '' : `<i>${t(cfg, '(sin texto)', '(no text)')}</i>`);
             const imagenes = m.imagenes?.length
                 ? `<div class="images">${m.imagenes.map((url) => `<a href="${esc(url)}" target="_blank"><img src="${esc(url)}" loading="lazy"></a>`).join('')}</div>`
                 : '';
             return `<div class="msg"><div class="meta"><span class="user">${esc(m.usuario)}</span><span class="time">${esc(fecha)}</span></div><div class="body">${cuerpo}</div>${imagenes}</div>`;
         }).join('\n')
-        : '<p class="empty">No messages were recorded.</p>';
+        : `<p class="empty">${t(cfg, 'No se registraron mensajes.', 'No messages were recorded.')}</p>`;
 
     return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Transcript · ${esc(ticket.titulo || ticket.creadorNombre)}</title>
+<html lang="${t(cfg, 'es', 'en')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${t(cfg, 'Transcripción', 'Transcript')} · ${esc(ticket.titulo || ticket.creadorNombre)}</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -108,39 +117,40 @@ async function construirTranscriptHTML(canalId, ticket) {
 </style></head>
 <body><div class="wrap">
 <header>
-  <h1>🎫 ${esc(ticket.titulo || 'Support ticket')}</h1>
+  <h1>🎫 ${esc(ticket.titulo || t(cfg, 'Ticket de soporte', 'Support ticket'))}</h1>
   <div class="sub">
-    <div><b>User:</b> ${esc(ticket.creadorNombre)}</div>
-    <div><b>Reason:</b> ${esc(ticket.motivo || '-')} &nbsp;·&nbsp; <b>Priority:</b> ${esc(ticket.prioridad || '-')}</div>
-    <div><b>Closed:</b> ${esc(new Date().toLocaleString('en-US'))}</div>
+    <div><b>${t(cfg, 'Usuario:', 'User:')}</b> ${esc(ticket.creadorNombre)}</div>
+    <div><b>${t(cfg, 'Motivo:', 'Reason:')}</b> ${esc(ticket.motivo || '-')} &nbsp;·&nbsp; <b>${t(cfg, 'Prioridad:', 'Priority:')}</b> ${esc(ticket.prioridad || '-')}</div>
+    <div><b>${t(cfg, 'Cerrado:', 'Closed:')}</b> ${esc(new Date().toLocaleString(localeFechas))}</div>
   </div>
 </header>
 ${filas}
-<footer>Transcript generated on ${esc(new Date().toLocaleString('en-US'))}</footer>
+<footer>${t(cfg, 'Transcripción generada el', 'Transcript generated on')} ${esc(new Date().toLocaleString(localeFechas))}</footer>
 </div></body></html>`;
 }
 
 // Envoltura del HTML como adjunto de Discord (.html).
-async function generarTranscriptHTML(canalId, ticket) {
-    const html = await construirTranscriptHTML(canalId, ticket);
+async function generarTranscriptHTML(canalId, ticket, cfg) {
+    const html = await construirTranscriptHTML(canalId, ticket, cfg);
     return new AttachmentBuilder(Buffer.from(html, 'utf-8'), { name: `transcript-${ticket.creadorNombre}.html` });
 }
 
 // Transcript en PDF (función Pro, como el HTML). Descarga las imágenes
 // adjuntas a memoria e incrústalas bajo cada mensaje. Devuelve un Buffer.
-async function generarTranscriptPDF(canalId, ticket) {
+async function generarTranscriptPDF(canalId, ticket, cfg) {
     const historial = await Mensaje.find({ ticketId: canalId }).sort({ fecha: 1 });
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
     const trozos = [];
     doc.on('data', (c) => trozos.push(c));
     const listo = new Promise((resolve) => doc.on('end', () => resolve(Buffer.concat(trozos))));
+    const localeFechas = t(cfg, 'es-ES', 'en-US');
 
-    doc.fontSize(18).fillColor('#111').text(`Transcript · ${ticket.titulo || ticket.creadorNombre}`, { underline: true });
+    doc.fontSize(18).fillColor('#111').text(`${t(cfg, 'Transcripción', 'Transcript')} · ${ticket.titulo || ticket.creadorNombre}`, { underline: true });
     doc.moveDown(0.4);
     doc.fontSize(10).fillColor('#555')
-        .text(`User: ${ticket.creadorNombre}`)
-        .text(`Reason: ${ticket.motivo || '-'}    Priority: ${ticket.prioridad || '-'}`)
-        .text(`Closed: ${new Date().toLocaleString('en-US')}`);
+        .text(`${t(cfg, 'Usuario:', 'User:')} ${ticket.creadorNombre}`)
+        .text(`${t(cfg, 'Motivo:', 'Reason:')} ${ticket.motivo || '-'}    ${t(cfg, 'Prioridad:', 'Priority:')} ${ticket.prioridad || '-'}`)
+        .text(`${t(cfg, 'Cerrado:', 'Closed:')} ${new Date().toLocaleString(localeFechas)}`);
     doc.moveDown();
 
     const asegurarEspacio = (alto = 60) => {
@@ -148,12 +158,12 @@ async function generarTranscriptPDF(canalId, ticket) {
     };
 
     if (!historial.length) {
-        doc.fontSize(11).fillColor('#888').text('No messages were recorded.');
+        doc.fontSize(11).fillColor('#888').text(t(cfg, 'No se registraron mensajes.', 'No messages were recorded.'));
     }
 
     for (const m of historial) {
         asegurarEspacio(40);
-        const fecha = m.fecha ? new Date(m.fecha).toLocaleString('en-US') : '';
+        const fecha = m.fecha ? new Date(m.fecha).toLocaleString(localeFechas) : '';
         doc.fontSize(10).fillColor('#3355aa').text(m.usuario, { continued: true })
             .fillColor('#888').text(`   ${fecha}`);
         if (m.contenido) {
@@ -243,15 +253,15 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
     const embed = new EmbedBuilder()
         .setTitle(`🎫 ${titulo}`)
         .setColor('#3498db')
-        .setDescription(`**Reason:** ${motivo}${descripcion ? `\n\n${descripcion}` : ''}`)
-        .addFields({ name: '🚨 Priority', value: `**${prioridad}**`, inline: true });
+        .setDescription(`**${t(cfg, 'Motivo:', 'Reason:')}** ${motivo}${descripcion ? `\n\n${descripcion}` : ''}`)
+        .addFields({ name: t(cfg, '🚨 Prioridad', '🚨 Priority'), value: `**${prioridad}**`, inline: true });
     aplicarPieMarca(embed, cfg); // marca blanca
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Claim ticket').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Add user').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Close ticket').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('reclamar_ticket').setLabel(t(cfg, '🙋‍♂️ Reclamar ticket', '🙋‍♂️ Claim ticket')).setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('add_user_prompt').setLabel(t(cfg, '➕ Añadir usuario', '➕ Add user')).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('close_ticket').setLabel(t(cfg, '🔒 Cerrar ticket', '🔒 Close ticket')).setStyle(ButtonStyle.Danger),
     );
-    const saludo = (darAccesoCreador && creador && creador.id) ? `Hi <@${creador.id}>! Here’s your ticket. 👇` : 'New ticket 👇';
+    const saludo = (darAccesoCreador && creador && creador.id) ? t(cfg, `¡Hola <@${creador.id}>! Aquí tienes tu ticket. 👇`, `Hi <@${creador.id}>! Here’s your ticket. 👇`) : t(cfg, 'Nuevo ticket 👇', 'New ticket 👇');
     await canal.send({ content: saludo, embeds: [embed], components: [row] });
 
     return { ok: true, ticket, canal };
@@ -277,18 +287,18 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
     if (ratingActivo || enviarTranscript) {
         try {
             const files = [];
-            let descripcion = `Hi **${ticket.creadorNombre}**, your support ticket has been closed.`;
+            let descripcion = t(cfg, `Hola **${ticket.creadorNombre}**, tu ticket de soporte ha sido cerrado.`, `Hi **${ticket.creadorNombre}**, your support ticket has been closed.`);
             if (enviarTranscript) {
                 // Pro: transcript en HTML con estilo. Free: texto plano.
-                files.push(esPro(cfg) ? await generarTranscriptHTML(canalId, ticket) : await generarTranscript(canalId, ticket, cfg));
-                descripcion += ` Attached is a copy of the conversation.`;
+                files.push(esPro(cfg) ? await generarTranscriptHTML(canalId, ticket, cfg) : await generarTranscript(canalId, ticket, cfg));
+                descripcion += t(cfg, ' Se adjunta una copia de la conversación.', ' Attached is a copy of the conversation.');
             }
             if (ratingActivo) {
-                descripcion += `\n\nPlease **rate the support you received** by clicking the stars below. It helps us improve!`;
+                descripcion += t(cfg, '\n\nPor favor, **valora el soporte recibido** pulsando las estrellas de abajo. ¡Nos ayuda a mejorar!', '\n\nPlease **rate the support you received** by clicking the stars below. It helps us improve!');
             }
             const embedCSAT = new EmbedBuilder()
                 .setColor('#f1c40f')
-                .setTitle('📊 Your ticket has been closed!')
+                .setTitle(t(cfg, '📊 ¡Tu ticket ha sido cerrado!', '📊 Your ticket has been closed!'))
                 .setDescription(descripcion);
 
             const componentes = [];
@@ -312,7 +322,7 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
     const canal = client.channels.cache.get(canalId);
     if (canal) {
         if (avisarCanal && avisoCierreCanal) {
-            await canal.send('🔒 **This ticket has been closed.** It’s archived in read-only mode.').catch(() => {});
+            await canal.send(t(cfg, '🔒 **Este ticket ha sido cerrado.** Queda archivado en modo solo lectura.', '🔒 **This ticket has been closed.** It’s archived in read-only mode.')).catch(() => {});
         }
         await archivarCanal(canal, ticket, cfg && cfg.categoriaArchivados);
     }
@@ -328,12 +338,13 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     );
     if (!ticket) return { ok: false, error: 'Ticket not found' };
 
+    const cfg = await getConfig(ticket.guildId);
     const canal = client.channels.cache.get(canalId);
     if (canal) {
         await canal.permissionOverwrites.edit(ticket.creadorId, { ViewChannel: true, SendMessages: true }).catch(() => {});
         await canal.setParent(null).catch(() => {});
         await canal.setName(`ticket-${ticket.creadorNombre}`).catch(() => {});
-        await canal.send('🔓 **This ticket has been reopened.** You can write again.').catch(() => {});
+        await canal.send(t(cfg, '🔓 **Este ticket ha sido reabierto.** Puedes volver a escribir.', '🔓 **This ticket has been reopened.** You can write again.')).catch(() => {});
     }
     await registrarLogTicket(client, ticket, '🔓 Ticket reopened', '#2ecc71', autor);
     return { ok: true, ticket };

@@ -16,6 +16,8 @@
 // (mismo patrón que utils/economia.js -> comprarItem).
 // ============================================================================
 const Usuario = require('../models/Usuario.js');
+const { getConfigCached } = require('./config.js');
+const { t } = require('./i18n.js');
 
 // Tipos de cosmético. Cada uno mapea a un campo de cosmeticosEquipados.
 const TIPOS = ['tarjeta', 'colorNombre', 'insignia'];
@@ -56,9 +58,10 @@ async function asegurarUsuario(discordId) {
 }
 
 // Compra un cosmético con oro. Devuelve { ok, error?, cosmetico?, balance? }.
-async function comprarCosmetico(discordId, cosmeticoId) {
+async function comprarCosmetico(discordId, cosmeticoId, guildId) {
+    const cfg = guildId ? await getConfigCached(guildId).catch(() => null) : null;
     const cos = porId(cosmeticoId);
-    if (!cos) return { ok: false, error: 'That cosmetic doesn’t exist.' };
+    if (!cos) return { ok: false, error: t(cfg, 'Ese cosmético no existe.', 'That cosmetic doesn’t exist.') };
     await asegurarUsuario(discordId);
 
     // PUERTA ATÓMICA: descuenta el oro solo si hay saldo suficiente y el usuario
@@ -72,25 +75,27 @@ async function comprarCosmetico(discordId, cosmeticoId) {
     if (!actualizado) {
         // O no llega el oro, o ya lo tenía: distinguimos para dar buen mensaje.
         const u = await Usuario.findOne({ discordId });
-        if (u && (u.cosmeticos || []).includes(cos.id)) return { ok: false, error: 'You already own this cosmetic.' };
-        return { ok: false, error: 'No tienes oro suficiente.' };
+        if (u && (u.cosmeticos || []).includes(cos.id)) return { ok: false, error: t(cfg, 'Ya tienes este cosmético.', 'You already own this cosmetic.') };
+        return { ok: false, error: t(cfg, 'No tienes oro suficiente.', 'Not enough gold.') };
     }
     return { ok: true, cosmetico: cos, balance: actualizado.balance };
 }
 
 // Equipa un cosmético que el usuario ya posee. Devuelve { ok, error?, cosmetico? }.
-async function equiparCosmetico(discordId, cosmeticoId) {
+async function equiparCosmetico(discordId, cosmeticoId, guildId) {
+    const cfg = guildId ? await getConfigCached(guildId).catch(() => null) : null;
     const cos = porId(cosmeticoId);
-    if (!cos) return { ok: false, error: 'That cosmetic doesn’t exist.' };
+    if (!cos) return { ok: false, error: t(cfg, 'Ese cosmético no existe.', 'That cosmetic doesn’t exist.') };
     const u = await Usuario.findOne({ discordId });
-    if (!u || !(u.cosmeticos || []).includes(cos.id)) return { ok: false, error: 'You don’t own that cosmetic.' };
+    if (!u || !(u.cosmeticos || []).includes(cos.id)) return { ok: false, error: t(cfg, 'No tienes ese cosmético.', 'You don’t own that cosmetic.') };
     await Usuario.updateOne({ discordId }, { $set: { [`cosmeticosEquipados.${cos.tipo}`]: cos.valor } });
     return { ok: true, cosmetico: cos };
 }
 
 // Quita el cosmético equipado de un tipo (vuelve al de por defecto).
-async function desequiparTipo(discordId, tipo) {
-    if (!TIPOS.includes(tipo)) return { ok: false, error: 'Invalid cosmetic type.' };
+async function desequiparTipo(discordId, tipo, guildId) {
+    const cfg = guildId ? await getConfigCached(guildId).catch(() => null) : null;
+    if (!TIPOS.includes(tipo)) return { ok: false, error: t(cfg, 'Tipo de cosmético no válido.', 'Invalid cosmetic type.') };
     await Usuario.updateOne({ discordId }, { $set: { [`cosmeticosEquipados.${tipo}`]: null } });
     return { ok: true };
 }
