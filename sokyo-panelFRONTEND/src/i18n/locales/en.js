@@ -425,14 +425,6 @@ export default {
         title: '🎛️ Incident settings',
         desc: 'Define the ticket system’s rules: available reasons, priorities and the behavior when opening or closing an incident.',
       },
-      'config-comportamiento': {
-        title: '🎚️ Behavior',
-        desc: 'Turn the bot’s features on or off to taste, module by module. Switch off what you don’t use; turn on what you need.',
-      },
-      'config-reglas': {
-        title: '🛡️ Rules & control',
-        desc: 'The fine print of tickets: permissions, the category they’re created in, per-user limits and auto-close on inactivity.',
-      },
       'config-acceso': {
         title: '🔑 Access & permissions',
         desc: 'Decide who gets into the panel and what they can do: which roles manage the bot and which only moderate. You hand out the keys.',
@@ -513,13 +505,9 @@ export default {
         title: '✨ Welcome & farewell',
         desc: 'Greet who joins and bid farewell to who leaves with messages your way: text, embeds and GIFs. Your community’s first impression.',
       },
-      'config-macros': {
-        title: '⚡ Quick replies',
-        desc: 'Reusable response templates for your team: write once, use a thousand times. Consistent support that’s far quicker.',
-      },
       'config-textos': {
-        title: '🔤 Text configuration',
-        desc: 'Customize the bot’s white-label titles and descriptions so it speaks with your brand’s voice, not Sokyo’s.',
+        title: '⌨️ Commands & prefix',
+        desc: 'Change the bot’s text command prefix and check the full command guide, grouped by category.',
       },
       config: {
         title: '⚙️ General settings',
@@ -621,9 +609,16 @@ export default {
         tabla: { title: '👥 User registry', desc: 'Each row is a user with their total and open tickets, average rating and last activity. “View in moderation” jumps to their profile to sanction them if needed.' },
       } },
       'tickets-config': { steps: {
+        staff: { title: '🛡️ Support role', desc: 'Choose which role (besides admins) can manage tickets. Saves automatically.' },
+        categoria: { title: '📁 Creation category', desc: 'The Discord category where new ticket channels will be created.' },
+        limite: { title: '🔢 Per-user limit', desc: 'How many open tickets one person can have at a time (0 = no limit).' },
+        autoasignar: { title: '🔁 Automatic assignment', desc: 'Distribute new tickets among your staff in turns (round-robin), so no one goes unattended.' },
+        cierre: { title: '🎫 On ticket close', desc: 'Decide what happens on close: ask for a rating (CSAT), send the transcript and notify the channel. Everything saves automatically on change.' },
+        notif: { title: '🔔 Notifications', desc: 'Enable the alert to your support team when a ticket opens and choose which role gets mentioned.' },
         guardar: { title: '💾 Save changes', desc: 'This is where you save all the incident settings you adjust below. Don’t forget to click it when you’re done.' },
         urgencias: { title: '🚦 Urgency levels', desc: 'Define your priorities (color and level). The higher the level, the higher the ticket appears. Add or remove as many as you want.' },
         categorias: { title: '🗂️ Categories', desc: 'The reasons a user picks when opening a ticket. You assign each one a default urgency.' },
+        crear: { title: '⚡ Quick replies', desc: 'Create reusable response templates: give them a title and content. Staff insert them into the chat with the ⚡ button.' },
       } },
       'roles-gestion': { steps: {
         crear: { title: '➕ Create role', desc: 'Create a new role with its name, color, font style and permissions, without leaving the panel or wrestling with Discord.' },
@@ -676,17 +671,6 @@ export default {
         lista: { title: '🗓️ Scheduled', desc: 'Your queued announcements, with their date and repetition. Delete them when you no longer need them.' },
         crear: { title: '➕ Schedule a new one', desc: 'Pick channel, date and time, optional repetition and the content (text and/or embed). The bot posts it on its own when due.' },
       } },
-      'config-comportamiento': { steps: {
-        cierre: { title: '🎫 On ticket close', desc: 'Decide what happens on close: ask for a rating (CSAT), send the transcript and notify the channel. Everything saves automatically on change.' },
-        notif: { title: '🔔 Notifications', desc: 'Enable the alert to your support team when a ticket opens and choose which role gets mentioned.' },
-        logs: { title: '📜 What gets logged', desc: 'Turn on or off which events the bot saves to the logs: tickets, joins, leaves and deleted or edited messages.' },
-      } },
-      'config-reglas': { steps: {
-        staff: { title: '🛡️ Support role', desc: 'Choose which role (besides admins) can manage tickets. Saves automatically.' },
-        categoria: { title: '📁 Creation category', desc: 'The Discord category where new ticket channels will be created.' },
-        limite: { title: '🔢 Per-user limit', desc: 'How many open tickets one person can have at a time (0 = no limit).' },
-        autoasignar: { title: '🔁 Automatic assignment', desc: 'Distribute new tickets among your staff in turns (round-robin), so no one goes unattended.' },
-      } },
       'config-acceso': { steps: {
         panel: { title: '🖥️ Panel access', desc: 'Which roles can enter this web panel. If you pick none, only administrators.' },
         moderacion: { title: '🛡️ Moderation roles', desc: 'Which roles can use the moderation panel and the sanction commands.' },
@@ -697,15 +681,12 @@ export default {
         emojis: { title: '😄 Emojis', desc: 'Drag and drop images to add emojis to the server (PNG, JPG or GIF). Hover over one to delete it.' },
         stickers: { title: '🩹 Stickers', desc: 'Same as emojis but for stickers (PNG). Upload them by dragging and manage them here.' },
       } },
-      'config-macros': { steps: {
-        crear: { title: '⚡ Create quick reply', desc: 'Give your template a title and content. Staff insert it into the chat with the ⚡ button. The list of existing ones appears below.' },
-      } },
       'config-textos': { steps: {
-        guardar: { title: '💾 Save', desc: 'Save all the white-label customization you adjust below.' },
-        form: { title: '✍️ Ticket panel texts', desc: 'Customize the title, description, footer and button text of the support message. On the right you see a live preview.' },
-        avanzado: { title: '⌨️ Advanced', desc: 'The bot’s command prefix and the name of the category where closed tickets are archived.' },
+        prefijo: { title: '⌨️ Command prefix', desc: 'Change the prefix used to invoke the bot’s text commands (default «!»). Saved with the button above.' },
+        guia: { title: '📖 Command guide', desc: 'Every bot command grouped by category, with its prefix or slash (/) shown. A quick reference without leaving the panel.' },
       } },
       logs: { steps: {
+        comportamiento: { title: '📜 What gets logged', desc: 'Turn on or off which events the bot saves to the logs: tickets, joins, leaves and deleted or edited messages.' },
         capacidad: { title: '📊 Plan capacity', desc: 'How many logs you store against your plan’s limit. When you hit the cap, the oldest get deleted.' },
         filtros: { title: '🔖 Filter by type', desc: 'Switch between all events or a specific type: tickets, deleted, edited, joins or leaves.' },
         timeline: { title: '🕒 Timeline', desc: 'The chronological history of events: what happened, who was involved and when, with all the details.' },

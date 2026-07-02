@@ -132,7 +132,7 @@ export default function VerificacionView({ dash }) {
       </div>
 
       {/* Selector de modo */}
-      <div className={card}>
+      <div data-help="verif-modo" className={card}>
         <p className="mb-2 text-sm font-semibold text-fg">{t('dashboard.verif_v.mode')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <ModoCard activo={modo === 'boton'} onClick={() => elegirModo('boton')} icon={MousePointerClick}
@@ -168,12 +168,12 @@ export default function VerificacionView({ dash }) {
       {!esAB && (
         <>
           <div className={card}>
-            <div className="flex items-center justify-between gap-3">
+            <div data-help="verif-enable" className="flex items-center justify-between gap-3">
               <h3 className="flex items-center gap-2 font-bold text-fg"><ShieldCheck size={18} className="text-brand" /> {t('dashboard.verif_v.enable')}</h3>
               <Toggle checked={v.activo} onChange={(val) => setVerif('activo', val)} />
             </div>
 
-            <div className="mt-4 space-y-4 border-t border-line pt-4">
+            <div data-help="verif-campos" className="mt-4 space-y-4 border-t border-line pt-4">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.verif_v.role')}</span>
                 <Select items={roles} value={v.rolVerificadoId} onChange={(val) => setVerif('rolVerificadoId', val)} placeholder={t('dashboard.verif_v.rolePh')} />
@@ -299,7 +299,7 @@ export default function VerificacionView({ dash }) {
 
       {/* ─────────── ACCIONES ─────────── */}
       {!abBloqueado && (
-        <div className="flex flex-wrap items-center gap-3">
+        <div data-help="verif-acciones" className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={guardar} disabled={guardando || !configServidor}
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
             <Save size={16} /> {guardando ? t('dashboard.verif_v.saving') : t('dashboard.verif_v.save')}

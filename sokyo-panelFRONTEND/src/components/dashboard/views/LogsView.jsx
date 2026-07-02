@@ -44,7 +44,7 @@ function AjustesLogs({ dash }) {
   };
 
   return (
-    <Card className="mb-6 p-6 shadow-soft">
+    <Card data-help="logs-comportamiento" className="mb-6 p-6 shadow-soft">
       <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><ScrollText size={18} className="text-brand" /> {b('logsTitle')}</h3>
       <p className="mb-2 text-xs text-muted">{b('logsSub')}</p>
       <div className="divide-y divide-line">

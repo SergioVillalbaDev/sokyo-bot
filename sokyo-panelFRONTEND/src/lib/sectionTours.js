@@ -83,10 +83,20 @@ export const sectionTours = {
     { id: 'tabla', sel: '[data-help="users-tabla"]', side: 'top', align: 'start' },
   ],
 
+  // Fusiona lo que antes eran las secciones "Comportamiento", "Reglas y
+  // control" y "Respuestas rápidas": ahora todo vive en esta misma vista
+  // (TicketsAjustesView), en el orden en que aparece en la página.
   'tickets-config': [
+    { id: 'staff', sel: '[data-help="reglas-staff"]', side: 'bottom', align: 'start' },
+    { id: 'categoria', sel: '[data-help="reglas-categoria"]', side: 'bottom', align: 'start' },
+    { id: 'limite', sel: '[data-help="reglas-limite"]', side: 'top', align: 'start' },
+    { id: 'autoasignar', sel: '[data-help="reglas-autoasignar"]', side: 'top', align: 'start' },
+    { id: 'cierre', sel: '[data-help="comp-cierre"]', side: 'top', align: 'start' },
+    { id: 'notif', sel: '[data-help="comp-notif"]', side: 'top', align: 'start' },
     { id: 'guardar', sel: '[data-help="incidents-guardar"]', side: 'bottom', align: 'start' },
     { id: 'urgencias', sel: '[data-help="incidents-urgencias"]', side: 'top', align: 'start' },
     { id: 'categorias', sel: '[data-help="incidents-categorias"]', side: 'top', align: 'start' },
+    { id: 'crear', sel: '[data-help="macros-crear"]', side: 'top', align: 'start' },
   ],
 
   'roles-gestion': [
@@ -151,19 +161,6 @@ export const sectionTours = {
     { id: 'crear', sel: '[data-help="anuncios-crear"]', side: 'top', align: 'start' },
   ],
 
-  'config-comportamiento': [
-    { id: 'cierre', sel: '[data-help="comp-cierre"]', side: 'bottom', align: 'start' },
-    { id: 'notif', sel: '[data-help="comp-notif"]', side: 'top', align: 'start' },
-    { id: 'logs', sel: '[data-help="comp-logs"]', side: 'top', align: 'start' },
-  ],
-
-  'config-reglas': [
-    { id: 'staff', sel: '[data-help="reglas-staff"]', side: 'bottom', align: 'start' },
-    { id: 'categoria', sel: '[data-help="reglas-categoria"]', side: 'top', align: 'start' },
-    { id: 'limite', sel: '[data-help="reglas-limite"]', side: 'top', align: 'start' },
-    { id: 'autoasignar', sel: '[data-help="reglas-autoasignar"]', side: 'top', align: 'start' },
-  ],
-
   'config-acceso': [
     { id: 'panel', sel: '[data-help="acceso-panel"]', side: 'bottom', align: 'start' },
     { id: 'moderacion', sel: '[data-help="acceso-moderacion"]', side: 'top', align: 'start' },
@@ -176,17 +173,15 @@ export const sectionTours = {
     { id: 'stickers', sel: '[data-help="expr-stickers"]', side: 'top', align: 'start' },
   ],
 
-  'config-macros': [
-    { id: 'crear', sel: '[data-help="macros-crear"]', side: 'bottom', align: 'start' },
-  ],
-
+  // Ahora es "Comandos y prefijo": los textos de marca blanca del panel de
+  // tickets se movieron a Tickets > Ajustes (ver 'tickets-config' arriba).
   'config-textos': [
-    { id: 'guardar', sel: '[data-help="texts-guardar"]', side: 'bottom', align: 'start' },
-    { id: 'form', sel: '[data-help="texts-form"]', side: 'right', align: 'start' },
-    { id: 'avanzado', sel: '[data-help="texts-avanzado"]', side: 'top', align: 'start' },
+    { id: 'prefijo', sel: '[data-help="texts-prefijo"]', side: 'bottom', align: 'start' },
+    { id: 'guia', sel: '[data-help="texts-guia"]', side: 'top', align: 'start' },
   ],
 
   logs: [
+    { id: 'comportamiento', sel: '[data-help="logs-comportamiento"]', side: 'bottom', align: 'start' },
     { id: 'capacidad', sel: '[data-help="logs-capacidad"]', side: 'bottom', align: 'start' },
     { id: 'filtros', sel: '[data-help="logs-filtros"]', side: 'bottom', align: 'start' },
     { id: 'timeline', sel: '[data-help="logs-timeline"]', side: 'top', align: 'start' },

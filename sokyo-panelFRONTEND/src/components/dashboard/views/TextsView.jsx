@@ -40,7 +40,7 @@ export default function TextsView({ dash }) {
   return (
     <div className="flex flex-col gap-6">
       {/* Prefijo de comandos */}
-      <Card className="flex flex-col gap-5 p-6 shadow-soft">
+      <Card data-help="texts-prefijo" className="flex flex-col gap-5 p-6 shadow-soft">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h2 className="flex items-center gap-2 text-xl font-bold text-fg"><Terminal size={18} className="text-brand" /> {t('dashboard.commands_v.prefixTitle')}</h2>
@@ -58,7 +58,7 @@ export default function TextsView({ dash }) {
       </Card>
 
       {/* Guía de comandos */}
-      <Card className="flex flex-col gap-4 p-6 shadow-soft">
+      <Card data-help="texts-guia" className="flex flex-col gap-4 p-6 shadow-soft">
         <div>
           <h3 className="flex items-center gap-2 font-bold text-fg"><BookOpen size={18} className="text-brand" /> {t('dashboard.commands_v.guideTitle')}</h3>
           <p className="mt-1 text-sm text-muted">{t('dashboard.commands_v.guideDesc', { prefix: pfx })}</p>

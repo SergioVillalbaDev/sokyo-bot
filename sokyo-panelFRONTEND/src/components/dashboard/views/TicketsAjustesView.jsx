@@ -18,9 +18,9 @@ const num = 'w-28 rounded-xl border border-line bg-bg px-4 py-3 text-sm text-fg 
 const smallInput = 'rounded-lg border border-line bg-card px-3 py-2.5 text-sm text-fg outline-none focus:ring-2 focus:ring-brand/40';
 
 // Fila genérica con interruptor.
-function Row({ icon: Icon, title, desc, checked, onChange, accent = 'text-brand' }) {
+function Row({ icon: Icon, title, desc, checked, onChange, accent = 'text-brand', dataHelp }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3.5">
+    <div data-help={dataHelp} className="flex items-center justify-between gap-4 py-3.5">
       <div className="flex items-start gap-3">
         <span className={`mt-0.5 ${accent}`}><Icon size={18} /></span>
         <div>
@@ -148,7 +148,7 @@ export default function TicketsAjustesView({ dash }) {
       <Card className="p-6 shadow-soft">
         <h3 className="mb-3 flex items-center gap-2 font-bold text-fg"><ShieldCheck size={18} className="text-brand" /> {t('dashboard.tickets_set.rulesTitle')}</h3>
         <div className="divide-y divide-line">
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+          <div data-help="reglas-staff" className="flex flex-wrap items-center justify-between gap-3 py-3.5">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 text-brand"><ShieldCheck size={18} /></span>
               <div><p className="text-sm font-semibold text-fg">{t('dashboard.rules_v.staff')}</p><p className="text-xs text-muted">{t('dashboard.rules_v.staffDesc')}</p></div>
@@ -158,7 +158,7 @@ export default function TicketsAjustesView({ dash }) {
               {roles.map((rol) => <option key={rol.id} value={rol.id}>{rol.nombre}</option>)}
             </select>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+          <div data-help="reglas-categoria" className="flex flex-wrap items-center justify-between gap-3 py-3.5">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 text-brand"><FolderTree size={18} /></span>
               <div><p className="text-sm font-semibold text-fg">{t('dashboard.rules_v.category')}</p><p className="text-xs text-muted">{t('dashboard.rules_v.categoryDesc')}</p></div>
@@ -168,7 +168,7 @@ export default function TicketsAjustesView({ dash }) {
               {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nombre}</option>)}
             </select>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+          <div data-help="reglas-limite" className="flex flex-wrap items-center justify-between gap-3 py-3.5">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 text-brand"><Hash size={18} /></span>
               <div><p className="text-sm font-semibold text-fg">{t('dashboard.rules_v.limit')}</p><p className="text-xs text-muted">{t('dashboard.rules_v.limitDesc')}</p></div>
@@ -185,13 +185,13 @@ export default function TicketsAjustesView({ dash }) {
               <span className="text-sm text-muted">{t('dashboard.rules_v.days')}</span>
             </div>
           </div>
-          <Row icon={UserCheck} title={t('dashboard.rules_v.autoAssign')} desc={t('dashboard.rules_v.autoAssignDesc')} checked={!!c.autoAsignar} onChange={(v) => guardarReglas({ autoAsignar: v })} />
+          <Row icon={UserCheck} title={t('dashboard.rules_v.autoAssign')} desc={t('dashboard.rules_v.autoAssignDesc')} checked={!!c.autoAsignar} onChange={(v) => guardarReglas({ autoAsignar: v })} dataHelp="reglas-autoasignar" />
         </div>
         {roles.length === 0 && <p className="mt-2 text-xs italic text-muted">{t('dashboard.rules_v.noRoles')}</p>}
       </Card>
 
       {/* ───────── AL CERRAR ───────── */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="comp-cierre" className="p-6 shadow-soft">
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><FileText size={18} className="text-brand" /> {t('dashboard.behavior_v.onClose')}</h3>
         <div className="divide-y divide-line">
           <Row icon={Star} accent="text-amber-400" title={t('dashboard.behavior_v.csat')} desc={t('dashboard.behavior_v.csatDesc')} checked={val(c.ratingActivo)} onChange={(v) => guardarComportamiento({ ratingActivo: v })} />
@@ -201,7 +201,7 @@ export default function TicketsAjustesView({ dash }) {
       </Card>
 
       {/* ───────── NOTIFICACIONES ───────── */}
-      <Card className="p-6 shadow-soft">
+      <Card data-help="comp-notif" className="p-6 shadow-soft">
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><BellRing size={18} className="text-brand" /> {t('dashboard.behavior_v.notifications')}</h3>
         <div className="divide-y divide-line">
           <Row icon={BellRing} title={t('dashboard.behavior_v.pingTeam')} desc={t('dashboard.behavior_v.pingTeamDesc')} checked={val(c.pingSoporte, false)} onChange={(v) => guardarComportamiento({ pingSoporte: v })} />
@@ -219,7 +219,7 @@ export default function TicketsAjustesView({ dash }) {
       </Card>
 
       {/* ───────── URGENCIAS Y MOTIVOS ───────── */}
-      <Card className="flex flex-col items-start justify-between gap-4 p-6 shadow-soft sm:flex-row sm:items-center">
+      <Card data-help="incidents-guardar" className="flex flex-col items-start justify-between gap-4 p-6 shadow-soft sm:flex-row sm:items-center">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold text-fg"><Gauge size={18} className="text-brand" /> {t('dashboard.incidents_v.title')}</h2>
           <p className="mt-1 text-sm text-muted">{t('dashboard.incidents_v.subtitle')}</p>
@@ -229,7 +229,7 @@ export default function TicketsAjustesView({ dash }) {
         </button>
       </Card>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="flex flex-col p-6">
+        <Card data-help="incidents-urgencias" className="flex flex-col p-6">
           <h3 className="mb-4 flex items-center gap-2 font-bold text-fg"><Gauge size={18} className="text-brand" /> {t('dashboard.incidents_v.sla')}</h3>
           <ul className="mb-5 flex max-h-[340px] flex-col gap-2.5 overflow-y-auto">
             {urgenciasOrdenadas.map((u, i) => (
@@ -250,7 +250,7 @@ export default function TicketsAjustesView({ dash }) {
             <button onClick={agregarUrgencia} className="flex items-center gap-1.5 rounded-lg bg-gradient-brand px-4 py-2.5 text-sm font-bold text-on-brand transition-transform hover:scale-[1.03]"><Plus size={15} /> {t('dashboard.incidents_v.add')}</button>
           </div>
         </Card>
-        <Card className="flex flex-col p-6">
+        <Card data-help="incidents-categorias" className="flex flex-col p-6">
           <h3 className="mb-4 flex items-center gap-2 font-bold text-fg"><Tags size={18} className="text-brand" /> {t('dashboard.incidents_v.categories')}</h3>
           <ul className="mb-5 flex max-h-[340px] flex-col gap-2.5 overflow-y-auto">
             {motivos.map((motivo, index) => {
@@ -279,7 +279,7 @@ export default function TicketsAjustesView({ dash }) {
       </div>
 
       {/* ───────── RESPUESTAS RÁPIDAS ───────── */}
-      <Card className="flex flex-col gap-3 p-6 shadow-soft">
+      <Card data-help="macros-crear" className="flex flex-col gap-3 p-6 shadow-soft">
         <h3 className="flex items-center gap-2 font-bold text-fg"><Zap size={18} className="text-brand" /> {t('dashboard.macros_v.title')}</h3>
         <p className="-mt-1 text-sm text-muted">{t('dashboard.macros_v.subtitle')}</p>
         <p className="flex items-center gap-2 rounded-xl border border-line bg-bg px-3 py-2 text-xs text-muted"><Info size={14} className="text-brand" /> {t('dashboard.macros_v.hint')}</p>
