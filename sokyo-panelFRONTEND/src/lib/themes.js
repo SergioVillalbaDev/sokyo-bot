@@ -4,7 +4,7 @@ export const THEMES = [
   // --- FREE ---
   { id: 'light', label: 'Claro', premium: false, swatch: ['#ffffff', '#111827'] },
   { id: 'dark', label: 'Oscuro', premium: false, swatch: ['#0b0c0e', '#fafafa'] },
-  { id: 'lima', label: 'Acid', premium: false, swatch: ['#070807', '#a3e635'] },
+  { id: 'lima', label: 'Aurora', premium: false, swatch: ['#07080f', '#9db4fa'] },
   // --- PREMIUM ---
   { id: 'lavanda', label: 'Lavanda', premium: true, swatch: ['#efeaf4', '#7c5cbf'] },
   { id: 'esmeralda', label: 'Esmeralda', premium: true, swatch: ['#06120d', '#34d399'] },

@@ -11,7 +11,7 @@
   Cada bloque define el MISMO contrato de variables, así que cambiar de tema
   re-pinta toda la app (landing + dashboard) sin tocar componentes.
 
-  FREE (3):     light · dark · lima
+  FREE (3):     light · dark · lima (Aurora, tema por defecto — colores del avatar)
   PREMIUM (8):  lavanda · esmeralda · oceano · atardecer · synthwave · cereza · ambar · pizarra
 
   Contrato de cada tema:
@@ -56,11 +56,15 @@
   --accent-color: #fafafa; --accent-hover: #ffffff; --brand-from: #e4e4e7; --brand-to: #fafafa; --on-brand: #0b0c0e; --ring: rgba(250,250,250,.22);
 }
 
-/* Acid (lima) — el favorito */
+/* Aurora (clave interna "lima" por compatibilidad) — el favorito y tema por
+   defecto de toda la app (landing + dashboard). Paleta sacada de los píxeles
+   reales del avatar del bot: azul periwinkle claro + índigo-violeta en las
+   sombras del pelo. Antes era un verde lima brillante, no tenía nada que ver
+   con la mascota. */
 [data-theme='lima'] {
-  --bg-main: #070807; --bg-secondary: #0d0f0c; --bg-card: #101310; --bg-sidebar: #090a08; --bg-elevated: #181c15;
-  --text-primary: #e9ebe3; --text-secondary: #969a8c; --border-color: #232818;
-  --accent-color: #a3e635; --accent-hover: #bef264; --brand-from: #bef264; --brand-to: #84cc16; --on-brand: #0a0c08; --ring: rgba(163,230,53,.45);
+  --bg-main: #07080f; --bg-secondary: #0b0d17; --bg-card: #0e1020; --bg-sidebar: #08090f; --bg-elevated: #181a2c;
+  --text-primary: #e9ebf7; --text-secondary: #9498b3; --border-color: #1e2036;
+  --accent-color: #9db4fa; --accent-hover: #b9cbfd; --brand-from: #b4d8fc; --brand-to: #7860c0; --on-brand: #0a0b18; --ring: rgba(157,180,250,.45);
 }
 
 /* --------------------- PREMIUM --------------------- */

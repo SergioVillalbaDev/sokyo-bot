@@ -7,7 +7,7 @@
 export const inviteUrl = 'https://discord.com/oauth2/authorize?client_id=1512125911439376506&permissions=8&scope=bot+applications.commands';
 
 // Clases de color (acento) de cada stat, en el mismo orden que landing.stats.
-export const statsAccent = ['text-brand', 'text-emerald-400', 'text-lime-300', 'text-zinc-200'];
+export const statsAccent = ['text-brand', 'text-sky-300', 'text-violet-300', 'text-zinc-200'];
 
 // Colores de las barras de prioridad del tile grande de Features (por orden).
 export const prioridadBar = ['bg-red-400', 'bg-amber-400', 'bg-brand', 'bg-emerald-400'];
