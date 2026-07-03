@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Plus, ArrowRight, UserCircle, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Plus, UserCircle, Menu, X } from 'lucide-react';
 import { inviteUrl } from '../../lib/landingConfig';
 import LanguageSwitcher from '../LanguageSwitcher';
 
@@ -26,16 +26,6 @@ export default function Navbar({ onEnterDashboard }) {
 
   return (
     <>
-      <a
-        href="#features"
-        className="group flex items-center justify-center gap-2 bg-gradient-brand px-4 py-2 text-center text-xs font-semibold text-on-brand sm:text-sm"
-      >
-        {t('landing.nav.announcement')}
-        <span className="inline-flex items-center gap-1 font-semibold underline-offset-2 group-hover:underline">
-          {t('landing.nav.announcementCta')} <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
-        </span>
-      </a>
-
       <header
         className={`sticky top-0 z-50 transition-colors duration-300 ${
           scrolled ? 'border-b border-line bg-bg/80 backdrop-blur-xl' : 'border-b border-transparent bg-transparent'
