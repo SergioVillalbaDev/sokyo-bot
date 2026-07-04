@@ -23,8 +23,13 @@
     "gifenc": "^1.0.3",
     "helmet": "^8.2.0",
     "lavalink-client": "^2.10.3",
+    "mammoth": "^1.8.0",
     "mongoose": "^9.6.3",
+    "pdf-parse": "^1.1.1",
     "pdfkit": "^0.19.1",
+    "puppeteer-core": "^23.11.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "stripe": "^22.2.2"
   }
 }

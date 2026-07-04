@@ -181,6 +181,11 @@ module.exports = {
             return require('../utils/musica.js').manejarBotonMusica(interaction, client);
         }
 
+        // --- BÚSQUEDA DE EMPLEO: botón "marcar como aplicada" (solo OWNER_IDS) ---
+        if (interaction.isButton() && interaction.customId.startsWith('empleo:')) {
+            return require('../utils/empleoInteracciones.js').manejarBotonEmpleo(interaction);
+        }
+
         // --- VOZ TEMPORAL: panel de control (botones / modales / selección de usuario) ---
         if (interaction.isButton() && interaction.customId.startsWith('vt:')) {
             return require('../utils/vozTemporal.js').manejarBoton(interaction);

@@ -53,11 +53,11 @@ function transcripcion(mensajes, ticket) {
 }
 
 // Llamada base a la API. Devuelve el texto de la respuesta.
-async function pedir(system, contenido, maxTokens = 1024) {
+async function pedir(system, contenido, maxTokens = 1024, modeloOverride = null) {
     const cliente = getIA();
     if (!cliente) throw new Error('AI not configured');
     const r = await cliente.messages.create({
-        model: modelo(),
+        model: modeloOverride || modelo(),
         max_tokens: maxTokens,
         system,
         messages: [{ role: 'user', content: contenido }],
@@ -152,4 +152,181 @@ async function moderarTexto(texto, opciones = {}) {
     }
 }
 
-module.exports = { getIA, iaDisponible, resumirTicket, sugerirRespuesta, informeServidor, resumenDiario, moderarTexto };
+// ============================================================================
+// Búsqueda de empleo (solo OWNER_IDS, ver slash/cv.js y slash/buscoempleo.js).
+//   - estructurarPerfilCV: texto crudo del CV -> JSON con resumen/experiencia/etc.
+//   - evaluarOfertasEmpleo: puntúa un lote de ofertas nuevas contra el CV.
+//   - adaptarCVParaOferta: reescribe el CV priorizando lo relevante para 1 oferta.
+//
+// Modelos: evaluarOfertasEmpleo usa el modelo barato (ANTHROPIC_MODEL, Haiku por
+// defecto) porque es clasificación simple sobre muchas ofertas. estructurarPerfilCV
+// y adaptarCVParaOferta usan el modelo "de calidad" (ANTHROPIC_MODEL_CV, Sonnet 5
+// por defecto): estructurar el CV solo se hace una vez por archivo (coste
+// irrelevante) y un mal parseo contaminaría todas las adaptaciones futuras; adaptar
+// el CV es texto que de verdad vas a enviar a una empresa.
+// ============================================================================
+const modeloCV = () => process.env.ANTHROPIC_MODEL_CV || 'claude-sonnet-5';
+
+async function estructurarPerfilCV(texto, idioma) {
+    const system = [
+        `You extract structured data from a CV/resume written in any language.`,
+        `Respond ONLY with valid JSON, nothing else, with this exact shape:`,
+        `{"resumen": "<2-3 sentence professional summary, in ${nombreIdioma(idioma)}>",`,
+        `"experiencia": [{"puesto": "", "empresa": "", "periodo": "", "descripcion": ""}],`,
+        `"educacion": [{"titulo": "", "centro": "", "periodo": ""}],`,
+        `"habilidades": ["skill1", "skill2"],`,
+        `"contacto": "<name, email, phone if present, one line>"}`,
+        `Keep the original wording of experience/education (don't invent or translate facts), only`,
+        `the "resumen" is written by you. If a section is missing in the CV, return an empty array/string.`,
+    ].join(' ');
+    const raw = await pedir(system, texto.slice(0, 12000), 2000, modeloCV());
+    try {
+        return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    } catch {
+        return { resumen: '', experiencia: [], educacion: [], habilidades: [], contacto: '' };
+    }
+}
+
+// Recorta cada descripción de oferta para no disparar el tamaño del prompt
+// cuando se evalúan muchas ofertas de golpe.
+const recortar = (s, n = 700) => (typeof s === 'string' && s.length > n ? `${s.slice(0, n)}…` : (s || ''));
+
+async function evaluarLoteOfertas(perfilCV, ofertas, idioma) {
+    const resumenCV = [
+        perfilCV.resumen,
+        (perfilCV.habilidades || []).join(', '),
+        (perfilCV.experiencia || []).map((e) => `${e.puesto} @ ${e.empresa}: ${e.descripcion}`).join('\n'),
+    ].join('\n');
+
+    const listado = ofertas.map((o) => `URL: ${o.urlOferta}\nTítulo: ${o.titulo}\nEmpresa: ${o.empresa}\nUbicación: ${o.ubicacion}\nDescripción: ${recortar(o.descripcion)}`).join('\n---\n');
+
+    const system = [
+        `You are a recruiting assistant. Given a candidate's CV summary and a list of job offers,`,
+        `score how good a match each offer is for the candidate, from 0 to 100.`,
+        `Respond ONLY with valid JSON, nothing else: an array where EVERY offer gets one entry,`,
+        `identified by its exact "url" (never skip an entry, never invent a url):`,
+        `[{"url": "<same URL as given>", "puntuacion": 0-100, "motivo": "<max 15 words in ${nombreIdioma(idioma)}>"}]`,
+    ].join(' ');
+
+    const maxTokens = Math.min(4000, 300 + ofertas.length * 60);
+    const raw = await pedir(system, `CV:\n${resumenCV}\n\nOFERTAS:\n${listado}`, maxTokens);
+    try {
+        const arr = JSON.parse(raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1));
+        return Array.isArray(arr) ? arr : [];
+    } catch {
+        return null; // señal de fallo al llamador, para que decida trocear/reintentar
+    }
+}
+
+// Evalúa todas las ofertas nuevas. Si el lote es grande o la IA devuelve un JSON
+// inválido (más probable cuantas más ofertas van en una sola llamada), se
+// trocea en 2 mitades y se reintenta antes de rendirse por completo.
+async function evaluarOfertasEmpleo(perfilCV, ofertas, idioma) {
+    if (!ofertas.length) return [];
+    const resultado = await evaluarLoteOfertas(perfilCV, ofertas, idioma);
+    if (resultado) return resultado;
+    if (ofertas.length <= 1) return [];
+
+    const mitad = Math.ceil(ofertas.length / 2);
+    const [a, b] = await Promise.all([
+        evaluarOfertasEmpleo(perfilCV, ofertas.slice(0, mitad), idioma),
+        evaluarOfertasEmpleo(perfilCV, ofertas.slice(mitad), idioma),
+    ]);
+    return [...a, ...b];
+}
+
+async function adaptarCVParaOferta(perfilCV, oferta, idioma) {
+    const system = [
+        `You are a professional CV writer. Rewrite the candidate's CV to best fit ONE specific job offer:`,
+        `reorder/prioritize the most relevant experience and skills first, sharpen the summary to speak`,
+        `directly to this offer, but NEVER invent experience, titles, dates or skills that aren't in the`,
+        `original CV. Write in ${nombreIdioma(idioma)}. Also decide "requierePhoto": true only if the offer`,
+        `text explicitly asks to attach a photo/headshot with the application (common for customer-facing,`,
+        `hospitality, retail or promotional roles) — false otherwise, don't guess from the job title alone.`,
+        `Respond ONLY with valid JSON, nothing else:`,
+        `{"resumen": "", "experiencia": [{"puesto": "", "empresa": "", "periodo": "", "descripcion": ""}],`,
+        `"educacion": [{"titulo": "", "centro": "", "periodo": ""}], "habilidades": ["..."], "contacto": "",`,
+        `"requierePhoto": true|false}`,
+    ].join(' ');
+    const contenido = [
+        `CV ORIGINAL (JSON): ${JSON.stringify(perfilCV)}`,
+        `OFERTA: ${oferta.titulo} @ ${oferta.empresa} (${oferta.ubicacion})`,
+        `DESCRIPCIÓN DE LA OFERTA: ${recortar(oferta.descripcion, 2000)}`,
+    ].join('\n');
+    const cliente = getIA();
+    if (!cliente) throw new Error('AI not configured');
+    const r = await cliente.messages.create({
+        model: modeloCV(),
+        max_tokens: 2500,
+        system,
+        messages: [{ role: 'user', content: contenido }],
+    });
+    const raw = (r.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+    return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+}
+
+// Carta de presentación corta para UNA oferta concreta. Texto plano (sin JSON):
+// se adjunta como PDF junto al CV adaptado.
+async function generarCartaPresentacion(perfilCV, oferta, idioma) {
+    const system = [
+        `You are a professional cover-letter writer. Write ONE short cover letter (220-350 words) in`,
+        `${nombreIdioma(idioma)} for this candidate applying to this specific offer: address the company`,
+        `by name if known, open with genuine interest in the role, connect 2-3 concrete points from the`,
+        `candidate's real experience/skills to what the offer asks for, and close with a polite call to`,
+        `action. NEVER invent experience, employers, titles or achievements that aren't in the candidate's`,
+        `CV. Return ONLY the letter body text, no subject line, no "Dear Sir/Madam" placeholders beyond a`,
+        `normal greeting, no meta-commentary.`,
+    ].join(' ');
+    const contenido = [
+        `CV DEL CANDIDATO (JSON): ${JSON.stringify(perfilCV)}`,
+        `OFERTA: ${oferta.titulo} @ ${oferta.empresa} (${oferta.ubicacion})`,
+        `DESCRIPCIÓN DE LA OFERTA: ${recortar(oferta.descripcion, 2000)}`,
+    ].join('\n');
+    return pedir(system, contenido, 900, modeloCV());
+}
+
+// Respuestas sugeridas a las preguntas de selección de una oferta: tanto las
+// detectadas de verdad en la página de la oferta (`preguntasDetectadas`) como
+// un puñado de preguntas típicas de cualquier proceso de selección, para tener
+// algo preparado incluso cuando el portal no expone preguntas explícitas.
+//
+// IMPORTANTE: nunca debe inventar datos personales que no estén en el CV
+// (pretensión salarial, disponibilidad, carné de conducir, movilidad...): para
+// esos casos debe devolver un placeholder claro entre corchetes para que el
+// usuario lo rellene él mismo antes de enviar la solicitud.
+async function responderPreguntasOferta(perfilCV, oferta, preguntasDetectadas, idioma) {
+    const system = [
+        `You help a job candidate prepare answers for a job application's screening questions, in`,
+        `${nombreIdioma(idioma)}. You will get a list of "DETECTED QUESTIONS" (found on the real offer`,
+        `page, may be empty) and must ALSO include a short set of the typical screening questions almost`,
+        `every application asks (years of relevant experience, availability/notice period, salary`,
+        `expectation, willingness to relocate or travel, driving license) — merge both into one list,`,
+        `don't duplicate a typical question if an equivalent one was already detected.`,
+        `CRITICAL RULE: only state a fact if it is present in the candidate's CV JSON below (experience,`,
+        `skills, education). For anything the CV doesn't cover — salary expectation, availability date,`,
+        `driving license, relocation, family situation, or any other personal detail — do NOT invent an`,
+        `answer. Instead write a short bracketed placeholder for the candidate to fill in themselves,`,
+        `e.g. "[Indica aquí tu disponibilidad]" / "[State your salary expectation here]". Never present a`,
+        `fabricated personal fact as if it were true.`,
+        `Respond ONLY with valid JSON: {"respuestas": [{"pregunta": "", "respuesta": ""}]}`,
+    ].join(' ');
+    const contenido = [
+        `CV DEL CANDIDATO (JSON): ${JSON.stringify(perfilCV)}`,
+        `OFERTA: ${oferta.titulo} @ ${oferta.empresa} (${oferta.ubicacion})`,
+        `DESCRIPCIÓN DE LA OFERTA: ${recortar(oferta.descripcion, 2000)}`,
+        `DETECTED QUESTIONS: ${(preguntasDetectadas && preguntasDetectadas.length) ? preguntasDetectadas.map((p) => `- ${p}`).join('\n') : '(none detected)'}`,
+    ].join('\n');
+    const raw = await pedir(system, contenido, 1800, modeloCV());
+    try {
+        const json = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+        return Array.isArray(json.respuestas) ? json.respuestas : [];
+    } catch {
+        return [];
+    }
+}
+
+module.exports = {
+    getIA, iaDisponible, resumirTicket, sugerirRespuesta, informeServidor, resumenDiario, moderarTexto,
+    estructurarPerfilCV, evaluarOfertasEmpleo, adaptarCVParaOferta,
+    generarCartaPresentacion, responderPreguntasOferta,
+};
