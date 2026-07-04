@@ -47,6 +47,10 @@ function registrarResultado(nombre, ok) {
 
 const UA_REALISTA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+// page.waitForTimeout() se eliminó de Puppeteer (ya no existe en puppeteer-core
+// 23.x, que es lo que usamos aquí) — este es el reemplazo directo.
+const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function lanzarBrowser() {
     return puppeteer.launch({
         headless: 'new',
@@ -66,15 +70,33 @@ async function nuevaPagina(browser) {
     return page;
 }
 
-// Acepta el banner de cookies si aparece (varía el texto/selector según el portal).
-async function aceptarCookiesSiHay(page, textos = ['Aceptar', 'Accept', 'Aceptar todas']) {
+// Acepta el banner de cookies si aparece (varía el texto/selector según el
+// portal, e incluso el IDIOMA: el navegador headless puede recibir la web en
+// inglés aunque el resto del scraping asuma español — InfoJobs, por ejemplo,
+// nos la sirve con botones "Agree and close" / "Disagree and close", no
+// "Aceptar"). Primero probamos IDs conocidos de gestores de consentimiento
+// habituales (más fiable que el texto), y si no, caemos al texto en ambos
+// idiomas.
+const SELECTORES_CONSENTIMIENTO_CONOCIDOS = [
+    '#didomi-notice-agree-button', // Didomi (InfoJobs y otros)
+    '#onetrust-accept-btn-handler', // OneTrust
+    'button[data-testid="uc-accept-all-button"]', // Usercentrics
+];
+async function aceptarCookiesSiHay(page, textos = ['Aceptar', 'Accept', 'Aceptar todas', 'Agree and close', 'Agree', 'I agree', 'Accept all']) {
+    // El banner de consentimiento a veces tarda un pelín en pintarse tras el
+    // domcontentloaded; sin este margen lo buscábamos antes de que existiera.
+    await esperar(1200);
     try {
+        for (const sel of SELECTORES_CONSENTIMIENTO_CONOCIDOS) {
+            const boton = await page.$(sel);
+            if (boton) { await boton.click().catch(() => {}); await esperar(500); return; }
+        }
         const botones = await page.$$('button');
         for (const b of botones) {
             const texto = (await page.evaluate((el) => el.textContent, b) || '').trim();
             if (textos.some((t) => texto.includes(t))) {
                 await b.click().catch(() => {});
-                await page.waitForTimeout(500).catch(() => {});
+                await esperar(500);
                 return;
             }
         }
@@ -120,8 +142,12 @@ async function buscarInfoJobs(page, puesto, ubicacion, limite = 20) {
             if (inputUbicacion) await inputUbicacion.type(ubicacion, { delay: 30 });
         }
 
+        // El botón "Buscar" (id="searchOffers") es más fiable que el Enter: en
+        // pruebas reales, pulsar Enter no siempre envía el formulario (posible
+        // JS del propio buscador escuchando el click, no el submit del campo).
+        const botonBuscar = await page.$('#searchOffers');
         await Promise.all([
-            page.keyboard.press('Enter'),
+            botonBuscar ? botonBuscar.click() : page.keyboard.press('Enter'),
             page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
         ]);
 
@@ -144,7 +170,7 @@ async function buscarJobToday(page, puesto, ubicacion, limite = 20) {
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
         await aceptarCookiesSiHay(page);
         // SPA: dar un margen extra a que pinte los resultados tras el fetch inicial.
-        await page.waitForTimeout(2000).catch(() => {});
+        await esperar(2000);
 
         const ofertas = await extraerPorPatronUrl(page, '/(job|jobs|oferta)/', limite);
         if (!ofertas.length) throw new Error('0 ofertas extraídas: probable cambio de maquetación (revisar selectores) o SPA no cargó a tiempo.');
@@ -169,7 +195,7 @@ async function buscarJobToday(page, puesto, ubicacion, limite = 20) {
 async function obtenerDetalleOferta(page, url) {
     try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForTimeout(1000).catch(() => {});
+        await esperar(1000);
         const resultado = await page.evaluate(() => {
             const texto = (document.body.innerText || '').replace(/\s+/g, ' ').trim();
             // Heurística: busca una lista de preguntas cerca de una cabecera que
