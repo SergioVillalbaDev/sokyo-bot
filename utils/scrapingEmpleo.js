@@ -19,9 +19,29 @@
 // intentarlo durante unas horas en vez de insistir contra un bloqueo activo
 // (evita empeorar un posible bloqueo de IP/cuenta).
 // ============================================================================
+const path = require('path');
+const fs = require('fs');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
+
+// Al fallar una búsqueda, guarda una captura de la página tal cual estaba en
+// ese momento. Sin esto, diagnosticar un fallo que solo pasa en la Pi (sin
+// pantalla propia) obliga a ir probando cambios a ciegas y esperar al
+// siguiente intento real — con la captura se ve directamente qué mostró el
+// portal (banner distinto, captcha, maquetación nueva...).
+async function guardarCapturaDebug(page, portal) {
+    try {
+        const carpeta = process.env.JOB_SEARCH_OUTPUT_DIR || path.join(__dirname, '..', 'output', 'job-search');
+        const dir = path.join(carpeta, '_debug');
+        fs.mkdirSync(dir, { recursive: true });
+        const ruta = path.join(dir, `${portal}-${new Date().toISOString().replace(/[:.]/g, '-')}.png`);
+        await page.screenshot({ path: ruta });
+        console.warn(`📸 ${portal}: captura de depuración guardada en ${ruta}`);
+    } catch (err) {
+        console.warn(`No se pudo guardar la captura de depuración de ${portal}:`, err.message);
+    }
+}
 
 const UMBRAL_FALLOS_CONSECUTIVOS = 3;
 const PAUSA_TRAS_FALLOS_MS = 6 * 60 * 60 * 1000; // 6h
@@ -83,24 +103,30 @@ const SELECTORES_CONSENTIMIENTO_CONOCIDOS = [
     'button[data-testid="uc-accept-all-button"]', // Usercentrics
 ];
 async function aceptarCookiesSiHay(page, textos = ['Aceptar', 'Accept', 'Aceptar todas', 'Agree and close', 'Agree', 'I agree', 'Accept all']) {
-    // El banner de consentimiento a veces tarda un pelín en pintarse tras el
-    // domcontentloaded; sin este margen lo buscábamos antes de que existiera.
-    await esperar(1200);
-    try {
-        for (const sel of SELECTORES_CONSENTIMIENTO_CONOCIDOS) {
-            const boton = await page.$(sel);
-            if (boton) { await boton.click().catch(() => {}); await esperar(500); return; }
-        }
-        const botones = await page.$$('button');
-        for (const b of botones) {
-            const texto = (await page.evaluate((el) => el.textContent, b) || '').trim();
-            if (textos.some((t) => texto.includes(t))) {
-                await b.click().catch(() => {});
-                await esperar(500);
-                return;
+    // Sondeo en vez de una espera fija: en hardware lento (p. ej. la Raspberry
+    // Pi frente a un PC de pruebas) el banner de consentimiento puede tardar
+    // bastante más en pintarse que en una máquina rápida, y una espera fija
+    // corta lo buscaba antes de que existiera.
+    const intentosMax = 16; // 16 x 500ms = 8s como mucho
+    for (let intento = 0; intento < intentosMax; intento++) {
+        try {
+            for (const sel of SELECTORES_CONSENTIMIENTO_CONOCIDOS) {
+                const boton = await page.$(sel);
+                if (boton) { await boton.click().catch(() => {}); await esperar(500); return; }
             }
-        }
-    } catch { /* si no hay banner, seguimos sin más */ }
+            const botones = await page.$$('button');
+            for (const b of botones) {
+                const texto = (await page.evaluate((el) => el.textContent, b) || '').trim();
+                if (textos.some((t) => texto.includes(t))) {
+                    await b.click().catch(() => {});
+                    await esperar(500);
+                    return;
+                }
+            }
+        } catch { /* DOM aún cambiando entre intentos, seguimos sondeando */ }
+        await esperar(500);
+    }
+    // Sin banner tras 8s: probablemente no había, seguimos sin más.
 }
 
 // Extrae tarjetas de oferta a partir de un patrón de URL (más resistente a
@@ -127,40 +153,55 @@ async function extraerPorPatronUrl(page, patronUrl, limite) {
     }, patronUrl, limite);
 }
 
+// Un intento de búsqueda. InfoJobs a veces no llega a navegar tras pulsar
+// "Buscar" (visto en pruebas reales: el mismo código funciona con un término
+// y falla con otro, sin motivo aparente por nuestro lado — parece más un
+// comportamiento intermitente del propio portal que un selector roto). Por
+// eso esta función puede lanzar y quien la llama decide si reintenta.
+async function intentarBuscarInfoJobs(page, puesto, ubicacion, limite) {
+    await page.goto('https://www.infojobs.net/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await aceptarCookiesSiHay(page);
+
+    const inputKeyword = await page.$('input#keyword, input[name="keyword"], input[name="palabra"]');
+    if (!inputKeyword) throw new Error('No se encontró el campo de búsqueda (posible bloqueo o cambio de maquetación).');
+    await inputKeyword.type(puesto, { delay: 30 });
+
+    if (ubicacion) {
+        const inputUbicacion = await page.$('input#provinceId, input[name="place"], input[name="provincia"]');
+        if (inputUbicacion) await inputUbicacion.type(ubicacion, { delay: 30 });
+    }
+
+    // El botón "Buscar" (id="searchOffers") es más fiable que el Enter: en
+    // pruebas reales, pulsar Enter no siempre envía el formulario (posible
+    // JS del propio buscador escuchando el click, no el submit del campo).
+    const botonBuscar = await page.$('#searchOffers');
+    await Promise.all([
+        botonBuscar ? botonBuscar.click() : page.keyboard.press('Enter'),
+        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
+    ]);
+
+    // Las ofertas de InfoJobs tienen URLs con el patrón "/of-i<id>".
+    const ofertas = await extraerPorPatronUrl(page, '/of-i[0-9a-z]+', limite);
+    if (!ofertas.length) throw new Error('0 ofertas extraídas: probable bloqueo antibot o cambio de maquetación (revisar selectores).');
+    return ofertas;
+}
+
 async function buscarInfoJobs(page, puesto, ubicacion, limite = 20) {
     if (!portalDisponible('infojobs')) return { ofertas: [], error: 'InfoJobs en pausa tras varios bloqueos recientes.' };
-    try {
-        await page.goto('https://www.infojobs.net/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await aceptarCookiesSiHay(page);
-
-        const inputKeyword = await page.$('input#keyword, input[name="keyword"], input[name="palabra"]');
-        if (!inputKeyword) throw new Error('No se encontró el campo de búsqueda (posible bloqueo o cambio de maquetación).');
-        await inputKeyword.type(puesto, { delay: 30 });
-
-        if (ubicacion) {
-            const inputUbicacion = await page.$('input#provinceId, input[name="place"], input[name="provincia"]');
-            if (inputUbicacion) await inputUbicacion.type(ubicacion, { delay: 30 });
+    let ultimoError = null;
+    for (let intento = 1; intento <= 2; intento++) {
+        try {
+            const ofertas = await intentarBuscarInfoJobs(page, puesto, ubicacion, limite);
+            registrarResultado('infojobs', true);
+            return { ofertas: ofertas.map((o) => ({ ...o, portal: 'infojobs', empresa: '', ubicacion: ubicacion || '' })), error: null };
+        } catch (e) {
+            ultimoError = e;
+            if (intento === 1) console.warn(`⚠️ InfoJobs: intento 1 falló (${e.message}), reintentando...`);
         }
-
-        // El botón "Buscar" (id="searchOffers") es más fiable que el Enter: en
-        // pruebas reales, pulsar Enter no siempre envía el formulario (posible
-        // JS del propio buscador escuchando el click, no el submit del campo).
-        const botonBuscar = await page.$('#searchOffers');
-        await Promise.all([
-            botonBuscar ? botonBuscar.click() : page.keyboard.press('Enter'),
-            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
-        ]);
-
-        // Las ofertas de InfoJobs tienen URLs con el patrón "/of-i<id>".
-        const ofertas = await extraerPorPatronUrl(page, '/of-i[0-9a-z]+', limite);
-        if (!ofertas.length) throw new Error('0 ofertas extraídas: probable bloqueo antibot o cambio de maquetación (revisar selectores).');
-
-        registrarResultado('infojobs', true);
-        return { ofertas: ofertas.map((o) => ({ ...o, portal: 'infojobs', empresa: '', ubicacion: ubicacion || '' })), error: null };
-    } catch (e) {
-        registrarResultado('infojobs', false);
-        return { ofertas: [], error: e.message };
     }
+    await guardarCapturaDebug(page, 'infojobs');
+    registrarResultado('infojobs', false);
+    return { ofertas: [], error: ultimoError.message };
 }
 
 async function buscarJobToday(page, puesto, ubicacion, limite = 20) {
@@ -178,6 +219,7 @@ async function buscarJobToday(page, puesto, ubicacion, limite = 20) {
         registrarResultado('jobtoday', true);
         return { ofertas: ofertas.map((o) => ({ ...o, portal: 'jobtoday', empresa: '', ubicacion: ubicacion || '' })), error: null };
     } catch (e) {
+        await guardarCapturaDebug(page, 'jobtoday');
         registrarResultado('jobtoday', false);
         return { ofertas: [], error: e.message };
     }
