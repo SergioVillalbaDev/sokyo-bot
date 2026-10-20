@@ -1,11 +1,12 @@
 {
   "name": "sokyo-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Bot de Discord de tickets de soporte con panel web de staff y portal de clientes",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node tests/api.test.js && node tests/discord.test.js"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +18,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.6.3"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }

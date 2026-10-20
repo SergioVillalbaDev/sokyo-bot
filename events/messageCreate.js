@@ -1,60 +1,46 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
+const Ticket = require('../models/Ticket.js');
+const { obtenerConfig } = require('../utils/config.js');
+const { esStaff } = require('../utils/permisos.js');
+const { esCanalTicket } = require('../utils/ticketCache.js');
+const { registrarActividad } = require('../utils/ticketManager.js');
+
+// Comandos antiguos con "!": ahora son slash commands. Avisamos en vez de ignorarlos.
+const COMANDOS_ANTIGUOS = { sokyo: '/panel', user: '/usuario', dado: '/dado', moneda: '/moneda', ayuda: '/ayuda', help: '/ayuda' };
 
 module.exports = {
     name: Events.MessageCreate,
-    async execute(message, client) {
-        if (message.author.bot) return;
+    async execute(message) {
+        if (message.author.bot || !message.guild) return;
 
-        // 1. Guardar mensajes de los tickets en la BD
-        if (message.channel.name && message.channel.name.startsWith('ticket-')) {
-            console.log(`\n--- 📩 NUEVO MENSAJE EN TICKET ---`);
-            console.log(`👤 Usuario: ${message.author.username}`);
-            console.log(`📝 Texto: "${message.content}"`);
-            console.log(`📎 Adjuntos: ${message.attachments.size}`);
-
-            try {
-                let imagenesAdjuntas = [];
-                
-                if (message.attachments.size > 0) {
-                    // Extraemos las URLs de forma segura
-                    message.attachments.forEach(adjunto => {
-                        imagenesAdjuntas.push(adjunto.url);
-                    });
-                }
-
-                console.log(`🔗 URLs a guardar:`, imagenesAdjuntas);
-
-                // Guardamos en MongoDB
-                const msgGuardado = await Mensaje.create({
-                    ticketId: message.channel.id,
+        // 1. Guardar la conversación de los tickets
+        if (esCanalTicket(message.channelId)) {
+            const ticket = await Ticket.findOne({ canalId: message.channelId }).select('creadorId').lean();
+            if (ticket) {
+                const config = await obtenerConfig(message.guildId);
+                const staff = message.author.id !== ticket.creadorId && esStaff(message.member, config);
+                await Mensaje.create({
+                    ticketId: message.channelId,
+                    mensajeId: message.id,
                     usuario: message.author.username,
                     usuarioId: message.author.id,
+                    avatar: message.author.displayAvatarURL({ extension: 'png', size: 128 }),
+                    esStaff: staff,
+                    origen: 'discord',
                     contenido: message.content,
-                    imagenes: imagenesAdjuntas
+                    imagenes: message.attachments.map(adjunto => adjunto.url)
                 });
-                
-                console.log(`✅ Guardado en BD exitosamente con ${msgGuardado.imagenes.length} imágenes.`);
-
-            } catch (error) {
-                console.error('❌ Error al guardar mensaje en la BD:', error);
-            } 
+                await registrarActividad(message.channelId, staff);
+            }
         }
 
-        // 2. Ejecutar comandos (Si empieza por !)
+        // 2. Comandos antiguos
         if (!message.content.startsWith('!')) return;
-
-        const args = message.content.slice(1).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-
-        const command = client.commands.get(commandName);
-        if (!command) return;
-
-        try {
-            await command.execute(message, args, client);
-        } catch (error) {
-            console.error(error);
-            message.reply('❌ Hubo un error al intentar ejecutar ese comando.');
+        const nombre = message.content.slice(1).trim().split(/\s+/)[0]?.toLowerCase();
+        const nuevo = COMANDOS_ANTIGUOS[nombre];
+        if (nuevo) {
+            await message.reply({ content: `ℹ️ Ahora uso comandos de barra: escribe **${nuevo}**.`, allowedMentions: { repliedUser: false } }).catch(() => {});
         }
-    },
+    }
 };
