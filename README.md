@@ -80,6 +80,7 @@ Rellena el `.env` del bot (cada variable está explicada en `.env.example`):
 | `JWT_SECRET` | Secreto largo y aleatorio para firmar las sesiones |
 | `API_KEY` | *(Opcional)* clave de administrador para entrar sin Discord |
 | `GUILD_ID_DEV` | *(Opcional)* registra los comandos solo en ese servidor, al instante |
+| `ANUNCIO_SERVIDOR` | *(Opcional)* servidor al que avisar de «Bot actualizado» (por defecto `Tokyto`) |
 
 En `sokyo-panelFRONTEND/.env` solo hay que poner `VITE_API_URL` (la URL de la API del bot).
 Si abres el panel desde otro dispositivo de la red, usa la IP del equipo del bot (`http://192.168.1.50:3000`).
@@ -144,6 +145,22 @@ transcripts y auditoría, el límite de tickets por usuario y los módulos (encu
 
 ---
 
+## 📣 Aviso «Bot actualizado»
+
+La primera vez que el bot arranca con una **versión nueva** (el campo `version` de `package.json`),
+manda el mensaje **«Bot actualizado»** a los miembros del servidor indicado en `ANUNCIO_SERVIDOR`:
+
+1. Por **privado** a cada miembro (sin bots), con una pausa entre mensajes para no parecer spam.
+2. Si a alguien no le llega (DMs cerrados), lo publica también en el canal **general**
+   (o en el canal de sistema / el primer canal donde pueda escribir).
+
+Se envía **una sola vez por versión** (queda guardado en la base de datos, así que reiniciar no lo repite)
+y queda registrado en la **Auditoría** del panel. Para volver a avisar en el futuro, sube la versión en
+`package.json` (p. ej. `2.0.0` → `2.1.0`). Con servidores de más de `ANUNCIO_MAX_DMS` miembros solo se
+publica en el general, porque Discord penaliza a los bots que mandan el mismo DM a mucha gente.
+
+---
+
 ## 🔄 Si vienes de la versión anterior
 
 - Los comandos con `!` pasan a ser **slash commands** (`!sokyo` → `/panel`, `!user` → `/usuario`...).
@@ -159,7 +176,7 @@ transcripts y auditoría, el límite de tickets por usuario y los módulos (encu
 ## 🧪 Pruebas
 Con un MongoDB accesible (por defecto `mongodb://127.0.0.1:27017`, configurable con `MONGO_URI_TEST`):
 ```bash
-npm test                       # API (84 comprobaciones) y flujos de Discord (49) con un Discord simulado
+npm test                       # API (84 comprobaciones) y flujos de Discord (56) con un Discord simulado
 cd sokyo-panelFRONTEND && npm run lint && npm run build
 ```
 

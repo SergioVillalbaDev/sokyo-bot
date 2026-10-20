@@ -18,11 +18,15 @@ function crearCliente() {
     return client;
 }
 
-function crearMiembro(guild, id, username, { admin = false, roles = [] } = {}) {
+function crearMiembro(guild, id, username, { admin = false, roles = [], bot = false, dmsCerrados = false } = {}) {
     const perms = new PermissionsBitField(admin ? PermissionFlagsBits.Administrator : PermissionFlagsBits.ViewChannel);
     const miembro = {
         id, guild,
-        user: { id, username, bot: false, displayAvatarURL: () => `https://cdn.discordapp.com/avatars/${id}.png` },
+        user: { id, username, bot, displayAvatarURL: () => `https://cdn.discordapp.com/avatars/${id}.png` },
+        async send(contenido) {
+            if (dmsCerrados) throw new Error('Cannot send messages to this user');
+            guild.client.dms.push({ id, p: contenido });
+        },
         permissions: perms,
         roles: { cache: new Collection(roles.map(r => [r, { id: r }])) }
     };
@@ -65,13 +69,13 @@ function crearCanal(client, guild, { name, type = ChannelType.GuildText, parent 
 
 function crearServidor(client, { id, name }) {
     const guild = {
-        id, name, available: true, memberCount: 3,
+        id, name, available: true, memberCount: 3, client, systemChannel: null,
         iconURL: () => null,
         channels: { cache: new Collection() },
         roles: { cache: new Collection() },
         members: {
             cache: new Collection(),
-            fetch: async (uid) => guild.members.cache.get(uid) || Promise.reject(new Error('Unknown Member'))
+            fetch: async (uid) => (uid === undefined ? guild.members.cache : guild.members.cache.get(uid) || Promise.reject(new Error('Unknown Member')))
         }
     };
     guild.channels.create = async ({ name, type, parent, permissionOverwrites }) => {
@@ -82,7 +86,7 @@ function crearServidor(client, { id, name }) {
     guild.roles.cache.set(id, { id, name: '@everyone', position: 0, hexColor: '#000000', managed: false });
     guild.roles.everyone = guild.roles.cache.get(id);
     guild.roles.cache.set('rolstaff', { id: 'rolstaff', name: 'Soporte', position: 2, hexColor: '#ff0000', managed: false });
-    guild.members.me = crearMiembro(guild, 'bot', 'Sokyo', { admin: true });
+    guild.members.me = crearMiembro(guild, 'bot', 'Sokyo', { admin: true, bot: true });
     client.guilds.cache.set(id, guild);
     return guild;
 }

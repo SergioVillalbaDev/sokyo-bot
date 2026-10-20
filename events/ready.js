@@ -3,6 +3,7 @@ const Ticket = require('../models/Ticket.js');
 const { obtenerConfig } = require('../utils/config.js');
 const { cargarCanalesTicket } = require('../utils/ticketCache.js');
 const { marcarCanalEliminado } = require('../utils/ticketManager.js');
+const { anunciarActualizacion } = require('../utils/anuncioActualizacion.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -47,5 +48,8 @@ module.exports = {
 
         const total = await cargarCanalesTicket();
         console.log(`🎫 ${total} canales de ticket en seguimiento.`);
+
+        // 4. "Bot actualizado": en segundo plano, solo la primera vez que arranca esta versión.
+        anunciarActualizacion(client).catch(e => console.error('📣 Aviso de actualización:', e));
     }
 };

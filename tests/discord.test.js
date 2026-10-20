@@ -217,6 +217,36 @@ function mensajeDiscord({ id, miembro, canal, guild, contenido, adjuntos = [] })
         check(i.r.length === 1 && !/❌/.test(ultimoTexto(i)), `/${c}`, i.r);
     }
 
+    console.log('\n— Aviso "Bot actualizado"');
+    const { anunciarActualizacion, version } = require(`${REPO}/utils/anuncioActualizacion.js`);
+    const ServidorConfig = require(`${REPO}/models/ServidorConfig.js`);
+    const T = crearServidor(client, { id: 'gT', name: 'TOKYTO Gaming' });
+    crearMiembro(T, 't1', 'tokyto1');
+    crearMiembro(T, 't2', 'tokyto2', { dmsCerrados: true });
+    crearMiembro(T, 'tbot', 'otrobot', { bot: true });
+    crearCanal(client, T, { name: 'reglas' });
+    const generalT = crearCanal(client, T, { name: '💬・general' });
+    const dmsAntes = client.dms.length;
+    const enviadosAntes = client.enviados.length;
+    let res = await anunciarActualizacion(client, { pausaMs: 0 });
+    const dmsAviso = client.dms.slice(dmsAntes);
+    check(dmsAviso.length === 1 && dmsAviso[0].id === 't1' && /Bot actualizado/.test(dmsAviso[0].p), 'DM a los miembros del servidor Tokyto (no a bots ni a otros servidores)', dmsAviso);
+    const publicados = client.enviados.slice(enviadosAntes);
+    check(publicados.length === 1 && publicados[0].canal === generalT.id && /Bot actualizado/.test(publicados[0].payload.content), 'si alguien tiene los DMs cerrados se publica en el general', publicados);
+    check(res.gT?.enviados === 1 && res.gT?.fallidos === 1 && !res.gA, 'resumen correcto y solo en el servidor Tokyto', res);
+    check((await ServidorConfig.findOne({ guildId: 'gT' })).ultimaVersionAnunciada === version, 'versión anunciada guardada');
+    check(await Log.exists({ guildId: 'gT', accion: new RegExp('Bot actualizado') }), 'queda registrado en la auditoría');
+    res = await anunciarActualizacion(client, { pausaMs: 0 });
+    check(client.dms.length === dmsAntes + 1 && client.enviados.length === enviadosAntes + 1 && !res.gT, 'no se repite al reiniciar con la misma versión');
+
+    const cliente2 = crearCliente();
+    const S = crearServidor(cliente2, { id: 'gS', name: 'Comunidad Sokyo' });
+    crearServidor(cliente2, { id: 'gO', name: 'Otro servidor' });
+    crearMiembro(S, 's1', 'sokyo1');
+    crearCanal(cliente2, S, { name: 'general' });
+    res = await anunciarActualizacion(cliente2, { pausaMs: 0 });
+    check(res.gS?.enviados === 1 && res.gS.publicadoEn === null && !res.gO && cliente2.enviados.length === 0, 'tolera erratas en el nombre (Tokyto ≈ Sokyo) y si todos reciben el DM no publica en el general', res);
+
     console.log(`\n${ok} correctas, ${fallos} fallidas`);
     await mongoose.connection.dropDatabase();
     await mongoose.disconnect();

@@ -1,6 +1,6 @@
 {
   "name": "sokyo-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Bot de Discord de tickets de soporte con panel web de staff y portal de clientes",
   "main": "index.js",
   "scripts": {

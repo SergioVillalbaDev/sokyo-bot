@@ -53,6 +53,9 @@ const ServidorConfigSchema = new mongoose.Schema({
         logsMiembros: { type: Boolean, default: true }    // auditoría de entradas/salidas
     },
 
+    // Última versión del bot anunciada con el aviso "Bot actualizado" (ver utils/anuncioActualizacion.js)
+    ultimaVersionAnunciada: { type: String, default: null },
+
     esPremium: { type: Boolean, default: false },
     premiumHasta: { type: Date, default: null }
 });
