@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sokyo · Mercado</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cian: #22d3ee;
+    --texto: #d7e3f4;
+    --tenue: #8aa0bd;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--texto); font-family: 'Rajdhani', sans-serif; min-height: 100vh;
+    background:
+      radial-gradient(900px 520px at 8% -5%, rgba(124,58,237,.20), transparent 55%),
+      radial-gradient(900px 520px at 100% -5%, rgba(37,99,235,.18), transparent 55%),
+      radial-gradient(700px 520px at 50% 120%, rgba(34,211,238,.10), transparent 60%),
+      #05060a;
+    background-attachment: fixed;
+  }
+  /* Rejilla técnica de fondo */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .55; z-index: 0;
+    background-image:
+      linear-gradient(rgba(120,150,210,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,150,210,.06) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(circle at 50% 35%, black, transparent 92%);
+            mask-image: radial-gradient(circle at 50% 35%, black, transparent 92%);
+  }
+  /* Estrellas */
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-repeat: no-repeat;
+    background-image:
+      radial-gradient(2px 2px at 18% 28%, rgba(255,255,255,.55), transparent),
+      radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1.6px 1.6px at 40% 66%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1px 1px at 86% 58%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1.5px 1.5px at 58% 86%, rgba(255,255,255,.35), transparent),
+      radial-gradient(1px 1px at 9% 78%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1.4px 1.4px at 92% 30%, rgba(255,255,255,.4), transparent);
+  }
+  .capa { position: relative; z-index: 1; }
+
+  .brand { font-family: 'Orbitron', sans-serif; letter-spacing: .06em; }
+  .tech { font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; }
+
+  /* Marco/panel translúcido con borde */
+  .panel {
+    background: linear-gradient(180deg, rgba(20,28,44,.72), rgba(10,14,24,.72));
+    border: 1px solid rgba(120,150,210,.18);
+    border-radius: 16px;
+    backdrop-filter: blur(6px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 40px rgba(0,0,0,.45);
+  }
+
+  /* Logo emblema */
+  .emblema {
+    width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center;
+    background: linear-gradient(145deg, rgba(34,211,238,.18), rgba(124,58,237,.18));
+    border: 1px solid rgba(34,211,238,.35);
+    box-shadow: inset 0 0 18px rgba(34,211,238,.18), 0 0 22px -6px rgba(34,211,238,.5);
+  }
+
+  .badge-online {
+    font-family: 'Rajdhani'; font-weight: 700; font-size: 11px; letter-spacing: .12em;
+    color: #34d399; padding: 2px 9px; border-radius: 999px;
+    background: rgba(52,211,153,.12); border: 1px solid rgba(52,211,153,.4);
+  }
+
+  /* Bolsa de oro (moneda del jugador) */
+  .bolsa {
+    display: flex; align-items: center; gap: 12px; padding: 9px 18px; border-radius: 14px;
+    background: linear-gradient(180deg, rgba(24,32,50,.85), rgba(12,16,28,.85));
+    border: 1px solid rgba(34,211,238,.35);
+    box-shadow: inset 0 0 18px rgba(34,211,238,.12), 0 0 24px -8px rgba(34,211,238,.5);
+  }
+
+  /* Pestañas de rareza */
+  .pill {
+    font-family: 'Rajdhani'; font-weight: 700; font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 7px 16px; border-radius: 10px; cursor: pointer; color: var(--tenue);
+    background: rgba(255,255,255,.03); border: 1px solid rgba(120,150,210,.18); transition: all .18s;
+  }
+  .pill:hover { color: var(--texto); border-color: rgba(120,150,210,.4); }
+  .pill.activa { color: #06121a; background: linear-gradient(180deg, #67e8f9, var(--cian)); border-color: var(--cian); box-shadow: 0 0 18px -4px var(--cian); }
+
+  .inp {
+    background: rgba(8,12,20,.7); border: 1px solid rgba(120,150,210,.2); border-radius: 10px;
+    padding: .6rem .9rem; width: 100%; color: var(--texto); font-family: 'Rajdhani'; font-weight: 500; font-size: 16px;
+  }
+  .inp:focus { outline: none; border-color: var(--cian); box-shadow: 0 0 0 2px rgba(34,211,238,.2); }
+  .inp::placeholder { color: rgba(138,160,189,.6); }
+
+  /* ===== CARTA DE OBJETO ===== */
+  .carta {
+    position: relative; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column;
+    background: linear-gradient(180deg, rgba(18,24,38,.9), rgba(9,12,20,.94));
+    border: 1px solid color-mix(in srgb, var(--rar) 45%, transparent);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 0 26px -10px var(--rar-glow);
+    transition: transform .18s ease, box-shadow .28s ease;
+  }
+  .carta:hover { transform: translateY(-5px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--rar) 60%, transparent), 0 18px 40px -10px var(--rar-glow); }
+  .carta::before { content: ""; position: absolute; top:0; left:0; right:0; height: 3px; background: linear-gradient(90deg, transparent, var(--rar), transparent); }
+
+  .carta-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 0; }
+  .badge-rar {
+    font-family: 'Rajdhani'; font-weight: 700; font-size: 11px; letter-spacing: .14em;
+    padding: 3px 10px; border-radius: 8px; color: var(--rar);
+    background: color-mix(in srgb, var(--rar) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--rar) 50%, transparent);
+  }
+  .tipo-label { font-family: 'Rajdhani'; font-weight: 600; font-size: 12px; letter-spacing: .16em; color: var(--tenue); }
+
+  .escena {
+    position: relative; margin: 12px 14px; height: 190px; border-radius: 12px;
+    background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--rar) 22%, transparent), transparent 62%), rgba(0,0,0,.35);
+    border: 1px solid rgba(120,150,210,.1); overflow: hidden;
+    display: grid; place-items: center;
+  }
+  .escena img, .escena .ph {
+    max-height: 140px; max-width: 70%; object-fit: contain;
+    filter: drop-shadow(0 14px 22px rgba(0,0,0,.55)) drop-shadow(0 0 16px var(--rar-glow));
+    animation: flota 4.5s ease-in-out infinite;
+  }
+  .escena .ph { font-size: 72px; line-height: 1; }
+  @keyframes flota { 0%,100% { transform: translateY(-6px); } 50% { transform: translateY(10px); } }
+
+  .qty {
+    position: absolute; bottom: 9px; right: 9px; font-family: 'Rajdhani'; font-weight: 700;
+    font-size: 11px; letter-spacing: .1em; color: var(--texto); padding: 3px 9px; border-radius: 7px;
+    background: rgba(5,8,14,.8); border: 1px solid rgba(120,150,210,.25);
+  }
+
+  /* Oferta relámpago + destacado */
+  .cinta {
+    position: absolute; top: 14px; left: -36px; transform: rotate(-45deg); z-index: 3;
+    background: linear-gradient(180deg, #67e8f9, var(--cian)); color: #06121a;
+    font-family: 'Rajdhani'; font-weight: 700; font-size: 10px; letter-spacing: .12em;
+    padding: 3px 42px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+  }
+  .badge-oferta {
+    font-family: 'Rajdhani'; font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #2a0606;
+    padding: 1px 7px; border-radius: 6px; background: linear-gradient(180deg, #fca5a5, #ef4444);
+    box-shadow: 0 0 14px -3px #ef4444;
+  }
+  .precio-tachado { text-decoration: line-through; color: var(--tenue); font-size: .85em; }
+  .cuenta { font-family: 'Rajdhani'; font-weight: 700; font-size: 11px; color: #fca5a5; letter-spacing: .04em; }
+
+  .btn-comprar {
+    font-family: 'Rajdhani'; font-weight: 700; font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+    color: #06121a; padding: 8px 16px; border-radius: 9px; cursor: pointer;
+    background: linear-gradient(180deg, #e7eef8, #b9c7da); border: 1px solid rgba(255,255,255,.3);
+    transition: transform .12s, box-shadow .2s, filter .2s;
+  }
+  .btn-comprar:hover { filter: brightness(1.05); box-shadow: 0 0 20px -4px var(--rar-glow); transform: translateY(-1px); }
+  .btn-comprar:active { transform: translateY(1px); }
+  .btn-comprar:disabled { opacity: .4; cursor: not-allowed; filter: grayscale(1); }
+
+  .btn-oro {
+    font-family: 'Rajdhani'; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #06121a;
+    background: linear-gradient(180deg, #67e8f9, var(--cian)); border: 1px solid var(--cian);
+    box-shadow: 0 0 20px -6px var(--cian); transition: transform .12s, filter .2s;
+  }
+  .btn-oro:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn-fantasma {
+    font-family: 'Rajdhani'; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--texto);
+    background: rgba(255,255,255,.04); border: 1px solid rgba(120,150,210,.3); transition: all .2s;
+  }
+  .btn-fantasma:hover { background: rgba(120,150,210,.12); }
+
+  /* Notificaciones */
+  #toasts { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 10px; z-index: 60; }
+  .toast {
+    font-family: 'Rajdhani'; font-weight: 600; min-width: 250px; max-width: 360px; padding: 13px 17px; border-radius: 12px;
+    color: var(--texto); background: linear-gradient(180deg, rgba(20,28,44,.97), rgba(9,12,20,.97));
+    border: 1px solid var(--tcol, var(--cian)); box-shadow: 0 0 26px -6px var(--tcol, var(--cian));
+    animation: entrar .35s cubic-bezier(.2,.9,.3,1.4);
+  }
+  .toast.salir { animation: salir .3s ease forwards; }
+  @keyframes entrar { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+  @keyframes salir { to { opacity: 0; transform: translateX(40px); } }
+
+  .gema { color: var(--cian); filter: drop-shadow(0 0 6px rgba(34,211,238,.6)); }
+  .linea { height: 1px; background: linear-gradient(90deg, transparent, rgba(120,150,210,.4), transparent); }
+
+  /* Revelación de caja de botín */
+  #revelacion { position: fixed; inset: 0; z-index: 70; display: none; align-items: center; justify-content: center; background: rgba(3,5,10,.82); backdrop-filter: blur(7px); cursor: pointer; }
+  #revelacion.mostrar { display: flex; animation: fadeIn .25s ease; }
+  .rev-card {
+    position: relative; text-align: center; padding: 32px 44px; border-radius: 20px; max-width: 360px;
+    background: linear-gradient(180deg, rgba(20,28,44,.96), rgba(9,12,20,.98));
+    border: 1px solid var(--rar, #f5b942); box-shadow: 0 0 70px -10px var(--rar-glow, rgba(245,185,66,.6));
+    animation: revPop .55s cubic-bezier(.2,.9,.3,1.5);
+  }
+  .rev-card::before { /* halo giratorio */
+    content: ""; position: absolute; inset: -2px; border-radius: 22px; z-index: -1; opacity: .5;
+    background: conic-gradient(from 0deg, transparent, var(--rar, #f5b942), transparent 40%);
+    animation: girar 6s linear infinite;
+  }
+  .rev-escena { height: 170px; display: grid; place-items: center; margin: 14px 0; }
+  .rev-img, .rev-ph { max-height: 150px; max-width: 200px; object-fit: contain; filter: drop-shadow(0 0 24px var(--rar-glow, rgba(245,185,66,.6))); animation: flota 4s ease-in-out infinite; }
+  .rev-ph { font-size: 90px; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes revPop { 0% { transform: scale(.6) rotate(-4deg); opacity: 0; } 60% { transform: scale(1.05); } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+  @keyframes girar { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="capa max-w-[1400px] mx-auto px-5 sm:px-8 py-7">
+
+    <!-- Cabecera -->
+    <header class="flex flex-wrap items-center justify-between gap-4 mb-9">
+      <div class="flex items-center gap-4">
+        <div class="emblema">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="1.6">
+            <path d="M12 2l8 4.5v9L12 22l-8-6.5v-9L12 2z"/><path d="M12 7l4 2.3v4.6L12 16l-4-2.1V9.3L12 7z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-3">
+            <h1 class="brand text-2xl sm:text-3xl text-white">SOKYO</h1>
+            <span class="badge-online">● ONLINE</span>
+          </div>
+          <p class="tech text-xs text-[var(--tenue)] mt-0.5">Mercado · Intercambio de objetos</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div id="bolsaOro" class="bolsa hidden">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="1.5"><path d="M12 2l8 4.5v9L12 22l-8-6.5v-9L12 2z"/></svg>
+          <div class="leading-none">
+            <div class="tech text-[10px] text-[var(--tenue)]">Oro</div>
+            <div class="brand text-xl text-cyan-200"><span id="goldCounter">0</span></div>
+          </div>
+        </div>
+        <button id="btnLogin" onclick="login()" class="btn-oro px-5 py-2.5 rounded-xl">⬡ Entrar con Discord</button>
+        <button id="btnLogout" onclick="logout()" class="btn-fantasma hidden px-4 py-2.5 rounded-xl">Salir</button>
+      </div>
+    </header>
+
+    <!-- Controles: filtros de rareza + buscador -->
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-7">
+      <div id="filtros" class="flex flex-wrap gap-2">
+        <button class="pill activa" data-rar="todos" onclick="setFiltro('todos', this)">Todos</button>
+        <button class="pill" data-rar="legendario" onclick="setFiltro('legendario', this)">Legendario</button>
+        <button class="pill" data-rar="epico" onclick="setFiltro('epico', this)">Épico</button>
+        <button class="pill" data-rar="raro" onclick="setFiltro('raro', this)">Raro</button>
+        <button class="pill" data-rar="comun" onclick="setFiltro('comun', this)">Común</button>
+        <button class="pill" data-rar="__mochila" onclick="verEspecial('mochila', this)">🎒 Mochila</button>
+        <button class="pill" data-rar="__admin" onclick="verEspecial('admin', this)">🛠 Crear</button>
+      </div>
+      <div class="relative w-full sm:w-80">
+        <input id="busqueda" oninput="render()" placeholder="Buscar en el catálogo…" class="inp pl-9" />
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--tenue)]" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>
+    </div>
+
+    <!-- CATÁLOGO -->
+    <section id="vista-tienda">
+      <div id="catalogo" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="vista-admin" class="hidden max-w-2xl mx-auto">
+      <form id="formItem" class="panel p-6 space-y-4">
+        <h2 class="brand text-xl text-cyan-200">⚒ Forjar nuevo objeto</h2>
+        <div class="linea"></div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block tech text-xs text-[var(--tenue)]">ID único
+            <input name="itemId" placeholder="espada_estelar" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Nombre
+            <input name="nombre" placeholder="Mandoble Estelar" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Precio (oro)
+            <input name="precio" type="number" min="0" placeholder="18500" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Rareza
+            <select name="rareza" class="inp mt-1.5">
+              <option value="comun">Común</option>
+              <option value="raro">Raro</option>
+              <option value="epico">Épico</option>
+              <option value="legendario">Legendario</option>
+            </select>
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Tipo
+            <select name="tipo" class="inp mt-1.5">
+              <option value="consumible">Consumible</option>
+              <option value="equipo">Equipo</option>
+              <option value="material">Material</option>
+            </select>
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Stock (vacío = ∞)
+            <input name="stock" type="number" min="0" placeholder="∞" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Efecto al usar
+            <select name="efectoTipo" class="inp mt-1.5">
+              <option value="ninguno">Ninguno (decorativo)</option>
+              <option value="xpBoost">Boost de XP</option>
+              <option value="rol">Rol temporal</option>
+            </select>
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Duración efecto (min)
+            <input name="efectoDuracionMin" type="number" min="1" placeholder="60" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Multiplicador XP (si Boost)
+            <input name="efectoMultiplicador" type="number" min="1" placeholder="2" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">ID del rol (si efecto = Rol)
+            <input name="efectoRolId" placeholder="ID del rol de Discord" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">URL de la imagen (o súbela abajo)
+            <input name="imageUrl" id="imageUrl" placeholder="https://… o usa el botón de subir" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Subir imagen desde tu PC
+            <input type="file" id="imageFile" accept="image/*" class="inp mt-1.5" onchange="subirImagen(this)" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Descripción
+            <textarea name="descripcion" rows="2" placeholder="Forjado de una estrella colapsada…" class="inp mt-1.5"></textarea>
+          </label>
+        </div>
+        <button class="btn-oro w-full py-3 rounded-xl">⚒ Forjar y poner a la venta</button>
+      </form>
+
+      <form id="formCaja" class="panel p-6 space-y-4 mt-6">
+        <h2 class="brand text-xl text-cyan-200">🎁 Crear caja de botín</h2>
+        <div class="linea"></div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block tech text-xs text-[var(--tenue)]">ID único
+            <input name="itemId" placeholder="caja_estelar" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Nombre
+            <input name="nombre" placeholder="Caja Estelar" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Precio (oro)
+            <input name="precio" type="number" min="0" placeholder="500" required class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Rareza de la caja
+            <select name="rareza" class="inp mt-1.5">
+              <option value="comun">Común</option>
+              <option value="raro">Raro</option>
+              <option value="epico">Épico</option>
+              <option value="legendario">Legendario</option>
+            </select>
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Imagen de la caja
+            <input name="imageUrl" id="cajaImageUrl" placeholder="https://… o sube abajo" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Subir imagen desde tu PC
+            <input type="file" accept="image/*" class="inp mt-1.5" onchange="subirImagen(this, '#cajaImageUrl')" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)] sm:col-span-2">Descripción
+            <textarea name="descripcion" rows="2" placeholder="Una caja con recompensas aleatorias…" class="inp mt-1.5"></textarea>
+          </label>
+        </div>
+        <div>
+          <p class="tech text-xs text-[var(--tenue)] mb-2">Contenido — marca qué objetos puede soltar y su peso (mayor = más probable)</p>
+          <div id="cajaContenido" class="max-h-64 overflow-y-auto pr-1"></div>
+        </div>
+        <button class="btn-oro w-full py-3 rounded-xl">🎁 Crear caja</button>
+      </form>
+
+      <form id="formOferta" class="panel p-6 space-y-4 mt-6">
+        <h2 class="brand text-xl text-cyan-200">⚡ Oferta relámpago</h2>
+        <div class="linea"></div>
+        <p class="text-sm text-[var(--tenue)]">Aplica un descuento temporal a un objeto del catálogo.</p>
+        <label class="block tech text-xs text-[var(--tenue)]">Objeto
+          <select id="ofertaItem" class="inp mt-1.5"></select>
+        </label>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block tech text-xs text-[var(--tenue)]">Descuento (%)
+            <input id="ofertaPct" type="number" min="1" max="100" placeholder="30" class="inp mt-1.5" />
+          </label>
+          <label class="block tech text-xs text-[var(--tenue)]">Duración (min)
+            <input id="ofertaDur" type="number" min="1" placeholder="60" class="inp mt-1.5" />
+          </label>
+        </div>
+        <button class="btn-oro w-full py-3 rounded-xl">⚡ Lanzar oferta</button>
+      </form>
+    </section>
+
+    <!-- MOCHILA -->
+    <section id="vista-mochila" class="hidden">
+      <div id="inventario" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
+    </section>
+
+    <!-- Pie -->
+    <footer class="text-center mt-12 mb-2">
+      <div class="linea max-w-md mx-auto mb-3"></div>
+      <p class="tech text-[11px] text-[var(--tenue)]">SOKYO // NODO MERCANTIL · INTERCAMBIO DE OBJETOS</p>
+    </footer>
+  </div>
+
+  <!-- Revelación de caja -->
+  <div id="revelacion" onclick="this.classList.remove('mostrar')">
+    <div class="rev-card"></div>
+  </div>
+
+  <div id="toasts"></div>
+
+<script>
+const API = ''; // mismo origen (servido por Express en el puerto 3001)
+const $ = (s) => document.querySelector(s);
+
+let ITEMS = [];          // catálogo cargado
+let INV = [];            // inventario del usuario (Mi mochila)
+let filtroRareza = 'todos';
+let vistaActual = 'tienda';
+let DESTACADOS = new Set(); // ids destacados del día
+let ultimaRecarga = 0;      // anti-spam al caducar ofertas
+
+// Precio efectivo en el cliente (igual criterio que el backend): aplica la oferta si sigue activa.
+function precioWeb(i) {
+  const o = i.oferta;
+  const activa = o && o.porcentaje > 0 && o.expiraEn && new Date(o.expiraEn) > new Date();
+  return {
+    precio: activa ? Math.max(0, Math.round(i.precio * (1 - o.porcentaje / 100))) : i.precio,
+    oferta: activa, porcentaje: activa ? o.porcentaje : 0, expiraEn: activa ? o.expiraEn : null,
+  };
+}
+
+// Destacados del día: selección determinista por fecha (cambia a medianoche, sin servidor).
+function hashStr(s) { let h = 0; for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return h; }
+function calcularDestacados() {
+  const dia = Math.floor(Date.now() / 86400000);
+  const ordenados = ITEMS.map(i => i._id).sort((a, b) => hashStr(a + dia) - hashStr(b + dia));
+  DESTACADOS = new Set(ordenados.slice(0, Math.min(3, ordenados.length)));
+}
+
+const RAREZA = {
+  legendario: { label: 'Legendario', color: '#f5b942', glow: 'rgba(245,185,66,.55)' },
+  epico:      { label: 'Épico',      color: '#c084fc', glow: 'rgba(192,132,252,.55)' },
+  raro:       { label: 'Raro',       color: '#38bdf8', glow: 'rgba(56,189,248,.55)' },
+  comun:      { label: 'Común',      color: '#2dd4bf', glow: 'rgba(45,212,191,.5)' },
+};
+const rar = (r) => RAREZA[r] || RAREZA.comun;
+const TIPO = { consumible: 'Consumible', equipo: 'Equipo', material: 'Material' };
+const ICONO = { consumible: '🧪', equipo: '🛡️', material: '💎' };
+const fmt = (n) => Number(n).toLocaleString('es-ES');
+// Escapa HTML: los objetos de la tienda (nombre, descripción...) los puede crear
+// cualquier usuario logueado (fase MMO actual), así que nunca se insertan crudos.
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// --- Notificaciones tipo juego ---
+function toast(msg, tipo = 'ok') {
+  const colores = { ok: '#34d399', oro: '#f5b942', error: '#f87171' };
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.setProperty('--tcol', colores[tipo] || colores.ok);
+  el.innerHTML = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.classList.add('salir'); setTimeout(() => el.remove(), 320); }, 3200);
+}
+
+// --- SESIÓN ---
+const getToken = () => localStorage.getItem('sokyo_token') || '';
+function login() { window.location = `${API}/api/auth/discord?state=tienda`; }
+function logout() { localStorage.removeItem('sokyo_token'); location.href = '/tienda.html'; }
+
+function recogerSesionDeURL() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('token')) localStorage.setItem('sokyo_token', p.get('token'));
+  else if (p.get('error')) toast('No se pudo iniciar sesión con Discord.', 'error');
+  if (p.get('token') || p.get('error')) history.replaceState({}, '', '/tienda.html');
+}
+
+async function init() {
+  recogerSesionDeURL();
+  const token = getToken();
+  if (!token) return mostrarDeslogueado();
+  try {
+    const res = await fetch(`${API}/api/portal/yo`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('sesión caducada');
+    const yo = await res.json();
+    $('#btnLogin').classList.add('hidden');
+    $('#btnLogout').classList.remove('hidden');
+    $('#bolsaOro').classList.remove('hidden');
+    actualizarOro();
+    cargarCatalogo();
+  } catch {
+    localStorage.removeItem('sokyo_token');
+    mostrarDeslogueado();
+  }
+}
+
+function mostrarDeslogueado() {
+  $('#btnLogin').classList.remove('hidden');
+  $('#btnLogout').classList.add('hidden');
+  $('#bolsaOro').classList.add('hidden');
+  $('#catalogo').innerHTML = aviso('🔒', 'Acceso restringido', 'Identifícate con Discord para explorar el mercado.');
+}
+
+function aviso(icono, titulo, sub) {
+  return `<div class="col-span-full text-center py-20 opacity-75">
+    <div class="text-6xl mb-4">${icono}</div>
+    <p class="brand text-xl text-cyan-200">${titulo}</p>
+    <p class="text-[var(--tenue)] mt-1">${sub}</p>
+  </div>`;
+}
+
+function setGold(v, pulso = false) {
+  const el = $('#goldCounter');
+  el.textContent = fmt(v);
+  if (pulso) { el.animate([{ filter: 'brightness(2)' }, { filter: 'brightness(1)' }], { duration: 700 }); }
+}
+async function actualizarOro() {
+  const r = await fetch(`${API}/api/portal/economia`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (r.ok) {
+    const d = await r.json();
+    setGold(d.balance);
+    INV = d.inventory || [];
+    if (vistaActual === 'mochila') renderMochila();
+  }
+}
+
+// --- FILTROS ---
+function marcarFiltro(btn) {
+  document.querySelectorAll('#filtros .pill').forEach(p => p.classList.remove('activa'));
+  btn.classList.add('activa');
+}
+function setFiltro(r, btn) {
+  filtroRareza = r;
+  marcarFiltro(btn);
+  ver('tienda');
+  render();
+}
+// Pestañas especiales (no son rareza): Mochila y Admin.
+function verEspecial(v, btn) {
+  marcarFiltro(btn);
+  ver(v);
+  if (v === 'mochila') renderMochila();
+}
+function ver(v) {
+  vistaActual = v;
+  $('#vista-tienda').classList.toggle('hidden', v !== 'tienda');
+  $('#vista-admin').classList.toggle('hidden', v !== 'admin');
+  $('#vista-mochila').classList.toggle('hidden', v !== 'mochila');
+}
+
+// --- MI MOCHILA (inventario del usuario, con las mismas cartas) ---
+function renderMochila() {
+  const cont = $('#inventario');
+  if (!getToken()) { cont.innerHTML = aviso('🔒', 'Acceso restringido', 'Identifícate con Discord para ver tu mochila.'); return; }
+  if (!INV.length) { cont.innerHTML = aviso('🎒', 'Mochila vacía', 'Compra objetos en el mercado para llenarla.'); return; }
+  cont.innerHTML = INV.map((i, idx) => {
+    const R = rar(i.rareza);
+    const visual = i.imageUrl
+      ? `<img src="${esc(i.imageUrl)}" style="animation-delay:${(idx % 6) * .45}s" />`
+      : `<div class="ph" style="animation-delay:${(idx % 6) * .45}s">${ICONO[i.tipo] || '📦'}</div>`;
+    return `
+    <article class="carta" style="--rar:${R.color}; --rar-glow:${R.glow}">
+      <div class="carta-top">
+        <span class="badge-rar">${R.label}</span>
+        <span class="tipo-label">${TIPO[i.tipo] || ''}</span>
+      </div>
+      <div class="escena">
+        ${visual}
+        <span class="qty">×${fmt(i.cantidad)}</span>
+      </div>
+      <div class="px-4 pb-4 flex flex-col flex-1">
+        <h3 class="text-lg font-bold text-white leading-tight">${esc(i.nombre)}</h3>
+        <p class="text-sm text-[var(--tenue)] mt-1 mb-3 flex-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(i.descripcion || '')}</p>
+        <div class="flex items-center justify-between mt-auto gap-2">
+          <span class="brand text-lg" style="color:${R.color}">×${fmt(i.cantidad)}</span>
+          ${(i.efecto && i.efecto.tipo && i.efecto.tipo !== 'ninguno')
+            ? `<button class="btn-comprar" onclick='usar(${JSON.stringify(i._id)})'>${i.efecto.tipo === 'caja' ? 'Abrir' : 'Usar'}</button>`
+            : `<span class="tech text-xs text-[var(--tenue)]">En posesión</span>`}
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+// El nombre se busca en INV (nunca se pasa como string por el atributo onclick:
+// así un nombre con comillas no puede romper fuera del atributo e inyectar HTML/JS).
+async function usar(itemId) {
+  const nombre = (INV.find(x => x._id === itemId) || {}).nombre || '';
+  const res = await fetch(`${API}/api/portal/shop/use`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ itemId }),
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(`❌ ${esc(data.error)}`, 'error'); return; }
+  const ef = data.efecto || {};
+  if (ef.tipo === 'caja' && data.premio) {
+    abrirRevelacion(nombre, data.premio); // animación de apertura
+  } else {
+    const txt = ef.tipo === 'xpBoost' ? `XP x${ef.multiplicador} durante ${ef.duracionMin} min 📈` : 'efecto activado';
+    toast(`✨ Has usado <b>${esc(nombre)}</b>: ${txt}`, 'oro');
+  }
+  actualizarOro(); // refresca el inventario
+}
+
+// Muestra el premio de una caja con animación.
+function abrirRevelacion(cajaNombre, premio) {
+  const R = rar(premio.rareza);
+  const visual = premio.imageUrl
+    ? `<img src="${esc(premio.imageUrl)}" class="rev-img" />`
+    : `<div class="rev-ph">${ICONO[premio.tipo] || '🎁'}</div>`;
+  const ov = $('#revelacion');
+  ov.style.setProperty('--rar', R.color);
+  ov.style.setProperty('--rar-glow', R.glow);
+  ov.querySelector('.rev-card').innerHTML = `
+    <p class="tech text-xs" style="color:var(--tenue)">Has abierto · ${esc(cajaNombre)}</p>
+    <div class="rev-escena">${visual}</div>
+    <span class="badge-rar" style="--rar:${R.color}">${R.label}</span>
+    <h3 class="brand text-2xl text-white mt-2">${esc(premio.nombre)}</h3>
+    <p class="tech text-[10px] mt-4" style="color:var(--tenue)">Toca para cerrar</p>`;
+  ov.classList.add('mostrar');
+}
+
+// --- CATÁLOGO ---
+async function cargarCatalogo() {
+  const token = getToken();
+  if (!token) return mostrarDeslogueado();
+  const res = await fetch(`${API}/api/portal/items`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) { $('#catalogo').innerHTML = aviso('⚠️', 'No se pudo abrir el mercado', 'Tu sesión pudo caducar. Vuelve a entrar.'); return; }
+  ITEMS = await res.json();
+  calcularDestacados();
+  poblarSelectOferta();
+  poblarContenidoCaja();
+  render();
+}
+
+function render() {
+  if (!getToken()) return;
+  const q = ($('#busqueda').value || '').toLowerCase().trim();
+  let lista = ITEMS;
+  if (filtroRareza !== 'todos' && filtroRareza !== '__admin') lista = lista.filter(i => (i.rareza || 'comun') === filtroRareza);
+  if (q) lista = lista.filter(i => (i.nombre || '').toLowerCase().includes(q) || (i.descripcion || '').toLowerCase().includes(q));
+
+  // En la vista principal, los destacados del día se muestran primero.
+  if (filtroRareza === 'todos' && !q) {
+    lista = lista.slice().sort((a, b) => (DESTACADOS.has(b._id) ? 1 : 0) - (DESTACADOS.has(a._id) ? 1 : 0));
+  }
+
+  if (!ITEMS.length) { $('#catalogo').innerHTML = aviso('📦', 'El mercado está vacío', 'El herrero aún no ha forjado nada. Entra en Admin para crear objetos.'); return; }
+  if (!lista.length) { $('#catalogo').innerHTML = aviso('🔍', 'Sin resultados', 'Prueba con otra rareza o búsqueda.'); return; }
+
+  $('#catalogo').innerHTML = lista.map((i, idx) => {
+    const R = rar(i.rareza);
+    const tieneStock = typeof i.stock === 'number';
+    const agotado = tieneStock && i.stock <= 0;
+    const qty = agotado ? 'AGOTADO' : (tieneStock ? `x${fmt(i.stock)}` : 'STOCK ∞');
+    const destacado = DESTACADOS.has(i._id);
+    const p = precioWeb(i);
+    const gema = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--rar)" stroke-width="1.6"><path d="M12 2l8 4.5v9L12 22l-8-6.5v-9L12 2z"/></svg>`;
+    const precioBloque = p.oferta
+      ? `<span class="flex flex-col leading-tight">
+           <span class="flex items-center gap-1.5"><span class="badge-oferta">-${p.porcentaje}%</span><span class="precio-tachado">${fmt(i.precio)}</span></span>
+           <span class="brand text-base text-white flex items-center gap-1.5 mt-0.5">${gema}${fmt(p.precio)}</span>
+           <span class="cuenta" data-exp="${new Date(p.expiraEn).getTime()}">⏳ --:--</span>
+         </span>`
+      : `<span class="brand text-base text-white flex items-center gap-1.5">${gema}${fmt(p.precio)}</span>`;
+    const visual = i.imageUrl
+      ? `<img src="${esc(i.imageUrl)}" style="animation-delay:${(idx % 6) * .45}s" />`
+      : `<div class="ph" style="animation-delay:${(idx % 6) * .45}s">${ICONO[i.tipo] || '📦'}</div>`;
+    return `
+    <article class="carta" style="--rar:${R.color}; --rar-glow:${R.glow}">
+      ${destacado ? '<span class="cinta">DESTACADO</span>' : ''}
+      <div class="carta-top">
+        <span class="badge-rar">${R.label}</span>
+        <span class="tipo-label">${TIPO[i.tipo] || ''}</span>
+      </div>
+      <div class="escena">
+        ${visual}
+        <span class="qty">${qty}</span>
+      </div>
+      <div class="px-4 pb-4 flex flex-col flex-1">
+        <h3 class="text-lg font-bold text-white leading-tight">${esc(i.nombre)}</h3>
+        <p class="text-sm text-[var(--tenue)] mt-1 mb-3 flex-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(i.descripcion || '')}</p>
+        <div class="flex items-center justify-between mt-auto gap-2">
+          ${precioBloque}
+          <button class="btn-comprar" ${agotado ? 'disabled' : ''}
+                  onclick='comprar(${JSON.stringify(i._id)})'>
+            ${agotado ? 'Agotado' : 'Comprar'}
+          </button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+// El nombre se busca en ITEMS (nunca se pasa por el atributo onclick, ver nota en usar()).
+async function comprar(itemId) {
+  const token = getToken();
+  if (!token) return login();
+  const nombre = (ITEMS.find(x => x._id === itemId) || {}).nombre || '';
+  const res = await fetch(`${API}/api/portal/shop/buy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ itemId, cantidad: 1 }),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    setGold(data.balance, true);
+    cargarCatalogo();  // refresca stock del mercado
+    actualizarOro();   // refresca oro + inventario (Mi mochila)
+    toast(`✨ <b>${esc(nombre)}</b> adquirido.<br><span style="opacity:.8">Saldo: ⬡ ${fmt(data.balance)} de oro.</span>`, 'oro');
+  } else {
+    toast(`❌ ${esc(data.error)}`, 'error');
+  }
+}
+
+// --- ADMIN ---
+// Sube una imagen del PC al servidor y pone su URL en el campo imageUrl.
+async function subirImagen(input, target = '#imageUrl') {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!getToken()) return toast('Inicia sesión con Discord primero.', 'error');
+  const datos = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const r = await fetch(`${API}/api/portal/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ datos }),
+  });
+  const data = await r.json();
+  if (r.ok) { $(target).value = data.url; toast('🖼️ Imagen subida correctamente.', 'ok'); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
+}
+
+$('#formItem').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const res = await fetch(`${API}/api/portal/items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(Object.fromEntries(f)),
+  });
+  const data = await res.json();
+  if (res.ok) { toast(`⚒ <b>${esc(data.item.nombre)}</b> forjado y a la venta.`, 'ok'); e.target.reset(); cargarCatalogo(); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
+});
+
+// Rellena el selector de objetos del formulario de ofertas.
+function poblarSelectOferta() {
+  const sel = $('#ofertaItem');
+  if (!sel) return;
+  sel.innerHTML = ITEMS.map(i => `<option value="${esc(i._id)}">${esc(i.nombre)} (🪙 ${fmt(i.precio)})</option>`).join('');
+}
+
+// Rellena la lista de objetos que se pueden meter en una caja (todos menos cajas).
+function poblarContenidoCaja() {
+  const cont = $('#cajaContenido');
+  if (!cont) return;
+  const candidatos = ITEMS.filter(i => !(i.efecto && i.efecto.tipo === 'caja'));
+  if (!candidatos.length) {
+    cont.innerHTML = '<p class="text-sm text-[var(--tenue)]">Crea primero algún objeto normal para poder meterlo en cajas.</p>';
+    return;
+  }
+  cont.innerHTML = candidatos.map(i => {
+    const R = rar(i.rareza);
+    return `<label class="flex items-center gap-3 py-1.5 border-b border-white/5">
+      <input type="checkbox" class="caja-check" value="${esc(i._id)}" />
+      <span class="badge-rar" style="--rar:${R.color}">${R.label}</span>
+      <span class="flex-1 text-sm">${esc(i.nombre)}</span>
+      <span class="tech text-[10px] text-[var(--tenue)]">peso</span>
+      <input type="number" min="1" value="1" class="caja-peso" data-id="${esc(i._id)}" style="width:64px" />
+    </label>`;
+  }).join('');
+}
+
+// Crear caja con su contenido.
+$('#formCaja').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const contenido = [...document.querySelectorAll('.caja-check:checked')].map(ch => ({
+    item: ch.value,
+    peso: document.querySelector(`.caja-peso[data-id="${ch.value}"]`)?.value || 1,
+  }));
+  if (!contenido.length) return toast('Marca al menos un objeto para la caja.', 'error');
+  const body = Object.fromEntries(new FormData(e.target));
+  body.contenido = contenido;
+  const res = await fetch(`${API}/api/portal/cajas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (res.ok) { toast(`🎁 Caja <b>${esc(data.item.nombre)}</b> creada.`, 'oro'); e.target.reset(); cargarCatalogo(); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
+});
+
+// Lanzar oferta relámpago (admin).
+$('#formOferta').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = $('#ofertaItem').value;
+  if (!id) return toast('No hay objetos para poner en oferta.', 'error');
+  const res = await fetch(`${API}/api/portal/items/${id}/oferta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ porcentaje: $('#ofertaPct').value, duracionMin: $('#ofertaDur').value }),
+  });
+  const data = await res.json();
+  if (res.ok) { toast(`⚡ Oferta lanzada: <b>-${data.porcentaje}%</b>`, 'oro'); cargarCatalogo(); }
+  else { toast(`❌ ${esc(data.error)}`, 'error'); }
+});
+
+// Cuenta atrás en vivo de las ofertas (actualiza cada segundo).
+function tickOfertas() {
+  let alguna = false, expirada = false;
+  document.querySelectorAll('.cuenta[data-exp]').forEach(el => {
+    alguna = true;
+    const ms = Number(el.dataset.exp) - Date.now();
+    if (ms <= 0) { el.textContent = '⏳ Oferta terminada'; expirada = true; return; }
+    const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    el.textContent = `⏳ ${h > 0 ? h + 'h ' : ''}${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  });
+  // Si una oferta acaba de caducar, recargamos una vez para refrescar precios.
+  if (alguna && expirada && Date.now() - ultimaRecarga > 5000) {
+    ultimaRecarga = Date.now();
+    if (vistaActual === 'tienda') cargarCatalogo();
+  }
+}
+setInterval(tickOfertas, 1000);
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+// Programador de tareas: un único barrido periódico que publica los anuncios
+// programados y envía los recordatorios que ya han vencido. Mismo patrón que
+// utils/autoClose.js (un setInterval que consulta la BD).
+const path = require('path');
+const AnuncioProgramado = require('../models/AnuncioProgramado.js');
+const Recordatorio = require('../models/Recordatorio.js');
+const { construirMensaje } = require('./embeds.js');
+const { barrerPremiumCaducado } = require('./billing.js');
+const EstadisticaDiaria = require('../models/EstadisticaDiaria.js');
+const RegistroMensaje = require('../models/RegistroMensaje.js');
+const ActividadUsuario = require('../models/ActividadUsuario.js');
+const Log = require('../models/Log.js');
+const Ticket = require('../models/Ticket.js');
+const Sancion = require('../models/Sancion.js');
+const ServidorConfig = require('../models/ServidorConfig.js');
+const { enviarResumen } = require('./resumenDiario.js');
+const { barrerComunidad } = require('./comunidad.js');
+const { barrerDinamicas } = require('./dinamicas.js');
+const { t } = require('./i18n.js');
+const PerfilEmpleo = require('../models/PerfilEmpleo.js');
+const { ejecutarBusquedaEmpleo, enviarResumenSemanalEmpleo } = require('./busquedaEmpleo.js');
+
+// Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
+const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
+
+// Calcula el siguiente envío de un anuncio recurrente a partir de una fecha.
+// Mensual avanza por CALENDARIO (no 30 días fijos): respeta el día del mes.
+function proximaFecha(desde, repetir) {
+    const d = new Date(desde);
+    if (repetir === 'diario') d.setUTCDate(d.getUTCDate() + 1);
+    else if (repetir === 'semanal') d.setUTCDate(d.getUTCDate() + 7);
+    else if (repetir === 'mensual') d.setUTCMonth(d.getUTCMonth() + 1);
+    else return null;
+    return d;
+}
+
+// Publica los anuncios cuya fecha ya llegó. Reprograma los recurrentes.
+async function enviarAnunciosPendientes(client) {
+    const ahora = new Date();
+    const pendientes = await AnuncioProgramado.find({ enviado: false, fechaEnvio: { $lte: ahora } });
+    for (const a of pendientes) {
+        try {
+            const canal = await client.channels.fetch(a.canalId).catch(() => null);
+            if (canal && canal.isTextBased()) {
+                const cfg = await ServidorConfig.findOne({ guildId: a.guildId }).lean().catch(() => null);
+                const payload = construirMensaje(a.contenido, a.embed, UPLOADS_DIR, cfg);
+                if (payload.content || payload.embeds) await canal.send(payload);
+            }
+        } catch (e) {
+            console.error('Error enviando anuncio programado:', e.message);
+        }
+        // Recurrente: avanza la fecha al próximo turno (saltando los perdidos). Si no, lo marca enviado.
+        if (['diario', 'semanal', 'mensual'].includes(a.repetir)) {
+            let next = proximaFecha(a.fechaEnvio, a.repetir);
+            while (next && next.getTime() <= Date.now()) next = proximaFecha(next, a.repetir);
+            a.fechaEnvio = next;
+        } else {
+            a.enviado = true;
+        }
+        await a.save().catch(() => {});
+    }
+}
+
+// Avisa de los recordatorios vencidos (en el canal, o por MD si el canal no existe).
+async function enviarRecordatoriosPendientes(client) {
+    const ahora = new Date();
+    const pendientes = await Recordatorio.find({ avisado: false, fechaAviso: { $lte: ahora } });
+    for (const r of pendientes) {
+        try {
+            const cfg = r.guildId ? await ServidorConfig.findOne({ guildId: r.guildId }).lean().catch(() => null) : null;
+            const canal = await client.channels.fetch(r.canalId).catch(() => null);
+            const texto = t(cfg,
+                `⏰ <@${r.userId}>, recordatorio: ${r.mensaje || '(sin texto)'}`,
+                `⏰ <@${r.userId}>, reminder: ${r.mensaje || '(no text)'}`);
+            if (canal && canal.isTextBased()) {
+                await canal.send({ content: texto.slice(0, 2000), allowedMentions: { users: [r.userId] } });
+            } else {
+                const user = await client.users.fetch(r.userId).catch(() => null);
+                if (user) await user.send(t(cfg, `⏰ Recordatorio: ${r.mensaje || '(sin texto)'}`, `⏰ Reminder: ${r.mensaje || '(no text)'}`)).catch(() => {});
+            }
+        } catch (e) {
+            console.error('Error enviando recordatorio:', e.message);
+        }
+        r.avisado = true;
+        await r.save().catch(() => {});
+    }
+}
+
+// Guarda/actualiza la foto diaria de cada servidor (upsert por día). Construye
+// el histórico que la analítica usa para el crecimiento de miembros.
+async function snapshotDiario(client) {
+    const ahora = new Date();
+    const inicioDia = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()));
+    const dia = inicioDia.toISOString().slice(0, 10);
+    for (const [, guild] of client.guilds.cache) {
+        try {
+            const gid = guild.id;
+            const [mensajes, entradas, salidas, ticketsAbiertos, ticketsCerrados, sanciones, activos] = await Promise.all([
+                RegistroMensaje.countDocuments({ guildId: gid, fecha: { $gte: inicioDia } }),
+                Log.countDocuments({ guildId: gid, categoria: 'Entradas', fecha: { $gte: inicioDia } }),
+                Log.countDocuments({ guildId: gid, categoria: 'Salidas', fecha: { $gte: inicioDia } }),
+                Ticket.countDocuments({ guildId: gid, fechaCreacion: { $gte: inicioDia } }),
+                Ticket.countDocuments({ guildId: gid, fechaCierre: { $gte: inicioDia } }),
+                Sancion.countDocuments({ guildId: gid, fecha: { $gte: inicioDia } }),
+                ActividadUsuario.countDocuments({ guildId: gid, ultimoMensajeFecha: { $gte: inicioDia } }),
+            ]);
+            await EstadisticaDiaria.findOneAndUpdate(
+                { guildId: gid, dia },
+                { $set: { fecha: ahora, miembros: guild.memberCount || 0, mensajes, entradas, salidas, ticketsAbiertos, ticketsCerrados, sanciones, activos } },
+                { upsert: true },
+            );
+        } catch (e) { console.error(`Snapshot de ${guild.id}:`, e.message); }
+    }
+}
+
+// Envuelve un tick para que no se solape consigo mismo: si la pasada anterior
+// sigue en marcha (DB lenta, muchos servidores...) cuando toca la siguiente,
+// esta se salta en vez de arrancar en paralelo y duplicar envíos.
+function conGuardiaDeReentrancia(nombre, fn) {
+    let ejecutando = false;
+    return async () => {
+        if (ejecutando) { console.warn(`⏱️ Programador (${nombre}): la pasada anterior seguía en marcha, se salta esta.`); return; }
+        ejecutando = true;
+        try { await fn(); } finally { ejecutando = false; }
+    };
+}
+
+// Arranca el barrido: primera pasada a los 15s, luego cada `intervaloMs` (30s).
+function iniciarProgramador(client, intervaloMs = 30 * 1000) {
+    const tick = conGuardiaDeReentrancia('principal', async () => {
+        try { await enviarAnunciosPendientes(client); } catch (e) { console.error('Programador (anuncios):', e.message); }
+        try { await enviarRecordatoriosPendientes(client); } catch (e) { console.error('Programador (recordatorios):', e.message); }
+        try { await barrerComunidad(client); } catch (e) { console.error('Programador (comunidad):', e.message); }
+        try { await barrerDinamicas(client); } catch (e) { console.error('Programador (dinámicas):', e.message); }
+    });
+    setTimeout(tick, 15 * 1000);
+    setInterval(tick, intervaloMs);
+
+    // Red de seguridad: devuelve a Free los servidores con premium caducado (cada hora).
+    const tickPremium = conGuardiaDeReentrancia('premium', async () => {
+        try {
+            const n = await barrerPremiumCaducado(client);
+            if (n) console.log(`⏳ Premium caducado en ${n} servidor(es) -> Free.`);
+        } catch (e) { console.error('Barrido de premium:', e.message); }
+    });
+    setTimeout(tickPremium, 20 * 1000);
+    setInterval(tickPremium, 60 * 60 * 1000);
+
+    // Foto diaria de cada servidor: primera a los 30s, luego cada 6h (upsert por día).
+    const tickSnapshot = conGuardiaDeReentrancia('snapshot', async () => {
+        try { await snapshotDiario(client); } catch (e) { console.error('Snapshot diario:', e.message); }
+    });
+    setTimeout(tickSnapshot, 30 * 1000);
+    setInterval(tickSnapshot, 6 * 60 * 60 * 1000);
+
+    // Briefing diario: cada 30 min mira qué servidores tienen el resumen activo,
+    // ha llegado su hora (UTC) y no se ha enviado hoy.
+    const tickResumen = conGuardiaDeReentrancia('resumen', async () => {
+        try {
+            const hoy = new Date().toISOString().slice(0, 10);
+            const horaAhora = new Date().getUTCHours();
+            const configs = await ServidorConfig.find({ 'resumenDiario.activo': true }).select('guildId resumenDiario');
+            for (const cfg of configs) {
+                const rd = cfg.resumenDiario || {};
+                if (rd.lastDia === hoy) continue;            // ya enviado hoy
+                if (horaAhora < (rd.hora || 9)) continue;     // aún no es su hora
+                try { await enviarResumen(client, cfg.guildId, {}); }
+                catch (e) { console.error(`Resumen diario ${cfg.guildId}:`, e.message); }
+            }
+        } catch (e) { console.error('Barrido de resúmenes:', e.message); }
+    });
+    setTimeout(tickResumen, 45 * 1000);
+    setInterval(tickResumen, 30 * 60 * 1000);
+
+    // Búsqueda de empleo automática (solo OWNER_IDS, ver slash/cv.js): cada 30 min
+    // mira qué propietarios tienen el barrido diario activo, ha llegado su hora
+    // (UTC) y no se ha ejecutado hoy. El lock enEjecucion (en ejecutarBusquedaEmpleo)
+    // evita que coincida con una búsqueda manual en curso.
+    const tickBusquedaEmpleo = conGuardiaDeReentrancia('busquedaEmpleo', async () => {
+        try {
+            const hoy = new Date().toISOString().slice(0, 10);
+            const horaAhora = new Date().getUTCHours();
+            const perfiles = await PerfilEmpleo.find({ 'busquedaAuto.activo': true }).select('discordId busquedaAuto');
+            for (const perfil of perfiles) {
+                const ba = perfil.busquedaAuto || {};
+                if (ba.lastDia === hoy) continue;
+                if (horaAhora < (ba.hora ?? 9)) continue;
+                try {
+                    await ejecutarBusquedaEmpleo(client, { discordId: perfil.discordId, puesto: ba.puesto, ubicacion: ba.ubicacion });
+                } catch (e) { console.error(`Búsqueda de empleo diaria (${perfil.discordId}):`, e.message); }
+                await PerfilEmpleo.updateOne({ discordId: perfil.discordId }, { $set: { 'busquedaAuto.lastDia': hoy } });
+            }
+        } catch (e) { console.error('Barrido de búsqueda de empleo:', e.message); }
+    });
+    setTimeout(tickBusquedaEmpleo, 60 * 1000);
+    setInterval(tickBusquedaEmpleo, 30 * 60 * 1000);
+
+    // Resumen semanal de búsqueda de empleo: los lunes, a la misma hora que el
+    // barrido diario, aunque esa semana no haya salido ninguna oferta nueva
+    // (el aviso diario ya cubre cada ejecución individual; este es el agregado).
+    const tickResumenSemanalEmpleo = conGuardiaDeReentrancia('resumenSemanalEmpleo', async () => {
+        try {
+            const hoy = new Date().toISOString().slice(0, 10);
+            const horaAhora = new Date().getUTCHours();
+            const esLunes = new Date().getUTCDay() === 1;
+            if (!esLunes) return;
+            const perfiles = await PerfilEmpleo.find({ 'busquedaAuto.activo': true }).select('discordId busquedaAuto');
+            for (const perfil of perfiles) {
+                const ba = perfil.busquedaAuto || {};
+                if (ba.lastSemana === hoy) continue;
+                if (horaAhora < (ba.hora ?? 9)) continue;
+                try { await enviarResumenSemanalEmpleo(client, perfil.discordId); }
+                catch (e) { console.error(`Resumen semanal de empleo (${perfil.discordId}):`, e.message); }
+                await PerfilEmpleo.updateOne({ discordId: perfil.discordId }, { $set: { 'busquedaAuto.lastSemana': hoy } });
+            }
+        } catch (e) { console.error('Barrido de resumen semanal de empleo:', e.message); }
+    });
+    setTimeout(tickResumenSemanalEmpleo, 75 * 1000);
+    setInterval(tickResumenSemanalEmpleo, 30 * 60 * 1000);
+}
+
+module.exports = { iniciarProgramador, enviarAnunciosPendientes, enviarRecordatoriosPendientes };

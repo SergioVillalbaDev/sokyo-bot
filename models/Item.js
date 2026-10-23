@@ -1,0 +1,49 @@
+const mongoose = require('mongoose');
+
+// Una entrada del contenido de una caja: qué objeto puede soltar y con qué peso
+// (probabilidad relativa: a mayor peso, más a menudo sale).
+const ContenidoCajaSchema = new mongoose.Schema({
+    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
+    peso: { type: Number, default: 1, min: 1 },
+}, { _id: false });
+
+// Un objeto del catálogo de la tienda.
+const ItemSchema = new mongoose.Schema({
+    // Identificador "legible" y único (ej: "pocion_vida"). Útil para referenciarlo
+    // a mano o desde comandos. NO es el _id de Mongo (ese sigue existiendo aparte).
+    itemId: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    nombre: { type: String, required: true, trim: true },
+    descripcion: { type: String, default: '' },
+    precio: { type: Number, required: true, min: 0 }, // en "oro"
+    imageUrl: { type: String, default: null },
+    // Limitamos el tipo con enum: la BD rechaza valores no válidos por nosotros.
+    tipo: { type: String, enum: ['consumible', 'equipo', 'material'], default: 'material' },
+    // Rareza (para el filtrado y el color de la carta en la tienda).
+    rareza: { type: String, enum: ['comun', 'raro', 'epico', 'legendario'], default: 'comun' },
+    // Unidades disponibles. null = ilimitado (STOCK ∞). Si llega a 0, se agota.
+    stock: { type: Number, default: null, min: 0 },
+    // Efecto al USAR el objeto (Fase 2). 'ninguno' = objeto decorativo/coleccionable.
+    //  · xpBoost → multiplica tu XP durante `duracionMin` (efecto global).
+    //  · rol     → te da el rol `rolId` durante `duracionMin` (se usa en un servidor).
+    efecto: {
+        tipo: { type: String, enum: ['ninguno', 'xpBoost', 'rol', 'caja'], default: 'ninguno' },
+        multiplicador: { type: Number, default: 2 }, // para xpBoost (x2, x3…)
+        duracionMin: { type: Number, default: 60 },  // para xpBoost y rol
+        rolId: { type: String, default: null },       // para rol (id del rol de Discord)
+    },
+    // Oferta relámpago: descuento temporal. Activa mientras expiraEn esté en el futuro.
+    oferta: {
+        porcentaje: { type: Number, default: 0, min: 0, max: 100 },
+        expiraEn: { type: Date, default: null },
+    },
+    // Contenido de una CAJA (solo si efecto.tipo === 'caja'): los objetos que puede
+    // soltar, cada uno con su peso. La caja sortea SOLO entre estos.
+    contenido: { type: [ContenidoCajaSchema], default: [] },
+    // "Activo en tienda": el borrado lógico. Nunca borramos un ítem que alguien
+    // ya tiene en su inventario; lo desactivamos (activo: false) y deja de venderse.
+    activo: { type: Boolean, default: true },
+    // Quién creó el objeto (discordId). Para el futuro MMO: "mis objetos", permisos…
+    creadorId: { type: String, default: null },
+}, { timestamps: true });
+
+module.exports = mongoose.model('Item', ItemSchema);

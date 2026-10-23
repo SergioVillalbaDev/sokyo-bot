@@ -1,55 +1,77 @@
 const { Events, ActivityType } = require('discord.js');
-const Ticket = require('../models/Ticket.js');
-const { obtenerConfig } = require('../utils/config.js');
-const { cargarCanalesTicket } = require('../utils/ticketCache.js');
-const { marcarCanalEliminado } = require('../utils/ticketManager.js');
-const { anunciarActualizacion } = require('../utils/anuncioActualizacion.js');
+const { iniciarAutoCierre } = require('../utils/autoClose.js');
+const { iniciarProgramador } = require('../utils/scheduler.js');
+const { barrerRolesTemporales } = require('../utils/rolePanelManager.js');
+const { barrerSancionesVencidas } = require('../utils/moderationManager.js');
+const { registrarVoz } = require('../utils/actividad.js');
+const { otorgarXpVoz } = require('../utils/niveles.js');
+const { getConfigCached } = require('../utils/config.js');
+const { barrerCanales: barrerCanalesVoz } = require('../utils/vozTemporal.js');
 
 module.exports = {
     name: Events.ClientReady,
     once: true,
-    async execute(client) {
-        console.log(`🚀 Bienvenidos a la órbita. Conectado como ${client.user.tag} en ${client.guilds.cache.size} servidor(es).`);
+    execute(client) {
+        console.log(`🚀 Bienvenidos a la órbita. Logged in as ${client.user.tag}!`);
 
-        client.user.setPresence({
-            activities: [{ name: '🎫 tickets de soporte · /ayuda', type: ActivityType.Watching }],
-            status: 'online'
-        });
+        // Estado rotativo: cada vistazo a la lista de miembros muestra un gancho distinto
+        // (ticket, moderación, niveles, música, economía, posicionamiento) en vez de
+        // anclarse solo a tickets. Sin contador de servidores: con pocos, resta más de lo que suma.
+        const presencias = [
+            () => ({ name: '🎫 Support Tickets', type: ActivityType.Watching }),
+            () => ({ name: '🛡️ Your Server 24/7', type: ActivityType.Watching }),
+            () => ({ name: '📈 XP Roll In', type: ActivityType.Watching }),
+            () => ({ name: '🎧 Lofi & Bangers', type: ActivityType.Listening }),
+            () => ({ name: '🎉 Giveaways & Polls', type: ActivityType.Watching }),
+            () => ({ name: '🤖 5 Bots, 1 Brain', type: ActivityType.Watching }),
+        ];
+        let presenciaIdx = 0;
+        const rotarPresencia = () => {
+            client.user.setPresence({ activities: [presencias[presenciaIdx % presencias.length]()], status: 'online' });
+            presenciaIdx++;
+        };
+        rotarPresencia();
+        setInterval(rotarPresencia, 25000);
 
-        // 1. Registrar los slash commands. Con GUILD_ID_DEV se registran solo en ese servidor
-        //    (aparecen al instante, ideal para pruebas); si no, de forma global.
-        try {
-            const definiciones = client.commands.map(c => c.data.toJSON());
-            const servidorDev = process.env.GUILD_ID_DEV && client.guilds.cache.get(process.env.GUILD_ID_DEV);
-            if (servidorDev) await servidorDev.commands.set(definiciones);
-            else await client.application.commands.set(definiciones);
-            console.log(`✅ Slash commands registrados ${servidorDev ? `en ${servidorDev.name}` : 'globalmente'}.`);
-        } catch (error) {
-            console.error('❌ No se pudieron registrar los slash commands:', error.message);
-        }
+        // Arranca el barrido de auto-cierre por inactividad (configurable por servidor).
+        iniciarAutoCierre(client);
 
-        // 2. Asegurar que todos los servidores tienen configuración (el panel la necesita).
+        // Arranca el programador de anuncios programados y recordatorios.
+        iniciarProgramador(client);
+
+        // Barrido de roles temporales vencidos (cada 60 s).
+        setInterval(() => barrerRolesTemporales(client).catch((e) => console.error('Barrido temporales:', e.message)), 60000);
+
+        // Barrido de bans temporales vencidos (cada 60 s).
+        setInterval(() => barrerSancionesVencidas(client).catch((e) => console.error('Barrido sanciones:', e.message)), 60000);
+
+        // Limpieza de canales de voz temporales huérfanos/vacíos al arrancar.
+        barrerCanalesVoz(client).catch((e) => console.error('Barrido voz temporal:', e.message));
+
+        // XP por voz: cada minuto, a quien esté en un canal de voz (acompañado).
+        setInterval(async () => {
+            for (const guild of client.guilds.cache.values()) {
+                try {
+                    const cfg = await getConfigCached(guild.id);
+                    if (!cfg?.nivelesActivo || !cfg.xpVozActivo) continue;
+                    for (const vs of guild.voiceStates.cache.values()) {
+                        if (!vs.channelId || !vs.member || vs.member.user.bot) continue;
+                        const canal = guild.channels.cache.get(vs.channelId);
+                        const humanos = canal ? canal.members.filter((m) => !m.user.bot).size : 0;
+                        if (humanos < 2) continue; // no XP si está solo
+                        await otorgarXpVoz(vs.member, cfg).catch(() => {});
+                    }
+                } catch (e) { console.error('Error en XP de voz:', e.message); }
+            }
+        }, 60000);
+
+        // Registrar a quien YA esté en voz al arrancar (los eventos solo capturan cambios futuros).
         for (const guild of client.guilds.cache.values()) {
-            await obtenerConfig(guild.id).catch(e => console.error(`Config de ${guild.name}:`, e.message));
-        }
-
-        // 3. Tickets cuyos canales se borraron mientras el bot estaba apagado.
-        //    Ignoramos servidores no disponibles (caída de Discord): llegan sin canales.
-        const guildIds = client.guilds.cache.filter(g => g.available).map(g => g.id);
-        const tickets = await Ticket.find({ guildId: { $in: guildIds }, canalEliminado: { $ne: true } }).select('canalId guildId').lean();
-        let huerfanos = 0;
-        for (const { canalId, guildId } of tickets) {
-            if (!client.guilds.cache.get(guildId).channels.cache.has(canalId)) {
-                await marcarCanalEliminado(client, canalId, 'Canal eliminado (bot desconectado)');
-                huerfanos++;
+            for (const vs of guild.voiceStates.cache.values()) {
+                if (vs.channelId && vs.member && !vs.member.user.bot) {
+                    registrarVoz(guild.id, vs.member, vs.channelId).catch(() => {});
+                }
             }
         }
-        if (huerfanos) console.log(`🧹 ${huerfanos} ticket(s) marcados como cerrados porque su canal ya no existe.`);
-
-        const total = await cargarCanalesTicket();
-        console.log(`🎫 ${total} canales de ticket en seguimiento.`);
-
-        // 4. "Bot actualizado": en segundo plano, solo la primera vez que arranca esta versión.
-        anunciarActualizacion(client).catch(e => console.error('📣 Aviso de actualización:', e));
-    }
+    },
 };

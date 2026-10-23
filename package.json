@@ -1,25 +1,35 @@
 {
   "name": "sokyo-bot",
-  "version": "2.0.0",
-  "description": "Bot de Discord de tickets de soporte con panel web de staff y portal de clientes",
+  "version": "1.0.0",
+  "description": "",
   "main": "index.js",
   "scripts": {
+    "test": "node --test \"test/*.test.js\"",
     "start": "node index.js",
-    "dev": "node --watch index.js",
-    "test": "node tests/api.test.js && node tests/discord.test.js"
+    "lavalink": "node scripts/lavalink.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.105.0",
+    "@napi-rs/canvas": "^1.0.0",
     "cors": "^2.8.6",
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mongoose": "^9.6.3"
-  },
-  "engines": {
-    "node": ">=20.19"
+    "express-rate-limit": "^8.5.2",
+    "gifenc": "^1.0.3",
+    "helmet": "^8.2.0",
+    "lavalink-client": "^2.10.3",
+    "mammoth": "^1.8.0",
+    "mongoose": "^9.6.3",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.19.1",
+    "puppeteer-core": "^23.11.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "stripe": "^22.2.2"
   }
 }

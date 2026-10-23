@@ -1,198 +1,236 @@
 # 🤖 Sokyo Bot
 
-Bot de Discord de **tickets de soporte** con **panel web para el staff** y **portal para los usuarios**,
-todo en español y con marca blanca (textos, colores y categorías personalizables).
-
-- 🎫 **Tickets en Discord**: botón «Abrir Ticket» → formulario (categoría, asunto y descripción) → canal privado numerado (`ticket-0001-usuario`).
-- 🛡️ **Gestión del staff**: reclamar/liberar, añadir/quitar personas, cambiar prioridad, cerrar con motivo, reabrir, transcript y eliminar canal.
-- 📊 **Panel web**: resumen con métricas (tiempo de primera respuesta, resolución, satisfacción), lista de tickets con filtros y búsqueda, chat en vivo con el usuario, notas internas, auditoría y configuración completa.
-- 🙋 **Portal de clientes**: cada usuario entra con Discord, ve sus tickets, abre nuevos, responde, los cierra y los valora.
-- ⭐ **Valoraciones**: al cerrar, el usuario recibe por DM un resumen, la conversación y estrellas para puntuar (con comentario opcional).
-- 📜 **Auditoría**: mensajes editados/borrados, entradas/salidas (con aviso de cuentas recién creadas) y todo el ciclo de vida de los tickets, también publicable en un canal.
+Bot de Discord **todo en uno** (tickets, moderación, niveles, verificación, anuncios e IA)
+con un **panel web** de administración (React + Vite) y un **portal de cliente** con login de
+Discord. El bot expone una **API REST** (Express) que el panel consume, guarda todo en
+**MongoDB** e integra **Claude (Anthropic)** para asistencia con IA y **Stripe** para los planes
+de suscripción.
 
 ```
 sokyo-bot/
-├── index.js               # Arranque: comandos, eventos, MongoDB, API y Discord
-├── api/                   # API REST (Express) que usan el panel y el portal
-│   ├── server.js          #   login con Discord (OAuth2), sesiones y errores
-│   ├── staff.js           #   rutas del panel del staff (/api/servidores/:id/...)
-│   ├── portal.js          #   rutas del portal de clientes (/api/portal/...)
-│   ├── middleware.js      #   autenticación, permisos de staff y limitador
-│   └── validacion.js      #   validación de la configuración
-├── comandos/              # Slash commands (/panel, /ticket, /config, ...)
-├── events/                # Eventos de Discord (interacciones, mensajes, miembros...)
-├── interacciones/         # Botones, menús y formularios de los tickets
-├── models/                # Esquemas de MongoDB (Ticket, Mensaje, Log, ServidorConfig)
-├── utils/                 # Lógica compartida (ticketManager, transcripts, estadísticas...)
-├── tests/                 # Pruebas de la API y de los flujos de Discord
-└── sokyo-panelFRONTEND/   # Panel del staff y portal de clientes (React + Vite)
+├── index.js              # Arranque del bot (carga comandos, eventos y API)
+├── api/server.js         # API REST + portal de cliente (OAuth Discord) + webhook Stripe
+├── comandos/             # Comandos por prefijo "!"
+├── events/               # Eventos de Discord (mensajes, miembros, reacciones, voz...)
+├── models/               # Esquemas de MongoDB (Ticket, Sancion, ServidorConfig...)
+├── utils/                # Lógica compartida (tickets, automod, niveles, IA, billing...)
+└── sokyo-panelFRONTEND/  # Panel web de administración (React + Vite, ES/EN)
 ```
 
 ---
 
-## ✅ Requisitos
+## ✨ Funcionalidades
 
-- **[Node.js](https://nodejs.org/) 20.19 o superior** (recomendado 22 LTS). Con Node 18 no funciona.
-- **MongoDB**: local o gratis en [MongoDB Atlas](https://www.mongodb.com/atlas).
-- **Una aplicación de Discord** en el [Developer Portal](https://discord.com/developers/applications).
+### 🎫 Tickets de soporte
+- Panel con botón **📩 Abrir Ticket**, categorías y formularios (modales).
+- Cierre/reapertura, notas internas, logs por ticket y **auto-cierre por inactividad**.
+- Gestión completa desde el panel web (ver conversación, responder).
+- **Asistente IA opcional** en tickets (Claude) con cuota mensual por servidor.
+
+### 🛡️ Moderación
+- Comandos: `!ban`, `!unban`, `!kick`, `!timeout`, `!warn`, `!sancion`, `!historial`.
+- Sistema de **sanciones** con tipos configurables y registro persistente.
+- **Automod** (filtros de contenido) y **Anti-Raid**.
+
+### ✅ Verificación y acceso
+- **Captcha**, verificación de miembros y **onboarding** de nuevos usuarios.
+- Paneles de verificación por botón.
+
+### 🎭 Roles
+- **Paneles de roles** (botones y menús desplegables) y **auto-rol**.
+- **Roles temporales** (con expiración automática).
+- Roles por reacción.
+
+### 📊 Niveles y actividad
+- Sistema de **XP/niveles** (`!xp`, `!nivel`, `!ranking`).
+- **Tarjetas de rango** personalizables (canvas) con estilos y fuentes.
+- Seguimiento de actividad de **mensajes y voz**.
+
+### 🚨 Reportes
+- Comando `!reportar` + gestión de reportes/incidencias desde el panel.
+
+### 📢 Anuncios y comunicación
+- **Anuncios programados** y **Difusión** (a un servidor o a TODOS los del bot, solo IDs autorizadas).
+- **Creador de anuncios/embeds** con presets reutilizables y previsualización de Markdown.
+- **Auto-respuestas** (expresiones/macros configurables).
+- **Recordatorios** (`!remind`).
+
+### 🎵 Música
+- Reproductor de voz con **Lavalink**: `/play` (URL de **YouTube/Spotify** o búsqueda por nombre),
+  `/skip`, `/stop`, `/queue`, `/nowplaying`, `/pause`, `/resume`, `/volume`.
+- Cola por servidor, anuncio de "reproduciendo ahora" y **salida automática** del canal
+  al quedarse vacío o sin canciones.
+- **Spotify** (canciones, álbumes y playlists) y **YouTube** funcionan de fábrica:
+  Spotify aporta solo los títulos (legal) y el audio sale de YouTube.
+
+### 🧠 IA y analítica
+- Integración con **Claude** para auditoría/analítica e IA en tickets.
+- **Resumen diario** automático, estadísticas diarias y vista de analítica.
+
+### 💳 Planes y facturación
+- Planes **Free · Pro · Agencia** con **Stripe** (mensual/anual/de por vida).
+- Cuotas por plan (p. ej. usos de IA: Free 5 · Pro 150 · Agencia 1500 al mes).
+- Sin Stripe configurado, el bot funciona igual y los planes se activan a mano.
+
+### ⚙️ Otros comandos
+`!ping`, `!dado`, `!moneda`, `!emoji`, `!sticker`, `!user`, `!actividad`, `!setup`,
+`!setupSoporte`, `!rol`.
+
+### 🌐 Panel web + portal de cliente
+- Panel de administración con ~30 vistas (Tickets, Logs, Usuarios, Roles, Automod,
+  Verificación, Sanciones, Anuncios, Embeds, Analítica, Planes, Resumen, Backup...).
+- **Portal de cliente** con login de Discord (OAuth2).
+- Soporte **multi-idioma** (Español / Inglés).
 
 ---
 
-## 🚀 Puesta en marcha
+## ✅ Requisitos previos
 
-### 1. Instalar dependencias
+- **[Node.js](https://nodejs.org/)** 18 o superior (incluye `npm`).
+- **Una base de datos MongoDB** (gratis en [MongoDB Atlas](https://www.mongodb.com/atlas), te da una cadena `mongodb+srv://...`).
+- **Una aplicación de bot de Discord** en el [Developer Portal](https://discord.com/developers/applications) (de ahí sacas el *token*).
+- *(Opcional)* Cuenta de **[Stripe](https://dashboard.stripe.com)** para los pagos.
+- *(Opcional)* Clave de **[Anthropic](https://console.anthropic.com)** para el asistente IA.
+
+---
+
+## 🚀 Puesta en marcha (paso a paso)
+
+### 1. Clonar el repositorio
 ```bash
 git clone https://github.com/SergioVillalbaDev/sokyo-bot.git
 cd sokyo-bot
+```
+
+### 2. Instalar dependencias
+Hay que instalar las del **bot** y las del **panel** por separado:
+```bash
+# Dependencias del bot (en la raíz)
 npm install
-cd sokyo-panelFRONTEND && npm install && cd ..
-```
 
-### 2. Configurar la aplicación de Discord
-En el [Developer Portal](https://discord.com/developers/applications) → tu aplicación:
-
-1. **Bot** → copia el token (*Reset Token*) y activa estos *Privileged Gateway Intents*:
-   - ✅ **Server Members Intent**
-   - ✅ **Message Content Intent**
-2. **OAuth2** → copia el *Client ID* y el *Client Secret*, y en **Redirects** añade exactamente
-   `http://localhost:3000/api/auth/discord/callback` (o la URL pública de tu API).
-3. **Invita al bot** a tu servidor con este enlace (cambia `TU_CLIENT_ID`):
-   ```
-   https://discord.com/oauth2/authorize?client_id=TU_CLIENT_ID&scope=bot+applications.commands&permissions=268692496
-   ```
-   Incluye los permisos que necesita: ver canales, enviar mensajes, insertar enlaces, adjuntar archivos,
-   leer el historial, gestionar mensajes, **gestionar canales**, **gestionar roles** y mencionar roles.
-
-### 3. Variables de entorno
-```bash
-cp .env.example .env                                              # Windows: copy .env.example .env
-cp sokyo-panelFRONTEND/.env.example sokyo-panelFRONTEND/.env      # Windows: copy ...
-```
-Rellena el `.env` del bot (cada variable está explicada en `.env.example`):
-
-| Variable | Para qué sirve |
-|---|---|
-| `MONGO_URI` | Conexión a MongoDB **(obligatoria)** |
-| `DISCORD_TOKEN` | Token del bot **(obligatoria)** |
-| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | Login con Discord en el panel y el portal |
-| `OAUTH_REDIRECT_URI` | Debe coincidir con el *Redirect* de OAuth2 |
-| `FRONTEND_URL` | Dónde se abre el panel (a dónde vuelve el login) |
-| `JWT_SECRET` | Secreto largo y aleatorio para firmar las sesiones |
-| `API_KEY` | *(Opcional)* clave de administrador para entrar sin Discord |
-| `GUILD_ID_DEV` | *(Opcional)* registra los comandos solo en ese servidor, al instante |
-| `ANUNCIO_SERVIDOR` | *(Opcional)* servidor al que avisar de «Bot actualizado» (por defecto `Tokyto`) |
-
-En `sokyo-panelFRONTEND/.env` solo hay que poner `VITE_API_URL` (la URL de la API del bot).
-Si abres el panel desde otro dispositivo de la red, usa la IP del equipo del bot (`http://192.168.1.50:3000`).
-
-> 🔑 Genera secretos con: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-
-### 4. Arrancar
-```bash
-npm start                      # Terminal 1: el bot y la API
+# Dependencias del panel web
 cd sokyo-panelFRONTEND
-npm run dev                    # Terminal 2: el panel web → http://localhost:5173
-```
-Deberías ver en la terminal del bot:
-```
-✅ 8 comandos cargados: /ayuda, /config, /dado, /estadisticas, /moneda, /panel, /ticket, /usuario
-🟢 Conectado a MongoDB
-🌐 API escuchando en el puerto 3000
-🚀 Bienvenidos a la órbita. Conectado como TuBot#0000 en 1 servidor(es).
-✅ Slash commands registrados globalmente.
+npm install
+cd ..
 ```
 
-### 5. Primeros pasos en Discord
-1. `/config rol-staff rol:@Soporte` → el rol que atenderá los tickets (o hazlo desde el panel web).
-2. `/config categoria` → (opcional) categoría donde se crean los tickets.
-3. `/panel` en el canal de soporte → publica el mensaje con el botón **📩 Abrir Ticket**.
+### 3. Configurar las variables de entorno
 
----
+Hay dos archivos `.env` (NO se suben a git). Cópialos desde las plantillas `.env.example`:
 
-## 💬 Comandos
-
-| Comando | Quién | Qué hace |
-|---|---|---|
-| `/panel [canal]` | Admins | Publica el panel de soporte |
-| `/config ver · rol-staff · categoria · transcripts · logs · limite` | Admins | Configuración rápida desde Discord |
-| `/ticket cerrar [motivo]` | Creador o staff | Cierra el ticket del canal |
-| `/ticket reclamar · liberar · reabrir · prioridad` | Staff | Gestión del ticket |
-| `/ticket agregar · quitar` | Staff | Añadir o quitar personas del ticket |
-| `/ticket transcript` | Creador o staff | Descarga la conversación en HTML |
-| `/usuario [@usuario]` | Todos (otros: staff) | Historial de soporte |
-| `/estadisticas` | Staff | Resumen del soporte del servidor |
-| `/ayuda` · `/dado` · `/moneda` | Todos | Ayuda y diversión |
-
-Los botones de cada ticket hacen lo mismo sin escribir comandos. Al cerrarse, el ticket pasa a
-**🗄️ Tickets Archivados** en solo lectura y sus botones cambian a *Reabrir / Transcript / Eliminar canal*.
-
----
-
-## 🖥️ Panel web y portal
-
-Ambos están en la misma web (`http://localhost:5173`). Al entrar con Discord:
-
-- Si eres **staff** de algún servidor del bot (administrador, gestor de canales o con un rol de staff)
-  entras al **panel**: resumen, tickets, usuarios, auditoría y configuración. Si estás en varios servidores
-  puedes cambiar entre ellos en la barra lateral.
-- Si no, entras al **portal**, donde ves y gestionas solo tus tickets. El staff también puede abrir
-  su portal desde «Mis tickets como usuario».
-- Con `API_KEY` configurada aparece «Acceso de administrador con clave» (acceso completo sin Discord).
-
-Desde **Configuración** se editan las categorías y urgencias, los textos y colores del panel (con vista
-previa en vivo; el panel ya publicado en Discord se actualiza solo), los roles de staff, los canales de
-transcripts y auditoría, el límite de tickets por usuario y los módulos (encuesta, DM, avisos, auditoría).
-
----
-
-## 📣 Aviso «Bot actualizado»
-
-La primera vez que el bot arranca con una **versión nueva** (el campo `version` de `package.json`),
-manda el mensaje **«Bot actualizado»** a los miembros del servidor indicado en `ANUNCIO_SERVIDOR`:
-
-1. Por **privado** a cada miembro (sin bots), con una pausa entre mensajes para no parecer spam.
-2. Si a alguien no le llega (DMs cerrados), lo publica también en el canal **general**
-   (o en el canal de sistema / el primer canal donde pueda escribir).
-
-Se envía **una sola vez por versión** (queda guardado en la base de datos, así que reiniciar no lo repite)
-y queda registrado en la **Auditoría** del panel. Para volver a avisar en el futuro, sube la versión en
-`package.json` (p. ej. `2.0.0` → `2.1.0`). Con servidores de más de `ANUNCIO_MAX_DMS` miembros solo se
-publica en el general, porque Discord penaliza a los bots que mandan el mismo DM a mucha gente.
-
----
-
-## 🔄 Si vienes de la versión anterior
-
-- Los comandos con `!` pasan a ser **slash commands** (`!sokyo` → `/panel`, `!user` → `/usuario`...).
-  Si alguien escribe el comando antiguo, el bot le indica el nuevo.
-- Los paneles y tickets ya publicados en Discord **siguen funcionando**; los tickets antiguos se
-  actualizan al nuevo formato la primera vez que se pulsa uno de sus botones.
-- El panel ya **no usa `VITE_API_KEY`** (quedaba visible en el navegador): el staff entra con Discord.
-  Puedes borrar esa variable del `.env` del panel.
-- Requiere **Node.js 20.19+**.
-
----
-
-## 🧪 Pruebas
-Con un MongoDB accesible (por defecto `mongodb://127.0.0.1:27017`, configurable con `MONGO_URI_TEST`):
 ```bash
-npm test                       # API (84 comprobaciones) y flujos de Discord (56) con un Discord simulado
-cd sokyo-panelFRONTEND && npm run lint && npm run build
+# Bot
+copy .env.example .env                                  # Windows
+# cp .env.example .env                                  # macOS/Linux
+
+# Panel
+copy sokyo-panelFRONTEND\.env.example sokyo-panelFRONTEND\.env   # Windows
+# cp sokyo-panelFRONTEND/.env.example sokyo-panelFRONTEND/.env   # macOS/Linux
 ```
+
+**`.env` del bot** — los valores **obligatorios** son:
+```env
+MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/SokyoDB
+DISCORD_TOKEN=tu_token_de_discord
+PORT=3000
+API_KEY=una-clave-larga-y-aleatoria
+```
+
+El resto son **opcionales** y están explicados con detalle dentro de `.env.example`:
+- **Portal de cliente (OAuth):** `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `OAUTH_REDIRECT_URI`, `FRONTEND_URL`, `JWT_SECRET`.
+- **Propietarios y difusión:** `OWNER_IDS` (ven todos los servidores/tickets), `BROADCAST_IDS` (pueden usar la Difusión).
+- **Pagos (Stripe):** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y los `STRIPE_PRICE_*` de cada plan.
+- **Asistente IA (Claude):** `ANTHROPIC_API_KEY` y, opcional, `ANTHROPIC_MODEL`.
+
+> Si dejas vacías las claves de Stripe o de Anthropic, esas funciones quedan **desactivadas**
+> y el bot funciona igual.
+
+**`sokyo-panelFRONTEND/.env`** — la clave debe ser **la misma** que `API_KEY`:
+```env
+VITE_API_URL=http://localhost:3000
+VITE_API_KEY=una-clave-larga-y-aleatoria
+```
+
+> 🔑 `API_KEY` (bot) y `VITE_API_KEY` (panel) **deben coincidir exactamente**. Es la que
+> protege la API. Puedes generar una con:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
+> Si el panel se abre desde **otro dispositivo** de la red, pon en `VITE_API_URL` la IP del
+> PC donde corre el bot (p. ej. `http://192.168.1.50:3000`). Si es el **mismo PC**, deja `localhost`.
+
+### 4. Activar los *Intents* del bot en Discord
+
+En el [Developer Portal](https://discord.com/developers/applications) → tu aplicación → pestaña **Bot**,
+activa estos *Privileged Gateway Intents* (si no, el bot **no arranca**):
+
+- ✅ **Message Content Intent**
+- ✅ **Server Members Intent**
+
+> El bot usa además los intents de mensajes, reacciones y estados de voz (para roles por
+> reacción, logs y registro de actividad de voz).
+
+### 5. Arrancar
+
+Necesitas **tres terminales abiertas a la vez** (la de música es opcional si no la usas):
+
+```bash
+# Terminal 1 — servidor de música Lavalink (déjala abierta)
+npm run lavalink
+```
+Espera a ver `Lavalink is ready to accept connections`. La primera vez descarga
+los plugins (YouTube y Spotify), así que tarda un poco más.
+
+```bash
+# Terminal 2 — el bot (déjala abierta)
+npm start
+```
+Deberías ver:
+```
+🌐 API corriendo en puerto 3000
+🟢 Conectado a MongoDB
+🎵 Lavalink conectado (nodo: sokyo-node)
+🚀 Logged in as TuBot#0000!
+```
+
+```bash
+# Terminal 3 — el panel web
+cd sokyo-panelFRONTEND
+npm run dev
+```
+
+> 🎵 **Música:** necesitas **Java 17+** instalado (para Lavalink). Las URLs de
+> **YouTube y Spotify** (canciones, álbumes y playlists) funcionan sin configurar
+> nada: `npm run lavalink` arranca Lavalink **y** un pequeño servidor de tokens de
+> Spotify (carpeta `spotify-tokener`) a la vez. La primera vez instala sus
+> dependencias con `cd spotify-tokener && npm install`.
+Abre la URL que indica Vite (normalmente <http://localhost:5173>).
+
+> ⚠️ El bot debe estar **encendido** para que el panel cargue datos. Si cierras su terminal,
+> el panel mostrará un error de conexión.
 
 ---
 
-## 🛠️ Solución de problemas
+## 🎫 Uso básico
 
-| Síntoma | Causa probable |
-|---|---|
-| `Used disallowed intents` al arrancar | Activa los dos *Privileged Gateway Intents* del paso 2 |
-| No aparecen los slash commands | Los globales pueden tardar un poco: usa `GUILD_ID_DEV` para pruebas |
-| «Me faltan permisos…» al abrir un ticket | El bot necesita *Gestionar canales* y *Gestionar roles* (vuelve a invitarlo con el enlace) |
-| El staff no ve los tickets | Añade su rol en `/config rol-staff` o en *Ajustes generales* |
-| El login con Discord vuelve con error | `OAUTH_REDIRECT_URI` debe coincidir exactamente con el *Redirect* de OAuth2 |
-| El panel dice «No se puede conectar con el bot» | El bot está apagado o `VITE_API_URL` apunta a otra dirección |
-| `El puerto 3000 ya está en uso` | Hay otra instancia abierta: ciérrala o cambia `PORT` |
+- En tu servidor de Discord, ejecuta **`!sokyo`** (como administrador) en el canal donde
+  quieras el panel de soporte. Aparecerá un botón **📩 Abrir Ticket**.
+- Los usuarios abren tickets eligiendo categoría y rellenando un formulario.
+- Desde el panel web puedes ver conversaciones, responder, añadir notas internas,
+  cerrar/reabrir tickets, ver logs y estadísticas, gestionar moderación, niveles,
+  verificación, anuncios y mucho más.
 
-**Producción:** `cd sokyo-panelFRONTEND && npm run build` genera `dist/` para servirlo con cualquier
-servidor web. Recuerda actualizar `FRONTEND_URL`, `OAUTH_REDIRECT_URI` y `VITE_API_URL` con tus dominios.
+Algunos comandos rápidos: `!user [@usuario]` (estadísticas), `!nivel`, `!ranking`,
+`!warn`, `!ban`, `!remind`, `!dado`, `!moneda`.
+
+---
+
+## 🛠️ Notas
+
+- **Build de producción del panel:** `cd sokyo-panelFRONTEND && npm run build` (genera `dist/`).
+- Los archivos `.env` están en `.gitignore`: cada persona crea el suyo a partir de `.env.example`.
+- Si cambias un `.env`, **reinicia** el proceso correspondiente (Vite no recarga variables en caliente).
+- **Stack:** Node.js, discord.js v14, Express 5, Mongoose, @anthropic-ai/sdk, Stripe,
+  @napi-rs/canvas, Lavalink + lavalink-client (música) y React + Vite en el panel.
+</content>
+</invoke>

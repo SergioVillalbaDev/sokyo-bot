@@ -1,26 +1,41 @@
 const { Events } = require('discord.js');
-const { obtenerConfig } = require('../utils/config.js');
-const { registrarLog } = require('../utils/logger.js');
+const Log = require('../models/Log.js');
+const { getConfig, logActivo } = require('../utils/config.js');
+const { marcarSalida } = require('../utils/embudo.js');
+const { enviarDespedida } = require('../utils/bienvenida.js');
+const { enviarLogADiscord } = require('../utils/logsManager.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: Events.GuildMemberRemove,
     async execute(member, client) {
-        const config = await obtenerConfig(member.guild.id);
-        if (config.modulos?.logsMiembros === false) return;
+        // --- Embudo de bienvenida A/B: anotar la salida para la retención ---
+        try {
+            await marcarSalida(member.guild.id, member.id);
+        } catch (error) { console.error('Error marcando salida de embudo:', error.message); }
 
-        // Si el miembro no estaba en caché (partial) no conocemos sus roles.
-        const roles = member.partial
-            ? 'desconocidos'
-            : (member.roles.cache.filter(r => r.id !== member.guild.id).map(r => r.name).join(', ') || 'ninguno');
-        const tiempo = member.joinedAt ? `\nEstuvo desde el ${member.joinedAt.toLocaleDateString('es-ES')}` : '';
-        await registrarLog(client, {
-            guildId: member.guild.id,
-            categoria: 'Salidas',
-            accion: '🚶 Usuario Salió',
-            usuario: member.user?.username || 'Desconocido',
-            usuarioId: member.id,
-            detalles: `<@${member.id}> · Roles: ${roles}${tiempo}\nMiembros ahora: ${member.guild.memberCount}`,
-            color: '#95a5a6'
-        });
+        let cfg;
+        try {
+            cfg = await getConfig(member.guild.id);
+        } catch (error) { console.error('Error obteniendo config en guildMemberRemove:', error.message); return; }
+
+        // --- Mensaje de despedida en el canal (editable, con embed/GIFs) ---
+        if (!member.user.bot) {
+            try { await enviarDespedida(member, cfg); }
+            catch (error) { console.error('Error en mensaje de despedida:', error.message); }
+        }
+
+        try {
+            if (!logActivo(cfg, 'salidas')) return;
+            const log = await Log.create({
+                guildId: member.guild.id,
+                categoria: 'Salidas',
+                accion: t(cfg, '🚶‍♂️ El usuario se ha ido', '🚶‍♂️ User left'),
+                usuario: member.user.username,
+                detalles: t(cfg, `Roles que tenía: ${member.roles.cache.size - 1}`, `Roles they had: ${member.roles.cache.size - 1}`),
+                color: '#95a5a6'
+            });
+            await enviarLogADiscord(client, log);
+        } catch (error) { console.error('Error guardando log Leave:', error); }
     }
 };

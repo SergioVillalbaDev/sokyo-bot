@@ -1,0 +1,49 @@
+<!--
+  // TODO: DESIGN TEAM — MOCKUP DEL HERO
+  Imagen/captura del panel que se muestra en la Hero de la landing.
+  Sustituid este SVG por el render final (PNG/SVG/WebP). Si cambiáis el
+  nombre o formato, actualizad la ruta en:
+    - src/components/landing/Hero.jsx  (el <img> dentro de #hero-svg-animation)
+  Proporción recomendada 16:10 para no romper el layout.
+-->
+<svg width="1280" height="800" viewBox="0 0 1280 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="800" rx="16" fill="#0c0e15"/>
+  <rect x="0" y="0" width="260" height="800" fill="#0a0c12"/>
+  <rect x="28" y="34" width="150" height="22" rx="6" fill="#5865f2" fill-opacity="0.85"/>
+  <rect x="28" y="100" width="200" height="38" rx="8" fill="#141823"/>
+  <rect x="28" y="150" width="200" height="38" rx="8" fill="#5865f2" fill-opacity="0.25"/>
+  <rect x="28" y="200" width="200" height="38" rx="8" fill="#141823"/>
+  <rect x="28" y="250" width="200" height="38" rx="8" fill="#141823"/>
+  <rect x="300" y="40" width="320" height="28" rx="8" fill="#1a1f2b"/>
+  <rect x="1140" y="38" width="110" height="32" rx="16" fill="#141823"/>
+  <g>
+    <rect x="300" y="110" width="290" height="150" rx="14" fill="#141823" stroke="#232838"/>
+    <rect x="300" y="110" width="290" height="5" rx="3" fill="#ef4444"/>
+    <rect x="320" y="135" width="120" height="14" rx="4" fill="#e8eaf0" fill-opacity="0.85"/>
+    <circle cx="328" cy="178" r="10" fill="#5865f2"/>
+    <rect x="346" y="172" width="90" height="12" rx="4" fill="#9aa1b1"/>
+    <rect x="320" y="210" width="250" height="30" rx="8" fill="#5865f2" fill-opacity="0.85"/>
+  </g>
+  <g>
+    <rect x="620" y="110" width="290" height="150" rx="14" fill="#141823" stroke="#232838"/>
+    <rect x="620" y="110" width="290" height="5" rx="3" fill="#f59e0b"/>
+    <rect x="640" y="135" width="140" height="14" rx="4" fill="#e8eaf0" fill-opacity="0.85"/>
+    <circle cx="648" cy="178" r="10" fill="#8b5cf6"/>
+    <rect x="666" y="172" width="90" height="12" rx="4" fill="#9aa1b1"/>
+    <rect x="640" y="210" width="250" height="30" rx="8" fill="#1a1f2b"/>
+  </g>
+  <g>
+    <rect x="940" y="110" width="290" height="150" rx="14" fill="#141823" stroke="#232838"/>
+    <rect x="940" y="110" width="290" height="5" rx="3" fill="#10b981"/>
+    <rect x="960" y="135" width="110" height="14" rx="4" fill="#e8eaf0" fill-opacity="0.85"/>
+    <circle cx="968" cy="178" r="10" fill="#10b981"/>
+    <rect x="986" y="172" width="90" height="12" rx="4" fill="#9aa1b1"/>
+    <rect x="960" y="210" width="250" height="30" rx="8" fill="#1a1f2b"/>
+  </g>
+  <rect x="300" y="300" width="930" height="460" rx="16" fill="#11141c" stroke="#232838"/>
+  <rect x="324" y="330" width="180" height="18" rx="5" fill="#e8eaf0" fill-opacity="0.7"/>
+  <rect x="324" y="380" width="880" height="44" rx="10" fill="#141823"/>
+  <rect x="324" y="436" width="880" height="44" rx="10" fill="#141823"/>
+  <rect x="324" y="492" width="880" height="44" rx="10" fill="#141823"/>
+  <rect x="324" y="548" width="880" height="44" rx="10" fill="#141823"/>
+</svg>

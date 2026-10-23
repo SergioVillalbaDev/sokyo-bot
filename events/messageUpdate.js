@@ -1,44 +1,42 @@
-const { Events, escapeMarkdown } = require('discord.js');
-const Mensaje = require('../models/Mensaje.js');
-const { obtenerConfig } = require('../utils/config.js');
-const { registrarLog } = require('../utils/logger.js');
-const { esCanalTicket } = require('../utils/ticketCache.js');
-const { truncar } = require('../utils/texto.js');
+const { Events } = require('discord.js');
+const Log = require('../models/Log.js');
+const { getConfig, logActivo } = require('../utils/config.js');
+const { enviarLogADiscord } = require('../utils/logsManager.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: Events.MessageUpdate,
     async execute(oldMessage, newMessage, client) {
-        if (!newMessage.guildId) return;
+        try {
+            // Si el mensaje nuevo no está en caché (partial), lo pedimos a Discord
+            if (newMessage.partial) {
+                try { newMessage = await newMessage.fetch(); } catch { return; }
+            }
 
-        // Si el mensaje nuevo no está en caché (partial), lo pedimos a Discord
-        if (newMessage.partial) {
-            try { newMessage = await newMessage.fetch(); } catch { return; }
-        }
-        if (newMessage.author?.bot) return;
+            if (newMessage.author?.bot) return;
 
-        // Discord también emite "update" al cargar la vista previa de un enlace. Si no hay fecha
-        // de edición, o el texto no cambió, no es una edición real.
-        if (!newMessage.editedTimestamp) return;
-        if (!oldMessage.partial && oldMessage.content === newMessage.content) return;
+            const cfg = await getConfig(newMessage.guildId);
+            if (!logActivo(cfg, 'mensajesEditados')) return;
 
-        // Mantener al día la conversación guardada del ticket
-        if (esCanalTicket(newMessage.channelId)) {
-            await Mensaje.updateOne({ mensajeId: newMessage.id }, { $set: { contenido: newMessage.content, editado: true } });
-        }
+            // Evita registrar cuando solo se carga un enlace/imagen (mismo contenido).
+            // Si el mensaje viejo era partial no tenemos su contenido, así que dejamos pasar.
+            if (!oldMessage.partial && oldMessage.content === newMessage.content) return;
 
-        const config = await obtenerConfig(newMessage.guildId);
-        if (config.modulos?.logsMensajes === false) return;
+            const viejo = oldMessage.partial ? t(cfg, '*(No está en caché)*', '*(Not cached)*') : (oldMessage.content || t(cfg, '*(Vacío)*', '*(Empty)*'));
+            const nuevo = newMessage.content || t(cfg, '*(Vacío)*', '*(Empty)*');
+            const nombreCanal = newMessage.channel?.name ? `#${newMessage.channel.name}` : t(cfg, `Canal ${newMessage.channelId}`, `Channel ${newMessage.channelId}`);
+            const imagenes = newMessage.attachments ? [...newMessage.attachments.values()].map((a) => a.url) : [];
 
-        const viejo = oldMessage.partial ? '*(no disponible: el mensaje era anterior al arranque del bot)*' : (oldMessage.content || '*(vacío)*');
-        const nuevo = newMessage.content || '*(vacío)*';
-        await registrarLog(client, {
-            guildId: newMessage.guildId,
-            categoria: 'Mensajes Editados',
-            accion: '✏️ Mensaje Editado',
-            usuario: newMessage.author?.username || 'Desconocido',
-            usuarioId: newMessage.author?.id || null,
-            detalles: `Canal: <#${newMessage.channelId}> · [Ir al mensaje](${newMessage.url})\n**Antes:** ${truncar(oldMessage.partial ? viejo : escapeMarkdown(viejo), 1800)}\n**Después:** ${truncar(escapeMarkdown(nuevo), 1800)}`,
-            color: '#f1c40f'
-        });
+            const log = await Log.create({
+                guildId: newMessage.guildId,
+                categoria: 'Mensajes Editados',
+                accion: t(cfg, '✏️ Mensaje editado', '✏️ Message edited'),
+                usuario: newMessage.author?.username || t(cfg, 'Desconocido', 'Unknown'),
+                detalles: t(cfg, `Canal: ${nombreCanal}\n**Antes:** ${viejo}\n**Después:** ${nuevo}`, `Channel: ${nombreCanal}\n**Before:** ${viejo}\n**After:** ${nuevo}`),
+                imagenes,
+                color: '#f1c40f'
+            });
+            await enviarLogADiscord(client, log);
+        } catch (error) { console.error('Error guardando log Update:', error); }
     }
 };

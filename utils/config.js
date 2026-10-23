@@ -1,42 +1,41 @@
-// Acceso a la configuración de cada servidor con una caché corta en memoria.
-// Si un servidor todavía no tiene configuración, se crea con los valores por defecto,
-// así el panel web y los comandos siempre tienen algo con lo que trabajar.
+// Helpers de configuración por servidor, compartidos por eventos y utilidades.
 const ServidorConfig = require('../models/ServidorConfig.js');
 
-const TTL_MS = 30 * 1000;
-const cache = new Map(); // guildId -> { doc, expira }
-
-async function obtenerConfig(guildId) {
-    const enCache = cache.get(guildId);
-    if (enCache && enCache.expira > Date.now()) return enCache.doc;
-
-    let doc = await ServidorConfig.findOne({ guildId });
-    if (!doc) {
-        try {
-            doc = await ServidorConfig.create({ guildId });
-        } catch (error) {
-            // Otra petición la creó a la vez: la leemos.
-            if (error.code !== 11000) throw error;
-            doc = await ServidorConfig.findOne({ guildId });
-        }
+// Devuelve la configuración del servidor (o null si no existe / falla).
+async function getConfig(guildId) {
+    try {
+        if (!guildId) return null;
+        return await ServidorConfig.findOne({ guildId });
+    } catch (e) {
+        console.error('Error leyendo ServidorConfig:', e);
+        return null;
     }
-    cache.set(guildId, { doc, expira: Date.now() + TTL_MS });
-    return doc;
 }
 
-// Aplica cambios y refresca la caché. Devuelve el documento actualizado.
-async function actualizarConfig(guildId, cambios) {
-    const doc = await ServidorConfig.findOneAndUpdate(
-        { guildId },
-        { $set: cambios },
-        { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true }
-    );
-    cache.set(guildId, { doc, expira: Date.now() + TTL_MS });
-    return doc;
+// ¿Está activada esta categoría de logs? Por defecto SÍ (preserva el comportamiento previo).
+function logActivo(config, clave) {
+    return !(config && config.logsActivos && config.logsActivos[clave] === false);
 }
 
-function invalidarConfig(guildId) {
-    cache.delete(guildId);
+// Caché en memoria (TTL corto) para consultas muy frecuentes como el prefijo,
+// que se lee en CADA mensaje. Evita golpear la BD constantemente.
+const _cache = new Map();
+async function getConfigCached(guildId, ttlMs = 30000) {
+    if (!guildId) return null;
+    const ahora = Date.now();
+    const entrada = _cache.get(guildId);
+    if (entrada && (ahora - entrada.t) < ttlMs) return entrada.v;
+    const v = await getConfig(guildId);
+    _cache.set(guildId, { v, t: ahora });
+    return v;
 }
 
-module.exports = { obtenerConfig, actualizarConfig, invalidarConfig };
+// Borra la entrada cacheada de un servidor (o TODO el caché si no se pasa
+// guildId). Lo llama un hook del modelo ServidorConfig al guardar, para que los
+// cambios del panel se reflejen al instante en vez de esperar al TTL.
+function invalidateConfig(guildId) {
+    if (guildId) _cache.delete(guildId);
+    else _cache.clear();
+}
+
+module.exports = { getConfig, getConfigCached, logActivo, invalidateConfig };
