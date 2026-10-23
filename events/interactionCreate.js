@@ -2,7 +2,7 @@ const { Events, ActionRowBuilder, StringSelectMenuBuilder, ChannelSelectMenuBuil
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const RolePanel = require('../models/RolePanel.js');
-const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js');
+const { cerrarTicket, registrarLogTicket, permisosCanalTicket } = require('../utils/ticketManager.js');
 const { toggleRol, aplicarSeleccionMenu } = require('../utils/rolePanelManager.js');
 const verificacion = require('../utils/verificacion.js');
 const reportes = require('../utils/reportes.js');
@@ -260,7 +260,7 @@ module.exports = {
                 // El botón de idioma del asistente de bienvenida fija también el idioma
                 // persistente del bot para este servidor (ServidorConfig.idioma).
                 const config = await ServidorConfig.findOneAndUpdate(
-                    { guildId }, { $set: { idioma: lang === 'es' ? 'es' : 'en' } }, { new: true, upsert: false },
+                    { guildId }, { $set: { idioma: lang === 'es' ? 'es' : 'en' } }, { returnDocument: 'after', upsert: false },
                 ) || await ServidorConfig.findOne({ guildId });
                 const guild = interaction.guild || client.guilds.cache.get(guildId);
                 return interaction.update(construirBienvenida(guild, config, lang));
@@ -339,16 +339,25 @@ module.exports = {
                             { nombre: t(config, 'Pregunta sobre facturación', 'Billing question'), urgencia: 'Low' }
                           ];
 
+                    // Límites de Discord: 25 opciones, textos de 100 caracteres y valores únicos.
+                    const vistos = new Set();
+                    const opciones = [];
+                    for (const motivo of listaMotivos) {
+                        const valor = String(motivo.nombre || '').trim().slice(0, 100);
+                        if (!valor || vistos.has(valor)) continue;
+                        vistos.add(valor);
+                        opciones.push({
+                            label: valor,
+                            description: t(config, `Prioridad asignada: ${motivo.urgencia}`, `Assigned priority: ${motivo.urgencia}`).slice(0, 100),
+                            value: valor,
+                        });
+                        if (opciones.length === 25) break;
+                    }
+
                     const menuMotivos = new StringSelectMenuBuilder()
                         .setCustomId('seleccionar_motivo_ticket')
                         .setPlaceholder(t(config, '👉 Elige de qué trata tu solicitud...', '👉 Select what your request is about...'))
-                        .addOptions(
-                            listaMotivos.map((motivo) => ({
-                                label: motivo.nombre,
-                                description: t(config, `Prioridad asignada: ${motivo.urgencia}`, `Assigned priority: ${motivo.urgencia}`),
-                                value: motivo.nombre,
-                            }))
-                        );
+                        .addOptions(opciones);
 
                     const filaComponentes = new ActionRowBuilder().addComponents(menuMotivos);
 
@@ -431,6 +440,7 @@ module.exports = {
 
                 try {
                     const res = await cerrarTicket(client, canal.id, { autor: interaction.user.username });
+                    if (res.yaCerrado) return await interaction.editReply({ content: t(configClose, 'ℹ️ Este ticket ya estaba cerrado.', 'ℹ️ This ticket was already closed.') });
                     if (!res.ok) return await interaction.editReply({ content: t(configClose, '❌ No se ha encontrado este ticket en la base de datos.', '❌ This ticket wasn’t found in the database.') });
                     await interaction.editReply({ content: t(configClose, '✅ Ticket cerrado y archivado correctamente.', '✅ Ticket closed and archived successfully.') });
                 } catch (error) {
@@ -444,7 +454,7 @@ module.exports = {
                 const partes = interaction.customId.split('_');
                 const valoracion = parseInt(partes[1]);
                 try {
-                    const ticket = await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion }, { new: true });
+                    const ticket = await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion }, { returnDocument: 'after' });
                     if (ticket) await registrarLogTicket(client, ticket, `⭐ Ticket rated (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
                     const embedGracias = new EmbedBuilder().setColor('#2ecc71').setTitle(t(cfgCsat, '💖 ¡Gracias por tu opinión!', '💖 Thanks for your feedback!')).setDescription(t(cfgCsat, `Has valorado el soporte recibido con **${valoracion} estrellas**.`, `You rated the support you received with **${valoracion} stars**.`));
                     await interaction.update({ embeds: [embedGracias], components: [] });
@@ -480,7 +490,12 @@ module.exports = {
         // --- MENÚ DESPLEGABLE A MODAL ---
         if (interaction.isStringSelectMenu() && interaction.customId === 'seleccionar_motivo_ticket') {
             const cfgModalMotivo = await getConfigCached(interaction.guildId).catch(() => null);
-            const modal = new ModalBuilder().setCustomId(`modal_abrir_ticket_${interaction.values[0]}`).setTitle(`Ticket: ${interaction.values[0]}`);
+            // Límites de Discord: customId de 100 caracteres y título del modal de 45.
+            const motivoElegido = interaction.values[0];
+            const titulo = `Ticket: ${motivoElegido}`;
+            const modal = new ModalBuilder()
+                .setCustomId(`modal_abrir_ticket_${motivoElegido}`.slice(0, 100))
+                .setTitle(titulo.length > 45 ? `${titulo.slice(0, 44)}…` : titulo);
             const asuntoInput = new TextInputBuilder().setCustomId('asuntoInput').setLabel(t(cfgModalMotivo, 'Asunto del ticket', 'Ticket subject')).setPlaceholder(t(cfgModalMotivo, 'p. ej. Problema con la base de datos', 'e.g. Problem with the database')).setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100);
             const descripcionInput = new TextInputBuilder().setCustomId('descripcionInput').setLabel(t(cfgModalMotivo, 'Describe tu problema con detalle', 'Describe your problem in detail')).setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000);
             modal.addComponents(new ActionRowBuilder().addComponents(asuntoInput), new ActionRowBuilder().addComponents(descripcionInput));
@@ -491,7 +506,12 @@ module.exports = {
         // --- CREACIÓN DEL TICKET DESDE EL MODAL ---
         if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_abrir_ticket_')) {
             const cfgCrear = await getConfigCached(interaction.guildId).catch(() => null);
-            const motivo = interaction.customId.replace('modal_abrir_ticket_', '');
+            // El customId puede venir recortado (límite de 100): se recupera el nombre completo.
+            const motivoId = interaction.customId.replace('modal_abrir_ticket_', '');
+            const motivosCfg = (cfgCrear && cfgCrear.motivos) || [];
+            const nombreDe = (m) => String(m.nombre || '').trim();
+            const motivoCfg = motivosCfg.find(m => nombreDe(m) === motivoId) || motivosCfg.find(m => nombreDe(m).startsWith(motivoId));
+            const motivo = motivoCfg ? nombreDe(motivoCfg) : motivoId;
             const asunto = interaction.fields.getTextInputValue('asuntoInput');
             const descripcion = interaction.fields.getTextInputValue('descripcionInput');
 
@@ -507,7 +527,7 @@ module.exports = {
                 let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
                 const listaMotivos = (config && config.motivos && config.motivos.length > 0) ? config.motivos : [];
                 const listaUrgencias = (config && config.urgencias && config.urgencias.length > 0) ? config.urgencias : [];
-                const urgencia = listaMotivos.find(m => m.nombre === motivo)?.urgencia || 'Normal';
+                const urgencia = listaMotivos.find(m => String(m.nombre || '').trim() === motivo)?.urgencia || 'Normal';
                 const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db';
 
                 // Límite de tickets abiertos por usuario (0 = sin límite).
@@ -527,10 +547,7 @@ module.exports = {
                     name: `ticket-${interaction.user.username}`,
                     type: ChannelType.GuildText,
                     ...(parentId ? { parent: parentId } : {}),
-                    permissionOverwrites: [
-                        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
-                    ]
+                    permissionOverwrites: permisosCanalTicket(interaction.guild, config, interaction.user.id)
                 });
 
                 // AQUÍ ES DONDE DEBE IR LA FOTO:
