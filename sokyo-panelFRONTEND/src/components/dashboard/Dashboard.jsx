@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, LogIn } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
 import { maybeStartOnboarding } from '../../lib/onboarding';
 import Sidebar from './Sidebar';
@@ -48,10 +48,10 @@ import SugerenciasView from './views/SugerenciasView';
 import PresentacionesView from './views/PresentacionesView';
 import DinamicasView from './views/DinamicasView';
 
-export default function Dashboard({ onExitToLanding, onLogout }) {
+export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   const { t } = useTranslation();
   const dash = useDashboard();
-  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, servidorInfo, esPremium, servidores, guildId, setGuildId, misPermisos, mostrarSelectorServidor, setMostrarSelectorServidor, estadoModulos } = dash;
+  const { activeTab, ticketSeleccionado, setTicketSeleccionado, setActiveTab, errorConexion, sesionCaducada, servidorInfo, esPremium, servidores, guildId, setGuildId, misPermisos, mostrarSelectorServidor, setMostrarSelectorServidor, estadoModulos } = dash;
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sokyoSidebarCollapsed') === '1');
   const toggleCollapsed = (value) => {
@@ -131,8 +131,10 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
 
   const viewKey = activeTab === 'tickets-gestion' && ticketSeleccionado ? 'chat' : activeTab;
 
+  // h-dvh y no h-screen: en el móvil 100vh es más alto que la parte visible
+  // (por la barra del navegador) y lo de abajo quedaba fuera de la pantalla.
   return (
-    <div className="flex h-screen overflow-hidden bg-bg text-fg">
+    <div className="flex h-dvh overflow-hidden bg-bg text-fg">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={navigate}
@@ -161,7 +163,16 @@ export default function Dashboard({ onExitToLanding, onLogout }) {
               <p className="flex items-center gap-2 font-semibold text-danger">
                 <AlertTriangle size={18} /> {errorConexion}
               </p>
-              <p className="mt-1.5 text-sm text-danger/80">{t('dashboard.error.detail')}</p>
+              {sesionCaducada && onRelogin ? (
+                <button
+                  onClick={onRelogin}
+                  className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5865F2]/40 transition-transform hover:scale-[1.03]"
+                >
+                  <LogIn size={16} /> {t('dashboard.auth.loginButton')}
+                </button>
+              ) : (
+                <p className="mt-1.5 text-sm text-danger/80">{t('dashboard.error.detail')}</p>
+              )}
             </div>
           )}
 

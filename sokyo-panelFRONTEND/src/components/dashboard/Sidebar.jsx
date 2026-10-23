@@ -49,8 +49,9 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
 
       <aside
         className={cn(
-          // Móvil: drawer deslizable fijo a la izquierda.
-          'fixed inset-y-0 left-0 z-50 flex h-screen w-[270px] flex-col bg-sidebar p-3 shadow-2xl',
+          // Móvil: drawer deslizable fijo a la izquierda. h-dvh y no h-screen: en el
+          // móvil 100vh es más alto que lo visible y "Cerrar sesión" quedaba fuera.
+          'fixed inset-y-0 left-0 z-50 flex h-dvh w-[270px] flex-col bg-sidebar p-3 shadow-2xl',
           'transition-[transform,width] duration-300 ease-out',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
           // Escritorio (lg+): fijo en el layout, sin sombra, con colapso.
