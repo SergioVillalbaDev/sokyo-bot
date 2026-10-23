@@ -14,6 +14,9 @@ module.exports = {
             }
 
             if (newMessage.author?.bot) return;
+            // Discord también emite "update" al cargar la vista previa de un enlace;
+            // solo las ediciones reales tienen editedTimestamp.
+            if (!newMessage.editedTimestamp) return;
 
             const cfg = await getConfig(newMessage.guildId);
             if (!logActivo(cfg, 'mensajesEditados')) return;

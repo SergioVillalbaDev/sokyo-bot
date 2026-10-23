@@ -20,7 +20,7 @@ async function manejarBotonEmpleo(interaction) {
     const oferta = await OfertaEmpleo.findOneAndUpdate(
         { _id: ofertaId, discordId: interaction.user.id },
         { $set: { estado: 'aplicada', fechaAplicada: new Date() } },
-        { new: true },
+        { returnDocument: 'after' },
     ).catch(() => null);
 
     if (!oferta) return interaction.reply({ content: '⛔ Couldn\'t find that offer.', ephemeral: true });

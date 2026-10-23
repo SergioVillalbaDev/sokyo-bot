@@ -176,7 +176,7 @@ module.exports = ({ portalAuth }) => {
                     spotifyUsername: profile.display_name || profile.id || 'Spotify',
                     spotifyAvatar: profile.images?.[0]?.url || null,
                 },
-                { upsert: true, new: true },
+                { upsert: true, returnDocument: 'after' },
             );
 
             res.send(paginaResultado(true, '¡Spotify conectado correctamente!'));

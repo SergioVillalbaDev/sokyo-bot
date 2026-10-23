@@ -27,12 +27,14 @@ module.exports = {
 
         try {
             if (!logActivo(cfg, 'salidas')) return;
+            // Si el miembro no estaba en caché (partial) no sabemos sus roles.
+            const roles = member.partial ? '?' : Math.max(0, member.roles.cache.size - 1);
             const log = await Log.create({
                 guildId: member.guild.id,
                 categoria: 'Salidas',
                 accion: t(cfg, '🚶‍♂️ El usuario se ha ido', '🚶‍♂️ User left'),
                 usuario: member.user.username,
-                detalles: t(cfg, `Roles que tenía: ${member.roles.cache.size - 1}`, `Roles they had: ${member.roles.cache.size - 1}`),
+                detalles: t(cfg, `Roles que tenía: ${roles}`, `Roles they had: ${roles}`),
                 color: '#95a5a6'
             });
             await enviarLogADiscord(client, log);
