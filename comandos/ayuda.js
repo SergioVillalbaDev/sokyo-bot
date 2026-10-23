@@ -37,7 +37,7 @@ module.exports = {
                     value: [
                         '`/panel` — publica el panel con el botón de abrir tickets',
                         '`/config ver` — muestra la configuración',
-                        '`/config rol-staff` · `/config categoria` · `/config transcripts` · `/config logs` · `/config limite`'
+                        '`/config rol-staff` · `/config categoria` · `/config transcripts` · `/config logs` · `/config limite` · `/config inactividad`'
                     ].join('\n')
                 },
                 { name: '🎲 Diversión', value: '`/dado` · `/moneda`' }

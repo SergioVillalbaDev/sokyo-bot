@@ -21,7 +21,8 @@ const MOTIVO_POR_DEFECTO = { nombre: 'Soporte General', urgencia: 'Normal' };
 
 const COLORES = {
     abierto: '#2ecc71', cerrado: '#e74c3c', reabierto: '#2ecc71', reclamado: '#3498db',
-    liberado: '#95a5a6', valorado: '#f1c40f', usuarios: '#9b59b6', eliminado: '#c0392b', cerradoEmbed: '#80848e'
+    liberado: '#95a5a6', valorado: '#f1c40f', usuarios: '#9b59b6', eliminado: '#c0392b', cerradoEmbed: '#80848e',
+    inactivo: '#e67e22'
 };
 
 const PERMISOS_PARTICIPANTE = [
@@ -410,7 +411,7 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema', autorId = nul
 
     const ticket = await Ticket.findOneAndUpdate(
         { canalId, estado: 'Cerrado' },
-        { $set: { estado: 'Abierto', fechaCierre: null, cerradoPor: null, motivoCierre: null, esperando: 'staff', ultimaActividad: new Date() } },
+        { $set: { estado: 'Abierto', fechaCierre: null, cerradoPor: null, motivoCierre: null, esperando: 'staff', ultimaActividad: new Date(), avisoInactividad: null } },
         { returnDocument: 'after' }
     );
     if (!ticket) throw new TicketError('Este ticket ya está abierto.', 409);
@@ -571,9 +572,10 @@ async function enviarMensajeWeb(client, ticket, { autor, contenido, origen, esSt
 }
 
 // Actualiza "quién debe responder" y las métricas de respuesta del staff.
+// Cualquier mensaje reinicia la cuenta del cierre automático por inactividad.
 async function registrarActividad(canalId, esStaff) {
     const ahora = new Date();
-    const cambios = { ultimaActividad: ahora, esperando: esStaff ? 'usuario' : 'staff' };
+    const cambios = { ultimaActividad: ahora, esperando: esStaff ? 'usuario' : 'staff', avisoInactividad: null };
     if (esStaff) cambios.ultimaInteractStaff = ahora;
     await Ticket.updateOne({ canalId, estado: 'Abierto' }, { $set: cambios });
     if (esStaff) await Ticket.updateOne({ canalId, primeraRespuestaStaff: null }, { $set: { primeraRespuestaStaff: ahora } });
