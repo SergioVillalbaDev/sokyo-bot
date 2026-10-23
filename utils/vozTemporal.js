@@ -43,7 +43,7 @@ async function guardarPref(guildId, userId, patch) {
     try {
         if (!(await esGuildPro(guildId))) return;
         await PreferenciaVozUsuario.findOneAndUpdate(
-            { guildId, userId }, { $set: patch }, { upsert: true, new: true },
+            { guildId, userId }, { $set: patch }, { upsert: true, returnDocument: 'after' },
         );
     } catch (e) { console.error('voz-temporal pref:', e.message); }
 }

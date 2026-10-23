@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -13,8 +13,9 @@ const client = new Client({
         GatewayIntentBits.GuildVoiceStates,    // Necesario para registrar la actividad de voz
         GatewayIntentBits.MessageContent
     ],
-    // Partials: permite reaccionar/editar/borrar también en mensajes que no están en caché
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.User]
+    // Partials: permite reaccionar/editar/borrar también en mensajes que no están en caché,
+    // y registrar la salida de miembros que no estaban en caché (GuildMember)
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.User, Partials.GuildMember]
 });
 
 // 1. Cargador de Comandos
@@ -51,12 +52,25 @@ const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'
 for (const file of eventFiles) {
     const filePath = path.join(eventsPath, file);
     const event = require(filePath);
+    // Un error en un evento no debe tumbar el bot: lo registramos y seguimos.
+    const ejecutar = async (...args) => {
+        try {
+            await event.execute(...args, client);
+        } catch (error) {
+            console.error(`❌ Error en el evento ${event.name} (${file}):`, error);
+        }
+    };
     if (event.once) {
-        client.once(event.name, (...args) => event.execute(...args, client));
+        client.once(event.name, ejecutar);
     } else {
-        client.on(event.name, (...args) => event.execute(...args, client));
+        client.on(event.name, ejecutar);
     }
 }
+
+// Errores sueltos (promesas sin catch, errores del gateway): se registran en vez
+// de cerrar el proceso, así pm2 no entra en bucle de reinicios por un fallo puntual.
+process.on('unhandledRejection', (error) => console.error('❌ Promesa rechazada sin capturar:', error));
+client.on('error', (error) => console.error('❌ Error del cliente de Discord:', error));
 
 // 2.b Motor de música (Lavalink)
 const { initMusica } = require('./utils/musica.js');

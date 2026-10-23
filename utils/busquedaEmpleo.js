@@ -223,7 +223,7 @@ async function ejecutarBusquedaEmpleoInterno(client, { discordId, puesto, ubicac
                         rutaCapturaPreguntas: nombreCaptura ? path.join(carpeta, nombreCaptura) : null,
                     },
                 },
-                { new: true },
+                { returnDocument: 'after' },
             );
 
             adaptadas.push({

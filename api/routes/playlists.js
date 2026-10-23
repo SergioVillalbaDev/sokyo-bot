@@ -68,7 +68,7 @@ module.exports = ({ portalAuth, client }) => {
             const p = await Playlist.findOneAndUpdate(
                 { _id: req.params.id, userId: req.usuario.id },
                 { nombre },
-                { new: true },
+                { returnDocument: 'after' },
             );
             if (!p) return res.status(404).json({ error: 'Playlist no encontrada.' });
             res.json({ ok: true });

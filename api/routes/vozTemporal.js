@@ -95,7 +95,7 @@ module.exports = ({ client }) => {
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: { vozTemporal } },
-                { new: true, upsert: true },
+                { returnDocument: 'after', upsert: true },
             );
             res.json({ success: true, config });
         } catch (e) {

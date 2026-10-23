@@ -39,6 +39,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     mensajeBienvenida: { type: String, default: 'A team member will review it shortly.' }, // nota al abrir ticket
     prefijo: { type: String, default: '!' },                                           // prefijo de comandos
     idioma: { type: String, enum: ['en', 'es'], default: 'en' },                       // idioma de los mensajes del bot en Discord
+    ultimaVersionAnunciada: { type: String, default: null },                          // última versión avisada con "Bot actualizado"
     categoriaArchivados: { type: String, default: '🗄️ Archived Tickets' },          // categoría de tickets cerrados
 
     // --- REGLAS Y CONTROL (Fase 3) ---

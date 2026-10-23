@@ -54,7 +54,15 @@ module.exports = (client) => {
     const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
     const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || `http://localhost:${port}/api/auth/discord/callback`;
     const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const JWT_SECRET = process.env.JWT_SECRET || API_KEY || 'cambia-este-secreto-de-sesion';
+    // El valor de ejemplo de .env.example es público: con él cualquiera podría
+    // firmarse una sesión de propietario, así que se trata como si faltara. Sin
+    // secreto propio se usa la API_KEY o, en último caso, uno aleatorio (las
+    // sesiones se pierden al reiniciar, pero nadie puede falsificarlas).
+    const jwtPropio = process.env.JWT_SECRET && process.env.JWT_SECRET !== 'cambia-este-secreto-de-sesion' ? process.env.JWT_SECRET : null;
+    const JWT_SECRET = jwtPropio || API_KEY || crypto.randomBytes(32).toString('hex');
+    if (!jwtPropio) {
+        console.warn('⚠️ JWT_SECRET no está definido (o es el valor de ejemplo). Pon uno largo y aleatorio en el .env para que las sesiones del panel sean seguras y sobrevivan a los reinicios.');
+    }
 
     // IDs de Discord del/los PROPIETARIO(s): ven absolutamente TODO (todos los
     // servidores y tickets), sin el filtrado del staff. Separados por comas.
@@ -196,10 +204,24 @@ module.exports = (client) => {
         return out;
     }
 
+    // Los servidores del staff y el rango de propietario se recalculan en cada
+    // petición (con una caché corta) en vez de fiarse del token, que dura 7 días:
+    // así quien pierde el rol de staff pierde también el acceso al panel al momento.
+    const accesoStaff = new Map();
+    function guildsDelStaffCacheado(userId) {
+        const ahora = Date.now();
+        const entrada = accesoStaff.get(userId);
+        if (entrada && ahora - entrada.t < 60 * 1000) return entrada.p;
+        if (accesoStaff.size > 500) accesoStaff.clear();
+        const p = guildsDelStaff(userId).then((gs) => gs.map((g) => g.id)).catch(() => []);
+        accesoStaff.set(userId, { t: ahora, p });
+        return p;
+    }
+
     // --- AUTENTICACIÓN del panel de staff ---
     // Acepta: (1) sesión de staff (JWT con staff:true) acotada a SUS servidores, o
     //         (2) la API key del propietario (acceso total), por retrocompatibilidad.
-    app.use('/api', (req, res, next) => {
+    app.use('/api', async (req, res, next) => {
         if (req.path === '/estado') return next();          // health check público
         if (req.path.startsWith('/auth')) return next();    // flujo OAuth (público)
         if (req.path.startsWith('/portal')) return next();  // portal: su propio middleware
@@ -209,12 +231,15 @@ module.exports = (client) => {
         const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
         const sesion = bearer ? verificarToken(bearer, JWT_SECRET) : null;
         if (sesion && sesion.staff) {
-            req.staff = sesion;
-            if (sesion.owner) return next(); // el PROPIETARIO lo ve todo, sin filtros
+            const owner = OWNER_IDS.has(sesion.id);
+            const broadcaster = BROADCAST_IDS.has(sesion.id);
+            const guilds = owner ? client.guilds.cache.map((g) => g.id) : await guildsDelStaffCacheado(sesion.id);
+            req.staff = { ...sesion, owner, broadcaster, guilds };
+            if (owner) return next(); // el PROPIETARIO lo ve todo, sin filtros
             // Un difusor llega a los endpoints de difusión aunque no sea de sus servidores.
-            if (sesion.broadcaster && req.path.startsWith('/broadcast')) return next();
+            if (broadcaster && req.path.startsWith('/broadcast')) return next();
             // Acotamos por servidor: si la petición apunta a un guildId, debe ser de los suyos.
-            const guildIds = sesion.guilds || [];
+            const guildIds = guilds;
             const enQuery = req.query.guildId;
             const enRuta = (req.path.match(/^\/config\/([^/]+)/) || [])[1];
             const enBody = req.body && req.body.guildId; // p. ej. crear rol/panel o asignar miembro
@@ -698,10 +723,15 @@ module.exports = (client) => {
         }
     });
 
+    // Máximo de caracteres de un mensaje enviado desde la web (Discord admite 2000
+    // y se reserva sitio para el prefijo "**[usuario]** ").
+    const LIMITE_MENSAJE_WEB = 1900;
+
     // 4. MIS tickets
     app.get('/api/portal/tickets', portalAuth, async (req, res) => {
         try {
-            const tickets = await Ticket.find({ creadorId: req.usuario.id }).sort({ fechaCreacion: -1 });
+            // Las notas internas son solo para el staff: nunca se envían al cliente.
+            const tickets = await Ticket.find({ creadorId: req.usuario.id }).select('-notasInternas').sort({ fechaCreacion: -1 });
             res.json(tickets);
         } catch (error) {
             console.error('Error al obtener tickets del portal:', error);
@@ -729,8 +759,9 @@ module.exports = (client) => {
             if (!ticket || ticket.creadorId !== req.usuario.id) return res.status(403).json({ error: 'No autorizado' });
             if (ticket.estado === 'Cerrado') return res.status(400).json({ error: 'Este ticket está cerrado' });
 
-            const { contenido } = req.body;
-            if (!contenido || !contenido.trim()) return res.status(400).json({ error: 'Mensaje vacío' });
+            const contenido = typeof req.body.contenido === 'string' ? req.body.contenido.trim() : '';
+            if (!contenido) return res.status(400).json({ error: 'Mensaje vacío' });
+            if (contenido.length > LIMITE_MENSAJE_WEB) return res.status(400).json({ error: `El mensaje no puede superar ${LIMITE_MENSAJE_WEB} caracteres` });
 
             const nuevoMsg = await Mensaje.create({
                 ticketId: req.params.canalId,
@@ -739,8 +770,9 @@ module.exports = (client) => {
                 contenido
             });
 
+            // Sin menciones: desde la web nadie debe poder hacer que el bot haga @everyone.
             const canal = client.channels.cache.get(req.params.canalId);
-            if (canal) await canal.send(`**[${req.usuario.username}]** ${contenido}`).catch(() => {});
+            if (canal) await canal.send({ content: `**[${req.usuario.username}]** ${contenido}`, allowedMentions: { parse: [] } }).catch(() => {});
 
             res.json({ success: true, mensaje: nuevoMsg });
         } catch (error) {
@@ -1033,7 +1065,9 @@ app.get('/api/stats/uso', async (req, res) => {
     app.post('/api/mensajes/:ticketId', scopeTicket, async (req, res) => {
         try {
             const { ticketId } = req.params;
-            const { contenido } = req.body;
+            const contenido = typeof req.body.contenido === 'string' ? req.body.contenido.trim() : '';
+            if (!contenido) return res.status(400).json({ error: 'Mensaje vacío' });
+            if (contenido.length > LIMITE_MENSAJE_WEB) return res.status(400).json({ error: `El mensaje no puede superar ${LIMITE_MENSAJE_WEB} caracteres` });
             // El remitente se toma de la sesión autenticada, no del body: si no, cualquiera
             // con acceso a la API podría firmar el mensaje con el nombre que quisiera.
             const usuario = (req.staff && req.staff.username) || String(req.body.usuario || 'Panel Web').slice(0, 80);
@@ -1047,7 +1081,7 @@ app.get('/api/stats/uso', async (req, res) => {
 
             const canal = client.channels.cache.get(ticketId);
             if (canal) {
-                await canal.send(`**[${usuario}]** ${contenido}`);
+                await canal.send({ content: `**[${usuario}]** ${contenido}`, allowedMentions: { parse: [] } });
             }
 
             res.json({ success: true, mensaje: nuevoMsg });
@@ -1061,11 +1095,14 @@ app.get('/api/stats/uso', async (req, res) => {
     app.post('/api/tickets/:canalId/notas', scopeTicket, async (req, res) => {
         try {
             const { canalId } = req.params;
-            const { contenido, autor } = req.body;
+            const contenido = typeof req.body.contenido === 'string' ? req.body.contenido.trim().slice(0, 2000) : '';
+            if (!contenido) return res.status(400).json({ error: 'Nota vacía' });
+            // Como en los mensajes, el autor sale de la sesión y no del body.
+            const autor = (req.staff && req.staff.username) || String(req.body.autor || 'Panel Web').slice(0, 80);
 
             const ticketActualizado = await Ticket.findOneAndUpdate(
                 { canalId: canalId },
-                { $push: { notasInternas: { contenido: contenido, autor: autor } } },
+                { $push: { notasInternas: { contenido, autor, fecha: new Date() } } },
                 { returnDocument: 'after' }
             );
 
@@ -1080,9 +1117,10 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             // Mismo comportamiento que el botón de Discord: transcript + CSAT + log + archivado.
             const resultado = await cerrarTicket(client, req.params.canalId, {
-                autor: req.body?.autor || 'Panel Web',
+                autor: (req.staff && req.staff.username) || req.body?.autor || 'Panel Web',
                 avisarCanal: true
             });
+            if (resultado.yaCerrado) return res.status(409).json({ error: 'El ticket ya estaba cerrado' });
             if (!resultado.ok) return res.status(404).json({ error: resultado.error });
             res.json({ success: true, ticket: resultado.ticket });
         } catch (error) {
@@ -1094,8 +1132,9 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/tickets/:canalId/reabrir', scopeTicket, async (req, res) => {
         try {
             const resultado = await reabrirTicket(client, req.params.canalId, {
-                autor: req.body?.autor || 'Panel Web'
+                autor: (req.staff && req.staff.username) || req.body?.autor || 'Panel Web'
             });
+            if (resultado.yaAbierto) return res.status(409).json({ error: 'El ticket ya está abierto' });
             if (!resultado.ok) return res.status(404).json({ error: resultado.error });
             res.json({ success: true, ticket: resultado.ticket });
         } catch (error) {
@@ -1248,7 +1287,7 @@ app.get('/api/stats/uso', async (req, res) => {
             const configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId: guildId },
                 { urgencias: urgencias },
-                { new: true } 
+                { returnDocument: 'after' } 
             );
 
             res.json({ success: true, config: configActualizada });
@@ -2480,7 +2519,7 @@ app.get('/api/stats/uso', async (req, res) => {
     // Editar un panel (y republicarlo).
     app.put('/api/paneles/:id', scopePanel, async (req, res) => {
         try {
-            const panel = await RolePanel.findByIdAndUpdate(req.params.id, { $set: limpiarPanel(req.body) }, { new: true });
+            const panel = await RolePanel.findByIdAndUpdate(req.params.id, { $set: limpiarPanel(req.body) }, { returnDocument: 'after' });
             if (!panel) return res.status(404).json({ error: 'Panel no encontrado' });
             if (panel.channelId) {
                 try { await publicarPanel(client, panel); }
@@ -2697,7 +2736,7 @@ app.get('/api/stats/uso', async (req, res) => {
 
     app.put('/api/sanciones/tipos/:id', scopeModRecurso(TipoSancion, 'tipo'), async (req, res) => {
         try {
-            const tipo = await TipoSancion.findByIdAndUpdate(req.params.id, { $set: limpiarTipo(req.body) }, { new: true });
+            const tipo = await TipoSancion.findByIdAndUpdate(req.params.id, { $set: limpiarTipo(req.body) }, { returnDocument: 'after' });
             if (!tipo) return res.status(404).json({ error: 'Tipo no encontrado' });
             res.json({ success: true, tipo });
         } catch (error) {

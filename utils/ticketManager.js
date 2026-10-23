@@ -1,7 +1,7 @@
 // Lógica compartida de ciclo de vida de los tickets.
 // La usan tanto los botones de Discord (events/interactionCreate.js) como la API web
 // (api/server.js), de modo que cerrar/reabrir se comporta igual desde ambos sitios.
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ChannelType, PermissionsBitField } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ChannelType, PermissionsBitField, OverwriteType } = require('discord.js');
 const https = require('https');
 const PDFDocument = require('pdfkit');
 const Ticket = require('../models/Ticket.js');
@@ -186,20 +186,55 @@ async function generarTranscriptPDF(canalId, ticket, cfg) {
     return listo;
 }
 
+// Permisos de un canal de ticket: oculto para @everyone y visible para el bot
+// (si no, un bot sin Administrador pierde el acceso a su propio canal), el
+// creador y los roles de staff/soporte configurados. Solo se conceden permisos
+// que el bot tiene: Discord rechaza la creación del canal en caso contrario.
+function permisosCanalTicket(guild, cfg, creadorId) {
+    const F = PermissionsBitField.Flags;
+    const yo = guild.members.me;
+    const puede = (flags) => flags.filter((f) => !yo || yo.permissions.has(f));
+    const basicos = [F.ViewChannel, F.SendMessages, F.ReadMessageHistory, F.AttachFiles, F.EmbedLinks];
+
+    const overwrites = [{ id: guild.id, type: OverwriteType.Role, deny: [F.ViewChannel] }];
+    if (yo) overwrites.push({ id: yo.id, type: OverwriteType.Member, allow: puede([...basicos, F.ManageChannels]) });
+    if (creadorId && creadorId !== yo?.id) overwrites.push({ id: creadorId, type: OverwriteType.Member, allow: puede(basicos) });
+    const roles = new Set([cfg && cfg.rolStaffId, cfg && cfg.rolSoporteId].filter((id) => id && guild.roles.cache.has(id)));
+    for (const id of roles) overwrites.push({ id, type: OverwriteType.Role, allow: puede(basicos) });
+    return overwrites;
+}
+
+// Una categoría de Discord admite como mucho 50 canales: si la de archivo está
+// llena se usa (o se crea) "<nombre> 2", "<nombre> 3"…
+async function categoriaArchivoLibre(guild, nombreCat, canalId) {
+    for (let n = 1; n <= 20; n++) {
+        const nombre = n === 1 ? nombreCat : `${nombreCat.slice(0, 95)} ${n}`;
+        const cat = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === nombre);
+        if (!cat) return guild.channels.create({ name: nombre, type: ChannelType.GuildCategory });
+        if (cat.children.cache.has(canalId) || cat.children.cache.size < 50) return cat;
+    }
+    return null;
+}
+
+// Cambia el nombre sin esperar: Discord solo deja renombrar un canal 2 veces
+// cada 10 minutos y discord.js esperaría en cola, bloqueando el cierre/reapertura.
+function renombrarSinEsperar(canal, nombre) {
+    if (canal.name === nombre) return;
+    canal.setName(nombre.slice(0, 100)).catch(() => {});
+}
+
 // Mueve el canal a la categoría de archivados y lo deja en modo solo lectura.
 async function archivarCanal(canal, ticket, categoriaNombre = CATEGORIA_ARCHIVO) {
     try {
         const guild = canal.guild;
         const nombreCat = categoriaNombre || CATEGORIA_ARCHIVO;
-        let categoria = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === nombreCat);
-        if (!categoria) {
-            categoria = await guild.channels.create({ name: nombreCat, type: ChannelType.GuildCategory });
+        const categoria = await categoriaArchivoLibre(guild, nombreCat, canal.id);
+        if (categoria && canal.parentId !== categoria.id) {
+            await canal.setParent(categoria.id, { lockPermissions: false }).catch(() => {});
         }
-        await canal.setParent(categoria.id, { lockPermissions: false }).catch(() => {});
-        await canal.permissionOverwrites.edit(ticket.creadorId, { SendMessages: false }).catch(() => {});
-        if (!canal.name.startsWith('closed-')) {
-            await canal.setName(`closed-${ticket.creadorNombre}`).catch(() => {});
-        }
+        // Con el tipo explícito funciona aunque el creador no esté en la caché.
+        await canal.permissionOverwrites.edit(ticket.creadorId, { SendMessages: false }, { type: OverwriteType.Member }).catch(() => {});
+        if (!canal.name.startsWith('closed-')) renombrarSinEsperar(canal, `closed-${ticket.creadorNombre}`);
     } catch (e) { console.error('Error archivando el canal:', e); }
 }
 
@@ -212,16 +247,7 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
 
     const cfg = await getConfig(guildId);
     const parentId = (cfg && cfg.categoriaTicketsId && guild.channels.cache.get(cfg.categoriaTicketsId)) ? cfg.categoriaTicketsId : null;
-    const F = PermissionsBitField.Flags;
-
-    const overwrites = [{ id: guild.id, deny: [F.ViewChannel] }];
-    if (darAccesoCreador && creador && creador.id) {
-        overwrites.push({ id: creador.id, allow: [F.ViewChannel, F.SendMessages, F.ReadMessageHistory] });
-    }
-    // Que el rol de staff configurado vea siempre el ticket.
-    if (cfg && cfg.rolStaffId && guild.roles.cache.get(cfg.rolStaffId)) {
-        overwrites.push({ id: cfg.rolStaffId, allow: [F.ViewChannel, F.SendMessages, F.ReadMessageHistory] });
-    }
+    const overwrites = permisosCanalTicket(guild, cfg, darAccesoCreador && creador ? creador.id : null);
 
     const nombreBase = (creador && creador.username) ? creador.username : 'ticket';
     const canal = await guild.channels.create({
@@ -268,14 +294,18 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
 }
 
 // Cierra un ticket: transcript + encuesta CSAT por DM + log + archivado del canal.
-// Devuelve { ok, ticket } o { ok: false, error }.
+// Devuelve { ok, ticket } o { ok: false, error } (con yaCerrado si ya lo estaba:
+// así dos cierres a la vez no mandan dos encuestas ni duplican el log).
 async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = false } = {}) {
     const ticket = await Ticket.findOneAndUpdate(
-        { canalId },
+        { canalId, estado: { $ne: 'Cerrado' } },
         { estado: 'Cerrado', fechaCierre: new Date() },
-        { new: true }
+        { returnDocument: 'after' }
     );
-    if (!ticket) return { ok: false, error: 'Ticket not found' };
+    if (!ticket) {
+        if (await Ticket.exists({ canalId })) return { ok: false, yaCerrado: true, error: 'Ticket already closed' };
+        return { ok: false, error: 'Ticket not found' };
+    }
 
     // Ajustes configurables (por defecto = comportamiento de siempre).
     const cfg = await getConfig(ticket.guildId);
@@ -329,25 +359,32 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
     return { ok: true, ticket };
 }
 
-// Reabre un ticket archivado: restaura permisos y lo saca de la categoría de archivo.
+// Reabre un ticket archivado: restaura permisos y lo devuelve a la categoría de
+// tickets (o lo saca de la de archivo si no hay ninguna configurada).
 async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     const ticket = await Ticket.findOneAndUpdate(
-        { canalId },
+        { canalId, estado: 'Cerrado' },
         { estado: 'Abierto', fechaCierre: null },
-        { new: true }
+        { returnDocument: 'after' }
     );
-    if (!ticket) return { ok: false, error: 'Ticket not found' };
+    if (!ticket) {
+        if (await Ticket.exists({ canalId })) return { ok: false, yaAbierto: true, error: 'Ticket is not closed' };
+        return { ok: false, error: 'Ticket not found' };
+    }
 
     const cfg = await getConfig(ticket.guildId);
     const canal = client.channels.cache.get(canalId);
     if (canal) {
-        await canal.permissionOverwrites.edit(ticket.creadorId, { ViewChannel: true, SendMessages: true }).catch(() => {});
-        await canal.setParent(null).catch(() => {});
-        await canal.setName(`ticket-${ticket.creadorNombre}`).catch(() => {});
+        await canal.permissionOverwrites.edit(ticket.creadorId, { ViewChannel: true, SendMessages: true }, { type: OverwriteType.Member }).catch(() => {});
+        const destino = cfg && cfg.categoriaTicketsId && canal.guild.channels.cache.get(cfg.categoriaTicketsId);
+        // Si la categoría de tickets está llena (50 canales), al menos sale del archivo.
+        await canal.setParent(destino ? destino.id : null, { lockPermissions: false })
+            .catch(() => canal.setParent(null, { lockPermissions: false }).catch(() => {}));
+        renombrarSinEsperar(canal, `ticket-${ticket.creadorNombre}`);
         await canal.send(t(cfg, '🔓 **Este ticket ha sido reabierto.** Puedes volver a escribir.', '🔓 **This ticket has been reopened.** You can write again.')).catch(() => {});
     }
     await registrarLogTicket(client, ticket, '🔓 Ticket reopened', '#2ecc71', autor);
     return { ok: true, ticket };
 }
 
-module.exports = { crearTicket, cerrarTicket, reabrirTicket, generarTranscript, construirTranscriptHTML, generarTranscriptHTML, generarTranscriptPDF, registrarLogTicket };
+module.exports = { crearTicket, cerrarTicket, reabrirTicket, permisosCanalTicket, generarTranscript, construirTranscriptHTML, generarTranscriptHTML, generarTranscriptPDF, registrarLogTicket };

@@ -30,7 +30,7 @@ module.exports = {
         const config = await ServidorConfig.findOneAndUpdate(
             { guildId: message.guild.id },
             { $set: { idioma: elegido } },
-            { new: true, upsert: true },
+            { returnDocument: 'after', upsert: true },
         );
 
         const nombre = elegido === 'es' ? 'Español' : 'English';

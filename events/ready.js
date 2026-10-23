@@ -7,6 +7,7 @@ const { registrarVoz } = require('../utils/actividad.js');
 const { otorgarXpVoz } = require('../utils/niveles.js');
 const { getConfigCached } = require('../utils/config.js');
 const { barrerCanales: barrerCanalesVoz } = require('../utils/vozTemporal.js');
+const { anunciarActualizacion } = require('../utils/anuncioActualizacion.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -32,6 +33,9 @@ module.exports = {
         };
         rotarPresencia();
         setInterval(rotarPresencia, 25000);
+
+        // Primera vez con una versión nueva: avisar de "Bot actualizado" (ANUNCIO_SERVIDOR).
+        anunciarActualizacion(client).catch((e) => console.error('Aviso de actualización:', e.message));
 
         // Arranca el barrido de auto-cierre por inactividad (configurable por servidor).
         iniciarAutoCierre(client);

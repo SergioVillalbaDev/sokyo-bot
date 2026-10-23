@@ -1177,7 +1177,8 @@ export function useDashboard() {
     if (e) e.stopPropagation();
     if (!window.confirm('Close ticket in Discord?')) return;
     const res = await apiFetch(`/api/tickets/${canalId}/cerrar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autor: 'Admin' }) });
-    if (res.ok) {
+    // 409 = ya estaba cerrado (p. ej. desde Discord): igualmente se sincroniza la vista.
+    if (res.ok || res.status === 409) {
       setTicketsReales(ticketsReales.map((t) => t.canalId === canalId ? { ...t, estado: 'Cerrado' } : t));
       if (ticketSeleccionado?.canalId === canalId) setTicketSeleccionado({ ...ticketSeleccionado, estado: 'Cerrado' });
     }
@@ -1187,7 +1188,8 @@ export function useDashboard() {
     if (e) e.stopPropagation();
     if (!window.confirm('Reopen this ticket in Discord?')) return;
     const res = await apiFetch(`/api/tickets/${canalId}/reabrir`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autor: 'Admin' }) });
-    if (res.ok) {
+    // 409 = ya estaba abierto (p. ej. desde Discord): igualmente se sincroniza la vista.
+    if (res.ok || res.status === 409) {
       setTicketsReales(ticketsReales.map((t) => t.canalId === canalId ? { ...t, estado: 'Abierto' } : t));
       if (ticketSeleccionado?.canalId === canalId) setTicketSeleccionado({ ...ticketSeleccionado, estado: 'Abierto' });
     }

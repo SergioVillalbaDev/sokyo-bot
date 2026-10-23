@@ -229,7 +229,7 @@ module.exports = ({ portalAuth, client }) => {
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: { musica } },
-                { new: true, upsert: true },
+                { returnDocument: 'after', upsert: true },
             );
             res.json({ success: true, config });
         } catch (e) {
