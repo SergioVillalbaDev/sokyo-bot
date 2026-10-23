@@ -13,11 +13,16 @@ function firmarToken(payload, secret, expiraEnSeg = 60 * 60 * 24 * 7) {
 }
 
 function verificarToken(token, secret) {
-    if (!token || !token.includes('.')) return null;
-    const [datos, firma] = token.split('.');
+    if (typeof token !== 'string') return null;
+    const partes = token.split('.');
+    if (partes.length !== 2) return null;
+    const [datos, firma] = partes;
     const esperada = crypto.createHmac('sha256', secret).update(datos).digest('base64url');
-    if (firma.length !== esperada.length) return null;
-    if (!crypto.timingSafeEqual(Buffer.from(firma), Buffer.from(esperada))) return null;
+    // Se comparan bytes (no caracteres): con caracteres no ASCII las longitudes
+    // podrían coincidir en texto y no en bytes, y timingSafeEqual lanzaría.
+    const a = Buffer.from(firma);
+    const b = Buffer.from(esperada);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
 
     let payload;
     try { payload = JSON.parse(Buffer.from(datos, 'base64url').toString()); } catch { return null; }
