@@ -462,6 +462,14 @@ function toast(msg, tipo = 'ok') {
 
 // --- SESIÓN ---
 const getToken = () => localStorage.getItem('sokyo_token') || '';
+// fetch a la API que guarda la sesión renovada que manda el servidor (X-Sokyo-Token):
+// así la sesión no caduca mientras se use.
+async function sesionFetch(url, opciones) {
+  const res = await fetch(url, opciones);
+  const renovada = res.headers.get('X-Sokyo-Token');
+  if (renovada && getToken()) localStorage.setItem('sokyo_token', renovada);
+  return res;
+}
 function login() { window.location = `${API}/api/auth/discord?state=tienda`; }
 function logout() { localStorage.removeItem('sokyo_token'); location.href = '/tienda.html'; }
 
@@ -477,8 +485,10 @@ async function init() {
   const token = getToken();
   if (!token) return mostrarDeslogueado();
   try {
-    const res = await fetch(`${API}/api/portal/yo`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error('sesión caducada');
+    const res = await sesionFetch(`${API}/api/portal/yo`, { headers: { Authorization: `Bearer ${token}` } });
+    // Solo un 401 significa sesión inválida; un fallo puntual del servidor no debe cerrarla.
+    if (res.status === 401) throw new Error('sesión caducada');
+    if (!res.ok) { mostrarDeslogueado(); return; }
     const yo = await res.json();
     $('#btnLogin').classList.add('hidden');
     $('#btnLogout').classList.remove('hidden');
@@ -512,7 +522,7 @@ function setGold(v, pulso = false) {
   if (pulso) { el.animate([{ filter: 'brightness(2)' }, { filter: 'brightness(1)' }], { duration: 700 }); }
 }
 async function actualizarOro() {
-  const r = await fetch(`${API}/api/portal/economia`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  const r = await sesionFetch(`${API}/api/portal/economia`, { headers: { Authorization: `Bearer ${getToken()}` } });
   if (r.ok) {
     const d = await r.json();
     setGold(d.balance);
@@ -583,7 +593,7 @@ function renderMochila() {
 // así un nombre con comillas no puede romper fuera del atributo e inyectar HTML/JS).
 async function usar(itemId) {
   const nombre = (INV.find(x => x._id === itemId) || {}).nombre || '';
-  const res = await fetch(`${API}/api/portal/shop/use`, {
+  const res = await sesionFetch(`${API}/api/portal/shop/use`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify({ itemId }),
@@ -622,7 +632,7 @@ function abrirRevelacion(cajaNombre, premio) {
 async function cargarCatalogo() {
   const token = getToken();
   if (!token) return mostrarDeslogueado();
-  const res = await fetch(`${API}/api/portal/items`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await sesionFetch(`${API}/api/portal/items`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) { $('#catalogo').innerHTML = aviso('⚠️', 'No se pudo abrir el mercado', 'Tu sesión pudo caducar. Vuelve a entrar.'); return; }
   ITEMS = await res.json();
   calcularDestacados();
@@ -695,7 +705,7 @@ async function comprar(itemId) {
   const token = getToken();
   if (!token) return login();
   const nombre = (ITEMS.find(x => x._id === itemId) || {}).nombre || '';
-  const res = await fetch(`${API}/api/portal/shop/buy`, {
+  const res = await sesionFetch(`${API}/api/portal/shop/buy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ itemId, cantidad: 1 }),
@@ -723,7 +733,7 @@ async function subirImagen(input, target = '#imageUrl') {
     r.onerror = rej;
     r.readAsDataURL(file);
   });
-  const r = await fetch(`${API}/api/portal/upload`, {
+  const r = await sesionFetch(`${API}/api/portal/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify({ datos }),
@@ -736,7 +746,7 @@ async function subirImagen(input, target = '#imageUrl') {
 $('#formItem').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
-  const res = await fetch(`${API}/api/portal/items`, {
+  const res = await sesionFetch(`${API}/api/portal/items`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify(Object.fromEntries(f)),
@@ -784,7 +794,7 @@ $('#formCaja').addEventListener('submit', async (e) => {
   if (!contenido.length) return toast('Marca al menos un objeto para la caja.', 'error');
   const body = Object.fromEntries(new FormData(e.target));
   body.contenido = contenido;
-  const res = await fetch(`${API}/api/portal/cajas`, {
+  const res = await sesionFetch(`${API}/api/portal/cajas`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify(body),
@@ -799,7 +809,7 @@ $('#formOferta').addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = $('#ofertaItem').value;
   if (!id) return toast('No hay objetos para poner en oferta.', 'error');
-  const res = await fetch(`${API}/api/portal/items/${id}/oferta`, {
+  const res = await sesionFetch(`${API}/api/portal/items/${id}/oferta`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify({ porcentaje: $('#ofertaPct').value, duracionMin: $('#ofertaDur').value }),

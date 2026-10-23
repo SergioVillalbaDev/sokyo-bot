@@ -33,7 +33,7 @@ const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
-const { firmarToken, verificarToken } = require('../utils/auth.js');
+const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
@@ -64,13 +64,16 @@ module.exports = (client) => {
     const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
     // El valor de ejemplo de .env.example es público: con él cualquiera podría
     // firmarse una sesión de propietario, así que se trata como si faltara. Sin
-    // secreto propio se usa la API_KEY o, en último caso, uno aleatorio (las
-    // sesiones se pierden al reiniciar, pero nadie puede falsificarlas).
+    // secreto propio se usa la API_KEY o, si tampoco hay, uno aleatorio que se
+    // guarda en .jwt-secret: así las sesiones sobreviven a reinicios y despliegues.
     const jwtPropio = process.env.JWT_SECRET && process.env.JWT_SECRET !== 'cambia-este-secreto-de-sesion' ? process.env.JWT_SECRET : null;
-    const JWT_SECRET = jwtPropio || API_KEY || crypto.randomBytes(32).toString('hex');
-    if (!jwtPropio) {
-        console.warn('⚠️ JWT_SECRET no está definido (o es el valor de ejemplo). Pon uno largo y aleatorio en el .env para que las sesiones del panel sean seguras y sobrevivan a los reinicios.');
+    const JWT_SECRET = jwtPropio || API_KEY || secretoGuardado(path.join(__dirname, '..', '.jwt-secret'));
+    if (!jwtPropio && !API_KEY) {
+        console.warn('⚠️ JWT_SECRET no está definido (o es el valor de ejemplo): las sesiones se firman con el secreto guardado en .jwt-secret.');
     }
+
+    // Las sesiones duran 30 días y se renuevan solas mientras se usen (ver renovarSesion).
+    const DURACION_SESION = 60 * 60 * 24 * 30;
 
     // IDs de Discord del/los PROPIETARIO(s): ven absolutamente TODO (todos los
     // servidores y tickets), sin el filtrado del staff. Separados por comas.
@@ -100,6 +103,7 @@ module.exports = (client) => {
             // (el navegador bloquea la respuesta) sin propagar una excepción con stack trace al cliente.
             callback(null, !origin || ORIGENES_PERMITIDOS.includes(origin));
         },
+        exposedHeaders: ['X-Sokyo-Token'], // sesión renovada (ver renovarSesion)
     }));
 
     // --- CABECERAS DE SEGURIDAD (helmet) ---
@@ -226,6 +230,16 @@ module.exports = (client) => {
         return p;
     }
 
+    // Renovación automática: si la sesión se emitió hace más de un día, la respuesta
+    // lleva una nueva (otros 30 días) en X-Sokyo-Token y el panel la guarda. Así no
+    // caduca nunca mientras se use al menos una vez al mes.
+    function renovarSesion(res, sesion) {
+        const restante = (sesion.exp || 0) - Math.floor(Date.now() / 1000);
+        if (restante > DURACION_SESION - 60 * 60 * 24) return;
+        const { exp, ...datos } = sesion;
+        res.set('X-Sokyo-Token', firmarToken(datos, JWT_SECRET, DURACION_SESION));
+    }
+
     // --- AUTENTICACIÓN del panel de staff ---
     // Acepta: (1) sesión de staff (JWT con staff:true) acotada a SUS servidores, o
     //         (2) la API key del propietario (acceso total), por retrocompatibilidad.
@@ -243,6 +257,7 @@ module.exports = (client) => {
             const broadcaster = BROADCAST_IDS.has(sesion.id);
             const guilds = owner ? client.guilds.cache.map((g) => g.id) : await guildsDelStaffCacheado(sesion.id);
             req.staff = { ...sesion, owner, broadcaster, guilds };
+            renovarSesion(res, { ...sesion, owner, broadcaster });
             if (owner) return next(); // el PROPIETARIO lo ve todo, sin filtros
             // Un difusor llega a los endpoints de difusión aunque no sea de sus servidores.
             if (broadcaster && req.path.startsWith('/broadcast')) return next();
@@ -283,8 +298,9 @@ module.exports = (client) => {
     const portalAuth = (req, res, next) => {
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
         const usuario = verificarToken(token, JWT_SECRET);
-        if (!usuario) return res.status(401).json({ error: 'Sesión no válida o caducada' });
+        if (!usuario) return res.status(401).json({ error: 'Sesión no válida o caducada', code: 'session_invalid' });
         req.usuario = usuario;
+        renovarSesion(res, usuario);
         next();
     };
 
@@ -464,6 +480,24 @@ module.exports = (client) => {
         try { return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b)); } catch { return false; }
     }
 
+    // `state` de OAuth: tipo-nonce-hora-firma, solo con [a-z0-9-] para que ningún
+    // cliente de Discord (web o app) tenga problemas con él. Vale 15 minutos.
+    const firmaEstado = (datos) => crypto.createHmac('sha256', JWT_SECRET).update(`oauth:${datos}`).digest('hex').slice(0, 32);
+    function firmarEstadoOAuth(tipo, nonce) {
+        const datos = `${tipo}-${nonce}-${Date.now().toString(36)}`;
+        return `${datos}-${firmaEstado(datos)}`;
+    }
+    function leerEstadoOAuth(state) {
+        const partes = String(state || '').split('-');
+        if (partes.length !== 4) return null;
+        const [tipo, nonce, hora, firma] = partes;
+        if (!['staff', 'tienda', 'portal'].includes(tipo)) return null;
+        if (!nonceValido(firma, firmaEstado(`${tipo}-${nonce}-${hora}`))) return null;
+        const edad = Date.now() - parseInt(hora, 36);
+        if (!(edad >= 0 && edad < 15 * 60 * 1000)) return null;
+        return { tipo, nonce };
+    }
+
     // --- Utilidad anti-SSRF para URLs de webhooks salientes proporcionadas por el staff ---
     // Resuelve el host y rechaza IPs privadas/loopback/link-local, para que un webhook
     // "de prueba" (o guardado) no pueda usarse para sondear la red interna del servidor.
@@ -495,36 +529,46 @@ module.exports = (client) => {
             return res.status(500).send('El login con Discord no está configurado en el servidor.');
         }
         const tipo = ['staff', 'tienda'].includes(req.query.state) ? req.query.state : 'portal'; // staff / tienda / portal
-        // Nonce anti-CSRF: se guarda en una cookie httpOnly y viaja también en el
-        // `state` de OAuth. El callback exige que coincidan, así un atacante no puede
-        // completar el login-CSRF clásico (colar SU code en la sesión de la víctima),
-        // porque no puede leer/forzar la cookie del navegador de la víctima.
-        const nonce = crypto.randomBytes(24).toString('base64url');
+        // Nonce anti-CSRF: viaja en el `state` firmado y en una cookie httpOnly. Si la
+        // cookie llega al callback, tiene que coincidir (así nadie puede colar SU code
+        // en la sesión de otro navegador). En el móvil la app de Discord puede volver
+        // al callback en otro navegador sin esa cookie: entonces basta la firma.
+        const nonce = crypto.randomBytes(12).toString('hex');
         res.cookie('sokyo_oauth_state', nonce, {
-            httpOnly: true, sameSite: 'lax', secure: !!process.env.TRUST_PROXY, maxAge: 10 * 60 * 1000, path: '/',
+            httpOnly: true, sameSite: 'lax', secure: !!process.env.TRUST_PROXY, maxAge: 15 * 60 * 1000, path: '/',
         });
         const params = new URLSearchParams({
             client_id: DISCORD_CLIENT_ID,
             redirect_uri: OAUTH_REDIRECT_URI,
             response_type: 'code',
             scope: 'identify',
-            state: `${tipo}.${nonce}`,
+            state: firmarEstadoOAuth(tipo, nonce),
         });
-        res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+        // URL de autorización oficial (sin /api): es la que la app de Discord del
+        // móvil sabe abrir; la antigua daba "Invalid Form Body" al autorizar.
+        res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
     });
 
     // 2. Callback: intercambia el code, obtiene el usuario y emite la sesión
     app.get('/api/auth/discord/callback', async (req, res) => {
-        const { code, state } = req.query;
-        const [tipoRaw, nonce] = String(state || '').split('.');
+        const { code } = req.query;
+        const estado = leerEstadoOAuth(req.query.state);
+        // Si el state no es válido no sabemos de dónde venía: se intenta deducir por
+        // su prefijo para devolver al usuario a la pantalla de login correcta.
+        const tipoRaw = estado ? estado.tipo : String(req.query.state || '').split(/[-.]/)[0];
         const esStaff = tipoRaw === 'staff';
         const esTienda = tipoRaw === 'tienda';
-        const destinoError = esStaff ? `${FRONTEND_URL}/?staff=1&error=denegado`
-            : esTienda ? `/tienda.html?error=denegado`
-            : `${FRONTEND_URL}/?portal=1&error=denegado`;
+        const destino = (error) => (esStaff ? `${FRONTEND_URL}/?staff=1&error=${error}`
+            : esTienda ? `/tienda.html?error=${error}`
+            : `${FRONTEND_URL}/?portal=1&error=${error}`);
         const cookieNonce = leerCookie(req, 'sokyo_oauth_state');
         res.clearCookie('sokyo_oauth_state', { path: '/' });
-        if (!code || !nonceValido(nonce, cookieNonce)) return res.redirect(destinoError);
+        // El usuario pulsó "Cancelar" en Discord.
+        if (req.query.error === 'access_denied') return res.redirect(destino('denegado'));
+        // Sin code, state caducado/falsificado, o una cookie de OTRO intento de login.
+        if (!code || !estado || (cookieNonce && !nonceValido(estado.nonce, cookieNonce))) {
+            return res.redirect(destino('oauth'));
+        }
         try {
             const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
                 method: 'POST',
@@ -559,25 +603,23 @@ module.exports = (client) => {
                 if (!esOwner && !esBroadcaster && guilds.length === 0) {
                     return res.redirect(`${FRONTEND_URL}/?staff=1&error=nostaff`);
                 }
-                const sesion = firmarToken({ id: user.id, username: user.username, avatar, staff: true, owner: esOwner, broadcaster: esBroadcaster, guilds }, JWT_SECRET);
+                const sesion = firmarToken({ id: user.id, username: user.username, avatar, staff: true, owner: esOwner, broadcaster: esBroadcaster, guilds }, JWT_SECRET, DURACION_SESION);
                 return res.redirect(`${FRONTEND_URL}/?staff=1&token=${sesion}`);
             }
 
             // Login desde la página de la tienda (servida por el propio Express):
             // volvemos a ella, en el mismo origen, con la sesión ya puesta.
             if (esTienda) {
-                const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
+                const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET, DURACION_SESION);
                 return res.redirect(`/tienda.html?token=${sesion}`);
             }
 
             // Login del PORTAL del cliente (comportamiento existente).
-            const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
+            const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET, DURACION_SESION);
             res.redirect(`${FRONTEND_URL}/?portal=1&token=${sesion}`);
         } catch (error) {
             console.error('Error en el callback de OAuth:', error);
-            res.redirect(esStaff ? `${FRONTEND_URL}/?staff=1&error=oauth`
-                : esTienda ? `/tienda.html?error=oauth`
-                : `${FRONTEND_URL}/?portal=1&error=oauth`);
+            res.redirect(destino('oauth'));
         }
     });
 

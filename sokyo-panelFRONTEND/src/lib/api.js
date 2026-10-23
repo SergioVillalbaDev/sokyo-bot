@@ -39,7 +39,13 @@ export const apiFetch = (path, options = {}) => {
   const token = getStaffToken();
   const headers = { ...(options.headers || {}), 'x-api-key': API_KEY };
   if (token) headers.Authorization = `Bearer ${token}`;
-  return fetch(`${API_URL}${path}`, { ...options, headers });
+  return fetch(`${API_URL}${path}`, { ...options, headers }).then((res) => {
+    // El servidor renueva la sesión mientras se use (X-Sokyo-Token): así no caduca.
+    // Solo se guarda si no se ha cerrado sesión mientras tanto.
+    const renovada = res.headers.get('X-Sokyo-Token');
+    if (renovada && token && getStaffToken() === token) localStorage.setItem('sokyoStaffToken', renovada);
+    return res;
+  });
 };
 
 // Comprueba la respuesta y lanza un error legible si algo va mal.

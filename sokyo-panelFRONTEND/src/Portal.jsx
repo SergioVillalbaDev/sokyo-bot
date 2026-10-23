@@ -55,6 +55,12 @@ function Portal() {
   const portalFetch = (path, options = {}) => fetch(`${API_URL}${path}`, {
     ...options,
     headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` }
+  }).then((res) => {
+    // Sesión renovada por el servidor (X-Sokyo-Token): se guarda para la próxima
+    // visita; la actual sigue con la que tiene, que aún es válida.
+    const renovada = res.headers.get('X-Sokyo-Token');
+    if (renovada && localStorage.getItem('portalToken') === token) localStorage.setItem('portalToken', renovada);
+    return res;
   });
 
   const logout = () => { localStorage.removeItem('portalToken'); setToken(''); setUsuario(null); setTickets([]); setTicketSel(null); };
