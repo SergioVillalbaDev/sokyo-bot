@@ -1,7 +1,7 @@
 // Comunidad · Sugerencias — buzón de ideas de los miembros con votos y gestión de estado.
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, ThumbsUp, ThumbsDown, Trash2, Info, Check, X, Clock, Eye } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Trash2, Info, Check, X, Clock, Eye } from 'lucide-react';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';

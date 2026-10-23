@@ -2,7 +2,7 @@
 // con preguntas configurables y filtros automáticos de descarte.
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClipboardList, Plus, Trash2, Info, Filter, Check, AlertTriangle, Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Info, Filter, Check, AlertTriangle, Bell, ChevronDown, ChevronUp } from 'lucide-react';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
