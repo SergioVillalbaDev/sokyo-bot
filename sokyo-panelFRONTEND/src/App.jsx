@@ -74,6 +74,12 @@ function App() {
     goLanding();
   };
 
+  // Sesión caducada o inválida: se borra y se vuelve directo al login de Discord.
+  const relogin = () => {
+    localStorage.removeItem('sokyoStaffToken');
+    window.location.href = `${API_URL}/api/auth/discord?state=staff`;
+  };
+
   if (route === 'dashboard') {
     // Requiere sesión de staff, salvo en modo propietario (VITE_API_KEY presente).
     if (!staffToken && !hasApiKey) {
@@ -85,7 +91,7 @@ function App() {
       window.location.href = `${API_URL}/api/auth/discord?state=staff`;
       return null;
     }
-    return <Suspense fallback={null}><Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} /></Suspense>;
+    return <Suspense fallback={null}><Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} onRelogin={staffToken ? relogin : undefined} /></Suspense>;
   }
   if (route === 'legal') {
     return <Suspense fallback={null}><Legal page={getLegalPage()} onBack={(e) => { if (e) e.preventDefault(); goLanding(); }} /></Suspense>;

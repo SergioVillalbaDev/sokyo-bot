@@ -125,6 +125,8 @@ export function useDashboard() {
 
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
+  // La API rechaza la sesión de Discord: el banner ofrece volver a entrar.
+  const [sesionCaducada, setSesionCaducada] = useState(false);
 
   // Cambia de tema (valida y persiste). Bloquea temas premium en plan Free.
   const setTheme = (id) => {
@@ -136,6 +138,11 @@ export function useDashboard() {
 
   const reportarError = (contexto) => (err) => {
     console.error(`Error ${contexto}:`, err);
+    if (err && err.code === 'session_invalid') {
+      setSesionCaducada(true);
+      setErrorConexion(err.message);
+      return;
+    }
     setErrorConexion(`Couldn’t connect to the API at ${API_URL} — ${err.message}`);
   };
 
@@ -1474,7 +1481,7 @@ export function useDashboard() {
     // logs
     logsRegistrados, limiteLogs, esPremium,
     // errores
-    errorConexion, ping,
+    errorConexion, sesionCaducada, ping,
     // acciones
     verMensajes, cerrarMensajes, enviarMensaje, agregarNotaInterna,
     handleCerrarTicket, handleReabrirTicket, handleOcultarTicket,

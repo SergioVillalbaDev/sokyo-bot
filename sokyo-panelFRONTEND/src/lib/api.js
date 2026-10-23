@@ -51,8 +51,12 @@ export const procesarRespuesta = async (res) => {
     let code = '';
     let msg = '';
     try { const b = await res.json(); code = b.code || ''; msg = b.error || ''; } catch { /* sin cuerpo JSON */ }
-    if (code === 'session_invalid')
-      throw new Error(msg || 'Tu sesión ha caducado. Cierra sesión y vuelve a entrar con Discord.');
+    if (code === 'session_invalid') {
+      // Con el code el panel sabe que debe ofrecer volver a entrar con Discord.
+      const err = new Error(msg || 'Tu sesión ha caducado. Cierra sesión y vuelve a entrar con Discord.');
+      err.code = code;
+      throw err;
+    }
     if (code === 'apikey_mismatch')
       throw new Error(msg || 'La VITE_API_KEY del panel no coincide con la API_KEY del bot.');
     throw new Error(msg || '401 No autorizado.');
