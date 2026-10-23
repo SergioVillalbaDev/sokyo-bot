@@ -16,7 +16,13 @@ export function useDashboard() {
     const guardado = localStorage.getItem('sokyoTheme');
     return guardado && isValidTheme(guardado) ? guardado : 'lima';
   });
-  const [activeTab, setActiveTab] = useState('inicio');
+  // Pestaña inicial: la de la URL (#dashboard/<pestaña>: enlaces directos y
+  // recargas) o la que se pidió antes de pasar por el login de Discord.
+  const [activeTab, setActiveTab] = useState(() => {
+    const enUrl = window.location.hash.match(/^#dashboard\/([\w-]+)/);
+    return (enUrl && enUrl[1]) || sessionStorage.getItem('sokyoPestanaTrasLogin') || 'inicio';
+  });
+  useEffect(() => { sessionStorage.removeItem('sokyoPestanaTrasLogin'); }, []);
 
   // Servidor (guild) seleccionado en el panel + lista de servidores del bot.
   const [guildId, setGuildIdState] = useState(() => localStorage.getItem('sokyoGuild') || '');

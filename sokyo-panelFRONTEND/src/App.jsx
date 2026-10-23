@@ -51,6 +51,18 @@ function App() {
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Sin sesión de staff (ni API key): directos al login de Discord, sin pantalla
+  // intermedia. Si hubo un error en el login no (se muestra), o entraríamos en
+  // un bucle de redirección. La pestaña pedida (#dashboard/<pestaña>) se recuerda
+  // para abrirla al volver del login.
+  const irAlLogin = route === 'dashboard' && !staffToken && !hasApiKey && !authError;
+  useEffect(() => {
+    if (!irAlLogin) return;
+    const pestana = window.location.hash.match(/^#dashboard\/([\w-]+)/);
+    if (pestana) sessionStorage.setItem('sokyoPestanaTrasLogin', pestana[1]);
+    window.location.href = `${API_URL}/api/auth/discord?state=staff`;
+  }, [irAlLogin]);
+
   useEffect(() => {
     const onHash = () => setRoute(getRoute());
     window.addEventListener('hashchange', onHash);
@@ -83,13 +95,8 @@ function App() {
   if (route === 'dashboard') {
     // Requiere sesión de staff, salvo en modo propietario (VITE_API_KEY presente).
     if (!staffToken && !hasApiKey) {
-      // Si hubo un error en el login, mostramos la pantalla con el mensaje
-      // (si no, entraríamos en un bucle de redirección).
       if (authError) return <Suspense fallback={null}><StaffLogin error={authError} /></Suspense>;
-      // Sin sesión y sin error: vamos DIRECTOS al login de Discord, sin
-      // pantalla intermedia.
-      window.location.href = `${API_URL}/api/auth/discord?state=staff`;
-      return null;
+      return null; // redirigiendo al login de Discord (efecto irAlLogin)
     }
     return <Suspense fallback={null}><Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} onRelogin={staffToken ? relogin : undefined} /></Suspense>;
   }

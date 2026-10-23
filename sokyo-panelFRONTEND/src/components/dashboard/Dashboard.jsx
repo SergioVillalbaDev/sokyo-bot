@@ -81,6 +81,13 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     return () => clearTimeout(id);
   }, [activeTab, t, guildId, mostrarSelectorServidor, servidores.length]);
 
+  // La pestaña abierta va en la URL (#dashboard/<pestaña>): al recargar, o al
+  // compartir el enlace, se vuelve a la misma sección.
+  useEffect(() => {
+    const destino = activeTab === 'inicio' ? '#dashboard' : `#dashboard/${activeTab}`;
+    if (window.location.hash !== destino) window.history.replaceState(null, '', destino);
+  }, [activeTab]);
+
   // Navegación desde el sidebar: al ir a "Gestión" cerramos el chat abierto.
   // En móvil, además cerramos el drawer al elegir una sección.
   const navigate = (tab) => {

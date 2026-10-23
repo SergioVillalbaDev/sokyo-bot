@@ -1,5 +1,5 @@
 // Comunidad · Eventos — crea y gestiona eventos del servidor de Discord.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic } from 'lucide-react';
 import { FechaPicker, SubirImagen } from './comunidadShared.jsx';
@@ -22,10 +22,17 @@ export default function EventosView({ dash }) {
   const [portada, setPortada] = useState('');
   const [estado, setEstado] = useState('');
 
+  // Hora actual, refrescada cada minuto: un evento pasa solo a "pasados" al empezar.
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setAhora(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const proximos = (eventos)
-    .filter((e) => new Date(e.fechaInicio) > Date.now())
+    .filter((e) => new Date(e.fechaInicio) > ahora)
     .sort((a, b) => new Date(a.fechaInicio) - new Date(b.fechaInicio));
-  const pasados = eventos.filter((e) => new Date(e.fechaInicio) <= Date.now());
+  const pasados = eventos.filter((e) => new Date(e.fechaInicio) <= ahora);
 
   const crear = async () => {
     setEstado('creando');

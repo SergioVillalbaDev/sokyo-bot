@@ -42,6 +42,7 @@ export default {
       panelBtn: 'Panel',
       accountBtn: 'My account',
       cta: 'Add to Discord',
+      ctaShort: 'Add',
       links: { features: 'Features', pricing: 'Pricing', panel: 'Panel' },
     },
     hero: {
@@ -66,7 +67,7 @@ export default {
     },
     stats: [
       { to: 5, suffix: '+', label: 'Bots replaced by just one' },
-      { to: 37, label: 'Ready-to-use commands' },
+      { to: 40, suffix: '+', label: 'Ready-to-use commands' },
       { to: 100, suffix: '%', label: 'Configurable, no code needed' },
       { to: 60, prefix: '<', suffix: 's', label: 'To get up and running' },
     ],

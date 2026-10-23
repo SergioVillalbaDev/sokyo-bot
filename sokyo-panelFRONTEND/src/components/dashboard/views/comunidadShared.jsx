@@ -1,6 +1,6 @@
 // Componentes compartidos de la sección Comunidad: selector de hora amigable
 // (con preview en la zona horaria del usuario) y subida de imágenes desde el PC.
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, Clock, Image as ImageIcon, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
@@ -8,7 +8,7 @@ const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
 
 // Zona horaria detectada del navegador (p. ej. "Europe/Madrid").
-export const ZONA = Intl.DateTimeFormat().resolvedOptions().timeZone || 'tu zona';
+const ZONA = Intl.DateTimeFormat().resolvedOptions().timeZone || 'tu zona';
 
 function isoLocalPreview(iso) {
   if (!iso) return null;
@@ -27,7 +27,8 @@ export function CalendarTimePicker({ value, onChange }) {
   const DIAS_SEM = t('dashboard.shared.weekdays', { returnObjects: true });
   const base = value ? new Date(value) : null;
   const valido = base && !isNaN(base.getTime());
-  const arranque = valido ? base : new Date(Date.now() + 3600000);
+  // Fecha con la que abre el calendario: la elegida o, si no hay, dentro de una hora.
+  const [arranque] = useState(() => (valido ? base : new Date(Date.now() + 3600000)));
 
   const [open, setOpen] = useState(false);
   const [vista, setVista] = useState({ y: arranque.getFullYear(), m: arranque.getMonth() });
@@ -35,8 +36,13 @@ export function CalendarTimePicker({ value, onChange }) {
   const [min, setMin] = useState(Math.floor(arranque.getMinutes() / 5) * 5);
   const [sel, setSel] = useState(valido ? { y: base.getFullYear(), m: base.getMonth(), d: base.getDate() } : null);
 
-  // Si el padre limpia el valor (tras crear), reseteamos la selección.
-  useEffect(() => { if (!value) setSel(null); }, [value]);
+  // Si el padre limpia el valor (tras crear), reseteamos la selección. Se hace
+  // al renderizar (patrón de React para estado derivado), no en un efecto.
+  const [valorAnterior, setValorAnterior] = useState(value);
+  if (value !== valorAnterior) {
+    setValorAnterior(value);
+    if (!value) setSel(null);
+  }
 
   const emitir = (dia, hh, mm) => {
     if (!dia) return;
