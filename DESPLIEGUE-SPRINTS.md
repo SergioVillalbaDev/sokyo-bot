@@ -32,6 +32,10 @@ Rama: **`feature/frontend-redesign`**.
 
 ## 🛠️ Pasos en la Raspberry Pi
 
+> **Ahora basta con `bash deploy/deploy.sh`** (o con el despliegue automático de
+> `deploy/instalar-autodeploy.sh`, ver el README). Los pasos de abajo son lo que hace a mano.
+> En pm2 el proceso del bot se llama **`bot`**.
+
 ```bash
 # 1. Entrar al proyecto
 cd ~/sokyo-bot                 # ajusta la ruta si es otra
@@ -49,7 +53,7 @@ cd ..
 
 # 4. Reiniciar el bot (también reinicia la API + web).
 #    Los índices de Mongo se crean solos al arrancar.
-pm2 restart sokyo              # o: sudo systemctl restart sokyo-bot
+pm2 restart bot                # o: sudo systemctl restart sokyo-bot
 ```
 
 > Si arrancas el bot a mano (screen/tmux), para el proceso y vuelve a hacer `npm start`.
@@ -58,7 +62,7 @@ pm2 restart sokyo              # o: sudo systemctl restart sokyo-bot
 
 ## 🔍 Verificación post-despliegue
 
-1. **Logs** sin errores al arrancar: `pm2 logs sokyo --lines 30` (o `journalctl -u sokyo-bot -n 30`).
+1. **Logs** sin errores al arrancar: `pm2 logs bot --lines 30` (o `journalctl -u sokyo-bot -n 30`).
 2. **Landing** (abre `sokyo.studio` con **Ctrl+F5** para saltar la caché):
    - Banda de stats nueva: *5+ bots · 37 comandos · 100% sin código · <60s*.
    - Hero todo-en-uno + secciones nuevas **Comparativa** y **FAQ**.

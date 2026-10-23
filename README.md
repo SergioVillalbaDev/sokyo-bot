@@ -212,6 +212,25 @@ Abre la URL que indica Vite (normalmente <http://localhost:5173>).
 
 ---
 
+## 🍓 Despliegue en la Raspberry Pi
+
+En producción el bot corre con **pm2** (proceso `bot`, y `lavalink` para la música) y sirve
+también el panel de `dashboard.sokyo.studio` desde `sokyo-panelFRONTEND/dist`.
+
+```bash
+bash deploy/deploy.sh                 # trae lo último de GitHub, instala, compila el panel y reinicia
+bash deploy/instalar-autodeploy.sh    # (una vez) lo hace solo cada 5 minutos con cron
+```
+
+- Solo reinstala dependencias si cambia un `package.json` y solo compila el panel si cambia algo suyo.
+  La compilación se hace con el bot parado y en 2 núcleos, porque con todo encendido la Pi se llegó a colgar.
+- Comprueba en `/api/estado` (que publica `version` y `commit`) que arranca el código nuevo. Si no
+  arranca, **vuelve solo a la versión anterior** y no reintenta ese commit hasta que llegue otro.
+- Registro: `tail -f ~/sokyo-deploy.log`. Para desactivar el automático: `bash deploy/instalar-autodeploy.sh --quitar`.
+- El aviso "Bot actualizado" solo se manda si sube la `version` de `package.json`.
+
+---
+
 ## 🎫 Uso básico
 
 - En tu servidor de Discord, ejecuta **`!sokyo`** (como administrador) en el canal donde
