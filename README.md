@@ -86,7 +86,7 @@ sokyo-bot/
 
 ## ✅ Requisitos previos
 
-- **[Node.js](https://nodejs.org/)** 18 o superior (incluye `npm`).
+- **[Node.js](https://nodejs.org/)** 20.19 o superior (incluye `npm`). Mongoose 9 y Vite no funcionan en versiones anteriores.
 - **Una base de datos MongoDB** (gratis en [MongoDB Atlas](https://www.mongodb.com/atlas), te da una cadena `mongodb+srv://...`).
 - **Una aplicación de bot de Discord** en el [Developer Portal](https://discord.com/developers/applications) (de ahí sacas el *token*).
 - *(Opcional)* Cuenta de **[Stripe](https://dashboard.stripe.com)** para los pagos.
@@ -141,6 +141,7 @@ El resto son **opcionales** y están explicados con detalle dentro de `.env.exam
 - **Propietarios y difusión:** `OWNER_IDS` (ven todos los servidores/tickets), `BROADCAST_IDS` (pueden usar la Difusión).
 - **Pagos (Stripe):** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y los `STRIPE_PRICE_*` de cada plan.
 - **Asistente IA (Claude):** `ANTHROPIC_API_KEY` y, opcional, `ANTHROPIC_MODEL`.
+- **Aviso "Bot actualizado":** `ANUNCIO_SERVIDOR` (nombre o ID del servidor, por defecto `Tokyto`; vacío lo desactiva), `ANUNCIO_MENSAJE` y `ANUNCIO_MAX_DMS`. Se envía una vez por cada `version` nueva de `package.json`: súbela al desplegar cambios que quieras anunciar.
 
 > Si dejas vacías las claves de Stripe o de Anthropic, esas funciones quedan **desactivadas**
 > y el bot funciona igual.
