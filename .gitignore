@@ -2,6 +2,10 @@ node_modules/
 .env
 package-lock.json
 dist/
+# Builds temporales y estado del despliegue automático (deploy/deploy.sh)
+sokyo-panelFRONTEND/dist-*/
+.deploy-ok
+.deploy-fallido
 build/
 
 # Artefactos de runtime: subidas y tarjetas de nivel generadas.
