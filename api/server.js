@@ -38,6 +38,14 @@ const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
 const { enviarResumen } = require('../utils/resumenDiario.js');
+const { version: VERSION } = require('../package.json');
+
+// Commit que se está ejecutando: lo publica /api/estado para comprobar desde fuera
+// (y desde deploy/deploy.sh) que un despliegue ha arrancado de verdad.
+let COMMIT = null;
+try {
+    COMMIT = require('child_process').execSync('git rev-parse --short HEAD', { cwd: path.join(__dirname, '..'), stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+} catch { /* sin git (p. ej. copia sin .git) */ }
 
 module.exports = (client) => {
     const app = express();
@@ -790,6 +798,8 @@ module.exports = (client) => {
         ready: !!(client && typeof client.isReady === 'function' && client.isReady()),
         apiKeyRequired: !!API_KEY, // si es true, el panel necesita sesión de Discord o la API key correcta
         soporteEmail: process.env.SUPPORT_EMAIL || null, // contacto de soporte para el panel/tienda (plan Free)
+        version: VERSION,
+        commit: COMMIT,
     }));
 
     // Lista de servidores para el selector del panel.
