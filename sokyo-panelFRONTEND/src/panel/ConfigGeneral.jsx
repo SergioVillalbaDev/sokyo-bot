@@ -20,6 +20,7 @@ const elegir = (config) => ({
   canalTranscriptsId: config.canalTranscriptsId || '',
   canalLogsId: config.canalLogsId || '',
   maxTicketsPorUsuario: config.maxTicketsPorUsuario || 1,
+  autoCierreHoras: config.autoCierreHoras || 0,
   modulos: Object.fromEntries(MODULOS.map(m => [m.clave, config.modulos?.[m.clave] !== false]))
 });
 
@@ -49,6 +50,8 @@ export default function ConfigGeneral({ guildId, config, setConfig, marcarCambio
   const errores = [];
   const max = Number(form.maxTicketsPorUsuario);
   if (!Number.isInteger(max) || max < 1 || max > 10) errores.push('El límite de tickets debe estar entre 1 y 10.');
+  const horas = Number(form.autoCierreHoras);
+  if (form.autoCierreHoras === '' || !Number.isInteger(horas) || horas < 0 || horas > 720) errores.push('El cierre por inactividad debe estar entre 0 y 720 horas.');
 
   const roles = discord.datos?.roles || [];
   const rolPorId = Object.fromEntries(roles.map(r => [r.id, r]));
@@ -65,7 +68,8 @@ export default function ConfigGeneral({ guildId, config, setConfig, marcarCambio
           categoriaTicketsId: form.categoriaTicketsId || null,
           canalTranscriptsId: form.canalTranscriptsId || null,
           canalLogsId: form.canalLogsId || null,
-          maxTicketsPorUsuario: max
+          maxTicketsPorUsuario: max,
+          autoCierreHoras: horas
         }
       });
       setConfig(r.config);
@@ -123,11 +127,18 @@ export default function ConfigGeneral({ guildId, config, setConfig, marcarCambio
 
         <div className="columna" style={{ gap: 18 }}>
           <section className="tarjeta">
-            <div className="tarjeta-cabecera"><div><h3>🎫 Límites</h3><p>Evita que un usuario abra muchos tickets a la vez.</p></div></div>
-            <div className="tarjeta-cuerpo">
+            <div className="tarjeta-cabecera"><div><h3>🎫 Límites</h3><p>Cuántos tickets puede abrir cada usuario y cuándo se cierran solos.</p></div></div>
+            <div className="tarjeta-cuerpo columna" style={{ gap: 16 }}>
               <Campo etiqueta="Tickets abiertos a la vez por usuario" id="limite" ayuda="Si lo supera, el bot le enseña su ticket abierto en vez de crear otro.">
                 <input id="limite" className="entrada" type="number" min="1" max="10" style={{ width: 120 }} value={form.maxTicketsPorUsuario}
                   onChange={(e) => poner('maxTicketsPorUsuario', e.target.value === '' ? '' : Number(e.target.value))} />
+              </Campo>
+              <Campo etiqueta="Cerrar tickets sin respuesta del usuario (horas)" id="auto-cierre"
+                ayuda={horas > 0
+                  ? `Si el staff responde y el usuario no contesta en ${horas} h, el ticket se cierra solo. Al 75 % del plazo se avisa en el canal. 0 = desactivado.`
+                  : 'Desactivado. Indica cuántas horas (máx. 720) espera el ticket la respuesta del usuario antes de cerrarse solo.'}>
+                <input id="auto-cierre" className="entrada" type="number" min="0" max="720" style={{ width: 120 }} value={form.autoCierreHoras}
+                  onChange={(e) => poner('autoCierreHoras', e.target.value === '' ? '' : Number(e.target.value))} />
               </Campo>
             </div>
           </section>

@@ -96,6 +96,12 @@ function validarCambiosConfig(body, guild, actual) {
         cambios.maxTicketsPorUsuario = max;
     }
 
+    if ('autoCierreHoras' in body) {
+        const horas = Number(body.autoCierreHoras);
+        if (!Number.isInteger(horas) || horas < 0 || horas > 720) fallo('El cierre por inactividad debe estar entre 0 (desactivado) y 720 horas.');
+        cambios.autoCierreHoras = horas;
+    }
+
     if ('modulos' in body) {
         if (!body.modulos || typeof body.modulos !== 'object') fallo('Módulos no válidos.');
         for (const clave of MODULOS) {

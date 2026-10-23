@@ -9,6 +9,7 @@ const { crearCliente, crearServidor, crearMiembro, crearCanal } = require('./fak
 const Ticket = require(`${REPO}/models/Ticket.js`);
 const Mensaje = require(`${REPO}/models/Mensaje.js`);
 const Log = require(`${REPO}/models/Log.js`);
+const ServidorConfig = require(`${REPO}/models/ServidorConfig.js`);
 const { cargarCanalesTicket } = require(`${REPO}/utils/ticketCache.js`);
 const { actualizarConfig, invalidarConfig } = require(`${REPO}/utils/config.js`);
 
@@ -200,7 +201,7 @@ function mensajeDiscord({ id, miembro, canal, guild, contenido, adjuntos = [] })
     i = await ejecutar(interaccion({ tipo: 'comando', comando: 'panel', miembro: admin, guild: A, canal: general, opciones: {} }));
     check(/Panel de soporte publicado/.test(ultimoTexto(i)), '/panel', i.r);
     i = await ejecutar(interaccion({ tipo: 'comando', comando: 'config', miembro: admin, guild: A, canal: general, opciones: { sub: 'ver' } }));
-    check(i.r[0][1].embeds?.[0].data.fields.length === 9, '/config ver', i.r);
+    check(i.r[0][1].embeds?.[0].data.fields.length === 10 && i.r[0][1].embeds[0].data.fields.some(f => /inactividad/.test(f.name) && f.value === 'Desactivado'), '/config ver', i.r);
     i = await ejecutar(interaccion({ tipo: 'comando', comando: 'config', miembro: admin, guild: A, canal: general, opciones: { sub: 'limite', cantidad: 3 } }));
     invalidarConfig('gA');
     check(/hasta \*\*3\*\*/.test(ultimoTexto(i)), '/config limite', i.r);
@@ -217,9 +218,62 @@ function mensajeDiscord({ id, miembro, canal, guild, contenido, adjuntos = [] })
         check(i.r.length === 1 && !/❌/.test(ultimoTexto(i)), `/${c}`, i.r);
     }
 
+    console.log('\n— Cierre automático por inactividad');
+    const { revisarInactivos } = require(`${REPO}/utils/autoCierre.js`);
+    const HORA = 60 * 60 * 1000;
+    i = await ejecutar(interaccion({ tipo: 'comando', comando: 'config', miembro: admin, guild: A, canal: general, opciones: { sub: 'inactividad', horas: 24 } }));
+    check(/tras \*\*24 h\*\*/.test(ultimoTexto(i)) && (await ServidorConfig.findOne({ guildId: 'gA' })).autoCierreHoras === 24, '/config inactividad', i.r);
+    invalidarConfig('gA');
+    const canalInactivo = crearCanal(client, A, { name: 'ticket-inactivo' });
+    let inactivo = await Ticket.create({ guildId: 'gA', canalId: canalInactivo.id, creadorId: 'u1', creadorNombre: 'usuario1' });
+    await cargarCanalesTicket();
+    const escribir = (miembro, id) => messageCreate.execute(mensajeDiscord({ id, miembro, canal: canalInactivo, guild: A, contenido: '...' }), client);
+    const avisosEn = (c) => [...c.mensajes.values()].filter(m => m.payload.embeds?.[0]?.data.title === '⏰ Ticket sin respuesta');
+
+    let res0 = await revisarInactivos(client, new Date(Date.now() + 100 * HORA));
+    check(res0.avisados === 0 && res0.cerrados === 0, 'si se espera al staff no se avisa ni se cierra', res0);
+    await escribir(admin, 'i1');
+    let base = Date.now();
+    res0 = await revisarInactivos(client, new Date(base + 17 * HORA));
+    check(res0.avisados === 0 && avisosEn(canalInactivo).length === 0, 'antes del 75 % del plazo no se avisa', res0);
+    res0 = await revisarInactivos(client, new Date(base + 18 * HORA));
+    const aviso = avisosEn(canalInactivo)[0];
+    inactivo = await Ticket.findById(inactivo._id);
+    check(res0.avisados === 1 && aviso?.payload.content === '<@u1>' && /<t:\d+:R>/.test(aviso.payload.embeds[0].data.description) && inactivo.avisoInactividad, 'al 75 % se avisa en el canal mencionando al usuario', { res0, aviso: aviso?.payload });
+    res0 = await revisarInactivos(client, new Date(base + 20 * HORA));
+    check(res0.avisados === 0 && res0.cerrados === 0 && avisosEn(canalInactivo).length === 1, 'el aviso no se repite', res0);
+    await escribir(u1, 'i2');
+    inactivo = await Ticket.findById(inactivo._id);
+    check(inactivo.avisoInactividad === null && inactivo.esperando === 'staff', 'si el usuario contesta tras el aviso, la cuenta se reinicia', inactivo);
+    res0 = await revisarInactivos(client, new Date(base + 30 * HORA));
+    check(res0.avisados === 0 && res0.cerrados === 0, 'tras la respuesta del usuario ya no se cierra', res0);
+
+    await escribir(admin, 'i3');
+    base = Date.now();
+    res0 = await revisarInactivos(client, new Date(base + 18 * HORA));
+    check(res0.avisados === 1 && avisosEn(canalInactivo).length === 2, 'nueva respuesta del staff → nuevo aviso', res0);
+    res0 = await revisarInactivos(client, new Date(base + 23 * HORA));
+    check(res0.cerrados === 0, 'no se cierra antes de cumplirse el plazo', res0);
+    res0 = await revisarInactivos(client, new Date(base + 24 * HORA));
+    await esperar(300);
+    inactivo = await Ticket.findById(inactivo._id);
+    check(res0.cerrados === 1 && inactivo.estado === 'Cerrado' && inactivo.cerradoPor === 'Sistema (inactividad)' && inactivo.motivoCierre === 'Cerrado automáticamente por inactividad', 'al cumplirse el plazo se cierra con cerrarTicket', inactivo);
+    check(client.dms.some(d => d.id === 'u1' && /inactividad/.test(JSON.stringify(d.p))), 'el usuario recibe el resumen del cierre por DM');
+
+    const canalTardio = crearCanal(client, A, { name: 'ticket-tardio' });
+    let tardio = await Ticket.create({ guildId: 'gA', canalId: canalTardio.id, creadorId: 'u2', creadorNombre: 'usuario2', esperando: 'usuario', ultimaActividad: new Date(Date.now() - 100 * HORA) });
+    res0 = await revisarInactivos(client);
+    tardio = await Ticket.findById(tardio._id);
+    check(res0.avisados === 1 && res0.cerrados === 0 && tardio.estado === 'Abierto', 'con el plazo ya vencido se avisa antes de cerrar', res0);
+    res0 = await revisarInactivos(client, new Date(Date.now() + 5 * HORA));
+    check(res0.cerrados === 0, 'tras avisar se deja al menos el 25 % del plazo para responder', res0);
+    i = await ejecutar(interaccion({ tipo: 'comando', comando: 'config', miembro: admin, guild: A, canal: general, opciones: { sub: 'inactividad', horas: 0 } }));
+    res0 = await revisarInactivos(client, new Date(Date.now() + 100 * HORA));
+    check(/desactivado/.test(ultimoTexto(i)) && res0.cerrados === 0 && (await Ticket.findById(tardio._id)).estado === 'Abierto', 'con 0 horas no se cierra nada', { res0, r: i.r });
+    invalidarConfig('gA');
+
     console.log('\n— Aviso "Bot actualizado"');
     const { anunciarActualizacion, version } = require(`${REPO}/utils/anuncioActualizacion.js`);
-    const ServidorConfig = require(`${REPO}/models/ServidorConfig.js`);
     const T = crearServidor(client, { id: 'gT', name: 'TOKYTO Gaming' });
     crearMiembro(T, 't1', 'tokyto1');
     crearMiembro(T, 't2', 'tokyto2', { dmsCerrados: true });

@@ -82,6 +82,15 @@ async function api(ruta, { metodo = 'GET', token, clave, body, crudo } = {}) {
     check(r.status === 400, 'rol inexistente → 400');
     r = await api('/api/servidores/guildA/config', { metodo: 'PUT', token: T.admin, body: { rolesStaff: ['rolstaff'], modulos: { logsMiembros: false }, maxTicketsPorUsuario: 1 } });
     check(r.status === 200 && r.datos.config.rolesStaff[0] === 'rolstaff' && r.datos.config.modulos.logsMiembros === false && r.datos.config.modulos.valoraciones === true, 'roles de staff y módulos guardados', r.datos);
+    check(r.datos.config.autoCierreHoras === 0, 'cierre por inactividad desactivado por defecto', r.datos.config);
+    for (const horas of [-1, 721, 1.5, 'mucho']) {
+        r = await api('/api/servidores/guildA/config', { metodo: 'PUT', token: T.admin, body: { autoCierreHoras: horas } });
+        check(r.status === 400 && /entre 0 \(desactivado\) y 720/.test(r.datos.error), `cierre por inactividad = ${JSON.stringify(horas)} → 400`, r.datos);
+    }
+    r = await api('/api/servidores/guildA/config', { metodo: 'PUT', token: T.admin, body: { autoCierreHoras: 48 } });
+    check(r.status === 200 && r.datos.config.autoCierreHoras === 48, 'cierre por inactividad guardado', r.datos);
+    r = await api('/api/servidores/guildA/config', { metodo: 'PUT', token: T.admin, body: { autoCierreHoras: 0 } });
+    check(r.status === 200 && r.datos.config.autoCierreHoras === 0, 'cierre por inactividad desactivable con 0', r.datos);
     r = await api('/api/yo', { token: T.staff });
     check(r.datos.servidores.length === 1 && r.datos.servidores[0].id === 'guildA', 'el rol de staff da acceso al panel', r.datos);
     r = await api('/api/servidores/guildA/discord', { token: T.staff });

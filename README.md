@@ -5,6 +5,7 @@ todo en español y con marca blanca (textos, colores y categorías personalizabl
 
 - 🎫 **Tickets en Discord**: botón «Abrir Ticket» → formulario (categoría, asunto y descripción) → canal privado numerado (`ticket-0001-usuario`).
 - 🛡️ **Gestión del staff**: reclamar/liberar, añadir/quitar personas, cambiar prioridad, cerrar con motivo, reabrir, transcript y eliminar canal.
+- ⏰ **Cierre por inactividad** (opcional): si el staff responde y el usuario no contesta en las horas configuradas, el bot avisa en el canal al 75 % del plazo y después cierra el ticket. Cualquier mensaje nuevo reinicia la cuenta.
 - 📊 **Panel web**: resumen con métricas (tiempo de primera respuesta, resolución, satisfacción), lista de tickets con filtros y búsqueda, chat en vivo con el usuario, notas internas, auditoría y configuración completa.
 - 🙋 **Portal de clientes**: cada usuario entra con Discord, ve sus tickets, abre nuevos, responde, los cierra y los valora.
 - ⭐ **Valoraciones**: al cerrar, el usuario recibe por DM un resumen, la conversación y estrellas para puntuar (con comentario opcional).
@@ -114,7 +115,7 @@ Deberías ver en la terminal del bot:
 | Comando | Quién | Qué hace |
 |---|---|---|
 | `/panel [canal]` | Admins | Publica el panel de soporte |
-| `/config ver · rol-staff · categoria · transcripts · logs · limite` | Admins | Configuración rápida desde Discord |
+| `/config ver · rol-staff · categoria · transcripts · logs · limite · inactividad` | Admins | Configuración rápida desde Discord |
 | `/ticket cerrar [motivo]` | Creador o staff | Cierra el ticket del canal |
 | `/ticket reclamar · liberar · reabrir · prioridad` | Staff | Gestión del ticket |
 | `/ticket agregar · quitar` | Staff | Añadir o quitar personas del ticket |
@@ -176,7 +177,7 @@ publica en el general, porque Discord penaliza a los bots que mandan el mismo DM
 ## 🧪 Pruebas
 Con un MongoDB accesible (por defecto `mongodb://127.0.0.1:27017`, configurable con `MONGO_URI_TEST`):
 ```bash
-npm test                       # API (84 comprobaciones) y flujos de Discord (56) con un Discord simulado
+npm test                       # API (91 comprobaciones) y flujos de Discord (70) con un Discord simulado
 cd sokyo-panelFRONTEND && npm run lint && npm run build
 ```
 

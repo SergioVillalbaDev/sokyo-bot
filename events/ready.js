@@ -4,6 +4,7 @@ const { obtenerConfig } = require('../utils/config.js');
 const { cargarCanalesTicket } = require('../utils/ticketCache.js');
 const { marcarCanalEliminado } = require('../utils/ticketManager.js');
 const { anunciarActualizacion } = require('../utils/anuncioActualizacion.js');
+const { iniciarAutoCierre } = require('../utils/autoCierre.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -51,5 +52,8 @@ module.exports = {
 
         // 4. "Bot actualizado": en segundo plano, solo la primera vez que arranca esta versión.
         anunciarActualizacion(client).catch(e => console.error('📣 Aviso de actualización:', e));
+
+        // 5. Cierre automático de tickets inactivos (cada 10 minutos, en los servidores que lo activen).
+        iniciarAutoCierre(client);
     }
 };

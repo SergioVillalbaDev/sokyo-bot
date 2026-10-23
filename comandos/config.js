@@ -30,7 +30,9 @@ module.exports = {
         .addSubcommand(sub => sub.setName('logs').setDescription('Canal donde se publica la auditoría del servidor')
             .addChannelOption(o => o.setName('canal').setDescription('Déjalo vacío para desactivarlo').addChannelTypes(ChannelType.GuildText)))
         .addSubcommand(sub => sub.setName('limite').setDescription('Tickets que puede tener abiertos a la vez cada usuario')
-            .addIntegerOption(o => o.setName('cantidad').setDescription('Entre 1 y 10').setMinValue(1).setMaxValue(10).setRequired(true))),
+            .addIntegerOption(o => o.setName('cantidad').setDescription('Entre 1 y 10').setMinValue(1).setMaxValue(10).setRequired(true)))
+        .addSubcommand(sub => sub.setName('inactividad').setDescription('Cierra solos los tickets en los que el usuario no responde')
+            .addIntegerOption(o => o.setName('horas').setDescription('Horas sin respuesta del usuario (0 = desactivado, máx. 720)').setMinValue(0).setMaxValue(720).setRequired(true))),
 
     async execute(interaction, client) {
         const guildId = interaction.guildId;
@@ -57,6 +59,7 @@ module.exports = {
                     { name: '🏷️ Categorías', value: String(config.motivos?.length || 0), inline: true },
                     { name: '📌 Panel de soporte', value: panel, inline: true },
                     { name: '🔌 Módulos', value: modulos },
+                    { name: '⏰ Cierre por inactividad', value: config.autoCierreHoras ? `Tras ${config.autoCierreHoras} h sin respuesta` : 'Desactivado', inline: true },
                     { name: '💎 Plan', value: config.premiumActivo() ? '⭐ Premium' : 'Gratuito', inline: true }
                 )
                 .setFooter({ text: 'Los textos, categorías y módulos se editan desde el panel web.' });
@@ -104,6 +107,17 @@ module.exports = {
             const cantidad = interaction.options.getInteger('cantidad');
             await actualizarConfig(guildId, { maxTicketsPorUsuario: cantidad });
             return interaction.reply({ content: `✅ Cada usuario podrá tener hasta **${cantidad}** ticket(s) abierto(s) a la vez.`, ...EFIMERO });
+        }
+
+        if (sub === 'inactividad') {
+            const horas = interaction.options.getInteger('horas');
+            await actualizarConfig(guildId, { autoCierreHoras: horas });
+            return interaction.reply({
+                content: horas
+                    ? `✅ Los tickets se cerrarán solos tras **${horas} h** sin respuesta del usuario (con un aviso previo en el canal).`
+                    : '✅ Cierre automático por inactividad desactivado.',
+                ...EFIMERO
+            });
         }
     }
 };

@@ -45,6 +45,7 @@ const ticketSchema = new mongoose.Schema({
     esperando: { type: String, enum: ['staff', 'usuario', null], default: 'staff' },
     ultimaInteractStaff: { type: Date, default: null },
     primeraRespuestaStaff: { type: Date, default: null },
+    avisoInactividad: { type: Date, default: null }, // cuándo se avisó del cierre automático (null = sin aviso)
 
     notasInternas: { type: [notaSchema], default: [] },
     visibleWeb: { type: Boolean, default: true },

@@ -42,6 +42,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     canalTranscriptsId: { type: String, default: null },
     canalLogsId: { type: String, default: null },
     maxTicketsPorUsuario: { type: Number, default: 1, min: 1, max: 10 },
+    autoCierreHoras: { type: Number, default: 0, min: 0, max: 720 }, // cierre por inactividad del usuario (0 = desactivado)
     contadorTickets: { type: Number, default: 0 },
 
     // --- Módulos activables desde el panel ---
