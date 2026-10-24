@@ -841,6 +841,11 @@ export default {
     },
     canales_v: {
       orderHelpShort: 'Arrastra por el asa ⠿ o usa las flechas.',
+      savedOk: 'Guardado en Discord.',
+      saveQueued: 'Discord está aplicando el cambio con retraso (limita los cambios seguidos de un mismo canal). Se verá solo en unos minutos.',
+      renameLimit: 'Guardado, salvo el nombre: Discord solo deja cambiar el nombre de un canal o categoría 2 veces cada 10 minutos. Podrás cambiarlo de nuevo en {{min}} min.',
+      saveError: 'No se pudo guardar. Comprueba que el bot tiene permiso para gestionar canales y vuelve a intentarlo.',
+      saveTimeout: 'Discord no ha respondido a tiempo. Revisa la conexión y vuelve a intentarlo.',
       reorder: 'Mover y ordenar', orderHelp: 'Arrastra los canales y las categorías por el asa ⠿ y suéltalos donde quieras. Un canal se puede soltar dentro de otra categoría. También puedes usar las flechas.',
       unsaved: 'Cambios sin guardar', orderCancel: 'Cancelar', orderSave: 'Guardar orden', orderSaved: 'Orden guardado en Discord.', orderError: 'No se pudo guardar el orden. Comprueba que el bot tiene permiso para gestionar canales.',
       voiceNote: 'En Discord los canales de voz siempre aparecen debajo de los de texto dentro de cada categoría; aquí ya se ve así.',

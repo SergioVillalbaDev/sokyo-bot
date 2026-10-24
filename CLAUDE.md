@@ -42,7 +42,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.3.2.**
+  --no-git-tag-version`. **Versión actual: 1.3.3.**
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -63,6 +63,9 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `landing`, `portal`) y `{es,en}.panel.js` (todo `dashboard.*`, se descargan al
   abrir el panel con `cargarTextosPanel`). **Mismas claves en es y en**: compruébalo
   al tocarlos.
+- **Canales y categorías** (`api/routes/canales.js`): Discord solo deja cambiar el
+  nombre o el tema de un canal 2 veces cada 10 min y deja esperando el resto. Al
+  guardar, manda una sola petición con lo que cambia (`guardarEnDiscord`).
 - **Estilo cristal**: `src/dashboard.css` (`.sk-*`) y `src/portal.css` (`.gx-*`).
   En Tailwind v4 el CSS sin capa gana a las utilidades: las clases propias van en
   `@layer components`. En móvil/tablet (≤1023 px o `pointer: coarse`) las tarjetas
@@ -110,5 +113,8 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
 - #9 Web más rápida en el móvil (landing 80 → 95 en Lighthouse) y permisos de
   propietario para `1433388927233953902`.
 - #10 Los temas premium ya no se pierden al abrir el panel en el móvil.
+- #12 Guardar una categoría o un canal ya no se queda en «Guardando…»: una sola
+  petición a Discord con solo lo que cambia, aviso del límite de nombres (2 cada
+  10 min) y respuesta rápida aunque Discord retenga el cambio.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

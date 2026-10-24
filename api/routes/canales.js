@@ -5,7 +5,7 @@
 // El middleware global de server.js ya acota el acceso por /config/:guildId.
 // ============================================================================
 const express = require('express');
-const { ChannelType } = require('discord.js');
+const { ChannelType, PermissionsBitField } = require('discord.js');
 
 // Tipos de canal que el panel puede crear/editar (clave en español -> tipo real).
 const TIPOS = {
@@ -56,16 +56,64 @@ module.exports = ({ client, exigeArea = pasar }) => {
             .map((o) => ({ id: String(o.id), allow: limpiar(o.allow), deny: limpiar(o.deny) }));
     }
 
-    // Aplica los overwrites de ROL que edita el panel sin tocar los de MIEMBRO
-    // (p. ej. el acceso del creador de un ticket o del dueño de una sala de voz
-    // temporal), que gestionan otros sistemas del bot y no deben desaparecer.
-    async function aplicarOverwritesDeRol(canalOCategoria, listaRoles) {
+    // Overwrites finales al guardar desde el panel: los de ROL que se editan ahí,
+    // sin tocar los de MIEMBRO (p. ej. el acceso del creador de un ticket o del
+    // dueño de una sala de voz temporal), que gestionan otros sistemas del bot.
+    function overwritesConLosDeMiembro(canalOCategoria, listaRoles) {
         const nuevos = construirOverwrites(listaRoles) || [];
         const idsNuevos = new Set(nuevos.map((o) => o.id));
         const miembrosPrevios = canalOCategoria.permissionOverwrites.cache
             .filter((ov) => ov.type === 1 && !idsNuevos.has(ov.id))
             .map((ov) => ({ id: ov.id, allow: ov.allow.toArray(), deny: ov.deny.toArray() }));
-        await canalOCategoria.permissionOverwrites.set([...nuevos, ...miembrosPrevios]);
+        return [...nuevos, ...miembrosPrevios];
+    }
+    // ¿Son los mismos permisos que ya tiene? (para no mandar a Discord lo que no cambia)
+    const firmaPermisos = (lista) => lista
+        .map((o) => `${o.id}:${PermissionsBitField.resolve(o.allow)}:${PermissionsBitField.resolve(o.deny)}`)
+        .sort().join('|');
+    const mismosPermisos = (canalOCategoria, lista) => firmaPermisos(lista)
+        === firmaPermisos(canalOCategoria.permissionOverwrites.cache.map((ov) => ({ id: ov.id, allow: ov.allow.bitfield, deny: ov.deny.bitfield })));
+
+    // Discord solo deja cambiar el NOMBRE (o el tema) de un mismo canal 2 veces
+    // cada 10 minutos. Si se pasa, discord.js deja la petición esperando hasta 10
+    // minutos y el panel se quedaba en «Guardando…». Se lleva la cuenta de los
+    // cambios de nombre hechos desde aquí para avisar antes con el tiempo que falta.
+    const VENTANA_NOMBRE = 10 * 60 * 1000;
+    const cambiosDeNombre = new Map(); // id del canal -> [instantes]
+    function esperaParaRenombrar(id) {
+        const ahora = Date.now();
+        const recientes = (cambiosDeNombre.get(id) || []).filter((t) => ahora - t < VENTANA_NOMBRE);
+        cambiosDeNombre.set(id, recientes);
+        return recientes.length >= 2 ? recientes[0] + VENTANA_NOMBRE - ahora : 0;
+    }
+    const anotarCambioDeNombre = (id) => cambiosDeNombre.set(id, [...(cambiosDeNombre.get(id) || []), Date.now()]);
+
+    // Aplica en Discord, en UNA sola petición, solo lo que cambia. Si Discord la
+    // retiene (su límite de cambios), se responde igual a los pocos segundos: el
+    // cambio se aplica solo en cuanto Discord lo permita. Devuelve el aviso para
+    // el panel (null si todo ha ido normal).
+    const ESPERA_MAXIMA = Number(process.env.CANALES_ESPERA_MS) || 8000;
+    async function guardarEnDiscord(canal, cambios) {
+        let aviso = null;
+        const tocaNombre = cambios.name !== undefined || cambios.topic !== undefined;
+        if (tocaNombre) {
+            const espera = esperaParaRenombrar(canal.id);
+            if (espera > 0) {
+                delete cambios.name; delete cambios.topic;
+                aviso = { aviso: 'limite_nombre', minutos: Math.max(1, Math.ceil(espera / 60000)) };
+            }
+        }
+        if (!Object.keys(cambios).length) return aviso;
+        if (cambios.name !== undefined || cambios.topic !== undefined) anotarCambioDeNombre(canal.id);
+        const peticion = canal.edit(cambios);
+        let temporizador;
+        const plazo = new Promise((resolve) => { temporizador = setTimeout(() => resolve('en-cola'), ESPERA_MAXIMA); });
+        const resultado = await Promise.race([peticion.then(() => 'hecho'), plazo]).finally(() => clearTimeout(temporizador));
+        if (resultado === 'en-cola') {
+            peticion.catch((e) => console.error(`Cambio pendiente en Discord (canal ${canal.id}):`, e.message));
+            return { aviso: 'en_cola' };
+        }
+        return aviso;
     }
 
     // Overwrites de un canal/categoría en formato panel (con nombre para mostrar).
@@ -164,13 +212,21 @@ module.exports = ({ client, exigeArea = pasar }) => {
             const categoria = guild.channels.cache.get(req.params.id);
             if (!categoria || categoria.type !== ChannelType.GuildCategory) return res.status(404).json({ error: 'Categoría no encontrada' });
 
+            const cuerpo = req.body || {};
             const cambios = {};
-            if (req.body.nombre !== undefined) cambios.name = String(req.body.nombre).trim().slice(0, 100);
-            if (req.body.posicion !== undefined) cambios.position = Math.max(0, parseInt(req.body.posicion, 10) || 0);
-            if (Object.keys(cambios).length) await categoria.edit(cambios);
-            if (Array.isArray(req.body.overwrites)) await aplicarOverwritesDeRol(categoria, req.body.overwrites);
+            const nombre = cuerpo.nombre !== undefined ? String(cuerpo.nombre).trim().slice(0, 100) : '';
+            if (nombre && nombre !== categoria.name) cambios.name = nombre;
+            if (cuerpo.posicion !== undefined) {
+                const posicion = Math.max(0, parseInt(cuerpo.posicion, 10) || 0);
+                if (posicion !== categoria.position) cambios.position = posicion;
+            }
+            if (Array.isArray(cuerpo.overwrites)) {
+                const permisos = overwritesConLosDeMiembro(categoria, cuerpo.overwrites);
+                if (!mismosPermisos(categoria, permisos)) cambios.permissionOverwrites = permisos;
+            }
+            const aviso = await guardarEnDiscord(categoria, cambios);
 
-            res.json({ success: true, categoria: serializarCategoria(categoria, guild) });
+            res.json({ success: true, ...aviso, categoria: serializarCategoria(categoria, guild) });
         } catch (error) {
             console.error('Error al editar categoría:', error);
             res.status(500).json({ error: 'No se pudo editar la categoría' });
@@ -278,21 +334,25 @@ module.exports = ({ client, exigeArea = pasar }) => {
             const canal = guild.channels.cache.get(req.params.id);
             if (!canal || canal.type === ChannelType.GuildCategory) return res.status(404).json({ error: 'Canal no encontrado' });
 
-            const { nombre, categoriaId, posicion, topic, nsfw, slowmode, bitrate, userLimit, overwrites } = req.body;
+            const { nombre, categoriaId, posicion, topic, nsfw, slowmode, bitrate, userLimit, overwrites } = req.body || {};
+            // Solo lo que cambia de verdad (el nombre y el tema tienen límite en Discord).
             const cambios = {};
-            if (nombre !== undefined) cambios.name = String(nombre).trim().slice(0, 100);
-            if (categoriaId !== undefined) cambios.parent = categoriaId || null;
-            if (posicion !== undefined) cambios.position = Math.max(0, parseInt(posicion, 10) || 0);
-            if (topic !== undefined) cambios.topic = String(topic || '').slice(0, 1024);
-            if (nsfw !== undefined) cambios.nsfw = !!nsfw;
-            if (slowmode !== undefined) cambios.rateLimitPerUser = Math.min(21600, Math.max(0, parseInt(slowmode, 10) || 0));
-            if (bitrate !== undefined) cambios.bitrate = Math.min(guild.maximumBitrate || 96000, Math.max(8000, parseInt(bitrate, 10) || 64000));
-            if (userLimit !== undefined) cambios.userLimit = Math.min(99, Math.max(0, parseInt(userLimit, 10) || 0));
+            const poner = (clave, valor, actual) => { if (valor !== actual) cambios[clave] = valor; };
+            if (nombre !== undefined && String(nombre).trim()) poner('name', String(nombre).trim().slice(0, 100), canal.name);
+            if (categoriaId !== undefined) poner('parent', categoriaId || null, canal.parentId || null);
+            if (posicion !== undefined) poner('position', Math.max(0, parseInt(posicion, 10) || 0), canal.position);
+            if (topic !== undefined) poner('topic', String(topic || '').slice(0, 1024), canal.topic || '');
+            if (nsfw !== undefined) poner('nsfw', !!nsfw, !!canal.nsfw);
+            if (slowmode !== undefined) poner('rateLimitPerUser', Math.min(21600, Math.max(0, parseInt(slowmode, 10) || 0)), canal.rateLimitPerUser || 0);
+            if (bitrate !== undefined) poner('bitrate', Math.min(guild.maximumBitrate || 96000, Math.max(8000, parseInt(bitrate, 10) || 64000)), canal.bitrate);
+            if (userLimit !== undefined) poner('userLimit', Math.min(99, Math.max(0, parseInt(userLimit, 10) || 0)), canal.userLimit || 0);
+            if (Array.isArray(overwrites)) {
+                const permisos = overwritesConLosDeMiembro(canal, overwrites);
+                if (!mismosPermisos(canal, permisos)) cambios.permissionOverwrites = permisos;
+            }
+            const aviso = await guardarEnDiscord(canal, cambios);
 
-            if (Object.keys(cambios).length) await canal.edit(cambios);
-            if (Array.isArray(overwrites)) await aplicarOverwritesDeRol(canal, overwrites);
-
-            res.json({ success: true, canal: serializarCanal(canal, guild) });
+            res.json({ success: true, ...aviso, canal: serializarCanal(canal, guild) });
         } catch (error) {
             console.error('Error al editar canal:', error);
             res.status(500).json({ error: 'No se pudo editar el canal' });
