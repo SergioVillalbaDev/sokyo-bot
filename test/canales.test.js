@@ -131,3 +131,71 @@ describe('ordenar canales y categorías', () => {
         assert.deepStrictEqual(llamadas, []);
     });
 });
+
+// Guardar una categoría desde el panel: antes se mandaban a Discord dos cambios
+// (nombre + permisos) aunque no cambiara nada, y con su límite de 2 cambios de
+// nombre cada 10 minutos el panel se quedaba en «Guardando…».
+describe('guardar una categoría', () => {
+    const { PermissionsBitField } = require('discord.js');
+    let ediciones = [];
+    let lento = false;
+    const categoria = {
+        id: 'c-edit', type: ChannelType.GuildCategory, parentId: null, rawPosition: 9, position: 9, name: 'Soporte',
+        permissionOverwrites: { cache: new Collection([['rol-staff', { id: 'rol-staff', type: 0, allow: new PermissionsBitField(['ViewChannel']), deny: new PermissionsBitField([]) }]]) },
+        edit(cambios) {
+            ediciones.push(cambios);
+            if (cambios.name) this.name = cambios.name;
+            return lento ? new Promise((r) => setTimeout(() => r(this), 1500)) : Promise.resolve(this);
+        },
+    };
+    let s; let url;
+    const guardar = (cuerpo) => fetch(`${url}/api/config/${GUILD}/canales/categorias/c-edit`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo),
+    }).then(async (r) => ({ status: r.status, ...(await r.json()) }));
+    const permisos = (allow) => [{ id: 'rol-staff', allow, deny: [] }];
+
+    before(async () => {
+        guild.channels.cache.set('c-edit', categoria);
+        process.env.CANALES_ESPERA_MS = '200';
+        s = await arrancar();
+        url = `http://127.0.0.1:${s.address().port}`;
+    });
+    after(() => { s.close(); guild.channels.cache.delete('c-edit'); delete process.env.CANALES_ESPERA_MS; });
+    beforeEach(() => { ediciones = []; lento = false; });
+
+    it('sin cambios no se manda nada a Discord', async () => {
+        const r = await guardar({ nombre: 'Soporte', overwrites: permisos(['ViewChannel']) });
+        assert.strictEqual(r.status, 200);
+        assert.strictEqual(r.success, true);
+        assert.deepStrictEqual(ediciones, []);
+    });
+
+    it('cambiar solo los permisos es una sola petición y sin tocar el nombre', async () => {
+        const r = await guardar({ nombre: 'Soporte', overwrites: permisos(['ViewChannel', 'SendMessages']) });
+        assert.strictEqual(r.success, true);
+        assert.strictEqual(ediciones.length, 1);
+        assert.strictEqual(ediciones[0].name, undefined);
+        assert.ok(Array.isArray(ediciones[0].permissionOverwrites));
+    });
+
+    it('el tercer cambio de nombre en 10 minutos no se manda: se avisa con el tiempo que falta', async () => {
+        await guardar({ nombre: 'Soporte 1' });
+        await guardar({ nombre: 'Soporte 2' });
+        assert.strictEqual(ediciones.filter((e) => e.name).length, 2);
+        const r = await guardar({ nombre: 'Soporte 3' });
+        assert.strictEqual(r.success, true);
+        assert.strictEqual(r.aviso, 'limite_nombre');
+        assert.strictEqual(r.minutos, 10);
+        assert.strictEqual(ediciones.length, 2, 'Discord no recibe el tercer nombre');
+    });
+
+    it('si Discord retiene el cambio, el panel recibe respuesta enseguida (en cola)', async () => {
+        lento = true;
+        const inicio = Date.now();
+        const r = await guardar({ overwrites: permisos(['ViewChannel', 'AttachFiles']) });
+        assert.ok(Date.now() - inicio < 1200, 'no espera a Discord');
+        assert.strictEqual(r.success, true);
+        assert.strictEqual(r.aviso, 'en_cola');
+        assert.strictEqual(ediciones.length, 1);
+    });
+});

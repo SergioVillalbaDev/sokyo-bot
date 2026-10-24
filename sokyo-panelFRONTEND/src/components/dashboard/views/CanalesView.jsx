@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
   FolderTree, FolderPlus, Plus, Pencil, Trash2, X, ChevronDown,
-  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search, Move, CheckCircle2,
+  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search, Move, CheckCircle2, Info,
 } from 'lucide-react';
 import OrdenarCanales from './OrdenarCanales';
 import { Toggle } from '../../ui/primitives';
@@ -24,9 +24,21 @@ export default function CanalesView({ dash }) {
     crearCategoriaCanal, editarCategoriaCanal, eliminarCategoriaCanal,
     crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales,
   } = dash;
-  // Modo "Mover y ordenar" (arrastrar y soltar) y aviso de guardado.
+  // Modo "Mover y ordenar" (arrastrar y soltar) y aviso tras guardar algo:
+  // { tipo: 'ok' | 'info', texto }.
   const [ordenando, setOrdenando] = useState(false);
-  const [ordenGuardado, setOrdenGuardado] = useState(false);
+  const [aviso, setAviso] = useState(null);
+  const avisar = (tipo, texto) => { setAviso({ tipo, texto }); setTimeout(() => setAviso((a) => (a?.texto === texto ? null : a)), tipo === 'ok' ? 3500 : 9000); };
+  // Tras guardar en un modal: se cierra y se cuenta qué ha pasado (o el error se
+  // queda en el modal para corregir y reintentar).
+  const trasGuardar = (r, cerrar) => {
+    if (!r.ok) return t(r.error === 'tiempo' ? 'dashboard.canales_v.saveTimeout' : 'dashboard.canales_v.saveError');
+    cerrar();
+    if (r.aviso === 'limite_nombre') avisar('info', t('dashboard.canales_v.renameLimit', { min: r.minutos }));
+    else if (r.aviso === 'en_cola') avisar('info', t('dashboard.canales_v.saveQueued'));
+    else avisar('ok', t('dashboard.canales_v.savedOk'));
+    return null;
+  };
 
   const { categorias = [], sinCategoria = [] } = estructuraCanales || {};
 
@@ -40,7 +52,7 @@ export default function CanalesView({ dash }) {
       <OrdenarCanales
         estructura={estructuraCanales || { categorias: [], sinCategoria: [] }}
         onGuardar={reordenarCanales}
-        onCerrar={(ok) => { setOrdenando(false); if (ok) { setOrdenGuardado(true); setTimeout(() => setOrdenGuardado(false), 3500); } }}
+        onCerrar={(ok) => { setOrdenando(false); if (ok) avisar('ok', t('dashboard.canales_v.orderSaved')); }}
       />
     );
   }
@@ -73,9 +85,14 @@ export default function CanalesView({ dash }) {
       </div>
 
       <AnimatePresence>
-        {ordenGuardado && (
-          <motion.p initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 py-2.5 text-sm font-semibold text-success">
-            <CheckCircle2 size={16} /> {t('dashboard.canales_v.orderSaved')}
+        {aviso && (
+          <motion.p
+            key={aviso.texto} role="status" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className={aviso.tipo === 'ok'
+              ? 'flex items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 py-2.5 text-sm font-semibold text-success'
+              : 'flex items-start gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-medium text-fg'}
+          >
+            {aviso.tipo === 'ok' ? <CheckCircle2 size={16} /> : <Info size={16} className="mt-0.5 shrink-0 text-amber-400" />} {aviso.texto}
           </motion.p>
         )}
       </AnimatePresence>
@@ -124,11 +141,10 @@ export default function CanalesView({ dash }) {
             categoria={editandoCategoria}
             roles={roles} catalogo={permisosCanalCatalogo}
             onClose={() => setEditandoCategoria(null)}
-            onGuardar={async (datos) => {
-              const ok = editandoCategoria.id ? await editarCategoriaCanal(editandoCategoria.id, datos) : await crearCategoriaCanal(datos);
-              if (ok) setEditandoCategoria(null);
-              return ok;
-            }}
+            onGuardar={async (datos) => trasGuardar(
+              editandoCategoria.id ? await editarCategoriaCanal(editandoCategoria.id, datos) : await crearCategoriaCanal(datos),
+              () => setEditandoCategoria(null),
+            )}
           />
         )}
         {editandoCanal && (
@@ -136,11 +152,10 @@ export default function CanalesView({ dash }) {
             estado={editandoCanal}
             categorias={categorias} roles={roles} catalogo={permisosCanalCatalogo}
             onClose={() => setEditandoCanal(null)}
-            onGuardar={async (datos) => {
-              const ok = editandoCanal.canal ? await editarCanalServidor(editandoCanal.canal.id, datos) : await crearCanalServidor(datos);
-              if (ok) setEditandoCanal(null);
-              return ok;
-            }}
+            onGuardar={async (datos) => trasGuardar(
+              editandoCanal.canal ? await editarCanalServidor(editandoCanal.canal.id, datos) : await crearCanalServidor(datos),
+              () => setEditandoCanal(null),
+            )}
           />
         )}
       </AnimatePresence>
@@ -339,14 +354,16 @@ function CategoriaModal({ categoria, roles, catalogo, onClose, onGuardar }) {
   const [estiloFuente, setEstiloFuente] = useState('normal');
   const [overwrites, setOverwrites] = useState((categoria.overwrites || []).filter((o) => o.tipo !== 'miembro'));
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
 
   const nombreFinal = aplicarEstilo(nombre.trim(), estiloFuente);
 
   const guardar = async () => {
     if (!nombre.trim()) return;
-    setGuardando(true);
-    await onGuardar({ nombre: nombreFinal, overwrites: overwrites.map(({ id, allow, deny }) => ({ id, allow, deny })) });
+    setGuardando(true); setError(null);
+    const fallo = await onGuardar({ nombre: nombreFinal, overwrites: overwrites.map(({ id, allow, deny }) => ({ id, allow, deny })) });
     setGuardando(false);
+    if (fallo) setError(fallo);
   };
 
   return (
@@ -376,6 +393,7 @@ function CategoriaModal({ categoria, roles, catalogo, onClose, onGuardar }) {
           <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} />
         </div>
 
+        {error && <p role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger">{error}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} className="rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">{t('dashboard.canales_v.cancel')}</button>
           <button onClick={guardar} disabled={guardando || !nombre.trim()} className="rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
@@ -404,6 +422,7 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
   const [userLimit, setUserLimit] = useState(canal?.userLimit || 0);
   const [overwrites, setOverwrites] = useState((canal?.overwrites || []).filter((o) => o.tipo !== 'miembro'));
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
 
   const esTexto = ['texto', 'anuncios', 'foro'].includes(tipo);
   const esVoz = ['voz', 'escenario'].includes(tipo);
@@ -411,7 +430,7 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
 
   const guardar = async () => {
     if (!nombre.trim()) return;
-    setGuardando(true);
+    setGuardando(true); setError(null);
     const datos = {
       nombre: nombreFinal, categoriaId: categoriaId || null,
       overwrites: overwrites.map(({ id, allow, deny }) => ({ id, allow, deny })),
@@ -419,8 +438,9 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
     if (!editando) datos.tipo = tipo;
     if (esTexto) { datos.topic = topic; datos.nsfw = nsfw; datos.slowmode = slowmode; }
     if (esVoz) { datos.bitrate = bitrate * 1000; datos.userLimit = userLimit; }
-    await onGuardar(datos);
+    const fallo = await onGuardar(datos);
     setGuardando(false);
+    if (fallo) setError(fallo);
   };
 
   return (
@@ -490,6 +510,7 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
           <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} />
         </div>
 
+        {error && <p role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger">{error}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} className="rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">{t('dashboard.canales_v.cancel')}</button>
           <button onClick={guardar} disabled={guardando || !nombre.trim()} className="rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">

@@ -275,29 +275,29 @@ export function useDashboard() {
   };
   const cargarPermisosCanalCatalogo = () => apiFetch('/api/servidor/permisos-canal').then(procesarRespuesta).then((datos) => setPermisosCanalCatalogo(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando catálogo de permisos de canal'));
 
-  const crearCategoriaCanal = async ({ nombre, overwrites }) => {
-    if (!gidActivo()) return false;
+  // Guardar categorías y canales: devuelven { ok, aviso, minutos } o { ok: false,
+  // error }. Nunca se quedan esperando para siempre (en el móvil la red se corta):
+  // a los 30 s se da por fallido.
+  const guardarCanales = async (ruta, method, cuerpo, etiqueta) => {
+    if (!gidActivo()) return { ok: false };
     try {
-      const res = await apiFetch(`/api/config/${gidActivo()}/canales/categorias`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre, overwrites }),
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales${ruta}`, {
+        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo),
+        signal: AbortSignal.timeout?.(30000),
       });
-      const data = await res.json();
-      if (data.success) { await cargarEstructuraCanales(); return true; }
-    } catch (error) { console.error('Error creando categoría:', error); }
-    return false;
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        await cargarEstructuraCanales();
+        return { ok: true, aviso: data.aviso || null, minutos: data.minutos || 0 };
+      }
+      return { ok: false, error: data.error || null };
+    } catch (error) {
+      console.error(`Error ${etiqueta}:`, error);
+      return { ok: false, error: error?.name === 'TimeoutError' ? 'tiempo' : null };
+    }
   };
-
-  const editarCategoriaCanal = async (categoriaId, cambios) => {
-    if (!gidActivo()) return false;
-    try {
-      const res = await apiFetch(`/api/config/${gidActivo()}/canales/categorias/${categoriaId}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
-      });
-      const data = await res.json();
-      if (data.success) { await cargarEstructuraCanales(); return true; }
-    } catch (error) { console.error('Error editando categoría:', error); }
-    return false;
-  };
+  const crearCategoriaCanal = ({ nombre, overwrites }) => guardarCanales('/categorias', 'POST', { nombre, overwrites }, 'creando categoría');
+  const editarCategoriaCanal = (categoriaId, cambios) => guardarCanales(`/categorias/${categoriaId}`, 'PATCH', cambios, 'editando categoría');
 
   const eliminarCategoriaCanal = async (categoriaId) => {
     if (!gidActivo()) return false;
@@ -308,29 +308,8 @@ export function useDashboard() {
     return false;
   };
 
-  const crearCanalServidor = async (datos) => {
-    if (!gidActivo()) return false;
-    try {
-      const res = await apiFetch(`/api/config/${gidActivo()}/canales`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
-      });
-      const data = await res.json();
-      if (data.success) { await cargarEstructuraCanales(); return true; }
-    } catch (error) { console.error('Error creando canal:', error); }
-    return false;
-  };
-
-  const editarCanalServidor = async (canalId, cambios) => {
-    if (!gidActivo()) return false;
-    try {
-      const res = await apiFetch(`/api/config/${gidActivo()}/canales/${canalId}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
-      });
-      const data = await res.json();
-      if (data.success) { await cargarEstructuraCanales(); return true; }
-    } catch (error) { console.error('Error editando canal:', error); }
-    return false;
-  };
+  const crearCanalServidor = (datos) => guardarCanales('', 'POST', datos, 'creando canal');
+  const editarCanalServidor = (canalId, cambios) => guardarCanales(`/${canalId}`, 'PATCH', cambios, 'editando canal');
 
   // Guarda de una vez el orden hecho arrastrando: categorías y, en orden, cada
   // canal con su categoría. Devuelve true/false.

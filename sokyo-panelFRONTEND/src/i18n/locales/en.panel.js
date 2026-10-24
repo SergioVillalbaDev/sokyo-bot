@@ -841,6 +841,11 @@ export default {
     },
     canales_v: {
       orderHelpShort: 'Drag by the ⠿ handle or use the arrows.',
+      savedOk: 'Saved on Discord.',
+      saveQueued: 'Discord is applying the change with a delay (it limits repeated changes to the same channel). It will show up on its own in a few minutes.',
+      renameLimit: 'Saved, except the name: Discord only allows renaming a channel or category twice every 10 minutes. You can rename it again in {{min}} min.',
+      saveError: 'Couldn’t save. Check that the bot can manage channels and try again.',
+      saveTimeout: 'Discord didn’t answer in time. Check your connection and try again.',
       reorder: 'Move & reorder', orderHelp: 'Drag channels and categories by the ⠿ handle and drop them wherever you want. A channel can be dropped into another category. You can also use the arrows.',
       unsaved: 'Unsaved changes', orderCancel: 'Cancel', orderSave: 'Save order', orderSaved: 'Order saved on Discord.', orderError: 'Couldn’t save the order. Check that the bot can manage channels.',
       voiceNote: 'On Discord, voice channels always show below text channels inside each category; that’s already reflected here.',
