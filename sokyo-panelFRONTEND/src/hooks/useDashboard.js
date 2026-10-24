@@ -312,17 +312,33 @@ export function useDashboard() {
   const editarCanalServidor = (canalId, cambios) => guardarCanales(`/${canalId}`, 'PATCH', cambios, 'editando canal');
 
   // Guarda de una vez el orden hecho arrastrando: categorías y, en orden, cada
-  // canal con su categoría. Devuelve true/false.
+  // canal con su categoría. Devuelve { ok, aviso } o { ok: false, codigo,
+  // canales, detalle } para que el panel diga exactamente qué ha pasado.
   const reordenarCanales = async ({ categorias, canales }) => {
-    if (!gidActivo()) return false;
+    if (!gidActivo()) return { ok: false };
     try {
       const res = await apiFetch(`/api/config/${gidActivo()}/canales/orden`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categorias, canales }),
+        signal: AbortSignal.timeout?.(30000),
       });
       const data = await res.json().catch(() => ({}));
-      if (data.success) { await cargarEstructuraCanales(); return true; }
-    } catch (error) { console.error('Error reordenando canales:', error); }
-    return false;
+      if (data.success) {
+        await cargarEstructuraCanales();
+        // Discord lo está aplicando con retraso: se vuelve a mirar en unos segundos.
+        if (data.aviso === 'en_cola') [8000, 25000].forEach((ms) => setTimeout(() => cargarEstructuraCanales(), ms));
+        return { ok: true, aviso: data.aviso || null };
+      }
+      if (data.codigo === 'desactualizado') await cargarEstructuraCanales();
+      return {
+        ok: false,
+        codigo: data.codigo || (res.status === 403 ? 'acceso' : null),
+        canales: Array.isArray(data.canales) ? data.canales : [],
+        detalle: data.detalle || (data.codigo ? '' : data.error || ''),
+      };
+    } catch (error) {
+      console.error('Error reordenando canales:', error);
+      return { ok: false, codigo: error?.name === 'TimeoutError' ? 'tiempo' : 'red' };
+    }
   };
 
   const eliminarCanalServidor = async (canalId) => {

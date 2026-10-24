@@ -42,7 +42,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.3.3.**
+  --no-git-tag-version`. **Versión actual: 1.3.4.**
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -66,6 +66,8 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
 - **Canales y categorías** (`api/routes/canales.js`): Discord solo deja cambiar el
   nombre o el tema de un canal 2 veces cada 10 min y deja esperando el resto. Al
   guardar, manda una sola petición con lo que cambia (`guardarEnDiscord`).
+  Reordenar (`PUT …/canales/orden`) manda solo las listas que cambian: Discord
+  rechaza la petición entera (50013) si el bot no puede tocar uno de los canales.
 - **Estilo cristal**: `src/dashboard.css` (`.sk-*`) y `src/portal.css` (`.gx-*`).
   En Tailwind v4 el CSS sin capa gana a las utilidades: las clases propias van en
   `@layer components`. En móvil/tablet (≤1023 px o `pointer: coarse`) las tarjetas
@@ -116,5 +118,9 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
 - #12 Guardar una categoría o un canal ya no se queda en «Guardando…»: una sola
   petición a Discord con solo lo que cambia, aviso del límite de nombres (2 cada
   10 min) y respuesta rápida aunque Discord retenga el cambio.
+- 1.3.4 «Guardar orden» (mover canales) ya no falla por un canal privado de otra
+  categoría: solo se manda a Discord lo que cambia, se comprueban antes los
+  permisos del bot canal por canal y el panel dice cuál falla y por qué. La barra
+  de guardar es opaca en el móvil (`sk-flotante`).
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

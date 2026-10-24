@@ -66,7 +66,23 @@ describe('ordenar canales y categorías', () => {
         assert.strictEqual(categorias[1].canales[1].tipo, 'otro');
     });
 
-    it('manda a Discord el orden de categorías y canales, contando por categoría', async () => {
+    it('sin cambios no llama a Discord', async () => {
+        const r = await ordenar({
+            categorias: ['c-info', 'c-comunidad'],
+            canales: [
+                { id: 'f-ayuda', categoriaId: null },
+                { id: 't-normas', categoriaId: 'c-info' },
+                { id: 't-general', categoriaId: 'c-comunidad' },
+                { id: 'm-clips', categoriaId: 'c-comunidad' },
+                { id: 'v-charla', categoriaId: 'c-comunidad' },
+            ],
+        });
+        assert.strictEqual(r.status, 200);
+        assert.strictEqual((await r.json()).sinCambios, true);
+        assert.deepStrictEqual(llamadas, []);
+    });
+
+    it('cambiar el orden de las categorías solo manda las categorías', async () => {
         const r = await ordenar({
             categorias: ['c-comunidad', 'c-info'],
             canales: [
@@ -81,25 +97,57 @@ describe('ordenar canales y categorías', () => {
         assert.deepStrictEqual(llamadas, [[
             { channel: 'c-comunidad', position: 0 },
             { channel: 'c-info', position: 1 },
-            { channel: 'f-ayuda', position: 0, parent: null, lockPermissions: false },
-            { channel: 't-general', position: 0, parent: 'c-comunidad', lockPermissions: false },
-            { channel: 'm-clips', position: 1, parent: 'c-comunidad', lockPermissions: false },
-            { channel: 'v-charla', position: 2, parent: 'c-comunidad', lockPermissions: false },
-            { channel: 't-normas', position: 0, parent: 'c-info', lockPermissions: false },
+        ]]);
+    });
+
+    it('mover un canal de categoría manda solo esa categoría, contando por categoría', async () => {
+        const r = await ordenar({
+            categorias: ['c-info', 'c-comunidad'],
+            canales: [
+                { id: 'f-ayuda', categoriaId: null },
+                { id: 't-normas', categoriaId: 'c-info' },
+                { id: 't-general', categoriaId: 'c-info' },
+                { id: 'm-clips', categoriaId: 'c-comunidad' },
+                { id: 'v-charla', categoriaId: 'c-comunidad' },
+            ],
+        });
+        assert.strictEqual(r.status, 200);
+        // c-comunidad solo pierde un canal (el resto sigue igual): no se toca.
+        assert.deepStrictEqual(llamadas, [[
+            { channel: 't-normas', position: 0 },
+            { channel: 't-general', position: 1, parent: 'c-info', lockPermissions: false },
+        ]]);
+    });
+
+    it('reordenar dentro de una categoría manda todos sus canales, sin cambiar su categoría', async () => {
+        const r = await ordenar({
+            categorias: ['c-info', 'c-comunidad'],
+            canales: [
+                { id: 'f-ayuda', categoriaId: null },
+                { id: 't-normas', categoriaId: 'c-info' },
+                { id: 'm-clips', categoriaId: 'c-comunidad' },
+                { id: 't-general', categoriaId: 'c-comunidad' },
+                { id: 'v-charla', categoriaId: 'c-comunidad' },
+            ],
+        });
+        assert.strictEqual(r.status, 200);
+        assert.deepStrictEqual(llamadas, [[
+            { channel: 'm-clips', position: 0 },
+            { channel: 't-general', position: 1 },
+            { channel: 'v-charla', position: 2 },
         ]]);
     });
 
     it('rechaza categorías repetidas o que no son categorías', async () => {
-        for (const categorias of [['c-info', 'c-info'], ['t-general'], ['no-existe']]) {
+        for (const categorias of [['c-info', 'c-info'], ['t-general']]) {
             const r = await ordenar({ categorias, canales: [] });
             assert.strictEqual(r.status, 400, JSON.stringify(categorias));
         }
         assert.deepStrictEqual(llamadas, []);
     });
 
-    it('rechaza canales desconocidos, repetidos, categorías o tipos que no se ordenan', async () => {
+    it('rechaza canales repetidos, categorías o tipos que no se ordenan', async () => {
         const malos = [
-            [{ id: 'no-existe' }],
             [{ id: 't-general' }, { id: 't-general' }],
             [{ id: 'c-info' }],
             [{ id: 'hilo' }],
@@ -108,6 +156,19 @@ describe('ordenar canales y categorías', () => {
         for (const lista of malos) {
             const r = await ordenar({ categorias: [], canales: lista });
             assert.strictEqual(r.status, 400, JSON.stringify(lista));
+        }
+        assert.deepStrictEqual(llamadas, []);
+    });
+
+    it('si un canal o categoría ya no existe, avisa de que la lista está desfasada', async () => {
+        for (const cuerpo of [
+            { categorias: ['no-existe'], canales: [] },
+            { categorias: [], canales: [{ id: 'no-existe' }] },
+            { categorias: [], canales: [{ id: 't-general', categoriaId: 'no-existe' }] },
+        ]) {
+            const r = await ordenar(cuerpo);
+            assert.strictEqual(r.status, 409, JSON.stringify(cuerpo));
+            assert.strictEqual((await r.json()).codigo, 'desactualizado');
         }
         assert.deepStrictEqual(llamadas, []);
     });
@@ -197,5 +258,139 @@ describe('guardar una categoría', () => {
         assert.strictEqual(r.success, true);
         assert.strictEqual(r.aviso, 'en_cola');
         assert.strictEqual(ediciones.length, 1);
+    });
+});
+
+// Discord rechaza el orden entero si el bot no puede tocar uno solo de los
+// canales. Antes el panel solo decía «no se pudo»: ahora se comprueba antes y
+// se dice cuáles, y los errores de Discord llegan con un código claro.
+describe('ordenar: permisos del bot y errores de Discord', () => {
+    const { PermissionsBitField } = require('discord.js');
+    const conPermisos = (flags) => ({ has: (pedidos) => new PermissionsBitField(flags).has(pedidos) });
+    const todo = ['ViewChannel', 'ManageChannels'];
+    let permisosServidor = todo;
+    let fallo = null;
+    let lento = false;
+    let posiciones = [];
+    const yo = { id: 'bot', permissions: { has: (f) => new PermissionsBitField(permisosServidor).has(f) } };
+    const mk = (id, type, parentId, rawPosition, flags = todo) => ({
+        id, type, parentId, rawPosition, name: id, permissionOverwrites: { cache: new Collection() },
+        permissionsFor: (quien) => (quien === yo ? conPermisos(flags) : null),
+    });
+    const lista = [
+        mk('cat-a', ChannelType.GuildCategory, null, 0),
+        mk('cat-b', ChannelType.GuildCategory, null, 1),
+        mk('cat-staff', ChannelType.GuildCategory, null, 2, ['ViewChannel']),
+        mk('a1', ChannelType.GuildText, 'cat-a', 0),
+        mk('a2', ChannelType.GuildText, 'cat-a', 1),
+        mk('b1', ChannelType.GuildText, 'cat-b', 0),
+        mk('privado', ChannelType.GuildText, 'cat-b', 1, []),
+    ];
+    const g = {
+        id: '900000000000000002',
+        roles: { cache: new Collection() },
+        members: { cache: new Collection(), me: yo },
+        channels: {
+            cache: new Collection(lista.map((c) => [c.id, c])),
+            setPositions: (p) => {
+                posiciones.push(p);
+                if (fallo) return Promise.reject(fallo);
+                return lento ? new Promise((r) => setTimeout(r, 1500)) : Promise.resolve();
+            },
+        },
+    };
+    const cli = { guilds: { cache: new Map([[g.id, g]]) } };
+    let s; let url;
+    const pedir = (cuerpo) => fetch(`${url}/api/config/${g.id}/canales/orden`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo),
+    }).then(async (r) => ({ status: r.status, ...(await r.json()) }));
+    // Mueve a2 encima de a1 (solo cambia cat-a); el resto, como está.
+    const subirA2 = {
+        categorias: ['cat-a', 'cat-b', 'cat-staff'],
+        canales: [
+            { id: 'a2', categoriaId: 'cat-a' }, { id: 'a1', categoriaId: 'cat-a' },
+            { id: 'b1', categoriaId: 'cat-b' }, { id: 'privado', categoriaId: 'cat-b' },
+        ],
+    };
+
+    before(async () => {
+        process.env.CANALES_ESPERA_MS = '200';
+        const app = express();
+        app.use(express.json());
+        app.use('/api', rutasCanales({ client: cli }));
+        s = await new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
+        url = `http://127.0.0.1:${s.address().port}`;
+    });
+    after(() => { s.close(); delete process.env.CANALES_ESPERA_MS; });
+    beforeEach(() => { posiciones = []; fallo = null; lento = false; permisosServidor = todo; });
+
+    it('un canal privado de OTRA categoría ya no impide ordenar', async () => {
+        const r = await pedir(subirA2);
+        assert.strictEqual(r.status, 200);
+        assert.strictEqual(r.success, true);
+        assert.deepStrictEqual(posiciones, [[{ channel: 'a2', position: 0 }, { channel: 'a1', position: 1 }]]);
+    });
+
+    it('si se mueve algo que el bot no puede tocar, dice cuáles y no llama a Discord', async () => {
+        const r = await pedir({
+            categorias: ['cat-a', 'cat-b', 'cat-staff'],
+            canales: [
+                { id: 'a1', categoriaId: 'cat-a' }, { id: 'a2', categoriaId: 'cat-a' },
+                { id: 'privado', categoriaId: 'cat-b' }, { id: 'b1', categoriaId: 'cat-b' },
+            ],
+        });
+        assert.strictEqual(r.status, 403);
+        assert.strictEqual(r.codigo, 'sin_permiso');
+        assert.deepStrictEqual(r.canales, ['privado']);
+        assert.deepStrictEqual(posiciones, []);
+    });
+
+    it('la categoría de destino también tiene que poder gestionarla', async () => {
+        const r = await pedir({
+            categorias: ['cat-a', 'cat-b', 'cat-staff'],
+            canales: [
+                { id: 'a1', categoriaId: 'cat-a' },
+                { id: 'b1', categoriaId: 'cat-b' }, { id: 'privado', categoriaId: 'cat-b' },
+                { id: 'a2', categoriaId: 'cat-staff' },
+            ],
+        });
+        assert.strictEqual(r.status, 403);
+        assert.deepStrictEqual(r.canales, ['cat-staff']);
+        assert.deepStrictEqual(posiciones, []);
+    });
+
+    it('sin «Gestionar canales» en el servidor lo dice tal cual', async () => {
+        permisosServidor = ['ViewChannel'];
+        const r = await pedir(subirA2);
+        assert.strictEqual(r.status, 403);
+        assert.strictEqual(r.codigo, 'sin_permiso_servidor');
+        assert.deepStrictEqual(posiciones, []);
+    });
+
+    it('los errores de Discord llegan al panel con un código claro', async () => {
+        fallo = Object.assign(new Error('Missing Permissions'), { code: 50013, status: 403 });
+        let r = await pedir(subirA2);
+        assert.strictEqual(r.status, 403);
+        assert.strictEqual(r.codigo, 'sin_permiso');
+
+        fallo = Object.assign(new Error('Invalid Form Body\n0.position[NUMBER_TYPE_COERCE]'), { code: 50035, status: 400 });
+        r = await pedir(subirA2);
+        assert.strictEqual(r.status, 502);
+        assert.strictEqual(r.codigo, 'discord');
+        assert.match(r.detalle, /Invalid Form Body/);
+
+        fallo = new Error('red caída');
+        r = await pedir(subirA2);
+        assert.strictEqual(r.status, 500);
+        assert.strictEqual(r.codigo, 'error');
+    });
+
+    it('si Discord retiene el orden, el panel recibe respuesta enseguida (en cola)', async () => {
+        lento = true;
+        const inicio = Date.now();
+        const r = await pedir(subirA2);
+        assert.ok(Date.now() - inicio < 1200, 'no espera a Discord');
+        assert.strictEqual(r.success, true);
+        assert.strictEqual(r.aviso, 'en_cola');
     });
 });
