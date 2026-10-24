@@ -1,14 +1,8 @@
 // Hero de la landing — layout asimétrico (texto + maqueta del producto).
 // Textos vía i18n (src/i18n/locales/*).
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Plus, ArrowRight, Zap, Star, Lock, MessageSquare } from 'lucide-react';
 import { inviteUrl, prioridadBar } from '../../lib/landingConfig';
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 22 },
-  show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.55, delay: i * 0.08, ease: 'easeOut' } }),
-};
 
 const trustIcons = [
   <Zap size={15} className="text-amber-400" />,
@@ -23,36 +17,31 @@ export default function Hero({ onEnterDashboard }) {
   return (
     <section id="top" className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-[0.25] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_0%,black,transparent)]" />
-      <div className="pointer-events-none absolute -top-32 right-[-10%] h-[420px] w-[520px] rounded-full bg-brand/15 blur-[130px]" />
+      <div className="sk-halo pointer-events-none absolute -top-32 right-[-10%] h-[420px] w-[520px]" style={{ '--halo': 'color-mix(in srgb, var(--accent-color) 15%, transparent)' }} />
 
       <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[1.05fr_1fr] lg:py-28">
         <div className="text-center lg:text-left">
-          <motion.div
-            variants={fadeUp} initial="hidden" animate="show"
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-card/70 px-3.5 py-1.5 text-xs font-medium text-muted backdrop-blur"
-          >
+          <div className="sk-entra inline-flex items-center gap-2 rounded-full border border-line bg-card/90 px-3.5 py-1.5 text-xs font-medium text-muted">
             <span className="flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400" />
             {t('landing.hero.badge')}
-          </motion.div>
+          </div>
 
-          <motion.h1
-            variants={fadeUp} custom={1} initial="hidden" animate="show"
-            className="mt-6 font-extrabold leading-[1.05] tracking-tight text-fg text-[clamp(1.75rem,6.5vw,3.5rem)]"
+          {/* Titular y subtítulo solo se deslizan (sin transparencia): se ven desde el primer pintado. */}
+          <h1
+            style={{ '--i': 1 }}
+            className="sk-entra-suave mt-6 font-extrabold leading-[1.05] tracking-tight text-fg text-[clamp(1.75rem,6.5vw,3.5rem)]"
           >
             <span className="block whitespace-nowrap">{t('landing.hero.titleLine1')}</span>
             <span className="block whitespace-nowrap text-gradient-brand">{t('landing.hero.titleLine2')}</span>
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            variants={fadeUp} custom={2} initial="hidden" animate="show"
-            className="mx-auto mt-6 max-w-xl text-lg text-muted lg:mx-0"
-          >
+          <p style={{ '--i': 2 }} className="sk-entra-suave mx-auto mt-6 max-w-xl text-lg text-muted lg:mx-0">
             {t('landing.hero.subtitle')}
-          </motion.p>
+          </p>
 
-          <motion.div
-            variants={fadeUp} custom={3} initial="hidden" animate="show"
-            className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start lg:justify-start"
+          <div
+            style={{ '--i': 3 }}
+            className="sk-entra mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start lg:justify-start"
           >
             <a
               href={inviteUrl}
@@ -68,16 +57,16 @@ export default function Hero({ onEnterDashboard }) {
               {t('landing.hero.ctaSecondary')}
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-0.5" />
             </button>
-          </motion.div>
+          </div>
 
-          <motion.div
-            variants={fadeUp} custom={4} initial="hidden" animate="show"
-            className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted lg:justify-start"
+          <div
+            style={{ '--i': 4 }}
+            className="sk-entra mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted lg:justify-start"
           >
             {trust.map((txt, i) => (
               <span key={txt} className="flex items-center gap-1.5">{trustIcons[i]} {txt}</span>
             ))}
-          </motion.div>
+          </div>
         </div>
 
         <ProductPreview />
@@ -91,12 +80,7 @@ function ProductPreview() {
   const preview = t('landing.hero.preview', { returnObjects: true });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 40, rotate: -1.5 }}
-      animate={{ opacity: 1, y: 0, rotate: 0 }}
-      transition={{ duration: 0.9, delay: 0.35, ease: 'easeOut' }}
-      className="relative mx-auto w-full max-w-xl"
-    >
+    <div style={{ '--i': 4 }} className="sk-entra relative mx-auto w-full max-w-xl">
       {/*
         // TODO: DESIGN TEAM — ANIMACIÓN/ILUSTRACIÓN DEL HERO
         #hero-svg-animation: hueco reservado para la animación SVG/Lottie final.
@@ -144,34 +128,25 @@ function ProductPreview() {
           </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1, y: [0, -8, 0] }}
-          transition={{ opacity: { delay: 1, duration: 0.4 }, scale: { delay: 1, duration: 0.4 }, y: { delay: 1.4, duration: 4, repeat: Infinity, ease: 'easeInOut' } }}
-          className="absolute -left-6 top-24 hidden items-center gap-2 rounded-xl border border-line bg-elevated/95 px-3 py-2 shadow-xl backdrop-blur sm:flex"
-        >
+        <div style={{ '--retraso': '1s', '--flota': '-8px' }} className="sk-flota absolute -left-6 top-24 hidden items-center gap-2 rounded-xl border border-line bg-elevated px-3 py-2 shadow-xl sm:flex">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-400"><Star size={15} /></span>
           <div>
             <div className="text-[11px] font-bold text-fg">{preview.toast1Title}</div>
             <div className="text-[10px] text-amber-400">★★★★★</div>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1, y: [0, 8, 0] }}
-          transition={{ opacity: { delay: 1.2, duration: 0.4 }, scale: { delay: 1.2, duration: 0.4 }, y: { delay: 1.6, duration: 4.5, repeat: Infinity, ease: 'easeInOut' } }}
-          className="absolute -right-5 bottom-16 hidden items-center gap-2 rounded-xl border border-line bg-elevated/95 px-3 py-2 shadow-xl backdrop-blur sm:flex"
-        >
+        <div style={{ '--retraso': '1.2s', '--flota': '8px' }} className="sk-flota absolute -right-5 bottom-16 hidden items-center gap-2 rounded-xl border border-line bg-elevated px-3 py-2 shadow-xl sm:flex">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/15 text-brand"><MessageSquare size={15} /></span>
           <div>
             <div className="text-[11px] font-bold text-fg">{preview.toast2Title}</div>
             <div className="text-[10px] text-muted">{preview.toast2Sub}</div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      <div className="pointer-events-none absolute -bottom-8 left-1/2 h-24 w-2/3 -translate-x-1/2 rounded-full bg-brand/20 blur-3xl" />
-    </motion.div>
+      {/* Halo: degradado radial (un filtro blur grande cuesta mucho al pintar en el móvil). */}
+      <div className="sk-halo pointer-events-none absolute -bottom-8 left-1/2 h-24 w-2/3 -translate-x-1/2" style={{ '--halo': 'color-mix(in srgb, var(--accent-color) 20%, transparent)' }} />
+    </div>
   );
 }

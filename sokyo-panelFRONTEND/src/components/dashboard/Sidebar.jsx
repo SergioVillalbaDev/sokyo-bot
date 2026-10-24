@@ -83,7 +83,7 @@ export default function Sidebar({
       >
         {/* Marca */}
         <div className={cn('flex h-12 items-center gap-2.5 px-2', plegado && 'lg:justify-center lg:px-0')}>
-          <img src="/assets/logo.jpg" alt="Sokyo" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-brand/40" />
+          <img src="/assets/logo-96.webp" alt="Sokyo" width="36" height="36" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-brand/40" />
           {!plegado && (
             <span className="min-w-0 leading-tight">
               <span className="block truncate text-[17px] font-extrabold tracking-tight text-fg">Sokyo</span>

@@ -1,14 +1,10 @@
 // Sección de funciones — bento grid. Textos vía i18n.
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Ticket, ScrollText, ShieldCheck, SlidersHorizontal, Bot } from 'lucide-react';
 import { prioridadBar, comandos } from '../../lib/landingConfig';
+import Revelar from './Revelar';
 
 const tile = 'group relative overflow-hidden rounded-3xl border border-line bg-card p-6 transition-colors hover:border-brand/40';
-const enter = {
-  hidden: { opacity: 0, y: 24 },
-  show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.06 } }),
-};
 const META = {
   tickets: { Icon: Ticket, color: 'var(--accent-color)' },
   audit: { Icon: ScrollText, color: '#fbbf24' },
@@ -21,12 +17,12 @@ function Tile({ id, items, className = '', children }) {
   const { Icon, color } = META[id];
   const item = items[id] || { title: '', desc: '' };
   return (
-    <motion.article variants={enter} initial="hidden" whileInView="show" viewport={{ once: true, margin: '-60px' }} className={`${tile} ${className}`}>
+    <Revelar as="article" className={`${tile} ${className}`}>
       <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: `${color}26`, color }}><Icon size={22} /></div>
       <h3 className="mt-5 text-lg font-bold text-fg">{item.title}</h3>
       <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">{item.desc}</p>
       {children}
-    </motion.article>
+    </Revelar>
   );
 }
 
@@ -55,7 +51,7 @@ export default function Features() {
               <div key={label} className="flex items-center gap-3">
                 <span className="w-14 shrink-0 text-xs text-muted">{label}</span>
                 <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-elevated">
-                  <motion.div initial={{ width: 0 }} whileInView={{ width: anchos[i] }} viewport={{ once: true }} transition={{ duration: 0.9, ease: 'easeOut' }} className={`h-full rounded-full ${prioridadBar[i]}`} />
+                  <div style={{ '--ancho': anchos[i] }} className={`sk-crece h-full rounded-full ${prioridadBar[i]}`} />
                 </div>
               </div>
             ))}
@@ -69,13 +65,9 @@ export default function Features() {
               <div key={i} className="flex items-center gap-2">
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c }} />
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-elevated">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${70 - i * 14}%` }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 + i * 0.12 }}
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: c }}
+                  <div
+                    className="sk-crece h-full rounded-full"
+                    style={{ backgroundColor: c, '--ancho': `${70 - i * 14}%`, '--retraso': `${0.1 + i * 0.12}s` }}
                   />
                 </div>
               </div>

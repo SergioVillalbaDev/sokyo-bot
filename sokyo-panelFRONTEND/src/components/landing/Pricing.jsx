@@ -1,8 +1,8 @@
 // Tabla de precios. Textos vía i18n.
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Check, Sparkles } from 'lucide-react';
 import { inviteUrl } from '../../lib/landingConfig';
+import Revelar from './Revelar';
 
 const ORDEN = [
   { id: 'free', highlighted: false },
@@ -30,12 +30,9 @@ export default function Pricing() {
         {ORDEN.map((o, i) => {
           const tier = tiers[o.id];
           return (
-            <motion.div
+            <Revelar
               key={o.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
+              retraso={i * 0.1}
               className={`relative flex flex-col rounded-3xl border p-8 ${
                 o.highlighted ? 'border-brand/50 bg-card shadow-2xl shadow-brand/20' : 'border-line bg-card/60'
               }`}
@@ -74,7 +71,7 @@ export default function Pricing() {
               >
                 {tier.cta}
               </a>
-            </motion.div>
+            </Revelar>
           );
         })}
       </div>

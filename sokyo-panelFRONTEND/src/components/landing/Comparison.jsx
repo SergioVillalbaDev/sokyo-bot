@@ -1,9 +1,9 @@
 // Tabla comparativa vs. bots de un solo propósito (categorías GENÉRICAS, sin
 // nombrar marcas). El objetivo es dejar claro el ángulo "todo en uno": lo que con
 // Sokyo es un bot, con otros son tres o cuatro. Comparativa ORIENTATIVA (nota al pie).
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Check, Minus, X } from 'lucide-react';
+import Revelar from './Revelar';
 
 // Claves i18n de las columnas de "otros" (Sokyo va aparte, como literal).
 const COLS_OTROS = ['tickets', 'moderacion', 'comunidad'];
@@ -42,13 +42,7 @@ export default function Comparison() {
         <p className="mt-4 text-lg text-muted">{t('landing.comparison.subtitle')}</p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-60px' }}
-        transition={{ duration: 0.5 }}
-        className="mt-14 overflow-x-auto"
-      >
+      <Revelar className="mt-14 overflow-x-auto">
         <table className="w-full min-w-[560px] border-separate border-spacing-0">
           <thead>
             <tr>
@@ -85,7 +79,7 @@ export default function Comparison() {
             ))}
           </tbody>
         </table>
-      </motion.div>
+      </Revelar>
 
       <p className="mt-6 flex items-center justify-center gap-4 text-xs text-muted">
         <span className="flex items-center gap-1"><Check size={13} className="text-brand" /> {t('landing.comparison.legendYes')}</span>

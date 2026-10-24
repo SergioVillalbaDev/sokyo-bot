@@ -194,7 +194,15 @@ html[data-theme='light'], html[data-theme='lavanda'], html[data-theme='cereza'] 
   .sk-aparece { animation: none; }
 }
 
-/* Pantallas pequeñas: menos desenfoque (es lo que más cuesta en un móvil). */
-@media (max-width: 640px) {
-  .sk-dash .sk-glass, .sk-dash .bg-card.shadow-soft, .sk-dash .bg-card.shadow-xl { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+/* Móvil y tablet: las tarjetas que se desplazan van sin desenfoque. Recalcularlo
+   en cada fotograma del scroll es lo que más cuesta a la gráfica de un teléfono, y
+   detrás solo hay degradados suaves: con algo más de opacidad se ve igual. */
+@media (max-width: 1023px), (pointer: coarse) {
+  .sk-dash .sk-glass, .sk-dash .bg-card.shadow-soft, .sk-dash .bg-card.shadow-xl {
+    background-image: linear-gradient(150deg, color-mix(in srgb, var(--solido-card) 86%, transparent), color-mix(in srgb, var(--solido-card) 72%, transparent));
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .sk-dash .fixed .bg-card, .sk-dash .fixed.bg-card, .sk-dash .absolute.bg-card, .sk-dash [role='dialog'].bg-card, .sk-dash .sk-flotante {
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
 }
