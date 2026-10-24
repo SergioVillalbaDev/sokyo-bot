@@ -7,10 +7,16 @@ const { revisarMensaje, revisarConIA } = require('../utils/automod.js');
 const { revisarAutoRespuestas } = require('../utils/autoRespuestas.js');
 const { marcarParticipacion } = require('../utils/embudo.js');
 const { t, resolverIdioma } = require('../utils/i18n.js');
+const bump = require('../utils/bump.js');
 
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
+        // Crecimiento: respuesta de DISBOARD a un /bump (es un bot, va antes del filtro).
+        if (message.author.id === bump.DISBOARD_ID) {
+            await bump.procesarMensaje(message).catch((e) => console.error('Bump (DISBOARD):', e.message));
+            return;
+        }
         if (message.author.bot) return;
 
         // 0. Registro de actividad del usuario (mensajes), solo en servidores.

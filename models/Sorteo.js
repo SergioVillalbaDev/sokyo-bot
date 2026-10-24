@@ -22,6 +22,11 @@ const SorteoSchema = new mongoose.Schema({
     // Roles que multiplican las posibilidades (p. ej. booster x2). Se aplica el
     // multiplicador MÁS ALTO que tenga el participante.
     multiplicadores: { type: [{ rolId: String, multiplicador: Number }], default: [] },
+    // Invitaciones (Crecimiento → Invitaciones): mínimo de personas invitadas para
+    // participar y papeletas extra por cada persona invitada durante el sorteo.
+    invitacionesMin: { type: Number, default: 0 },
+    entradasPorInvitacion: { type: Number, default: 0 },
+    maxEntradasExtra: { type: Number, default: 10 },
     participantes: { type: [String], default: [] },   // userIds que se han apuntado
     ganadoresSeleccionados: { type: [GanadorSchema], default: [] },
     activo: { type: Boolean, default: true },

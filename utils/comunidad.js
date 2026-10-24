@@ -16,6 +16,7 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const { aplicarPieMarca } = require('./marca.js');
 const { getConfigCached } = require('./config.js');
 const { t } = require('./i18n.js');
+const { contarActivas } = require('./invitaciones.js');
 
 const COLOR = '#5865F2';
 const EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
@@ -149,17 +150,27 @@ function construirEmbedSorteo(s, color, finalizado = false, idioma) {
         .setTitle(`🎉 ${s.nombre}`)
         .setDescription(t(idioma, `**Premio:** ${s.premio}`, `**Prize:** ${s.premio}`))
         .addFields(
-            { name: '🏆 Ganadores', value: `${s.ganadores}`, inline: true },
-            { name: '👥 Participantes', value: `${s.participantes.length}`, inline: true },
+            { name: t(idioma, '🏆 Ganadores', '🏆 Winners'), value: `${s.ganadores}`, inline: true },
+            { name: t(idioma, '👥 Participantes', '👥 Participants'), value: `${s.participantes.length}`, inline: true },
         );
     const reqs = [];
     if (s.nivelMin > 0) reqs.push(t(idioma, `Nivel ${s.nivelMin}+`, `Level ${s.nivelMin}+`));
     if (s.rolRequerido) reqs.push(t(idioma, `Rol <@&${s.rolRequerido}>`, `Role <@&${s.rolRequerido}>`));
+    if (s.invitacionesMin > 0) reqs.push(t(idioma, `Haber invitado a ${s.invitacionesMin}+ personas`, `Have invited ${s.invitacionesMin}+ people`));
     if (reqs.length) embed.addFields({ name: t(idioma, '📋 Requisitos', '📋 Requirements'), value: reqs.join(' · '), inline: false });
     if (s.multiplicadores?.length) {
         embed.addFields({
             name: t(idioma, '✨ Multiplicadores', '✨ Multipliers'),
             value: s.multiplicadores.map((m) => `<@&${m.rolId}> ×${m.multiplicador}`).join(' · '),
+            inline: false,
+        });
+    }
+    if (s.entradasPorInvitacion > 0 && !finalizado) {
+        embed.addFields({
+            name: t(idioma, '🎟️ Papeletas extra', '🎟️ Extra entries'),
+            value: t(idioma,
+                `+${s.entradasPorInvitacion} por cada persona que invites mientras dure el sorteo (máx. +${s.maxEntradasExtra}). Mira las tuyas con \`/invites\`.`,
+                `+${s.entradasPorInvitacion} for every person you invite while the giveaway runs (max +${s.maxEntradasExtra}). Check yours with \`/invites\`.`),
             inline: false,
         });
     }
@@ -220,11 +231,26 @@ async function manejarEntradaSorteo(interaction) {
                 return interaction.reply({ content: t(idioma, `❌ Necesitas ser **nivel ${s.nivelMin}** o superior para participar.`, `❌ You need to be **level ${s.nivelMin}** or higher to join.`), flags: 64 });
             }
         }
+        if (s.invitacionesMin > 0) {
+            const invitadas = await contarActivas(s.guildId, uid);
+            if (invitadas < s.invitacionesMin) {
+                return interaction.reply({ content: t(idioma,
+                    `❌ Para participar tienes que haber invitado a **${s.invitacionesMin}** personas que sigan en el servidor (llevas ${invitadas}).`,
+                    `❌ To join you need to have invited **${s.invitacionesMin}** people who are still in the server (you have ${invitadas}).`), flags: 64 });
+            }
+        }
 
         s.participantes.push(uid);
         await s.save();
         await actualizarMensajeSorteo(interaction.client, s).catch(() => {});
-        return interaction.reply({ content: t(idioma, '✅ ¡Ya participas en el sorteo! Buena suerte 🍀', '✅ You’re in the giveaway! Good luck 🍀'), flags: 64 });
+        let extra = '';
+        if (s.entradasPorInvitacion > 0) {
+            const papeletas = await papeletasDe(interaction.guild, s, uid);
+            extra = t(idioma,
+                `\n🎟️ Ahora mismo tienes **${papeletas}** papeleta(s). Invita a más gente para sumar (+${s.entradasPorInvitacion} por persona, máx. +${s.maxEntradasExtra}).`,
+                `\n🎟️ You currently have **${papeletas}** entr${papeletas === 1 ? 'y' : 'ies'}. Invite more people to add more (+${s.entradasPorInvitacion} each, max +${s.maxEntradasExtra}).`);
+        }
+        return interaction.reply({ content: t(idioma, '✅ ¡Ya participas en el sorteo! Buena suerte 🍀', '✅ You’re in the giveaway! Good luck 🍀') + extra, flags: 64 });
     } catch (e) {
         console.error('Entrada sorteo:', e.message);
         if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al participar.', '❌ Error joining.'), flags: 64 }).catch(() => {});
@@ -240,6 +266,23 @@ async function actualizarMensajeSorteo(client, s) {
     const color = await colorDe(s.guildId);
     const idioma = await getConfigCached(s.guildId).catch(() => null);
     await msg.edit({ embeds: [construirEmbedSorteo(s, color, false, idioma)], components: [filaSorteo(s, idioma)] }).catch(() => {});
+}
+
+// Papeletas de un participante: el multiplicador de rol más alto (1 si no tiene) más
+// las extra por invitar. Solo cuentan las personas que entraron mientras dura el
+// sorteo y siguen en el servidor (utils/invitaciones.js).
+async function papeletasDe(guild, s, uid, miembro = undefined) {
+    let base = 1;
+    if (s.multiplicadores?.length && guild) {
+        const m = miembro !== undefined ? miembro : await guild.members.fetch(uid).catch(() => null);
+        if (m) for (const mul of s.multiplicadores) if (m.roles.cache.has(mul.rolId)) base = Math.max(base, mul.multiplicador || 1);
+    }
+    let extra = 0;
+    if (s.entradasPorInvitacion > 0) {
+        const invitadas = await contarActivas(s.guildId, uid, { desde: s.creadoFecha, hasta: s.activo ? null : s.fechaFin });
+        extra = Math.min(Math.max(0, s.maxEntradasExtra || 0), invitadas * s.entradasPorInvitacion);
+    }
+    return base + extra;
 }
 
 // Elige `n` ganadores al azar PONDERADO por peso (sin repetir). `pesos` es un
@@ -262,22 +305,23 @@ function elegirPonderado(lista, n, pesos) {
 async function finalizarSorteo(client, s, { reroll = false } = {}) {
     const guild = client.guilds.cache.get(s.guildId);
 
-    // Calcular papeletas según los roles multiplicadores (se aplica el mayor).
+    // Papeletas de cada participante (roles multiplicadores + invitaciones). Quien
+    // ya no cumple el mínimo de invitaciones (p. ej. sus invitados se fueron) queda fuera.
     const pesos = {};
-    if (s.multiplicadores?.length && guild) {
+    let validos = s.participantes;
+    if ((s.multiplicadores?.length || s.entradasPorInvitacion > 0) && guild) {
         for (const id of s.participantes) {
-            const miembro = await guild.members.fetch(id).catch(() => null);
-            let mejor = 1;
-            if (miembro) {
-                for (const m of s.multiplicadores) {
-                    if (miembro.roles.cache.has(m.rolId)) mejor = Math.max(mejor, m.multiplicador || 1);
-                }
-            }
-            pesos[id] = mejor;
+            const miembro = s.multiplicadores?.length ? await guild.members.fetch(id).catch(() => null) : null;
+            pesos[id] = await papeletasDe(guild, s, id, miembro);
         }
     }
+    if (s.invitacionesMin > 0) {
+        const cumplen = [];
+        for (const id of s.participantes) if (await contarActivas(s.guildId, id) >= s.invitacionesMin) cumplen.push(id);
+        validos = cumplen;
+    }
 
-    const ids = elegirPonderado(s.participantes, Math.max(1, s.ganadores), pesos);
+    const ids = elegirPonderado(validos, Math.max(1, s.ganadores), pesos);
     const ganadores = [];
     for (const id of ids) {
         const miembro = guild ? await guild.members.fetch(id).catch(() => null) : null;

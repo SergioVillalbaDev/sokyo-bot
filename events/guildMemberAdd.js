@@ -6,6 +6,7 @@ const { asignarCohorte, enviarMD } = require('../utils/embudo.js');
 const { enviarBienvenida } = require('../utils/bienvenida.js');
 const { enviarLogADiscord } = require('../utils/logsManager.js');
 const { manejarEntradaServidorSoporte } = require('../utils/soporte.js');
+const { registrarEntrada } = require('../utils/invitaciones.js');
 const { t } = require('../utils/i18n.js');
 
 module.exports = {
@@ -26,6 +27,10 @@ module.exports = {
             console.error('Error obteniendo config en guildMemberAdd:', error);
             return;
         }
+
+        // --- Crecimiento: ¿con qué invitación ha entrado? (lo antes posible, sin
+        // esperar: el resto de la bienvenida no depende de ello) ---
+        registrarEntrada(member, client, cfg).catch((e) => console.error('Error registrando la invitación:', e.message));
 
         // --- Anti-raid + cuentas nuevas/multicuentas ---
         // Si el miembro fue expulsado/baneado, no seguimos con el autorol.

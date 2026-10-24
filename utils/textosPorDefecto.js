@@ -27,6 +27,11 @@ const TEXTOS = [
     ['presentaciones.plantilla', 'Age: \nWhere you’re from: \nHobbies: \nWhy you’re joining: ', 'Edad: \nDe dónde eres: \nAficiones: \nPor qué te unes: '],
     ['vozTemporal.panelTitulo', '🔊 Your voice channel', '🔊 Tu canal de voz'],
     ['vozTemporal.panelDescripcion', 'Join the generator channel to create your room. Then use these buttons to manage it.', 'Entra en el canal generador para crear tu sala. Después usa estos botones para gestionarla.'],
+    ['crecimiento.invitaciones.mensaje', '📨 {mention} joined thanks to {inviter}, who now has **{invites}** invites.', '📨 {mention} ha entrado gracias a {inviter}, que ya lleva **{invites}** invitaciones.'],
+    ['crecimiento.bump.mensajeRecordatorio', '⏰ The server can be bumped again! Use `/bump` from DISBOARD and earn gold 🪙', '⏰ ¡Ya se puede volver a hacer bump! Usa `/bump` de DISBOARD y gana oro 🪙'],
+    ['crecimiento.bump.mensajeGracias', '🙌 Thanks for the bump, {mention}! Next bump {next}.', '🙌 ¡Gracias por el bump, {mention}! Próximo bump {next}.'],
+    ['crecimiento.directos.mensaje', '🔴 **{streamer}** is live!', '🔴 ¡**{streamer}** está en directo!'],
+    ['crecimiento.directos.mensajeVideo', '📺 **{streamer}** just posted on YouTube!', '📺 ¡**{streamer}** acaba de publicar en YouTube!'],
 ];
 
 // Motivos de ticket de fábrica (se comparan por nombre; la urgencia se conserva).

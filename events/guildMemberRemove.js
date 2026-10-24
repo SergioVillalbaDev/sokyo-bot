@@ -2,6 +2,7 @@ const { Events } = require('discord.js');
 const Log = require('../models/Log.js');
 const { getConfig, logActivo } = require('../utils/config.js');
 const { marcarSalida } = require('../utils/embudo.js');
+const { registrarSalida } = require('../utils/invitaciones.js');
 const { enviarDespedida } = require('../utils/bienvenida.js');
 const { enviarLogADiscord } = require('../utils/logsManager.js');
 const { t } = require('../utils/i18n.js');
@@ -13,6 +14,9 @@ module.exports = {
         try {
             await marcarSalida(member.guild.id, member.id);
         } catch (error) { console.error('Error marcando salida de embudo:', error.message); }
+
+        // --- Crecimiento: si su invitación aún no contaba, ya no contará ---
+        registrarSalida(member.guild.id, member.id).catch((e) => console.error('Error registrando salida (invitaciones):', e.message));
 
         let cfg;
         try {

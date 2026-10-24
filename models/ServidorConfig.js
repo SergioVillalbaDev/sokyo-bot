@@ -575,6 +575,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         logs: { type: [String], default: [] },
         mensajes: { type: [String], default: [] },
         config: { type: [String], default: [] },
+        crecimiento: { type: [String], default: [] },
     },
 
     // --- PLAN / SUSCRIPCIÓN ---
@@ -612,7 +613,72 @@ const ServidorConfigSchema = new mongoose.Schema({
             raid: { type: Boolean, default: true },
         },
     },
+
+    // --- CRECIMIENTO: herramientas para que el servidor gane miembros ---
+    // Lógica en utils/invitaciones.js, utils/bump.js, utils/paginaPublica.js y
+    // utils/directos.js. Los textos por defecto están en inglés (como el resto del
+    // modelo) y se adaptan al idioma del servidor (utils/textosPorDefecto.js).
+    crecimiento: {
+        // Seguimiento de invitaciones con recompensas. Una invitación cuenta cuando
+        // el invitado sigue en el servidor pasadas `horasConfirmacion` horas; las
+        // cuentas más nuevas que `diasCuentaMin` días no cuentan nunca.
+        invitaciones: {
+            activo: { type: Boolean, default: false },
+            canalAvisosId: { type: String, default: null },   // aviso de "X ha entrado gracias a Y" (null = sin aviso)
+            mensaje: { type: String, default: '📨 {mention} joined thanks to {inviter}, who now has **{invites}** invites.' },
+            horasConfirmacion: { type: Number, default: 24 },
+            diasCuentaMin: { type: Number, default: 7 },
+            oroPorInvitacion: { type: Number, default: 50 },  // oro de la economía para quien invita
+            xpPorInvitacion: { type: Number, default: 0 },    // XP del sistema de niveles (si está activo)
+            recompensas: { type: [{ invitaciones: Number, rolId: String }], default: [] }, // roles por nº de invitaciones
+        },
+        // Recordatorio de bump de Disboard: avisa cuando se puede volver a hacer
+        // /bump y premia a quien lo hace. Los campos de estado los gestiona el bot.
+        bump: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },         // dónde avisar (null = donde se hizo el último bump)
+            rolId: { type: String, default: null },           // rol al que mencionar en el aviso
+            oroPorBump: { type: Number, default: 25 },
+            mensajeRecordatorio: { type: String, default: '⏰ The server can be bumped again! Use `/bump` from DISBOARD and earn gold 🪙' },
+            mensajeGracias: { type: String, default: '🙌 Thanks for the bump, {mention}! Next bump {next}.' },
+            proximoBump: { type: Date, default: null },
+            recordado: { type: Boolean, default: true },      // false = hay un aviso pendiente para proximoBump
+            ultimoCanalId: { type: String, default: null },
+            ultimoAvisoId: { type: String, default: null },   // mensaje de aviso (se borra al hacer el siguiente bump)
+            ultimoBumpPor: { type: String, default: null },
+            ultimoBumpFecha: { type: Date, default: null },
+        },
+        // Página pública del servidor (/s/<slug>) y aparición en el directorio (/servidores).
+        pagina: {
+            activo: { type: Boolean, default: false },
+            slug: { type: String, default: null },
+            descripcion: { type: String, default: '' },
+            etiquetas: { type: [String], default: [] },
+            listado: { type: Boolean, default: true },        // aparecer en el directorio
+            mostrarRanking: { type: Boolean, default: false }, // top de niveles (nombres de miembros)
+            mostrarEventos: { type: Boolean, default: true },
+            canalInvitacionId: { type: String, default: null }, // canal de la invitación que crea el bot
+            invitacionCodigo: { type: String, default: null },
+            visitas: { type: Number, default: 0 },
+        },
+        // Avisos de directos de Twitch y de vídeos/directos de YouTube. Las fuentes
+        // viven en su propia colección (models/FuenteDirecto.js).
+        directos: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            rolId: { type: String, default: null },
+            mensaje: { type: String, default: '🔴 **{streamer}** is live!' },
+            mensajeVideo: { type: String, default: '📺 **{streamer}** just posted on YouTube!' },
+            incluirShorts: { type: Boolean, default: false },
+        },
+    },
 });
+
+// Cada página pública tiene una dirección única. Los null (sin página) no cuentan.
+ServidorConfigSchema.index(
+    { 'crecimiento.pagina.slug': 1 },
+    { unique: true, partialFilterExpression: { 'crecimiento.pagina.slug': { $type: 'string' } } },
+);
 
 // Invalida el caché en memoria (utils/config.js) cada vez que se guarda la
 // configuración, para que los cambios del panel se apliquen sin esperar al TTL.

@@ -60,6 +60,10 @@ module.exports = function montarRutasComunidad(app, client) {
                     .filter((m) => m && m.rolId)
                     .map((m) => ({ rolId: String(m.rolId), multiplicador: Math.max(1, Math.min(100, parseInt(m.multiplicador, 10) || 1)) }))
                     .slice(0, 10),
+                // Invitaciones: mínimo para participar y papeletas extra por persona invitada.
+                invitacionesMin: Math.min(100, Math.max(0, parseInt(b.invitacionesMin, 10) || 0)),
+                entradasPorInvitacion: Math.min(10, Math.max(0, parseInt(b.entradasPorInvitacion, 10) || 0)),
+                maxEntradasExtra: Math.min(100, Math.max(1, parseInt(b.maxEntradasExtra, 10) || 10)),
                 fechaFin: fecha,
                 creadoPor: (req.staff && req.staff.username) || 'Panel Web',
             });
