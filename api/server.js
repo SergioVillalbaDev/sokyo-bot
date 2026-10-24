@@ -1799,6 +1799,27 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- MI CUENTA: mensaje fijo con el botón «Abrir mi cuenta» (utils/cuenta.js) ---
+    // Lo publica (o lo actualiza, si ya estaba en ese canal) en el canal elegido.
+    app.post('/api/cuenta/:guildId/panel', exigeArea('config'), async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const canal = guild.channels.cache.get(String((req.body && req.body.canalId) || ''));
+            if (!canal || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(canal.type)) {
+                return res.status(400).json({ error: 'Elige un canal de texto', codigo: 'canal' });
+            }
+            const cuenta = require('../utils/cuenta.js');
+            if (!cuenta.puedePublicar(canal)) return res.status(403).json({ error: 'El bot no puede escribir en ese canal', codigo: 'sin_permiso' });
+            const cfg = await ServidorConfig.findOne({ guildId: guild.id });
+            const { mensaje, actualizado } = await cuenta.publicarPanelCuenta(canal, cfg);
+            res.json({ success: true, actualizado, canalId: canal.id, mensajeId: mensaje.id, url: mensaje.url });
+        } catch (error) {
+            console.error('Error al publicar el botón de Mi cuenta:', error);
+            res.status(500).json({ error: 'No se pudo publicar el mensaje' });
+        }
+    });
+
     // --- EMBUDO DE BIENVENIDA: Test A/B de retención ---
     app.put('/api/config/:guildId/embudo', exigeArea('config'), async (req, res) => {
         try {

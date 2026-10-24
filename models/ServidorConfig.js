@@ -40,6 +40,11 @@ const ServidorConfigSchema = new mongoose.Schema({
     prefijo: { type: String, default: '!' },                                           // prefijo de comandos
     idioma: { type: String, enum: ['en', 'es'], default: 'en' },                       // idioma de los mensajes del bot en Discord
     ultimaVersionAnunciada: { type: String, default: null },                          // última versión avisada con "Bot actualizado"
+    panelCuenta: {                                                                     // mensaje fijo «Mi cuenta» (/panel-cuenta o el panel web)
+        canalId: { type: String, default: null },
+        mensajeId: { type: String, default: null },
+        fecha: { type: Date, default: null },
+    },
     categoriaArchivados: { type: String, default: '🗄️ Archived Tickets' },          // categoría de tickets cerrados
 
     // --- REGLAS Y CONTROL (Fase 3) ---

@@ -1,6 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { mensajeAcceso } = require('../utils/cuenta.js');
-const { resolverIdioma } = require('../utils/i18n.js');
+const { mensajeAcceso, idiomaDe } = require('../utils/cuenta.js');
 
 // "Mi cuenta" en un clic: un botón privado que abre la web con la sesión ya
 // iniciada (utils/cuenta.js). Funciona en cualquier servidor y por MD.
@@ -23,9 +22,7 @@ module.exports = {
 
     async execute(interaction, client, cfg) {
         // Es un mensaje solo para quien lo pide: mejor en SU idioma de Discord.
-        const loc = String(interaction.locale || '');
-        const idioma = loc.startsWith('es') ? 'es' : loc.startsWith('en') ? 'en' : resolverIdioma(cfg);
         const vista = interaction.options.getString('section') || 'inicio';
-        await interaction.reply({ ...mensajeAcceso(interaction.user, idioma, vista), flags: 64 });
+        await interaction.reply({ ...mensajeAcceso(interaction.user, idiomaDe(interaction, cfg), vista), flags: 64 });
     },
 };

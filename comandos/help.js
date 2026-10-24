@@ -1,12 +1,13 @@
 // Guía de comandos en Discord: !help (alias !commands, !comandos, !ayuda).
 // Lista todos los comandos agrupados por categoría, usando el prefijo del server.
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder } = require('discord.js');
+const { botonAbrirCuenta } = require('../utils/cuenta.js');
 const { getConfigCached } = require('../utils/config.js');
 const { t } = require('../utils/i18n.js');
 
 // 's' = comando slash (/), 'p' = comando de texto (prefijo del servidor).
 const CATEGORIAS = [
-    { titulo: ['👤 Tu cuenta en la web', '👤 Your account on the web'], cmds: [['account', 's', 'cuenta']] },
+    { titulo: ['👤 Tu cuenta en la web', '👤 Your account on the web'], cmds: [['account', 's', 'cuenta'], ['account-panel', 's', 'panel-cuenta']] },
     { titulo: ['🎵 Música', '🎵 Music'], cmds: [['play', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'], ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's']] },
     { titulo: ['🪙 Economía', '🪙 Economy'], cmds: [['daily', 's'], ['shop', 's'], ['inventory', 's'], ['use', 's'], ['givegold', 's'], ['rich', 's'], ['system', 's']] },
     { titulo: ['📈 Niveles', '📈 Levels'], cmds: [['level', 's'], ['ranking', 'p'], ['xp', 'p']] },
@@ -39,6 +40,8 @@ module.exports = {
         }
 
         if (message.guild && message.guild.iconURL()) embed.setThumbnail(message.guild.iconURL({ size: 64 }));
-        await message.reply({ embeds: [embed] }).catch(() => {});
+        // «Abrir mi cuenta»: quien lo pulse recibe su propio enlace (solo él lo ve).
+        const fila = new ActionRowBuilder().addComponents(botonAbrirCuenta(cfg));
+        await message.reply({ embeds: [embed], components: [fila] }).catch(() => {});
     },
 };

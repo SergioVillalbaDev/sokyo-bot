@@ -341,6 +341,24 @@ export function useDashboard() {
     }
   };
 
+  // «Mi cuenta de los miembros»: publica (o actualiza) en un canal el mensaje
+  // con el botón «Abrir mi cuenta». Devuelve { ok, actualizado, url } o { ok: false, codigo }.
+  const publicarPanelCuenta = async (canalId) => {
+    if (!gidActivo()) return { ok: false };
+    try {
+      const res = await apiFetch(`/api/cuenta/${gidActivo()}/panel`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canalId }),
+        signal: AbortSignal.timeout?.(30000),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { cargarConfiguracion(); return { ok: true, actualizado: !!data.actualizado, url: data.url || null }; }
+      return { ok: false, codigo: data.codigo || (res.status === 403 ? 'acceso' : 'error') };
+    } catch (error) {
+      console.error('Error publicando el botón de Mi cuenta:', error);
+      return { ok: false, codigo: 'red' };
+    }
+  };
+
   const eliminarCanalServidor = async (canalId) => {
     if (!gidActivo()) return false;
     try {
@@ -1384,6 +1402,7 @@ export function useDashboard() {
     else if (activeTab === 'config-niveles') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarRanking(); cargarCatalogoPresets(); }
     else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); }
     else if (activeTab === 'config-canales') { cargarEstructuraCanales(); cargarPermisosCanalCatalogo(); cargarRoles(); }
+    else if (activeTab === 'com-micuenta') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
     else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
@@ -1464,6 +1483,7 @@ export function useDashboard() {
       'crec-bump': b(c.crecimiento && c.crecimiento.bump && c.crecimiento.bump.activo),
       'crec-pagina': b(c.crecimiento && c.crecimiento.pagina && c.crecimiento.pagina.activo),
       'crec-directos': b(c.crecimiento && c.crecimiento.directos && c.crecimiento.directos.activo),
+      'com-micuenta': b(c.panelCuenta && c.panelCuenta.mensajeId),
     };
   })();
 
@@ -1487,7 +1507,7 @@ export function useDashboard() {
     // gestión de categorías y canales (texto/voz/anuncios/foro/escenario, con permisos)
     estructuraCanales, permisosCanalCatalogo,
     crearCategoriaCanal, editarCategoriaCanal, eliminarCategoriaCanal,
-    crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales,
+    crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales, publicarPanelCuenta,
     // sistema de roles: autorol + paneles
     guardarAutoRoles,
     paneles, canales, emojisServidor, crearPanel, editarPanel, publicarPanel, eliminarPanel, subirImagenPanel,

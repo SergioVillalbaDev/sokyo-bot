@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsB
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { aplicarPieMarca } = require('../utils/marca.js');
 const { t } = require('../utils/i18n.js');
+const { botonAbrirCuenta } = require('../utils/cuenta.js');
 
 module.exports = {
     name: 'sokyo', // O el nombre que uses en tu gestor de comandos
@@ -36,7 +37,10 @@ module.exports = {
                 .setLabel(config.textoBoton || t(cfg, '📩 Abrir un ticket', '📩 Open a ticket'))
                 .setStyle(ButtonStyle.Primary);
 
-            const filaComponentes = new ActionRowBuilder().addComponents(botonAbrir);
+            // Al lado, "Ver mis tickets": cada uno entra a su cuenta con un clic.
+            const filaComponentes = new ActionRowBuilder().addComponents(botonAbrir, botonAbrirCuenta(config, {
+                vista: 'tickets', emoji: '🗂️', estilo: ButtonStyle.Secondary, etiqueta: t(config, 'Ver mis tickets', 'See my tickets'),
+            }));
 
             // 5. Lanzamos el panel al canal y borramos el comando del administrador para limpiar el chat
             await message.channel.send({

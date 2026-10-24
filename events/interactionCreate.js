@@ -10,7 +10,7 @@ const embudo = require('../utils/embudo.js');
 const { getConfigCached } = require('../utils/config.js');
 const { t } = require('../utils/i18n.js');
 const { adaptarTextosAlIdioma, nombreUrgencia } = require('../utils/textosPorDefecto.js');
-const { botonWeb } = require('../utils/cuenta.js');
+const { botonWeb, botonAbrirCuenta, responderBotonCuenta } = require('../utils/cuenta.js');
 
 // --- Paneles de roles: botón de rol o de verificación ---
 async function manejarBotonRol(interaction) {
@@ -172,6 +172,13 @@ module.exports = {
         }
 
         // --- SISTEMA DE ROLES: paneles de autoasignación (se gestionan aparte) ---
+        // --- MI CUENTA: botón «Abrir mi cuenta» de los mensajes públicos ---
+        // Cada uno recibe, solo para él, su enlace de entrada directa.
+        if (interaction.isButton() && interaction.customId.startsWith('cuenta:abrir')) {
+            const cfgCuenta = await getConfigCached(interaction.guildId).catch(() => null);
+            return responderBotonCuenta(interaction, cfgCuenta).catch((e) => console.error('Botón Mi cuenta:', e.message));
+        }
+
         if (interaction.isButton() && (interaction.customId.startsWith('rp_btn:') || interaction.customId.startsWith('rp_verify:'))) {
             return manejarBotonRol(interaction);
         }
@@ -314,7 +321,10 @@ module.exports = {
                     .setCustomId('create_ticket')
                     .setLabel(config?.textoBoton || '📩 Open a ticket')
                     .setStyle(ButtonStyle.Primary);
-                const filaTicket = new ActionRowBuilder().addComponents(boton);
+                // Al lado, "Ver mis tickets": cada uno entra a su cuenta con un clic.
+                const filaTicket = new ActionRowBuilder().addComponents(boton, botonAbrirCuenta(config, {
+                    vista: 'tickets', emoji: '🗂️', estilo: ButtonStyle.Secondary, etiqueta: t(config, 'Ver mis tickets', 'See my tickets'),
+                }));
 
                 await canal.send({ embeds: [embedPanel], components: [filaTicket] });
                 return interaction.editReply({

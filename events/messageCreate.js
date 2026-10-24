@@ -90,6 +90,20 @@ module.exports = {
         // 2. Ejecutar comandos (según el prefijo configurado, por defecto "!")
         const cfg = await getConfigCached(message.guildId);
         const prefijo = (cfg && cfg.prefijo) || '!';
+
+        // Solo una mención al bot (@Sokyo): saludo con lo más útil, entrar a «Mi
+        // cuenta» con un clic, y cómo ver los comandos.
+        if (client.user && new RegExp(`^<@!?${client.user.id}>$`).test(message.content.trim())) {
+            const { EmbedBuilder, ActionRowBuilder } = require('discord.js');
+            const { botonAbrirCuenta } = require('../utils/cuenta.js');
+            const embed = new EmbedBuilder()
+                .setColor('#a855f7')
+                .setDescription(t(cfg,
+                    `👋 ¡Hola, **${message.author.displayName || message.author.username}**! Soy Sokyo.\n\n✨ **Tu cuenta** (tickets, tienda, música y tu tarjeta): pulsa el botón y entras con un clic.\n📖 **Comandos**: escribe \`${prefijo}help\`.`,
+                    `👋 Hi, **${message.author.displayName || message.author.username}**! I’m Sokyo.\n\n✨ **Your account** (tickets, shop, music and your card): press the button and you’re in with one click.\n📖 **Commands**: type \`${prefijo}help\`.`));
+            await message.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(botonAbrirCuenta(cfg))], allowedMentions: { repliedUser: false } }).catch(() => {});
+            return;
+        }
         if (!message.content.startsWith(prefijo)) {
             // No es un comando: comprobamos si coincide con una auto-respuesta.
             if (message.guild) await revisarAutoRespuestas(message, cfg).catch((e) => console.error('Auto-respuesta:', e.message));
