@@ -22,7 +22,7 @@ function borradorDe(estructura) {
   };
 }
 
-export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
+export default function OrdenarCanales({ estructura, onGuardar, onCerrar, avisoInicial = '' }) {
   const { t } = useTranslation();
   const datos = useMemo(() => {
     const canales = new Map();
@@ -36,7 +36,7 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
   const [borrador, setBorrador] = useState(() => borradorDe(estructura));
   const [arrastre, setArrastre] = useState(null); // { tipo, id, x, y, dx, dy, ancho }
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(avisoInicial);
   const raiz = useRef(null);
   const puntero = useRef({ x: 0, y: 0 });
   const hayCambios = JSON.stringify(borrador) !== original;
@@ -188,7 +188,7 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
 
   const guardar = async () => {
     setGuardando(true); setError('');
-    const ok = await onGuardar({
+    const r = await onGuardar({
       categorias: borrador.cats.map((c) => c.id),
       canales: [
         ...borrador.sueltos.map((id) => ({ id, categoriaId: null })),
@@ -196,8 +196,20 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
       ],
     });
     setGuardando(false);
-    if (ok) onCerrar(true);
-    else setError(t('dashboard.canales_v.orderError'));
+    if (r?.ok) onCerrar(true, r.aviso);
+    else setError(mensajeError(r || {}));
+  };
+
+  // Qué decir si no se ha podido guardar (lo manda la API en `codigo`).
+  const mensajeError = ({ codigo, canales = [], detalle = '' }) => {
+    const clave = (k, extra) => t(`dashboard.canales_v.${k}`, extra);
+    if (codigo === 'sin_permiso' && canales.length) return clave('orderNoPermChannels', { lista: canales.map((n) => `«${n}»`).join(', ') });
+    const porCodigo = {
+      sin_permiso: 'orderNoPerm', sin_permiso_servidor: 'orderNoPermServer', acceso: 'orderNoAccess',
+      limite: 'orderRateLimit', tiempo: 'saveTimeout', red: 'orderNetwork', desactualizado: 'orderStale',
+    };
+    if (porCodigo[codigo]) return clave(porCodigo[codigo]);
+    return detalle ? clave('orderDiscord', { detalle }) : clave('orderError');
   };
 
   const filaCanal = (id, lista, indice) => {
@@ -259,7 +271,8 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
   return (
     <div ref={raiz} className="space-y-4">
       {/* Barra de acciones: siempre a la vista (compacta en el móvil) */}
-      <div className="sk-glass sticky top-0 z-20 flex flex-col gap-2.5 rounded-2xl border border-line bg-card px-3.5 py-3 shadow-soft sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+      {/* Casi opaca (sk-flotante): la lista pasa por debajo al hacer scroll y no debe transparentarse. */}
+      <div className="sk-flotante sticky top-0 z-20 flex flex-col gap-2.5 rounded-2xl border border-line px-3.5 py-3 shadow-lg sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-4">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <Move size={18} className="shrink-0 text-brand" />
           <p className="min-w-0 flex-1 text-sm text-muted">
@@ -282,7 +295,7 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
             {guardando ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} {t('dashboard.canales_v.orderSave')}
           </button>
         </div>
-        {error && <p className="text-sm font-semibold text-danger sm:basis-full">{error}</p>}
+        {error && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm font-semibold leading-snug text-danger sm:basis-full">{error}</p>}
       </div>
       <p className="px-1 text-xs text-muted">{t('dashboard.canales_v.voiceNote')}</p>
 

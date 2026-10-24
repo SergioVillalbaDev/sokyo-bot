@@ -249,9 +249,34 @@ module.exports = ({ client, exigeArea = pasar }) => {
         }
     });
 
+    // ¿Puede el bot mover este canal o categoría? Discord exige "Ver canal" y
+    // "Gestionar canales" en CADA canal que se toca (los permisos del canal
+    // pueden quitárselos aunque los tenga en el servidor).
+    const F = PermissionsBitField.Flags;
+    function puedeGestionar(canal, yo) {
+        if (!yo || typeof canal.permissionsFor !== 'function') return true;
+        const permisos = canal.permissionsFor(yo);
+        return !!permisos && permisos.has([F.ViewChannel, F.ManageChannels]);
+    }
+
+    // Error de Discord -> respuesta para el panel, con un código que el panel
+    // traduce a un mensaje claro (y el texto de Discord para lo que no se espera).
+    function respuestaDeError(error) {
+        if (error && error.code === 50013) return { status: 403, cuerpo: { error: 'Al bot le faltan permisos en Discord', codigo: 'sin_permiso' } };
+        if (error && (error.status === 429 || error.name === 'RateLimitError')) return { status: 429, cuerpo: { error: 'Discord está limitando los cambios', codigo: 'limite' } };
+        if (error && typeof error.code === 'number') {
+            return { status: 502, cuerpo: { error: 'Discord ha rechazado el cambio', codigo: 'discord', detalle: String(error.message || '').slice(0, 300) } };
+        }
+        return { status: 500, cuerpo: { error: 'No se pudo guardar el orden', codigo: 'error' } };
+    }
+
     // Reordenar de golpe (arrastrar y soltar en el panel): el orden de las
     // categorías y, en el orden final, cada canal con la categoría donde queda.
     // Todo va en UNA llamada a Discord, así no se topa con su límite de cambios.
+    // Solo se mandan las listas que cambian (las categorías si cambia su orden y,
+    // de cada categoría, todos sus canales si cambia algo en ella): Discord
+    // rechaza la petición entera si el bot no puede tocar uno solo de los canales,
+    // así que un canal privado de otra categoría ya no impide ordenar el resto.
     router.put('/config/:guildId/canales/orden', puedeEditar, async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
@@ -261,32 +286,83 @@ module.exports = ({ client, exigeArea = pasar }) => {
             const lista = Array.isArray(cuerpo.canales) ? cuerpo.canales : [];
             if (cats.length > 100 || lista.length > 500) return res.status(400).json({ error: 'Demasiados canales' });
 
+            // Canales o categorías que ya no existen: la lista del panel está desfasada.
+            const desfasada = { error: 'La lista ha cambiado en Discord', codigo: 'desactualizado' };
             const esCategoria = (id) => guild.channels.cache.get(id)?.type === ChannelType.GuildCategory;
-            if (new Set(cats).size !== cats.length || !cats.every(esCategoria)) return res.status(400).json({ error: 'Categoría no válida' });
+            const existe = (id) => guild.channels.cache.has(id);
+            if (new Set(cats).size !== cats.length || !cats.every((id) => esCategoria(id) || !existe(id))) {
+                return res.status(400).json({ error: 'Categoría no válida' });
+            }
+            if (!cats.every(esCategoria)) return res.status(409).json(desfasada);
 
-            const posiciones = cats.map((id, i) => ({ channel: id, position: i }));
-            const enCategoria = new Map(); // categoría ('' = sin categoría) -> cuántos van ya
+            // Orden pedido: categoría ('' = sin categoría) -> canales en orden.
+            const pedido = new Map();
             const vistos = new Set();
             for (const it of lista) {
                 const id = String(it && it.id);
+                if (vistos.has(id)) return res.status(400).json({ error: 'Canal no válido' });
                 const canal = guild.channels.cache.get(id);
-                if (!esOrdenable(canal) || vistos.has(id)) {
-                    return res.status(400).json({ error: 'Canal no válido' });
-                }
-                const parent = it.categoriaId ? String(it.categoriaId) : null;
-                if (parent && !esCategoria(parent)) return res.status(400).json({ error: 'Categoría no válida' });
+                if (!canal) return res.status(409).json(desfasada);
+                if (!esOrdenable(canal)) return res.status(400).json({ error: 'Canal no válido' });
+                const parent = it.categoriaId ? String(it.categoriaId) : '';
+                if (parent && !esCategoria(parent)) return existe(parent) ? res.status(400).json({ error: 'Categoría no válida' }) : res.status(409).json(desfasada);
                 vistos.add(id);
-                const n = enCategoria.get(parent || '') || 0;
-                enCategoria.set(parent || '', n + 1);
-                // Al cambiar de categoría NO se copian los permisos de la nueva:
-                // el canal conserva los suyos (como al editarlo a mano).
-                posiciones.push({ channel: id, position: n, parent, lockPermissions: false });
+                if (!pedido.has(parent)) pedido.set(parent, []);
+                pedido.get(parent).push(id);
             }
-            if (posiciones.length) await guild.channels.setPositions(posiciones);
+
+            // Lo que hay ahora en Discord, en el orden en que lo enseña (solo lo pedido).
+            const actuales = (filtro) => guild.channels.cache.filter(filtro).sort(ordenDiscord).map((c) => c.id);
+            const iguales = (a, b) => a.length === b.length && a.every((id, i) => id === b[i]);
+
+            const posiciones = [];
+            const catsActuales = actuales((c) => c.type === ChannelType.GuildCategory && cats.includes(c.id));
+            if (!iguales(cats, catsActuales)) cats.forEach((id, i) => posiciones.push({ channel: id, position: i }));
+            for (const [parent, ids] of pedido) {
+                const antes = actuales((c) => (c.parentId || '') === parent && esOrdenable(c) && ids.includes(c.id));
+                if (iguales(ids, antes)) continue;
+                ids.forEach((id, i) => {
+                    const nueva = { channel: id, position: i };
+                    // Al cambiar de categoría NO se copian los permisos de la nueva:
+                    // el canal conserva los suyos (como al editarlo a mano).
+                    if ((guild.channels.cache.get(id).parentId || '') !== parent) Object.assign(nueva, { parent: parent || null, lockPermissions: false });
+                    posiciones.push(nueva);
+                });
+            }
+            if (!posiciones.length) return res.json({ success: true, sinCambios: true });
+
+            // Antes de llamar a Discord: ¿puede el bot tocar todo lo que se mueve
+            // (y las categorías que reciben canales)? Si no, se dice cuáles.
+            const yo = guild.members.me;
+            if (yo && !yo.permissions.has(F.ManageChannels)) {
+                return res.status(403).json({ error: 'El bot no tiene "Gestionar canales" en el servidor', codigo: 'sin_permiso_servidor' });
+            }
+            const bloqueados = new Set();
+            for (const p of posiciones) {
+                const canal = guild.channels.cache.get(p.channel);
+                if (!puedeGestionar(canal, yo)) bloqueados.add(canal.name);
+                const destino = p.parent && guild.channels.cache.get(p.parent);
+                if (destino && !puedeGestionar(destino, yo)) bloqueados.add(destino.name);
+            }
+            if (bloqueados.size) {
+                return res.status(403).json({ error: 'El bot no tiene permiso en algunos canales', codigo: 'sin_permiso', canales: [...bloqueados].slice(0, 10) });
+            }
+
+            // Si Discord la retiene (su límite de cambios), se responde igual a los
+            // pocos segundos: el orden se aplica solo en cuanto Discord lo permita.
+            const peticion = guild.channels.setPositions(posiciones);
+            let temporizador;
+            const plazo = new Promise((resolve) => { temporizador = setTimeout(() => resolve('en-cola'), ESPERA_MAXIMA); });
+            const resultado = await Promise.race([peticion.then(() => 'hecho'), plazo]).finally(() => clearTimeout(temporizador));
+            if (resultado === 'en-cola') {
+                peticion.catch((e) => console.error(`Orden pendiente en Discord (servidor ${guild.id}):`, e.message));
+                return res.json({ success: true, aviso: 'en_cola' });
+            }
             res.json({ success: true });
         } catch (error) {
             console.error('Error al reordenar canales:', error);
-            res.status(500).json({ error: 'No se pudo guardar el orden' });
+            const { status, cuerpo } = respuestaDeError(error);
+            res.status(status).json(cuerpo);
         }
     });
 
