@@ -7,7 +7,7 @@
 // cambiar el comportamiento. NO se ha alterado ninguna llamada a la API.
 // ============================================================================
 import { useState, useEffect } from 'react';
-import { apiFetch, API_URL, procesarRespuesta } from '../lib/api';
+import { apiFetch, API_URL, procesarRespuesta, getStaffSession } from '../lib/api';
 import { isValidTheme, isPremiumTheme } from '../lib/themes';
 
 export function useDashboard() {
@@ -76,7 +76,11 @@ export function useDashboard() {
   // Estados de Logs y Plan
   const [logsRegistrados, setLogsRegistrados] = useState([]);
   const [limiteLogs, setLimiteLogs] = useState(50);
-  const [esPremium, setEsPremium] = useState(false);
+  // null = aún no se sabe (cargando): no es lo mismo que «Free».
+  const [esPremium, setEsPremium] = useState(null);
+  // Temas premium: con plan de pago, para los propietarios del bot siempre, y
+  // mientras se carga el plan (si al final es Free, el efecto de abajo lo deshace).
+  const temasPremium = !!getStaffSession()?.owner || esPremium !== false;
 
   // Uso de memoria del plan + datos del servidor de Discord (vista Inicio)
   const [usoStats, setUsoStats] = useState(null);
@@ -153,7 +157,7 @@ export function useDashboard() {
   // Cambia de tema (valida y persiste). Bloquea temas premium en plan Free.
   const setTheme = (id) => {
     if (!isValidTheme(id)) return;
-    if (isPremiumTheme(id) && !esPremium) return; // bloqueado sin Premium
+    if (isPremiumTheme(id) && !temasPremium) return; // bloqueado sin Premium
     setThemeState(id);
     localStorage.setItem('sokyoTheme', id);
   };
@@ -1348,15 +1352,16 @@ export function useDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Si el tema guardado es premium y el plan deja de serlo, vuelve a 'lima'.
+  // Si el tema guardado es premium y el plan es Free (ya sabido, no mientras
+  // carga: si no, se perdía el tema cada vez que se abría el panel), vuelve a 'lima'.
   // Si aún no hay servidor elegido, selecciona el primero disponible.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (isPremiumTheme(theme) && !esPremium) {
+    if (isPremiumTheme(theme) && !temasPremium) {
       setThemeState('lima');
       localStorage.setItem('sokyoTheme', 'lima');
     }
-  }, [esPremium, theme]);
+  }, [temasPremium, theme]);
 
   useEffect(() => {
     if (guildId || servidores.length === 0) return;
@@ -1470,7 +1475,7 @@ export function useDashboard() {
   return {
     estadoModulos,
     // estado tema / navegación
-    theme, setTheme, activeTab, setActiveTab,
+    theme, setTheme, temasPremium, activeTab, setActiveTab,
     // multi-servidor
     guildId, setGuildId, servidores, mostrarSelectorServidor, setMostrarSelectorServidor,
     // buscador

@@ -31,7 +31,8 @@ function Swatch({ tm, locked, active, onSelect }) {
 }
 
 // Rejilla de temas (también la usa el menú de preferencias del móvil).
-export function ThemeGrid({ theme, setTheme, esPremium }) {
+// `desbloqueados`: si se pueden elegir los temas premium.
+export function ThemeGrid({ theme, setTheme, desbloqueados }) {
   const { t } = useTranslation();
   return (
     <>
@@ -44,17 +45,17 @@ export function ThemeGrid({ theme, setTheme, esPremium }) {
         <Crown size={12} className="text-amber-400" /> {t('dashboard.theme.premium')}
       </div>
       <div className="grid grid-cols-4 gap-2">
-        {PREMIUM_THEMES.map((tm) => <Swatch key={tm.id} tm={tm} locked={!esPremium} active={theme === tm.id} onSelect={setTheme} />)}
+        {PREMIUM_THEMES.map((tm) => <Swatch key={tm.id} tm={tm} locked={!desbloqueados} active={theme === tm.id} onSelect={setTheme} />)}
       </div>
 
-      {!esPremium && (
+      {!desbloqueados && (
         <p className="mt-3 rounded-lg bg-elevated px-3 py-2 text-[11px] text-muted">{t('dashboard.theme.lockedHint')}</p>
       )}
     </>
   );
 }
 
-export default function ThemePicker({ theme, setTheme, esPremium }) {
+export default function ThemePicker({ theme, setTheme, esPremium, desbloqueados }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -92,7 +93,7 @@ export default function ThemePicker({ theme, setTheme, esPremium }) {
                 {esPremium ? t('dashboard.plan.premium') : t('dashboard.plan.free')}
               </span>
             </div>
-            <ThemeGrid theme={theme} setTheme={setTheme} esPremium={esPremium} />
+            <ThemeGrid theme={theme} setTheme={setTheme} desbloqueados={desbloqueados} />
           </motion.div>
         )}
       </AnimatePresence>
