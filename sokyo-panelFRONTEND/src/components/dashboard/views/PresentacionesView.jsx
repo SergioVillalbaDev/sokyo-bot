@@ -21,6 +21,14 @@ const preguntasDefecto = (t) => [
   { id: 'intereses', texto: t('dashboard.presentaciones_v.defaultQInterests'), tipo: 'texto', requerida: false },
 ];
 
+// Plantilla de fábrica en el idioma del bot en el servidor (es la que se publica en
+// Discord). Igual que en utils/textosPorDefecto.js del bot, para que se adapte sola
+// si el servidor cambia de idioma.
+const PLANTILLA_FABRICA = {
+  en: 'Age: \nWhere you’re from: \nHobbies: \nWhy you’re joining: ',
+  es: 'Edad: \nDe dónde eres: \nAficiones: \nPor qué te unes: ',
+};
+
 export default function PresentacionesView({ dash }) {
   const { t } = useTranslation();
   const { canales, configServidor, presentaciones = [], guardarConfigPresentaciones, eliminarPresentacion } = dash;
@@ -28,7 +36,7 @@ export default function PresentacionesView({ dash }) {
   const [canalIntro, setCanalIntro] = useState('');
   const [canalStaff, setCanalStaff] = useState('');
   const [modo, setModo] = useState('preguntas');
-  const [plantilla, setPlantilla] = useState('Age: \nWhere you’re from: \nHobbies: \nWhy you’re joining: ');
+  const [plantilla, setPlantilla] = useState(() => PLANTILLA_FABRICA[configServidor?.idioma] || PLANTILLA_FABRICA.en);
   const [preguntas, setPreguntas] = useState(() => preguntasDefecto(t));
   const [filtros, setFiltros] = useState([]);
   const [guardando, setGuardando] = useState(false);

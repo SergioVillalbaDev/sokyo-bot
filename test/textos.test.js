@@ -66,3 +66,16 @@ describe('nombreUrgencia', () => {
         assert.strictEqual(nombreUrgencia('es', 'Crítica VIP'), 'Crítica VIP');
     });
 });
+
+describe('textoDeFabrica', () => {
+    const { textoDeFabrica } = require('../utils/textosPorDefecto.js');
+    it('da el texto de fábrica del idioma pedido (inglés por defecto)', () => {
+        assert.strictEqual(textoDeFabrica('verificacion.textoBoton', 'es'), '✅ Verificarme');
+        assert.strictEqual(textoDeFabrica('verificacion.textoBoton', 'en'), '✅ Verify me');
+        assert.strictEqual(textoDeFabrica('embudoAB.varianteB.textoBoton', undefined), '🎉 Join');
+    });
+    it('lo que rellena se reconoce después como texto de fábrica', () => {
+        const cfg = { embudoAB: { varianteA: { titulo: textoDeFabrica('embudoAB.varianteA.titulo', 'es') } } };
+        assert.strictEqual(cambiosParaIdioma(cfg, 'en')['embudoAB.varianteA.titulo'], '📋 Welcome — Read the rules');
+    });
+});

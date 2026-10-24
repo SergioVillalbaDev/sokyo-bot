@@ -133,7 +133,17 @@ export function useDashboard() {
   // no hay, el de la configuración cargada). Antes dependían solo de la
   // configuración y, al entrar directo en una sección que no la carga (p. ej.
   // Categorías y canales), no se cargaba ni guardaba nada.
-  const gidActivo = () => guildId || (configServidor && configServidor.guildId) || '';
+  // Si la configuración en pantalla es de OTRO servidor (se acaba de cambiar y aún
+  // no ha llegado la nueva), no se actúa sobre ninguno: así nunca se guardan los
+  // datos de un servidor en otro.
+  const gidActivo = () => {
+    const cargado = configServidor && configServidor.guildId;
+    if (guildId && cargado && cargado !== guildId) return '';
+    return guildId || cargado || '';
+  };
+  // Los formularios que viven en este hook (motivos, urgencias, textos) salen de la
+  // configuración cargada: solo se guardan si es la del servidor activo.
+  const formularioDelServidor = () => !!(configServidor && configServidor.guildId && configServidor.guildId === gidActivo());
 
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
@@ -1244,7 +1254,7 @@ export function useDashboard() {
   const eliminarMotivo = (motivoABorrar) => setMotivos(motivos.filter((m) => (typeof m === 'string' ? m : m.nombre) !== (typeof motivoABorrar === 'string' ? motivoABorrar : motivoABorrar.nombre)));
 
   const guardarCambiosConfig = async () => {
-    if (!gidActivo()) return;
+    if (!formularioDelServidor()) return;
     const motivosFormateados = motivos.map((m) => typeof m === 'string' ? { nombre: m, urgencia: 'Normal' } : m);
     await apiFetch(`/api/config/${gidActivo()}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
     await apiFetch(`/api/config/${gidActivo()}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
@@ -1252,7 +1262,7 @@ export function useDashboard() {
   };
 
   const guardarTextosConfig = async () => {
-    if (!gidActivo()) return;
+    if (!formularioDelServidor()) return;
     const res = await apiFetch(`/api/config/${gidActivo()}/textos`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1315,8 +1325,11 @@ export function useDashboard() {
   }, [servidores, guildId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Recarga qué secciones puede ver el usuario al cambiar de servidor.
+  // Al cambiar de servidor se descarta la configuración del anterior (cada pestaña
+  // recarga la suya) y se recarga qué secciones puede ver el usuario.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- descarte intencionado al cambiar de servidor
+    setConfigServidor((c) => (c && guildId && c.guildId !== guildId ? null : c));
     if (guildId) cargarMisPermisos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guildId]);

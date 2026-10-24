@@ -66,13 +66,21 @@ async function adaptarTextosAlIdioma(guildId, idioma) {
     return cambios;
 }
 
-// Al arrancar: deja cada servidor con los textos de fábrica en su idioma.
+// Texto de fábrica de un campo en un idioma (para rellenar un campo vacío).
+function textoDeFabrica(ruta, idioma) {
+    const fila = TEXTOS.find(([r]) => r === ruta);
+    return fila ? (idioma === 'es' ? fila[2] : fila[1]) : '';
+}
+
+// Al arrancar: los servidores con el bot en español pasan a español los textos de
+// fábrica que aún estaban en inglés (los valores por defecto del modelo). Los que
+// están en inglés no se tocan: sus textos en español pueden ser elegidos a mano.
 async function adaptarTodos() {
-    const configs = await ServidorConfig.find({}).select('guildId').lean();
+    const configs = await ServidorConfig.find({ idioma: 'es' }).select('guildId').lean();
     let adaptados = 0;
     for (const c of configs) {
         try {
-            if (Object.keys(await adaptarTextosAlIdioma(c.guildId)).length) adaptados++;
+            if (Object.keys(await adaptarTextosAlIdioma(c.guildId, 'es')).length) adaptados++;
         } catch (e) { console.error(`Error adaptando textos de ${c.guildId}:`, e.message); }
     }
     if (adaptados) console.log(`🌐 Textos de fábrica adaptados al idioma en ${adaptados} servidor(es).`);
@@ -83,4 +91,4 @@ async function adaptarTodos() {
 const URGENCIAS_ES = { Urgent: 'Urgente', High: 'Alta', Normal: 'Normal', Low: 'Baja' };
 const nombreUrgencia = (idioma, nombre) => (idioma === 'es' && URGENCIAS_ES[nombre]) || nombre;
 
-module.exports = { cambiosParaIdioma, adaptarTextosAlIdioma, adaptarTodos, nombreUrgencia, TEXTOS, MOTIVOS };
+module.exports = { cambiosParaIdioma, adaptarTextosAlIdioma, adaptarTodos, textoDeFabrica, nombreUrgencia, TEXTOS, MOTIVOS };

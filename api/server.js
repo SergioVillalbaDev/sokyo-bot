@@ -34,12 +34,12 @@ const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
-const { errorRolesNuevos } = require('../utils/permisos.js');
+const { errorRolesNuevos, errorJerarquiaStaff } = require('../utils/permisos.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
 const { enviarResumen } = require('../utils/resumenDiario.js');
-const { adaptarTextosAlIdioma } = require('../utils/textosPorDefecto.js');
+const { adaptarTextosAlIdioma, textoDeFabrica } = require('../utils/textosPorDefecto.js');
 const { version: VERSION } = require('../package.json');
 
 // Commit que se está ejecutando: lo publica /api/estado para comprobar desde fuera
@@ -1377,14 +1377,19 @@ app.get('/api/stats/uso', async (req, res) => {
             if (categoriaArchivados !== undefined) cambios.categoriaArchivados = categoriaArchivados;
             if (idioma !== undefined) cambios.idioma = idioma === 'es' ? 'es' : 'en';
 
+            // El panel manda el idioma en cada guardado: solo cuenta si CAMBIA.
+            const previa = cambios.idioma ? await ServidorConfig.findOne({ guildId }).select('idioma') : null;
+            const cambiaIdioma = !!cambios.idioma && (previa ? previa.idioma : 'en') !== cambios.idioma;
+
             let configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId: guildId },
                 { $set: cambios },
                 { returnDocument: 'after', upsert: true }
             );
-            // Al cambiar el idioma, los textos que siguen como venían de fábrica (y que
-            // no llegan en esta misma petición) pasan al nuevo idioma.
-            if (cambios.idioma) {
+            // Al cambiar el idioma, los textos que siguen como venían de fábrica pasan
+            // al nuevo (el panel los reenvía tal cual estaban). Si el idioma no cambia,
+            // lo que se escribe se respeta aunque coincida con un texto de fábrica.
+            if (cambiaIdioma) {
                 const adaptados = await adaptarTextosAlIdioma(guildId, cambios.idioma);
                 if (Object.keys(adaptados).length) configActualizada = await ServidorConfig.findOne({ guildId });
             }
@@ -1724,17 +1729,18 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/verificacion', exigeArea('config'), async (req, res) => {
         try {
             const b = req.body.verificacion || req.body || {};
+            const cfgVer = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('idioma verificacion.rolVerificadoId');
+            const fab = (ruta) => textoDeFabrica(ruta, cfgVer && cfgVer.idioma);
             const v = {
                 activo: !!b.activo,
                 canalId: b.canalId ? String(b.canalId) : null,
                 rolVerificadoId: b.rolVerificadoId ? String(b.rolVerificadoId) : null,
                 modo: b.modo === 'captcha' ? 'captcha' : 'boton',
-                titulo: String(b.titulo || '🔒 Verificación').slice(0, 256),
+                titulo: String(b.titulo || fab('verificacion.titulo')).slice(0, 256),
                 descripcion: String(b.descripcion || '').slice(0, 2000),
-                textoBoton: String(b.textoBoton || '✅ Verificarme').slice(0, 80),
+                textoBoton: String(b.textoBoton || fab('verificacion.textoBoton')).slice(0, 80),
                 embed: sanearEmbed(b.embed), // embed personalizable del panel (null = básico)
             };
-            const cfgVer = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('verificacion.rolVerificadoId');
             const errRolV = await errorRolesNuevos(client, req.staff, req.params.guildId, [v.rolVerificadoId], [cfgVer && cfgVer.verificacion && cfgVer.verificacion.rolVerificadoId]);
             if (errRolV) return res.status(403).json({ error: errRolV });
             const set = Object.fromEntries(Object.entries(v).map(([k, val]) => [`verificacion.${k}`, val]));
@@ -1772,20 +1778,22 @@ app.get('/api/stats/uso', async (req, res) => {
             const b = req.body.embudoAB || req.body || {};
             const a = b.varianteA || {};
             const bb = b.varianteB || {};
+            // Campos vacíos: el texto de fábrica en el idioma del servidor.
+            const fab = (ruta) => textoDeFabrica(ruta, cfgActual && cfgActual.idioma);
             const set = {
                 'embudoAB.activo': !!b.activo,
                 'embudoAB.entrega': ['md', 'ambos'].includes(b.entrega) ? b.entrega : 'panel',
                 'embudoAB.canalId': b.canalId ? String(b.canalId) : null,
                 'embudoAB.rolVerificadoId': b.rolVerificadoId ? String(b.rolVerificadoId) : null,
-                'embudoAB.varianteA.titulo': String(a.titulo || '📋 Bienvenido/a — Lee las normas').slice(0, 256),
+                'embudoAB.varianteA.titulo': String(a.titulo || fab('embudoAB.varianteA.titulo')).slice(0, 256),
                 'embudoAB.varianteA.reglas': String(a.reglas || '').slice(0, 2000),
                 'embudoAB.varianteA.captcha': a.captcha !== false,
-                'embudoAB.varianteA.textoBoton': String(a.textoBoton || '✅ Aceptar y acceder').slice(0, 80),
-                'embudoAB.varianteB.titulo': String(bb.titulo || '👋 ¡Te damos la bienvenida!').slice(0, 256),
+                'embudoAB.varianteA.textoBoton': String(a.textoBoton || fab('embudoAB.varianteA.textoBoton')).slice(0, 80),
+                'embudoAB.varianteB.titulo': String(bb.titulo || fab('embudoAB.varianteB.titulo')).slice(0, 256),
                 'embudoAB.varianteB.descripcion': String(bb.descripcion || '').slice(0, 2000),
                 'embudoAB.varianteB.color': /^#[0-9a-fA-F]{6}$/.test(bb.color || '') ? bb.color : '#5865F2',
                 'embudoAB.varianteB.reglas': String(bb.reglas || '').slice(0, 2000),
-                'embudoAB.varianteB.textoBoton': String(bb.textoBoton || '🎉 Unirme').slice(0, 80),
+                'embudoAB.varianteB.textoBoton': String(bb.textoBoton || fab('embudoAB.varianteB.textoBoton')).slice(0, 80),
             };
             // Puertas de entrada excluyentes: al activar la doble bienvenida se
             // apaga la verificación normal (solo el flag, sin tocar su config).
@@ -2270,10 +2278,11 @@ app.get('/api/stats/uso', async (req, res) => {
             const cambios = {};
             if (Array.isArray(autoRoles)) cambios.autoRoles = autoRoles.filter(Boolean);
             if (Array.isArray(autoRolesBots)) cambios.autoRolesBots = autoRolesBots.filter(Boolean);
+            // Cada lista se compara con ELLA MISMA: pasar a los humanos un rol que solo
+            // se daba a los bots también es repartirlo.
             const cfgAuto = await ServidorConfig.findOne({ guildId }).select('autoRoles autoRolesBots');
-            const errRolA = await errorRolesNuevos(client, req.staff, guildId,
-                [...(cambios.autoRoles || []), ...(cambios.autoRolesBots || [])],
-                [...((cfgAuto && cfgAuto.autoRoles) || []), ...((cfgAuto && cfgAuto.autoRolesBots) || [])]);
+            const errRolA = await errorRolesNuevos(client, req.staff, guildId, cambios.autoRoles, cfgAuto && cfgAuto.autoRoles)
+                || await errorRolesNuevos(client, req.staff, guildId, cambios.autoRolesBots, cfgAuto && cfgAuto.autoRolesBots);
             if (errRolA) return res.status(403).json({ error: errRolA });
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(
@@ -2327,25 +2336,9 @@ app.get('/api/stats/uso', async (req, res) => {
         };
     }
 
-    // Reglas de Discord para el staff que gestiona roles desde el panel: solo roles
-    // por debajo de su rol más alto y solo puede repartir permisos que él mismo
-    // tiene. Sin esto, cualquiera con acceso a la sección de roles podía darse un
-    // rol con Administrador a través del bot. El dueño del servidor y los
-    // propietarios del bot (OWNER_IDS / API key) no tienen límite.
-    async function errorJerarquia(req, guild, rol, permisosPedidos) {
-        if (!req.staff || req.staff.owner) return null;
-        const member = await guild.members.fetch(req.staff.id).catch(() => null);
-        if (!member) return 'No eres miembro de ese servidor';
-        if (guild.ownerId === member.id) return null;
-        if (rol && rol.position >= member.roles.highest.position) {
-            return 'Solo puedes gestionar roles que estén por debajo de tu rol más alto';
-        }
-        const sinPermiso = (permisosPedidos || []).filter((p) => {
-            try { return !member.permissions.has(p); } catch { return true; }
-        });
-        if (sinPermiso.length) return `No puedes dar permisos que tú no tienes: ${sinPermiso.join(', ')}`;
-        return null;
-    }
+    // Reglas de jerarquía de Discord para el staff (ver utils/permisos.js).
+    const errorJerarquia = (req, guild, rol, permisos = [], repartir = false) =>
+        errorJerarquiaStaff(guild, req.staff, { roles: rol ? [rol] : [], permisos, repartir });
 
     // Catálogo de permisos para que el panel pinte los toggles.
     app.get('/api/roles/catalogo', (req, res) => res.json(PERMISOS_CATALOGO));
@@ -2507,7 +2500,7 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede asignar este rol (jerarquía)' });
-            const errJer = await errorJerarquia(req, guild, rol);
+            const errJer = await errorJerarquia(req, guild, rol, [], true);
             if (errJer) return res.status(403).json({ error: errJer });
 
             const member = await guild.members.fetch(userId);
@@ -3123,9 +3116,15 @@ app.get('/api/stats/uso', async (req, res) => {
                     .filter((r) => r && r.rolId && r.nivel)
                     .map((r) => ({ nivel: Math.max(1, parseInt(r.nivel, 10) || 1), rolId: String(r.rolId) }))
                     .slice(0, 50);
+                // Cuenta como nueva una recompensa con un rol que no estaba o que ahora
+                // se da a un nivel MÁS BAJO (adelantarla también es repartirla).
                 const cfgNiv = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('recompensasNivel');
-                const errRolN = await errorRolesNuevos(client, req.staff, req.params.guildId,
-                    cambios.recompensasNivel.map((r) => r.rolId), ((cfgNiv && cfgNiv.recompensasNivel) || []).map((r) => r.rolId));
+                const nivelPrevio = {};
+                for (const r of (cfgNiv && cfgNiv.recompensasNivel) || []) {
+                    nivelPrevio[r.rolId] = Math.min(nivelPrevio[r.rolId] ?? Infinity, r.nivel);
+                }
+                const nuevasN = cambios.recompensasNivel.filter((r) => !(r.nivel >= (nivelPrevio[r.rolId] ?? Infinity))).map((r) => r.rolId);
+                const errRolN = await errorRolesNuevos(client, req.staff, req.params.guildId, nuevasN, []);
                 if (errRolN) return res.status(403).json({ error: errRolN });
             }
             const config = await ServidorConfig.findOneAndUpdate(

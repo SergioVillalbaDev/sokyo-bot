@@ -136,7 +136,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     return <InicioView dash={dash} />;
   };
 
-  const viewKey = activeTab === 'tickets-gestion' && ticketSeleccionado ? 'chat' : activeTab;
+  // Con el servidor en la clave, cada vista se monta de cero al cambiar de servidor
+  // y no arrastra formularios a medio editar del anterior.
+  const viewKey = `${guildId}:${activeTab === 'tickets-gestion' && ticketSeleccionado ? 'chat' : activeTab}`;
 
   // h-dvh y no h-screen: en el móvil 100vh es más alto que la parte visible
   // (por la barra del navegador) y lo de abajo quedaba fuera de la pantalla.
