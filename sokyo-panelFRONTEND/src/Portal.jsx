@@ -1,543 +1,456 @@
-// Portal del Cliente: los usuarios entran con Discord y gestionan SUS tickets.
-import { useState, useEffect, useRef } from 'react';
+// "Mi cuenta" (portal de usuarios): cada usuario entra con Discord —o con un
+// clic desde /cuenta en Discord— y tiene su resumen, sus tickets, la tienda,
+// la música y su tarjeta de nivel. Estilo cristal futurista (src/portal.css).
+//
+// Se abre en /cuenta (o con ?portal=1, la dirección antigua). La pantalla va en
+// el #hash (/cuenta#tienda, /cuenta#tickets/<canal>): así el botón "atrás" del
+// móvil vuelve a la pantalla anterior y el bot puede mandar enlaces directos.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  LogIn, AlertTriangle, ArrowLeft, Send, Ticket as TicketIcon, Palette, Music as MusicIcon,
-  Inbox, Upload, X, Check, Loader2, Home, LogOut,
+  LogIn, AlertTriangle, ArrowLeft, Ticket as TicketIcon, Palette, Music as MusicIcon, Home, LogOut,
+  ShoppingBag, Bell, Settings, Search, Zap, Check, Gift, Globe, Backpack, CornerDownLeft, Sparkles,
 } from 'lucide-react';
-import { PRESETS_TARJETA } from './presetsTarjeta';
+import InicioPortal from './components/portal/InicioPortal';
+import TicketsPortal from './components/portal/TicketsPortal';
+import TiendaPortal from './components/portal/TiendaPortal';
+import TarjetaPortal from './components/portal/TarjetaPortal';
 import MusicaPortal from './components/portal/MusicaPortal';
-import { Avatar, Badge } from './components/ui/primitives';
+import { FondoEspacial, Tarjeta, TituloVista, Avisos } from './components/portal/glass';
+import { leerHash, respuestasNuevas, leerVistos } from './components/portal/portalUtils';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import { IDIOMAS, cambiarIdioma } from './i18n';
 import './index.css';
+import './portal.css';
 
 // En producción la API y el portal se sirven en el mismo dominio: por defecto
 // usamos rutas relativas (mismo origen). Para desarrollo define VITE_API_URL.
 const API_URL = import.meta.env.VITE_API_URL || '';
+const RUTA = '/cuenta';
+// Pantalla pedida antes de pasar por el login de Discord (p. ej. #tickets/123).
+const CLAVE_DESTINO = 'portalDestino';
+
+const MENU = [
+  { id: 'inicio', icono: Home, clave: 'portal.nav.home' },
+  { id: 'tickets', icono: TicketIcon, clave: 'portal.nav.tickets' },
+  { id: 'tienda', icono: ShoppingBag, clave: 'portal.nav.shop' },
+  { id: 'musica', icono: MusicIcon, clave: 'portal.nav.music' },
+  { id: 'tarjeta', icono: Palette, clave: 'portal.nav.card' },
+];
+
+// La sesión de la tienda antigua (tienda.html) también vale aquí.
+const sesionGuardada = () => {
+  try { return localStorage.getItem('portalToken') || localStorage.getItem('sokyo_token') || ''; } catch { return ''; }
+};
 
 function Portal() {
   const { t } = useTranslation();
-  const [token, setToken] = useState(localStorage.getItem('portalToken') || '');
+  const [token, setToken] = useState(sesionGuardada);
   const [usuario, setUsuario] = useState(null);
-  const [tickets, setTickets] = useState([]);
-  const [ticketSel, setTicketSel] = useState(null);
-  const [mensajes, setMensajes] = useState([]);
-  const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const [resumen, setResumen] = useState(null);
+  const [errorResumen, setErrorResumen] = useState('');
   const [error, setError] = useState('');
-  const [cargando, setCargando] = useState(false);
   const [intento, setIntento] = useState(0); // sube al pulsar "Reintentar" tras un fallo de red
-  const [vista, setVista] = useState('tickets');
-  const [tarjeta, setTarjeta] = useState({ colorAcento: '#5865F2', fondoTipo: 'color', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoImagen: '', preset: null, animado: false });
-  const [guardadoT, setGuardadoT] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const previewUrlRef = useRef('');
-  const [catalogo, setCatalogo] = useState({ ocultos: [], personalizados: [] });
+  const [ruta, setRuta] = useState(() => leerHash());
+  const [avisos, setAvisos] = useState([]);
+  const [paleta, setPaleta] = useState(false);
+  const [vistos, setVistos] = useState(leerVistos);
 
-  // Tema de marca (Aurora) fijo para el portal — igual que landing y panel.
-  useEffect(() => { document.documentElement.setAttribute('data-theme', 'lima'); }, []);
+  // Tema de cristal fijo para "Mi cuenta".
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'glass');
+    document.title = 'Sokyo · Mi cuenta';
+  }, []);
 
-  // Al cargar: capturar token de la URL (vuelta del login) o errores.
+  // Al cargar: el token de vuelta del login (o del enlace de /cuenta) o un error.
   // Efecto solo-en-montaje: el setState aquí es intencional (leer la URL una vez).
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tk = params.get('token');
     const err = params.get('error');
-    if (err) setError(err === 'denegado' ? t('portal.login.errDenied') : t('portal.login.errOauth'));
-    if (tk) {
-      localStorage.setItem('portalToken', tk);
-      setToken(tk);
-      window.history.replaceState({}, '', '/?portal=1'); // limpia el token de la URL
+    if (err) {
+      setError(err === 'denegado' ? t('portal.login.errDenied') : err === 'magic' ? t('portal.login.errMagic') : t('portal.login.errOauth'));
     }
+    let hash = window.location.hash;
+    if (tk) {
+      try { localStorage.setItem('portalToken', tk); } catch { /* sin almacenamiento: dura lo que la pestaña */ }
+      setToken(tk);
+      // Vuelta del login de Discord: a la pantalla que se quería abrir (un enlace del bot).
+      try {
+        const pendiente = sessionStorage.getItem(CLAVE_DESTINO);
+        sessionStorage.removeItem(CLAVE_DESTINO);
+        if (!hash && pendiente && pendiente.startsWith('#')) { hash = pendiente; setRuta(leerHash(hash)); }
+      } catch { /* nada */ }
+    }
+    // Dirección limpia y fácil de recordar, sin el token a la vista.
+    window.history.replaceState({}, '', `${RUTA}${hash}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const portalFetch = (path, options = {}) => fetch(`${API_URL}${path}`, {
+  useEffect(() => {
+    const alCambiar = () => { setRuta(leerHash()); window.scrollTo({ top: 0 }); };
+    window.addEventListener('hashchange', alCambiar);
+    return () => window.removeEventListener('hashchange', alCambiar);
+  }, []);
+
+  const portalFetch = useCallback((path, options = {}) => fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` }
+    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
   }).then((res) => {
     // Sesión renovada por el servidor (X-Sokyo-Token): se guarda para la próxima
     // visita; la actual sigue con la que tiene, que aún es válida.
     const renovada = res.headers.get('X-Sokyo-Token');
-    if (renovada && localStorage.getItem('portalToken') === token) localStorage.setItem('portalToken', renovada);
+    try { if (renovada && sesionGuardada() === token) localStorage.setItem('portalToken', renovada); } catch { /* nada */ }
     return res;
-  });
+  }), [token]);
 
-  const logout = () => { localStorage.removeItem('portalToken'); setToken(''); setUsuario(null); setTickets([]); setTicketSel(null); };
+  const avisar = useCallback((texto, tipo = 'ok') => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setAvisos((l) => [...l.slice(-3), { id, texto, tipo }]);
+    setTimeout(() => setAvisos((l) => l.filter((a) => a.id !== id)), 4500);
+  }, []);
+  const cerrarAviso = useCallback((id) => setAvisos((l) => l.filter((a) => a.id !== id)), []);
 
-  // Cargar usuario + tickets cuando hay token
+  const logout = useCallback(() => {
+    try { localStorage.removeItem('portalToken'); localStorage.removeItem('sokyo_token'); } catch { /* nada */ }
+    setToken(''); setUsuario(null); setResumen(null);
+  }, []);
+
+  // irA('tickets', canalId) abre ese ticket; irA('tienda', 'mochila') esa pestaña.
+  const irA = useCallback((vista, extra = null) => {
+    setPaleta(false);
+    window.location.hash = extra ? `${vista}/${encodeURIComponent(extra)}` : vista;
+  }, []);
+
+  const tz = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } }, []);
+  const cargarResumen = useCallback(() => portalFetch(`/api/portal/resumen?tz=${encodeURIComponent(tz)}`)
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+    .then((d) => { setResumen(d); setErrorResumen(''); })
+    .catch(() => setErrorResumen(t('portal.home.errorDesc'))), [portalFetch, tz, t]);
+
+  // Sesión + resumen. Solo un 401 cierra la sesión: un fallo de red (el móvil sin
+  // cobertura) la conserva y deja reintentar.
   useEffect(() => {
     if (!token) return;
-    setCargando(true);
-    Promise.all([
-      portalFetch('/api/portal/yo').then(r => { if (r.status === 401) throw new Error('sesion'); if (!r.ok) throw new Error('red'); return r.json(); }),
-      portalFetch('/api/portal/tickets').then(r => r.json()),
-      portalFetch('/api/portal/tarjeta').then(r => r.json()).catch(() => ({})),
-      portalFetch('/api/portal/presets').then(r => r.json()).catch(() => ({ ocultos: [], personalizados: [] }))
-    ])
-      .then(([yo, tks, tj, cat]) => {
-        setUsuario(yo); setTickets(Array.isArray(tks) ? tks : []); setError('');
-        setCatalogo({ ocultos: cat?.ocultos || [], personalizados: cat?.personalizados || [] });
-        if (tj && tj.colorAcento) setTarjeta({ colorAcento: tj.colorAcento, fondoTipo: tj.fondoTipo || 'color', fondoColor: tj.fondoColor || '#1e2030', colorSecundario: tj.colorSecundario || '#9b59b6', fondoImagen: tj.fondoImagen || '', preset: tj.preset || null, animado: !!tj.animado });
-      })
-      // Solo un 401 cierra la sesión. Un fallo de red o del servidor (p. ej. el
-      // móvil sin cobertura) la conserva y deja reintentar; antes echaba al usuario.
+    portalFetch('/api/portal/yo')
+      .then((r) => { if (r.status === 401) throw new Error('sesion'); if (!r.ok) throw new Error('red'); return r.json(); })
+      .then((yo) => { setUsuario(yo); setError(''); cargarResumen(); })
       .catch((e) => {
-        if (e.message === 'sesion') { logout(); setError(t('portal.login.errSession')); }
-        else setError(t('portal.login.errConexion'));
-      })
-      .finally(() => setCargando(false));
+        if (e.message === 'sesion') { logout(); setError(t('portal.login.errSession')); } else setError(t('portal.login.errConexion'));
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, intento]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Refresco del chat abierto cada 4s
+  // Los avisos de respuestas se miran cada minuto con la pestaña visible (una
+  // consulta ligera: el resumen entero solo se pide al entrar y tras cobrar).
   useEffect(() => {
-    if (!ticketSel) return;
-    const cargar = () => portalFetch(`/api/portal/tickets/${ticketSel.canalId}/mensajes`).then(r => r.json()).then(d => setMensajes(Array.isArray(d) ? d : [])).catch(() => {});
-    cargar();
-    const id = setInterval(cargar, 4000);
+    if (!usuario) return undefined;
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      portalFetch('/api/portal/avisos')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d && Array.isArray(d.recientes)) setResumen((x) => (x ? { ...x, tickets: { ...x.tickets, recientes: d.recientes } } : x)); })
+        .catch(() => {});
+    }, 60000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticketSel]);
+  }, [usuario, portalFetch]);
 
-  // Vista previa REAL: pide al bot la imagen (PNG o GIF) con los ajustes
-  // actuales. Con debounce para no saturar al cambiar colores rápido.
+  // Ctrl/⌘ + K abre el buscador de acciones.
   useEffect(() => {
-    if (!token || vista !== 'tarjeta') return;
-    const id = setTimeout(() => {
-      setPreviewLoading(true);
-      portalFetch('/api/portal/tarjeta/preview', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tarjeta),
-      })
-        .then(r => (r.ok ? r.blob() : Promise.reject(new Error('preview'))))
-        .then(blob => {
-          const url = URL.createObjectURL(blob);
-          if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-          previewUrlRef.current = url;
-          setPreviewUrl(url);
-        })
-        .catch(() => {})
-        .finally(() => setPreviewLoading(false));
-    }, 500);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tarjeta, token, vista]);
-
-  const enviar = async () => {
-    if (!nuevoMensaje.trim()) return;
-    const res = await portalFetch(`/api/portal/tickets/${ticketSel.canalId}/mensajes`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contenido: nuevoMensaje })
-    });
-    if (res.ok) {
-      setNuevoMensaje('');
-      const d = await portalFetch(`/api/portal/tickets/${ticketSel.canalId}/mensajes`).then(r => r.json());
-      setMensajes(Array.isArray(d) ? d : []);
-    }
-  };
-
-  const setT = (campo, valor) => { setGuardadoT(false); setTarjeta(t2 => ({ ...t2, [campo]: valor })); };
-  // Edición manual de un color/fondo: deja de coincidir con un preset, lo deselecciona.
-  const setManual = (campo, valor) => { setGuardadoT(false); setTarjeta(t2 => ({ ...t2, [campo]: valor, preset: null, animado: false })); };
-  // Aplica un diseño prediseñado: vuelca sus colores. Los premium están
-  // bloqueados para no-premium; los personalizados gratis los puede usar todo el mundo.
-  const aplicarPreset = (p) => {
-    if (p.premium !== false && !usuario?.esPremium) return; // bloqueado
-    setGuardadoT(false);
-    setTarjeta(t2 => ({ ...t2, colorAcento: p.colorAcento, fondoColor: p.fondoColor, colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo, preset: p.id, animado: !!p.animado }));
-  };
-  const guardarTarjeta = async () => {
-    const res = await portalFetch('/api/portal/tarjeta', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tarjeta)
-    });
-    setGuardadoT(res.ok);
-  };
-  // Sube un archivo del ordenador como fondo.
-  // La tarjeta se genera a 900x270 px: exigimos al menos ese tamaño para que
-  // no salga borrosa (imágenes más grandes con el mismo ratio valen igual).
-  const ANCHO_MIN = 900, ALTO_MIN = 270;
-  const subirFondo = (e) => {
-    const file = e.target.files?.[0]; e.target.value = '';
-    if (!file) return;
-    const lector = new FileReader();
-    lector.onload = () => {
-      // Comprobamos las dimensiones reales cargando la imagen en memoria.
-      const img = new Image();
-      img.onload = async () => {
-        if (img.naturalWidth < ANCHO_MIN || img.naturalHeight < ALTO_MIN) {
-          setError(t('portal.card.imgTooSmall', { w: img.naturalWidth, h: img.naturalHeight, minW: ANCHO_MIN, minH: ALTO_MIN }));
-          return;
-        }
-        const res = await portalFetch('/api/portal/tarjeta/upload', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datos: lector.result })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (data.url) setT('fondoImagen', data.url);
-        else setError(data.error || t('portal.card.imgUploadError'));
-      };
-      img.onerror = () => setError(t('portal.card.imgReadError'));
-      img.src = lector.result;
+    const tecla = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaleta((v) => !v); }
     };
-    lector.readAsDataURL(file);
-  };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, []);
 
-  const colorEstado = (estado) => estado === 'Cerrado' ? 'var(--danger)' : 'var(--success)';
-  const renderEstrellas = (p) => !p ? null : <span className="text-amber-400">{'★'.repeat(p)}{'☆'.repeat(5 - p)}</span>;
+  const nuevas = useMemo(() => respuestasNuevas(resumen, vistos), [resumen, vistos]);
+  const releerVistos = useCallback(() => setVistos(leerVistos()), []);
+  const alCambiarOro = useCallback((balance) => setResumen((r) => (r ? { ...r, oro: balance } : r)), []);
 
-  // ---------- PANTALLA DE LOGIN ----------
-  if (!token) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-bg p-4 text-fg">
-        {/* Salida a la web: antes "Mi cuenta" no tenía forma de volver. */}
-        <a href="/" className="absolute left-5 top-5 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg">
-          <ArrowLeft size={16} /> {t('portal.login.back')}
-        </a>
-        <div className="absolute right-5 top-5"><LanguageSwitcher /></div>
-        <div className="w-full max-w-sm rounded-3xl border border-line bg-card p-8 text-center shadow-soft">
-          <img src="/assets/logo.jpg" alt="Sokyo" className="mx-auto h-14 w-14 rounded-full object-cover" />
-          <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-fg">{t('portal.login.title')}</h1>
-          <p className="mt-2 text-sm text-muted">{t('portal.login.subtitle')}</p>
+  const reclamarDaily = useCallback(async () => {
+    const res = await portalFetch('/api/portal/daily', { method: 'POST' }).catch(() => null);
+    const d = res ? await res.json().catch(() => ({})) : {};
+    if (res && res.ok) {
+      avisar(d.jackpot ? t('portal.home.dailyJackpot', { total: d.total, jackpot: d.jackpot, count: d.racha }) : t('portal.home.dailyClaimed', { total: d.total, count: d.racha }), 'oro');
+    } else {
+      avisar(res && res.status === 409 ? t('portal.home.dailyWait') : t('portal.login.errConexion'), 'error');
+    }
+    cargarResumen();
+  }, [portalFetch, avisar, t, cargarResumen]);
+
+  if (!token) return <Entrada error={error} />;
+
+  const { vista, ticket, sub } = ruta;
+  let contenido;
+  if (!usuario) {
+    contenido = error ? (
+      <Tarjeta className="mx-auto flex max-w-md flex-col items-center gap-3 p-8 text-center">
+        <AlertTriangle size={26} className="text-danger" />
+        <p className="text-sm text-fg">{error}</p>
+        <button onClick={() => setIntento((n) => n + 1)} className="gx-btn gx-btn-primario">{t('portal.login.retry')}</button>
+      </Tarjeta>
+    ) : <InicioPortal resumen={null} />;
+  } else if (vista === 'tickets') {
+    contenido = <TicketsPortal portalFetch={portalFetch} usuario={usuario} ticketId={ticket} irA={irA} avisar={avisar} nuevas={nuevas} onLeido={releerVistos} />;
+  } else if (vista === 'tienda') {
+    contenido = <TiendaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} onOro={alCambiarOro} pestanaInicial={sub} />;
+  } else if (vista === 'tarjeta') {
+    contenido = <TarjetaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} />;
+  } else if (vista === 'musica') {
+    contenido = (
+      <>
+        <TituloVista icono={MusicIcon} color="#ec4899" titulo={t('portal.music.title')} subtitulo={t('portal.music.subtitle')} />
+        <MusicaPortal portalFetch={portalFetch} />
+      </>
+    );
+  } else {
+    contenido = <InicioPortal resumen={resumen} usuario={usuario} error={errorResumen} onReintentar={cargarResumen} irA={irA} onDaily={reclamarDaily} nuevas={nuevas.length} />;
+  }
+
+  return (
+    <div className="relative min-h-screen overflow-x-hidden text-fg">
+      <FondoEspacial />
+      <div className="relative z-10 mx-auto w-full max-w-[1240px] px-3 pb-36 pt-3 sm:px-6 sm:pt-6 lg:pt-8">
+        <div className="gx-marco">
+          <Cabecera usuario={usuario} nuevas={nuevas} irA={irA} onLogout={logout} onBuscar={() => setPaleta(true)} />
+          <main className="mt-5 sm:mt-7" key={`${vista}-${ticket ? 'chat' : sub || 'lista'}`}>{contenido}</main>
+        </div>
+      </div>
+      <Dock vista={vista} irA={irA} nuevas={nuevas.length} />
+      <Avisos lista={avisos} onCerrar={cerrarAviso} />
+      {paleta && <Paleta irA={irA} onCerrar={() => setPaleta(false)} onDaily={reclamarDaily} onLogout={logout} />}
+    </div>
+  );
+}
+
+// ---------- PANTALLA DE ENTRADA ----------
+function Entrada({ error }) {
+  const { t } = useTranslation();
+  const chips = [
+    { icono: TicketIcon, texto: t('portal.nav.tickets'), color: '#60a5fa' },
+    { icono: ShoppingBag, texto: t('portal.nav.shop'), color: '#fbbf24' },
+    { icono: MusicIcon, texto: t('portal.nav.music'), color: '#ec4899' },
+    { icono: Palette, texto: t('portal.nav.card'), color: '#a855f7' },
+  ];
+  return (
+    <div className="relative flex min-h-screen flex-col text-fg">
+      <FondoEspacial />
+      <div className="relative z-10 flex items-center justify-between p-4 sm:p-6">
+        {/* Salida a la web: "Mi cuenta" nunca es un callejón sin salida. */}
+        <a href="/" className="gx-btn px-3.5 py-2"><ArrowLeft size={16} /> {t('portal.login.back')}</a>
+        <LanguageSwitcher />
+      </div>
+      <div className="relative z-10 flex flex-1 items-center justify-center px-4 pb-16">
+        <Tarjeta brillo halo className="gx-sube w-full max-w-md p-7 text-center sm:p-9">
+          <div className="gx-aro mx-auto w-fit"><img src="/assets/logo.jpg" alt="Sokyo" width="76" height="76" className="h-[76px] w-[76px] object-cover" /></div>
+          <h1 className="gx-titulo mt-6 text-3xl font-extrabold text-fg">{t('portal.login.title')}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{t('portal.login.subtitle')}</p>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {chips.map(({ icono: Icono, texto, color }) => (
+              <span key={texto} className="gx-chip"><Icono size={12} style={{ color }} /> {texto}</span>
+            ))}
+          </div>
 
           {error && (
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-left text-sm text-danger">
-              <AlertTriangle size={16} className="shrink-0" /> {error}
+            <div className="mt-5 flex items-start gap-2 rounded-2xl border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-left text-sm text-danger">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" /> {error}
             </div>
           )}
 
           <a
             href={`${API_URL}/api/auth/discord`}
-            className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#5865F2]/40 transition-transform hover:scale-[1.03]"
+            onClick={() => { try { if (window.location.hash) sessionStorage.setItem(CLAVE_DESTINO, window.location.hash); } catch { /* nada */ } }}
+            className="gx-btn mt-6 w-full border-white/20 py-3.5 text-base font-bold text-white"
+            style={{ background: 'linear-gradient(135deg, #5865F2, #7c3aed)', boxShadow: '0 0 0 1px rgba(88,101,242,.35), 0 14px 40px -12px rgba(88,101,242,.9)' }}
           >
             <LogIn size={18} /> {t('portal.login.button')}
           </a>
-        </div>
-      </div>
-    );
-  }
 
-  // ---------- VISTA DE UN TICKET (CHAT) ----------
-  if (ticketSel) {
-    const cerrado = ticketSel.estado === 'Cerrado';
-    return (
-      <div className="min-h-screen bg-bg text-fg">
-        <Cabecera usuario={usuario} onLogout={logout} />
-        <div className="mx-auto max-w-3xl p-5">
-          <button
-            onClick={() => { setTicketSel(null); setMensajes([]); }}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
-          >
-            <ArrowLeft size={16} /> {t('portal.chat.back')}
-          </button>
-
-          <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
-            <div className="border-b border-line p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-fg">{ticketSel.titulo || ticketSel.motivo}</h2>
-                <Badge color={colorEstado(ticketSel.estado)}>{ticketSel.estado}</Badge>
-              </div>
-              {ticketSel.descripcion && <p className="mt-2 text-sm italic leading-relaxed text-muted">{ticketSel.descripcion}</p>}
-            </div>
-            <div className="chat-box flex flex-col gap-3 overflow-y-auto p-5" style={{ minHeight: 350, maxHeight: '50vh' }}>
-              {mensajes.length === 0
-                ? <p className="m-auto text-center text-sm italic text-muted">{t('portal.chat.noMessages')}</p>
-                : mensajes.map((m, i) => {
-                    const mio = m.usuarioId === usuario?.id;
-                    return (
-                      <div key={i} className={`flex ${mio ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
-                          mio ? 'rounded-br-sm bg-gradient-brand text-on-brand' : 'rounded-bl-sm border border-line bg-bg text-fg'
-                        }`}>
-                          <p className={`mb-1 text-xs font-semibold ${mio ? 'text-on-brand/70' : 'text-brand'}`}>{m.usuario || t('portal.chat.unknownUser')}</p>
-                          {m.contenido && <p className="whitespace-pre-wrap break-words leading-relaxed">{m.contenido}</p>}
-                          {m.imagenes && m.imagenes.map((url, j) => <img key={j} src={url} alt="attachment" className="mt-2 max-w-full rounded-lg" />)}
-                        </div>
-                      </div>
-                    );
-                  })}
-            </div>
-            <div className="border-t border-line p-4">
-              {cerrado
-                ? <p className="text-center text-sm text-muted">{t('portal.chat.closedNote')}</p>
-                : <div className="flex gap-2">
-                    <input
-                      value={nuevoMensaje}
-                      onChange={e => setNuevoMensaje(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && enviar()}
-                      placeholder={t('portal.chat.placeholder')}
-                      className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-fg outline-none transition-shadow focus:ring-2 focus:ring-brand/40"
-                    />
-                    <button
-                      onClick={enviar}
-                      className="flex items-center gap-1.5 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-semibold text-on-brand transition-transform hover:scale-[1.03]"
-                    >
-                      <Send size={15} /> {t('portal.chat.send')}
-                    </button>
-                  </div>}
-            </div>
+          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-line bg-white/[.04] p-3.5 text-left">
+            <span className="gx-orbe h-9 w-9" style={{ '--orbe': '#a855f7' }}><Zap size={16} /></span>
+            <p className="text-xs leading-relaxed text-muted">
+              <strong className="text-fg">{t('portal.login.fastTitle')}</strong> {t('portal.login.fastPre')} <code className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-fg">/{t('portal.login.fastCmd')}</code> {t('portal.login.fastPost')}
+            </p>
           </div>
-        </div>
+        </Tarjeta>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  // ---------- MI TARJETA DE NIVEL (personalización) ----------
-  if (vista === 'tarjeta') {
-    // Presets de fábrica (sin los ocultados por el admin) + los personalizados.
-    const presetsEfectivos = [
-      ...PRESETS_TARJETA.filter(p => !catalogo.ocultos.includes(p.id)).map(p => ({ ...p, premium: true })),
-      ...catalogo.personalizados.map(p => ({
-        id: p.id, nombre: p.nombre, colorAcento: p.colorAcento, fondoColor: p.fondoColor,
-        colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo || 'degradado', animado: !!p.animado, premium: !!p.premium,
-        swatch: p.fondoTipo === 'color' ? p.fondoColor : `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})`,
-      })),
-    ];
-    const label = 'text-sm font-semibold text-fg';
-    const colorInput = 'h-9 w-14 cursor-pointer rounded-lg border border-line bg-transparent p-0';
-    return (
-      <div className="min-h-screen bg-bg text-fg">
-        <Cabecera usuario={usuario} onLogout={logout} />
-        <div className="mx-auto max-w-3xl p-5">
-          <Nav vista={vista} setVista={setVista} t={t} />
-          <h1 className="flex items-center gap-2 text-xl font-bold text-fg"><Palette size={20} className="text-brand" /> {t('portal.card.title')}</h1>
-          <p className="mt-1 text-sm text-muted">
-            {t('portal.card.subtitlePre')} <strong className="text-fg">{t('portal.card.subtitleColors')}</strong> {t('portal.card.subtitleMid')} <strong className="text-amber-400">{t('portal.card.subtitlePremium')}</strong> {t('portal.card.subtitleEnd')}
-          </p>
+// ---------- CABECERA ----------
+function Cabecera({ usuario, nuevas, irA, onLogout, onBuscar }) {
+  const { t } = useTranslation();
+  const [abierto, setAbierto] = useState(null); // 'avisos' | 'ajustes' | null
+  const ref = useRef(null);
 
-          {/* Vista previa REAL: la misma imagen que genera el bot (PNG o GIF animado) */}
-          <div className="relative mt-4 overflow-hidden rounded-2xl border border-line bg-[#0b0b14]" style={{ aspectRatio: '900 / 270' }}>
-            {previewUrl
-              ? <img src={previewUrl} alt={t('portal.card.previewAlt')} className="block h-full w-full object-cover" />
-              : <div className="absolute inset-0 flex items-center justify-center text-sm text-muted">{t('portal.card.previewGenerating')}</div>}
-            {previewLoading && (
-              <div className="absolute right-3 top-2.5 flex items-center gap-1.5 rounded-md bg-black/55 px-2.5 py-1 text-xs text-white">
-                <Loader2 size={12} className="animate-spin" /> {t('portal.card.previewUpdating')}
-              </div>
-            )}
-          </div>
+  useEffect(() => {
+    if (!abierto) return undefined;
+    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(null); };
+    const tecla = (e) => { if (e.key === 'Escape') setAbierto(null); };
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('keydown', tecla);
+    return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+  }, [abierto]);
 
-          {/* Controles */}
-          <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-line bg-card p-5 shadow-soft">
-            <label className="flex items-center justify-between">
-              <span className={label}>{t('portal.card.accentColor')}</span>
-              <input type="color" value={tarjeta.colorAcento} onChange={e => setManual('colorAcento', e.target.value)} className={colorInput} />
-            </label>
-            <label className="flex items-center justify-between">
-              <span className={label}>{t('portal.card.bgType')}</span>
-              <select
-                value={tarjeta.fondoTipo}
-                onChange={e => setManual('fondoTipo', e.target.value)}
-                className="w-40 rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:ring-2 focus:ring-brand/40"
-              >
-                <option value="color">{t('portal.card.bgTypeSolid')}</option>
-                <option value="degradado">{t('portal.card.bgTypeGradient')}</option>
-                <option value="imagen" disabled={!usuario?.esPremium}>{t('portal.card.bgTypeImage')}</option>
-              </select>
-            </label>
+  const alternar = (cual) => setAbierto((a) => (a === cual ? null : cual));
+  const avatar = usuario?.avatar || (usuario ? `https://ui-avatars.com/api/?name=${encodeURIComponent(usuario.username)}&background=1e1b3a&color=fff` : null);
 
-            {(tarjeta.fondoTipo === 'color' || tarjeta.fondoTipo === 'degradado') && (
-              <label className="flex items-center justify-between">
-                <span className={label}>{t('portal.card.bgColor')}</span>
-                <input type="color" value={tarjeta.fondoColor} onChange={e => setManual('fondoColor', e.target.value)} className={colorInput} />
-              </label>
-            )}
-
-            {tarjeta.fondoTipo === 'degradado' && (
-              <label className="flex items-center justify-between">
-                <span className={label}>{t('portal.card.secondaryColor')}</span>
-                <input type="color" value={tarjeta.colorSecundario} onChange={e => setManual('colorSecundario', e.target.value)} className={colorInput} />
-              </label>
-            )}
-
-            {tarjeta.fondoTipo === 'imagen' && (
-              <div className="flex flex-col gap-2 border-t border-line pt-4">
-                <span className={label}>{t('portal.card.bgImageLabel')} <span className="text-amber-400">{t('portal.card.bgImagePremium')}</span></span>
-                <div className="flex gap-2">
-                  <input
-                    value={tarjeta.fondoImagen} onChange={e => setT('fondoImagen', e.target.value)}
-                    placeholder={t('portal.card.bgImagePlaceholder')}
-                    className="flex-1 rounded-lg border border-line bg-bg px-3 py-2.5 text-sm text-fg outline-none focus:ring-2 focus:ring-brand/40"
-                  />
-                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-brand px-4 text-sm font-semibold text-on-brand">
-                    <Upload size={14} /> {t('portal.card.upload')}
-                    <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={subirFondo} className="hidden" />
-                  </label>
-                </div>
-                <span className="text-xs text-muted">{t('portal.card.bgImageHint')}</span>
-                {tarjeta.fondoImagen && (
-                  <button onClick={() => setT('fondoImagen', '')} className="flex w-fit items-center gap-1 self-start rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-danger/50 hover:text-danger">
-                    <X size={12} /> {t('portal.card.removeImage')}
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Diseños prediseñados (los premium bloqueados para free) */}
-            <div className="flex flex-col gap-2.5 border-t border-line pt-4">
-              <span className={label}>{t('portal.card.presetsTitle')}</span>
-              {!usuario?.esPremium && <span className="text-xs text-muted">{t('portal.card.presetsLockedHint')}</span>}
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                {presetsEfectivos.map(p => {
-                  const bloqueado = p.premium !== false && !usuario?.esPremium;
-                  const activo = tarjeta.preset === p.id;
-                  return (
-                    <button
-                      key={p.id} onClick={() => aplicarPreset(p)} disabled={bloqueado}
-                      className={`overflow-hidden rounded-xl border-2 transition-colors ${activo ? 'border-brand' : 'border-line'} ${bloqueado ? 'cursor-not-allowed' : 'cursor-pointer hover:border-brand/50'}`}
-                    >
-                      <div className="relative h-14" style={{ background: p.swatch || `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})` }}>
-                        <div className="absolute bottom-1.5 left-2 h-4 w-4 rounded-full border-2" style={{ borderColor: p.colorAcento }} />
-                        {p.animado && <div className="absolute right-1.5 top-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">✨ GIF</div>}
-                        {bloqueado && <div className="absolute inset-0 flex items-center justify-center bg-black/45 text-lg">🔒</div>}
-                      </div>
-                      <div className="p-1.5 text-left text-xs font-semibold text-fg">{p.nombre}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button onClick={guardarTarjeta} className="flex items-center gap-1.5 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand transition-transform hover:scale-[1.03]">
-                <Check size={15} /> {t('portal.card.save')}
-              </button>
-              {guardadoT && <span className="flex items-center gap-1 text-sm font-semibold text-ok"><Check size={15} /> {t('portal.card.saved')}</span>}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ---------- MÚSICA ----------
-  if (vista === 'musica') {
-    return (
-      <div className="min-h-screen bg-bg text-fg">
-        <Cabecera usuario={usuario} onLogout={logout} />
-        <div className="mx-auto max-w-3xl p-5">
-          <Nav vista={vista} setVista={setVista} t={t} />
-          <h1 className="flex items-center gap-2 text-xl font-bold text-fg"><MusicIcon size={20} className="text-brand" /> {t('portal.nav.music')}</h1>
-          <MusicaPortal portalFetch={portalFetch} />
-        </div>
-      </div>
-    );
-  }
-
-  // ---------- LISTA DE MIS TICKETS ----------
   return (
-    <div className="min-h-screen bg-bg text-fg">
-      <Cabecera usuario={usuario} onLogout={logout} />
-      <div className="mx-auto max-w-3xl p-5">
-        <Nav vista={vista} setVista={setVista} t={t} />
-        <h1 className="text-xl font-bold text-fg">{t('portal.tickets.title')}</h1>
-        <p className="mt-1 text-sm text-muted">{t('portal.tickets.subtitle')}</p>
+    <header ref={ref} className="relative z-30 flex items-center justify-between gap-3">
+      <a href="/" title={t('portal.header.homeTitle')} className="flex min-w-0 items-center gap-3">
+        <span className="gx-aro shrink-0 p-[2px]"><img src="/assets/logo.jpg" alt="Sokyo" width="38" height="38" className="h-[38px] w-[38px] !border-2 object-cover" /></span>
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate text-lg font-extrabold tracking-tight text-fg">Sokyo</span>
+          <span className="gx-texto-neon block truncate text-xs font-bold uppercase tracking-[.18em]">{t('portal.header.brand')}</span>
+        </span>
+      </a>
 
-        {error && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-            <AlertTriangle size={16} className="shrink-0" /> <span className="flex-1">{error}</span>
-            {!usuario && !cargando && (
-              <button onClick={() => setIntento((n) => n + 1)} className="shrink-0 rounded-lg border border-danger/40 px-2.5 py-1 text-xs font-semibold hover:bg-danger/10">
-                {t('portal.login.retry')}
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4">
-          {cargando ? (
-            <p className="text-sm text-muted">{t('portal.tickets.loading')}</p>
-          ) : tickets.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line py-16 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-elevated text-muted"><Inbox size={22} /></span>
-              <p className="font-semibold text-fg">{t('portal.tickets.emptyTitle')}</p>
-              <p className="text-sm text-muted">{t('portal.tickets.emptyDesc')}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {tickets.map((tk, i) => (
-                <button
-                  key={i}
-                  onClick={() => setTicketSel(tk)}
-                  className="rounded-2xl border border-line bg-card p-4 text-left shadow-soft transition-colors hover:border-brand/40"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <strong className="text-fg">{tk.titulo || tk.motivo}</strong>
-                    <Badge color={colorEstado(tk.estado)}>{tk.estado}</Badge>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted">
-                    <span className="flex items-center gap-1.5"><TicketIcon size={13} /> {tk.motivo} · {new Date(tk.fechaCreacion).toLocaleDateString()}</span>
-                    {tk.estado === 'Cerrado' && renderEstrellas(tk.valoracionCSAT)}
-                  </div>
+      <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+        <button onClick={onBuscar} className="gx-icono" title={t('portal.header.searchTitle')} aria-label={t('portal.header.searchTitle')}><Search size={18} /></button>
+        <div className="relative">
+          <button onClick={() => alternar('avisos')} className="gx-icono" aria-expanded={abierto === 'avisos'} title={t('portal.header.notifications')} aria-label={t('portal.header.notifications')}>
+            <Bell size={18} />
+            {nuevas.length > 0 && <span className="gx-punto">{nuevas.length > 9 ? '9+' : nuevas.length}</span>}
+          </button>
+          {abierto === 'avisos' && (
+            <Desplegable>
+              <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-muted">{t('portal.header.notifications')}</p>
+              {nuevas.length === 0 ? (
+                <p className="flex items-center gap-2 px-3 pb-3 text-sm text-muted"><Sparkles size={15} className="text-brand" /> {t('portal.header.allCaughtUp')}</p>
+              ) : nuevas.map((n) => (
+                <button key={n.canalId} onClick={() => { setAbierto(null); irA('tickets', n.canalId); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/[.07]">
+                  <span className="gx-orbe mt-0.5 h-8 w-8" style={{ '--orbe': '#3b82f6' }}><TicketIcon size={14} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-fg">{t('portal.header.replyFrom', { name: n.ultimo.usuario || t('portal.chat.unknownUser') })}</span>
+                    <span className="block truncate text-xs text-muted">{n.titulo}{n.servidor ? ` · ${n.servidor}` : ''}</span>
+                    {n.ultimo.contenido && <span className="mt-0.5 line-clamp-2 block text-xs text-fg/80">“{n.ultimo.contenido}”</span>}
+                  </span>
                 </button>
               ))}
-            </div>
+            </Desplegable>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Nav({ vista, setVista, t }) {
-  const tabs = [
-    { id: 'tickets', label: t('portal.nav.tickets'), icon: TicketIcon },
-    { id: 'tarjeta', label: t('portal.nav.card'), icon: Palette },
-    { id: 'musica', label: t('portal.nav.music'), icon: MusicIcon },
-  ];
-  return (
-    <div className="mb-5 flex flex-wrap items-center gap-1.5 rounded-full border border-line bg-card p-1.5">
-      {tabs.map(({ id, label, icon: Icon }) => (
-        <button
-          key={id}
-          onClick={() => setVista(id)}
-          className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-            vista === id ? 'bg-gradient-brand text-on-brand shadow-md' : 'text-muted hover:bg-elevated hover:text-fg'
-          }`}
-        >
-          <Icon size={15} /> {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Cabecera({ usuario, onLogout }) {
-  const { t } = useTranslation();
-  return (
-    <header className="flex items-center justify-between gap-2 border-b border-line bg-card px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
-      {/* El logo lleva a la web de Sokyo, como en cualquier sitio. */}
-      <a href="/" title={t('portal.header.homeTitle')} className="flex min-w-0 items-center gap-2.5">
-        <img src="/assets/logo.jpg" alt="Sokyo" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-        <span className="truncate text-base font-extrabold tracking-tight text-fg">{t('portal.header.brand')}</span>
-      </a>
-      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <a
-          href="/"
-          title={t('portal.header.homeTitle')}
-          aria-label={t('portal.header.homeTitle')}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
-        >
-          <Home size={15} /> <span className="hidden sm:inline">{t('portal.header.home')}</span>
-        </a>
-        <LanguageSwitcher />
-        {usuario && (
-          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-            <Avatar src={usuario.avatar} name={usuario.username} size={32} />
-            <span className="hidden text-sm font-semibold text-fg sm:inline">{usuario.username}</span>
-            {/* En el móvil solo el icono: con el texto no cabía el nombre del portal. */}
-            <button
-              onClick={onLogout}
-              title={t('portal.header.logout')}
-              aria-label={t('portal.header.logout')}
-              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg sm:px-3"
-            >
-              <LogOut size={15} className="sm:hidden" /> <span className="hidden sm:inline">{t('portal.header.logout')}</span>
-            </button>
-          </div>
+        <div className="relative">
+          <button onClick={() => alternar('ajustes')} className="gx-icono" aria-expanded={abierto === 'ajustes'} title={t('portal.header.settings')} aria-label={t('portal.header.settings')}><Settings size={18} /></button>
+          {abierto === 'ajustes' && <MenuAjustes usuario={usuario} onLogout={onLogout} />}
+        </div>
+        {avatar && (
+          <button onClick={() => irA('inicio')} className="hidden sm:block" title={usuario.username} aria-label={t('portal.nav.home')}>
+            <span className="gx-aro block p-[2px]"><img src={avatar} alt="" width="38" height="38" className="h-[38px] w-[38px] !border-2 object-cover" /></span>
+          </button>
         )}
       </div>
     </header>
+  );
+}
+
+function Desplegable({ children, ancho = 'w-80' }) {
+  return (
+    <div className={`gx-card absolute right-0 top-[calc(100%+10px)] z-50 ${ancho} max-w-[calc(100vw-24px)] p-1.5`} style={{ background: 'linear-gradient(160deg, rgba(34,26,68,.96), rgba(14,11,32,.97))', borderRadius: 18 }}>
+      {children}
+    </div>
+  );
+}
+
+function MenuAjustes({ usuario, onLogout }) {
+  const { t, i18n } = useTranslation();
+  return (
+    <Desplegable ancho="w-64">
+      {usuario && <p className="truncate px-3 pb-2 pt-1.5 text-sm font-bold text-fg">{usuario.username}</p>}
+      <p className="px-3 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-muted"><Globe size={11} className="mr-1 inline" /> {t('portal.header.language')}</p>
+      {IDIOMAS.map((idioma) => (
+        <button key={idioma.code} onClick={() => cambiarIdioma(idioma.code)} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]">
+          <span>{idioma.flag} {idioma.label}</span>
+          {i18n.language === idioma.code && <Check size={14} className="text-brand" />}
+        </button>
+      ))}
+      <div className="my-1.5 h-px bg-white/10" />
+      <a href="/" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]"><Home size={15} /> {t('portal.header.homeTitle')}</a>
+      <button onClick={onLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-300 transition-colors hover:bg-rose-500/10"><LogOut size={15} /> {t('portal.header.logout')}</button>
+    </Desplegable>
+  );
+}
+
+// ---------- MENÚ INFERIOR (dock) ----------
+function Dock({ vista, irA, nuevas }) {
+  const { t } = useTranslation();
+  return (
+    <nav className="gx-dock" aria-label={t('portal.nav.label')}>
+      {MENU.map(({ id, icono: Icono, clave }) => (
+        <button key={id} onClick={() => irA(id)} className="gx-dock-item" aria-current={vista === id ? 'page' : undefined}>
+          <Icono size={20} />
+          <span>{t(clave)}</span>
+          {id === 'tickets' && nuevas > 0 && <span className="gx-punto">{nuevas > 9 ? '9+' : nuevas}</span>}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+// ---------- BUSCADOR DE ACCIONES (Ctrl+K) ----------
+function Paleta({ irA, onCerrar, onDaily, onLogout }) {
+  const { t } = useTranslation();
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState(0);
+  const acciones = [
+    { id: 'inicio', icono: Home, texto: t('portal.palette.home'), hacer: () => irA('inicio') },
+    { id: 'tickets', icono: TicketIcon, texto: t('portal.palette.tickets'), hacer: () => irA('tickets') },
+    { id: 'tienda', icono: ShoppingBag, texto: t('portal.palette.shop'), hacer: () => irA('tienda') },
+    { id: 'mochila', icono: Backpack, texto: t('portal.palette.bag'), hacer: () => irA('tienda', 'mochila') },
+    { id: 'musica', icono: MusicIcon, texto: t('portal.palette.music'), hacer: () => irA('musica') },
+    { id: 'tarjeta', icono: Palette, texto: t('portal.palette.card'), hacer: () => irA('tarjeta') },
+    { id: 'daily', icono: Gift, texto: t('portal.palette.daily'), hacer: () => { onCerrar(); onDaily(); } },
+    { id: 'web', icono: Globe, texto: t('portal.palette.web'), hacer: () => window.location.assign('/') },
+    { id: 'salir', icono: LogOut, texto: t('portal.palette.logout'), hacer: () => { onCerrar(); onLogout(); } },
+  ];
+  const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const lista = acciones.filter((a) => norm(a.texto).includes(norm(q.trim())));
+  const elegido = Math.min(sel, Math.max(0, lista.length - 1));
+
+  const tecla = (e) => {
+    if (e.key === 'Escape') onCerrar();
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(lista.length - 1, s + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(0, s - 1)); }
+    else if (e.key === 'Enter' && lista[elegido]) lista[elegido].hacer();
+  };
+
+  return (
+    <div className="gx-velo flex items-start justify-center px-4 pt-[12vh]" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar(); }} role="dialog" aria-modal="true" aria-label={t('portal.header.searchTitle')}>
+      <Tarjeta brillo halo className="gx-pop w-full max-w-lg overflow-hidden" style={{ background: 'linear-gradient(160deg, rgba(34,26,68,.95), rgba(14,11,32,.97))' }}>
+        <div className="flex items-center gap-3 border-b border-line px-4">
+          <Search size={18} className="shrink-0 text-muted" />
+          <input
+            autoFocus value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }} onKeyDown={tecla}
+            placeholder={t('portal.palette.placeholder')} aria-label={t('portal.palette.placeholder')}
+            className="w-full bg-transparent py-4 text-base text-fg outline-none placeholder:text-muted"
+          />
+          <kbd className="hidden rounded-md border border-line px-1.5 py-0.5 text-[10px] text-muted sm:block">Esc</kbd>
+        </div>
+        <ul className="max-h-[50vh] overflow-y-auto p-2">
+          {lista.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">{t('portal.palette.nothing')}</li>}
+          {lista.map((a, i) => {
+            const Icono = a.icono;
+            return (
+              <li key={a.id}>
+                <button
+                  onClick={a.hacer} onMouseEnter={() => setSel(i)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${i === elegido ? 'bg-white/[.09] text-fg' : 'text-muted'}`}
+                >
+                  <Icono size={17} className={i === elegido ? 'text-brand' : ''} />
+                  <span className="flex-1">{a.texto}</span>
+                  {i === elegido && <CornerDownLeft size={14} className="text-muted" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </Tarjeta>
+    </div>
   );
 }
 

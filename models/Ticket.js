@@ -32,5 +32,6 @@ const ticketSchema = new mongoose.Schema({
 // toda la colección.
 ticketSchema.index({ guildId: 1, estado: 1, fechaCreacion: -1 });
 ticketSchema.index({ guildId: 1, creadorId: 1 });
+ticketSchema.index({ creadorId: 1, fechaCreacion: -1 }); // "Mi cuenta": mis tickets de todos los servidores
 
 module.exports = mongoose.model('Ticket', ticketSchema);

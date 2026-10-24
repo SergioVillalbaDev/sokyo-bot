@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { LayoutDashboard, Plus, UserCircle, Menu, X } from 'lucide-react';
 import { inviteUrl } from '../../lib/landingConfig';
 import LanguageSwitcher from '../LanguageSwitcher';
+import { IDIOMAS, cambiarIdioma } from '../../i18n';
 
 const LINKS = [
   { key: 'features', href: '#features' },
@@ -15,7 +16,7 @@ const LINKS = [
 ];
 
 export default function Navbar({ onEnterDashboard }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
@@ -54,7 +55,7 @@ export default function Navbar({ onEnterDashboard }) {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4"
+          className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-6"
         >
           <a href="#top" onClick={(e) => irA(e, { href: '#top' })} className="flex shrink-0 items-center gap-2.5">
             <img src="/assets/logo.jpg" alt="Sokyo" width="36" height="36" className="h-9 w-9 rounded-full object-cover" />
@@ -75,12 +76,16 @@ export default function Navbar({ onEnterDashboard }) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <LanguageSwitcher />
+            {/* En el móvil el idioma va dentro del menu: así cabe "Mi cuenta" en la barra. */}
+            <LanguageSwitcher className="hidden sm:block" />
+            {/* "Mi cuenta" de cada usuario: visible también en el móvil (solo el icono). */}
             <a
-              href="/?portal=1"
-              className="hidden items-center gap-1.5 rounded-lg border border-line bg-card/60 px-3.5 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated sm:flex"
+              href="/cuenta"
+              title={t('landing.nav.accountBtn')}
+              aria-label={t('landing.nav.accountBtn')}
+              className="glow-brand flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-brand/40 bg-card/60 px-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated sm:px-3.5"
             >
-              <UserCircle size={16} /> {t('landing.nav.accountBtn')}
+              <UserCircle size={17} className="text-brand" /> <span className="hidden sm:inline">{t('landing.nav.accountBtn')}</span>
             </a>
             <button
               onClick={onEnterDashboard}
@@ -131,11 +136,22 @@ export default function Navbar({ onEnterDashboard }) {
                   </a>
                 ))}
                 <a
-                  href="/?portal=1"
+                  href="/cuenta"
                   className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
                 >
                   <UserCircle size={16} /> {t('landing.nav.accountBtn')}
                 </a>
+                <div className="mt-1 flex gap-2 border-t border-line px-3 pt-3">
+                  {IDIOMAS.map((idioma) => (
+                    <button
+                      key={idioma.code}
+                      onClick={() => cambiarIdioma(idioma.code)}
+                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${i18n.language === idioma.code ? 'border-brand/50 bg-elevated text-fg' : 'border-line text-muted hover:text-fg'}`}
+                    >
+                      {idioma.flag} {idioma.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </motion.div>
           )}

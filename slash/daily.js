@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
+const { botonWeb } = require('../utils/cuenta.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -31,6 +32,8 @@ module.exports = {
             )
             .setFooter({ text: t(cfg, 'Vuelve mañana para mantener tu racha · bonus cada 7 días', 'Come back tomorrow to keep your streak · jackpot every 7 days') });
 
-        await interaction.reply({ embeds: [embed] });
+        // Desde «Mi cuenta» también se puede reclamar con un clic.
+        const web = new ActionRowBuilder().addComponents(botonWeb(cfg, 'inicio', t(cfg, 'Mi cuenta', 'My account')));
+        await interaction.reply({ embeds: [embed], components: [web] });
     },
 };
