@@ -1,157 +1,182 @@
-// Estructura de navegación del dashboard (solo estructura + iconos).
-// Los TEXTOS salen de i18n: dashboard.nav.groups.<id>, dashboard.nav.items.<tab>
-// y dashboard.meta.<key>. Cada `tab` coincide con los valores de activeTab.
+// Estructura de navegación del panel (solo estructura, iconos y palabras clave).
+// Los TEXTOS salen de i18n: dashboard.nav.sections.<id>, dashboard.nav.groups.<id>,
+// dashboard.nav.groupDesc.<id>, dashboard.nav.items.<tab> y dashboard.meta.<key>.
+// Cada `tab` coincide con los valores de activeTab (y con la URL #dashboard/<tab>).
+//
+// Orden pensado para que nadie se pierda: primero lo del día a día (tickets y
+// moderación), luego todo lo que hace la comunidad (llegada, roles, actividades,
+// crecimiento, música, mensajes) y al final la administración (datos y ajustes).
+//
+// `area` = el área de permisos de "Acceso y permisos" que da acceso a ese ítem
+// (las mismas claves que el backend: api/server.js → AREAS). Sin `area`, lo ve
+// todo el staff. `kw` = sinónimos para el buscador (español e inglés).
 import {
-  Ticket, Users, SlidersHorizontal, ScrollText, Globe, Trash2,
-  Pencil, LogIn, LogOut, Settings, Type, LayoutGrid, UsersRound,
-  UserCog, UserPlus, MousePointerClick, ShieldAlert, Gavel, ListChecks, History, KeyRound, Smile, TrendingUp, Bot,
-  UserCheck, Flag, DatabaseBackup,
-  Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
-  Music, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2, Mic2,
-  FolderTree, Rocket, Send, ChevronsUp, Globe2, Radio,
+  Ticket, Inbox, Users, SlidersHorizontal, ShieldAlert, Gavel, Bot, Flag, History, ListChecks,
+  DoorOpen, UserCheck, Sparkles, UserPlus, UsersRound, UserCog, MousePointerClick,
+  PartyPopper, TrendingUp, Gift, CalendarDays, BarChart2, Lightbulb, ClipboardList, Gamepad2,
+  Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
+  BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone,
 } from 'lucide-react';
 
-// Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
-// primero la cuenta y los datos, luego la puerta de entrada y la comunidad, el
-// soporte (tickets), roles, moderación, su registro (logs), los mensajes
-// automáticos y, al final, la configuración fina.
+export const navSections = [
+  { id: 'diario', groups: ['tickets', 'moderacion'] },
+  { id: 'comunidad', groups: ['entrada', 'roles', 'comunidad', 'crecimiento', 'musica', 'mensajes'] },
+  { id: 'admin', groups: ['datos', 'config', 'propietario'] },
+];
+
 export const navGroups = [
-  {
-    id: 'cuenta',
-    icon: Crown,
-    items: [
-      { tab: 'cuenta-plan', icon: Crown },
-    ],
-  },
-  {
-    id: 'datos',
-    icon: BarChart3,
-    items: [
-      { tab: 'datos-analitica', icon: BarChart3, premium: true },
-      { tab: 'datos-resumen', icon: Mail, premium: true },
-    ],
-  },
-  {
-    // NUEVO: todo lo que pasa "cuando alguien entra" vive aquí (onboarding).
-    id: 'entrada',
-    icon: DoorOpen,
-    items: [
-      { tab: 'seg-verificacion', icon: UserCheck },
-      { tab: 'prod-bienvenidas', icon: Sparkles },
-      { tab: 'roles-autorol', icon: UserPlus },
-      { tab: 'config-niveles', icon: TrendingUp },
-    ],
-  },
-  {
-    // Crecimiento: herramientas para que el servidor gane miembros.
-    id: 'crecimiento',
-    icon: Rocket,
-    items: [
-      { tab: 'crec-invitaciones', icon: Send },
-      { tab: 'crec-bump', icon: ChevronsUp },
-      { tab: 'crec-pagina', icon: Globe2 },
-      { tab: 'crec-directos', icon: Radio },
-    ],
-  },
-  {
-    id: 'comunidad',
-    icon: PartyPopper,
-    items: [
-      { tab: 'com-sorteos', icon: Gift },
-      { tab: 'com-eventos', icon: CalendarDays },
-      { tab: 'com-encuestas', icon: BarChart2 },
-      { tab: 'com-sugerencias', icon: Lightbulb },
-      { tab: 'com-presentaciones', icon: ClipboardList },
-      { tab: 'com-dinamicas', icon: Gamepad2 },
-      { tab: 'prod-embeds', icon: LayoutTemplate },
-    ],
-  },
-  {
-    id: 'musica',
-    icon: Music,
-    items: [
-      { tab: 'musica', icon: Music },
-    ],
-  },
-  {
-    // Canales de voz temporales: categoría propia (antes colgaba de Música).
-    id: 'voz',
-    icon: Mic2,
-    items: [
-      { tab: 'voz-temporal', icon: Mic2 },
-    ],
-  },
   {
     id: 'tickets',
     icon: Ticket,
+    color: '#60a5fa',
     items: [
-      { tab: 'tickets-gestion', icon: LayoutGrid },
-      { tab: 'tickets-usuarios', icon: Users },
-      { tab: 'tickets-config', icon: SlidersHorizontal },
-    ],
-  },
-  {
-    id: 'roles',
-    icon: UsersRound,
-    items: [
-      { tab: 'roles-gestion', icon: UserCog },
-      { tab: 'roles-paneles', icon: MousePointerClick },
+      { tab: 'tickets-gestion', icon: Inbox, area: 'tickets', kw: 'tickets soporte bandeja chat responder ayuda support inbox reply' },
+      { tab: 'tickets-usuarios', icon: Users, area: 'tickets', kw: 'usuarios clientes valoraciones csat satisfaccion users customers ratings' },
+      { tab: 'tickets-config', icon: SlidersHorizontal, area: 'tickets', kw: 'panel de tickets categorias urgencias sla respuestas rapidas cierre transcripcion ticket settings categories priority' },
     ],
   },
   {
     id: 'moderacion',
     icon: ShieldAlert,
+    color: '#f87171',
     items: [
-      { tab: 'mod-centro', icon: Gavel },
-      { tab: 'mod-tipos', icon: ListChecks },
-      { tab: 'mod-automod', icon: Bot },
-      { tab: 'mod-reportes', icon: Flag },
-      { tab: 'mod-registro', icon: History },
+      { tab: 'mod-centro', icon: Gavel, area: 'moderacion', kw: 'sancionar ban expulsar kick aislar timeout mute avisar warn buscar usuario punish' },
+      { tab: 'mod-automod', icon: Bot, area: 'moderacion', kw: 'automod filtro palabras prohibidas enlaces spam menciones mayusculas insultos ia filter links' },
+      { tab: 'mod-reportes', icon: Flag, area: 'moderacion', kw: 'reportes denuncias quejas report' },
+      { tab: 'mod-registro', icon: History, area: 'moderacion', kw: 'historial sanciones registro auditoria bans revocar history log' },
+      { tab: 'mod-tipos', icon: ListChecks, area: 'moderacion', kw: 'tipos de sancion plantillas duracion sanction types' },
     ],
   },
   {
-    id: 'logs',
-    icon: ScrollText,
+    id: 'entrada',
+    icon: DoorOpen,
+    color: '#34d399',
     items: [
-      { tab: 'logs-todos', icon: Globe },
-      { tab: 'logs-tickets', icon: Ticket },
-      { tab: 'logs-borrados', icon: Trash2 },
-      { tab: 'logs-editados', icon: Pencil },
-      { tab: 'logs-entradas', icon: LogIn },
-      { tab: 'logs-salidas', icon: LogOut },
+      { tab: 'seg-verificacion', icon: UserCheck, area: 'entrada', kw: 'verificacion captcha antibots raid nuevos verify verification' },
+      { tab: 'prod-bienvenidas', icon: Sparkles, area: 'entrada', kw: 'bienvenida despedida welcome goodbye mensaje de entrada imagen' },
+      { tab: 'roles-autorol', icon: UserPlus, area: 'entrada', kw: 'autorol rol automatico al entrar autorole join role' },
     ],
   },
   {
-    // Antes "Productividad": los mensajes que el bot manda solo.
+    id: 'roles',
+    icon: UsersRound,
+    color: '#a78bfa',
+    items: [
+      { tab: 'roles-gestion', icon: UserCog, area: 'roles', kw: 'roles permisos crear rol colores asignar quitar roles permissions' },
+      { tab: 'roles-paneles', icon: MousePointerClick, area: 'roles', kw: 'paneles de roles reaccion botones menu autoasignar self roles reaction roles' },
+    ],
+  },
+  {
+    id: 'comunidad',
+    icon: PartyPopper,
+    color: '#f472b6',
+    items: [
+      { tab: 'config-niveles', icon: TrendingUp, area: 'entrada', kw: 'niveles xp experiencia ranking rango tarjeta subir de nivel levels leaderboard rank' },
+      { tab: 'com-sorteos', icon: Gift, kw: 'sorteos giveaway premios ganadores' },
+      { tab: 'com-eventos', icon: CalendarDays, kw: 'eventos calendario quedadas recordatorio events' },
+      { tab: 'com-encuestas', icon: BarChart2, kw: 'encuestas votaciones polls vote' },
+      { tab: 'com-sugerencias', icon: Lightbulb, kw: 'sugerencias ideas votos suggestions' },
+      { tab: 'com-presentaciones', icon: ClipboardList, kw: 'presentaciones formulario conocerse introductions' },
+      { tab: 'com-dinamicas', icon: Gamepad2, kw: 'dinamicas juegos trivia reto diario racha minijuegos games' },
+    ],
+  },
+  {
+    id: 'crecimiento',
+    icon: Rocket,
+    color: '#fbbf24',
+    items: [
+      { tab: 'crec-invitaciones', icon: Send, area: 'crecimiento', kw: 'invitaciones invites quien invito recompensas invitar' },
+      { tab: 'crec-bump', icon: ChevronsUp, area: 'crecimiento', kw: 'bump disboard recordatorio' },
+      { tab: 'crec-pagina', icon: Globe2, area: 'crecimiento', kw: 'pagina publica web directorio servidores landing public page' },
+      { tab: 'crec-directos', icon: Radio, area: 'crecimiento', kw: 'directos twitch youtube streams videos alertas live' },
+    ],
+  },
+  {
+    id: 'musica',
+    icon: Music,
+    color: '#ec4899',
+    items: [
+      { tab: 'musica', icon: Music, area: 'musica', kw: 'musica reproductor canciones dj cola spotify youtube music player' },
+      { tab: 'voz-temporal', icon: Mic2, kw: 'voz temporal salas privadas canales de voz crear sala temp voice' },
+    ],
+  },
+  {
     id: 'mensajes',
-    icon: MessagesSquare,
+    icon: Megaphone,
+    color: '#22d3ee',
     items: [
-      { tab: 'prod-autorespuestas', icon: MessagesSquare },
-      { tab: 'prod-anuncios', icon: Megaphone },
+      { tab: 'prod-anuncios', icon: Megaphone, area: 'mensajes', kw: 'anuncios programados repetir publicar announcements schedule' },
+      { tab: 'prod-embeds', icon: LayoutTemplate, kw: 'embeds creador de mensajes plantillas embed builder' },
+      { tab: 'prod-autorespuestas', icon: MessagesSquare, area: 'mensajes', kw: 'auto respuestas faq respuestas automaticas palabras clave autoresponder' },
+    ],
+  },
+  {
+    id: 'datos',
+    icon: BarChart3,
+    color: '#818cf8',
+    items: [
+      { tab: 'datos-analitica', icon: BarChart3, area: 'datos', premium: true, kw: 'analitica estadisticas graficas metricas analytics stats' },
+      { tab: 'datos-resumen', icon: Mail, area: 'datos', premium: true, kw: 'resumen diario parte informe md daily report' },
+      { tab: 'logs-todos', icon: ScrollText, area: 'logs', kw: 'logs registro eventos mensajes borrados editados entradas salidas auditoria audit' },
     ],
   },
   {
     id: 'config',
     icon: Settings,
+    color: '#94a3b8',
     items: [
-      { tab: 'config-acceso', icon: KeyRound },
-      { tab: 'config-canales', icon: FolderTree },
-      { tab: 'config-expresiones', icon: Smile },
-      { tab: 'config-textos', icon: Type },
-      { tab: 'seg-backup', icon: DatabaseBackup, premium: true },
+      { tab: 'config-canales', icon: FolderTree, area: 'config', kw: 'canales categorias crear canal voz texto foro channels categories' },
+      { tab: 'config-expresiones', icon: Smile, area: 'config', kw: 'emojis stickers expresiones' },
+      { tab: 'config-acceso', icon: KeyRound, area: 'config', kw: 'acceso permisos staff quien entra al panel roles del panel access permissions' },
+      { tab: 'config-textos', icon: Type, area: 'config', kw: 'comandos prefijo idioma textos marca blanca commands prefix language' },
+      { tab: 'seg-backup', icon: DatabaseBackup, area: 'config', premium: true, kw: 'copia de seguridad backup exportar importar' },
+      { tab: 'cuenta-plan', icon: Crown, area: 'cuenta', kw: 'plan premium pro suscripcion pagar factura precio billing subscription' },
+      { tab: 'config-app', icon: Smartphone, kw: 'app movil android apk iphone ipad ios descargar instalar telefono celular mobile phone download install' },
     ],
   },
   {
-    // SOLO PROPIETARIOS DEL BOT (OWNER_IDS). El Sidebar lo oculta a los demás.
+    // SOLO PROPIETARIOS DEL BOT (OWNER_IDS). El menú lo oculta a los demás.
     id: 'propietario',
     icon: Crown,
+    color: '#f59e0b',
     owner: true,
     items: [
-      { tab: 'owner-subs', icon: Crown },
+      { tab: 'owner-subs', icon: Crown, kw: 'suscripciones servidores propietario owner' },
     ],
   },
 ];
 
+// Pestañas que comparten la entrada de otra en el menú (los filtros del registro).
+const ALIAS = { 'seg-reportes': 'mod-reportes' };
+export const tabDeMenu = (tab) => (tab && tab.startsWith('logs-') ? 'logs-todos' : (ALIAS[tab] || tab));
+
+// Grupo e ítem del menú de una pestaña (para la ruta "Grupo › Sección").
+export function ubicacion(tab) {
+  const t = tabDeMenu(tab);
+  for (const g of navGroups) {
+    const item = g.items.find((it) => it.tab === t);
+    if (item) return { group: g, item };
+  }
+  return null;
+}
+
+// ¿Puede ver este ítem? Propietario: todo. Si no, según su área de permisos.
+export const itemVisible = (item, permisos) => !item.area || !permisos || permisos[item.area] !== false;
+
+// ¿Está bloqueado por el plan? (función de pago en un servidor Free; el propietario lo ve todo).
+export const bloqueadoPorPlan = (item, esPremium, esOwner) => !!item.premium && !esPremium && !esOwner;
+
+// Grupos visibles con solo los ítems a los que se tiene acceso (los vacíos fuera).
+export function gruposVisibles(permisos, esOwner) {
+  return navGroups
+    .filter((g) => !g.owner || esOwner)
+    .map((g) => ({ ...g, items: g.items.filter((it) => itemVisible(it, permisos)) }))
+    .filter((g) => g.items.length > 0);
+}
+
 // Clave de i18n para el título/subtítulo del header según la pestaña activa.
 // Los logs (logs-todos, logs-tickets…) comparten la misma cabecera "logs".
 export const metaKey = (tab) => (tab.startsWith('logs') ? 'logs' : tab);
+
+// Texto sin tildes y en minúsculas, para buscar "musica" y encontrar "Música".
+export const normalizar = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

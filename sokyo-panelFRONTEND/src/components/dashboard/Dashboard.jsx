@@ -8,6 +8,8 @@ import { useDashboard } from '../../hooks/useDashboard';
 import { maybeStartOnboarding } from '../../lib/onboarding';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import BuscadorPanel from './BuscadorPanel';
+import '../../dashboard.css';
 import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
 import InicioView from './views/InicioView';
@@ -51,6 +53,7 @@ import CrecInvitacionesView from './views/CrecInvitacionesView';
 import CrecBumpView from './views/CrecBumpView';
 import CrecPaginaView from './views/CrecPaginaView';
 import CrecDirectosView from './views/CrecDirectosView';
+import AppMovilView from './views/AppMovilView';
 
 export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   const { t } = useTranslation();
@@ -66,6 +69,19 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
 
   // Menú lateral como "drawer" en móvil (en escritorio es fijo).
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Buscador de todo el panel: Ctrl/⌘ + K desde cualquier sitio, o "/" si no se
+  // está escribiendo en un campo.
+  const [buscador, setBuscador] = useState(false);
+  useEffect(() => {
+    const tecla = (e) => {
+      const enCampo = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) || e.target?.isContentEditable;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setBuscador((v) => !v); }
+      else if (e.key === '/' && !enCampo && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setBuscador(true); }
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, []);
 
   // Upsell contextual: qué función de pago intentó abrir un servidor Free.
   // null = modal cerrado. Lo dispara el Sidebar al pulsar un ítem con candado.
@@ -92,6 +108,8 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (window.location.hash !== destino) window.history.replaceState(null, '', destino);
   }, [activeTab]);
 
+  const mainRef = useRef(null);
+
   // Navegación desde el sidebar: al ir a "Gestión" cerramos el chat abierto.
   // En móvil, además cerramos el drawer al elegir una sección.
   const navigate = (tab) => {
@@ -99,9 +117,12 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     setActiveTab(tab);
     setMobileOpen(false);
   };
+  // Cada sección empieza arriba del todo, se llegue desde donde se llegue
+  // (menú, buscador, migas de pan, avisos o el mapa del inicio).
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); }, [activeTab]);
 
   const renderView = () => {
-    if (activeTab === 'inicio') return <InicioView dash={dash} />;
+    if (activeTab === 'inicio') return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
     if (activeTab === 'tickets-gestion') return ticketSeleccionado ? <ChatView dash={dash} /> : <TicketsView dash={dash} />;
     if (activeTab === 'tickets-usuarios') return <UsersView dash={dash} />;
     if (activeTab === 'tickets-config') return <TicketsAjustesView dash={dash} />;
@@ -140,8 +161,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'owner-subs') return <OwnerSubsView dash={dash} />;
     if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <ResumenView dash={dash} />;
+    if (activeTab === 'config-app') return <AppMovilView />;
     if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
-    return <InicioView dash={dash} />;
+    return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };
 
   // Con el servidor en la clave, cada vista se monta de cero al cambiar de servidor
@@ -151,7 +173,8 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   // h-dvh y no h-screen: en el móvil 100vh es más alto que la parte visible
   // (por la barra del navegador) y lo de abajo quedaba fuera de la pantalla.
   return (
-    <div className="flex h-dvh overflow-hidden bg-bg text-fg">
+    <div className="sk-dash flex h-dvh overflow-hidden text-fg">
+      <FondoPanel />
       <Sidebar
         activeTab={activeTab}
         setActiveTab={navigate}
@@ -165,16 +188,18 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
         onRequestUpgrade={setUpgradeFeature}
         servidores={servidores}
         guildId={guildId}
-        setGuildId={setGuildId}
+        onCambiarServidor={() => setMostrarSelectorServidor(true)}
         permisos={misPermisos}
         moduleStatus={estadoModulos}
         onLogout={onLogout}
+        onBuscar={() => { setMobileOpen(false); setBuscador(true); }}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} />
+        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} onBuscar={() => setBuscador(true)} />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto px-3 pb-10 pt-4 sm:px-4 sm:pt-5 lg:pl-4 lg:pr-5">
+          <div className="mx-auto w-full max-w-[1500px]">
           {errorConexion && (
             <div className="mb-6 rounded-2xl border border-danger/40 bg-danger/10 p-5">
               <p className="flex items-center gap-2 font-semibold text-danger">
@@ -205,6 +230,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
               {renderView()}
             </motion.div>
           </AnimatePresence>
+          </div>
         </main>
       </div>
 
@@ -216,11 +242,52 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
         onCerrar={() => setMostrarSelectorServidor(false)}
       />
 
+      <BuscadorPanel
+        abierto={buscador}
+        onCerrar={() => setBuscador(false)}
+        irA={navigate}
+        permisos={misPermisos}
+        esPremium={esPremium}
+        moduleStatus={estadoModulos}
+        tickets={dash.ticketsReales}
+        abrirTicket={(tk) => { navigate('tickets-gestion'); dash.verMensajes(tk); }}
+        onRequestUpgrade={setUpgradeFeature}
+      />
+
       <UpgradeModal
         feature={upgradeFeature}
         onClose={() => setUpgradeFeature(null)}
         onVerPlanes={() => { setUpgradeFeature(null); navigate('cuenta-plan'); }}
       />
+    </div>
+  );
+}
+
+// Fondo del panel: nebulosas con los colores del tema, polvo de estrellas y
+// dos estelas de luz quietas (src/dashboard.css). Sin animación: es un sitio de
+// trabajo y todo lo que se mueve detrás del cristal cuesta rendimiento.
+function FondoPanel() {
+  return (
+    <div className="sk-fondo" aria-hidden="true">
+      <svg className="sk-estelas" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="sk-estela-1" x1="0" x2="1">
+            <stop offset="0" stopColor="var(--brand-to)" stopOpacity="0" />
+            <stop offset=".45" stopColor="var(--brand-to)" stopOpacity=".55" />
+            <stop offset=".8" stopColor="var(--brand-from)" stopOpacity=".45" />
+            <stop offset="1" stopColor="var(--brand-from)" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="sk-estela-2" x1="0" x2="1">
+            <stop offset="0" stopColor="var(--brand-from)" stopOpacity="0" />
+            <stop offset=".5" stopColor="var(--accent-color)" stopOpacity=".4" />
+            <stop offset="1" stopColor="var(--brand-to)" stopOpacity="0" />
+          </linearGradient>
+          <filter id="sk-difuso" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="16" /></filter>
+        </defs>
+        <path d="M-120 820 C 300 700, 640 760, 960 520 S 1320 160, 1580 90" fill="none" stroke="url(#sk-estela-1)" strokeWidth="34" opacity=".35" filter="url(#sk-difuso)" />
+        <path d="M-120 820 C 300 700, 640 760, 960 520 S 1320 160, 1580 90" fill="none" stroke="url(#sk-estela-1)" strokeWidth="1.6" />
+        <path d="M-100 150 C 300 250, 560 110, 880 210 S 1240 460, 1560 400" fill="none" stroke="url(#sk-estela-2)" strokeWidth="1.2" />
+      </svg>
     </div>
   );
 }

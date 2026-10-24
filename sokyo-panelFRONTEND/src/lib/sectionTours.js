@@ -47,6 +47,12 @@ export const sectionTours = {
     { id: 'acciones', sel: '[data-help="verif-acciones"]', side: 'top', align: 'start' },
   ],
 
+  'config-app': [
+    { id: 'android', sel: '[data-help="app-android"]', side: 'bottom', align: 'start' },
+    { id: 'ios', sel: '[data-help="app-ios"]', side: 'bottom', align: 'start' },
+    { id: 'faq', sel: '[data-help="app-faq"]', side: 'top', align: 'start' },
+  ],
+
   'cuenta-plan': [
     { id: 'actual', sel: '[data-help="planes-actual"]', side: 'bottom', align: 'start' },
     { id: 'intervalo', sel: '[data-help="planes-intervalo"]', side: 'bottom', align: 'center' },

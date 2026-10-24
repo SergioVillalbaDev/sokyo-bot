@@ -1,17 +1,17 @@
-// Header superior del dashboard — saludo + buscador + idioma + tema.
-import { useEffect, useMemo, useRef, useState } from 'react';
+// Cabecera del panel (cristal): dónde estás (Grupo › Sección), el título y la
+// ayuda de la sección; a la derecha el buscador, los avisos, la ayuda, el idioma
+// y el tema. En el móvil, idioma, tema y ayuda van juntos en un solo botón.
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell, HelpCircle, Menu, ChevronDown, Ticket as TicketIcon, LayoutGrid, Flag, Lightbulb, X, CheckCircle2, CheckCheck } from 'lucide-react';
-import { metaKey, navGroups } from './navConfig';
+import { Search, Bell, HelpCircle, Menu, ChevronRight, ChevronsUpDown, Ticket as TicketIcon, Flag, Lightbulb, X, CheckCircle2, CheckCheck, SlidersHorizontal, Check, LayoutDashboard } from 'lucide-react';
+import { metaKey, ubicacion } from './navConfig';
 import { startOnboarding, startSectionTour, hasSectionTour } from '../../lib/onboarding';
-import { getStaffSession } from '../../lib/api';
 import OwnerBadge from './OwnerBadge';
-import ThemePicker from './ThemePicker';
+import ThemePicker, { ThemeGrid } from './ThemePicker';
 import LanguageSwitcher from '../LanguageSwitcher';
 import { Avatar } from '../ui/primitives';
-
-const esOwner = !!getStaffSession()?.owner;
+import { IDIOMAS, cambiarIdioma } from '../../i18n';
 
 // Notificaciones descartadas (por servidor, guardadas en el navegador): al
 // visitar el panel de esa categoría o pulsar la "x" se marcan como vistas y
@@ -100,39 +100,32 @@ function NotifItem({ icon: Icon, color, titulo, meta, fecha, onClick, onDismiss 
   );
 }
 
-export default function Header({ dash, onOpenMenu }) {
-  const { t } = useTranslation();
+export default function Header({ dash, onOpenMenu, onBuscar }) {
+  const { t, i18n } = useTranslation();
   const {
-    activeTab, theme, setTheme, esPremium, servidorInfo, query, setQuery,
+    activeTab, theme, setTheme, esPremium, servidorInfo,
     ticketsReales, servidores, guildId, setMostrarSelectorServidor,
-    setActiveTab, verMensajes, misPermisos, reportes, sugerencias,
+    setActiveTab, verMensajes, reportes, sugerencias,
   } = dash;
-  const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [notifAbiertas, setNotifAbiertas] = useState(false);
+  const [prefsAbiertas, setPrefsAbiertas] = useState(false);
   const [vistos, setVistos] = useState(() => cargarVistos(guildId));
-  const buscadorRef = useRef(null);
   const notifRef = useRef(null);
+  const prefsRef = useRef(null);
   const headerRef = useRef(null);
-  // En móvil el header pasa a 2 filas y la campana puede acabar cerca del
-  // borde izquierdo — anclar el panel con "right-0" (pensado para escritorio,
-  // donde este bloque de iconos siempre está pegado al borde derecho) lo
-  // dejaba casi entero fuera de la pantalla. Por debajo de `sm` el panel usa
-  // posición fija medida contra el borde inferior real del header en vez de
-  // depender de dónde caiga el botón.
-  const [notifTop, setNotifTop] = useState(64);
+  // En el móvil los desplegables van fijos bajo la cabecera, a todo el ancho:
+  // anclados al botón se salían por la izquierda de la pantalla.
+  const [panelTop, setPanelTop] = useState(72);
   useEffect(() => {
-    if (!notifAbiertas) return;
-    const medir = () => { if (headerRef.current) setNotifTop(headerRef.current.getBoundingClientRect().bottom + 8); };
+    if (!notifAbiertas && !prefsAbiertas) return undefined;
+    const medir = () => { if (headerRef.current) setPanelTop(headerRef.current.getBoundingClientRect().bottom + 8); };
     medir();
     window.addEventListener('resize', medir);
     return () => window.removeEventListener('resize', medir);
-  }, [notifAbiertas]);
+  }, [notifAbiertas, prefsAbiertas]);
   // Evita que la poda de más abajo borre descartes válidos justo después de
   // montar o cambiar de servidor, mientras tickets/reportes/sugerencias aún
-  // están en su [] inicial (la API todavía no ha respondido). Sin esto, cada
-  // recarga de página (F5) confundía "todavía no ha llegado" con "ya no
-  // existe" y vaciaba lo guardado en localStorage — las notificaciones
-  // descartadas volvían a aparecer.
+  // están en su [] inicial (la API todavía no ha respondido).
   const primeraPodaRef = useRef(true);
 
   // Recarga los descartes al cambiar de servidor (son por-servidor).
@@ -156,37 +149,27 @@ export default function Header({ dash, onOpenMenu }) {
     marcarVistos(tipo, [id]);
   };
 
-  // Notificaciones pendientes ahora mismo (las ya descartadas no cuentan).
-  // Se calculan aquí arriba (y no solo más abajo, junto al resto del JSX) porque
-  // el listener de "click fuera" las necesita antes en el render.
+  // Avisos pendientes ahora mismo (los ya descartados no cuentan).
   const ticketsAbiertosList = (ticketsReales || []).filter((tk) => tk.estado !== 'Cerrado' && !vistos.tickets.includes(tk.canalId));
   const reportesPendientesList = (reportes || []).filter((r) => r.estado === 'pendiente' && !vistos.reportes.includes(r._id));
   const sugerenciasPendientesList = (sugerencias || []).filter((s) => s.estado === 'pendiente' && !vistos.sugerencias.includes(s._id));
   const totalNotificaciones = ticketsAbiertosList.length + reportesPendientesList.length + sugerenciasPendientesList.length;
 
-  // Cerrar el panel (clic fuera, tecla Esc o pulsar la campana otra vez) ya
-  // NO descarta nada — antes lo hacía y sorprendía: abrías la campana solo
-  // para mirar y, al cerrarla, desaparecía todo. Descartar es siempre una
-  // acción explícita: la X de cada fila, "Marcar todo como leído", o
-  // visitar la sección correspondiente (más abajo).
+  // Cerrar el panel (clic fuera, Esc o la campana) NO descarta nada: descartar
+  // es siempre una acción explícita (la X, "Marcar todo como leído" o visitar la sección).
   const cerrarNotif = () => setNotifAbiertas(false);
 
-  // Marcar todo como leído: acción explícita y visible, ya no un efecto
-  // secundario de cerrar el panel.
   const marcarTodoLeido = () => {
     if (ticketsAbiertosList.length) marcarVistos('tickets', ticketsAbiertosList.map((tk) => tk.canalId));
     if (reportesPendientesList.length) marcarVistos('reportes', reportesPendientesList.map((r) => r._id));
     if (sugerenciasPendientesList.length) marcarVistos('sugerencias', sugerenciasPendientesList.map((s) => s._id));
   };
 
-  // Poda: si un ticket/reporte/sugerencia ya no existe (borrado), no hace
-  // falta seguir recordando que se descartó — evita que crezca sin límite.
-  // Se salta la primera pasada tras montar/cambiar de servidor (ver
-  // primeraPodaRef arriba) para no confundir "aún cargando" con "borrado".
+  // Poda: lo descartado que ya no existe (borrado) se olvida para no crecer sin límite.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (primeraPodaRef.current) { primeraPodaRef.current = false; return; }
-    const idsTickets = new Set((ticketsReales || []).map((t) => t.canalId));
+    const idsTickets = new Set((ticketsReales || []).map((x) => x.canalId));
     const idsReportes = new Set((reportes || []).map((r) => r._id));
     const idsSugerencias = new Set((sugerencias || []).map((s) => s._id));
     setVistos((prev) => {
@@ -201,70 +184,38 @@ export default function Header({ dash, onOpenMenu }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticketsReales, reportes, sugerencias]);
 
-  // Visitar el panel de una categoría descarta automáticamente sus notificaciones.
+  // Visitar la sección de una categoría descarta sus avisos.
   useEffect(() => {
-    if (activeTab === 'tickets-gestion') marcarVistos('tickets', (ticketsReales || []).filter((t) => t.estado !== 'Cerrado').map((t) => t.canalId));
+    if (activeTab === 'tickets-gestion') marcarVistos('tickets', (ticketsReales || []).filter((x) => x.estado !== 'Cerrado').map((x) => x.canalId));
     else if (activeTab === 'mod-reportes') marcarVistos('reportes', (reportes || []).filter((r) => r.estado === 'pendiente').map((r) => r._id));
     else if (activeTab === 'com-sugerencias') marcarVistos('sugerencias', (sugerencias || []).filter((s) => s.estado === 'pendiente').map((s) => s._id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, ticketsReales, reportes, sugerencias]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Cierra los desplegables (buscador/notificaciones) al hacer clic fuera.
-  // Sin array de dependencias: se re-suscribe en cada render para que
-  // cerrarNotif() siempre vea las listas de notificaciones más recientes.
+  // Cierra los desplegables al hacer clic fuera o con Esc.
   useEffect(() => {
     const alClicar = (e) => {
-      if (buscadorRef.current && !buscadorRef.current.contains(e.target)) setBuscadorAbierto(false);
       if (notifRef.current && !notifRef.current.contains(e.target)) cerrarNotif();
+      if (prefsRef.current && !prefsRef.current.contains(e.target)) setPrefsAbiertas(false);
     };
+    const alTeclear = (e) => { if (e.key === 'Escape') { cerrarNotif(); setPrefsAbiertas(false); } };
     document.addEventListener('mousedown', alClicar);
-    return () => document.removeEventListener('mousedown', alClicar);
+    document.addEventListener('keydown', alTeclear);
+    return () => { document.removeEventListener('mousedown', alClicar); document.removeEventListener('keydown', alTeclear); };
   });
 
-  // Todas las secciones del menú a las que el usuario tiene acceso, con su título traducido.
-  const seccionesBuscables = useMemo(() => (
-    navGroups
-      .filter((g) => (!g.owner || esOwner) && (!misPermisos || misPermisos[g.id] !== false))
-      .flatMap((g) => g.items.map((item) => ({ tab: item.tab, titulo: t(`dashboard.nav.items.${item.tab}`) })))
-  ), [t, misPermisos]);
-
-  const q = (query || '').trim().toLowerCase();
-  const seccionesEncontradas = q ? seccionesBuscables.filter((s) => s.titulo.toLowerCase().includes(q)).slice(0, 5) : [];
-  const ticketsEncontrados = q
-    ? (ticketsReales || []).filter((tk) =>
-        (tk.titulo || '').toLowerCase().includes(q) ||
-        (tk.motivo || '').toLowerCase().includes(q) ||
-        (tk.creadorNombre || '').toLowerCase().includes(q)
-      ).slice(0, 5)
-    : [];
-  const hayResultados = seccionesEncontradas.length > 0 || ticketsEncontrados.length > 0;
-
-  const irASeccion = (tab) => {
-    setActiveTab(tab);
-    setQuery('');
-    setBuscadorAbierto(false);
-  };
-
-  const abrirTicket = (ticket) => {
-    setActiveTab('tickets-gestion');
-    verMensajes(ticket);
-    setQuery('');
-    setBuscadorAbierto(false);
-  };
-  // Servidor activo: visible siempre (también en móvil) para no perderse de cuál
-  // se está gestionando. Si hay varios, al pulsarlo se abre el selector.
   const servActivo = (servidores || []).find((s) => s.id === guildId);
   const variosServidores = (servidores || []).length > 1;
   const enInicio = activeTab === 'inicio';
   const mk = metaKey(activeTab);
+  const donde = enInicio ? null : ubicacion(activeTab);
 
-  // Botón (?) que lanza el mini-tour guiado de la sección actual (señala y
-  // explica sus partes). Solo aparece si la sección tiene tour definido.
-  const sectionHelpButton = hasSectionTour(t, mk) ? (
+  // (?) junto al título: mini-tour de la sección actual, si tiene.
+  const ayudaSeccion = hasSectionTour(t, mk) ? (
     <button
       onClick={() => startSectionTour(t, mk)}
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-card text-muted transition-colors hover:bg-elevated hover:text-fg"
+      className="sk-foco grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line text-muted transition-colors hover:border-brand/50 hover:text-fg"
       aria-label={t('dashboard.sectionHelp.aria')}
       title={t('dashboard.sectionHelp.aria')}
     >
@@ -272,138 +223,79 @@ export default function Header({ dash, onOpenMenu }) {
     </button>
   ) : null;
 
+  const titulo = enInicio ? t('dashboard.header.greeting', { name: servidorInfo?.nombre || 'servidor' }) : t(`dashboard.meta.${mk}.title`);
+  const subtitulo = enInicio ? t('dashboard.header.greetingSub') : t(`dashboard.meta.${mk}.subtitle`);
+
   return (
-    <header ref={headerRef} className="sticky top-0 z-20 flex flex-col gap-4 border-b border-line bg-bg/80 px-6 py-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-8">
-      <div className="flex items-center gap-3">
-        {/* Abrir menú (solo móvil) */}
-        <button
-          onClick={onOpenMenu}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated lg:hidden"
-          aria-label="Open menu"
-        >
+    <header ref={headerRef} className="sticky top-0 z-30 px-3 pt-3 sm:px-4 lg:pl-4 lg:pr-5">
+      <div className="sk-cabecera flex items-center gap-2 rounded-[22px] px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+        {/* Abrir el menú (móvil) */}
+        <button onClick={onOpenMenu} className="sk-boton-icono shrink-0 lg:hidden" aria-label={t('dashboard.sidebar.open')}>
           <Menu size={18} />
         </button>
 
-        <motion.div key={activeTab} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          {enInicio ? (
-          <>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-extrabold tracking-tight text-fg sm:text-[1.7rem]">
-                {t('dashboard.header.greeting', { name: servidorInfo?.nombre || 'servidor' })}
-              </h1>
-              {sectionHelpButton}
-            </div>
-            <p className="mt-0.5 text-sm text-muted">{t('dashboard.header.greetingSub')}</p>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-extrabold tracking-tight text-fg">{t(`dashboard.meta.${mk}.title`)}</h1>
-              {sectionHelpButton}
-            </div>
-            <p className="mt-0.5 text-sm text-muted">{t(`dashboard.meta.${mk}.subtitle`)}</p>
-          </>
-        )}
+        <motion.div key={activeTab} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} className="min-w-0 flex-1">
+          {/* Dónde estás: Grupo › Sección */}
+          <nav aria-label={t('dashboard.header.breadcrumb')} className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-muted">
+            <button onClick={() => setActiveTab('inicio')} className="sk-foco flex shrink-0 items-center gap-1 rounded-md transition-colors hover:text-fg">
+              <LayoutDashboard size={12} /> <span className="hidden sm:inline">{t('dashboard.inicio')}</span>
+            </button>
+            {donde && (
+              <>
+                <ChevronRight size={12} className="shrink-0 opacity-60" />
+                <span className="flex min-w-0 items-center gap-1 truncate" style={{ color: donde.group.color }}>
+                  <donde.group.icon size={12} className="shrink-0" /> <span className="truncate">{t(`dashboard.nav.groups.${donde.group.id}`)}</span>
+                </span>
+              </>
+            )}
+          </nav>
+          <div className="mt-0.5 flex min-w-0 items-center gap-2">
+            <h1 className="sk-titulo text-[17px] font-extrabold leading-tight tracking-tight text-fg sm:text-2xl sm:leading-8">{titulo}</h1>
+            <span className="hidden sm:block">{ayudaSeccion}</span>
+          </div>
+          <p className="hidden truncate text-[13px] text-muted md:block">{subtitulo}</p>
         </motion.div>
-      </div>
 
-      <div className="flex items-center gap-3">
-        {/* Servidor activo (siempre visible; clicable si hay varios) */}
-        {servActivo && (
+        {/* Servidor activo (móvil y tablet; en escritorio está en el menú) */}
+        {servActivo && variosServidores && (
           <button
-            onClick={() => variosServidores && setMostrarSelectorServidor(true)}
-            disabled={!variosServidores}
-            title={variosServidores ? t('dashboard.header.changeServer') : servActivo.nombre}
-            className="flex max-w-[44vw] items-center gap-2 rounded-full border border-line bg-card py-1.5 pl-1.5 pr-3 transition-colors enabled:hover:bg-elevated disabled:cursor-default sm:max-w-[220px]"
+            onClick={() => setMostrarSelectorServidor(true)}
+            title={t('dashboard.header.changeServer')}
+            className="sk-foco hidden shrink-0 items-center gap-1.5 rounded-full border border-line bg-card py-1 pl-1 pr-2 transition-colors hover:border-brand/40 sm:flex lg:hidden"
           >
             <Avatar src={servActivo.icono} name={servActivo.nombre} size={26} />
-            <span className="min-w-0 truncate text-sm font-semibold text-fg">{servActivo.nombre}</span>
-            {variosServidores && <ChevronDown size={14} className="shrink-0 text-muted" />}
+            <span className="max-w-[120px] truncate text-sm font-semibold text-fg">{servActivo.nombre}</span>
+            <ChevronsUpDown size={13} className="shrink-0 text-muted" />
           </button>
         )}
 
-        <OwnerBadge />
+        <span className="hidden shrink-0 xl:block"><OwnerBadge /></span>
 
-        <div ref={buscadorRef} className="relative hidden md:block">
-          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setBuscadorAbierto(true); }}
-            onFocus={() => setBuscadorAbierto(true)}
-            placeholder={t('dashboard.header.search')}
-            className="w-52 rounded-full border border-line bg-card py-2.5 pl-10 pr-4 text-sm text-fg outline-none transition-all focus:w-72 focus:ring-2 focus:ring-brand/30"
-          />
-          <AnimatePresence>
-            {buscadorAbierto && q && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.15 }}
-                className="absolute right-0 top-[calc(100%+8px)] z-30 max-h-96 w-80 overflow-y-auto rounded-2xl border border-line bg-card p-2 shadow-xl"
-              >
-                {!hayResultados ? (
-                  <p className="px-3 py-4 text-center text-sm text-muted">{t('dashboard.header.searchEmpty')}</p>
-                ) : (
-                  <>
-                    {seccionesEncontradas.length > 0 && (
-                      <div className="mb-1">
-                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.searchSections')}</p>
-                        {seccionesEncontradas.map((s) => (
-                          <button
-                            key={s.tab}
-                            onClick={() => irASeccion(s.tab)}
-                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
-                          >
-                            <LayoutGrid size={15} className="shrink-0 text-muted" />
-                            <span className="truncate">{s.titulo}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {ticketsEncontrados.length > 0 && (
-                      <div>
-                        <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.searchTickets')}</p>
-                        {ticketsEncontrados.map((tk) => (
-                          <button
-                            key={tk.canalId}
-                            onClick={() => abrirTicket(tk)}
-                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-elevated"
-                          >
-                            <TicketIcon size={15} className="shrink-0 text-muted" />
-                            <span className="min-w-0 flex-1 truncate">{tk.titulo || tk.creadorNombre || tk.canalId}</span>
-                            {tk.estado && <span className="shrink-0 text-xs text-muted">{tk.estado}</span>}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
+        {/* Buscador: barra en pantallas anchas, icono en el resto */}
         <button
-          data-tour="help"
-          onClick={() => startOnboarding(t)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated"
-          aria-label={t('dashboard.onboarding.help.aria')}
-          title={t('dashboard.onboarding.help.aria')}
+          onClick={onBuscar}
+          className="sk-foco hidden w-60 shrink-0 items-center gap-2.5 rounded-full border border-line bg-bg/60 py-2.5 pl-3.5 pr-2.5 text-sm text-muted transition-colors hover:border-brand/40 hover:text-fg xl:flex"
         >
-          <HelpCircle size={17} />
+          <Search size={16} className="shrink-0" />
+          <span className="flex-1 truncate text-left">{t('dashboard.search.button')}</span>
+          <span className="sk-tecla">Ctrl K</span>
+        </button>
+        <button onClick={onBuscar} className="sk-boton-icono shrink-0 xl:hidden" aria-label={t('dashboard.search.open')} title={t('dashboard.search.open')}>
+          <Search size={17} />
         </button>
 
-        <div ref={notifRef} className="relative">
+        {/* Avisos */}
+        <div ref={notifRef} className="relative shrink-0">
           <button
             onClick={() => (notifAbiertas ? cerrarNotif() : setNotifAbiertas(true))}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card text-fg transition-colors hover:bg-elevated"
+            className="sk-boton-icono"
             aria-label={t('dashboard.header.notifications')}
             title={t('dashboard.header.notifications')}
+            aria-expanded={notifAbiertas}
           >
             <Bell size={17} />
             {totalNotificaciones > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-white shadow-[0_0_10px_var(--danger)]">
                 {totalNotificaciones > 9 ? '9+' : totalNotificaciones}
               </span>
             )}
@@ -415,14 +307,14 @@ export default function Header({ dash, onOpenMenu }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.15 }}
-                style={{ '--notif-top': `${notifTop}px` }}
-                className="fixed inset-x-3 top-[var(--notif-top)] z-30 overflow-hidden rounded-2xl border border-line bg-card shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-96"
+                style={{ '--panel-top': `${panelTop}px` }}
+                className="fixed inset-x-3 top-[var(--panel-top)] z-40 overflow-hidden rounded-2xl border border-line bg-card shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-96"
               >
                 <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
                   <span className="flex items-center gap-2 text-sm font-bold text-fg">
                     {t('dashboard.header.notifications')}
                     {totalNotificaciones > 0 && (
-                      <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-bold text-brand">{totalNotificaciones}</span>
+                      <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-bold text-brand">{totalNotificaciones}</span>
                     )}
                   </span>
                   {totalNotificaciones > 0 && (
@@ -439,7 +331,7 @@ export default function Header({ dash, onOpenMenu }) {
                 <div className="max-h-96 overflow-y-auto p-2">
                   {totalNotificaciones === 0 ? (
                     <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-elevated text-muted">
+                      <span className="grid h-10 w-10 place-items-center rounded-full bg-elevated text-success">
                         <CheckCircle2 size={18} />
                       </span>
                       <p className="text-sm text-muted">{t('dashboard.header.notifEmpty')}</p>
@@ -500,9 +392,62 @@ export default function Header({ dash, onOpenMenu }) {
           </AnimatePresence>
         </div>
 
-        <div data-tour="tools" className="flex items-center gap-3">
+        {/* Escritorio: ayuda, idioma y tema a la vista */}
+        <button
+          data-tour="help"
+          onClick={() => startOnboarding(t)}
+          className="sk-boton-icono hidden shrink-0 sm:grid"
+          aria-label={t('dashboard.onboarding.help.aria')}
+          title={t('dashboard.onboarding.help.aria')}
+        >
+          <HelpCircle size={17} />
+        </button>
+        <div data-tour="tools" className="hidden shrink-0 items-center gap-2 sm:flex">
           <LanguageSwitcher />
           <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} />
+        </div>
+
+        {/* Móvil: un solo botón con ayuda, idioma y tema */}
+        <div ref={prefsRef} className="relative shrink-0 sm:hidden">
+          <button
+            onClick={() => setPrefsAbiertas((v) => !v)}
+            className="sk-boton-icono"
+            aria-label={t('dashboard.header.prefs')}
+            title={t('dashboard.header.prefs')}
+            aria-expanded={prefsAbiertas}
+          >
+            <SlidersHorizontal size={17} />
+          </button>
+          <AnimatePresence>
+            {prefsAbiertas && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}
+                style={{ '--panel-top': `${panelTop}px` }}
+                className="fixed inset-x-3 top-[var(--panel-top)] z-40 max-h-[75vh] overflow-y-auto rounded-2xl border border-line bg-card p-4 shadow-xl"
+              >
+                <button
+                  onClick={() => { setPrefsAbiertas(false); startOnboarding(t); }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-line px-3 py-2.5 text-left text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+                >
+                  <HelpCircle size={17} className="text-brand" /> {t('dashboard.onboarding.help.aria')}
+                </button>
+                <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.header.language')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {IDIOMAS.map((idioma) => (
+                    <button
+                      key={idioma.code}
+                      onClick={() => cambiarIdioma(idioma.code)}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${i18n.language === idioma.code ? 'border-brand/60 bg-elevated font-semibold text-fg' : 'border-line text-muted'}`}
+                    >
+                      <span>{idioma.flag} {idioma.label}</span>
+                      {i18n.language === idioma.code && <Check size={14} className="text-brand" />}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4"><ThemeGrid theme={theme} setTheme={setTheme} esPremium={esPremium} /></div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </header>

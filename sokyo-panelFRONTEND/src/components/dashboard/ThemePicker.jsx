@@ -30,6 +30,30 @@ function Swatch({ tm, locked, active, onSelect }) {
   );
 }
 
+// Rejilla de temas (también la usa el menú de preferencias del móvil).
+export function ThemeGrid({ theme, setTheme, esPremium }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.theme.basic')}</p>
+      <div className="grid grid-cols-3 gap-2">
+        {FREE_THEMES.map((tm) => <Swatch key={tm.id} tm={tm} locked={false} active={theme === tm.id} onSelect={setTheme} />)}
+      </div>
+
+      <div className="mb-2 mt-4 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+        <Crown size={12} className="text-amber-400" /> {t('dashboard.theme.premium')}
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {PREMIUM_THEMES.map((tm) => <Swatch key={tm.id} tm={tm} locked={!esPremium} active={theme === tm.id} onSelect={setTheme} />)}
+      </div>
+
+      {!esPremium && (
+        <p className="mt-3 rounded-lg bg-elevated px-3 py-2 text-[11px] text-muted">{t('dashboard.theme.lockedHint')}</p>
+      )}
+    </>
+  );
+}
+
 export default function ThemePicker({ theme, setTheme, esPremium }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -45,11 +69,12 @@ export default function ThemePicker({ theme, setTheme, esPremium }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-full border border-line bg-card px-3.5 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+        className="sk-boton-icono"
         aria-label={t('dashboard.theme.button')}
+        title={t('dashboard.theme.button')}
+        aria-expanded={open}
       >
-        <Palette size={16} className="text-brand" />
-        <span className="hidden sm:inline">{t('dashboard.theme.button')}</span>
+        <Palette size={17} className="text-brand" />
       </button>
 
       <AnimatePresence>
@@ -59,7 +84,7 @@ export default function ThemePicker({ theme, setTheme, esPremium }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-line bg-card p-4 shadow-soft"
+            className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-line bg-card p-4 shadow-xl"
           >
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-sm font-bold text-fg">{t('dashboard.theme.title')}</h4>
@@ -67,22 +92,7 @@ export default function ThemePicker({ theme, setTheme, esPremium }) {
                 {esPremium ? t('dashboard.plan.premium') : t('dashboard.plan.free')}
               </span>
             </div>
-
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.theme.basic')}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {FREE_THEMES.map((tm) => <Swatch key={tm.id} tm={tm} locked={false} active={theme === tm.id} onSelect={setTheme} />)}
-            </div>
-
-            <div className="mb-2 mt-4 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              <Crown size={12} className="text-amber-400" /> {t('dashboard.theme.premium')}
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {PREMIUM_THEMES.map((tm) => <Swatch key={tm.id} tm={tm} locked={!esPremium} active={theme === tm.id} onSelect={setTheme} />)}
-            </div>
-
-            {!esPremium && (
-              <p className="mt-3 rounded-lg bg-elevated px-3 py-2 text-[11px] text-muted">{t('dashboard.theme.lockedHint')}</p>
-            )}
+            <ThemeGrid theme={theme} setTheme={setTheme} esPremium={esPremium} />
           </motion.div>
         )}
       </AnimatePresence>

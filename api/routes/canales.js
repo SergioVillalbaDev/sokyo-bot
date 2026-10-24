@@ -17,6 +17,17 @@ const TIPOS = {
 };
 const TIPO_DE_VALOR = Object.fromEntries(Object.entries(TIPOS).map(([k, v]) => [v, k]));
 
+// Canales que Discord coloca en la lista del servidor: todos menos categorías e
+// hilos (los de tipos que el panel no edita, como los de medios, salen como 'otro').
+const HILOS = new Set([ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread]);
+const esOrdenable = (c) => !!c && c.type !== ChannelType.GuildCategory && !HILOS.has(c.type);
+// Orden en que Discord los enseña: dentro de cada categoría, primero los de texto
+// y después los de voz (cada grupo por su posición; a igualdad, el más antiguo).
+const VOZ = new Set([ChannelType.GuildVoice, ChannelType.GuildStageVoice]);
+const ordenDiscord = (a, b) => (VOZ.has(a.type) - VOZ.has(b.type))
+    || (a.rawPosition - b.rawPosition)
+    || (a.id.length - b.id.length) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 // Permisos con sentido para un permiso "por canal" (overwrite), agrupados por
 // contexto. Es un catálogo curado (no los ~40 flags de Discord), igual que
 // PERMISOS_CATALOGO hace para los roles.
@@ -27,8 +38,12 @@ const PERMISOS_CANAL = [
 ];
 const FLAGS_VALIDOS = new Set(PERMISOS_CANAL.flatMap((g) => g.permisos));
 
-module.exports = ({ client }) => {
+// `exigeArea` (de server.js): los cambios piden el área "config" de Acceso al
+// panel, la misma que muestra "Categorías y canales" en el menú.
+const pasar = () => (req, res, next) => next();
+module.exports = ({ client, exigeArea = pasar }) => {
     const router = express.Router();
+    const puedeEditar = exigeArea('config');
 
     // Saca del body una lista de overwrites {id, allow, deny} ya validada
     // (solo flags conocidos, máximo 50 entradas para no reventar la API).
@@ -89,8 +104,8 @@ module.exports = ({ client }) => {
             posicion: categoria.position,
             overwrites: serializarOverwrites(categoria, guild),
             canales: guild.channels.cache
-                .filter((c) => c.parentId === categoria.id)
-                .sort((a, b) => a.position - b.position)
+                .filter((c) => c.parentId === categoria.id && esOrdenable(c))
+                .sort(ordenDiscord)
                 .map((c) => serializarCanal(c, guild)),
         };
     }
@@ -106,12 +121,12 @@ module.exports = ({ client }) => {
 
             const categorias = guild.channels.cache
                 .filter((c) => c.type === ChannelType.GuildCategory)
-                .sort((a, b) => a.position - b.position)
+                .sort(ordenDiscord)
                 .map((c) => serializarCategoria(c, guild));
 
             const sinCategoria = guild.channels.cache
-                .filter((c) => !c.parentId && c.type !== ChannelType.GuildCategory && TIPO_DE_VALOR[c.type])
-                .sort((a, b) => a.position - b.position)
+                .filter((c) => !c.parentId && esOrdenable(c))
+                .sort(ordenDiscord)
                 .map((c) => serializarCanal(c, guild));
 
             res.json({ categorias, sinCategoria });
@@ -122,7 +137,7 @@ module.exports = ({ client }) => {
     });
 
     // Crear una categoría.
-    router.post('/config/:guildId/canales/categorias', async (req, res) => {
+    router.post('/config/:guildId/canales/categorias', puedeEditar, async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -142,7 +157,7 @@ module.exports = ({ client }) => {
     });
 
     // Editar una categoría (nombre, posición, permisos).
-    router.patch('/config/:guildId/canales/categorias/:id', async (req, res) => {
+    router.patch('/config/:guildId/canales/categorias/:id', puedeEditar, async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -163,7 +178,7 @@ module.exports = ({ client }) => {
     });
 
     // Eliminar una categoría (sus canales quedan sin categoría, como en Discord).
-    router.delete('/config/:guildId/canales/categorias/:id', async (req, res) => {
+    router.delete('/config/:guildId/canales/categorias/:id', puedeEditar, async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -178,8 +193,49 @@ module.exports = ({ client }) => {
         }
     });
 
+    // Reordenar de golpe (arrastrar y soltar en el panel): el orden de las
+    // categorías y, en el orden final, cada canal con la categoría donde queda.
+    // Todo va en UNA llamada a Discord, así no se topa con su límite de cambios.
+    router.put('/config/:guildId/canales/orden', puedeEditar, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const cuerpo = req.body || {}; // sin cuerpo JSON, Express 5 lo deja sin definir
+            const cats = Array.isArray(cuerpo.categorias) ? cuerpo.categorias.map(String) : [];
+            const lista = Array.isArray(cuerpo.canales) ? cuerpo.canales : [];
+            if (cats.length > 100 || lista.length > 500) return res.status(400).json({ error: 'Demasiados canales' });
+
+            const esCategoria = (id) => guild.channels.cache.get(id)?.type === ChannelType.GuildCategory;
+            if (new Set(cats).size !== cats.length || !cats.every(esCategoria)) return res.status(400).json({ error: 'Categoría no válida' });
+
+            const posiciones = cats.map((id, i) => ({ channel: id, position: i }));
+            const enCategoria = new Map(); // categoría ('' = sin categoría) -> cuántos van ya
+            const vistos = new Set();
+            for (const it of lista) {
+                const id = String(it && it.id);
+                const canal = guild.channels.cache.get(id);
+                if (!esOrdenable(canal) || vistos.has(id)) {
+                    return res.status(400).json({ error: 'Canal no válido' });
+                }
+                const parent = it.categoriaId ? String(it.categoriaId) : null;
+                if (parent && !esCategoria(parent)) return res.status(400).json({ error: 'Categoría no válida' });
+                vistos.add(id);
+                const n = enCategoria.get(parent || '') || 0;
+                enCategoria.set(parent || '', n + 1);
+                // Al cambiar de categoría NO se copian los permisos de la nueva:
+                // el canal conserva los suyos (como al editarlo a mano).
+                posiciones.push({ channel: id, position: n, parent, lockPermissions: false });
+            }
+            if (posiciones.length) await guild.channels.setPositions(posiciones);
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al reordenar canales:', error);
+            res.status(500).json({ error: 'No se pudo guardar el orden' });
+        }
+    });
+
     // Crear un canal (texto, voz, anuncios, foro o escenario).
-    router.post('/config/:guildId/canales', async (req, res) => {
+    router.post('/config/:guildId/canales', puedeEditar, async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -215,7 +271,7 @@ module.exports = ({ client }) => {
     });
 
     // Editar un canal (cualquier campo, incluida su categoría o sus permisos).
-    router.patch('/config/:guildId/canales/:id', async (req, res) => {
+    router.patch('/config/:guildId/canales/:id', puedeEditar, async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -244,7 +300,7 @@ module.exports = ({ client }) => {
     });
 
     // Eliminar un canal.
-    router.delete('/config/:guildId/canales/:id', async (req, res) => {
+    router.delete('/config/:guildId/canales/:id', puedeEditar, async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });

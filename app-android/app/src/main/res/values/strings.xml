@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sokyo Panel</string>
+    <string name="hostname" translatable="false">dashboard.sokyo.studio</string>
+    <string name="launch_url" translatable="false">https://dashboard.sokyo.studio/panel</string>
+    <string name="asset_statements" translatable="false">
+        [{
+            \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+            \"target\": {
+                \"namespace\": \"web\",
+                \"site\": \"https://dashboard.sokyo.studio\"
+            }
+        }]
+    </string>
+</resources>

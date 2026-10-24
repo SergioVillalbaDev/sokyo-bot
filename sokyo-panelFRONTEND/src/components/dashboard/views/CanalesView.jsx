@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
   FolderTree, FolderPlus, Plus, Pencil, Trash2, X, ChevronDown,
-  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search,
+  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search, Move, CheckCircle2,
 } from 'lucide-react';
+import OrdenarCanales from './OrdenarCanales';
 import { Toggle } from '../../ui/primitives';
 import { ESTILOS_FUENTE, aplicarEstilo } from '../../../lib/fancyText';
 
@@ -21,8 +22,11 @@ export default function CanalesView({ dash }) {
   const {
     estructuraCanales, permisosCanalCatalogo, roles,
     crearCategoriaCanal, editarCategoriaCanal, eliminarCategoriaCanal,
-    crearCanalServidor, editarCanalServidor, eliminarCanalServidor,
+    crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales,
   } = dash;
+  // Modo "Mover y ordenar" (arrastrar y soltar) y aviso de guardado.
+  const [ordenando, setOrdenando] = useState(false);
+  const [ordenGuardado, setOrdenGuardado] = useState(false);
 
   const { categorias = [], sinCategoria = [] } = estructuraCanales || {};
 
@@ -31,11 +35,28 @@ export default function CanalesView({ dash }) {
   // Modal de canal: null = cerrado · {categoriaId} = creando dentro de esa categoría · {canal} = editando.
   const [editandoCanal, setEditandoCanal] = useState(null);
 
+  if (ordenando) {
+    return (
+      <OrdenarCanales
+        estructura={estructuraCanales || { categorias: [], sinCategoria: [] }}
+        onGuardar={reordenarCanales}
+        onCerrar={(ok) => { setOrdenando(false); if (ok) { setOrdenGuardado(true); setTimeout(() => setOrdenGuardado(false), 3500); } }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted">{t('dashboard.canales_v.intro')}</p>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 text-sm text-muted">{t('dashboard.canales_v.intro')}</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setOrdenando(true)}
+            disabled={categorias.length === 0 && sinCategoria.length === 0}
+            className="flex items-center gap-2 rounded-2xl border border-brand/40 bg-brand/10 px-4 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:opacity-40"
+          >
+            <Move size={16} className="text-brand" /> {t('dashboard.canales_v.reorder')}
+          </button>
           <button
             onClick={() => setEditandoCanal({ categoriaId: null })}
             className="flex items-center gap-2 rounded-2xl border border-line px-4 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand"
@@ -50,6 +71,14 @@ export default function CanalesView({ dash }) {
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {ordenGuardado && (
+          <motion.p initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 rounded-2xl border border-success/40 bg-success/10 px-4 py-2.5 text-sm font-semibold text-success">
+            <CheckCircle2 size={16} /> {t('dashboard.canales_v.orderSaved')}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       {categorias.length === 0 && sinCategoria.length === 0 ? (
         <div className={`${card} flex flex-col items-center gap-2 p-12 text-center`}>
