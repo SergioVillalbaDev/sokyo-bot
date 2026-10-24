@@ -1,6 +1,7 @@
 const { Events, ChannelType, PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { construirBienvenida } = require('../utils/onboarding.js');
+const { cargarInvitaciones } = require('../utils/invitaciones.js');
 
 module.exports = {
     name: Events.GuildCreate,
@@ -9,6 +10,8 @@ module.exports = {
             // 1. Crear la configuración del servidor si aún no existe.
             let config = await ServidorConfig.findOne({ guildId: guild.id });
             if (!config) config = await ServidorConfig.create({ guildId: guild.id });
+            // Si vuelve a un servidor con el seguimiento de invitaciones activo.
+            if (config.crecimiento?.invitaciones?.activo) cargarInvitaciones(guild).catch(() => {});
 
             // 1.5. PRUEBA GRATUITA de Pro (7 días) la PRIMERA vez que entra el bot.
             // Deja que prueben las funciones premium; al caducar, el barrido los

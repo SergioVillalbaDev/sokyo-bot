@@ -52,5 +52,6 @@ const modoClearDev = process.argv[2] === 'clear-dev';
         }
     } catch (e) {
         console.error(e);
+        process.exitCode = 1; // el despliegue automático lo usa para saber si ha fallado
     }
 })();

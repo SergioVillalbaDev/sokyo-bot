@@ -140,6 +140,10 @@
   --color-on-brand: var(--on-brand);
   --color-ok: var(--success);
   --color-warn: var(--warning);
+  /* Alias con el nombre completo: la mayoría de las vistas usan text-success,
+     bg-warning/10… y sin ellos esas clases no generaban ningún color. */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-danger: var(--danger);
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;

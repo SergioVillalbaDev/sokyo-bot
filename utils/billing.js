@@ -110,7 +110,7 @@ async function consumirIA(guildId, cfg) {
             iaUsos: { $cond: [{ $eq: ['$iaMesRef', mes] }, { $add: [{ $ifNull: ['$iaUsos', 0] }, 1] }, 1] },
             iaMesRef: mes,
         } }],
-        { returnDocument: 'after' },
+        { returnDocument: 'after', updatePipeline: true }, // Mongoose 9 exige permitir el pipeline
     );
     const usos = r.iaUsos;
     return { cuota, usos, restantes: Math.max(0, cuota - usos), mes };

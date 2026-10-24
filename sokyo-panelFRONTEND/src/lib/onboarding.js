@@ -90,6 +90,7 @@ const buildSteps = (t) => {
     step('plan', '[data-tour="nav-cuenta"]', 'right', 'center'),
     step('data', '[data-tour="nav-datos"]', 'right', 'center'),
     step('community', '[data-tour="nav-entrada"]', 'right', 'center'),
+    step('growth', '[data-tour="nav-crecimiento"]', 'right', 'center'),
     step('music', '[data-tour="nav-musica"]', 'right', 'center'),
     step('tickets', '[data-tour="nav-tickets"]', 'right', 'center'),
     step('roles', '[data-tour="nav-roles"]', 'right', 'center'),

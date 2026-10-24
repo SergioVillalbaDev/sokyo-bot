@@ -44,6 +44,19 @@ reiniciar() {
     pm2 restart "$APP" >/dev/null 9>&-
 }
 
+# Si han cambiado los slash commands, se registran en Discord (si no, los nuevos no
+# aparecen). Solo tras arrancar bien: no se publican comandos de una versión que
+# se vaya a deshacer. Un fallo aquí no tumba el despliegue.
+registrar_comandos() {
+    cambio '^(slash/|deploy-commands\.js$)' || return 0
+    log "Registrando los slash commands en Discord"
+    if timeout 120 node deploy-commands.js >/dev/null 2>&1; then
+        log "✓ Slash commands registrados (pueden tardar unos minutos en verse en Discord)"
+    else
+        log "✗ No se pudieron registrar los slash commands: ejecuta a mano node deploy-commands.js"
+    fi
+}
+
 # Instala dependencias y compila el panel según lo que haya cambiado.
 # Solo devuelve error si fallan las dependencias del bot (imprescindibles).
 preparar() {
@@ -122,6 +135,7 @@ main() {
         git rev-parse HEAD > .deploy-ok
         rm -f .deploy-fallido
         log "✓ Desplegado $(corto) (v$(node -p "require('./package.json').version"))"
+        registrar_comandos
         exit 0
     fi
 

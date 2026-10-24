@@ -8,7 +8,7 @@ const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
 // Todas las secciones gobernables del panel (mismo orden que el nav). Incluye
 // 'cuenta' (facturación) para poder ocultársela a los moderadores.
-const AREAS = ['cuenta', 'datos', 'entrada', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
+const AREAS = ['cuenta', 'datos', 'entrada', 'crecimiento', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
 const areasVacias = () => Object.fromEntries(AREAS.map((a) => [a, []]));
 
 // Selector de varios roles como chips que se activan/desactivan al pulsar.

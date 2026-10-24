@@ -47,6 +47,10 @@ import EncuestasView from './views/EncuestasView';
 import SugerenciasView from './views/SugerenciasView';
 import PresentacionesView from './views/PresentacionesView';
 import DinamicasView from './views/DinamicasView';
+import CrecInvitacionesView from './views/CrecInvitacionesView';
+import CrecBumpView from './views/CrecBumpView';
+import CrecPaginaView from './views/CrecPaginaView';
+import CrecDirectosView from './views/CrecDirectosView';
 
 export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   const { t } = useTranslation();
@@ -127,6 +131,10 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'com-sugerencias') return <SugerenciasView dash={dash} />;
     if (activeTab === 'com-presentaciones') return <PresentacionesView dash={dash} />;
     if (activeTab === 'com-dinamicas') return <DinamicasView dash={dash} />;
+    if (activeTab === 'crec-invitaciones') return <CrecInvitacionesView dash={dash} />;
+    if (activeTab === 'crec-bump') return <CrecBumpView dash={dash} />;
+    if (activeTab === 'crec-pagina') return <CrecPaginaView dash={dash} />;
+    if (activeTab === 'crec-directos') return <CrecDirectosView dash={dash} />;
     if (activeTab === 'musica') return <MusicaView dash={dash} />;
     if (activeTab === 'voz-temporal') return <VozTemporalView dash={dash} />;
     if (activeTab === 'owner-subs') return <OwnerSubsView dash={dash} />;

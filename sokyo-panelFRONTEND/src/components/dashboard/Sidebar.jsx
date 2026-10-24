@@ -12,7 +12,7 @@ const esOwner = !!getStaffSession()?.owner;
 
 export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, mobileOpen, setMobileOpen, onExitToLanding, servidorInfo, esPremium, onRequestUpgrade, servidores = [], guildId, setGuildId, permisos, moduleStatus = {}, onLogout }) {
   const { t } = useTranslation();
-  const [openGroups, setOpenGroups] = useState({ tickets: true, logs: false, config: true });
+  const [openGroups, setOpenGroups] = useState({ tickets: true, config: true });
 
   // Solo los grupos que el usuario puede ver (según su rol). Sin datos aún → todos.
   // Los grupos `owner` solo se muestran a los propietarios del bot (OWNER_IDS).
@@ -23,9 +23,13 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
   const nombreServidor = seleccionado?.nombre || servidorInfo?.nombre || 'Mi Servidor';
   const iconoServidor = seleccionado?.icono || servidorInfo?.icono;
 
+  // El grupo de la pestaña abierta se despliega solo (también al llegar por un
+  // enlace directo o un acceso desde otra pestaña) hasta que se cierre a mano.
+  const contieneActiva = (id) => (navGroups.find((g) => g.id === id)?.items || []).some((it) => it.tab === activeTab);
+  const estaAbierto = (id) => (openGroups[id] === undefined ? contieneActiva(id) : openGroups[id]);
   const toggleGroup = (id) => {
     if (collapsed) { setCollapsed(false); setOpenGroups((g) => ({ ...g, [id]: true })); return; }
-    setOpenGroups((g) => ({ ...g, [id]: !g[id] }));
+    setOpenGroups((g) => ({ ...g, [id]: !(g[id] === undefined ? contieneActiva(id) : g[id]) }));
   };
 
   // Navegar a una sección también cierra el drawer en móvil (en escritorio
@@ -155,7 +159,7 @@ export default function Sidebar({ activeTab, setActiveTab, collapsed, setCollaps
         </button>
 
         {gruposVisibles.map((group) => {
-          const open = openGroups[group.id];
+          const open = estaAbierto(group.id);
           const groupActive = group.items.some((it) => it.tab === activeTab);
           return (
             <div key={group.id}>

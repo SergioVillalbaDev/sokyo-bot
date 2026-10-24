@@ -1,7 +1,7 @@
 // Comunidad · Sorteos — crea y gestiona sorteos en tu servidor de Discord.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck, Sparkles, Plus, X } from 'lucide-react';
+import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck, Sparkles, Plus, X, Send, ArrowRight } from 'lucide-react';
 import { CierrePicker, SubirImagen } from './comunidadShared.jsx';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -19,7 +19,8 @@ function tiempoRestante(fechaFin) {
 
 export default function SorteosView({ dash }) {
   const { t } = useTranslation();
-  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen, cargarParticipantesSorteo } = dash;
+  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen, cargarParticipantesSorteo, configServidor, setActiveTab } = dash;
+  const invitacionesActivas = !!(configServidor && configServidor.crecimiento && configServidor.crecimiento.invitaciones && configServidor.crecimiento.invitaciones.activo);
 
   const [partLista, setPartLista] = useState({}); // id -> array (cargado) | null (cargando) | undefined (oculto)
   const verParticipantes = async (id) => {
@@ -38,6 +39,10 @@ export default function SorteosView({ dash }) {
   const [rolRequerido, setRolRequerido] = useState('');
   const [imagen, setImagen] = useState('');
   const [multiplicadores, setMultiplicadores] = useState([]);
+  // Invitaciones (Crecimiento): mínimo para participar y papeletas extra por persona invitada.
+  const [invitacionesMin, setInvitacionesMin] = useState(0);
+  const [entradasPorInvitacion, setEntradasPorInvitacion] = useState(0);
+  const [maxEntradasExtra, setMaxEntradasExtra] = useState(10);
   const [estado, setEstado] = useState('');
 
   const addMulti = () => setMultiplicadores((p) => [...p, { rolId: '', multiplicador: 2 }]);
@@ -57,11 +62,15 @@ export default function SorteosView({ dash }) {
       rolRequerido: rolRequerido || null,
       imagen: imagen || null,
       multiplicadores: multiplicadores.filter((m) => m.rolId).map((m) => ({ rolId: m.rolId, multiplicador: Number(m.multiplicador) || 2 })),
+      invitacionesMin: Number(invitacionesMin) || 0,
+      entradasPorInvitacion: Number(entradasPorInvitacion) || 0,
+      maxEntradasExtra: Number(maxEntradasExtra) || 10,
     });
     setEstado(r?.error ? `error:${r.error}` : 'ok');
     if (!r?.error) {
       setNombre(''); setPremio(''); setCanalId(''); setFechaFin('');
       setGanadores(1); setNivelMin(0); setRolRequerido(''); setImagen(''); setMultiplicadores([]);
+      setInvitacionesMin(0); setEntradasPorInvitacion(0); setMaxEntradasExtra(10);
     }
   };
 
@@ -113,12 +122,22 @@ export default function SorteosView({ dash }) {
                         )}
                         {s.nivelMin > 0 && (
                           <span className="flex items-center gap-1 rounded-full bg-elevated px-2.5 py-0.5 text-xs text-muted">
-                            <ShieldCheck size={10} /> Nv. {s.nivelMin}+
+                            <ShieldCheck size={10} /> {t('dashboard.sorteos_v.levelShort')} {s.nivelMin}+
                           </span>
                         )}
                         {s.rolRequerido && (
                           <span className="flex items-center gap-1 rounded-full bg-elevated px-2.5 py-0.5 text-xs text-muted">
                             @{nombreRol(s.rolRequerido)}
+                          </span>
+                        )}
+                        {s.invitacionesMin > 0 && (
+                          <span className="flex items-center gap-1 rounded-full bg-elevated px-2.5 py-0.5 text-xs text-muted">
+                            <Send size={10} /> {t('dashboard.sorteos_v.invitesBadge', { n: s.invitacionesMin })}
+                          </span>
+                        )}
+                        {s.entradasPorInvitacion > 0 && (
+                          <span className="flex items-center gap-1 rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">
+                            🎟️ {t('dashboard.sorteos_v.perInviteBadge', { n: s.entradasPorInvitacion })}
                           </span>
                         )}
                       </div>
@@ -304,8 +323,39 @@ export default function SorteosView({ dash }) {
                 </div>
               ))}
               <button type="button" onClick={addMulti} className="flex items-center gap-1.5 rounded-xl border border-dashed border-line px-3 py-2 text-sm text-muted transition-colors hover:border-brand hover:text-brand">
-                <Plus size={14} /> Añadir multiplicador
+                <Plus size={14} /> {t('dashboard.sorteos_v.addMultiplier')}
               </button>
+            </div>
+          </div>
+
+          {/* Invitaciones: mínimo para participar y papeletas extra por invitar */}
+          <div className="block sm:col-span-2">
+            <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-fg">
+              <Send size={14} className="text-brand" /> {t('dashboard.sorteos_v.invitesTitle')}
+            </span>
+            <p className="mb-2 text-xs text-muted">{t('dashboard.sorteos_v.invitesDesc')}</p>
+            {!invitacionesActivas && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-warning/40 bg-warning/10 px-3 py-2">
+                <span className="min-w-0 flex-1 text-xs text-fg">{t('dashboard.sorteos_v.invitesOff')}</span>
+                <button type="button" onClick={() => setActiveTab('crec-invitaciones')}
+                  className="flex items-center gap-1 rounded-xl border border-line bg-bg px-2.5 py-1 text-xs font-semibold text-fg transition-colors hover:border-brand">
+                  {t('dashboard.sorteos_v.goInvites')} <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted">{t('dashboard.sorteos_v.invitesMin')}</span>
+                <input type="number" min={0} max={100} value={invitacionesMin} onChange={(e) => setInvitacionesMin(e.target.value)} className={input} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted">{t('dashboard.sorteos_v.perInvite')}</span>
+                <input type="number" min={0} max={10} value={entradasPorInvitacion} onChange={(e) => setEntradasPorInvitacion(e.target.value)} className={input} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-muted">{t('dashboard.sorteos_v.maxExtra')}</span>
+                <input type="number" min={1} max={100} value={maxEntradasExtra} disabled={!Number(entradasPorInvitacion)} onChange={(e) => setMaxEntradasExtra(e.target.value)} className={`${input} disabled:opacity-50`} />
+              </label>
             </div>
           </div>
         </div>

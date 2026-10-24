@@ -884,6 +884,33 @@ export function useDashboard() {
     } catch (error) { console.error('Error probando resumen:', error); return { error: 'Network error' }; }
   };
 
+  // --- CRECIMIENTO (invitaciones, bump, página pública, directos) ---
+  // Cada vista guarda su propio estado; aquí solo las llamadas. Devuelven los
+  // datos de la API o { error }. Al guardar se recarga la configuración para que
+  // el menú marque bien qué módulos están activos.
+  const crecimientoFetch = async (ruta, opciones = {}) => {
+    if (!gidActivo()) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/config/${gidActivo()}/crecimiento/${ruta}`, opciones);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: data.error || `HTTP ${res.status}` };
+      return data;
+    } catch (error) {
+      console.error('Error en Crecimiento:', error);
+      return { error: 'Network error' };
+    }
+  };
+  const conJson = (method, datos) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos || {}) });
+  const cargarCrecimiento = (seccion) => crecimientoFetch(seccion);
+  const guardarCrecimiento = async (seccion, datos) => {
+    const r = await crecimientoFetch(seccion, conJson('PUT', datos));
+    if (!r.error) cargarConfiguracion();
+    return r;
+  };
+  const anadirFuenteDirecto = (tipo, entrada) => crecimientoFetch('directos/fuentes', conJson('POST', { tipo, entrada }));
+  const eliminarFuenteDirecto = (id) => crecimientoFetch(`directos/fuentes/${id}`, { method: 'DELETE' });
+  const probarFuenteDirecto = (id) => crecimientoFetch(`directos/fuentes/${id}/probar`, { method: 'POST' });
+
   // --- ANALÍTICA (Pro) ---
   const [analitica, setAnalitica] = useState(null);
   const cargarAnalitica = (dias = 30) => {
@@ -1356,13 +1383,14 @@ export function useDashboard() {
     else if (activeTab === 'owner-subs') { cargarOwnerServidores(); }
     else if (activeTab === 'datos-analitica') { cargarConfiguracion(); cargarAnalitica(); }
     else if (activeTab === 'datos-resumen') { cargarConfiguracion(); cargarCanales(); }
-    else if (activeTab === 'com-sorteos') { cargarSorteos(); cargarCanales(); cargarRoles(); }
+    else if (activeTab === 'com-sorteos') { cargarSorteos(); cargarCanales(); cargarRoles(); cargarConfiguracion(); }
     else if (activeTab === 'com-eventos') { cargarEventos(); cargarCanales(); }
     else if (activeTab === 'com-encuestas') { cargarEncuestas(); cargarCanales(); }
     else if (activeTab === 'com-sugerencias') { cargarSugerencias(); cargarCanales(); cargarConfiguracion(); }
     else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarConfiguracion(); }
     else if (activeTab === 'com-dinamicas') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarTrivia(); }
     else if (activeTab === 'musica') { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
+    else if (activeTab.startsWith('crec-')) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     else if (activeTab === 'voz-temporal') { cargarConfiguracion(); cargarCanales(); cargarCanalesVoz(); cargarCategorias(); cargarVozActivos(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
@@ -1418,6 +1446,10 @@ export function useDashboard() {
       'voz-temporal': b(c.vozTemporal && c.vozTemporal.activo),
       'datos-resumen': b(c.resumenDiario && c.resumenDiario.activo),
       'com-sugerencias': b(c.canalSugerencias),
+      'crec-invitaciones': b(c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.activo),
+      'crec-bump': b(c.crecimiento && c.crecimiento.bump && c.crecimiento.bump.activo),
+      'crec-pagina': b(c.crecimiento && c.crecimiento.pagina && c.crecimiento.pagina.activo),
+      'crec-directos': b(c.crecimiento && c.crecimiento.directos && c.crecimiento.directos.activo),
     };
   })();
 
@@ -1463,6 +1495,8 @@ export function useDashboard() {
     // IA en tickets + transcript + analítica (Pro)
     iaTicket, informeIA, descargarTranscript, analitica, cargarAnalitica,
     guardarResumen, probarResumen,
+    // crecimiento
+    cargarCrecimiento, guardarCrecimiento, anadirFuenteDirecto, eliminarFuenteDirecto, probarFuenteDirecto,
     // comunidad: sorteos, eventos, encuestas, sugerencias, presentaciones
     sorteos, crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, cargarSorteos, cargarParticipantesSorteo,
     eventos, crearEvento, eliminarEvento, cargarEventos,

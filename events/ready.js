@@ -10,6 +10,7 @@ const { barrerCanales: barrerCanalesVoz } = require('../utils/vozTemporal.js');
 const { anunciarActualizacion } = require('../utils/anuncioActualizacion.js');
 const { adaptarTodos } = require('../utils/textosPorDefecto.js');
 const { esperarMongo } = require('../utils/config.js');
+const { cargarTodas: cargarInvitaciones } = require('../utils/invitaciones.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -38,6 +39,9 @@ module.exports = {
 
         // Textos de fábrica de cada servidor en su idioma (p. ej. "Abrir un ticket" en español).
         esperarMongo().then(adaptarTodos).catch((e) => console.error('Adaptar textos al idioma:', e.message));
+
+        // Crecimiento: usos actuales de las invitaciones (para saber quién invita a quién).
+        esperarMongo().then(() => cargarInvitaciones(client)).catch((e) => console.error('Cargar invitaciones:', e.message));
 
         // Primera vez con una versión nueva: avisar de "Bot actualizado" (ANUNCIO_SERVIDOR).
         anunciarActualizacion(client).catch((e) => console.error('Aviso de actualización:', e.message));

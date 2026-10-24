@@ -3,6 +3,7 @@ const Log = require('../models/Log.js');
 const { getConfig, logActivo } = require('../utils/config.js');
 const { enviarLogADiscord } = require('../utils/logsManager.js');
 const { t } = require('../utils/i18n.js');
+const bump = require('../utils/bump.js');
 
 module.exports = {
     name: Events.MessageUpdate,
@@ -13,6 +14,11 @@ module.exports = {
                 try { newMessage = await newMessage.fetch(); } catch { return; }
             }
 
+            // Crecimiento: DISBOARD edita su "pensando…" con el resultado del /bump.
+            if (newMessage.author?.id === bump.DISBOARD_ID) {
+                await bump.procesarMensaje(newMessage).catch((e) => console.error('Bump (DISBOARD):', e.message));
+                return;
+            }
             if (newMessage.author?.bot) return;
             // Discord también emite "update" al cargar la vista previa de un enlace;
             // solo las ediciones reales tienen editedTimestamp.

@@ -879,7 +879,7 @@ module.exports = (client) => {
     // lista vacía = visible para todos; con roles = solo quien tenga uno de ellos.
     // Debe cubrir TODOS los grupos del nav (incluida 'cuenta' = facturación) para
     // que se puedan restringir; si falta uno, ese grupo sería visible para todos.
-    const AREAS = ['cuenta', 'datos', 'entrada', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
+    const AREAS = ['cuenta', 'datos', 'entrada', 'crecimiento', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
     app.get('/api/mis-permisos', async (req, res) => {
         try {
             const todo = () => res.json({ areas: Object.fromEntries(AREAS.map((a) => [a, true])) });
@@ -1948,11 +1948,25 @@ app.get('/api/stats/uso', async (req, res) => {
     // --- SEGURIDAD: exportar / importar configuración del servidor ---
     // Campos que NO se exportan/importan (identidad, estado interno, premium).
     const CAMPOS_NO_BACKUP = ['_id', '__v', 'guildId', 'esPremium', 'premiumHasta', 'autoAsignarIndex'];
+    // Crecimiento: la dirección de la página, su invitación, las visitas y el estado
+    // del bump son de ESTE servidor (la dirección es única: en otro chocaría).
+    const CRECIMIENTO_NO_BACKUP = {
+        pagina: ['activo', 'slug', 'invitacionCodigo', 'visitas'],
+        bump: ['proximoBump', 'recordado', 'ultimoCanalId', 'ultimoAvisoId', 'ultimoBumpPor', 'ultimoBumpFecha'],
+    };
+    const limpiarCrecimiento = (c) => {
+        if (!c || typeof c !== 'object') return c;
+        for (const [sec, campos] of Object.entries(CRECIMIENTO_NO_BACKUP)) {
+            if (c[sec] && typeof c[sec] === 'object') for (const k of campos) delete c[sec][k];
+        }
+        return c;
+    };
     app.get('/api/config/:guildId/export', exigeArea('config'), async (req, res) => {
         try {
             const cfg = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean();
             if (!cfg) return res.status(404).json({ error: 'Sin configuración' });
             for (const k of CAMPOS_NO_BACKUP) delete cfg[k];
+            limpiarCrecimiento(cfg.crecimiento);
             res.json({ version: 1, exportado: new Date().toISOString(), config: cfg });
         } catch (error) {
             console.error('Error al exportar config:', error);
@@ -1966,8 +1980,40 @@ app.get('/api/stats/uso', async (req, res) => {
             if (typeof entrante !== 'object' || Array.isArray(entrante)) return res.status(400).json({ error: 'Formato no válido' });
             const cambios = { ...entrante };
             for (const k of CAMPOS_NO_BACKUP) delete cambios[k];
+            const guildId = req.params.guildId;
+            // Quién entra al panel y quién modera solo lo cambia un administrador (igual
+            // que en Acceso y permisos): importando tampoco se lo puede dar nadie más.
+            let esAdmin = !req.staff || req.staff.owner;
+            if (!esAdmin) {
+                const g = client.guilds.cache.get(guildId);
+                const m = g ? await g.members.fetch(req.staff.id).catch(() => null) : null;
+                esAdmin = !!(m && m.permissions.has(PermissionsBitField.Flags.Administrator));
+            }
+            if (!esAdmin) for (const k of ['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']) delete cambios[k];
+            // Los roles que reparte el bot (autorol, recompensas, verificación…) siguen la
+            // misma regla de jerarquía que al configurarlos uno a uno.
+            const rolesQueDaElBot = (c) => [
+                ...(c.autoRoles || []), ...(c.autoRolesBots || []),
+                ...(c.recompensasNivel || []).map((r) => r && r.rolId),
+                c.verificacion && c.verificacion.rolVerificadoId,
+                c.embudoAB && c.embudoAB.rolVerificadoId,
+                c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
+                ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
+            ].filter((x) => typeof x === 'string' && x);
+            const actualCfg = (await ServidorConfig.findOne({ guildId }).lean()) || {};
+            const errRoles = await errorRolesNuevos(client, req.staff, guildId, rolesQueDaElBot(entrante), rolesQueDaElBot(actualCfg));
+            if (errRoles) return res.status(403).json({ error: errRoles });
             // mensajeId de la verificación no debe importarse (es de otro servidor).
             if (cambios.verificacion) delete cambios.verificacion.mensajeId;
+            // Crecimiento campo a campo: así no se pisa la página ni el bump de este servidor.
+            if (cambios.crecimiento && typeof cambios.crecimiento === 'object') {
+                const c = limpiarCrecimiento(cambios.crecimiento);
+                delete cambios.crecimiento;
+                for (const [sec, valores] of Object.entries(c)) {
+                    if (!valores || typeof valores !== 'object' || Array.isArray(valores)) continue;
+                    for (const [k, v] of Object.entries(valores)) cambios[`crecimiento.${sec}.${k}`] = v;
+                }
+            }
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: cambios },
@@ -2204,7 +2250,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (Array.isArray(req.body.rolesPanelAcceso)) cambios.rolesPanelAcceso = req.body.rolesPanelAcceso.filter(Boolean);
             if (Array.isArray(req.body.rolesModeracion)) cambios.rolesModeracion = req.body.rolesModeracion.filter(Boolean);
             if (req.body.accesoAreas && typeof req.body.accesoAreas === 'object') {
-                ['cuenta', 'datos', 'entrada', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'].forEach((a) => {
+                AREAS.forEach((a) => {
                     if (Array.isArray(req.body.accesoAreas[a])) cambios[`accesoAreas.${a}`] = req.body.accesoAreas[a].filter(Boolean);
                 });
             }
@@ -3237,6 +3283,11 @@ app.get('/api/stats/uso', async (req, res) => {
 
     // --- COMUNIDAD: sorteos, eventos, encuestas, sugerencias, presentaciones ---
     require('./comunidadRoutes.js')(app, client);
+
+    // --- CRECIMIENTO: invitaciones, bump, página pública y directos (panel) ---
+    require('./crecimientoRoutes.js')(app, client, { exigeArea });
+    // Páginas públicas (/s/<dirección>, /servidores, /sitemap.xml): sin sesión.
+    require('./paginaPublica.js')(app, client);
 
     // --- Frontend del panel (SPA de React, compilada con `npm run build`) ---
     // Servimos el build del panel desde el MISMO proceso y origen que la API.

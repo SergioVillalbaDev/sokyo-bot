@@ -192,6 +192,30 @@ export const sectionTours = {
     { id: 'importar', sel: '[data-help="backup-importar"]', side: 'bottom', align: 'start' },
   ],
 
+  'crec-invitaciones': [
+    { id: 'config', sel: '[data-help="inv-config"]', side: 'bottom', align: 'start' },
+    { id: 'reglas', sel: '[data-help="inv-reglas"]', side: 'top', align: 'start' },
+    { id: 'recompensas', sel: '[data-help="inv-recompensas"]', side: 'top', align: 'start' },
+    { id: 'ranking', sel: '[data-help="inv-ranking"]', side: 'top', align: 'start' },
+  ],
+
+  'crec-bump': [
+    { id: 'config', sel: '[data-help="bump-config"]', side: 'bottom', align: 'start' },
+    { id: 'estado', sel: '[data-help="bump-estado"]', side: 'bottom', align: 'start' },
+    { id: 'ranking', sel: '[data-help="bump-ranking"]', side: 'top', align: 'start' },
+  ],
+
+  'crec-pagina': [
+    { id: 'config', sel: '[data-help="pagina-config"]', side: 'bottom', align: 'start' },
+    { id: 'opciones', sel: '[data-help="pagina-opciones"]', side: 'top', align: 'start' },
+    { id: 'enlace', sel: '[data-help="pagina-enlace"]', side: 'bottom', align: 'start' },
+  ],
+
+  'crec-directos': [
+    { id: 'config', sel: '[data-help="directos-config"]', side: 'bottom', align: 'start' },
+    { id: 'fuentes', sel: '[data-help="directos-fuentes"]', side: 'top', align: 'start' },
+  ],
+
   'com-sorteos': [
     { id: 'activos', sel: '[data-help="sorteos-activos"]', side: 'bottom', align: 'start' },
     { id: 'crear', sel: '[data-help="sorteos-crear"]', side: 'top', align: 'start' },

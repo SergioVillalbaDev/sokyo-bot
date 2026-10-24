@@ -16,6 +16,9 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const { enviarResumen } = require('./resumenDiario.js');
 const { barrerComunidad } = require('./comunidad.js');
 const { barrerDinamicas } = require('./dinamicas.js');
+const { barrerInvitaciones } = require('./invitaciones.js');
+const { barrerBumps } = require('./bump.js');
+const { revisarDirectos } = require('./directos.js');
 const { t } = require('./i18n.js');
 const PerfilEmpleo = require('../models/PerfilEmpleo.js');
 const { ejecutarBusquedaEmpleo, enviarResumenSemanalEmpleo } = require('./busquedaEmpleo.js');
@@ -132,9 +135,18 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await enviarRecordatoriosPendientes(client); } catch (e) { console.error('Programador (recordatorios):', e.message); }
         try { await barrerComunidad(client); } catch (e) { console.error('Programador (comunidad):', e.message); }
         try { await barrerDinamicas(client); } catch (e) { console.error('Programador (dinámicas):', e.message); }
+        try { await barrerInvitaciones(client); } catch (e) { console.error('Programador (invitaciones):', e.message); }
+        try { await barrerBumps(client); } catch (e) { console.error('Programador (bump):', e.message); }
     });
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
+
+    // Crecimiento: avisos de directos de Twitch y vídeos de YouTube (cada 2 min).
+    const tickDirectos = conGuardiaDeReentrancia('directos', async () => {
+        try { await revisarDirectos(client); } catch (e) { console.error('Programador (directos):', e.message); }
+    });
+    setTimeout(tickDirectos, 40 * 1000);
+    setInterval(tickDirectos, 2 * 60 * 1000);
 
     // Red de seguridad: devuelve a Free los servidores con premium caducado (cada hora).
     const tickPremium = conGuardiaDeReentrancia('premium', async () => {
