@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Radio, Tv, Plus, Loader2, Send, Trash2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
+import { getStaffSession } from '../../../lib/api';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Aviso, BotonGuardar } from './crecimientoShared';
 import { relativo } from './crecimientoUtils';
 
@@ -169,9 +170,14 @@ export default function CrecDirectosView({ dash }) {
         )}
       </div>
 
+      {/* Las claves del .env solo las puede poner quien lleva el bot (OWNER_IDS). */}
       <Aviso>
-        {datos.modoTwitch === 'api' ? t('dashboard.crec_v.directos.twitchApi') : t('dashboard.crec_v.directos.twitchBasic')}{' '}
-        {datos.youtubeApi ? t('dashboard.crec_v.directos.ytApi') : t('dashboard.crec_v.directos.ytBasic')}{' '}
+        {getStaffSession()?.owner && (
+          <>
+            {datos.modoTwitch === 'api' ? t('dashboard.crec_v.directos.twitchApi') : t('dashboard.crec_v.directos.twitchBasic')}{' '}
+            {datos.youtubeApi ? t('dashboard.crec_v.directos.ytApi') : t('dashboard.crec_v.directos.ytBasic')}{' '}
+          </>
+        )}
         {t('dashboard.crec_v.directos.frequency')}
       </Aviso>
     </div>

@@ -201,6 +201,7 @@ const TEXTO = {
         explorar: 'Explorar servidores',
         hecho: 'Página creada con',
         anadir: 'Añade Sokyo a tu servidor',
+        anadirCorto: '+ Añadir Sokyo',
         dirTitulo: 'Servidores de Discord con Sokyo',
         dirDesc: 'Descubre comunidades que usan Sokyo y únete a la que más te guste.',
         buscar: 'Buscar por nombre, tema o etiqueta…',
@@ -229,6 +230,7 @@ const TEXTO = {
         explorar: 'Browse servers',
         hecho: 'Page made with',
         anadir: 'Add Sokyo to your server',
+        anadirCorto: '+ Add Sokyo',
         dirTitulo: 'Discord servers with Sokyo',
         dirDesc: 'Discover communities that use Sokyo and join the one you like most.',
         buscar: 'Search by name, topic or tag…',
@@ -334,9 +336,12 @@ ${cuerpo}
 </html>`;
 }
 
-const cabecera = (L) => `<header class="cab">
+// En el propio directorio, el botón de arriba invita a añadir Sokyo (no a volver a él).
+const cabecera = (L, enDirectorio = false) => `<header class="cab">
 <a class="marca" href="/"><img src="/assets/logo.jpg" alt="" width="34" height="34">Sokyo</a>
-<a class="enlace" href="/servidores">${esc(L.explorar)}</a>
+${enDirectorio
+        ? `<a class="enlace" href="${esc(urlInvitarBot())}" rel="noopener">${esc(L.anadirCorto)}</a>`
+        : `<a class="enlace" href="/servidores">${esc(L.explorar)}</a>`}
 </header>`;
 
 const pie = (L) => `<footer class="pie">
@@ -427,7 +432,7 @@ ${s.descripcion ? `<p>${esc(s.descripcion)}</p>` : ''}
 ${s.etiquetas.length ? `<div class="etiquetas" style="margin-top:0">${s.etiquetas.map((e) => `<span class="etiqueta">#${esc(e)}</span>`).join('')}</div>` : ''}
 </a>`).join('')}</div>`
         : `<div class="vacio">${esc(lista.length ? L.vacio : L.vacioTodo)}<br><br>${esc(L.tuServidor)}</div>`;
-    const cuerpo = `${cabecera(L)}
+    const cuerpo = `${cabecera(L, true)}
 <main>
 <h1 class="titulo"><span class="grad">${esc(L.dirTitulo)}</span></h1>
 <p class="tenue" style="font-size:16px;margin:0">${esc(L.dirDesc)}</p>

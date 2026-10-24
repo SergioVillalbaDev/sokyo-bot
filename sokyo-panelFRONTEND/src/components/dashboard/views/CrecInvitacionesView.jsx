@@ -164,8 +164,8 @@ export default function CrecInvitacionesView({ dash }) {
                   <Avatar src={r.avatar} name={r.nombre || r.tag || '?'} size={30} />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">{r.nombre || r.tag || r.userId}</span>
                   <span className="text-right text-xs text-muted">
-                    <b className="text-sm text-fg">{r.validas}</b> {t('dashboard.crec_v.inv.confirmed')}
-                    {r.pendientes > 0 && <span className="block">+{r.pendientes} {t('dashboard.crec_v.inv.pending')}</span>}
+                    <b className="text-sm text-fg">{r.validas}</b> {t('dashboard.crec_v.inv.confirmed', { count: r.validas })}
+                    {r.pendientes > 0 && <span className="block">+{r.pendientes} {t('dashboard.crec_v.inv.pending', { count: r.pendientes })}</span>}
                   </span>
                 </li>
               ))}

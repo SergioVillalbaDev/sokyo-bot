@@ -135,7 +135,7 @@ export default function CrecPaginaView({ dash }) {
 
       <div data-help="pagina-enlace" className={tarjeta}>
         <CabeceraTarjeta icono={Link2} titulo={t('dashboard.crec_v.pagina.linkTitle')}
-          extra={<span className="flex items-center gap-1 text-xs text-muted"><Eye size={13} /> {t('dashboard.crec_v.pagina.visits', { n: datos.visitas || 0 })}</span>} />
+          extra={<span className="flex items-center gap-1 text-xs text-muted"><Eye size={13} /> {t('dashboard.crec_v.pagina.visits', { count: datos.visitas || 0 })}</span>} />
         {datos.url ? (
           <>
             <p className="mt-4 break-all rounded-2xl border border-line bg-bg px-4 py-3 font-mono text-sm text-fg">{datos.url}</p>

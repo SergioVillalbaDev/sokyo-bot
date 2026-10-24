@@ -121,7 +121,7 @@ export default function CrecBumpView({ dash }) {
                   <span className="w-6 text-center font-bold text-brand">{['🥇', '🥈', '🥉'][i] || i + 1}</span>
                   <Avatar src={r.avatar} name={r.nombre || '?'} size={30} />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">{r.nombre || r.userId}</span>
-                  <span className="text-xs text-muted"><b className="text-sm text-fg">{r.bumps}</b> {t('dashboard.crec_v.bump.bumps')}</span>
+                  <span className="text-xs text-muted"><b className="text-sm text-fg">{r.bumps}</b> {t('dashboard.crec_v.bump.bumps', { count: r.bumps })}</span>
                 </li>
               ))}
             </ol>

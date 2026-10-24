@@ -48,6 +48,13 @@ sokyo-bot/
 - **Tarjetas de rango** personalizables (canvas) con estilos y fuentes.
 - Seguimiento de actividad de **mensajes y voz**.
 
+### 🚀 Crecimiento
+- **Invitaciones**: el bot sabe con qué invitación entra cada miembro y premia a quien invita con oro, XP y roles por número de invitaciones. Antitrampas: solo cuenta si el invitado sigue dentro pasadas X horas y si su cuenta tiene cierta antigüedad; cada persona cuenta una vez. Comando `/invites` (o `!invites`).
+- **Bump de DISBOARD**: avisa cuando se puede volver a hacer `/bump`, menciona a un rol, premia con oro a quien lo hace y lleva un ranking. (Un bot no puede usar comandos de otro bot: el `/bump` lo hace una persona.)
+- **Página pública** del servidor en `/s/<dirección>` con botón para unirse, y **directorio** de servidores con Sokyo en `/servidores`. Se generan en el servidor, así que al compartir el enlace sale la vista previa.
+- **Avisos de directos** de Twitch y de vídeos de YouTube. Funcionan sin claves; con `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` y `YOUTUBE_API_KEY` (opcionales, ver `.env.example`) son más precisos.
+- **Sorteos** con un mínimo de invitaciones para participar y papeletas extra por invitar.
+
 ### 🚨 Reportes
 - Comando `!reportar` + gestión de reportes/incidencias desde el panel.
 
