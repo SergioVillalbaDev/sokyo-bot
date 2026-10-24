@@ -193,6 +193,7 @@ export default {
       loginTitle: 'Staff Panel',
       loginSubtitle: 'Log in with Discord to manage your servers.',
       loginButton: 'Log in with Discord',
+      back: 'Back to home',
       logout: 'Log out',
       errDenied: 'You cancelled the login.',
       errNoStaff: 'You are not staff in any server where the bot is.',
@@ -1627,12 +1628,13 @@ export default {
   portal: {
     login: {
       title: 'Support Portal',
+      back: 'Back to home',
       subtitle: 'Log in to view and manage your tickets.',
       errDenied: 'You cancelled the login.',
       errOauth: 'Couldn’t log in with Discord.',
       button: 'Log in with Discord',
     },
-    header: { brand: 'Sokyo · Support', logout: 'Log out' },
+    header: { brand: 'Sokyo · Support', logout: 'Log out', home: 'Home', homeTitle: 'Back to the Sokyo website' },
     nav: { tickets: 'My Tickets', card: 'My card', music: 'Music' },
     tickets: {
       title: 'My Tickets',

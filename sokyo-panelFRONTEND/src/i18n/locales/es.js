@@ -193,6 +193,7 @@ export default {
       loginTitle: 'Panel de Staff',
       loginSubtitle: 'Inicia sesión con Discord para gestionar tus servidores.',
       loginButton: 'Iniciar sesión con Discord',
+      back: 'Volver al inicio',
       logout: 'Cerrar sesión',
       errDenied: 'Has cancelado el inicio de sesión.',
       errNoStaff: 'No eres staff en ningún servidor donde esté el bot.',
@@ -1632,12 +1633,13 @@ export default {
   portal: {
     login: {
       title: 'Portal de soporte',
+      back: 'Volver al inicio',
       subtitle: 'Inicia sesión para ver y gestionar tus tickets.',
       errDenied: 'Cancelaste el inicio de sesión.',
       errOauth: 'No se pudo iniciar sesión con Discord.',
       button: 'Iniciar sesión con Discord',
     },
-    header: { brand: 'Sokyo · Soporte', logout: 'Cerrar sesión' },
+    header: { brand: 'Sokyo · Soporte', logout: 'Cerrar sesión', home: 'Inicio', homeTitle: 'Volver a la web de Sokyo' },
     nav: { tickets: 'Mis tickets', card: 'Mi tarjeta', music: 'Música' },
     tickets: {
       title: 'Mis tickets',

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LogIn, AlertTriangle, ArrowLeft, Send, Ticket as TicketIcon, Palette, Music as MusicIcon,
-  Inbox, Upload, X, Check, Loader2,
+  Inbox, Upload, X, Check, Loader2, Home, LogOut,
 } from 'lucide-react';
 import { PRESETS_TARJETA } from './presetsTarjeta';
 import MusicaPortal from './components/portal/MusicaPortal';
@@ -184,6 +184,10 @@ function Portal() {
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg p-4 text-fg">
+        {/* Salida a la web: antes "Mi cuenta" no tenía forma de volver. */}
+        <a href="/" className="absolute left-5 top-5 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg">
+          <ArrowLeft size={16} /> {t('portal.login.back')}
+        </a>
         <div className="absolute right-5 top-5"><LanguageSwitcher /></div>
         <div className="w-full max-w-sm rounded-3xl border border-line bg-card p-8 text-center shadow-soft">
           <img src="/assets/logo.jpg" alt="Sokyo" className="mx-auto h-14 w-14 rounded-full object-cover" />
@@ -491,21 +495,33 @@ function Cabecera({ usuario, onLogout }) {
   const { t } = useTranslation();
   return (
     <header className="flex items-center justify-between gap-2 border-b border-line bg-card px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
-      <div className="flex min-w-0 items-center gap-2.5">
+      {/* El logo lleva a la web de Sokyo, como en cualquier sitio. */}
+      <a href="/" title={t('portal.header.homeTitle')} className="flex min-w-0 items-center gap-2.5">
         <img src="/assets/logo.jpg" alt="Sokyo" className="h-8 w-8 shrink-0 rounded-full object-cover" />
         <span className="truncate text-base font-extrabold tracking-tight text-fg">{t('portal.header.brand')}</span>
-      </div>
+      </a>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <a
+          href="/"
+          title={t('portal.header.homeTitle')}
+          aria-label={t('portal.header.homeTitle')}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
+        >
+          <Home size={15} /> <span className="hidden sm:inline">{t('portal.header.home')}</span>
+        </a>
         <LanguageSwitcher />
         {usuario && (
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Avatar src={usuario.avatar} name={usuario.username} size={32} />
             <span className="hidden text-sm font-semibold text-fg sm:inline">{usuario.username}</span>
+            {/* En el móvil solo el icono: con el texto no cabía el nombre del portal. */}
             <button
               onClick={onLogout}
-              className="shrink-0 whitespace-nowrap rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
+              title={t('portal.header.logout')}
+              aria-label={t('portal.header.logout')}
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg sm:px-3"
             >
-              {t('portal.header.logout')}
+              <LogOut size={15} className="sm:hidden" /> <span className="hidden sm:inline">{t('portal.header.logout')}</span>
             </button>
           </div>
         )}

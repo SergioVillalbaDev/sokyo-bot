@@ -1,7 +1,7 @@
 // Pantalla de login del staff (OAuth de Discord con state=staff).
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LogIn, AlertTriangle } from 'lucide-react';
+import { LogIn, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { API_URL } from '../../lib/api';
 import LanguageSwitcher from '../LanguageSwitcher';
 
@@ -17,6 +17,9 @@ export default function StaffLogin({ error }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-4 text-fg">
+      <a href="/" className="absolute left-5 top-5 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg">
+        <ArrowLeft size={16} /> {t('dashboard.auth.back')}
+      </a>
       <div className="absolute right-5 top-5"><LanguageSwitcher /></div>
       <div className="w-full max-w-sm rounded-3xl border border-line bg-card p-8 text-center shadow-soft">
         <img src="/assets/logo.jpg" alt="Sokyo" className="mx-auto h-14 w-14 rounded-full object-cover" />
