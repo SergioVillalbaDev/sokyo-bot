@@ -34,6 +34,7 @@ const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
+const { errorRolesNuevos } = require('../utils/permisos.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
@@ -1733,6 +1734,9 @@ app.get('/api/stats/uso', async (req, res) => {
                 textoBoton: String(b.textoBoton || '✅ Verificarme').slice(0, 80),
                 embed: sanearEmbed(b.embed), // embed personalizable del panel (null = básico)
             };
+            const cfgVer = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('verificacion.rolVerificadoId');
+            const errRolV = await errorRolesNuevos(client, req.staff, req.params.guildId, [v.rolVerificadoId], [cfgVer && cfgVer.verificacion && cfgVer.verificacion.rolVerificadoId]);
+            if (errRolV) return res.status(403).json({ error: errRolV });
             const set = Object.fromEntries(Object.entries(v).map(([k, val]) => [`verificacion.${k}`, val]));
             // Puertas de entrada excluyentes: al activar la verificación normal se
             // apaga la doble bienvenida (solo el flag, sin tocar sus versiones).
@@ -1786,6 +1790,8 @@ app.get('/api/stats/uso', async (req, res) => {
             // Puertas de entrada excluyentes: al activar la doble bienvenida se
             // apaga la verificación normal (solo el flag, sin tocar su config).
             if (b.activo) set['verificacion.activo'] = false;
+            const errRolE = await errorRolesNuevos(client, req.staff, req.params.guildId, [set['embudoAB.rolVerificadoId']], [cfgActual && cfgActual.embudoAB && cfgActual.embudoAB.rolVerificadoId]);
+            if (errRolE) return res.status(403).json({ error: errRolE });
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: set },
@@ -2264,6 +2270,11 @@ app.get('/api/stats/uso', async (req, res) => {
             const cambios = {};
             if (Array.isArray(autoRoles)) cambios.autoRoles = autoRoles.filter(Boolean);
             if (Array.isArray(autoRolesBots)) cambios.autoRolesBots = autoRolesBots.filter(Boolean);
+            const cfgAuto = await ServidorConfig.findOne({ guildId }).select('autoRoles autoRolesBots');
+            const errRolA = await errorRolesNuevos(client, req.staff, guildId,
+                [...(cambios.autoRoles || []), ...(cambios.autoRolesBots || [])],
+                [...((cfgAuto && cfgAuto.autoRoles) || []), ...((cfgAuto && cfgAuto.autoRolesBots) || [])]);
+            if (errRolA) return res.status(403).json({ error: errRolA });
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId },
@@ -2316,6 +2327,26 @@ app.get('/api/stats/uso', async (req, res) => {
         };
     }
 
+    // Reglas de Discord para el staff que gestiona roles desde el panel: solo roles
+    // por debajo de su rol más alto y solo puede repartir permisos que él mismo
+    // tiene. Sin esto, cualquiera con acceso a la sección de roles podía darse un
+    // rol con Administrador a través del bot. El dueño del servidor y los
+    // propietarios del bot (OWNER_IDS / API key) no tienen límite.
+    async function errorJerarquia(req, guild, rol, permisosPedidos) {
+        if (!req.staff || req.staff.owner) return null;
+        const member = await guild.members.fetch(req.staff.id).catch(() => null);
+        if (!member) return 'No eres miembro de ese servidor';
+        if (guild.ownerId === member.id) return null;
+        if (rol && rol.position >= member.roles.highest.position) {
+            return 'Solo puedes gestionar roles que estén por debajo de tu rol más alto';
+        }
+        const sinPermiso = (permisosPedidos || []).filter((p) => {
+            try { return !member.permissions.has(p); } catch { return true; }
+        });
+        if (sinPermiso.length) return `No puedes dar permisos que tú no tienes: ${sinPermiso.join(', ')}`;
+        return null;
+    }
+
     // Catálogo de permisos para que el panel pinte los toggles.
     app.get('/api/roles/catalogo', (req, res) => res.json(PERMISOS_CATALOGO));
 
@@ -2342,11 +2373,13 @@ app.get('/api/stats/uso', async (req, res) => {
             const guild = await resolverGuild(guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
             if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
-
+            const permisosRol = Array.isArray(permisos) ? permisos : [];
+            const errJer = await errorJerarquia(req, guild, null, permisosRol);
+            if (errJer) return res.status(403).json({ error: errJer });
             const rol = await guild.roles.create({
-                name: nombre.trim(),
-                color: color || '#99AAB5',
-                permissions: Array.isArray(permisos) ? permisos : [],
+                name: nombre.trim().slice(0, 100),
+                colors: { primaryColor: color || '#99AAB5' },
+                permissions: permisosRol,
             });
             res.json({ success: true, rol: serializarRol(rol) });
         } catch (error) {
@@ -2365,10 +2398,13 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede editar este rol (jerarquía)' });
-
+            // Solo cuentan los permisos que se AÑADEN: quitar uno que no tienes está bien.
+            const nuevos = Array.isArray(permisos) ? permisos.filter((p) => { try { return !rol.permissions.has(p); } catch { return true; } }) : [];
+            const errJer = await errorJerarquia(req, guild, rol, nuevos);
+            if (errJer) return res.status(403).json({ error: errJer });
             const cambios = {};
-            if (nombre !== undefined) cambios.name = String(nombre).trim();
-            if (color !== undefined) cambios.color = color;
+            if (nombre !== undefined) cambios.name = String(nombre).trim().slice(0, 100);
+            if (color !== undefined) cambios.colors = { primaryColor: color };
             if (Array.isArray(permisos)) cambios.permissions = permisos;
 
             await rol.edit(cambios);
@@ -2388,6 +2424,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede eliminar este rol (jerarquía)' });
+            const errJer = await errorJerarquia(req, guild, rol);
+            if (errJer) return res.status(403).json({ error: errJer });
 
             await rol.delete();
             res.json({ success: true });
@@ -2469,6 +2507,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede asignar este rol (jerarquía)' });
+            const errJer = await errorJerarquia(req, guild, rol);
+            if (errJer) return res.status(403).json({ error: errJer });
 
             const member = await guild.members.fetch(userId);
             await member.roles.add(rol);
@@ -2487,6 +2527,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede quitar este rol (jerarquía)' });
+            const errJer = await errorJerarquia(req, guild, rol);
+            if (errJer) return res.status(403).json({ error: errJer });
 
             const member = await guild.members.fetch(req.params.userId);
             await member.roles.remove(rol);
@@ -2571,7 +2613,10 @@ app.get('/api/stats/uso', async (req, res) => {
             if (await RolePanel.countDocuments({ guildId }) >= topePanel) {
                 return res.status(402).json({ error: `El plan Free permite ${topePanel} panel(es) de roles. Sube a Pro para tener paneles ilimitados.` });
             }
-            const panel = await RolePanel.create({ guildId, ...limpiarPanel(req.body) });
+            const datosPanel = limpiarPanel(req.body);
+            const errRolP = await errorRolesNuevos(client, req.staff, guildId, (datosPanel.items || []).map((it) => it.roleId), []);
+            if (errRolP) return res.status(403).json({ error: errRolP });
+            const panel = await RolePanel.create({ guildId, ...datosPanel });
             if (panel.channelId) {
                 try { await publicarPanel(client, panel); }
                 catch (e) { return res.json({ success: true, panel, aviso: `Panel guardado pero no se pudo publicar: ${e.message}` }); }
@@ -2586,7 +2631,14 @@ app.get('/api/stats/uso', async (req, res) => {
     // Editar un panel (y republicarlo).
     app.put('/api/paneles/:id', scopePanel, async (req, res) => {
         try {
-            const panel = await RolePanel.findByIdAndUpdate(req.params.id, { $set: limpiarPanel(req.body) }, { returnDocument: 'after' });
+            const previo = await RolePanel.findById(req.params.id);
+            if (!previo) return res.status(404).json({ error: 'Panel no encontrado' });
+            if (!(await tieneAreaAcceso(req, previo.guildId, 'roles'))) return res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
+            const datosPanel = limpiarPanel(req.body);
+            const errRolP = await errorRolesNuevos(client, req.staff, previo.guildId,
+                (datosPanel.items || []).map((it) => it.roleId), (previo.items || []).map((it) => it.roleId));
+            if (errRolP) return res.status(403).json({ error: errRolP });
+            const panel = await RolePanel.findByIdAndUpdate(req.params.id, { $set: datosPanel }, { returnDocument: 'after' });
             if (!panel) return res.status(404).json({ error: 'Panel no encontrado' });
             if (panel.channelId) {
                 try { await publicarPanel(client, panel); }
@@ -3070,6 +3122,10 @@ app.get('/api/stats/uso', async (req, res) => {
                     .filter((r) => r && r.rolId && r.nivel)
                     .map((r) => ({ nivel: Math.max(1, parseInt(r.nivel, 10) || 1), rolId: String(r.rolId) }))
                     .slice(0, 50);
+                const cfgNiv = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('recompensasNivel');
+                const errRolN = await errorRolesNuevos(client, req.staff, req.params.guildId,
+                    cambios.recompensasNivel.map((r) => r.rolId), ((cfgNiv && cfgNiv.recompensasNivel) || []).map((r) => r.rolId));
+                if (errRolN) return res.status(403).json({ error: errRolN });
             }
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId }, { $set: cambios }, { returnDocument: 'after', upsert: true },
