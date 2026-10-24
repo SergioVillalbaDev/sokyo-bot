@@ -2,13 +2,17 @@
 // qué roles pueden moderar (panel de moderación + comandos).
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { navGroups } from '../navConfig';
 import { MonitorSmartphone, ShieldAlert, Save, Check, Info, LayoutList } from 'lucide-react';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
 // Todas las secciones gobernables del panel (mismo orden que el nav). Incluye
 // 'cuenta' (facturación) para poder ocultársela a los moderadores.
-const AREAS = ['cuenta', 'datos', 'entrada', 'crecimiento', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
+// Mismas claves que el backend (api/server.js → AREAS), en el orden del menú.
+const AREAS = ['tickets', 'moderacion', 'entrada', 'roles', 'crecimiento', 'musica', 'mensajes', 'datos', 'logs', 'config', 'cuenta'];
+// Secciones del menú que abre cada área (para que se vea qué se está dando).
+const seccionesDeArea = (area) => navGroups.flatMap((g) => g.items.filter((it) => it.area === area));
 const areasVacias = () => Object.fromEntries(AREAS.map((a) => [a, []]));
 
 // Selector de varios roles como chips que se activan/desactivan al pulsar.
@@ -107,7 +111,8 @@ export default function AccesoView({ dash }) {
         <div className="space-y-4">
           {AREAS.map((area) => (
             <div key={area} className="rounded-2xl border border-line bg-bg p-3.5">
-              <p className="mb-2 text-sm font-semibold text-fg">{t(`dashboard.nav.groups.${area}`)}</p>
+              <p className="text-sm font-semibold text-fg">{t(`dashboard.acceso_v.areaNames.${area}`)}</p>
+              <p className="mb-2 mt-0.5 text-xs text-muted">{t('dashboard.acceso_v.opens')} {seccionesDeArea(area).map((it) => t(`dashboard.nav.items.${it.tab}`)).join(' · ')}</p>
               <SelectorRoles roles={roles} seleccion={areas[area] || []} onToggle={toggleArea(area)} />
             </div>
           ))}

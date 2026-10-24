@@ -328,6 +328,20 @@ export function useDashboard() {
     return false;
   };
 
+  // Guarda de una vez el orden hecho arrastrando: categorías y, en orden, cada
+  // canal con su categoría. Devuelve true/false.
+  const reordenarCanales = async ({ categorias, canales }) => {
+    if (!gidActivo()) return false;
+    try {
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales/orden`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categorias, canales }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { await cargarEstructuraCanales(); return true; }
+    } catch (error) { console.error('Error reordenando canales:', error); }
+    return false;
+  };
+
   const eliminarCanalServidor = async (canalId) => {
     if (!gidActivo()) return false;
     try {
@@ -1473,7 +1487,7 @@ export function useDashboard() {
     // gestión de categorías y canales (texto/voz/anuncios/foro/escenario, con permisos)
     estructuraCanales, permisosCanalCatalogo,
     crearCategoriaCanal, editarCategoriaCanal, eliminarCategoriaCanal,
-    crearCanalServidor, editarCanalServidor, eliminarCanalServidor,
+    crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales,
     // sistema de roles: autorol + paneles
     guardarAutoRoles,
     paneles, canales, emojisServidor, crearPanel, editarPanel, publicarPanel, eliminarPanel, subirImagenPanel,

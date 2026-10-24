@@ -1,5 +1,5 @@
 // src/App.jsx
-// Router de la web de staff: Landing (#) ↔ Dashboard (#dashboard).
+// Router de la web de staff: Landing (#) ↔ Dashboard (#dashboard o /panel).
 // El Dashboard requiere sesión de staff (login con Discord), salvo en "modo
 // propietario" (cuando el panel tiene configurada VITE_API_KEY).
 // El Portal del Cliente se enruta aparte en main.jsx mediante ?portal=1.
@@ -18,6 +18,8 @@ const getRoute = () => {
   const h = window.location.hash.replace('#', '');
   if (h.startsWith('dashboard')) return 'dashboard';
   if (h.startsWith('legal')) return 'legal';
+  // /panel: dirección directa al panel (la abre la app de Android).
+  if (/^\/panel\/?$/i.test(window.location.pathname)) return 'dashboard';
   return 'landing';
 };
 
@@ -76,6 +78,8 @@ function App() {
   };
 
   const goLanding = () => {
+    // Desde /panel la landing está en la raíz (si no, /panel volvería al panel).
+    if (window.location.pathname !== '/') window.history.replaceState(null, '', '/');
     window.location.hash = '';
     setRoute('landing');
   };

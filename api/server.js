@@ -170,6 +170,19 @@ module.exports = (client) => {
     // en el MISMO origen que la API para evitar problemas de CORS con el token.
     app.use(express.static(path.join(__dirname, '..', 'public')));
 
+    // App de Android (app-android/): la web declara que confía en ella para que
+    // se abra a pantalla completa, sin barra de dirección. Va aparte porque
+    // express.static no sirve carpetas que empiezan por punto. ANDROID_CERT_SHA256
+    // (separadas por comas) solo hace falta si la APK se firma con otra clave.
+    const huellasAndroid = (process.env.ANDROID_CERT_SHA256 || 'EC:3F:93:F3:7B:41:9C:12:39:72:3E:13:E1:1F:B5:3B:B2:B3:49:93:4D:DE:83:0B:39:68:87:53:E5:40:DE:F9')
+        .split(',').map((h) => h.trim().toUpperCase()).filter(Boolean);
+    app.get('/.well-known/assetlinks.json', (req, res) => {
+        res.json([{
+            relation: ['delegate_permission/common.handle_all_urls'],
+            target: { namespace: 'android_app', package_name: 'studio.sokyo.panel', sha256_cert_fingerprints: huellasAndroid },
+        }]);
+    });
+
     if (!API_KEY) {
         console.warn('⚠️  API_KEY no está definida en el .env: la API queda SIN protección. Define API_KEY para protegerla.');
     }
@@ -319,7 +332,6 @@ module.exports = (client) => {
 
     // --- Sistema de música (rutas en api/routes/musica.js) ---
     app.use('/api', require('./routes/musica.js')({ portalAuth, client }));
-    app.use('/api', require('./routes/canales.js')({ client }));
 
     // --- Canales de voz temporales (rutas en api/routes/vozTemporal.js) ---
     app.use('/api', require('./routes/vozTemporal.js')({ client }));
@@ -457,6 +469,9 @@ module.exports = (client) => {
         if (await tieneAreaAcceso(req, guildId, area)) return next();
         return res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
     };
+
+    // Categorías y canales del servidor (los cambios piden el área "config").
+    app.use('/api', require('./routes/canales.js')({ client, exigeArea }));
 
     // Middleware: exige ser Administrator de Discord en el guild (o dueño/API key).
     // Reservado para operaciones que OTORGAN permisos a otros (quién modera, quién

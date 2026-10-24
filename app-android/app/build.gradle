@@ -1,0 +1,53 @@
+// App de Android del panel de Sokyo: una Trusted Web Activity (TWA) que abre
+// https://dashboard.sokyo.studio/panel a pantalla completa con el motor de
+// Chrome. El contenido es la web, así que se actualiza sola con cada despliegue;
+// solo hace falta una APK nueva si cambian el icono, el nombre o el dominio.
+plugins {
+    id 'com.android.application'
+}
+
+// La clave de firma NO va en el repositorio: se pasa por variables de entorno
+// (ver ../README.md). Sin ella se firma con la clave de depuración.
+def clave = System.getenv('SOKYO_KEYSTORE')
+
+android {
+    namespace 'studio.sokyo.panel'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'studio.sokyo.panel'
+        minSdk 21
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    signingConfigs {
+        release {
+            if (clave) {
+                storeFile file(clave)
+                storePassword System.getenv('SOKYO_KEYSTORE_PASS')
+                keyAlias System.getenv('SOKYO_KEY_ALIAS') ?: 'sokyo'
+                keyPassword System.getenv('SOKYO_KEYSTORE_PASS')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            signingConfig clave ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
