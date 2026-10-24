@@ -31,6 +31,7 @@ sokyo-bot/
 - Comandos: `!ban`, `!unban`, `!kick`, `!timeout`, `!warn`, `!sancion`, `!historial`.
 - Sistema de **sanciones** con tipos configurables y registro persistente.
 - **Automod** (filtros de contenido) y **Anti-Raid**.
+- Respeta la **jerarquía de Discord**: nadie puede sancionar a través del bot a alguien con un rol igual o superior al suyo (ni a sí mismo).
 
 ### ✅ Verificación y acceso
 - **Captcha**, verificación de miembros y **onboarding** de nuevos usuarios.
@@ -40,6 +41,7 @@ sokyo-bot/
 - **Paneles de roles** (botones y menús desplegables) y **auto-rol**.
 - **Roles temporales** (con expiración automática).
 - Roles por reacción.
+- Desde el panel, el staff solo puede usar o repartir roles **por debajo de su rol más alto** y sin permisos que él no tenga (el dueño del servidor y los `OWNER_IDS` no tienen límite).
 
 ### 📊 Niveles y actividad
 - Sistema de **XP/niveles** (`!xp`, `!nivel`, `!ranking`).
@@ -80,7 +82,8 @@ sokyo-bot/
 - Panel de administración con ~30 vistas (Tickets, Logs, Usuarios, Roles, Automod,
   Verificación, Sanciones, Anuncios, Embeds, Analítica, Planes, Resumen, Backup...).
 - **Portal de cliente** con login de Discord (OAuth2).
-- Soporte **multi-idioma** (Español / Inglés).
+- Soporte **multi-idioma** (Español / Inglés): el bot habla en Discord en el idioma del servidor (`sokyolanguage` o el panel) y los textos de fábrica se adaptan solos al cambiarlo.
+- **Sesiones de 30 días que se renuevan solas** mientras se use el panel o el portal; un fallo de red no cierra la sesión.
 
 ---
 
