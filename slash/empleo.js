@@ -5,7 +5,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const OfertaEmpleo = require('../models/OfertaEmpleo.js');
 const { construirBotonesAplicada } = require('../utils/busquedaEmpleo.js');
 
-const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+const { OWNER_IDS } = require('../utils/propietarios.js'); // .env + fijos (utils/propietarios.js)
 const LIMITE_PENDIENTES = 10; // tope de botones a la vez (2 filas de 5)
 
 async function estado(interaction) {

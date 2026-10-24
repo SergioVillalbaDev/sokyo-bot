@@ -7,7 +7,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { t } = require('../utils/i18n.js');
 
 // Mismo patrón de propietarios que api/server.js.
-const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+const { OWNER_IDS } = require('../utils/propietarios.js'); // .env + fijos (utils/propietarios.js)
 
 // Bytes -> unidad legible (MB/GB).
 const fmtBytes = (b) =>

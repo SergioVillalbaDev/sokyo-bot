@@ -8,7 +8,7 @@ const PerfilEmpleo = require('../models/PerfilEmpleo.js');
 const { extraerTextoCV, extensionValida, TAMANO_MAXIMO_BYTES, extensionFotoValida, guardarFoto, TAMANO_MAXIMO_FOTO_BYTES } = require('../utils/cvParser.js');
 const { estructurarPerfilCV } = require('../utils/ia.js');
 
-const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+const { OWNER_IDS } = require('../utils/propietarios.js'); // .env + fijos (utils/propietarios.js)
 
 async function subirCV(interaction) {
     const adjunto = interaction.options.getAttachment('archivo');

@@ -80,7 +80,7 @@ module.exports = (client) => {
 
     // IDs de Discord del/los PROPIETARIO(s): ven absolutamente TODO (todos los
     // servidores y tickets), sin el filtrado del staff. Separados por comas.
-    const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+    const { OWNER_IDS } = require('../utils/propietarios.js'); // .env + fijos (utils/propietarios.js)
 
     // IDs con permiso de DIFUSIÓN: pueden mandar mensajes/embeds a un servidor
     // concreto o a TODOS los servidores del bot. Exclusivo de estas IDs.
