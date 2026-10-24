@@ -242,10 +242,10 @@ async function enviarMD(member, e, cohorte) {
 // Botón "Empezar" del panel: muestra la variante asignada de forma efímera.
 async function manejarInicio(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
-    if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
+    if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
     const { gid, e, member, cfg } = ctx;
 
-    if (yaTieneAcceso(member, e)) return interaction.reply({ content: t(cfg, '✅ Ya tienes acceso al servidor.', '✅ You already have access to the server.'), ephemeral: true });
+    if (yaTieneAcceso(member, e)) return interaction.reply({ content: t(cfg, '✅ Ya tienes acceso al servidor.', '✅ You already have access to the server.'), flags: 64 });
 
     // Recupera la ficha (o la crea si entró antes de activar el embudo).
     let cohorte = await EmbudoCohorte.findOne({ guildId: gid, userId: member.id });
@@ -253,34 +253,34 @@ async function manejarInicio(interaction, client) {
     if (cohorte && !cohorte.mostrado) { cohorte.mostrado = true; await cohorte.save(); }
 
     const payload = contenidoVariante(gid, member.id, e, cohorte ? cohorte.variante : 'B', cfg);
-    payload.ephemeral = true;
+    payload.flags = 64; // efímero
     return interaction.reply(payload);
 }
 
 // Variante B — botón "Ver normas": muestra las reglas de forma efímera.
 async function manejarReglas(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
-    if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
+    if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
     const reglas = (ctx.e.varianteB && ctx.e.varianteB.reglas) || t(ctx.cfg, 'No hay normas configuradas.', 'No rules configured.');
-    return interaction.reply({ content: `📜 **${t(ctx.cfg, 'Normas del servidor', 'Server rules')}**\n\n${reglas}`, ephemeral: true });
+    return interaction.reply({ content: `📜 **${t(ctx.cfg, 'Normas del servidor', 'Server rules')}**\n\n${reglas}`, flags: 64 });
 }
 
 // Botón "Aceptar/Unirme" (variante B y variante A sin captcha): concede el rol.
 async function manejarAceptar(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
-    if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
+    if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
     const { gid, e, member, cfg } = ctx;
-    if (yaTieneAcceso(member, e)) return interaction.reply({ content: t(cfg, '✅ Ya tienes acceso al servidor.', '✅ You already have access to the server.'), ephemeral: true });
+    if (yaTieneAcceso(member, e)) return interaction.reply({ content: t(cfg, '✅ Ya tienes acceso al servidor.', '✅ You already have access to the server.'), flags: 64 });
 
     const err = await conceder(member, e, cfg);
     if (!err) await marcarVerificado(gid, member.id);
-    return interaction.reply({ content: err || t(cfg, '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', '✅ Done! You now have access to the server. 🎉'), ephemeral: true });
+    return interaction.reply({ content: err || t(cfg, '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', '✅ Done! You now have access to the server. 🎉'), flags: 64 });
 }
 
 // Variante A — botón "Introducir código": abre el modal del captcha.
 async function manejarCaptcha(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
-    if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
+    if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
     const modal = new ModalBuilder().setCustomId(`embudo_modal:${ctx.gid}`).setTitle(t(ctx.cfg, 'Verificación', 'Verification'));
     const input = new TextInputBuilder()
         .setCustomId('codigo').setLabel(t(ctx.cfg, 'Escribe el código de la imagen', 'Type the code from the image'))
@@ -292,24 +292,24 @@ async function manejarCaptcha(interaction, client) {
 // Variante A — envío del modal con el código del captcha.
 async function manejarModal(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
-    if (ctx.error) return interaction.reply({ content: ctx.error, ephemeral: true });
+    if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
     const { gid, e, member, cfg } = ctx;
 
     const clave = `${gid}:${member.id}`;
     const reto = captchasPendientes.get(clave);
     if (!reto || reto.expira <= Date.now()) {
         captchasPendientes.delete(clave);
-        return interaction.reply({ content: t(cfg, '⏰ El captcha ha caducado. Pulsa **Empezar** de nuevo.', '⏰ The captcha expired. Click **Get started** again.'), ephemeral: true });
+        return interaction.reply({ content: t(cfg, '⏰ El captcha ha caducado. Pulsa **Empezar** de nuevo.', '⏰ The captcha expired. Click **Get started** again.'), flags: 64 });
     }
     const respuesta = (interaction.fields.getTextInputValue('codigo') || '').trim().toUpperCase();
     if (respuesta !== reto.codigo) {
-        return interaction.reply({ content: t(cfg, '❌ Código incorrecto. Inténtalo de nuevo.', '❌ Wrong code. Try again.'), ephemeral: true });
+        return interaction.reply({ content: t(cfg, '❌ Código incorrecto. Inténtalo de nuevo.', '❌ Wrong code. Try again.'), flags: 64 });
     }
     captchasPendientes.delete(clave);
 
     const err = await conceder(member, e, cfg);
     if (!err) await marcarVerificado(gid, member.id);
-    return interaction.reply({ content: err || t(cfg, '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', '✅ Done! You now have access to the server. 🎉'), ephemeral: true });
+    return interaction.reply({ content: err || t(cfg, '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', '✅ Done! You now have access to the server. 🎉'), flags: 64 });
 }
 
 module.exports = {

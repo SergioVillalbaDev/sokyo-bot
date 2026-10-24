@@ -13,7 +13,7 @@ module.exports = {
 
     async execute(interaction, client, cfgArg) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-            return interaction.reply({ content: t(cfgArg, '🔧 Necesitas el permiso **Gestionar servidor** para cambiar el modo 24/7.', '🔧 You need the **Manage Server** permission to change 24/7 mode.'), ephemeral: true });
+            return interaction.reply({ content: t(cfgArg, '🔧 Necesitas el permiso **Gestionar servidor** para cambiar el modo 24/7.', '🔧 You need the **Manage Server** permission to change 24/7 mode.'), flags: 64 });
         }
 
         const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
@@ -22,7 +22,7 @@ module.exports = {
         if (!esPro(cfg)) {
             return interaction.reply({
                 content: t(cfg, '✨ El modo **24/7** es un extra del plan **Pro**. La música normal es gratis; Pro añade 24/7, filtros y más. Echa un vistazo a los planes en el panel.', '✨ **24/7** mode is a **Pro** plan extra. Regular music is free; Pro adds 24/7, filters and more. Check out the plans in the panel.'),
-                ephemeral: true,
+                flags: 64,
             });
         }
 

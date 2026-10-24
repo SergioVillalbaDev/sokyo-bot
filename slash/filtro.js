@@ -35,19 +35,19 @@ module.exports = {
     async execute(interaction, client, cfgArg) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: t(cfgArg, '⏹️ No hay nada sonando.', '⏹️ Nothing is playing.'), ephemeral: true });
+            return interaction.reply({ content: t(cfgArg, '⏹️ No hay nada sonando.', '⏹️ Nothing is playing.'), flags: 64 });
         }
 
         // Voz + rol DJ (igual que el resto de comandos de música).
         const voz = await gateMusica(interaction);
-        if (!voz.ok) return interaction.reply({ content: voz.error, ephemeral: true });
+        if (!voz.ok) return interaction.reply({ content: voz.error, flags: 64 });
 
         // Gate Pro: los filtros son un extra. La música base sigue gratis.
         const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
         if (!esPro(cfg)) {
             return interaction.reply({
                 content: t(cfg, '✨ Los filtros de audio son un extra del plan **Pro**. La música normal es gratis; Pro añade filtros, ecualizador y más. Echa un vistazo a los planes en el panel.', '✨ Audio filters are a **Pro** plan extra. Regular music is free; Pro adds filters, an equalizer and more. Check out the plans in the panel.'),
-                ephemeral: true,
+                flags: 64,
             });
         }
 
@@ -67,7 +67,7 @@ module.exports = {
             }
         } catch (e) {
             console.error('Music filter:', e.message);
-            return interaction.reply({ content: t(cfg, '⚠️ No se pudo aplicar el filtro.', '⚠️ Could not apply the filter.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⚠️ No se pudo aplicar el filtro.', '⚠️ Could not apply the filter.'), flags: 64 });
         }
 
         return interaction.reply(tipo === 'off'

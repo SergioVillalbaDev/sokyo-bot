@@ -486,21 +486,22 @@ async function init() {
   recogerSesionDeURL();
   const token = getToken();
   if (!token) return mostrarDeslogueado();
+  let res;
   try {
-    const res = await sesionFetch(`${API}/api/portal/yo`, { headers: { Authorization: `Bearer ${token}` } });
-    // Solo un 401 significa sesión inválida; un fallo puntual del servidor no debe cerrarla.
-    if (res.status === 401) throw new Error('sesión caducada');
-    if (!res.ok) { mostrarDeslogueado(); return; }
-    const yo = await res.json();
-    $('#btnLogin').classList.add('hidden');
-    $('#btnLogout').classList.remove('hidden');
-    $('#bolsaOro').classList.remove('hidden');
-    actualizarOro();
-    cargarCatalogo();
+    res = await sesionFetch(`${API}/api/portal/yo`, { headers: { Authorization: `Bearer ${token}` } });
   } catch {
-    localStorage.removeItem('sokyo_token');
-    mostrarDeslogueado();
+    // Sin conexión: se conserva la sesión para cuando vuelva la red.
+    toast('No se ha podido conectar con el servidor. Recarga la página para reintentar.', 'error');
+    return mostrarDeslogueado();
   }
+  // Solo un 401 significa sesión inválida; un fallo puntual del servidor no debe cerrarla.
+  if (res.status === 401) { localStorage.removeItem('sokyo_token'); return mostrarDeslogueado(); }
+  if (!res.ok) return mostrarDeslogueado();
+  $('#btnLogin').classList.add('hidden');
+  $('#btnLogout').classList.remove('hidden');
+  $('#bolsaOro').classList.remove('hidden');
+  actualizarOro();
+  cargarCatalogo();
 }
 
 function mostrarDeslogueado() {

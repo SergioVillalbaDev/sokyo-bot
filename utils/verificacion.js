@@ -76,16 +76,16 @@ async function publicarPanel(client, guildId) {
 async function manejarInicio(interaction) {
     const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
     const v = cfg && cfg.verificacion;
-    if (!v || !v.activo) return interaction.reply({ content: t(cfg, '❌ La verificación no está activa.', '❌ Verification is not active.'), ephemeral: true });
+    if (!v || !v.activo) return interaction.reply({ content: t(cfg, '❌ La verificación no está activa.', '❌ Verification is not active.'), flags: 64 });
 
     if (v.rolVerificadoId && interaction.member.roles.cache.has(v.rolVerificadoId)) {
-        return interaction.reply({ content: t(cfg, '✅ Ya estás verificado.', '✅ You’re already verified.'), ephemeral: true });
+        return interaction.reply({ content: t(cfg, '✅ Ya estás verificado.', '✅ You’re already verified.'), flags: 64 });
     }
 
     // Modo botón: conceder directamente.
     if (v.modo !== 'captcha') {
         const err = await conceder(interaction, v, cfg);
-        return interaction.reply({ content: err || t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), ephemeral: true });
+        return interaction.reply({ content: err || t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), flags: 64 });
     }
 
     // Modo captcha: generar y mostrar imagen.
@@ -95,7 +95,7 @@ async function manejarInicio(interaction) {
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('verif_introducir').setLabel(t(cfg, '⌨️ Introducir código', '⌨️ Enter code')).setStyle(ButtonStyle.Primary),
     );
-    const payload = { content: t(cfg, '🧩 Resuelve el captcha y pulsa **Introducir código** (caduca en 5 min).', '🧩 Solve the captcha and click **Enter code** (expires in 5 min).'), components: [row], ephemeral: true };
+    const payload = { content: t(cfg, '🧩 Resuelve el captcha y pulsa **Introducir código** (caduca en 5 min).', '🧩 Solve the captcha and click **Enter code** (expires in 5 min).'), components: [row], flags: 64 };
     if (buffer) {
         payload.files = [new AttachmentBuilder(buffer, { name: 'captcha.png' })];
     } else {
@@ -122,23 +122,23 @@ async function manejarIntroducir(interaction) {
 async function manejarModal(interaction) {
     const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
     const v = cfg && cfg.verificacion;
-    if (!v || !v.activo) return interaction.reply({ content: t(cfg, '❌ La verificación no está activa.', '❌ Verification is not active.'), ephemeral: true });
+    if (!v || !v.activo) return interaction.reply({ content: t(cfg, '❌ La verificación no está activa.', '❌ Verification is not active.'), flags: 64 });
 
     const clave = `${interaction.guildId}:${interaction.user.id}`;
     const reto = pendientes.get(clave);
     if (!reto || reto.expira <= Date.now()) {
         pendientes.delete(clave);
-        return interaction.reply({ content: t(cfg, '⏰ El captcha ha caducado. Pulsa **Verificarme** de nuevo.', '⏰ The captcha expired. Click **Verify me** again.'), ephemeral: true });
+        return interaction.reply({ content: t(cfg, '⏰ El captcha ha caducado. Pulsa **Verificarme** de nuevo.', '⏰ The captcha expired. Click **Verify me** again.'), flags: 64 });
     }
 
     const respuesta = (interaction.fields.getTextInputValue('codigo') || '').trim().toUpperCase();
     if (respuesta !== reto.codigo) {
-        return interaction.reply({ content: t(cfg, '❌ Código incorrecto. Pulsa **Verificarme** para volver a intentarlo.', '❌ Wrong code. Click **Verify me** to try again.'), ephemeral: true });
+        return interaction.reply({ content: t(cfg, '❌ Código incorrecto. Pulsa **Verificarme** para volver a intentarlo.', '❌ Wrong code. Click **Verify me** to try again.'), flags: 64 });
     }
 
     pendientes.delete(clave);
     const err = await conceder(interaction, v, cfg);
-    return interaction.reply({ content: err || t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), ephemeral: true });
+    return interaction.reply({ content: err || t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), flags: 64 });
 }
 
 module.exports = { publicarPanel, manejarInicio, manejarIntroducir, manejarModal };

@@ -25,6 +25,7 @@ function Portal() {
   const [nuevoMensaje, setNuevoMensaje] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [intento, setIntento] = useState(0); // sube al pulsar "Reintentar" tras un fallo de red
   const [vista, setVista] = useState('tickets');
   const [tarjeta, setTarjeta] = useState({ colorAcento: '#5865F2', fondoTipo: 'color', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoImagen: '', preset: null, animado: false });
   const [guardadoT, setGuardadoT] = useState(false);
@@ -70,7 +71,7 @@ function Portal() {
     if (!token) return;
     setCargando(true);
     Promise.all([
-      portalFetch('/api/portal/yo').then(r => { if (r.status === 401) throw new Error('sesion'); return r.json(); }),
+      portalFetch('/api/portal/yo').then(r => { if (r.status === 401) throw new Error('sesion'); if (!r.ok) throw new Error('red'); return r.json(); }),
       portalFetch('/api/portal/tickets').then(r => r.json()),
       portalFetch('/api/portal/tarjeta').then(r => r.json()).catch(() => ({})),
       portalFetch('/api/portal/presets').then(r => r.json()).catch(() => ({ ocultos: [], personalizados: [] }))
@@ -80,10 +81,15 @@ function Portal() {
         setCatalogo({ ocultos: cat?.ocultos || [], personalizados: cat?.personalizados || [] });
         if (tj && tj.colorAcento) setTarjeta({ colorAcento: tj.colorAcento, fondoTipo: tj.fondoTipo || 'color', fondoColor: tj.fondoColor || '#1e2030', colorSecundario: tj.colorSecundario || '#9b59b6', fondoImagen: tj.fondoImagen || '', preset: tj.preset || null, animado: !!tj.animado });
       })
-      .catch(() => { setError(t('portal.login.errOauth')); logout(); })
+      // Solo un 401 cierra la sesión. Un fallo de red o del servidor (p. ej. el
+      // móvil sin cobertura) la conserva y deja reintentar; antes echaba al usuario.
+      .catch((e) => {
+        if (e.message === 'sesion') { logout(); setError(t('portal.login.errSession')); }
+        else setError(t('portal.login.errConexion'));
+      })
       .finally(() => setCargando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, intento]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Refresco del chat abierto cada 4s
@@ -429,7 +435,12 @@ function Portal() {
 
         {error && (
           <div className="mt-4 flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-            <AlertTriangle size={16} className="shrink-0" /> {error}
+            <AlertTriangle size={16} className="shrink-0" /> <span className="flex-1">{error}</span>
+            {!usuario && !cargando && (
+              <button onClick={() => setIntento((n) => n + 1)} className="shrink-0 rounded-lg border border-danger/40 px-2.5 py-1 text-xs font-semibold hover:bg-danger/10">
+                {t('portal.login.retry')}
+              </button>
+            )}
           </div>
         )}
 

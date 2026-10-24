@@ -16,7 +16,7 @@ module.exports = {
 
     async execute(interaction, client) {
         if (!OWNER_IDS.has(interaction.user.id)) {
-            return interaction.reply({ content: '⛔ This command is only for the bot owners.', ephemeral: true });
+            return interaction.reply({ content: '⛔ This command is only for the bot owners.', flags: 64 });
         }
 
         const puesto = interaction.options.getString('puesto');
@@ -26,7 +26,7 @@ module.exports = {
 
         await interaction.reply({
             content: `🔎 Job search started for "${puesto}"${ubicacion ? ` in ${ubicacion}` : ''}. ${canalId ? `I'll post the results in <#${canalId}> — this can take a few minutes.` : 'Set JOB_SEARCH_CHANNEL_ID to get notified when it finishes.'}`,
-            ephemeral: true,
+            flags: 64,
         });
 
         // Fire-and-forget: el resultado se anuncia por el canal fijo, no por editReply.

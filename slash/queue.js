@@ -10,7 +10,7 @@ module.exports = {
     async execute(interaction, client, cfg) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: t(cfg, '📭 La cola está vacía y no hay nada sonando.', '📭 The queue is empty and nothing is playing.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '📭 La cola está vacía y no hay nada sonando.', '📭 The queue is empty and nothing is playing.'), flags: 64 });
         }
 
         const actual = player.queue.current;

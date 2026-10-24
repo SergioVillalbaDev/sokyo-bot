@@ -10,7 +10,7 @@ module.exports = {
 
     async execute(interaction, client, cfg) {
         const items = await Item.find({ activo: true }).sort({ precio: 1 }).limit(25); // Discord: máx 25 opciones
-        if (!items.length) return interaction.reply({ content: t(cfg, '🛒 La tienda está vacía por ahora.', '🛒 The shop is empty for now.'), ephemeral: true });
+        if (!items.length) return interaction.reply({ content: t(cfg, '🛒 La tienda está vacía por ahora.', '🛒 The shop is empty for now.'), flags: 64 });
 
         const embed = new EmbedBuilder()
             .setColor('#c9a227')
@@ -34,6 +34,6 @@ module.exports = {
                 value: i._id.toString(), // el MISMO _id que usa la web
             })));
 
-        await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)], ephemeral: true });
+        await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)], flags: 64 });
     },
 };

@@ -142,9 +142,9 @@ module.exports = {
 
     async execute(interaction) {
         if (!OWNER_IDS.has(interaction.user.id)) {
-            return interaction.reply({ content: '⛔ This command is only for the bot owners.', ephemeral: true });
+            return interaction.reply({ content: '⛔ This command is only for the bot owners.', flags: 64 });
         }
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         const sub = interaction.options.getSubcommand();
         if (sub === 'subir') return subirCV(interaction);

@@ -9,11 +9,11 @@ module.exports = {
 
     async execute(interaction, client, cfg) {
         const voz = await gateMusica(interaction);
-        if (!voz.ok) return interaction.reply({ content: voz.error, ephemeral: true });
+        if (!voz.ok) return interaction.reply({ content: voz.error, flags: 64 });
 
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player) {
-            return interaction.reply({ content: t(cfg, '⏹️ No hay nada que detener.', '⏹️ There’s nothing to stop.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⏹️ No hay nada que detener.', '⏹️ There’s nothing to stop.'), flags: 64 });
         }
 
         await player.destroy();

@@ -22,6 +22,6 @@ module.exports = {
                 `🪙 ${cantidad >= 0 ? 'Se han añadido' : 'Se han quitado'} **${Math.abs(cantidad)}** de oro ${cantidad >= 0 ? 'a' : 'a'} ${usuario}.\nSaldo actual: **${balance}**.`,
                 `🪙 ${cantidad >= 0 ? 'Added' : 'Removed'} **${Math.abs(cantidad)}** gold ${cantidad >= 0 ? 'to' : 'from'} ${usuario}.\nCurrent balance: **${balance}**.`));
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: 64 });
     },
 };

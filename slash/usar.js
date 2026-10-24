@@ -22,7 +22,7 @@ module.exports = {
             .filter(e => e.item && e.item.efecto && e.item.efecto.tipo && e.item.efecto.tipo !== 'ninguno');
 
         if (!usables.length) {
-            return interaction.reply({ content: t(cfg, '🎒 No tienes objetos usables con efecto. Consigue alguno en `/shop`.', '🎒 You have no usable items with an effect. Get some in `/shop`.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '🎒 No tienes objetos usables con efecto. Consigue alguno en `/shop`.', '🎒 You have no usable items with an effect. Get some in `/shop`.'), flags: 64 });
         }
 
         const menu = new StringSelectMenuBuilder()
@@ -37,7 +37,7 @@ module.exports = {
         await interaction.reply({
             content: t(cfg, '✨ ¿Qué objeto quieres usar?', '✨ Which item do you want to use?'),
             components: [new ActionRowBuilder().addComponents(menu)],
-            ephemeral: true,
+            flags: 64,
         });
     },
 };

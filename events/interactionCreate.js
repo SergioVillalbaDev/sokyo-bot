@@ -17,15 +17,15 @@ async function manejarBotonRol(interaction) {
     try {
         const [tipo, panelId, roleId] = interaction.customId.split(':');
         const panel = await RolePanel.findById(panelId);
-        if (!panel) return interaction.reply({ content: t(cfg, '❌ Este panel ya no existe.', '❌ This panel no longer exists.'), ephemeral: true });
+        if (!panel) return interaction.reply({ content: t(cfg, '❌ Este panel ya no existe.', '❌ This panel no longer exists.'), flags: 64 });
 
         // Verificación: simplemente concede el rol (no se quita).
         if (tipo === 'rp_verify') {
             const rid = panel.items[0]?.roleId;
-            if (!rid) return interaction.reply({ content: t(cfg, '❌ Este panel no tiene ningún rol configurado.', '❌ This panel has no role set up.'), ephemeral: true });
-            if (interaction.member.roles.cache.has(rid)) return interaction.reply({ content: t(cfg, '✅ Ya estás verificado.', '✅ You’re already verified.'), ephemeral: true });
+            if (!rid) return interaction.reply({ content: t(cfg, '❌ Este panel no tiene ningún rol configurado.', '❌ This panel has no role set up.'), flags: 64 });
+            if (interaction.member.roles.cache.has(rid)) return interaction.reply({ content: t(cfg, '✅ Ya estás verificado.', '✅ You’re already verified.'), flags: 64 });
             await interaction.member.roles.add(rid).catch(() => {});
-            return interaction.reply({ content: t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), flags: 64 });
         }
 
         const estado = await toggleRol(interaction.member, panel, roleId);
@@ -35,10 +35,10 @@ async function manejarBotonRol(interaction) {
             : estado === 'quitado' ? t(cfg, `➖ Se ha quitado el rol **${nombre}**.`, `➖ The **${nombre}** role was removed.`)
             : estado === 'limite' ? t(cfg, '⚠️ Has alcanzado el máximo de roles de este panel.', '⚠️ You’ve reached the maximum number of roles for this panel.')
             : t(cfg, `Ya tienes **${nombre}**.`, `You already have **${nombre}**.`);
-        return interaction.reply({ content: msg, ephemeral: true });
+        return interaction.reply({ content: msg, flags: 64 });
     } catch (e) {
         console.error('Error en botón de rol:', e);
-        if (!interaction.replied) interaction.reply({ content: t(cfg, '❌ Algo ha ido mal.', '❌ Something went wrong.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(cfg, '❌ Algo ha ido mal.', '❌ Something went wrong.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -48,12 +48,12 @@ async function manejarMenuRol(interaction) {
     try {
         const panelId = interaction.customId.split(':')[1];
         const panel = await RolePanel.findById(panelId);
-        if (!panel) return interaction.reply({ content: t(cfg, '❌ Este panel ya no existe.', '❌ This panel no longer exists.'), ephemeral: true });
+        if (!panel) return interaction.reply({ content: t(cfg, '❌ Este panel ya no existe.', '❌ This panel no longer exists.'), flags: 64 });
         const { puestos, quitados } = await aplicarSeleccionMenu(interaction.member, panel, interaction.values);
-        return interaction.reply({ content: t(cfg, `✅ Roles actualizados — ${puestos} añadidos, ${quitados} quitados.`, `✅ Roles updated — ${puestos} added, ${quitados} removed.`), ephemeral: true });
+        return interaction.reply({ content: t(cfg, `✅ Roles actualizados — ${puestos} añadidos, ${quitados} quitados.`, `✅ Roles updated — ${puestos} added, ${quitados} removed.`), flags: 64 });
     } catch (e) {
         console.error('Error en menú de rol:', e);
-        if (!interaction.replied) interaction.reply({ content: t(cfg, '❌ Algo ha ido mal.', '❌ Something went wrong.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(cfg, '❌ Algo ha ido mal.', '❌ Something went wrong.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -79,8 +79,8 @@ module.exports = {
                 await comando.execute(interaction, client, cfgSlash);
             } catch (e) {
                 console.error('Error en slash command:', e);
-                const msg = { content: t(cfgSlash, '❌ Error al ejecutar el comando.', '❌ Error running the command.'), ephemeral: true };
-                interaction.replied || interaction.deferred ? interaction.followUp(msg) : interaction.reply(msg);
+                const msg = { content: t(cfgSlash, '❌ Error al ejecutar el comando.', '❌ Error running the command.'), flags: 64 };
+                (interaction.replied || interaction.deferred ? interaction.followUp(msg) : interaction.reply(msg)).catch(() => {});
             }
             return;
         }
@@ -89,11 +89,11 @@ module.exports = {
         if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_comprar') {
             const cfgTienda = await getConfigCached(interaction.guildId).catch(() => null);
             const economia = require('../utils/economia.js');
-            const r = await economia.comprarItem(interaction.user.id, interaction.values[0]);
-            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, ephemeral: true });
+            const r = await economia.comprarItem(interaction.user.id, interaction.values[0], 1, cfgTienda || 'en');
+            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
             return interaction.reply({
                 content: t(cfgTienda, `✅ Has comprado **${r.item.nombre}** por 🪙 ${r.coste}. Te quedan **${r.balance}** de oro.`, `✅ You bought **${r.item.nombre}** for 🪙 ${r.coste}. You have **${r.balance}** gold left.`),
-                ephemeral: true,
+                flags: 64,
             });
         }
 
@@ -149,8 +149,9 @@ module.exports = {
                 },
             };
             const cfgUsar = await getConfigCached(interaction.guildId).catch(() => null);
+            ctx.idioma = cfgUsar || 'en';
             const r = await economia.usarItem(interaction.user.id, interaction.values[0], ctx);
-            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, ephemeral: true });
+            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
 
             const ef = r.efecto;
             if (ef.tipo === 'caja') {
@@ -161,12 +162,12 @@ module.exports = {
                     .setTitle(t(cfgUsar, '🎁 ¡Caja abierta!', '🎁 Box opened!'))
                     .setDescription(t(cfgUsar, `Has abierto **${r.item.nombre}** y has conseguido…\n\n✨ **${p.nombre}** *(${p.rareza})*`, `You opened **${r.item.nombre}** and got…\n\n✨ **${p.nombre}** *(${p.rareza})*`))
                     .setThumbnail(p.imageUrl || null);
-                return interaction.reply({ embeds: [embed], ephemeral: true });
+                return interaction.reply({ embeds: [embed], flags: 64 });
             }
             const msg = ef.tipo === 'xpBoost'
                 ? t(cfgUsar, `✨ Has usado **${r.item.nombre}**: XP **x${ef.multiplicador}** durante **${ef.duracionMin} min**! 📈`, `✨ You used **${r.item.nombre}**: XP **x${ef.multiplicador}** for **${ef.duracionMin} min**! 📈`)
                 : t(cfgUsar, `✨ Has usado **${r.item.nombre}**: rol activado durante **${ef.duracionMin} min**. 🎭`, `✨ You used **${r.item.nombre}**: role activated for **${ef.duracionMin} min**. 🎭`);
-            return interaction.reply({ content: msg, ephemeral: true });
+            return interaction.reply({ content: msg, flags: 64 });
         }
 
         // --- SISTEMA DE ROLES: paneles de autoasignación (se gestionan aparte) ---
@@ -267,7 +268,7 @@ module.exports = {
                 return interaction.update(construirBienvenida(guild, config, lang));
             } catch (e) {
                 console.error('Error en setup_lang:', e);
-                return interaction.reply({ content: '❌ Could not switch language.', flags: 64 });
+                return interaction.reply({ content: lang === 'es' ? '❌ No se ha podido cambiar el idioma.' : '❌ Could not switch language.', flags: 64 }).catch(() => {});
             }
         }
 
@@ -365,12 +366,12 @@ module.exports = {
                     await interaction.reply({
                         content: t(config, 'Elige una categoría para poder ayudarte mejor:', 'Please pick a category so we can help you better:'),
                         components: [filaComponentes],
-                        ephemeral: true
+                        flags: 64
                     });
 
                 } catch (error) {
                     console.error('Error al mostrar menú de motivos:', error);
-                    await interaction.reply({ content: t(config, '❌ Hubo un error al procesar tu solicitud.', '❌ There was an error processing your request.'), ephemeral: true });
+                    await interaction.reply({ content: t(config, '❌ Hubo un error al procesar tu solicitud.', '❌ There was an error processing your request.'), flags: 64 });
                 }
             }
 
@@ -378,14 +379,14 @@ module.exports = {
             if (interaction.customId === 'reclamar_ticket') {
                 const configStaff = await ServidorConfig.findOne({ guildId: interaction.guildId });
                 if (!esStaff(interaction, configStaff)) {
-                    return await interaction.reply({ content: t(configStaff, '❌ Solo el equipo de soporte puede reclamar este ticket.', '❌ Only the support team can claim this ticket.'), ephemeral: true });
+                    return await interaction.reply({ content: t(configStaff, '❌ Solo el equipo de soporte puede reclamar este ticket.', '❌ Only the support team can claim this ticket.'), flags: 64 });
                 }
 
                 const canalId = interaction.channel.id;
                 const ticket = await Ticket.findOne({ canalId: canalId });
 
-                if (!ticket) return await interaction.reply({ content: t(configStaff, '❌ No se ha encontrado este ticket en la base de datos.', '❌ This ticket wasn’t found in the database.'), ephemeral: true });
-                if (ticket.asignadoA) return await interaction.reply({ content: t(configStaff, `⚠️ Este ticket ya lo está atendiendo **${ticket.asignadoNombre}**.`, `⚠️ This ticket is already being handled by **${ticket.asignadoNombre}**.`), ephemeral: true });
+                if (!ticket) return await interaction.reply({ content: t(configStaff, '❌ No se ha encontrado este ticket en la base de datos.', '❌ This ticket wasn’t found in the database.'), flags: 64 });
+                if (ticket.asignadoA) return await interaction.reply({ content: t(configStaff, `⚠️ Este ticket ya lo está atendiendo **${ticket.asignadoNombre}**.`, `⚠️ This ticket is already being handled by **${ticket.asignadoNombre}**.`), flags: 64 });
 
                 const staffAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
 
@@ -416,12 +417,12 @@ module.exports = {
             if (interaction.customId === 'add_user_prompt') {
                 const configAdd = await ServidorConfig.findOne({ guildId: interaction.guildId });
                 if (!esStaff(interaction, configAdd)) {
-                    return await interaction.reply({ content: t(configAdd, '❌ Solo el equipo de soporte puede invitar a otras personas.', '❌ Only the support team can invite other people.'), ephemeral: true });
+                    return await interaction.reply({ content: t(configAdd, '❌ Solo el equipo de soporte puede invitar a otras personas.', '❌ Only the support team can invite other people.'), flags: 64 });
                 }
 
                 const userSelect = new UserSelectMenuBuilder().setCustomId('add_user_select').setPlaceholder(t(configAdd, '🔍 Busca y selecciona un usuario...', '🔍 Search and select a user...')).setMinValues(1).setMaxValues(1);
                 const row = new ActionRowBuilder().addComponents(userSelect);
-                await interaction.reply({ content: t(configAdd, 'Elige el usuario que quieres invitar a este ticket:', 'Choose the user you want to invite to this ticket:'), components: [row], ephemeral: true });
+                await interaction.reply({ content: t(configAdd, 'Elige el usuario que quieres invitar a este ticket:', 'Choose the user you want to invite to this ticket:'), components: [row], flags: 64 });
             }
 
             // CERRAR TICKET (transcript + CSAT + archivado, vía módulo compartido)
@@ -429,15 +430,15 @@ module.exports = {
                 const canal = interaction.channel;
                 // Puede cerrar: el staff (rol/permiso) o el propio creador del ticket.
                 const configClose = await ServidorConfig.findOne({ guildId: interaction.guildId });
-                if (!canal) return await interaction.reply({ content: t(configClose, '❌ No se ha encontrado el canal.', '❌ The channel couldn’t be found.'), ephemeral: true });
+                if (!canal) return await interaction.reply({ content: t(configClose, '❌ No se ha encontrado el canal.', '❌ The channel couldn’t be found.'), flags: 64 });
 
                 const ticketClose = await Ticket.findOne({ canalId: canal.id });
                 const esCreador = ticketClose && ticketClose.creadorId === interaction.user.id;
                 if (!esStaff(interaction, configClose) && !esCreador) {
-                    return await interaction.reply({ content: t(configClose, '❌ No tienes permiso para cerrar este ticket.', '❌ You don’t have permission to close this ticket.'), ephemeral: true });
+                    return await interaction.reply({ content: t(configClose, '❌ No tienes permiso para cerrar este ticket.', '❌ You don’t have permission to close this ticket.'), flags: 64 });
                 }
 
-                await interaction.reply({ content: t(configClose, '🔒 Guardando una copia y cerrando el ticket...', '🔒 Saving a backup and closing the ticket...'), ephemeral: true });
+                await interaction.reply({ content: t(configClose, '🔒 Guardando una copia y cerrando el ticket...', '🔒 Saving a backup and closing the ticket...'), flags: 64 });
 
                 try {
                     const res = await cerrarTicket(client, canal.id, { autor: interaction.user.username });
@@ -459,7 +460,7 @@ module.exports = {
                     if (ticket) await registrarLogTicket(client, ticket, `⭐ Ticket rated (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
                     const embedGracias = new EmbedBuilder().setColor('#2ecc71').setTitle(t(cfgCsat, '💖 ¡Gracias por tu opinión!', '💖 Thanks for your feedback!')).setDescription(t(cfgCsat, `Has valorado el soporte recibido con **${valoracion} estrellas**.`, `You rated the support you received with **${valoracion} stars**.`));
                     await interaction.update({ embeds: [embedGracias], components: [] });
-                } catch (e) { await interaction.reply({ content: t(cfgCsat, 'Error al guardar.', 'Error saving.'), ephemeral: true }); }
+                } catch (e) { await interaction.reply({ content: t(cfgCsat, 'Error al guardar.', 'Error saving.'), flags: 64 }); }
             }
         }
 
@@ -521,7 +522,7 @@ module.exports = {
             if (interaction.isFromMessage()) {
                 await interaction.update({ content: t(cfgCrear, '⏳ Procesando tu solicitud y creando el canal...', '⏳ Processing your request and creating the channel...'), components: [], embeds: [] });
             } else {
-                await interaction.reply({ content: t(cfgCrear, '⏳ Procesando tu solicitud y creando el canal...', '⏳ Processing your request and creating the channel...'), ephemeral: true });
+                await interaction.reply({ content: t(cfgCrear, '⏳ Procesando tu solicitud y creando el canal...', '⏳ Processing your request and creating the channel...'), flags: 64 });
             }
 
             try {

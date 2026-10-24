@@ -49,7 +49,8 @@ const TEXTOS_BIENVENIDA = {
 
 // Mensaje interactivo enviado al unirse el bot y en !setup.
 // lang: 'en' (por defecto, mercado global) o 'es' — se cambia con el botón del propio mensaje.
-function construirBienvenida(guild, config, lang = 'en') {
+// Sin `lang` explícito usa el idioma guardado del servidor (antes salía siempre en inglés).
+function construirBienvenida(guild, config, lang = (config && config.idioma) || 'en') {
     const t = TEXTOS_BIENVENIDA[lang] || TEXTOS_BIENVENIDA.en;
     const url = process.env.FRONTEND_URL || 'http://localhost:5173';
     const guildId = guild.id;
