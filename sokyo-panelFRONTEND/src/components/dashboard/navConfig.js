@@ -8,7 +8,7 @@ import {
   UserCheck, Flag, DatabaseBackup,
   Sparkles, MessagesSquare, LayoutTemplate, Megaphone, Crown, BarChart3, Mail, DoorOpen,
   Music, Gift, CalendarDays, PartyPopper, BarChart2, Lightbulb, ClipboardList, Gamepad2, Mic2,
-  FolderTree,
+  FolderTree, Rocket, Send, ChevronsUp, Globe2, Radio,
 } from 'lucide-react';
 
 // Estructura agrupada por el RECORRIDO del miembro (lo más intuitivo posible):
@@ -40,6 +40,17 @@ export const navGroups = [
       { tab: 'prod-bienvenidas', icon: Sparkles },
       { tab: 'roles-autorol', icon: UserPlus },
       { tab: 'config-niveles', icon: TrendingUp },
+    ],
+  },
+  {
+    // Crecimiento: herramientas para que el servidor gane miembros.
+    id: 'crecimiento',
+    icon: Rocket,
+    items: [
+      { tab: 'crec-invitaciones', icon: Send },
+      { tab: 'crec-bump', icon: ChevronsUp },
+      { tab: 'crec-pagina', icon: Globe2 },
+      { tab: 'crec-directos', icon: Radio },
     ],
   },
   {

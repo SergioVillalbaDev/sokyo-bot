@@ -9,6 +9,7 @@ const CATEGORIAS = [
     { titulo: ['🎵 Música', '🎵 Music'], cmds: [['play', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'], ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's']] },
     { titulo: ['🪙 Economía', '🪙 Economy'], cmds: [['daily', 's'], ['shop', 's'], ['inventory', 's'], ['use', 's'], ['givegold', 's'], ['rich', 's'], ['system', 's']] },
     { titulo: ['📈 Niveles', '📈 Levels'], cmds: [['level', 's'], ['ranking', 'p'], ['xp', 'p']] },
+    { titulo: ['🚀 Crecimiento', '🚀 Growth'], cmds: [['invites', 's']] },
     { titulo: ['🛡️ Moderación', '🛡️ Moderation'], cmds: [['ban', 'p'], ['unban', 'p'], ['kick', 'p'], ['timeout', 'p'], ['warn', 'p'], ['sanction', 'p'], ['history', 'p'], ['report', 'p']] },
     { titulo: ['🧰 Utilidades', '🧰 Utility'], cmds: [['ping', 'p'], ['user', 'p'], ['activity', 'p'], ['role', 'p'], ['remind', 'p'], ['emoji', 'p'], ['sticker', 'p'], ['dice', 'p'], ['setup', 'p'], ['sokyo', 'p']] },
 ];

@@ -10,6 +10,7 @@ import LanguageSwitcher from '../LanguageSwitcher';
 const LINKS = [
   { key: 'features', href: '#features' },
   { key: 'pricing', href: '#pricing' },
+  { key: 'servers', href: '/servidores' }, // directorio de servidores (página aparte)
   { key: 'panel', href: '#dashboard', dashboard: true },
 ];
 
@@ -30,6 +31,7 @@ export default function Navbar({ onEnterDashboard }) {
   // desplaza después, a mano.
   const irA = (e, link) => {
     if (link.dashboard) { setMenuAbierto(false); onEnterDashboard(e); return; }
+    if (!link.href.startsWith('#')) { setMenuAbierto(false); return; } // otra página: navegación normal
     const destino = document.querySelector(link.href);
     if (!destino) { setMenuAbierto(false); return; }
     e.preventDefault();
