@@ -14,10 +14,11 @@ const TIPOS = ['texto', 'numero', 'seleccion'];
 const OPS_NUMERO = ['menor_que', 'mayor_que', 'igual_a'];
 const OPS_TEXTO = ['contiene', 'no_contiene', 'igual_a'];
 
-const PREGUNTAS_DEFECTO = [
-  { id: 'nombre', texto: 'What’s your name or alias?', tipo: 'texto', requerida: true },
-  { id: 'edad', texto: 'How old are you?', tipo: 'numero', requerida: true },
-  { id: 'intereses', texto: 'What are you into, or why are you joining the server?', tipo: 'texto', requerida: false },
+// Preguntas de ejemplo en el idioma del panel (antes siempre salían en inglés).
+const preguntasDefecto = (t) => [
+  { id: 'nombre', texto: t('dashboard.presentaciones_v.defaultQName'), tipo: 'texto', requerida: true },
+  { id: 'edad', texto: t('dashboard.presentaciones_v.defaultQAge'), tipo: 'numero', requerida: true },
+  { id: 'intereses', texto: t('dashboard.presentaciones_v.defaultQInterests'), tipo: 'texto', requerida: false },
 ];
 
 export default function PresentacionesView({ dash }) {
@@ -28,7 +29,7 @@ export default function PresentacionesView({ dash }) {
   const [canalStaff, setCanalStaff] = useState('');
   const [modo, setModo] = useState('preguntas');
   const [plantilla, setPlantilla] = useState('Age: \nWhere you’re from: \nHobbies: \nWhy you’re joining: ');
-  const [preguntas, setPreguntas] = useState(PREGUNTAS_DEFECTO);
+  const [preguntas, setPreguntas] = useState(() => preguntasDefecto(t));
   const [filtros, setFiltros] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [guardadoOk, setGuardadoOk] = useState(false);

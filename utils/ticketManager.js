@@ -13,20 +13,38 @@ const { esPro } = require('./billing.js');
 const { enviarWebhook } = require('./webhooks.js');
 const { enviarLogADiscord } = require('./logsManager.js');
 const { t } = require('./i18n.js');
+const { nombreUrgencia } = require('./textosPorDefecto.js');
 
 const CATEGORIA_ARCHIVO = '🗄️ Archived Tickets';
 
-// Registra un evento del ciclo de vida del ticket en la auditoría (pestaña "Tickets").
+// Acciones del ciclo de vida del ticket en español (los llamadores las pasan en inglés).
+const ACCIONES_ES = {
+    '🎫 Ticket opened': '🎫 Ticket abierto',
+    '🔒 Ticket closed': '🔒 Ticket cerrado',
+    '🔓 Ticket reopened': '🔓 Ticket reabierto',
+    '🙋 Ticket claimed': '🙋 Ticket reclamado',
+    '🤖 Auto-assigned': '🤖 Asignado automáticamente',
+};
+function accionEnIdioma(cfg, accion) {
+    if (t(cfg, 'es', 'en') !== 'es') return accion;
+    const valorado = /^⭐ Ticket rated \((\d)\/5\)$/.exec(accion);
+    if (valorado) return `⭐ Ticket valorado (${valorado[1]}/5)`;
+    return ACCIONES_ES[accion] || accion;
+}
+
+// Registra un evento del ciclo de vida del ticket en la auditoría (pestaña "Tickets"),
+// en el idioma del servidor.
 async function registrarLogTicket(client, ticket, accion, color, autor) {
     try {
         const cfg = await getConfig(ticket.guildId);
         if (!logActivo(cfg, 'tickets')) return; // logs de tickets desactivados en el panel
+        const titulo = ticket.titulo || ticket.motivo;
         const log = await Log.create({
             guildId: ticket.guildId,
             categoria: 'Tickets',
-            accion,
-            usuario: autor || 'System',
-            detalles: `Ticket: **${ticket.titulo || ticket.motivo}** from ${ticket.creadorNombre}`,
+            accion: accionEnIdioma(cfg, accion),
+            usuario: autor || t(cfg, 'Sistema', 'System'),
+            detalles: t(cfg, `Ticket: **${titulo}** de ${ticket.creadorNombre}`, `Ticket: **${titulo}** from ${ticket.creadorNombre}`),
             color
         });
         if (client) await enviarLogADiscord(client, log);
@@ -120,7 +138,7 @@ async function construirTranscriptHTML(canalId, ticket, cfg) {
   <h1>🎫 ${esc(ticket.titulo || t(cfg, 'Ticket de soporte', 'Support ticket'))}</h1>
   <div class="sub">
     <div><b>${t(cfg, 'Usuario:', 'User:')}</b> ${esc(ticket.creadorNombre)}</div>
-    <div><b>${t(cfg, 'Motivo:', 'Reason:')}</b> ${esc(ticket.motivo || '-')} &nbsp;·&nbsp; <b>${t(cfg, 'Prioridad:', 'Priority:')}</b> ${esc(ticket.prioridad || '-')}</div>
+    <div><b>${t(cfg, 'Motivo:', 'Reason:')}</b> ${esc(ticket.motivo || '-')} &nbsp;·&nbsp; <b>${t(cfg, 'Prioridad:', 'Priority:')}</b> ${esc(nombreUrgencia(t(cfg, 'es', 'en'), ticket.prioridad) || '-')}</div>
     <div><b>${t(cfg, 'Cerrado:', 'Closed:')}</b> ${esc(new Date().toLocaleString(localeFechas))}</div>
   </div>
 </header>
@@ -149,7 +167,7 @@ async function generarTranscriptPDF(canalId, ticket, cfg) {
     doc.moveDown(0.4);
     doc.fontSize(10).fillColor('#555')
         .text(`${t(cfg, 'Usuario:', 'User:')} ${ticket.creadorNombre}`)
-        .text(`${t(cfg, 'Motivo:', 'Reason:')} ${ticket.motivo || '-'}    ${t(cfg, 'Prioridad:', 'Priority:')} ${ticket.prioridad || '-'}`)
+        .text(`${t(cfg, 'Motivo:', 'Reason:')} ${ticket.motivo || '-'}    ${t(cfg, 'Prioridad:', 'Priority:')} ${nombreUrgencia(t(cfg, 'es', 'en'), ticket.prioridad) || '-'}`)
         .text(`${t(cfg, 'Cerrado:', 'Closed:')} ${new Date().toLocaleString(localeFechas)}`);
     doc.moveDown();
 
@@ -280,7 +298,7 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
         .setTitle(`🎫 ${titulo}`)
         .setColor('#3498db')
         .setDescription(`**${t(cfg, 'Motivo:', 'Reason:')}** ${motivo}${descripcion ? `\n\n${descripcion}` : ''}`)
-        .addFields({ name: t(cfg, '🚨 Prioridad', '🚨 Priority'), value: `**${prioridad}**`, inline: true });
+        .addFields({ name: t(cfg, '🚨 Prioridad', '🚨 Priority'), value: `**${nombreUrgencia(t(cfg, 'es', 'en'), prioridad)}**`, inline: true });
     aplicarPieMarca(embed, cfg); // marca blanca
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('reclamar_ticket').setLabel(t(cfg, '🙋‍♂️ Reclamar ticket', '🙋‍♂️ Claim ticket')).setStyle(ButtonStyle.Primary),

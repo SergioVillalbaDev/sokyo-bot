@@ -744,6 +744,7 @@ export default {
       premium: 'Premium',
       lockedHint: '🔒 Desbloquea 8 temas con estilo propio activando Sokyo Pro.',
     },
+    priority: { urgent: 'Urgente', high: 'Alta', normal: 'Normal', low: 'Baja' },
     error: {
       detail: 'Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que las claves coincidan. (Abre la consola con F12 para más detalles.)',
     },
@@ -1581,6 +1582,9 @@ export default {
       },
     },
     presentaciones_v: {
+      defaultQName: '¿Cómo te llamas o qué apodo usas?',
+      defaultQAge: '¿Cuántos años tienes?',
+      defaultQInterests: '¿Qué te gusta o por qué te unes al servidor?',
       intro: 'Pide a los nuevos miembros que se presenten antes de acceder al servidor. Configura el formulario, define las reglas de descarte automático y recibe cada presentación en el canal del staff.',
       note: 'Cuando alguien entra, el bot le envía el formulario por DM. Si pasa los filtros, publica la presentación en el canal elegido. Si no, la descarta y puede avisar al usuario automáticamente.',
       formatTitle: 'Formato de la presentación',

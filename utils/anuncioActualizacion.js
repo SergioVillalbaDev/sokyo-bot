@@ -2,12 +2,12 @@
 // (campo "version" de package.json) se lo dice a los miembros del servidor
 // configurado: por privado a cada uno y, si no llega a todos, también en el canal
 // general. Se anuncia una sola vez por versión y servidor (queda guardado en la BD).
-const mongoose = require('mongoose');
 const { ChannelType, PermissionsBitField } = require('discord.js');
 const { version } = require('../package.json');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Log = require('../models/Log.js');
 const { enviarLogADiscord } = require('./logsManager.js');
+const { esperarMongo } = require('./config.js');
 
 // Servidor al que avisar (nombre o ID). Vacío = aviso desactivado.
 const SERVIDOR = process.env.ANUNCIO_SERVIDOR ?? 'Tokyto';
@@ -142,12 +142,6 @@ async function anunciarEnServidor(client, guild, pausaMs) {
     } catch (error) { console.error('Error guardando el log del aviso de actualización:', error.message); }
 
     return { enviados, fallidos, omitidos, publicadoEn };
-}
-
-// El evento ready puede llegar antes que la conexión a Mongo: se espera a que esté lista.
-function esperarMongo() {
-    if (mongoose.connection.readyState === 1) return Promise.resolve();
-    return new Promise((resolve) => mongoose.connection.once('connected', resolve));
 }
 
 async function anunciarActualizacion(client, { pausaMs = 1200 } = {}) {

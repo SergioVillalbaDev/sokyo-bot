@@ -1,4 +1,5 @@
 // Helpers de configuración por servidor, compartidos por eventos y utilidades.
+const mongoose = require('mongoose');
 const ServidorConfig = require('../models/ServidorConfig.js');
 
 // Devuelve la configuración del servidor (o null si no existe / falla).
@@ -38,4 +39,10 @@ function invalidateConfig(guildId) {
     else _cache.clear();
 }
 
-module.exports = { getConfig, getConfigCached, logActivo, invalidateConfig };
+// El evento ready puede llegar antes que la conexión a Mongo: espera a que esté lista.
+function esperarMongo() {
+    if (mongoose.connection.readyState === 1) return Promise.resolve();
+    return new Promise((resolve) => mongoose.connection.once('connected', resolve));
+}
+
+module.exports = { getConfig, getConfigCached, logActivo, invalidateConfig, esperarMongo };

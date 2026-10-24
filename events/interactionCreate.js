@@ -9,6 +9,7 @@ const reportes = require('../utils/reportes.js');
 const embudo = require('../utils/embudo.js');
 const { getConfigCached } = require('../utils/config.js');
 const { t } = require('../utils/i18n.js');
+const { adaptarTextosAlIdioma, nombreUrgencia } = require('../utils/textosPorDefecto.js');
 
 // --- Paneles de roles: botón de rol o de verificación ---
 async function manejarBotonRol(interaction) {
@@ -259,9 +260,9 @@ module.exports = {
                 const { construirBienvenida } = require('../utils/onboarding.js');
                 // El botón de idioma del asistente de bienvenida fija también el idioma
                 // persistente del bot para este servidor (ServidorConfig.idioma).
-                const config = await ServidorConfig.findOneAndUpdate(
-                    { guildId }, { $set: { idioma: lang === 'es' ? 'es' : 'en' } }, { returnDocument: 'after', upsert: false },
-                ) || await ServidorConfig.findOne({ guildId });
+                await ServidorConfig.updateOne({ guildId }, { $set: { idioma: lang === 'es' ? 'es' : 'en' } });
+                await adaptarTextosAlIdioma(guildId, lang === 'es' ? 'es' : 'en').catch(() => {});
+                const config = await ServidorConfig.findOne({ guildId });
                 const guild = interaction.guild || client.guilds.cache.get(guildId);
                 return interaction.update(construirBienvenida(guild, config, lang));
             } catch (e) {
@@ -348,7 +349,7 @@ module.exports = {
                         vistos.add(valor);
                         opciones.push({
                             label: valor,
-                            description: t(config, `Prioridad asignada: ${motivo.urgencia}`, `Assigned priority: ${motivo.urgencia}`).slice(0, 100),
+                            description: t(config, `Prioridad asignada: ${nombreUrgencia('es', motivo.urgencia)}`, `Assigned priority: ${motivo.urgencia}`).slice(0, 100),
                             value: valor,
                         });
                         if (opciones.length === 25) break;
@@ -571,7 +572,7 @@ module.exports = {
                 await registrarLogTicket(client, nuevoTicket, '🎫 Ticket opened', '#2ecc71', interaction.user.username);
 
                 const notaBienvenida = (config && config.mensajeBienvenida) || t(config, 'Un miembro del equipo lo revisará en breve.', 'A team member will review it shortly.');
-                const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(t(config, `**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*${notaBienvenida}*`, `**Reason:** ${motivo}\n\n**User’s description:**\n${descripcion}\n\n*${notaBienvenida}*`)).setColor(colorHex).addFields({ name: t(config, '🚨 Prioridad', '🚨 Priority'), value: `**${urgencia}**`, inline: true });
+                const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(t(config, `**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*${notaBienvenida}*`, `**Reason:** ${motivo}\n\n**User’s description:**\n${descripcion}\n\n*${notaBienvenida}*`)).setColor(colorHex).addFields({ name: t(config, '🚨 Prioridad', '🚨 Priority'), value: `**${nombreUrgencia(t(config, 'es', 'en'), urgencia)}**`, inline: true });
                 const rowBotones = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('reclamar_ticket').setLabel(t(config, '🙋‍♂️ Reclamar ticket', '🙋‍♂️ Claim ticket')).setStyle(ButtonStyle.Primary),
                     new ButtonBuilder().setCustomId('add_user_prompt').setLabel(t(config, '➕ Añadir usuario', '➕ Add user')).setStyle(ButtonStyle.Secondary),

@@ -38,6 +38,7 @@ const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
 const { enviarResumen } = require('../utils/resumenDiario.js');
+const { adaptarTextosAlIdioma } = require('../utils/textosPorDefecto.js');
 const { version: VERSION } = require('../package.json');
 
 // Commit que se está ejecutando: lo publica /api/estado para comprobar desde fuera
@@ -228,6 +229,13 @@ module.exports = (client) => {
         const p = guildsDelStaff(userId).then((gs) => gs.map((g) => g.id)).catch(() => []);
         accesoStaff.set(userId, { t: ahora, p });
         return p;
+    }
+
+    // Idioma en el que mira el panel quien hace la petición (cabecera X-Sokyo-Lang);
+    // si no la manda, el del bot en ese servidor. Para textos que genera la API.
+    function idiomaPanel(req, cfg) {
+        const pedido = String(req.get('x-sokyo-lang') || '').slice(0, 2).toLowerCase();
+        return ['es', 'en'].includes(pedido) ? pedido : ((cfg && cfg.idioma) || 'en');
     }
 
     // Renovación automática: si la sesión se emitió hace más de un día, la respuesta
@@ -1084,7 +1092,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!gid) return res.json({ esPro: false, vacio: true });
             const cfg = await ServidorConfig.findOne({ guildId: gid });
             const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
-            const data = await construirAnalitica(client, gid, cfg, dias);
+            const data = await construirAnalitica(client, gid, cfg, dias, idiomaPanel(req, cfg));
             data.iaActiva = ia.iaDisponible();
             res.json(data);
         } catch (error) {
@@ -1104,8 +1112,9 @@ app.get('/api/stats/uso', async (req, res) => {
             const est = billing.estadoIA(cfg);
             if (est.restantes <= 0) return res.status(402).json({ error: `Has agotado tus ${est.cuota} usos de IA de este mes. Se renueva el día 1.`, iaUsos: est.usos, iaCuota: est.cuota });
             const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
-            const data = await construirAnalitica(client, gid, cfg, dias);
-            const texto = await ia.informeServidor(data, cfg && cfg.idioma);
+            const idioma = idiomaPanel(req, cfg);
+            const data = await construirAnalitica(client, gid, cfg, dias, idioma);
+            const texto = await ia.informeServidor(data, idioma);
             const consumo = await billing.consumirIA(gid, cfg);
             res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
         } catch (error) {
@@ -1247,7 +1256,7 @@ app.get('/api/stats/uso', async (req, res) => {
             }
             const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 }).limit(100);
             const texto = accion === 'resumen'
-                ? await ia.resumirTicket(mensajes, ticket, cfg && cfg.idioma)
+                ? await ia.resumirTicket(mensajes, ticket, idiomaPanel(req, cfg))
                 : await ia.sugerirRespuesta(mensajes, ticket, cfg && cfg.idioma);
             const consumo = await billing.consumirIA(ticket.guildId, cfg); // solo cuenta si tuvo éxito
             res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
@@ -1367,11 +1376,17 @@ app.get('/api/stats/uso', async (req, res) => {
             if (categoriaArchivados !== undefined) cambios.categoriaArchivados = categoriaArchivados;
             if (idioma !== undefined) cambios.idioma = idioma === 'es' ? 'es' : 'en';
 
-            const configActualizada = await ServidorConfig.findOneAndUpdate(
+            let configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId: guildId },
                 { $set: cambios },
                 { returnDocument: 'after', upsert: true }
             );
+            // Al cambiar el idioma, los textos que siguen como venían de fábrica (y que
+            // no llegan en esta misma petición) pasan al nuevo idioma.
+            if (cambios.idioma) {
+                const adaptados = await adaptarTextosAlIdioma(guildId, cambios.idioma);
+                if (Object.keys(adaptados).length) configActualizada = await ServidorConfig.findOne({ guildId });
+            }
 
             res.json({ success: true, config: configActualizada });
         } catch (error) {

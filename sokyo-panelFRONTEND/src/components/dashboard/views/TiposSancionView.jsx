@@ -18,9 +18,9 @@ export default function TiposSancionView({ dash }) {
 
   return (
     <div className="space-y-5">
-      <div data-help="tipos-crear" className="flex items-center justify-between">
+      <div data-help="tipos-crear" className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted">{t('dashboard.mod_v.tiposIntro')}</p>
-        <button onClick={() => setEditando({})} className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90">
+        <button onClick={() => setEditando({})} className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90">
           <Plus size={16} /> {t('dashboard.mod_v.newType')}
         </button>
       </div>

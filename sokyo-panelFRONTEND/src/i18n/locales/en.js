@@ -744,6 +744,7 @@ export default {
       premium: 'Premium',
       lockedHint: '🔒 Unlock 8 unique themes by upgrading to Sokyo Pro.',
     },
+    priority: { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' },
     error: {
       detail: 'Make sure the bot is running, that VITE_API_URL points to the right address and that the keys match. (Open the console with F12 for details.)',
     },
@@ -1576,6 +1577,9 @@ export default {
       },
     },
     presentaciones_v: {
+      defaultQName: 'What’s your name or alias?',
+      defaultQAge: 'How old are you?',
+      defaultQInterests: 'What are you into, or why are you joining the server?',
       intro: 'Ask new members to introduce themselves before accessing the server. Configure the form, set automatic discard rules and receive each introduction in the staff channel.',
       note: 'When someone joins, the bot sends the form via DM. If they pass the filters, their intro is posted to the chosen channel. If not, it is discarded — and the user can be notified automatically.',
       formatTitle: 'Introduction format',

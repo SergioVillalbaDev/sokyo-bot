@@ -5,6 +5,8 @@
 // solo se ha movido aquí para reutilizarla desde los componentes/hooks.
 // ============================================================================
 
+import i18n from '../i18n';
+
 // URL base de la API del bot. En producción la API y el panel se sirven en el
 // MISMO dominio, así que por defecto usamos rutas relativas (mismo origen) y no
 // dependemos de localhost. Para desarrollo, define VITE_API_URL en el .env
@@ -37,7 +39,9 @@ export const getStaffSession = () => {
 // del propietario (retrocompatible / modo dueño).
 export const apiFetch = (path, options = {}) => {
   const token = getStaffToken();
-  const headers = { ...(options.headers || {}), 'x-api-key': API_KEY };
+  // X-Sokyo-Lang: idioma del panel, para que los textos que genera la API
+  // (recomendaciones, informes…) salgan en el mismo idioma.
+  const headers = { ...(options.headers || {}), 'x-api-key': API_KEY, 'X-Sokyo-Lang': i18n.language || 'en' };
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(`${API_URL}${path}`, { ...options, headers }).then((res) => {
     // El servidor renueva la sesión mientras se use (X-Sokyo-Token): así no caduca.

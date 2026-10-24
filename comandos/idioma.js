@@ -10,6 +10,8 @@ const ALIAS = {
     en: 'en', english: 'en', inglés: 'en', ingles: 'en',
 };
 
+const { adaptarTextosAlIdioma } = require('../utils/textosPorDefecto.js');
+
 module.exports = {
     name: 'sokyolanguage',
     aliases: ['sokyoidioma'],
@@ -27,11 +29,13 @@ module.exports = {
                 `Current language: **${actual}**. Usage: \`sokyolanguage spanish\` or \`sokyolanguage english\`.`));
         }
 
-        const config = await ServidorConfig.findOneAndUpdate(
+        let config = await ServidorConfig.findOneAndUpdate(
             { guildId: message.guild.id },
             { $set: { idioma: elegido } },
             { returnDocument: 'after', upsert: true },
         );
+        // Los textos que siguen como venían de fábrica pasan al nuevo idioma.
+        await adaptarTextosAlIdioma(message.guild.id, elegido).catch(() => {});
 
         const nombre = elegido === 'es' ? 'Español' : 'English';
         return message.reply(t(config, `✅ Idioma del bot cambiado a **${nombre}**.`, `✅ Bot language switched to **${nombre}**.`));

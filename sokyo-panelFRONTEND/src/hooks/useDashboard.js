@@ -129,6 +129,12 @@ export function useDashboard() {
   // Secciones del panel que el usuario actual puede ver (según su rol en el servidor).
   const [misPermisos, setMisPermisos] = useState(null);
 
+  // Servidor sobre el que actúan las acciones: el elegido en el panel (o, si aún
+  // no hay, el de la configuración cargada). Antes dependían solo de la
+  // configuración y, al entrar directo en una sección que no la carga (p. ej.
+  // Categorías y canales), no se cargaba ni guardaba nada.
+  const gidActivo = () => guildId || (configServidor && configServidor.guildId) || '';
+
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
   // La API rechaza la sesión de Discord: el banner ofrece volver a entrar.
@@ -248,17 +254,17 @@ export function useDashboard() {
 
   // --- Gestión de categorías y canales (crear/editar/eliminar con todas las opciones) ---
   const cargarEstructuraCanales = () => {
-    if (!configServidor) return Promise.resolve();
-    return apiFetch(`/api/config/${configServidor.guildId}/canales/estructura`).then(procesarRespuesta)
+    if (!gidActivo()) return Promise.resolve();
+    return apiFetch(`/api/config/${gidActivo()}/canales/estructura`).then(procesarRespuesta)
       .then((datos) => setEstructuraCanales({ categorias: datos?.categorias || [], sinCategoria: datos?.sinCategoria || [] }))
       .catch(reportarError('cargando la estructura de canales'));
   };
   const cargarPermisosCanalCatalogo = () => apiFetch('/api/servidor/permisos-canal').then(procesarRespuesta).then((datos) => setPermisosCanalCatalogo(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando catálogo de permisos de canal'));
 
   const crearCategoriaCanal = async ({ nombre, overwrites }) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/categorias`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales/categorias`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre, overwrites }),
       });
       const data = await res.json();
@@ -268,9 +274,9 @@ export function useDashboard() {
   };
 
   const editarCategoriaCanal = async (categoriaId, cambios) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/categorias/${categoriaId}`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales/categorias/${categoriaId}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -280,18 +286,18 @@ export function useDashboard() {
   };
 
   const eliminarCategoriaCanal = async (categoriaId) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/categorias/${categoriaId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales/categorias/${categoriaId}`, { method: 'DELETE' });
       if (res.ok) { await cargarEstructuraCanales(); return true; }
     } catch (error) { console.error('Error eliminando categoría:', error); }
     return false;
   };
 
   const crearCanalServidor = async (datos) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
       });
       const data = await res.json();
@@ -301,9 +307,9 @@ export function useDashboard() {
   };
 
   const editarCanalServidor = async (canalId, cambios) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/${canalId}`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales/${canalId}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -313,9 +319,9 @@ export function useDashboard() {
   };
 
   const eliminarCanalServidor = async (canalId) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/canales/${canalId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/config/${gidActivo()}/canales/${canalId}`, { method: 'DELETE' });
       if (res.ok) { await cargarEstructuraCanales(); return true; }
     } catch (error) { console.error('Error eliminando canal:', error); }
     return false;
@@ -323,9 +329,9 @@ export function useDashboard() {
 
   // Guarda el autorol al entrar (personas + bots) y refresca la config.
   const guardarAutoRoles = async ({ autoRoles, autoRolesBots }) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/autoroles`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/autoroles`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autoRoles, autoRolesBots }),
       });
@@ -384,9 +390,9 @@ export function useDashboard() {
     return false;
   };
   const guardarNiveles = async (cambios) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/niveles`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/niveles`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -397,9 +403,9 @@ export function useDashboard() {
 
   // Guarda la configuración de música del servidor.
   const guardarMusica = async (cambios) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/musica`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/musica`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -414,9 +420,9 @@ export function useDashboard() {
 
   // Guarda la configuración de voz temporal.
   const guardarVozTemporal = async (cambios) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/voztemporal`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/voztemporal`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -427,18 +433,18 @@ export function useDashboard() {
 
   // Publica/reedita el panel de control en Discord.
   const publicarPanelVoz = async () => {
-    if (!configServidor) return { error: 'Sin servidor' };
+    if (!gidActivo()) return { error: 'Sin servidor' };
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/voztemporal/panel`, { method: 'POST' });
+      const res = await apiFetch(`/api/config/${gidActivo()}/voztemporal/panel`, { method: 'POST' });
       return await res.json();
     } catch (error) { console.error('Error publicando panel de voz:', error); return { error: 'Error de conexión' }; }
   };
 
   // Cierra (borra) una sala temporal concreta.
   const cerrarSalaVoz = async (canalId) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/voztemporal/activos/${canalId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/config/${gidActivo()}/voztemporal/activos/${canalId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) { await cargarVozActivos(); return true; }
     } catch (error) { console.error('Error cerrando sala:', error); }
@@ -448,11 +454,11 @@ export function useDashboard() {
   // SOLO PROPIETARIO (OWNER_IDS): cambia el plan del servidor seleccionado.
   // El backend rechaza a cualquiera que no sea owner (403).
   const ownerCambiarPlan = async (plan) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
       const res = await apiFetch('/api/owner/premium', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guildId: configServidor.guildId, plan }),
+        body: JSON.stringify({ guildId: gidActivo(), plan }),
       });
       const data = await res.json();
       if (data.success && data.config) { setConfigServidor(data.config); return true; }
@@ -627,9 +633,9 @@ export function useDashboard() {
 
   // Guarda los ajustes de moderación (canal de registro + aviso por MD) y refresca la config.
   const guardarModLog = async (cambios) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/modlog`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/modlog`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -640,9 +646,9 @@ export function useDashboard() {
 
   // Guarda la configuración del automoderador y refresca la config.
   const guardarAutomod = async (automod) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/automod`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/automod`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ automod }),
       });
       const data = await res.json();
@@ -653,9 +659,9 @@ export function useDashboard() {
 
   // --- SEGURIDAD: verificación ---
   const guardarVerificacion = async (verificacion) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/verificacion`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/verificacion`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ verificacion }),
       });
       const data = await res.json();
@@ -664,9 +670,9 @@ export function useDashboard() {
     return false;
   };
   const publicarVerificacion = async () => {
-    if (!configServidor) return { error: 'Sin servidor' };
+    if (!gidActivo()) return { error: 'Sin servidor' };
     try {
-      const res = await apiFetch(`/api/seguridad/${configServidor.guildId}/verificacion/publicar`, { method: 'POST' });
+      const res = await apiFetch(`/api/seguridad/${gidActivo()}/verificacion/publicar`, { method: 'POST' });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo publicar' };
     } catch (error) { console.error('Error publicando verificación:', error); return { error: 'Network error' }; }
@@ -674,9 +680,9 @@ export function useDashboard() {
 
   // --- DOBLE BIENVENIDA (Test A/B, Pro) — usa el motor embudoAB del backend ---
   const guardarEmbudo = async (embudoAB) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/embudo`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/embudo`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embudoAB }),
       });
       const data = await res.json();
@@ -685,9 +691,9 @@ export function useDashboard() {
     return false;
   };
   const publicarEmbudo = async () => {
-    if (!configServidor) return { error: 'Sin servidor' };
+    if (!gidActivo()) return { error: 'Sin servidor' };
     try {
-      const res = await apiFetch(`/api/embudo/${configServidor.guildId}/publicar`, { method: 'POST' });
+      const res = await apiFetch(`/api/embudo/${gidActivo()}/publicar`, { method: 'POST' });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo publicar' };
     } catch (error) { console.error('Error publicando doble bienvenida:', error); return { error: 'Network error' }; }
@@ -695,9 +701,9 @@ export function useDashboard() {
 
   // --- COMUNIDAD: mensajes de bienvenida / despedida ---
   const guardarBienvenidas = async (bienvenida, despedida) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/bienvenidas`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/bienvenidas`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bienvenida, despedida }),
       });
       const data = await res.json();
@@ -706,9 +712,9 @@ export function useDashboard() {
     return false;
   };
   const probarBienvenida = async (tipo) => {
-    if (!configServidor) return { error: 'Sin servidor' };
+    if (!gidActivo()) return { error: 'Sin servidor' };
     try {
-      const res = await apiFetch(`/api/bienvenidas/${configServidor.guildId}/probar`, {
+      const res = await apiFetch(`/api/bienvenidas/${gidActivo()}/probar`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo }),
       });
       const data = await res.json();
@@ -718,9 +724,9 @@ export function useDashboard() {
 
   // --- SEGURIDAD: reportes ---
   const guardarReportes = async (reportesCfg) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/reportes`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/reportes`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reportes: reportesCfg }),
       });
       const data = await res.json();
@@ -753,23 +759,23 @@ export function useDashboard() {
 
   // --- SEGURIDAD: backup (exportar / importar config) ---
   const exportarConfig = async () => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/export`);
+      const res = await apiFetch(`/api/config/${gidActivo()}/export`);
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `sokyo-config-${configServidor.guildId}.json`;
+      a.href = url; a.download = `sokyo-config-${gidActivo()}.json`;
       a.click();
       URL.revokeObjectURL(url);
       return true;
     } catch (error) { console.error('Error exportando config:', error); return false; }
   };
   const importarConfig = async (objeto) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/import`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/import`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(objeto),
       });
       const data = await res.json();
@@ -785,7 +791,7 @@ export function useDashboard() {
       .then((d) => setBilling(d))
       .catch(reportarError('cargando estado de pago'));
   const irACheckout = async (plan, intervalo) => {
-    const gid = guildId || (configServidor && configServidor.guildId);
+    const gid = gidActivo();
     if (!gid) return { error: 'Selecciona un servidor' };
     try {
       const res = await apiFetch('/api/billing/checkout', {
@@ -798,7 +804,7 @@ export function useDashboard() {
     } catch (error) { console.error('Error en checkout:', error); return { error: 'Network error' }; }
   };
   const abrirPortalPago = async () => {
-    const gid = guildId || (configServidor && configServidor.guildId);
+    const gid = gidActivo();
     if (!gid) return { error: 'Selecciona un servidor' };
     try {
       const res = await apiFetch('/api/billing/portal', {
@@ -848,9 +854,9 @@ export function useDashboard() {
 
   // --- RESUMEN DIARIO (Pro) ---
   const guardarResumen = async (datos) => {
-    if (!configServidor) return { error: 'Sin servidor' };
+    if (!gidActivo()) return { error: 'Sin servidor' };
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/resumen`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/resumen`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
       });
       const data = await res.json();
@@ -859,9 +865,9 @@ export function useDashboard() {
     } catch (error) { console.error('Error guardando resumen:', error); return { error: 'Network error' }; }
   };
   const probarResumen = async () => {
-    if (!configServidor) return { error: 'Sin servidor' };
+    if (!gidActivo()) return { error: 'Sin servidor' };
     try {
-      const res = await apiFetch(`/api/resumen/${configServidor.guildId}/probar`, { method: 'POST' });
+      const res = await apiFetch(`/api/resumen/${gidActivo()}/probar`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) return { ok: true };
       return { error: data.error || 'No se pudo enviar' };
@@ -879,9 +885,9 @@ export function useDashboard() {
 
   // --- PRODUCTIVIDAD: auto-respuestas / triggers ---
   const guardarAutoRespuestas = async (autoRespuestas) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/autorespuestas`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/autorespuestas`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoRespuestas }),
       });
       const data = await res.json();
@@ -892,9 +898,9 @@ export function useDashboard() {
 
   // --- PRODUCTIVIDAD: constructor de embeds (enviar ahora) ---
   const enviarEmbed = async ({ canalId, contenido, embed }) => {
-    if (!configServidor) return { error: 'Sin servidor' };
+    if (!gidActivo()) return { error: 'Sin servidor' };
     try {
-      const res = await apiFetch(`/api/embed/${configServidor.guildId}/enviar`, {
+      const res = await apiFetch(`/api/embed/${gidActivo()}/enviar`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canalId, contenido, embed }),
       });
       const data = await res.json();
@@ -977,9 +983,9 @@ export function useDashboard() {
 
   // --- COMUNIDAD: dinámicas (config) + banco de trivia ---
   const guardarDinamicas = async (cambios) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/dinamicas`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/dinamicas`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -1014,9 +1020,9 @@ export function useDashboard() {
     catch (error) { console.error('Error eliminando sugerencia:', error); }
   };
   const guardarConfigSugerencias = async (datos) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/sugerencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const res = await apiFetch(`/api/config/${gidActivo()}/sugerencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
       const data = await res.json();
       if (data.success && data.config) { setConfigServidor(data.config); return true; }
     } catch (error) { console.error('Error guardando config sugerencias:', error); }
@@ -1030,9 +1036,9 @@ export function useDashboard() {
     catch (error) { console.error('Error eliminando presentacion:', error); }
   };
   const guardarConfigPresentaciones = async (datos) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/presentaciones`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const res = await apiFetch(`/api/config/${gidActivo()}/presentaciones`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
       const data = await res.json();
       if (data.success && data.config) { setConfigServidor(data.config); return true; }
     } catch (error) { console.error('Error guardando config presentaciones:', error); }
@@ -1075,9 +1081,9 @@ export function useDashboard() {
 
   // Guarda acceso al panel + roles de moderación + distribución de secciones.
   const guardarAcceso = async ({ rolesPanelAcceso, rolesModeracion, accesoAreas }) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/acceso`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/acceso`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rolesPanelAcceso, rolesModeracion, accesoAreas }),
       });
@@ -1113,9 +1119,9 @@ export function useDashboard() {
 
   // Guarda las respuestas rápidas (macros) y refresca la config.
   const guardarMacros = async (respuestasRapidas) => {
-    if (!configServidor) return false;
+    if (!gidActivo()) return false;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/macros`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/macros`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ respuestasRapidas }),
       });
       const data = await res.json();
@@ -1126,9 +1132,9 @@ export function useDashboard() {
 
   // Guarda reglas (rol staff, categoría, límite, auto-cierre) y refresca la config.
   const guardarReglas = async (cambios) => {
-    if (!configServidor) return;
+    if (!gidActivo()) return;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/reglas`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/reglas`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -1139,9 +1145,9 @@ export function useDashboard() {
 
   // Guarda los ajustes de comportamiento y refresca la config en memoria.
   const guardarComportamiento = async (cambios) => {
-    if (!configServidor) return;
+    if (!gidActivo()) return;
     try {
-      const res = await apiFetch(`/api/config/${configServidor.guildId}/comportamiento`, {
+      const res = await apiFetch(`/api/config/${gidActivo()}/comportamiento`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
@@ -1238,16 +1244,16 @@ export function useDashboard() {
   const eliminarMotivo = (motivoABorrar) => setMotivos(motivos.filter((m) => (typeof m === 'string' ? m : m.nombre) !== (typeof motivoABorrar === 'string' ? motivoABorrar : motivoABorrar.nombre)));
 
   const guardarCambiosConfig = async () => {
-    if (!configServidor) return;
+    if (!gidActivo()) return;
     const motivosFormateados = motivos.map((m) => typeof m === 'string' ? { nombre: m, urgencia: 'Normal' } : m);
-    await apiFetch(`/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
-    await apiFetch(`/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
+    await apiFetch(`/api/config/${gidActivo()}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
+    await apiFetch(`/api/config/${gidActivo()}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
     alert('✅ Ticket system updated in Discord successfully!'); setMotivos(motivosFormateados);
   };
 
   const guardarTextosConfig = async () => {
-    if (!configServidor) return;
-    const res = await apiFetch(`/api/config/${configServidor.guildId}/textos`, {
+    if (!gidActivo()) return;
+    const res = await apiFetch(`/api/config/${gidActivo()}/textos`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         titulo: tituloMensaje, descripcion: descripcionMensaje, footer: footerMensaje,
