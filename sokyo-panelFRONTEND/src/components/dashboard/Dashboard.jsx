@@ -1,11 +1,13 @@
 // Contenedor del Dashboard — une el layout (Sidebar + Header) con las vistas.
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, LogIn } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
 import { maybeStartOnboarding } from '../../lib/onboarding';
+import { marcarEnPanel } from '../../i18n';
+import RecargaSiFalla from '../RecargaSiFalla';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BuscadorPanel from './BuscadorPanel';
@@ -13,47 +15,76 @@ import '../../dashboard.css';
 import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
 import InicioView from './views/InicioView';
-import TicketsView from './views/TicketsView';
-import ChatView from './views/ChatView';
-import UsersView from './views/UsersView';
-import TextsView from './views/TextsView';
-import TicketsAjustesView from './views/TicketsAjustesView';
-import LogsView from './views/LogsView';
-import RolesView from './views/RolesView';
-import AutoRolView from './views/AutoRolView';
-import PanelesView from './views/PanelesView';
-import CentroMandoView from './views/CentroMandoView';
-import TiposSancionView from './views/TiposSancionView';
-import RegistroSancionesView from './views/RegistroSancionesView';
-import AutomodView from './views/AutomodView';
-import VerificacionView from './views/VerificacionView';
-import ReportesView from './views/ReportesView';
-import BackupView from './views/BackupView';
-import AccesoView from './views/AccesoView';
-import CanalesView from './views/CanalesView';
-import ExpresionesView from './views/ExpresionesView';
-import NivelesView from './views/NivelesView';
-import AutoRespuestasView from './views/AutoRespuestasView';
-import EmbedsView from './views/EmbedsView';
-import AnunciosView from './views/AnunciosView';
-import BienvenidaView from './views/BienvenidaView';
-import PlanesView from './views/PlanesView';
-import AnaliticaView from './views/AnaliticaView';
-import ResumenView from './views/ResumenView';
-import MusicaView from './views/MusicaView';
-import VozTemporalView from './views/VozTemporalView';
-import OwnerSubsView from './views/OwnerSubsView';
-import SorteosView from './views/SorteosView';
-import EventosView from './views/EventosView';
-import EncuestasView from './views/EncuestasView';
-import SugerenciasView from './views/SugerenciasView';
-import PresentacionesView from './views/PresentacionesView';
-import DinamicasView from './views/DinamicasView';
-import CrecInvitacionesView from './views/CrecInvitacionesView';
-import CrecBumpView from './views/CrecBumpView';
-import CrecPaginaView from './views/CrecPaginaView';
-import CrecDirectosView from './views/CrecDirectosView';
-import AppMovilView from './views/AppMovilView';
+// Cada sección se descarga al abrirla (el Inicio va incluido): así el panel
+// arranca rápido en el móvil. Cuando el navegador está libre se precargan
+// las demás, para que luego cambiar de sección sea instantáneo.
+const CARGAR_VISTA = {
+  TicketsView: () => import('./views/TicketsView'),
+  ChatView: () => import('./views/ChatView'),
+  UsersView: () => import('./views/UsersView'),
+  TextsView: () => import('./views/TextsView'),
+  TicketsAjustesView: () => import('./views/TicketsAjustesView'),
+  LogsView: () => import('./views/LogsView'),
+  RolesView: () => import('./views/RolesView'),
+  AutoRolView: () => import('./views/AutoRolView'),
+  PanelesView: () => import('./views/PanelesView'),
+  CentroMandoView: () => import('./views/CentroMandoView'),
+  TiposSancionView: () => import('./views/TiposSancionView'),
+  RegistroSancionesView: () => import('./views/RegistroSancionesView'),
+  AutomodView: () => import('./views/AutomodView'),
+  VerificacionView: () => import('./views/VerificacionView'),
+  ReportesView: () => import('./views/ReportesView'),
+  BackupView: () => import('./views/BackupView'),
+  AccesoView: () => import('./views/AccesoView'),
+  CanalesView: () => import('./views/CanalesView'),
+  ExpresionesView: () => import('./views/ExpresionesView'),
+  NivelesView: () => import('./views/NivelesView'),
+  AutoRespuestasView: () => import('./views/AutoRespuestasView'),
+  EmbedsView: () => import('./views/EmbedsView'),
+  AnunciosView: () => import('./views/AnunciosView'),
+  BienvenidaView: () => import('./views/BienvenidaView'),
+  PlanesView: () => import('./views/PlanesView'),
+  AnaliticaView: () => import('./views/AnaliticaView'),
+  ResumenView: () => import('./views/ResumenView'),
+  MusicaView: () => import('./views/MusicaView'),
+  VozTemporalView: () => import('./views/VozTemporalView'),
+  OwnerSubsView: () => import('./views/OwnerSubsView'),
+  SorteosView: () => import('./views/SorteosView'),
+  EventosView: () => import('./views/EventosView'),
+  EncuestasView: () => import('./views/EncuestasView'),
+  SugerenciasView: () => import('./views/SugerenciasView'),
+  PresentacionesView: () => import('./views/PresentacionesView'),
+  DinamicasView: () => import('./views/DinamicasView'),
+  CrecInvitacionesView: () => import('./views/CrecInvitacionesView'),
+  CrecBumpView: () => import('./views/CrecBumpView'),
+  CrecPaginaView: () => import('./views/CrecPaginaView'),
+  CrecDirectosView: () => import('./views/CrecDirectosView'),
+  AppMovilView: () => import('./views/AppMovilView'),
+};
+const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
+
+// Precarga en segundo plano, de una en una y sin estorbar (no con «ahorro de datos»).
+// Devuelve con qué pararla (al salir del panel ya no hace falta).
+function precargarVistas() {
+  if (navigator.connection?.saveData) return () => {};
+  const cola = Object.values(CARGAR_VISTA);
+  const ocioso = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
+  let parada = false;
+  const siguiente = () => {
+    const cargar = !parada && cola.shift();
+    if (cargar) ocioso(() => { if (!parada) cargar().catch(() => {}).finally(siguiente); }, { timeout: 4000 });
+  };
+  siguiente();
+  return () => { parada = true; };
+}
+
+function CargandoVista() {
+  return (
+    <div className="flex justify-center py-16" role="status" aria-live="polite">
+      <span className="h-7 w-7 animate-spin rounded-full border-2 border-line border-t-brand" />
+    </div>
+  );
+}
 
 export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   const { t } = useTranslation();
@@ -120,49 +151,57 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   // Cada sección empieza arriba del todo, se llegue desde donde se llegue
   // (menú, buscador, migas de pan, avisos o el mapa del inicio).
   useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); }, [activeTab]);
+  // Con el panel ya pintado (y un respiro), se precargan las demás secciones.
+  useEffect(() => {
+    let parar = () => {};
+    const id = setTimeout(() => { parar = precargarVistas(); }, 3000);
+    return () => { clearTimeout(id); parar(); };
+  }, []);
+  // Mientras el panel está abierto, cambiar de idioma trae también sus textos.
+  useEffect(() => { marcarEnPanel(true); return () => marcarEnPanel(false); }, []);
 
   const renderView = () => {
     if (activeTab === 'inicio') return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
-    if (activeTab === 'tickets-gestion') return ticketSeleccionado ? <ChatView dash={dash} /> : <TicketsView dash={dash} />;
-    if (activeTab === 'tickets-usuarios') return <UsersView dash={dash} />;
-    if (activeTab === 'tickets-config') return <TicketsAjustesView dash={dash} />;
-    if (activeTab === 'config-textos') return <TextsView dash={dash} />;
-    if (activeTab === 'config-acceso') return <AccesoView dash={dash} />;
-    if (activeTab === 'config-canales') return <CanalesView dash={dash} />;
-    if (activeTab === 'config-expresiones') return <ExpresionesView dash={dash} />;
-    if (activeTab === 'config-niveles') return <NivelesView dash={dash} />;
-    if (activeTab === 'roles-gestion') return <RolesView dash={dash} />;
-    if (activeTab === 'roles-autorol') return <AutoRolView dash={dash} />;
-    if (activeTab === 'roles-paneles') return <PanelesView dash={dash} />;
-    if (activeTab === 'mod-centro') return <CentroMandoView dash={dash} />;
-    if (activeTab === 'mod-tipos') return <TiposSancionView dash={dash} />;
-    if (activeTab === 'mod-automod') return <AutomodView dash={dash} />;
-    if (activeTab === 'mod-registro') return <RegistroSancionesView dash={dash} />;
-    if (activeTab === 'seg-verificacion') return <VerificacionView dash={dash} />;
-    if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') return <ReportesView dash={dash} />;
-    if (activeTab === 'seg-backup') return <BackupView dash={dash} />;
-    if (activeTab === 'prod-autorespuestas') return <AutoRespuestasView dash={dash} />;
-    if (activeTab === 'prod-embeds') return <EmbedsView dash={dash} />;
-    if (activeTab === 'prod-anuncios') return <AnunciosView dash={dash} />;
-    if (activeTab === 'prod-bienvenidas') return <BienvenidaView dash={dash} />;
-    if (activeTab === 'cuenta-plan') return <PlanesView dash={dash} />;
-    if (activeTab === 'com-sorteos') return <SorteosView dash={dash} />;
-    if (activeTab === 'com-eventos') return <EventosView dash={dash} />;
-    if (activeTab === 'com-encuestas') return <EncuestasView dash={dash} />;
-    if (activeTab === 'com-sugerencias') return <SugerenciasView dash={dash} />;
-    if (activeTab === 'com-presentaciones') return <PresentacionesView dash={dash} />;
-    if (activeTab === 'com-dinamicas') return <DinamicasView dash={dash} />;
-    if (activeTab === 'crec-invitaciones') return <CrecInvitacionesView dash={dash} />;
-    if (activeTab === 'crec-bump') return <CrecBumpView dash={dash} />;
-    if (activeTab === 'crec-pagina') return <CrecPaginaView dash={dash} />;
-    if (activeTab === 'crec-directos') return <CrecDirectosView dash={dash} />;
-    if (activeTab === 'musica') return <MusicaView dash={dash} />;
-    if (activeTab === 'voz-temporal') return <VozTemporalView dash={dash} />;
-    if (activeTab === 'owner-subs') return <OwnerSubsView dash={dash} />;
-    if (activeTab === 'datos-analitica') return <AnaliticaView dash={dash} />;
-    if (activeTab === 'datos-resumen') return <ResumenView dash={dash} />;
-    if (activeTab === 'config-app') return <AppMovilView />;
-    if (activeTab.startsWith('logs-')) return <LogsView dash={dash} />;
+    if (activeTab === 'tickets-gestion') return ticketSeleccionado ? <V.ChatView dash={dash} /> : <V.TicketsView dash={dash} />;
+    if (activeTab === 'tickets-usuarios') return <V.UsersView dash={dash} />;
+    if (activeTab === 'tickets-config') return <V.TicketsAjustesView dash={dash} />;
+    if (activeTab === 'config-textos') return <V.TextsView dash={dash} />;
+    if (activeTab === 'config-acceso') return <V.AccesoView dash={dash} />;
+    if (activeTab === 'config-canales') return <V.CanalesView dash={dash} />;
+    if (activeTab === 'config-expresiones') return <V.ExpresionesView dash={dash} />;
+    if (activeTab === 'config-niveles') return <V.NivelesView dash={dash} />;
+    if (activeTab === 'roles-gestion') return <V.RolesView dash={dash} />;
+    if (activeTab === 'roles-autorol') return <V.AutoRolView dash={dash} />;
+    if (activeTab === 'roles-paneles') return <V.PanelesView dash={dash} />;
+    if (activeTab === 'mod-centro') return <V.CentroMandoView dash={dash} />;
+    if (activeTab === 'mod-tipos') return <V.TiposSancionView dash={dash} />;
+    if (activeTab === 'mod-automod') return <V.AutomodView dash={dash} />;
+    if (activeTab === 'mod-registro') return <V.RegistroSancionesView dash={dash} />;
+    if (activeTab === 'seg-verificacion') return <V.VerificacionView dash={dash} />;
+    if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') return <V.ReportesView dash={dash} />;
+    if (activeTab === 'seg-backup') return <V.BackupView dash={dash} />;
+    if (activeTab === 'prod-autorespuestas') return <V.AutoRespuestasView dash={dash} />;
+    if (activeTab === 'prod-embeds') return <V.EmbedsView dash={dash} />;
+    if (activeTab === 'prod-anuncios') return <V.AnunciosView dash={dash} />;
+    if (activeTab === 'prod-bienvenidas') return <V.BienvenidaView dash={dash} />;
+    if (activeTab === 'cuenta-plan') return <V.PlanesView dash={dash} />;
+    if (activeTab === 'com-sorteos') return <V.SorteosView dash={dash} />;
+    if (activeTab === 'com-eventos') return <V.EventosView dash={dash} />;
+    if (activeTab === 'com-encuestas') return <V.EncuestasView dash={dash} />;
+    if (activeTab === 'com-sugerencias') return <V.SugerenciasView dash={dash} />;
+    if (activeTab === 'com-presentaciones') return <V.PresentacionesView dash={dash} />;
+    if (activeTab === 'com-dinamicas') return <V.DinamicasView dash={dash} />;
+    if (activeTab === 'crec-invitaciones') return <V.CrecInvitacionesView dash={dash} />;
+    if (activeTab === 'crec-bump') return <V.CrecBumpView dash={dash} />;
+    if (activeTab === 'crec-pagina') return <V.CrecPaginaView dash={dash} />;
+    if (activeTab === 'crec-directos') return <V.CrecDirectosView dash={dash} />;
+    if (activeTab === 'musica') return <V.MusicaView dash={dash} />;
+    if (activeTab === 'voz-temporal') return <V.VozTemporalView dash={dash} />;
+    if (activeTab === 'owner-subs') return <V.OwnerSubsView dash={dash} />;
+    if (activeTab === 'datos-analitica') return <V.AnaliticaView dash={dash} />;
+    if (activeTab === 'datos-resumen') return <V.ResumenView dash={dash} />;
+    if (activeTab === 'config-app') return <V.AppMovilView />;
+    if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };
 
@@ -227,7 +266,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className="h-full"
             >
-              {renderView()}
+              <RecargaSiFalla><Suspense fallback={<CargandoVista />}>{renderView()}</Suspense></RecargaSiFalla>
             </motion.div>
           </AnimatePresence>
           </div>

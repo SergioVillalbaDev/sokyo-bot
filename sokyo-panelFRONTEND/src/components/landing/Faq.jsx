@@ -1,7 +1,6 @@
 // Preguntas frecuentes — resuelve las objeciones típicas antes del CTA final
 // (¿sé programar?, ¿mis datos?, ¿gratis?, ¿y si cancelo?). Acordeón simple.
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 
@@ -27,6 +26,7 @@ export default function Faq() {
             <div key={item.q} className="overflow-hidden rounded-2xl border border-line bg-card/60">
               <button
                 onClick={() => setAbierto(open ? -1 : i)}
+                aria-expanded={open}
                 className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
               >
                 <span className="text-sm font-semibold text-fg sm:text-base">{item.q}</span>
@@ -35,19 +35,11 @@ export default function Faq() {
                   className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180 text-brand' : ''}`}
                 />
               </button>
-              <AnimatePresence initial={false}>
-                {open && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22 }}
-                    className="overflow-hidden"
-                  >
-                    <p className="px-5 pb-5 text-sm leading-relaxed text-muted">{item.a}</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div className={`sk-plegable ${open ? 'sk-abierto' : ''}`} aria-hidden={!open}>
+                <div>
+                  <p className="px-5 pb-5 text-sm leading-relaxed text-muted">{item.a}</p>
+                </div>
+              </div>
             </div>
           );
         })}

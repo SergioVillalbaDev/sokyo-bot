@@ -6,13 +6,18 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import Landing from './components/landing/Landing';
 import { API_URL } from './lib/api';
+import { cargarTextosPanel } from './i18n';
+import RecargaSiFalla from './components/RecargaSiFalla';
 
 // Cargados solo cuando hacen falta (rutas #legal y #dashboard): el Dashboard por sí
 // solo son ~40 vistas (764 KB de código fuente) que un visitante de la landing —o
 // Googlebot— nunca necesita descargar para ver la página pública.
+// El panel y su login llegan junto con sus textos (i18n: cargarTextosPanel).
+// Si los textos no llegan (red del móvil), se reintenta una vez y el panel abre igual.
+const conTextosPanel = (cargar) => () => Promise.all([cargar(), cargarTextosPanel().catch(() => cargarTextosPanel()).catch(() => {})]).then(([m]) => m);
 const Legal = lazy(() => import('./components/landing/Legal'));
-const Dashboard = lazy(() => import('./components/dashboard/Dashboard'));
-const StaffLogin = lazy(() => import('./components/dashboard/StaffLogin'));
+const Dashboard = lazy(conTextosPanel(() => import('./components/dashboard/Dashboard')));
+const StaffLogin = lazy(conTextosPanel(() => import('./components/dashboard/StaffLogin')));
 
 const getRoute = () => {
   const h = window.location.hash.replace('#', '');
@@ -102,7 +107,7 @@ function App() {
       if (authError) return <Suspense fallback={null}><StaffLogin error={authError} /></Suspense>;
       return null; // redirigiendo al login de Discord (efecto irAlLogin)
     }
-    return <Suspense fallback={null}><Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} onRelogin={staffToken ? relogin : undefined} /></Suspense>;
+    return <RecargaSiFalla><Suspense fallback={null}><Dashboard onExitToLanding={goLanding} onLogout={staffToken ? logout : undefined} onRelogin={staffToken ? relogin : undefined} /></Suspense></RecargaSiFalla>;
   }
   if (route === 'legal') {
     return <Suspense fallback={null}><Legal page={getLegalPage()} onBack={(e) => { if (e) e.preventDefault(); goLanding(); }} /></Suspense>;

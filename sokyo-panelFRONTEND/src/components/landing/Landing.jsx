@@ -41,7 +41,7 @@ export default function Landing({ onEnterDashboard }) {
         <section className="mx-auto max-w-7xl px-6 py-20">
           <div className="relative overflow-hidden rounded-3xl border border-line bg-card px-8 py-16 text-center">
             <div className="pointer-events-none absolute inset-0 bg-grid opacity-[0.2] [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
-            <div className="pointer-events-none absolute -top-24 left-1/2 h-60 w-[600px] -translate-x-1/2 rounded-full bg-brand/25 blur-[120px]" />
+            <div className="sk-halo pointer-events-none absolute -top-24 left-1/2 h-60 w-[600px] -translate-x-1/2" style={{ '--halo': 'color-mix(in srgb, var(--accent-color) 25%, transparent)' }} />
             <h2 className="relative text-3xl font-extrabold tracking-tight text-fg sm:text-4xl">
               {t('landing.finalCta.title')}
             </h2>

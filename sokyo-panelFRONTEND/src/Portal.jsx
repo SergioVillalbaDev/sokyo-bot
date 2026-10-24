@@ -245,7 +245,7 @@ function Entrada({ error }) {
       </div>
       <div className="relative z-10 flex flex-1 items-center justify-center px-4 pb-16">
         <Tarjeta brillo halo className="gx-sube w-full max-w-md p-7 text-center sm:p-9">
-          <div className="gx-aro mx-auto w-fit"><img src="/assets/logo.jpg" alt="Sokyo" width="76" height="76" className="h-[76px] w-[76px] object-cover" /></div>
+          <div className="gx-aro mx-auto w-fit"><img src="/assets/logo-160.webp" alt="Sokyo" width="76" height="76" className="h-[76px] w-[76px] object-cover" /></div>
           <h1 className="gx-titulo mt-6 text-3xl font-extrabold text-fg">{t('portal.login.title')}</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted">{t('portal.login.subtitle')}</p>
 
@@ -303,7 +303,7 @@ function Cabecera({ usuario, nuevas, irA, onLogout, onBuscar }) {
   return (
     <header ref={ref} className="relative z-30 flex items-center justify-between gap-3">
       <a href="/" title={t('portal.header.homeTitle')} className="flex min-w-0 items-center gap-3">
-        <span className="gx-aro shrink-0 p-[2px]"><img src="/assets/logo.jpg" alt="Sokyo" width="38" height="38" className="h-[38px] w-[38px] !border-2 object-cover" /></span>
+        <span className="gx-aro shrink-0 p-[2px]"><img src="/assets/logo-96.webp" alt="Sokyo" width="38" height="38" className="h-[38px] w-[38px] !border-2 object-cover" /></span>
         <span className="min-w-0 leading-tight">
           <span className="block truncate text-lg font-extrabold tracking-tight text-fg">Sokyo</span>
           <span className="gx-texto-neon block truncate text-xs font-bold uppercase tracking-[.18em]">{t('portal.header.brand')}</span>

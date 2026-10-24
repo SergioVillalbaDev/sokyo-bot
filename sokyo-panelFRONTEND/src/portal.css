@@ -243,9 +243,14 @@ select.gx-input option { background: #120f24; color: #f5f3ff; }
   .gx-pulsable, .gx-pulsable:hover { transform: none; }
 }
 
-/* Móviles modestos: el desenfoque es lo que más cuesta, se rebaja. */
-@media (max-width: 640px) {
-  .gx-card { -webkit-backdrop-filter: blur(12px) saturate(140%); backdrop-filter: blur(12px) saturate(140%); }
+/* Móvil y tablet: sin desenfoque en las tarjetas (recalcularlo en cada fotograma
+   del scroll es lo que más cuesta a un teléfono). Un fondo tintado hace de
+   "cristal esmerilado"; el menú inferior lo conserva, pero más suave. */
+@media (max-width: 1023px), (pointer: coarse) {
+  .gx-card { background: var(--gx-vidrio), rgba(17, 12, 38, .62); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  /* Lo que flota encima del contenido (menús, avisos, globos) casi opaco para leerse. */
+  .gx-card.absolute, .gx-card.gx-toast { background: var(--gx-vidrio), rgba(17, 12, 38, .94); }
+  .gx-dock { -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%); }
 }
 
 /* Marco grande de cristal que envuelve la cuenta en pantallas anchas (el

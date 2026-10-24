@@ -1,7 +1,6 @@
 // Barra de navegación de la landing — sticky, con barra de anuncio superior.
 // Textos vía i18n (src/i18n/locales/*).
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { LayoutDashboard, Plus, UserCircle, Menu, X } from 'lucide-react';
 import { inviteUrl } from '../../lib/landingConfig';
@@ -22,7 +21,7 @@ export default function Navbar({ onEnterDashboard }) {
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener('scroll', onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
@@ -48,17 +47,15 @@ export default function Navbar({ onEnterDashboard }) {
     <>
       <header
         className={`sticky top-0 z-50 transition-colors duration-300 ${
-          scrolled ? 'border-b border-line bg-bg/80 backdrop-blur-xl' : 'border-b border-transparent bg-transparent'
+          scrolled ? 'border-b border-line bg-bg/85 backdrop-blur-md sm:backdrop-blur-xl' : 'border-b border-transparent bg-transparent'
         }`}
       >
-        <motion.nav
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-6"
+        <nav
+          style={{ '--i': 0 }}
+          className="sk-entra mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-6"
         >
           <a href="#top" onClick={(e) => irA(e, { href: '#top' })} className="flex shrink-0 items-center gap-2.5">
-            <img src="/assets/logo.jpg" alt="Sokyo" width="36" height="36" className="h-9 w-9 rounded-full object-cover" />
+            <img src="/assets/logo-96.webp" alt="Sokyo" width="36" height="36" className="h-9 w-9 rounded-full object-cover" />
             <span className="whitespace-nowrap text-lg font-extrabold tracking-tight text-fg">{t('landing.nav.brand')}</span>
           </a>
 
@@ -112,18 +109,12 @@ export default function Navbar({ onEnterDashboard }) {
               {menuAbierto ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
-        </motion.nav>
+        </nav>
 
         {/* Menú desplegable (solo móvil) */}
-        <AnimatePresence>
-          {menuAbierto && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden border-t border-line bg-bg/95 backdrop-blur-xl md:hidden"
-            >
+        {/* Siempre montado y plegado con CSS; cerrado es inerte (ni foco ni lectores). */}
+        <div className={`sk-plegable bg-bg/95 md:hidden ${menuAbierto ? 'sk-abierto border-t border-line' : ''}`} inert={!menuAbierto}>
+          <div>
               <div className="flex flex-col gap-1 px-6 py-4">
                 {LINKS.map((l) => (
                   <a
@@ -153,9 +144,8 @@ export default function Navbar({ onEnterDashboard }) {
                   ))}
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        </div>
       </header>
     </>
   );

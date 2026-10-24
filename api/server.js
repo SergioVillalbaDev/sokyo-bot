@@ -80,7 +80,7 @@ module.exports = (client) => {
 
     // IDs de Discord del/los PROPIETARIO(s): ven absolutamente TODO (todos los
     // servidores y tickets), sin el filtrado del staff. Separados por comas.
-    const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+    const { OWNER_IDS } = require('../utils/propietarios.js'); // .env + fijos (utils/propietarios.js)
 
     // IDs con permiso de DIFUSIÓN: pueden mandar mensajes/embeds a un servidor
     // concreto o a TODOS los servidores del bot. Exclusivo de estas IDs.
@@ -3324,13 +3324,26 @@ app.get('/api/stats/uso', async (req, res) => {
     // sin problemas de CORS y con un solo túnel/proxy por delante.
     const panelDist = path.join(__dirname, '..', 'sokyo-panelFRONTEND', 'dist');
     if (fs.existsSync(panelDist)) {
-        app.use(express.static(panelDist));
+        // Los .js/.css del build llevan una huella en el nombre (index-BS0UgXRw.js):
+        // si cambian, cambia el nombre. Se guardan un año en el navegador y en
+        // Cloudflare, así que al volver (sobre todo en el móvil) no se descargan.
+        // Las fuentes no llevan huella: un mes.
+        const CON_HUELLA = /[\\/]assets[\\/][^\\/]+-[\w-]{8}\.(js|css)$/;
+        app.use(express.static(panelDist, {
+            setHeaders: (res, ruta) => {
+                if (CON_HUELLA.test(ruta)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+                else if (/[\\/]fonts[\\/][^\\/]+\.woff2$/.test(ruta)) res.setHeader('Cache-Control', 'public, max-age=2592000');
+            },
+        }));
         // Fallback SPA: las rutas que no son de la API ni archivos subidos
         // devuelven index.html para que el enrutado del cliente
         // (?portal=1 y #dashboard) funcione al recargar o entrar directo.
         app.use((req, res, next) => {
             if (req.method !== 'GET') return next();
             if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
+            // Un archivo del build que ya no existe (p. ej. de antes de un despliegue)
+            // es un 404, no la página: así el panel sabe que debe recargarse.
+            if (/^\/(assets|fonts)\//.test(req.path)) return next();
             res.sendFile(path.join(panelDist, 'index.html'));
         });
         console.log('🖥️  Panel web servido desde sokyo-panelFRONTEND/dist');

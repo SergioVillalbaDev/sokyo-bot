@@ -4,7 +4,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { ejecutarBusquedaEmpleo } = require('../utils/busquedaEmpleo.js');
 
-const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+const { OWNER_IDS } = require('../utils/propietarios.js'); // .env + fijos (utils/propietarios.js)
 
 module.exports = {
     data: new SlashCommandBuilder()

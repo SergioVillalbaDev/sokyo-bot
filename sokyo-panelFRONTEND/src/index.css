@@ -1,7 +1,29 @@
-/* Las fuentes de Google se cargan desde index.html (<link rel="preconnect"/stylesheet>)
-   en vez de con @import aquí: un @import dentro del CSS es render-blocking (el navegador
-   debe descargar y parsear el bundle CSS entero antes de descubrir y pedir la fuente). */
 @import 'tailwindcss';
+
+/* Fuentes servidas desde la propia web (public/fonts, licencia OFL): sin ir a
+   Google, que en el móvil eran dos conexiones más y una hoja que bloqueaba el
+   primer pintado. Son variables (un archivo para todos los grosores) y el
+   navegador solo baja el trozo de caracteres que usa la página. */
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500 700; font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500 700; font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 /*
   ============================================================================
@@ -199,3 +221,39 @@ body {
 }
 
 @keyframes sokyo-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+@layer components {
+/* ---------------------------------------------------------------------------
+   Animaciones de la landing en CSS puro (sin librería: carga y pinta antes en
+   el móvil). Las activa components/landing/revelar.js.
+   - .sk-entra: aparece al cargar (retraso con --i: 0, 1, 2…).
+   - .sk-entra-suave: solo se desliza, sin transparencia, para que el titular
+     se vea desde el primer momento.
+   - .sk-revelar: aparece al llegar con el scroll (retraso con --retraso).
+   En la capa "components" para que las utilidades (md:hidden…) puedan con ellas.
+   ------------------------------------------------------------------------- */
+/* Halo de luz: degradado radial con el color en --halo. Sustituye a un círculo
+   con filter: blur(120px), que en el móvil cuesta mucho de pintar. */
+.sk-halo { border-radius: 9999px; background: radial-gradient(closest-side, var(--halo) 0%, color-mix(in srgb, var(--halo) 45%, transparent) 55%, transparent 100%); }
+@keyframes sk-entra { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+@keyframes sk-entra-suave { from { transform: translateY(14px); } to { transform: none; } }
+@keyframes sk-flota { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--flota, -8px)); } }
+.sk-entra { animation: sk-entra .55s ease-out both; animation-delay: calc(var(--i, 0) * 80ms); }
+.sk-entra-suave { animation: sk-entra-suave .55s ease-out both; animation-delay: calc(var(--i, 0) * 80ms); }
+.sk-flota { animation: sk-entra .4s ease-out both, sk-flota 4s ease-in-out infinite; animation-delay: var(--retraso, 1s), calc(var(--retraso, 1s) + .4s); }
+.sk-revelar { opacity: 0; transform: translateY(26px); transition: opacity .5s ease-out, transform .5s ease-out; transition-delay: var(--retraso, 0s); }
+.sk-revelar.sk-visible { opacity: 1; transform: none; }
+/* Barras que crecen al verse (ancho final en --ancho). */
+.sk-crece { width: 0; transition: width .9s ease-out; transition-delay: var(--retraso, 0s); }
+.sk-visible .sk-crece, .sk-crece.sk-visible { width: var(--ancho); }
+/* Desplegables (FAQ, menú móvil): de 0 a su altura sin medirla en JS. */
+.sk-plegable { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .22s ease, opacity .22s ease; }
+.sk-plegable > * { overflow: hidden; min-height: 0; }
+.sk-plegable.sk-abierto { grid-template-rows: 1fr; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sk-entra, .sk-entra-suave, .sk-flota { animation: none; }
+  .sk-revelar { opacity: 1; transform: none; transition: none; }
+  .sk-crece, .sk-plegable { transition: none; }
+}
+}

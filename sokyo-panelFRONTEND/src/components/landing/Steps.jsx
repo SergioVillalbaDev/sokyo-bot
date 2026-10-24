@@ -1,7 +1,7 @@
 // Sección "Cómo funciona". Textos vía i18n.
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Plus, Wand2, Rocket } from 'lucide-react';
+import Revelar from './Revelar';
 
 const ORDEN = [
   { id: 'add', Icon: Plus },
@@ -30,14 +30,7 @@ export default function Steps() {
         {ORDEN.map((s, i) => {
           const item = items[s.id] || { title: '', desc: '' };
           return (
-            <motion.div
-              key={s.id}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, delay: i * 0.12 }}
-              className="relative text-center"
-            >
+            <Revelar key={s.id} retraso={i * 0.12} className="relative text-center">
               <div className="relative z-10 mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-card text-brand shadow-lg">
                 <s.Icon size={24} />
                 <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-on-brand">
@@ -46,7 +39,7 @@ export default function Steps() {
               </div>
               <h3 className="mt-5 text-lg font-bold text-fg">{item.title}</h3>
               <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted">{item.desc}</p>
-            </motion.div>
+            </Revelar>
           );
         })}
       </div>

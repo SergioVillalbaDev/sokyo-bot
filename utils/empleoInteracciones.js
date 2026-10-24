@@ -6,7 +6,7 @@
 const { ActionRowBuilder, ButtonStyle } = require('discord.js');
 const OfertaEmpleo = require('../models/OfertaEmpleo.js');
 
-const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+const { OWNER_IDS } = require('./propietarios.js'); // .env + fijos (utils/propietarios.js)
 
 // customId: empleo:aplicada:<ofertaEmpleoId>
 async function manejarBotonEmpleo(interaction) {
