@@ -220,6 +220,7 @@ function rellenar(texto, datos) {
         .replace(/{user}/g, datos.user || '')
         .replace(/{inviter}/g, datos.inviter || '')
         .replace(/{inviterName}/g, datos.inviterName || '')
+        .replace(/{invitesText}/g, datos.invitesText || String(datos.invites ?? 0))
         .replace(/{invites}/g, String(datos.invites ?? 0))
         .replace(/{server}/g, datos.server || '');
 }
@@ -232,10 +233,12 @@ async function anunciarEntrada(member, doc, cfg) {
     let texto;
     if (doc.fuente === 'invitacion' && doc.invitadorId) {
         const r = await estadisticasDe(member.guild.id, doc.invitadorId);
-        texto = rellenar(conf.mensaje || t(cfg, '📨 {mention} ha entrado gracias a {inviter}, que ya lleva **{invites}** invitaciones.', '📨 {mention} joined thanks to {inviter}, who now has **{invites}** invites.'), {
+        const n = r.valida + r.pendiente;
+        texto = rellenar(conf.mensaje || t(cfg, '📨 {mention} ha entrado gracias a {inviter}, que ya lleva **{invitesText}**.', '📨 {mention} joined thanks to {inviter}, who now has **{invitesText}**.'), {
             mention: `<@${member.id}>`, user: member.user.username,
             inviter: `<@${doc.invitadorId}>`, inviterName: doc.invitadorTag,
-            invites: r.valida + r.pendiente, server: member.guild.name,
+            invites: n, invitesText: t(cfg, `${n} ${n === 1 ? 'invitación' : 'invitaciones'}`, `${n} invite${n === 1 ? '' : 's'}`),
+            server: member.guild.name,
         });
     } else if (doc.fuente === 'web') {
         texto = t(cfg, `🌐 <@${member.id}> ha entrado desde la página pública del servidor.`, `🌐 <@${member.id}> joined from the server’s public page.`);
@@ -297,6 +300,7 @@ async function registrarSalida(guildId, userId) {
     await Invitacion.updateOne(
         { guildId, invitadoId: userId },
         [{ $set: { seFue: '$$NOW', estado: { $cond: [{ $eq: ['$estado', 'pendiente'] }, 'salio', '$estado'] } } }],
+        { updatePipeline: true }, // Mongoose 9 exige permitir el pipeline
     );
 }
 
@@ -380,7 +384,11 @@ async function embedInvitaciones(guild, usuario, cfg) {
             { name: t(cfg, '🚪 Se fueron', '🚪 Left'), value: `**${r.salio}**`, inline: true },
         );
     const lineas = [];
-    if (r.falsa) lineas.push(t(cfg, `🚫 ${r.falsa} cuenta(s) demasiado nueva(s): no cuentan.`, `🚫 ${r.falsa} account(s) too new: they don’t count.`));
+    if (r.falsa) {
+        lineas.push(r.falsa === 1
+            ? t(cfg, '🚫 1 cuenta demasiado nueva: no cuenta.', '🚫 1 account too new: it doesn’t count.')
+            : t(cfg, `🚫 ${r.falsa} cuentas demasiado nuevas: no cuentan.`, `🚫 ${r.falsa} accounts too new: they don’t count.`));
+    }
     if (puesto) lineas.push(t(cfg, `🏅 Puesto **#${puesto}** del servidor.`, `🏅 Rank **#${puesto}** in the server.`));
     const siguiente = siguienteRecompensa(r.valida, conf.recompensas);
     if (siguiente) {

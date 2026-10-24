@@ -1469,7 +1469,7 @@ export default {
         rolesTitle: 'Roles for confirmed invites', rolesDesc: 'When reaching that number, the bot gives the role. You can only pick roles below yours.',
         addRole: 'Add role', invitesUnit: 'invites',
         announceTitle: 'Message when someone joins', announceChannel: 'Channel', announceNone: 'No message',
-        message: 'Message', messageHint: 'You can use {mention} (the new member), {user}, {inviter} (who invited), {inviterName}, {invites} and {server}.',
+        message: 'Message', messageHint: 'You can use {mention} (the new member), {user}, {inviter} (who invited), {inviterName}, {invitesText} (“3 invites”), {invites} (just the number) and {server}.',
         statsTitle: 'Last 30 days', statsTotal: 'Joins',
         estado: { valida: 'Confirmed', pendiente: 'Pending', salio: 'Left early', falsa: 'New accounts' },
         fuente: { invitacion: 'With an invite', web: 'Public page', vanity: 'Custom link', desconocida: 'Unknown source' },

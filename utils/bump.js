@@ -96,7 +96,7 @@ async function procesarMensaje(message) {
         const canalAviso = message.guild.channels.cache.get(conf.canalId || conf.ultimoCanalId);
         if (canalAviso && canalAviso.isTextBased()) {
             const viejo = await canalAviso.messages.fetch(conf.ultimoAvisoId).catch(() => null);
-            if (viejo && viejo.author.id === message.client.user.id) await viejo.delete().catch(() => {});
+            if (viejo && viejo.author && viejo.author.id === message.client.user.id) await viejo.delete().catch(() => {});
         }
     }
 

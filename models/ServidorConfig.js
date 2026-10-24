@@ -625,7 +625,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         invitaciones: {
             activo: { type: Boolean, default: false },
             canalAvisosId: { type: String, default: null },   // aviso de "X ha entrado gracias a Y" (null = sin aviso)
-            mensaje: { type: String, default: '📨 {mention} joined thanks to {inviter}, who now has **{invites}** invites.' },
+            mensaje: { type: String, default: '📨 {mention} joined thanks to {inviter}, who now has **{invitesText}**.' },
             horasConfirmacion: { type: Number, default: 24 },
             diasCuentaMin: { type: Number, default: 7 },
             oroPorInvitacion: { type: Number, default: 50 },  // oro de la economía para quien invita

@@ -1474,7 +1474,7 @@ export default {
         rolesTitle: 'Roles por invitaciones confirmadas', rolesDesc: 'Al llegar a ese número, el bot da el rol. Solo puedes elegir roles por debajo del tuyo.',
         addRole: 'Añadir rol', invitesUnit: 'invitaciones',
         announceTitle: 'Aviso cuando alguien entra', announceChannel: 'Canal del aviso', announceNone: 'Sin aviso',
-        message: 'Mensaje', messageHint: 'Puedes usar {mention} (quien entra), {user}, {inviter} (quien invitó), {inviterName}, {invites} y {server}.',
+        message: 'Mensaje', messageHint: 'Puedes usar {mention} (quien entra), {user}, {inviter} (quien invitó), {inviterName}, {invitesText} («3 invitaciones»), {invites} (solo el número) y {server}.',
         statsTitle: 'Últimos 30 días', statsTotal: 'Entradas',
         estado: { valida: 'Confirmadas', pendiente: 'Pendientes', salio: 'Se fueron antes', falsa: 'Cuentas nuevas' },
         fuente: { invitacion: 'Con invitación', web: 'Página pública', vanity: 'Enlace personalizado', desconocida: 'Origen desconocido' },

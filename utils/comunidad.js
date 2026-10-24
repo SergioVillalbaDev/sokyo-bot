@@ -234,9 +234,10 @@ async function manejarEntradaSorteo(interaction) {
         if (s.invitacionesMin > 0) {
             const invitadas = await contarActivas(s.guildId, uid);
             if (invitadas < s.invitacionesMin) {
+                const personas = s.invitacionesMin === 1 ? t(idioma, 'persona que siga', 'person who is') : t(idioma, 'personas que sigan', 'people who are');
                 return interaction.reply({ content: t(idioma,
-                    `❌ Para participar tienes que haber invitado a **${s.invitacionesMin}** personas que sigan en el servidor (llevas ${invitadas}).`,
-                    `❌ To join you need to have invited **${s.invitacionesMin}** people who are still in the server (you have ${invitadas}).`), flags: 64 });
+                    `❌ Para participar tienes que haber invitado a **${s.invitacionesMin}** ${personas} en el servidor (llevas ${invitadas}).`,
+                    `❌ To join you need to have invited **${s.invitacionesMin}** ${personas} still in the server (you have ${invitadas}).`), flags: 64 });
             }
         }
 
@@ -247,7 +248,7 @@ async function manejarEntradaSorteo(interaction) {
         if (s.entradasPorInvitacion > 0) {
             const papeletas = await papeletasDe(interaction.guild, s, uid);
             extra = t(idioma,
-                `\n🎟️ Ahora mismo tienes **${papeletas}** papeleta(s). Invita a más gente para sumar (+${s.entradasPorInvitacion} por persona, máx. +${s.maxEntradasExtra}).`,
+                `\n🎟️ Ahora mismo tienes **${papeletas}** ${papeletas === 1 ? 'papeleta' : 'papeletas'}. Invita a más gente para sumar (+${s.entradasPorInvitacion} por persona, máx. +${s.maxEntradasExtra}).`,
                 `\n🎟️ You currently have **${papeletas}** entr${papeletas === 1 ? 'y' : 'ies'}. Invite more people to add more (+${s.entradasPorInvitacion} each, max +${s.maxEntradasExtra}).`);
         }
         return interaction.reply({ content: t(idioma, '✅ ¡Ya participas en el sorteo! Buena suerte 🍀', '✅ You’re in the giveaway! Good luck 🍀') + extra, flags: 64 });
