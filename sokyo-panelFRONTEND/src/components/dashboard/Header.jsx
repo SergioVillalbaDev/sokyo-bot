@@ -103,7 +103,7 @@ function NotifItem({ icon: Icon, color, titulo, meta, fecha, onClick, onDismiss 
 export default function Header({ dash, onOpenMenu, onBuscar }) {
   const { t, i18n } = useTranslation();
   const {
-    activeTab, theme, setTheme, esPremium, servidorInfo,
+    activeTab, theme, setTheme, temasPremium, esPremium, servidorInfo,
     ticketsReales, servidores, guildId, setMostrarSelectorServidor,
     setActiveTab, verMensajes, reportes, sugerencias,
   } = dash;
@@ -404,7 +404,7 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
         </button>
         <div data-tour="tools" className="hidden shrink-0 items-center gap-2 sm:flex">
           <LanguageSwitcher />
-          <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} />
+          <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} desbloqueados={temasPremium} />
         </div>
 
         {/* Móvil: un solo botón con ayuda, idioma y tema */}
@@ -444,7 +444,7 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
                     </button>
                   ))}
                 </div>
-                <div className="mt-4"><ThemeGrid theme={theme} setTheme={setTheme} esPremium={esPremium} /></div>
+                <div className="mt-4"><ThemeGrid theme={theme} setTheme={setTheme} desbloqueados={temasPremium} /></div>
               </motion.div>
             )}
           </AnimatePresence>
