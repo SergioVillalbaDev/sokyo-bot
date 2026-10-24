@@ -48,11 +48,11 @@ export default function RolesView({ dash }) {
   return (
     <div className="space-y-5">
       {/* Cabecera con el botón de crear */}
-      <div data-help="roles-crear" className="flex items-center justify-between">
+      <div data-help="roles-crear" className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted">{t('dashboard.roles_v.intro')}</p>
         <button
           onClick={() => setEditando({})}
-          className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90"
         >
           <Plus size={16} /> {t('dashboard.roles_v.create')}
         </button>
@@ -164,11 +164,17 @@ function RolRow({ rol, index, dash, onEditar }) {
         <button onClick={alternar} className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <ChevronDown size={18} className={`shrink-0 text-muted transition-transform ${abierto ? 'rotate-180' : ''}`} />
           <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: color }} />
-          <span className="truncate font-bold text-fg">{rol.nombre}</span>
-          {!rol.gestionable && <Lock size={13} className="shrink-0 text-muted" title={t('dashboard.roles_v.locked')} />}
-          <span className="ml-1 shrink-0 text-xs text-muted">
-            {t('dashboard.roles_v.memberCount', { count: rol.miembros })}
-            {rol.permisos.length > 0 && ` · ${t('dashboard.roles_v.permCount', { count: rol.permisos.length })}`}
+          {/* En el móvil los contadores van debajo del nombre: en la misma línea
+              lo dejaban reducido a "S…". */}
+          <span className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-2">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate font-bold text-fg">{rol.nombre}</span>
+              {!rol.gestionable && <Lock size={13} className="shrink-0 text-muted" title={t('dashboard.roles_v.locked')} />}
+            </span>
+            <span className="text-xs text-muted sm:shrink-0">
+              {t('dashboard.roles_v.memberCount', { count: rol.miembros })}
+              {rol.permisos.length > 0 && ` · ${t('dashboard.roles_v.permCount', { count: rol.permisos.length })}`}
+            </span>
           </span>
         </button>
 

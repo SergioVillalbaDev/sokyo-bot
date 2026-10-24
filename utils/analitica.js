@@ -17,11 +17,14 @@ const EstadisticaDiaria = require('../models/EstadisticaDiaria.js');
 const EmbudoCohorte = require('../models/EmbudoCohorte.js');
 const { esPro } = require('./billing.js');
 
+const { t } = require('./i18n.js');
 const DIA = 24 * 60 * 60 * 1000;
 const SEMANA = 7 * DIA;
 const fmt = (d) => new Date(d).toISOString().slice(0, 10);
 
-async function construirAnalitica(client, gid, cfg, dias) {
+// `idioma` es el del panel que la pide (las recomendaciones salen en ese idioma);
+// si no llega, el del bot en ese servidor.
+async function construirAnalitica(client, gid, cfg, dias, idioma = cfg && cfg.idioma) {
     const desde = new Date(Date.now() - dias * DIA);
     const guild = client && client.guilds.cache.get(gid);
     const cubos = [];
@@ -189,14 +192,14 @@ async function construirAnalitica(client, gid, cfg, dias) {
     const pctActivos = miembros ? Math.round((activos / miembros) * 100) : null;
 
     // --- Embudo de bienvenida A/B: retención y participación por variante ---
-    const embudo = construirEmbudo(embudoDocs, cfg);
+    const embudo = construirEmbudo(embudoDocs, cfg, idioma);
 
     const insights = construirInsights({
         dias, crecimientoNeto, totalEntradas, totalSalidas, pctActivos, activos, miembros,
         horaPico: horaPico.label, topCanales, totalMensajes, csat, reportePend, tiempoMedioCierreH, abiertos,
         sancionesTotal: sancionesDocs.length, automod, nr,
         totalBorrados, totalEditados, agentes, vozActivos, mensajesPorActivo, hayMiembros, serieMiembros,
-    });
+    }, idioma);
     if (embudo.insight) insights.unshift(embudo.insight);
 
     return {
@@ -256,10 +259,11 @@ async function construirAnalitica(client, gid, cfg, dias) {
 // participaron en su 1ª semana y siguen en el servidor (retención, medida solo
 // sobre las cohortes "maduras": las que ya cumplieron 7 días). Determina la
 // variante ganadora (por retención; si no hay datos maduros, por participación).
-function construirEmbudo(docs, cfg) {
+function construirEmbudo(docs, cfg, idioma) {
+    const L = (es, en) => t(idioma, es, en);
     const activo = !!(cfg && cfg.embudoAB && cfg.embudoAB.activo);
     const ahora = Date.now();
-    const nombres = { A: 'Texto + captcha', B: 'Embed visual' };
+    const nombres = { A: L('Texto + captcha', 'Text + captcha'), B: L('Embed visual', 'Visual embed') };
     const base = () => ({ asignados: 0, verificados: 0, participaron: 0, maduros: 0, retenidos: 0 });
     const acc = { A: base(), B: base() };
 
@@ -311,22 +315,22 @@ function construirEmbudo(docs, cfg) {
         if (ganadora) {
             const g = ganadora === 'A' ? A : B;
             const o = ganadora === 'A' ? B : A;
-            const etqMetrica = metrica === 'retencion' ? '7-day retention' : 'first-week participation';
+            const etqMetrica = metrica === 'retencion' ? L('retención a 7 días', '7-day retention') : L('participación en la primera semana', 'first-week participation');
             const vG = metrica === 'retencion' ? g.tasaRetencion : g.tasaParticipacion;
             const vO = metrica === 'retencion' ? o.tasaRetencion : o.tasaParticipacion;
             insight = {
                 tipo: 'ok',
-                titulo: `A/B test: "${g.nombre}" wins`,
-                texto: `Variant "${g.nombre}" achieves better ${etqMetrica} (${vG}% vs ${vO}% for "${o.nombre}").`
+                titulo: L(`Test A/B: gana "${g.nombre}"`, `A/B test: "${g.nombre}" wins`),
+                texto: L(`La variante "${g.nombre}" consigue mejor ${etqMetrica} (${vG}% frente a ${vO}% de "${o.nombre}").`, `Variant "${g.nombre}" achieves better ${etqMetrica} (${vG}% vs ${vO}% for "${o.nombre}").`)
                     + (confianza === 'alta'
-                        ? ` The sample is now reliable: consider rolling this variant out to everyone.`
-                        : ` Still few data points: let the test run a few more days to confirm.`),
+                        ? L(' La muestra ya es fiable: plantéate usar esta variante para todos.', ' The sample is now reliable: consider rolling this variant out to everyone.')
+                        : L(' Aún hay pocos datos: deja el test unos días más para confirmarlo.', ' Still few data points: let the test run a few more days to confirm.')),
             };
         } else {
             insight = {
                 tipo: 'tip',
-                titulo: 'A/B test running',
-                texto: `Your welcome funnel is splitting newcomers between two variants (${total} so far). In a few days you’ll see here which method retains better.`,
+                titulo: L('Test A/B en marcha', 'A/B test running'),
+                texto: L(`Tu embudo de bienvenida está repartiendo a los nuevos entre dos variantes (${total} hasta ahora). En unos días verás aquí qué método retiene mejor.`, `Your welcome funnel is splitting newcomers between two variants (${total} so far). In a few days you’ll see here which method retains better.`),
             };
         }
     }
@@ -335,51 +339,52 @@ function construirEmbudo(docs, cfg) {
 }
 
 // Convierte los números en recomendaciones accionables de crecimiento.
-function construirInsights(d) {
+function construirInsights(d, idioma) {
+    const L = (es, en) => t(idioma, es, en);
     const out = [];
     if (d.totalEntradas + d.totalSalidas > 0) {
-        if (d.crecimientoNeto < 0) out.push({ tipo: 'warn', titulo: 'You’re losing members', texto: `In ${d.dias} days ${d.totalEntradas} joined and ${d.totalSalidas} left (net ${d.crecimientoNeto}). Turn on the welcome message, autorole and verification, and post content in the first days to keep newcomers.` });
-        else if (d.crecimientoNeto > 0) out.push({ tipo: 'ok', titulo: 'Your community is growing', texto: `Net +${d.crecimientoNeto} members in ${d.dias} days. Keep the momentum with recurring events and giveaways.` });
+        if (d.crecimientoNeto < 0) out.push({ tipo: 'warn', titulo: L('Estás perdiendo miembros', 'You’re losing members'), texto: L(`En ${d.dias} días entraron ${d.totalEntradas} y salieron ${d.totalSalidas} (neto ${d.crecimientoNeto}). Activa el mensaje de bienvenida, el autorol y la verificación, y publica contenido los primeros días para retener a los nuevos.`, `In ${d.dias} days ${d.totalEntradas} joined and ${d.totalSalidas} left (net ${d.crecimientoNeto}). Turn on the welcome message, autorole and verification, and post content in the first days to keep newcomers.`) });
+        else if (d.crecimientoNeto > 0) out.push({ tipo: 'ok', titulo: L('Tu comunidad crece', 'Your community is growing'), texto: L(`+${d.crecimientoNeto} miembros netos en ${d.dias} días. Mantén el ritmo con eventos y sorteos periódicos.`, `Net +${d.crecimientoNeto} members in ${d.dias} days. Keep the momentum with recurring events and giveaways.`) });
     }
     if (d.pctActivos != null) {
-        if (d.pctActivos < 10) out.push({ tipo: 'warn', titulo: 'Few active members', texto: `Only ${d.pctActivos}% (${d.activos}) have spoken in ${d.dias} days. Run a giveaway, enable levels with role rewards and open topic channels to wake up the community.` });
-        else if (d.pctActivos >= 30) out.push({ tipo: 'ok', titulo: 'Very active community', texto: `${d.pctActivos}% take part actively. Lock in that engagement with level roles and events.` });
+        if (d.pctActivos < 10) out.push({ tipo: 'warn', titulo: L('Pocos miembros activos', 'Few active members'), texto: L(`Solo el ${d.pctActivos}% (${d.activos}) ha hablado en ${d.dias} días. Haz un sorteo, activa los niveles con roles de recompensa y abre canales temáticos para despertar a la comunidad.`, `Only ${d.pctActivos}% (${d.activos}) have spoken in ${d.dias} days. Run a giveaway, enable levels with role rewards and open topic channels to wake up the community.`) });
+        else if (d.pctActivos >= 30) out.push({ tipo: 'ok', titulo: L('Comunidad muy activa', 'Very active community'), texto: L(`El ${d.pctActivos}% participa activamente. Consolida esa implicación con roles de nivel y eventos.`, `${d.pctActivos}% take part actively. Lock in that engagement with level roles and events.`) });
     }
-    if (d.totalMensajes > 0) out.push({ tipo: 'tip', titulo: 'Best time to post', texto: `Your activity peak is at ${d.horaPico} (UTC). Schedule announcements, events and giveaways at that time for maximum reach.` });
+    if (d.totalMensajes > 0) out.push({ tipo: 'tip', titulo: L('Mejor hora para publicar', 'Best time to post'), texto: L(`Tu pico de actividad es a las ${d.horaPico} (UTC). Programa anuncios, eventos y sorteos a esa hora para llegar a más gente.`, `Your activity peak is at ${d.horaPico} (UTC). Schedule announcements, events and giveaways at that time for maximum reach.`) });
     if (d.topCanales && d.topCanales.length && d.totalMensajes > 0) {
         const top = d.topCanales[0];
         const pct = Math.round((top.n / d.totalMensajes) * 100);
-        if (pct >= 60) out.push({ tipo: 'tip', titulo: 'Activity is very concentrated', texto: `${pct}% of messages are in "${top.nombre}". Spread activity out with topic channels and events so you don’t depend on a single channel.` });
+        if (pct >= 60) out.push({ tipo: 'tip', titulo: L('La actividad está muy concentrada', 'Activity is very concentrated'), texto: L(`El ${pct}% de los mensajes están en "${top.nombre}". Reparte la actividad con canales temáticos y eventos para no depender de un solo canal.`, `${pct}% of messages are in "${top.nombre}". Spread activity out with topic channels and events so you don’t depend on a single channel.`) });
     }
     if (d.csat != null) {
-        if (d.csat < 3.5) out.push({ tipo: 'warn', titulo: 'Low satisfaction', texto: `Your average CSAT is ${d.csat}/5. Review the worst-rated tickets, use quick replies and cut down response times.` });
-        else if (d.csat >= 4.5) out.push({ tipo: 'ok', titulo: 'Happy customers', texto: `CSAT of ${d.csat}/5. Excellent — ask for testimonials to use in your marketing.` });
+        if (d.csat < 3.5) out.push({ tipo: 'warn', titulo: L('Satisfacción baja', 'Low satisfaction'), texto: L(`Tu CSAT medio es ${d.csat}/5. Revisa los tickets peor valorados, usa respuestas rápidas y reduce los tiempos de respuesta.`, `Your average CSAT is ${d.csat}/5. Review the worst-rated tickets, use quick replies and cut down response times.`) });
+        else if (d.csat >= 4.5) out.push({ tipo: 'ok', titulo: L('Clientes contentos', 'Happy customers'), texto: L(`CSAT de ${d.csat}/5. Excelente: pide testimonios para usarlos en tu promoción.`, `CSAT of ${d.csat}/5. Excellent — ask for testimonials to use in your marketing.`) });
     }
-    if (d.tiempoMedioCierreH != null && d.tiempoMedioCierreH > 24) out.push({ tipo: 'tip', titulo: 'Tickets are slow to close', texto: `It takes you ${d.tiempoMedioCierreH}h on average to close a ticket. Turn on auto-assign, auto-close on inactivity and use macros to reply faster.` });
-    if (d.reportePend > 0) out.push({ tipo: 'warn', titulo: 'Unresolved reports', texto: `You have ${d.reportePend} pending report(s). Handle them to keep the community healthy.` });
-    if (d.abiertos > 5) out.push({ tipo: 'tip', titulo: 'Many open tickets', texto: `There are ${d.abiertos} open tickets. Spread the load with auto-assign to the support team.` });
-    if (d.sancionesTotal > 0 && d.automod > 0) out.push({ tipo: 'ok', titulo: 'Automod is protecting you', texto: `The automoderator applied ${d.automod} of ${d.sancionesTotal} sanctions on its own. Good shield; check there are no false positives.` });
-    if (d.nr && d.nr.total > 0 && d.nr.conXp === 0) out.push({ tipo: 'tip', titulo: 'Turn on the leveling system', texto: 'Nobody has XP yet. Levels with role rewards are one of the best ways to retain and engage your community.' });
+    if (d.tiempoMedioCierreH != null && d.tiempoMedioCierreH > 24) out.push({ tipo: 'tip', titulo: L('Los tickets tardan en cerrarse', 'Tickets are slow to close'), texto: L(`Tardas de media ${d.tiempoMedioCierreH} h en cerrar un ticket. Activa la asignación automática y el cierre por inactividad, y usa respuestas rápidas para contestar antes.`, `It takes you ${d.tiempoMedioCierreH}h on average to close a ticket. Turn on auto-assign, auto-close on inactivity and use macros to reply faster.`) });
+    if (d.reportePend > 0) out.push({ tipo: 'warn', titulo: L('Reportes sin resolver', 'Unresolved reports'), texto: L(`Tienes ${d.reportePend} reporte(s) pendiente(s). Atiéndelos para mantener sana la comunidad.`, `You have ${d.reportePend} pending report(s). Handle them to keep the community healthy.`) });
+    if (d.abiertos > 5) out.push({ tipo: 'tip', titulo: L('Muchos tickets abiertos', 'Many open tickets'), texto: L(`Hay ${d.abiertos} tickets abiertos. Reparte la carga con la asignación automática al equipo de soporte.`, `There are ${d.abiertos} open tickets. Spread the load with auto-assign to the support team.`) });
+    if (d.sancionesTotal > 0 && d.automod > 0) out.push({ tipo: 'ok', titulo: L('El automod te protege', 'Automod is protecting you'), texto: L(`El automoderador aplicó solo ${d.automod} de ${d.sancionesTotal} sanciones. Buen escudo; revisa que no haya falsos positivos.`, `The automoderator applied ${d.automod} of ${d.sancionesTotal} sanctions on its own. Good shield; check there are no false positives.`) });
+    if (d.nr && d.nr.total > 0 && d.nr.conXp === 0) out.push({ tipo: 'tip', titulo: L('Activa el sistema de niveles', 'Turn on the leveling system'), texto: L('Nadie tiene XP todavía. Los niveles con roles de recompensa son de las mejores formas de retener y animar a tu comunidad.', 'Nobody has XP yet. Levels with role rewards are one of the best ways to retain and engage your community.') });
     // Salud del chat
-    if (d.totalMensajes > 50 && d.totalBorrados / d.totalMensajes > 0.15) out.push({ tipo: 'warn', titulo: 'Lots of message cleanup', texto: `${d.totalBorrados} messages were deleted (over 15% of the total). Review the rules and tune the automod (spam, links, words) to reduce the noise.` });
+    if (d.totalMensajes > 50 && d.totalBorrados / d.totalMensajes > 0.15) out.push({ tipo: 'warn', titulo: L('Se borran muchos mensajes', 'Lots of message cleanup'), texto: L(`Se borraron ${d.totalBorrados} mensajes (más del 15% del total). Revisa las normas y ajusta el automod (spam, enlaces, palabras) para reducir el ruido.`, `${d.totalBorrados} messages were deleted (over 15% of the total). Review the rules and tune the automod (spam, links, words) to reduce the noise.`) });
     // Reparto de carga del equipo
     if (d.agentes && d.agentes.length >= 2) {
         const totalAg = d.agentes.reduce((a, b) => a + b.tickets, 0);
         const top = d.agentes[0];
-        if (totalAg > 0 && top.tickets / totalAg > 0.6) out.push({ tipo: 'tip', titulo: 'Uneven team workload', texto: `"${top.nombre}" handles ${Math.round((top.tickets / totalAg) * 100)}% of tickets. Turn on auto-assign (round-robin) to share the work and avoid burning out your staff.` });
+        if (totalAg > 0 && top.tickets / totalAg > 0.6) out.push({ tipo: 'tip', titulo: L('Carga del equipo desigual', 'Uneven team workload'), texto: L(`"${top.nombre}" atiende el ${Math.round((top.tickets / totalAg) * 100)}% de los tickets. Activa la asignación automática (por turnos) para repartir el trabajo y no quemar a tu staff.`, `"${top.nombre}" handles ${Math.round((top.tickets / totalAg) * 100)}% of tickets. Turn on auto-assign (round-robin) to share the work and avoid burning out your staff.`) });
     }
     // Voz
-    if (d.vozActivos === 0 && d.activos > 5) out.push({ tipo: 'tip', titulo: 'Nobody uses voice channels', texto: 'Your community types but doesn’t talk over voice. Run voice events (hangouts, gaming, AMAs) and create topic voice channels to boost engagement.' });
+    if (d.vozActivos === 0 && d.activos > 5) out.push({ tipo: 'tip', titulo: L('Nadie usa los canales de voz', 'Nobody uses voice channels'), texto: L('Tu comunidad escribe pero no habla por voz. Organiza eventos de voz (quedadas, partidas, preguntas y respuestas) y crea canales de voz temáticos para animarla.', 'Your community types but doesn’t talk over voice. Run voice events (hangouts, gaming, AMAs) and create topic voice channels to boost engagement.') });
     // Tendencia de miembros (histórico real de snapshots)
     if (d.hayMiembros && d.serieMiembros && d.serieMiembros.length > 1) {
         const conDato = d.serieMiembros.filter((p) => p.miembros != null);
         if (conDato.length >= 2) {
             const delta = conDato[conDato.length - 1].miembros - conDato[0].miembros;
-            if (delta <= -3) out.push({ tipo: 'warn', titulo: 'Your member base is shrinking', texto: `You’ve gone from ${conDato[0].miembros} to ${conDato[conDato.length - 1].miembros} members. Strengthen retention: a warm welcome, interest roles and events for newcomers.` });
-            else if (delta >= 3) out.push({ tipo: 'ok', titulo: 'Member base is rising', texto: `You’ve grown from ${conDato[0].miembros} to ${conDato[conDato.length - 1].miembros} members. Great work! Use the momentum for campaigns and collaborations.` });
+            if (delta <= -3) out.push({ tipo: 'warn', titulo: L('Tu base de miembros se reduce', 'Your member base is shrinking'), texto: L(`Has pasado de ${conDato[0].miembros} a ${conDato[conDato.length - 1].miembros} miembros. Refuerza la retención: una bienvenida cálida, roles de intereses y eventos para los nuevos.`, `You’ve gone from ${conDato[0].miembros} to ${conDato[conDato.length - 1].miembros} members. Strengthen retention: a warm welcome, interest roles and events for newcomers.`) });
+            else if (delta >= 3) out.push({ tipo: 'ok', titulo: L('Tu base de miembros crece', 'Member base is rising'), texto: L(`Has crecido de ${conDato[0].miembros} a ${conDato[conDato.length - 1].miembros} miembros. ¡Buen trabajo! Aprovecha el impulso para campañas y colaboraciones.`, `You’ve grown from ${conDato[0].miembros} to ${conDato[conDato.length - 1].miembros} members. Great work! Use the momentum for campaigns and collaborations.`) });
         }
     }
-    if (out.length === 0) out.push({ tipo: 'tip', titulo: 'Collecting data', texto: 'Once your server builds up more activity, you’ll see personalized growth recommendations here.' });
+    if (out.length === 0) out.push({ tipo: 'tip', titulo: L('Recopilando datos', 'Collecting data'), texto: L('Cuando tu servidor tenga más actividad, verás aquí recomendaciones de crecimiento a tu medida.', 'Once your server builds up more activity, you’ll see personalized growth recommendations here.') });
     return out;
 }
 

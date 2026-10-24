@@ -15,8 +15,8 @@ module.exports = {
         const estadoLabelVisible = (e) => t(cfg, (estadoLabel(e) === 'Open' ? 'Abierto' : 'Cerrado'), estadoLabel(e));
 
         try {
-            // 2. Buscamos todos los tickets de ese usuario en la BD
-            const userTickets = await Ticket.find({ creadorId: targetUser.id });
+            // 2. Tickets de ese usuario en ESTE servidor (antes contaba los de todos), del más reciente al más antiguo
+            const userTickets = await Ticket.find({ guildId: message.guild.id, creadorId: targetUser.id }).sort({ fechaCreacion: -1 });
 
             // Si no tiene tickets, le avisamos rápido
             if (userTickets.length === 0) {
@@ -28,9 +28,8 @@ module.exports = {
             const ticketsAbiertos = userTickets.filter(t => estadoLabel(t.estado) === 'Open').length;
             const ticketsCerrados = totalTickets - ticketsAbiertos;
 
-            // 4. Buscamos detalles del último ticket que abrió
-            // Ordenamos el array para que el más reciente quede el primero
-            const ultimoTicket = userTickets.reverse()[0];
+            // 4. El último ticket que abrió (ya vienen ordenados por fecha)
+            const ultimoTicket = userTickets[0];
 
             // 5. Construimos el panel visual (Embed)
             const embedUser = new EmbedBuilder()
@@ -38,12 +37,12 @@ module.exports = {
                 .setTitle(t(cfg, `📊 Historial de soporte: ${targetUser.username}`, `📊 Support record: ${targetUser.username}`))
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                 .addFields(
-                    { name: t(cfg, '🎫 Total histórico', '🎫 All-time total'), value: t(cfg, `${totalTickets} tickets`, `${totalTickets} tickets`), inline: true },
+                    { name: t(cfg, '🎫 Total histórico', '🎫 All-time total'), value: `${totalTickets} ticket${totalTickets === 1 ? '' : 's'}`, inline: true },
                     { name: t(cfg, '🟢 Abiertos ahora', '🟢 Open now'), value: `${ticketsAbiertos}`, inline: true },
                     { name: t(cfg, '🔒 Cerrados', '🔒 Closed'), value: `${ticketsCerrados}`, inline: true },
                     { name: t(cfg, '🕒 Último ticket abierto', '🕒 Last ticket opened'), value: t(cfg, `**Motivo:** ${ultimoTicket.motivo || 'No especificado'}\n**Estado:** ${estadoLabelVisible(ultimoTicket.estado)}`, `**Reason:** ${ultimoTicket.motivo || 'Not specified'}\n**Status:** ${estadoLabelVisible(ultimoTicket.estado)}`), inline: false }
                 )
-                .setFooter({ text: 'Sokyo management system' });
+                .setFooter({ text: t(cfg, 'Sistema de gestión Sokyo', 'Sokyo management system') });
 
             // 6. Lo enviamos al canal
             await message.reply({ embeds: [embedUser] });

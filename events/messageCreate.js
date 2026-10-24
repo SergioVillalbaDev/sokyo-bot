@@ -55,12 +55,8 @@ module.exports = {
         }
 
         // 1. Guardar mensajes de los tickets en la BD
+        // (Sin volcar el contenido a la consola: son conversaciones privadas.)
         if (message.channel.name && message.channel.name.startsWith('ticket-')) {
-            console.log(`\n--- 📩 NUEVO MENSAJE EN TICKET ---`);
-            console.log(`👤 Usuario: ${message.author.username}`);
-            console.log(`📝 Texto: "${message.content}"`);
-            console.log(`📎 Adjuntos: ${message.attachments.size}`);
-
             try {
                 let imagenesAdjuntas = [];
                 
@@ -71,18 +67,14 @@ module.exports = {
                     });
                 }
 
-                console.log(`🔗 URLs a guardar:`, imagenesAdjuntas);
-
                 // Guardamos en MongoDB
-                const msgGuardado = await Mensaje.create({
+                await Mensaje.create({
                     ticketId: message.channel.id,
                     usuario: message.author.username,
                     usuarioId: message.author.id,
                     contenido: message.content,
                     imagenes: imagenesAdjuntas
                 });
-                
-                console.log(`✅ Guardado en BD exitosamente con ${msgGuardado.imagenes.length} imágenes.`);
 
             } catch (error) {
                 console.error('❌ Error al guardar mensaje en la BD:', error);
@@ -108,8 +100,8 @@ module.exports = {
         try {
             await command.execute(message, args, client, cfg);
         } catch (error) {
-            console.error(error);
-            message.reply(t(cfg, '❌ Hubo un error al ejecutar ese comando.', '❌ There was an error trying to run that command.'));
+            console.error(`Error en el comando ${commandName}:`, error);
+            message.reply(t(cfg, '❌ Hubo un error al ejecutar ese comando.', '❌ There was an error trying to run that command.')).catch(() => {});
         }
     },
 };

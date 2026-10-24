@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Usuario = require('../models/Usuario.js');
 const Item = require('../models/Item.js');
+const { t } = require('./i18n.js');
 
 // Devuelve el usuario, creándolo si es la primera vez que aparece (upsert).
 async function obtenerUsuario(discordId) {
@@ -15,7 +16,9 @@ async function obtenerUsuario(discordId) {
 // Todo el descuento de stock + cobro de oro + inventario va en UNA transacción de
 // Mongo: si el proceso se cae a medias (o falla cualquier paso), se deshace entero
 // en vez de dejar stock descontado sin cobrar el oro (o viceversa).
-async function comprarItem(discordId, itemDocId, cantidad = 1) {
+// `idioma` (cfg del servidor o 'es'/'en') solo afecta a los mensajes de error;
+// la tienda web está en español.
+async function comprarItem(discordId, itemDocId, cantidad = 1, idioma = 'es') {
     cantidad = Math.max(1, parseInt(cantidad, 10) || 1);
 
     // 1) El ítem debe existir y estar activo en la tienda.
@@ -23,9 +26,9 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
     try {
         item = await Item.findOne({ _id: itemDocId, activo: true });
     } catch {
-        return { ok: false, error: 'Invalid item.' }; // _id mal formado
+        return { ok: false, error: t(idioma, 'Objeto no válido.', 'Invalid item.') }; // _id mal formado
     }
-    if (!item) return { ok: false, error: 'That item doesn’t exist or isn’t available.' };
+    if (!item) return { ok: false, error: t(idioma, 'Ese objeto no existe o no está disponible.', 'That item doesn’t exist or isn’t available.') };
 
     const coste = precioEfectivo(item).precio * cantidad; // respeta la oferta relámpago si la hay
     await obtenerUsuario(discordId);
@@ -62,10 +65,10 @@ async function comprarItem(discordId, itemDocId, cantidad = 1) {
         });
         return { ok: true, item, coste, balance: balanceFinal };
     } catch (e) {
-        if (e.message === 'SIN_STOCK') return { ok: false, error: 'Sold out! No stock left for this item.' };
-        if (e.message === 'SIN_ORO') return { ok: false, error: 'No tienes suficiente oro para comprar esto.' };
+        if (e.message === 'SIN_STOCK') return { ok: false, error: t(idioma, '¡Agotado! No quedan unidades de este objeto.', 'Sold out! No stock left for this item.') };
+        if (e.message === 'SIN_ORO') return { ok: false, error: t(idioma, 'No tienes suficiente oro para comprar esto.', 'You don’t have enough gold to buy this.') };
         console.error('comprarItem: transacción abortada:', e.message);
-        return { ok: false, error: 'No se pudo completar la compra, inténtalo de nuevo.' };
+        return { ok: false, error: t(idioma, 'No se pudo completar la compra, inténtalo de nuevo.', 'The purchase couldn’t be completed, please try again.') };
     } finally {
         await session.endSession();
     }
@@ -101,7 +104,7 @@ async function ponerOferta(itemDocId, porcentaje, duracionMin) {
     const expiraEn = new Date(Date.now() + duracionMin * 60000);
     let item;
     try { item = await Item.findByIdAndUpdate(itemDocId, { $set: { oferta: { porcentaje, expiraEn } } }, { returnDocument: 'after' }); }
-    catch { return { ok: false, error: 'Invalid item.' }; }
+    catch { return { ok: false, error: 'Objeto no válido.' }; }
     if (!item) return { ok: false, error: 'Objeto no encontrado.' };
     return { ok: true, item, porcentaje, expiraEn };
 }
@@ -189,25 +192,27 @@ async function elegirPremioDeCaja(caja) {
 // USAR un objeto: aplica su efecto y consume 1 unidad.
 //  ctx.aplicarRol(rolId, duracionMin) -> Promise<bool>: lo aporta /usar (tiene
 //  contexto de servidor). Sin él, los efectos de rol no se pueden aplicar (web).
+//  ctx.idioma: cfg del servidor o 'es'/'en' para los mensajes de error (web: 'es').
 async function usarItem(discordId, itemDocId, ctx = {}) {
+    const idioma = ctx.idioma || 'es';
     let item;
     try { item = await Item.findOne({ _id: itemDocId }); }
-    catch { return { ok: false, error: 'Invalid item.' }; }
-    if (!item) return { ok: false, error: 'That item doesn’t exist.' };
+    catch { return { ok: false, error: t(idioma, 'Objeto no válido.', 'Invalid item.') }; }
+    if (!item) return { ok: false, error: t(idioma, 'Ese objeto no existe.', 'That item doesn’t exist.') };
 
     const efecto = item.efecto || {};
     if (!efecto.tipo || efecto.tipo === 'ninguno') {
-        return { ok: false, error: 'This item has no effect to use.' };
+        return { ok: false, error: t(idioma, 'Este objeto no tiene ningún efecto que usar.', 'This item has no effect to use.') };
     }
 
     // ¿Lo tiene en la mochila?
     const tiene = await Usuario.findOne({ discordId, 'inventory.item': item._id }).select('_id');
-    if (!tiene) return { ok: false, error: 'You don’t have that item in your bag.' };
+    if (!tiene) return { ok: false, error: t(idioma, 'No tienes ese objeto en tu mochila.', 'You don’t have that item in your bag.') };
 
     // Efecto CAJA: sortea un premio, lo añade al inventario y consume la caja.
     if (efecto.tipo === 'caja') {
         const premio = await elegirPremioDeCaja(item);
-        if (!premio) return { ok: false, error: 'This box has no contents configured.' };
+        if (!premio) return { ok: false, error: t(idioma, 'Esta caja no tiene contenido configurado.', 'This box has no contents configured.') };
         await consumirUnidad(discordId, item._id);
         await anadirAlInventario(discordId, premio._id, 1);
         return { ok: true, item, efecto, premio };
@@ -216,10 +221,10 @@ async function usarItem(discordId, itemDocId, ctx = {}) {
     // Efecto de ROL: solo desde un servidor (lo aplica el comando /usar).
     if (efecto.tipo === 'rol') {
         if (typeof ctx.aplicarRol !== 'function') {
-            return { ok: false, error: 'This item grants a role: use it in a server with `/use`.' };
+            return { ok: false, error: t(idioma, 'Este objeto da un rol: úsalo en un servidor con `/use`.', 'This item grants a role: use it in a server with `/use`.') };
         }
         const aplicado = await ctx.aplicarRol(efecto.rolId, efecto.duracionMin);
-        if (!aplicado) return { ok: false, error: 'Couldn’t grant the role (does it exist here and does the bot have permission?).' };
+        if (!aplicado) return { ok: false, error: t(idioma, 'No se ha podido dar el rol (¿existe en este servidor y el bot tiene permiso?).', 'Couldn’t grant the role (does it exist here and does the bot have permission?).') };
     }
 
     // Consumir 1 unidad (después de validar el efecto, para no perder el objeto si falla).

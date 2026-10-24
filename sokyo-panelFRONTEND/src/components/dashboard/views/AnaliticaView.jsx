@@ -7,6 +7,7 @@ import {
   TrendingUp, BarChart3, Clock, Lightbulb, AlertTriangle, CheckCircle2, Flag,
   Mic, Gauge, Trash2, UserCog, Sparkles, Loader2, X, FlaskConical, Trophy,
 } from 'lucide-react';
+import { nombrePrioridad } from '../../../lib/prioridad';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
@@ -382,7 +383,7 @@ export default function AnaliticaView({ dash }) {
         <div className="mt-4 grid gap-5 md:grid-cols-2">
           <div>
             <p className="mb-2 text-xs font-semibold text-muted">{t('dashboard.analitica_v.byUrgency')}</p>
-            <Barras data={a.tickets.urgencias} />
+            <Barras data={(a.tickets.urgencias || []).map((u) => ({ ...u, nombre: nombrePrioridad(t, u.nombre) }))} />
           </div>
           <div>
             <p className="mb-2 text-xs font-semibold text-muted">{t('dashboard.analitica_v.topReasons')}</p>

@@ -366,7 +366,7 @@ async function contextoMiembro(interaction, { permitirReclamar = false } = {}) {
 }
 
 const reply = (interaction, content) =>
-    interaction.reply({ content, ephemeral: true }).catch(() => {});
+    interaction.reply({ content, flags: 64 }).catch(() => {});
 
 // Despacha los botones del panel (customId que empieza por `vt:`).
 async function manejarBoton(interaction) {
@@ -486,7 +486,7 @@ async function manejarModal(interaction) {
 function abrirSelectorUsuario(interaction, accion, titulo) {
     const row = new ActionRowBuilder().addComponents(
         new UserSelectMenuBuilder().setCustomId(`vt_user:${accion}`).setPlaceholder(titulo).setMinValues(1).setMaxValues(1));
-    return interaction.reply({ content: titulo, components: [row], ephemeral: true }).catch(() => {});
+    return interaction.reply({ content: titulo, components: [row], flags: 64 }).catch(() => {});
 }
 
 // Procesa la selección de usuario (customId `vt_user:<accion>`).

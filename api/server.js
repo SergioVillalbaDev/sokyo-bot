@@ -33,11 +33,13 @@ const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
-const { firmarToken, verificarToken } = require('../utils/auth.js');
+const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
+const { errorRolesNuevos, errorJerarquiaStaff } = require('../utils/permisos.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
 const { enviarResumen } = require('../utils/resumenDiario.js');
+const { adaptarTextosAlIdioma, textoDeFabrica } = require('../utils/textosPorDefecto.js');
 const { version: VERSION } = require('../package.json');
 
 // Commit que se está ejecutando: lo publica /api/estado para comprobar desde fuera
@@ -64,13 +66,16 @@ module.exports = (client) => {
     const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
     // El valor de ejemplo de .env.example es público: con él cualquiera podría
     // firmarse una sesión de propietario, así que se trata como si faltara. Sin
-    // secreto propio se usa la API_KEY o, en último caso, uno aleatorio (las
-    // sesiones se pierden al reiniciar, pero nadie puede falsificarlas).
+    // secreto propio se usa la API_KEY o, si tampoco hay, uno aleatorio que se
+    // guarda en .jwt-secret: así las sesiones sobreviven a reinicios y despliegues.
     const jwtPropio = process.env.JWT_SECRET && process.env.JWT_SECRET !== 'cambia-este-secreto-de-sesion' ? process.env.JWT_SECRET : null;
-    const JWT_SECRET = jwtPropio || API_KEY || crypto.randomBytes(32).toString('hex');
-    if (!jwtPropio) {
-        console.warn('⚠️ JWT_SECRET no está definido (o es el valor de ejemplo). Pon uno largo y aleatorio en el .env para que las sesiones del panel sean seguras y sobrevivan a los reinicios.');
+    const JWT_SECRET = jwtPropio || API_KEY || secretoGuardado(path.join(__dirname, '..', '.jwt-secret'));
+    if (!jwtPropio && !API_KEY) {
+        console.warn('⚠️ JWT_SECRET no está definido (o es el valor de ejemplo): las sesiones se firman con el secreto guardado en .jwt-secret.');
     }
+
+    // Las sesiones duran 30 días y se renuevan solas mientras se usen (ver renovarSesion).
+    const DURACION_SESION = 60 * 60 * 24 * 30;
 
     // IDs de Discord del/los PROPIETARIO(s): ven absolutamente TODO (todos los
     // servidores y tickets), sin el filtrado del staff. Separados por comas.
@@ -100,6 +105,7 @@ module.exports = (client) => {
             // (el navegador bloquea la respuesta) sin propagar una excepción con stack trace al cliente.
             callback(null, !origin || ORIGENES_PERMITIDOS.includes(origin));
         },
+        exposedHeaders: ['X-Sokyo-Token'], // sesión renovada (ver renovarSesion)
     }));
 
     // --- CABECERAS DE SEGURIDAD (helmet) ---
@@ -226,6 +232,23 @@ module.exports = (client) => {
         return p;
     }
 
+    // Idioma en el que mira el panel quien hace la petición (cabecera X-Sokyo-Lang);
+    // si no la manda, el del bot en ese servidor. Para textos que genera la API.
+    function idiomaPanel(req, cfg) {
+        const pedido = String(req.get('x-sokyo-lang') || '').slice(0, 2).toLowerCase();
+        return ['es', 'en'].includes(pedido) ? pedido : ((cfg && cfg.idioma) || 'en');
+    }
+
+    // Renovación automática: si la sesión se emitió hace más de un día, la respuesta
+    // lleva una nueva (otros 30 días) en X-Sokyo-Token y el panel la guarda. Así no
+    // caduca nunca mientras se use al menos una vez al mes.
+    function renovarSesion(res, sesion) {
+        const restante = (sesion.exp || 0) - Math.floor(Date.now() / 1000);
+        if (restante > DURACION_SESION - 60 * 60 * 24) return;
+        const { exp, ...datos } = sesion;
+        res.set('X-Sokyo-Token', firmarToken(datos, JWT_SECRET, DURACION_SESION));
+    }
+
     // --- AUTENTICACIÓN del panel de staff ---
     // Acepta: (1) sesión de staff (JWT con staff:true) acotada a SUS servidores, o
     //         (2) la API key del propietario (acceso total), por retrocompatibilidad.
@@ -243,6 +266,7 @@ module.exports = (client) => {
             const broadcaster = BROADCAST_IDS.has(sesion.id);
             const guilds = owner ? client.guilds.cache.map((g) => g.id) : await guildsDelStaffCacheado(sesion.id);
             req.staff = { ...sesion, owner, broadcaster, guilds };
+            renovarSesion(res, { ...sesion, owner, broadcaster });
             if (owner) return next(); // el PROPIETARIO lo ve todo, sin filtros
             // Un difusor llega a los endpoints de difusión aunque no sea de sus servidores.
             if (broadcaster && req.path.startsWith('/broadcast')) return next();
@@ -283,8 +307,9 @@ module.exports = (client) => {
     const portalAuth = (req, res, next) => {
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
         const usuario = verificarToken(token, JWT_SECRET);
-        if (!usuario) return res.status(401).json({ error: 'Sesión no válida o caducada' });
+        if (!usuario) return res.status(401).json({ error: 'Sesión no válida o caducada', code: 'session_invalid' });
         req.usuario = usuario;
+        renovarSesion(res, usuario);
         next();
     };
 
@@ -464,6 +489,24 @@ module.exports = (client) => {
         try { return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b)); } catch { return false; }
     }
 
+    // `state` de OAuth: tipo-nonce-hora-firma, solo con [a-z0-9-] para que ningún
+    // cliente de Discord (web o app) tenga problemas con él. Vale 15 minutos.
+    const firmaEstado = (datos) => crypto.createHmac('sha256', JWT_SECRET).update(`oauth:${datos}`).digest('hex').slice(0, 32);
+    function firmarEstadoOAuth(tipo, nonce) {
+        const datos = `${tipo}-${nonce}-${Date.now().toString(36)}`;
+        return `${datos}-${firmaEstado(datos)}`;
+    }
+    function leerEstadoOAuth(state) {
+        const partes = String(state || '').split('-');
+        if (partes.length !== 4) return null;
+        const [tipo, nonce, hora, firma] = partes;
+        if (!['staff', 'tienda', 'portal'].includes(tipo)) return null;
+        if (!nonceValido(firma, firmaEstado(`${tipo}-${nonce}-${hora}`))) return null;
+        const edad = Date.now() - parseInt(hora, 36);
+        if (!(edad >= 0 && edad < 15 * 60 * 1000)) return null;
+        return { tipo, nonce };
+    }
+
     // --- Utilidad anti-SSRF para URLs de webhooks salientes proporcionadas por el staff ---
     // Resuelve el host y rechaza IPs privadas/loopback/link-local, para que un webhook
     // "de prueba" (o guardado) no pueda usarse para sondear la red interna del servidor.
@@ -495,36 +538,46 @@ module.exports = (client) => {
             return res.status(500).send('El login con Discord no está configurado en el servidor.');
         }
         const tipo = ['staff', 'tienda'].includes(req.query.state) ? req.query.state : 'portal'; // staff / tienda / portal
-        // Nonce anti-CSRF: se guarda en una cookie httpOnly y viaja también en el
-        // `state` de OAuth. El callback exige que coincidan, así un atacante no puede
-        // completar el login-CSRF clásico (colar SU code en la sesión de la víctima),
-        // porque no puede leer/forzar la cookie del navegador de la víctima.
-        const nonce = crypto.randomBytes(24).toString('base64url');
+        // Nonce anti-CSRF: viaja en el `state` firmado y en una cookie httpOnly. Si la
+        // cookie llega al callback, tiene que coincidir (así nadie puede colar SU code
+        // en la sesión de otro navegador). En el móvil la app de Discord puede volver
+        // al callback en otro navegador sin esa cookie: entonces basta la firma.
+        const nonce = crypto.randomBytes(12).toString('hex');
         res.cookie('sokyo_oauth_state', nonce, {
-            httpOnly: true, sameSite: 'lax', secure: !!process.env.TRUST_PROXY, maxAge: 10 * 60 * 1000, path: '/',
+            httpOnly: true, sameSite: 'lax', secure: !!process.env.TRUST_PROXY, maxAge: 15 * 60 * 1000, path: '/',
         });
         const params = new URLSearchParams({
             client_id: DISCORD_CLIENT_ID,
             redirect_uri: OAUTH_REDIRECT_URI,
             response_type: 'code',
             scope: 'identify',
-            state: `${tipo}.${nonce}`,
+            state: firmarEstadoOAuth(tipo, nonce),
         });
-        res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+        // URL de autorización oficial (sin /api): es la que la app de Discord del
+        // móvil sabe abrir; la antigua daba "Invalid Form Body" al autorizar.
+        res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
     });
 
     // 2. Callback: intercambia el code, obtiene el usuario y emite la sesión
     app.get('/api/auth/discord/callback', async (req, res) => {
-        const { code, state } = req.query;
-        const [tipoRaw, nonce] = String(state || '').split('.');
+        const { code } = req.query;
+        const estado = leerEstadoOAuth(req.query.state);
+        // Si el state no es válido no sabemos de dónde venía: se intenta deducir por
+        // su prefijo para devolver al usuario a la pantalla de login correcta.
+        const tipoRaw = estado ? estado.tipo : String(req.query.state || '').split(/[-.]/)[0];
         const esStaff = tipoRaw === 'staff';
         const esTienda = tipoRaw === 'tienda';
-        const destinoError = esStaff ? `${FRONTEND_URL}/?staff=1&error=denegado`
-            : esTienda ? `/tienda.html?error=denegado`
-            : `${FRONTEND_URL}/?portal=1&error=denegado`;
+        const destino = (error) => (esStaff ? `${FRONTEND_URL}/?staff=1&error=${error}`
+            : esTienda ? `/tienda.html?error=${error}`
+            : `${FRONTEND_URL}/?portal=1&error=${error}`);
         const cookieNonce = leerCookie(req, 'sokyo_oauth_state');
         res.clearCookie('sokyo_oauth_state', { path: '/' });
-        if (!code || !nonceValido(nonce, cookieNonce)) return res.redirect(destinoError);
+        // El usuario pulsó "Cancelar" en Discord.
+        if (req.query.error === 'access_denied') return res.redirect(destino('denegado'));
+        // Sin code, state caducado/falsificado, o una cookie de OTRO intento de login.
+        if (!code || !estado || (cookieNonce && !nonceValido(estado.nonce, cookieNonce))) {
+            return res.redirect(destino('oauth'));
+        }
         try {
             const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
                 method: 'POST',
@@ -559,25 +612,23 @@ module.exports = (client) => {
                 if (!esOwner && !esBroadcaster && guilds.length === 0) {
                     return res.redirect(`${FRONTEND_URL}/?staff=1&error=nostaff`);
                 }
-                const sesion = firmarToken({ id: user.id, username: user.username, avatar, staff: true, owner: esOwner, broadcaster: esBroadcaster, guilds }, JWT_SECRET);
+                const sesion = firmarToken({ id: user.id, username: user.username, avatar, staff: true, owner: esOwner, broadcaster: esBroadcaster, guilds }, JWT_SECRET, DURACION_SESION);
                 return res.redirect(`${FRONTEND_URL}/?staff=1&token=${sesion}`);
             }
 
             // Login desde la página de la tienda (servida por el propio Express):
             // volvemos a ella, en el mismo origen, con la sesión ya puesta.
             if (esTienda) {
-                const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
+                const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET, DURACION_SESION);
                 return res.redirect(`/tienda.html?token=${sesion}`);
             }
 
             // Login del PORTAL del cliente (comportamiento existente).
-            const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
+            const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET, DURACION_SESION);
             res.redirect(`${FRONTEND_URL}/?portal=1&token=${sesion}`);
         } catch (error) {
             console.error('Error en el callback de OAuth:', error);
-            res.redirect(esStaff ? `${FRONTEND_URL}/?staff=1&error=oauth`
-                : esTienda ? `/tienda.html?error=oauth`
-                : `${FRONTEND_URL}/?portal=1&error=oauth`);
+            res.redirect(destino('oauth'));
         }
     });
 
@@ -1042,7 +1093,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!gid) return res.json({ esPro: false, vacio: true });
             const cfg = await ServidorConfig.findOne({ guildId: gid });
             const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
-            const data = await construirAnalitica(client, gid, cfg, dias);
+            const data = await construirAnalitica(client, gid, cfg, dias, idiomaPanel(req, cfg));
             data.iaActiva = ia.iaDisponible();
             res.json(data);
         } catch (error) {
@@ -1062,8 +1113,9 @@ app.get('/api/stats/uso', async (req, res) => {
             const est = billing.estadoIA(cfg);
             if (est.restantes <= 0) return res.status(402).json({ error: `Has agotado tus ${est.cuota} usos de IA de este mes. Se renueva el día 1.`, iaUsos: est.usos, iaCuota: est.cuota });
             const dias = Math.min(90, Math.max(7, parseInt(req.query.dias, 10) || 30));
-            const data = await construirAnalitica(client, gid, cfg, dias);
-            const texto = await ia.informeServidor(data, cfg && cfg.idioma);
+            const idioma = idiomaPanel(req, cfg);
+            const data = await construirAnalitica(client, gid, cfg, dias, idioma);
+            const texto = await ia.informeServidor(data, idioma);
             const consumo = await billing.consumirIA(gid, cfg);
             res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
         } catch (error) {
@@ -1205,7 +1257,7 @@ app.get('/api/stats/uso', async (req, res) => {
             }
             const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 }).limit(100);
             const texto = accion === 'resumen'
-                ? await ia.resumirTicket(mensajes, ticket, cfg && cfg.idioma)
+                ? await ia.resumirTicket(mensajes, ticket, idiomaPanel(req, cfg))
                 : await ia.sugerirRespuesta(mensajes, ticket, cfg && cfg.idioma);
             const consumo = await billing.consumirIA(ticket.guildId, cfg); // solo cuenta si tuvo éxito
             res.json({ texto, iaUsos: consumo.usos, iaCuota: consumo.cuota });
@@ -1325,11 +1377,22 @@ app.get('/api/stats/uso', async (req, res) => {
             if (categoriaArchivados !== undefined) cambios.categoriaArchivados = categoriaArchivados;
             if (idioma !== undefined) cambios.idioma = idioma === 'es' ? 'es' : 'en';
 
-            const configActualizada = await ServidorConfig.findOneAndUpdate(
+            // El panel manda el idioma en cada guardado: solo cuenta si CAMBIA.
+            const previa = cambios.idioma ? await ServidorConfig.findOne({ guildId }).select('idioma') : null;
+            const cambiaIdioma = !!cambios.idioma && (previa ? previa.idioma : 'en') !== cambios.idioma;
+
+            let configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId: guildId },
                 { $set: cambios },
                 { returnDocument: 'after', upsert: true }
             );
+            // Al cambiar el idioma, los textos que siguen como venían de fábrica pasan
+            // al nuevo (el panel los reenvía tal cual estaban). Si el idioma no cambia,
+            // lo que se escribe se respeta aunque coincida con un texto de fábrica.
+            if (cambiaIdioma) {
+                const adaptados = await adaptarTextosAlIdioma(guildId, cambios.idioma);
+                if (Object.keys(adaptados).length) configActualizada = await ServidorConfig.findOne({ guildId });
+            }
 
             res.json({ success: true, config: configActualizada });
         } catch (error) {
@@ -1666,16 +1729,20 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/verificacion', exigeArea('config'), async (req, res) => {
         try {
             const b = req.body.verificacion || req.body || {};
+            const cfgVer = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('idioma verificacion.rolVerificadoId');
+            const fab = (ruta) => textoDeFabrica(ruta, cfgVer && cfgVer.idioma);
             const v = {
                 activo: !!b.activo,
                 canalId: b.canalId ? String(b.canalId) : null,
                 rolVerificadoId: b.rolVerificadoId ? String(b.rolVerificadoId) : null,
                 modo: b.modo === 'captcha' ? 'captcha' : 'boton',
-                titulo: String(b.titulo || '🔒 Verificación').slice(0, 256),
+                titulo: String(b.titulo || fab('verificacion.titulo')).slice(0, 256),
                 descripcion: String(b.descripcion || '').slice(0, 2000),
-                textoBoton: String(b.textoBoton || '✅ Verificarme').slice(0, 80),
+                textoBoton: String(b.textoBoton || fab('verificacion.textoBoton')).slice(0, 80),
                 embed: sanearEmbed(b.embed), // embed personalizable del panel (null = básico)
             };
+            const errRolV = await errorRolesNuevos(client, req.staff, req.params.guildId, [v.rolVerificadoId], [cfgVer && cfgVer.verificacion && cfgVer.verificacion.rolVerificadoId]);
+            if (errRolV) return res.status(403).json({ error: errRolV });
             const set = Object.fromEntries(Object.entries(v).map(([k, val]) => [`verificacion.${k}`, val]));
             // Puertas de entrada excluyentes: al activar la verificación normal se
             // apaga la doble bienvenida (solo el flag, sin tocar sus versiones).
@@ -1711,24 +1778,28 @@ app.get('/api/stats/uso', async (req, res) => {
             const b = req.body.embudoAB || req.body || {};
             const a = b.varianteA || {};
             const bb = b.varianteB || {};
+            // Campos vacíos: el texto de fábrica en el idioma del servidor.
+            const fab = (ruta) => textoDeFabrica(ruta, cfgActual && cfgActual.idioma);
             const set = {
                 'embudoAB.activo': !!b.activo,
                 'embudoAB.entrega': ['md', 'ambos'].includes(b.entrega) ? b.entrega : 'panel',
                 'embudoAB.canalId': b.canalId ? String(b.canalId) : null,
                 'embudoAB.rolVerificadoId': b.rolVerificadoId ? String(b.rolVerificadoId) : null,
-                'embudoAB.varianteA.titulo': String(a.titulo || '📋 Bienvenido/a — Lee las normas').slice(0, 256),
+                'embudoAB.varianteA.titulo': String(a.titulo || fab('embudoAB.varianteA.titulo')).slice(0, 256),
                 'embudoAB.varianteA.reglas': String(a.reglas || '').slice(0, 2000),
                 'embudoAB.varianteA.captcha': a.captcha !== false,
-                'embudoAB.varianteA.textoBoton': String(a.textoBoton || '✅ Aceptar y acceder').slice(0, 80),
-                'embudoAB.varianteB.titulo': String(bb.titulo || '👋 ¡Te damos la bienvenida!').slice(0, 256),
+                'embudoAB.varianteA.textoBoton': String(a.textoBoton || fab('embudoAB.varianteA.textoBoton')).slice(0, 80),
+                'embudoAB.varianteB.titulo': String(bb.titulo || fab('embudoAB.varianteB.titulo')).slice(0, 256),
                 'embudoAB.varianteB.descripcion': String(bb.descripcion || '').slice(0, 2000),
                 'embudoAB.varianteB.color': /^#[0-9a-fA-F]{6}$/.test(bb.color || '') ? bb.color : '#5865F2',
                 'embudoAB.varianteB.reglas': String(bb.reglas || '').slice(0, 2000),
-                'embudoAB.varianteB.textoBoton': String(bb.textoBoton || '🎉 Unirme').slice(0, 80),
+                'embudoAB.varianteB.textoBoton': String(bb.textoBoton || fab('embudoAB.varianteB.textoBoton')).slice(0, 80),
             };
             // Puertas de entrada excluyentes: al activar la doble bienvenida se
             // apaga la verificación normal (solo el flag, sin tocar su config).
             if (b.activo) set['verificacion.activo'] = false;
+            const errRolE = await errorRolesNuevos(client, req.staff, req.params.guildId, [set['embudoAB.rolVerificadoId']], [cfgActual && cfgActual.embudoAB && cfgActual.embudoAB.rolVerificadoId]);
+            if (errRolE) return res.status(403).json({ error: errRolE });
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: set },
@@ -2207,6 +2278,12 @@ app.get('/api/stats/uso', async (req, res) => {
             const cambios = {};
             if (Array.isArray(autoRoles)) cambios.autoRoles = autoRoles.filter(Boolean);
             if (Array.isArray(autoRolesBots)) cambios.autoRolesBots = autoRolesBots.filter(Boolean);
+            // Cada lista se compara con ELLA MISMA: pasar a los humanos un rol que solo
+            // se daba a los bots también es repartirlo.
+            const cfgAuto = await ServidorConfig.findOne({ guildId }).select('autoRoles autoRolesBots');
+            const errRolA = await errorRolesNuevos(client, req.staff, guildId, cambios.autoRoles, cfgAuto && cfgAuto.autoRoles)
+                || await errorRolesNuevos(client, req.staff, guildId, cambios.autoRolesBots, cfgAuto && cfgAuto.autoRolesBots);
+            if (errRolA) return res.status(403).json({ error: errRolA });
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId },
@@ -2259,6 +2336,10 @@ app.get('/api/stats/uso', async (req, res) => {
         };
     }
 
+    // Reglas de jerarquía de Discord para el staff (ver utils/permisos.js).
+    const errorJerarquia = (req, guild, rol, permisos = [], repartir = false) =>
+        errorJerarquiaStaff(guild, req.staff, { roles: rol ? [rol] : [], permisos, repartir });
+
     // Catálogo de permisos para que el panel pinte los toggles.
     app.get('/api/roles/catalogo', (req, res) => res.json(PERMISOS_CATALOGO));
 
@@ -2285,11 +2366,13 @@ app.get('/api/stats/uso', async (req, res) => {
             const guild = await resolverGuild(guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
             if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
-
+            const permisosRol = Array.isArray(permisos) ? permisos : [];
+            const errJer = await errorJerarquia(req, guild, null, permisosRol);
+            if (errJer) return res.status(403).json({ error: errJer });
             const rol = await guild.roles.create({
-                name: nombre.trim(),
-                color: color || '#99AAB5',
-                permissions: Array.isArray(permisos) ? permisos : [],
+                name: nombre.trim().slice(0, 100),
+                colors: { primaryColor: color || '#99AAB5' },
+                permissions: permisosRol,
             });
             res.json({ success: true, rol: serializarRol(rol) });
         } catch (error) {
@@ -2308,10 +2391,13 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede editar este rol (jerarquía)' });
-
+            // Solo cuentan los permisos que se AÑADEN: quitar uno que no tienes está bien.
+            const nuevos = Array.isArray(permisos) ? permisos.filter((p) => { try { return !rol.permissions.has(p); } catch { return true; } }) : [];
+            const errJer = await errorJerarquia(req, guild, rol, nuevos);
+            if (errJer) return res.status(403).json({ error: errJer });
             const cambios = {};
-            if (nombre !== undefined) cambios.name = String(nombre).trim();
-            if (color !== undefined) cambios.color = color;
+            if (nombre !== undefined) cambios.name = String(nombre).trim().slice(0, 100);
+            if (color !== undefined) cambios.colors = { primaryColor: color };
             if (Array.isArray(permisos)) cambios.permissions = permisos;
 
             await rol.edit(cambios);
@@ -2331,6 +2417,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede eliminar este rol (jerarquía)' });
+            const errJer = await errorJerarquia(req, guild, rol);
+            if (errJer) return res.status(403).json({ error: errJer });
 
             await rol.delete();
             res.json({ success: true });
@@ -2412,6 +2500,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede asignar este rol (jerarquía)' });
+            const errJer = await errorJerarquia(req, guild, rol, [], true);
+            if (errJer) return res.status(403).json({ error: errJer });
 
             const member = await guild.members.fetch(userId);
             await member.roles.add(rol);
@@ -2430,6 +2520,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const rol = guild.roles.cache.get(req.params.roleId);
             if (!rol) return res.status(404).json({ error: 'Rol no encontrado' });
             if (!rol.editable) return res.status(403).json({ error: 'El bot no puede quitar este rol (jerarquía)' });
+            const errJer = await errorJerarquia(req, guild, rol);
+            if (errJer) return res.status(403).json({ error: errJer });
 
             const member = await guild.members.fetch(req.params.userId);
             await member.roles.remove(rol);
@@ -2514,7 +2606,10 @@ app.get('/api/stats/uso', async (req, res) => {
             if (await RolePanel.countDocuments({ guildId }) >= topePanel) {
                 return res.status(402).json({ error: `El plan Free permite ${topePanel} panel(es) de roles. Sube a Pro para tener paneles ilimitados.` });
             }
-            const panel = await RolePanel.create({ guildId, ...limpiarPanel(req.body) });
+            const datosPanel = limpiarPanel(req.body);
+            const errRolP = await errorRolesNuevos(client, req.staff, guildId, (datosPanel.items || []).map((it) => it.roleId), []);
+            if (errRolP) return res.status(403).json({ error: errRolP });
+            const panel = await RolePanel.create({ guildId, ...datosPanel });
             if (panel.channelId) {
                 try { await publicarPanel(client, panel); }
                 catch (e) { return res.json({ success: true, panel, aviso: `Panel guardado pero no se pudo publicar: ${e.message}` }); }
@@ -2529,7 +2624,14 @@ app.get('/api/stats/uso', async (req, res) => {
     // Editar un panel (y republicarlo).
     app.put('/api/paneles/:id', scopePanel, async (req, res) => {
         try {
-            const panel = await RolePanel.findByIdAndUpdate(req.params.id, { $set: limpiarPanel(req.body) }, { returnDocument: 'after' });
+            const previo = await RolePanel.findById(req.params.id);
+            if (!previo) return res.status(404).json({ error: 'Panel no encontrado' });
+            if (!(await tieneAreaAcceso(req, previo.guildId, 'roles'))) return res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
+            const datosPanel = limpiarPanel(req.body);
+            const errRolP = await errorRolesNuevos(client, req.staff, previo.guildId,
+                (datosPanel.items || []).map((it) => it.roleId), (previo.items || []).map((it) => it.roleId));
+            if (errRolP) return res.status(403).json({ error: errRolP });
+            const panel = await RolePanel.findByIdAndUpdate(req.params.id, { $set: datosPanel }, { returnDocument: 'after' });
             if (!panel) return res.status(404).json({ error: 'Panel no encontrado' });
             if (panel.channelId) {
                 try { await publicarPanel(client, panel); }
@@ -2705,7 +2807,8 @@ app.get('/api/stats/uso', async (req, res) => {
     // ===================== MODERACIÓN (Centro de Mando) =====================
 
     // Moderador que ejecuta la acción (sesión de staff) o null (API key del dueño).
-    const moderadorDe = (req) => (req.staff ? { id: req.staff.id, tag: req.staff.username } : null);
+    // sinLimite: los propietarios del bot (OWNER_IDS) no tienen el límite de jerarquía.
+    const moderadorDe = (req) => (req.staff ? { id: req.staff.id, tag: req.staff.username, sinLimite: !!req.staff.owner } : null);
 
     // --- Tipos de sanción (plantillas) ---
     app.get('/api/sanciones/tipos', exigeModerador, async (req, res) => {
@@ -3013,6 +3116,16 @@ app.get('/api/stats/uso', async (req, res) => {
                     .filter((r) => r && r.rolId && r.nivel)
                     .map((r) => ({ nivel: Math.max(1, parseInt(r.nivel, 10) || 1), rolId: String(r.rolId) }))
                     .slice(0, 50);
+                // Cuenta como nueva una recompensa con un rol que no estaba o que ahora
+                // se da a un nivel MÁS BAJO (adelantarla también es repartirla).
+                const cfgNiv = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('recompensasNivel');
+                const nivelPrevio = {};
+                for (const r of (cfgNiv && cfgNiv.recompensasNivel) || []) {
+                    nivelPrevio[r.rolId] = Math.min(nivelPrevio[r.rolId] ?? Infinity, r.nivel);
+                }
+                const nuevasN = cambios.recompensasNivel.filter((r) => !(r.nivel >= (nivelPrevio[r.rolId] ?? Infinity))).map((r) => r.rolId);
+                const errRolN = await errorRolesNuevos(client, req.staff, req.params.guildId, nuevasN, []);
+                if (errRolN) return res.status(403).json({ error: errRolN });
             }
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId }, { $set: cambios }, { returnDocument: 'after', upsert: true },

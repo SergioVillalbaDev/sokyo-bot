@@ -1,5 +1,7 @@
 node_modules/
 .env
+# Secreto de sesión generado automáticamente si no hay JWT_SECRET (ver utils/auth.js)
+.jwt-secret
 package-lock.json
 dist/
 # Builds temporales y estado del despliegue automático (deploy/deploy.sh)

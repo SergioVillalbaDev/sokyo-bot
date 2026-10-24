@@ -9,7 +9,7 @@ module.exports = {
 
     async execute(interaction, client, cfg) {
         const top = await economia.topRicos(10);
-        if (!top.length) return interaction.reply({ content: t(cfg, '🪙 Nadie tiene oro todavía. ¡Empieza con `/daily`!', '🪙 Nobody has any gold yet. Start with `/daily`!'), ephemeral: true });
+        if (!top.length) return interaction.reply({ content: t(cfg, '🪙 Nadie tiene oro todavía. ¡Empieza con `/daily`!', '🪙 Nobody has any gold yet. Start with `/daily`!'), flags: 64 });
 
         const medallas = ['🥇', '🥈', '🥉'];
         const lineas = await Promise.all(top.map(async (u, i) => {

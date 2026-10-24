@@ -42,6 +42,7 @@ export default {
       panelBtn: 'Panel',
       accountBtn: 'My account',
       cta: 'Add to Discord',
+      ctaShort: 'Add',
       links: { features: 'Features', pricing: 'Pricing', panel: 'Panel' },
     },
     hero: {
@@ -66,7 +67,7 @@ export default {
     },
     stats: [
       { to: 5, suffix: '+', label: 'Bots replaced by just one' },
-      { to: 37, label: 'Ready-to-use commands' },
+      { to: 40, suffix: '+', label: 'Ready-to-use commands' },
       { to: 100, suffix: '%', label: 'Configurable, no code needed' },
       { to: 60, prefix: '<', suffix: 's', label: 'To get up and running' },
     ],
@@ -192,6 +193,7 @@ export default {
       loginTitle: 'Staff Panel',
       loginSubtitle: 'Log in with Discord to manage your servers.',
       loginButton: 'Log in with Discord',
+      back: 'Back to home',
       logout: 'Log out',
       errDenied: 'You cancelled the login.',
       errNoStaff: 'You are not staff in any server where the bot is.',
@@ -743,6 +745,7 @@ export default {
       premium: 'Premium',
       lockedHint: '🔒 Unlock 8 unique themes by upgrading to Sokyo Pro.',
     },
+    priority: { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' },
     error: {
       detail: 'Make sure the bot is running, that VITE_API_URL points to the right address and that the keys match. (Open the console with F12 for details.)',
     },
@@ -1575,6 +1578,9 @@ export default {
       },
     },
     presentaciones_v: {
+      defaultQName: 'What’s your name or alias?',
+      defaultQAge: 'How old are you?',
+      defaultQInterests: 'What are you into, or why are you joining the server?',
       intro: 'Ask new members to introduce themselves before accessing the server. Configure the form, set automatic discard rules and receive each introduction in the staff channel.',
       note: 'When someone joins, the bot sends the form via DM. If they pass the filters, their intro is posted to the chosen channel. If not, it is discarded — and the user can be notified automatically.',
       formatTitle: 'Introduction format',
@@ -1622,12 +1628,16 @@ export default {
   portal: {
     login: {
       title: 'Support Portal',
+      back: 'Back to home',
       subtitle: 'Log in to view and manage your tickets.',
       errDenied: 'You cancelled the login.',
       errOauth: 'Couldn’t log in with Discord.',
+      errSession: 'Your session is no longer valid. Log in with Discord again.',
+      errConexion: 'Couldn’t reach the server. Check your connection.',
+      retry: 'Retry',
       button: 'Log in with Discord',
     },
-    header: { brand: 'Sokyo · Support', logout: 'Log out' },
+    header: { brand: 'Sokyo · Support', logout: 'Log out', home: 'Home', homeTitle: 'Back to the Sokyo website' },
     nav: { tickets: 'My Tickets', card: 'My card', music: 'Music' },
     tickets: {
       title: 'My Tickets',

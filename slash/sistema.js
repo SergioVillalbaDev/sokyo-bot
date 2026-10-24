@@ -61,10 +61,10 @@ module.exports = {
     async execute(interaction, client, cfg) {
         // Control de acceso: solo propietarios.
         if (!OWNER_IDS.has(interaction.user.id)) {
-            return interaction.reply({ content: t(cfg, '⛔ Este comando es solo para los propietarios del bot.', '⛔ This command is only for the bot owners.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⛔ Este comando es solo para los propietarios del bot.', '⛔ This command is only for the bot owners.'), flags: 64 });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         const cpuUso = await muestreaCpu();
         const totalMem = os.totalmem();

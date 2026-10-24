@@ -3,6 +3,7 @@
 // montarRutasComunidad(app, client), DESPUÉS del middleware de auth (req.staff)
 // y ANTES del fallback SPA. El frontend las consume desde src/hooks/useDashboard.js.
 const ServidorConfig = require('../models/ServidorConfig.js');
+const { errorRolesNuevos } = require('../utils/permisos.js');
 const Encuesta = require('../models/Encuesta.js');
 const Sorteo = require('../models/Sorteo.js');
 const Evento = require('../models/Evento.js');
@@ -347,6 +348,13 @@ module.exports = function montarRutasComunidad(app, client) {
             if (!puedeGestionar(req, req.params.guildId)) return res.status(403).json({ error: 'Sin permiso' });
             const b = req.body || {};
             const set = {};
+            // El rol del "miembro de la semana" lo da el bot: mismas reglas de jerarquía.
+            if (b.miembroSemana && b.miembroSemana.rolId) {
+                const cfgDin = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('dinamicas.miembroSemana.rolId');
+                const errRol = await errorRolesNuevos(client, req.staff, req.params.guildId, [b.miembroSemana.rolId],
+                    [cfgDin && cfgDin.dinamicas && cfgDin.dinamicas.miembroSemana && cfgDin.dinamicas.miembroSemana.rolId]);
+                if (errRol) return res.status(403).json({ error: errRol });
+            }
             for (const [dyn, campos] of Object.entries(DINAMICAS_CAMPOS)) {
                 const entrada = b[dyn];
                 if (!entrada || typeof entrada !== 'object') continue;

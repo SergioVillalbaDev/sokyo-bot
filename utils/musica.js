@@ -265,18 +265,18 @@ async function manejarBotonMusica(interaction, client) {
     const idioma = await getConfigCached(interaction.guildId).catch(() => null);
     const player = client.lavalink.getPlayer(interaction.guildId);
     if (!player || !player.queue.current) {
-        return interaction.reply({ content: t(idioma, '⏹️ Ahora mismo no suena nada.', '⏹️ Nothing is playing right now.'), ephemeral: true });
+        return interaction.reply({ content: t(idioma, '⏹️ Ahora mismo no suena nada.', '⏹️ Nothing is playing right now.'), flags: 64 });
     }
     const cfg = await getMusicaConfig(interaction.guildId);
     const canalUsuario = interaction.member?.voice?.channel;
     if (!canalUsuario) {
-        return interaction.reply({ content: t(idioma, '🔇 Únete a un canal de voz para controlar la música.', '🔇 Join a voice channel to control the music.'), ephemeral: true });
+        return interaction.reply({ content: t(idioma, '🔇 Únete a un canal de voz para controlar la música.', '🔇 Join a voice channel to control the music.'), flags: 64 });
     }
     if (cfg.soloMismoCanal && player.voiceChannelId && canalUsuario.id !== player.voiceChannelId) {
-        return interaction.reply({ content: t(idioma, '🎧 Tienes que estar en el mismo canal de voz que el bot.', '🎧 You need to be in the same voice channel as the bot.'), ephemeral: true });
+        return interaction.reply({ content: t(idioma, '🎧 Tienes que estar en el mismo canal de voz que el bot.', '🎧 You need to be in the same voice channel as the bot.'), flags: 64 });
     }
     if (!puedeControlar(interaction.member, cfg)) {
-        return interaction.reply({ content: t(idioma, '🎚️ Necesitas el rol de **DJ** para controlar la música.', '🎚️ You need the **DJ** role to control the music.'), ephemeral: true });
+        return interaction.reply({ content: t(idioma, '🎚️ Necesitas el rol de **DJ** para controlar la música.', '🎚️ You need the **DJ** role to control the music.'), flags: 64 });
     }
 
     let parar = false;
@@ -296,7 +296,7 @@ async function manejarBotonMusica(interaction, client) {
         case 'music_autoplay': {
             const cfgDoc = await ServidorConfig.findOne({ guildId: interaction.guildId });
             if (!cfgDoc || !esPro(cfgDoc)) {
-                return interaction.reply({ content: t(idioma, '⭐ **Autoplay** es una función **Pro**. Actívala desde el panel web.', '⭐ **Autoplay** is a **Pro** feature. Enable it from the web panel.'), ephemeral: true });
+                return interaction.reply({ content: t(idioma, '⭐ **Autoplay** es una función **Pro**. Actívala desde el panel web.', '⭐ **Autoplay** is a **Pro** feature. Enable it from the web panel.'), flags: 64 });
             }
             // Ciclo: off → aleatorio → repetir → off
             const modoActual = cfgDoc.musica?.autoplay || 'off';

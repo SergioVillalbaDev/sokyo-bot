@@ -57,6 +57,20 @@ async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', p
         throw new Error(t(cfg, 'El bot no puede sancionar a este usuario (jerarquía de roles)', 'The bot can’t sanction this user (role hierarchy)'));
     }
 
+    // Como en Discord: nadie puede sancionar a quien tenga un rol igual o superior al
+    // suyo, ni a sí mismo (si no, un moderador podía echar a un administrador a
+    // través del bot). No aplica al propio bot (automod) ni a los propietarios del
+    // bot desde el panel (moderador.sinLimite).
+    if (moderador && moderador.id && moderador.id !== client.user.id && !moderador.sinLimite) {
+        if (moderador.id === usuarioId) throw new Error(t(cfg, 'No puedes sancionarte a ti mismo', 'You can’t sanction yourself'));
+        if (member && moderador.id !== guild.ownerId) {
+            const mod = await guild.members.fetch(moderador.id).catch(() => null);
+            if (!mod || member.roles.highest.position >= mod.roles.highest.position) {
+                throw new Error(t(cfg, 'No puedes sancionar a alguien con un rol igual o superior al tuyo', 'You can’t sanction someone whose role is equal to or higher than yours'));
+            }
+        }
+    }
+
     const expiraEn = tipo.duracionMin > 0 ? new Date(Date.now() + tipo.duracionMin * 60000) : null;
 
     // Aviso por DM (configurable). ANTES de expulsar/banear, que después ya no se puede contactar.
@@ -176,8 +190,9 @@ async function enviarDM(guild, usuario, tipo, motivo, cfg) {
         .setColor(meta.color)
         .setTitle(t(cfg, `${meta.emoji} Has recibido una sanción en ${guild.name}`, `${meta.emoji} You’ve received a sanction in ${guild.name}`))
         .addFields(
+            // "Acción" solo aporta algo si el tipo tiene nombre propio (p. ej. "Spam leve").
             { name: t(cfg, 'Tipo', 'Type'), value: tipo.nombre || meta.etiqueta, inline: true },
-            { name: t(cfg, 'Acción', 'Action'), value: meta.etiqueta, inline: true },
+            ...(tipo.nombre && tipo.nombre !== meta.etiqueta ? [{ name: t(cfg, 'Acción', 'Action'), value: meta.etiqueta, inline: true }] : []),
             ...(tipo.duracionMin ? [{ name: t(cfg, 'Duración', 'Duration'), value: duracionTexto(tipo.duracionMin, cfg), inline: true }] : []),
             { name: t(cfg, 'Motivo', 'Reason'), value: motivo || t(cfg, '_Sin motivo indicado_', '_No reason given_') },
         )
@@ -216,4 +231,4 @@ async function registrarEnCanal(client, guild, sancion) {
     await canal.send({ embeds: [embed] }).catch(() => {});
 }
 
-module.exports = { aplicarSancion, aplicarSancionMasiva, revocarSancion, barrerSancionesVencidas, duracionTexto };
+module.exports = { aplicarSancion, aplicarSancionMasiva, revocarSancion, barrerSancionesVencidas, duracionTexto, metaFor };

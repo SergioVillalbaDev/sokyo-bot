@@ -416,7 +416,7 @@ async function tickTrivia(client, guild, cfg, triviaCfg, hoy, horaUTC) {
     const collector = msg.createMessageComponentCollector({ time: Math.max(5, triviaCfg.segundos || 30) * 1000 });
     collector.on('collect', async (i) => {
         if (!i.customId.startsWith('trivia_ans:')) return;
-        if (respondieron.has(i.user.id)) { await i.reply({ content: t(cfg, 'Ya has respondido 😉', 'You already answered 😉'), ephemeral: true }).catch(() => {}); return; }
+        if (respondieron.has(i.user.id)) { await i.reply({ content: t(cfg, 'Ya has respondido 😉', 'You already answered 😉'), flags: 64 }).catch(() => {}); return; }
         respondieron.add(i.user.id);
         const elegido = parseInt(i.customId.split(':')[1], 10);
         if (elegido === q.correcta) {
@@ -424,10 +424,10 @@ async function tickTrivia(client, guild, cfg, triviaCfg, hoy, horaUTC) {
             const member = await guild.members.fetch(i.user.id).catch(() => null);
             if (member) { await darRecompensa(guild, member, { xp: triviaCfg.xp, oro: triviaCfg.oro }, cfg, canal); await sumarPuntoTrivia(guild.id, i.user.id); }
             const p = payloadMensaje(triviaCfg.mensajes?.acierto, { color, vars: { user: `<@${i.user.id}>`, xp: triviaCfg.xp }, fallback: t(cfg, '✅ ¡Correcto! +{xp} XP', '✅ Correct! +{xp} XP') });
-            await i.reply({ ...(p || { content: t(cfg, '✅ ¡Correcto!', '✅ Correct!') }), ephemeral: true }).catch(() => {});
+            await i.reply({ ...(p || { content: t(cfg, '✅ ¡Correcto!', '✅ Correct!') }), flags: 64 }).catch(() => {});
         } else {
             const p = payloadMensaje(triviaCfg.mensajes?.fallo, { color, vars: { user: `<@${i.user.id}>` }, fallback: t(cfg, '❌ Respuesta incorrecta. ¡Mejor suerte la próxima vez!', '❌ Wrong answer. Better luck next time!') });
-            await i.reply({ ...(p || { content: t(cfg, '❌ Incorrecto', '❌ Incorrect') }), ephemeral: true }).catch(() => {});
+            await i.reply({ ...(p || { content: t(cfg, '❌ Incorrecto', '❌ Incorrect') }), flags: 64 }).catch(() => {});
         }
     });
     collector.on('end', async () => {

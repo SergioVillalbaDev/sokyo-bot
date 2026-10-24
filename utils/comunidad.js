@@ -95,8 +95,8 @@ async function manejarVotoEncuesta(interaction) {
         const [, id, idxStr] = interaction.customId.split(':');
         const idx = Number(idxStr);
         const enc = await Encuesta.findById(id);
-        if (!enc || !enc.activa) return interaction.reply({ content: t(idioma, '⏹️ Esta encuesta ya no está activa.', '⏹️ This poll is no longer active.'), ephemeral: true });
-        if (!enc.opciones[idx]) return interaction.reply({ content: t(idioma, '❌ Opción no válida.', '❌ Invalid option.'), ephemeral: true });
+        if (!enc || !enc.activa) return interaction.reply({ content: t(idioma, '⏹️ Esta encuesta ya no está activa.', '⏹️ This poll is no longer active.'), flags: 64 });
+        if (!enc.opciones[idx]) return interaction.reply({ content: t(idioma, '❌ Opción no válida.', '❌ Invalid option.'), flags: 64 });
         const uid = interaction.user.id;
 
         const yaEnEsta = enc.opciones[idx].votantes.includes(uid);
@@ -123,7 +123,7 @@ async function manejarVotoEncuesta(interaction) {
         await interaction.update({ embeds: [construirEmbedEncuesta(enc, color, false, idioma)], components: filasEncuesta(enc) }).catch(() => {});
     } catch (e) {
         console.error('Voto encuesta:', e.message);
-        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al votar.', '❌ Error voting.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al votar.', '❌ Error voting.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -200,34 +200,34 @@ async function manejarEntradaSorteo(interaction) {
     try {
         const id = interaction.customId.split(':')[1];
         const s = await Sorteo.findById(id);
-        if (!s || !s.activo) return interaction.reply({ content: t(idioma, '⏹️ Este sorteo ya ha terminado.', '⏹️ This giveaway has already ended.'), ephemeral: true });
+        if (!s || !s.activo) return interaction.reply({ content: t(idioma, '⏹️ Este sorteo ya ha terminado.', '⏹️ This giveaway has already ended.'), flags: 64 });
         const uid = interaction.user.id;
 
         if (s.participantes.includes(uid)) {
             s.participantes = s.participantes.filter((p) => p !== uid);
             await s.save();
             await actualizarMensajeSorteo(interaction.client, s).catch(() => {});
-            return interaction.reply({ content: t(idioma, '➖ Has salido del sorteo.', '➖ You left the giveaway.'), ephemeral: true });
+            return interaction.reply({ content: t(idioma, '➖ Has salido del sorteo.', '➖ You left the giveaway.'), flags: 64 });
         }
 
         // Requisitos.
         if (s.rolRequerido && !interaction.member.roles.cache.has(s.rolRequerido)) {
-            return interaction.reply({ content: t(idioma, `❌ Necesitas el rol <@&${s.rolRequerido}> para participar.`, `❌ You need the <@&${s.rolRequerido}> role to join.`), ephemeral: true });
+            return interaction.reply({ content: t(idioma, `❌ Necesitas el rol <@&${s.rolRequerido}> para participar.`, `❌ You need the <@&${s.rolRequerido}> role to join.`), flags: 64 });
         }
         if (s.nivelMin > 0) {
             const act = await ActividadUsuario.findOne({ guildId: s.guildId, userId: uid }).select('nivel').lean();
             if ((act?.nivel || 0) < s.nivelMin) {
-                return interaction.reply({ content: t(idioma, `❌ Necesitas ser **nivel ${s.nivelMin}** o superior para participar.`, `❌ You need to be **level ${s.nivelMin}** or higher to join.`), ephemeral: true });
+                return interaction.reply({ content: t(idioma, `❌ Necesitas ser **nivel ${s.nivelMin}** o superior para participar.`, `❌ You need to be **level ${s.nivelMin}** or higher to join.`), flags: 64 });
             }
         }
 
         s.participantes.push(uid);
         await s.save();
         await actualizarMensajeSorteo(interaction.client, s).catch(() => {});
-        return interaction.reply({ content: t(idioma, '✅ ¡Ya participas en el sorteo! Buena suerte 🍀', '✅ You’re in the giveaway! Good luck 🍀'), ephemeral: true });
+        return interaction.reply({ content: t(idioma, '✅ ¡Ya participas en el sorteo! Buena suerte 🍀', '✅ You’re in the giveaway! Good luck 🍀'), flags: 64 });
     } catch (e) {
         console.error('Entrada sorteo:', e.message);
-        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al participar.', '❌ Error joining.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al participar.', '❌ Error joining.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -443,7 +443,7 @@ async function abrirModalSugerencia(interaction) {
         await interaction.showModal(modal);
     } catch (e) {
         console.error('Modal sugerencia:', e.message);
-        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ No se pudo abrir el formulario.', '❌ Couldn’t open the form.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ No se pudo abrir el formulario.', '❌ Couldn’t open the form.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -454,16 +454,16 @@ async function procesarModalSugerencia(interaction) {
         const guildId = interaction.customId.split(':')[1];
         const cfg = await ServidorConfig.findOne({ guildId }).lean();
         const texto = (interaction.fields.getTextInputValue('texto') || '').trim();
-        if (!texto) return interaction.reply({ content: t(idioma, '❌ La sugerencia está vacía.', '❌ The suggestion is empty.'), ephemeral: true });
+        if (!texto) return interaction.reply({ content: t(idioma, '❌ La sugerencia está vacía.', '❌ The suggestion is empty.'), flags: 64 });
         if (cfg?.sugerenciasMinLong > 0 && texto.length < cfg.sugerenciasMinLong) {
-            return interaction.reply({ content: t(idioma, `✍️ Demasiado corta (mínimo ${cfg.sugerenciasMinLong} caracteres).`, `✍️ Too short (minimum ${cfg.sugerenciasMinLong} characters).`), ephemeral: true });
+            return interaction.reply({ content: t(idioma, `✍️ Demasiado corta (mínimo ${cfg.sugerenciasMinLong} caracteres).`, `✍️ Too short (minimum ${cfg.sugerenciasMinLong} characters).`), flags: 64 });
         }
         const canal = interaction.channel;
         await crearYPublicarSugerencia(canal, guildId, interaction.user, texto, cfg?.colorEmbed || COLOR);
-        await interaction.reply({ content: t(idioma, '✅ ¡Sugerencia enviada! Gracias.', '✅ Suggestion submitted! Thank you.'), ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: t(idioma, '✅ ¡Sugerencia enviada! Gracias.', '✅ Suggestion submitted! Thank you.'), flags: 64 }).catch(() => {});
     } catch (e) {
         console.error('Procesar modal sugerencia:', e.message);
-        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al enviar la sugerencia.', '❌ Error submitting the suggestion.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al enviar la sugerencia.', '❌ Error submitting the suggestion.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -472,7 +472,7 @@ async function manejarVotoSugerencia(interaction) {
     try {
         const [tipo, id] = interaction.customId.split(':');
         const sug = await Sugerencia.findById(id);
-        if (!sug) return interaction.reply({ content: t(idioma, '❌ Esta sugerencia ya no existe.', '❌ This suggestion no longer exists.'), ephemeral: true });
+        if (!sug) return interaction.reply({ content: t(idioma, '❌ Esta sugerencia ya no existe.', '❌ This suggestion no longer exists.'), flags: 64 });
         const uid = interaction.user.id;
         const positivo = tipo === 'sug_up';
 
@@ -491,7 +491,7 @@ async function manejarVotoSugerencia(interaction) {
         await interaction.update({ embeds: [construirEmbedSugerencia(sug, color, idioma)], components: [filaSugerencia(sug)] }).catch(() => {});
     } catch (e) {
         console.error('Voto sugerencia:', e.message);
-        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al votar.', '❌ Error voting.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al votar.', '❌ Error voting.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -551,7 +551,7 @@ async function abrirModalPresentacion(interaction) {
             modal.addComponents(new ActionRowBuilder().addComponents(input));
         } else {
             const preguntas = (pres.preguntas || []).slice(0, 5);
-            if (!preguntas.length) return interaction.reply({ content: t(idioma, '❌ No hay preguntas configuradas.', '❌ No questions are configured.'), ephemeral: true });
+            if (!preguntas.length) return interaction.reply({ content: t(idioma, '❌ No hay preguntas configuradas.', '❌ No questions are configured.'), flags: 64 });
             preguntas.forEach((p) => {
                 const input = new TextInputBuilder()
                     .setCustomId(p.id)
@@ -565,7 +565,7 @@ async function abrirModalPresentacion(interaction) {
         await interaction.showModal(modal);
     } catch (e) {
         console.error('Modal presentación:', e.message);
-        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ No se pudo abrir el formulario.', '❌ Couldn’t open the form.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ No se pudo abrir el formulario.', '❌ Couldn’t open the form.'), flags: 64 }).catch(() => {});
     }
 }
 
@@ -663,10 +663,10 @@ async function procesarPresentacion(interaction) {
         const respuesta = descartada
             ? (filtro?.mensajeAviso ? t(idioma, '📩 Te hemos enviado un mensaje con más información.', '📩 We’ve sent you a message with more info.') : t(idioma, '❌ Tu presentación no cumple los requisitos del servidor.', '❌ Your intro doesn’t meet the server’s requirements.'))
             : t(idioma, '✅ ¡Gracias! Tu presentación se envió correctamente.', '✅ Thanks! Your intro was submitted successfully.');
-        await interaction.reply({ content: respuesta, ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: respuesta, flags: 64 }).catch(() => {});
     } catch (e) {
         console.error('Procesar presentación:', e.message);
-        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al enviar tu presentación.', '❌ Error submitting your intro.'), ephemeral: true }).catch(() => {});
+        if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al enviar tu presentación.', '❌ Error submitting your intro.'), flags: 64 }).catch(() => {});
     }
 }
 

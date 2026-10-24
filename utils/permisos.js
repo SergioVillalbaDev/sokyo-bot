@@ -11,4 +11,48 @@ function miembroPuedeModerar(member, cfg, flag) {
     return rolesMod.some((id) => member.roles.cache.has(id));
 }
 
-module.exports = { miembroPuedeModerar };
+// Reglas de Discord para el staff que gestiona roles desde el panel (y que el bot,
+// que es administrador, aplica en su nombre). Sin ellas, cualquiera con acceso a
+// la sección de roles podía darse un rol con Administrador a través del bot.
+//  - roles: solo los que estén por debajo de su rol más alto.
+//  - repartir: si se van a DAR esos roles (a un miembro, por autorol, panel…),
+//    tampoco pueden llevar permisos que él no tenga (p. ej. un rol con
+//    Administrador colocado abajo por error).
+//  - permisos: permisos que se quieren poner a un rol (crear/editar).
+// El dueño del servidor y los propietarios del bot (OWNER_IDS / API key) no
+// tienen límite. Devuelve el mensaje de error, o null si está permitido.
+async function errorJerarquiaStaff(guild, staff, { roles = [], repartir = false, permisos = [] } = {}) {
+    if (!staff || staff.owner) return null;
+    const member = await guild.members.fetch(staff.id).catch(() => null);
+    if (!member) return 'No eres miembro de ese servidor';
+    if (guild.ownerId === member.id) return null;
+    const nombres = (lista) => lista.map((r) => r.name).join(', ');
+    const altos = roles.filter((r) => r && r.position >= member.roles.highest.position);
+    if (altos.length) return `Solo puedes usar roles que estén por debajo de tu rol más alto: ${nombres(altos)}`;
+    if (repartir) {
+        const conMas = roles.filter((r) => r && !member.permissions.has(r.permissions));
+        if (conMas.length) return `No puedes repartir roles con permisos que tú no tienes: ${nombres(conMas)}`;
+    }
+    const sinPermiso = permisos.filter((p) => {
+        try { return !member.permissions.has(p); } catch { return true; }
+    });
+    if (sinPermiso.length) return `No puedes dar permisos que tú no tienes: ${sinPermiso.join(', ')}`;
+    return null;
+}
+
+// Roles que el bot repartirá por su cuenta (autorol, verificación, recompensas de
+// nivel, paneles de roles…), con las reglas de arriba. Solo se miran los roles que
+// se AÑADEN: los que ya estaban (p. ej. puestos por el dueño) no impiden guardar
+// lo demás.
+async function errorRolesNuevos(client, staff, guildId, pedidos, actuales) {
+    if (!staff || staff.owner) return null; // API key o propietario del bot
+    const ya = new Set((actuales || []).filter(Boolean).map(String));
+    const nuevos = [...new Set((pedidos || []).filter(Boolean).map(String))].filter((id) => !ya.has(id));
+    if (!nuevos.length) return null;
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return null; // el bot no está en ese servidor: tampoco podrá dar roles
+    const roles = nuevos.map((id) => guild.roles.cache.get(id)).filter(Boolean);
+    return errorJerarquiaStaff(guild, staff, { roles, repartir: true });
+}
+
+module.exports = { miembroPuedeModerar, errorJerarquiaStaff, errorRolesNuevos };

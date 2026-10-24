@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const { progreso, adjuntoTarjeta } = require('../utils/niveles.js');
 const { getConfigCached } = require('../utils/config.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'level',
@@ -9,7 +10,7 @@ module.exports = {
 
     async execute(message) {
         const cfg = await getConfigCached(message.guild.id);
-        if (!cfg?.nivelesActivo) return message.reply('ℹ️ The leveling system isn’t enabled on this server.');
+        if (!cfg?.nivelesActivo) return message.reply(t(cfg, 'ℹ️ El sistema de niveles no está activado en este servidor.', 'ℹ️ The leveling system isn’t enabled on this server.'));
 
         const target = message.mentions.users.first() || message.author;
         const member = await message.guild.members.fetch(target.id).catch(() => null);
@@ -35,12 +36,12 @@ module.exports = {
         const barra = '█'.repeat(llenos) + '░'.repeat(12 - llenos);
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setAuthor({ name: `${target.username}’s level`, iconURL: target.displayAvatarURL() })
+            .setAuthor({ name: t(cfg, `Nivel de ${target.username}`, `${target.username}’s level`), iconURL: target.displayAvatarURL() })
             .addFields(
-                { name: 'Rank', value: `**#${rank}**`, inline: true },
-                { name: 'Level', value: `**${nivel}**`, inline: true },
-                { name: 'Total XP', value: `**${xp}**`, inline: true },
-                { name: 'Progress', value: `${barra}\n${actual} / ${necesaria} XP` },
+                { name: t(cfg, 'Puesto', 'Rank'), value: `**#${rank}**`, inline: true },
+                { name: t(cfg, 'Nivel', 'Level'), value: `**${nivel}**`, inline: true },
+                { name: t(cfg, 'XP total', 'Total XP'), value: `**${xp}**`, inline: true },
+                { name: t(cfg, 'Progreso', 'Progress'), value: `${barra}\n${actual} / ${necesaria} XP` },
             );
         await message.reply({ embeds: [embed] });
     },

@@ -147,6 +147,8 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* Que la barra fija de la landing no tape el título al saltar a una sección. */
+section[id] { scroll-margin-top: 5rem; }
 
 /* Tailwind v4 ya no pone cursor:pointer en los botones; lo reponemos globalmente. */
 button:not(:disabled), [role='button']:not([aria-disabled='true']), label[for] { cursor: pointer; }

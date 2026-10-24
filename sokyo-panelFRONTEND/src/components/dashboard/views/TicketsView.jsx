@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox } from 'lucide-react';
 import { Avatar, Badge, Stars, Card } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
+import { nombrePrioridad } from '../../../lib/prioridad';
 
 export default function TicketsView({ dash }) {
   const { t } = useTranslation();
@@ -76,9 +77,9 @@ export default function TicketsView({ dash }) {
 
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-bold leading-tight text-fg">
-                  {ticket.titulo || ticket.motivo || 'Support Ticket'}
+                  {ticket.titulo || ticket.motivo || t('dashboard.tickets_v.untitled', 'Ticket')}
                 </h3>
-                <Badge color={color}>{ticket.prioridad || 'Normal'}</Badge>
+                <Badge color={color}>{nombrePrioridad(t, ticket.prioridad || 'Normal')}</Badge>
               </div>
 
               {/* Creador + motivo */}

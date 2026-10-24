@@ -13,7 +13,7 @@ const { t } = require('./i18n.js');
 // Crea un reporte y lo publica en el canal de staff. Devuelve el documento.
 async function crearReporte(client, { guildId, reportante, reportado, canalId, mensaje, motivo }) {
     const cfg = await ServidorConfig.findOne({ guildId });
-    if (!cfg || !cfg.reportes || !cfg.reportes.activo) throw new Error('The report system is not active.');
+    if (!cfg || !cfg.reportes || !cfg.reportes.activo) throw new Error(t(cfg, 'El sistema de reportes no está activado.', 'The report system is not active.'));
 
     const doc = await Reporte.create({
         guildId,
@@ -65,7 +65,7 @@ async function publicarEnStaff(client, cfg, doc) {
 // Devuelve { canalId, reporte } o lanza error.
 async function abrirTicketDesdeReporte(client, reporteId, autorTag) {
     const doc = await Reporte.findById(reporteId);
-    if (!doc) throw new Error('Report not found');
+    if (!doc) throw new Error('Reporte no encontrado');
     if (doc.canalTicketId) return { canalId: doc.canalTicketId, reporte: doc, yaExistia: true };
 
     const { getConfigCached } = require('./config.js');
@@ -89,7 +89,7 @@ async function abrirTicketDesdeReporte(client, reporteId, autorTag) {
         descripcion,
         prioridad: 'High',
     });
-    if (!res.ok) throw new Error(res.error || 'Could not create the ticket');
+    if (!res.ok) throw new Error(res.error || t(cfg, 'No se ha podido crear el ticket', 'Could not create the ticket'));
 
     doc.canalTicketId = res.canal.id;
     doc.estado = 'resuelto';
@@ -104,17 +104,17 @@ async function manejarBoton(interaction, client) {
     const [accion, id] = interaction.customId.split(':');
     const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
     if (!miembroPuedeModerar(interaction.member, cfg, PermissionsBitField.Flags.ModerateMembers)) {
-        return interaction.reply({ content: t(cfg, '❌ Solo el staff puede gestionar reportes.', '❌ Only staff can manage reports.'), ephemeral: true });
+        return interaction.reply({ content: t(cfg, '❌ Solo el staff puede gestionar reportes.', '❌ Only staff can manage reports.'), flags: 64 });
     }
     const doc = await Reporte.findById(id).catch(() => null);
-    if (!doc) return interaction.reply({ content: t(cfg, '❌ Reporte no encontrado.', '❌ Report not found.'), ephemeral: true });
-    if (doc.estado !== 'pendiente') return interaction.reply({ content: t(cfg, 'ℹ️ Este reporte ya ha sido gestionado.', 'ℹ️ This report has already been handled.'), ephemeral: true });
+    if (!doc) return interaction.reply({ content: t(cfg, '❌ Reporte no encontrado.', '❌ Report not found.'), flags: 64 });
+    if (doc.estado !== 'pendiente') return interaction.reply({ content: t(cfg, 'ℹ️ Este reporte ya ha sido gestionado.', 'ℹ️ This report has already been handled.'), flags: 64 });
 
     const original = interaction.message.embeds[0];
 
     // Abrir ticket: crea el canal y enlaza el reporte.
     if (accion === 'rep_ticket') {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
         try {
             const r = await abrirTicketDesdeReporte(client, id, interaction.user.username);
             const editado = EmbedBuilder.from(original)

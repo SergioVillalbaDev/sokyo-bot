@@ -2,7 +2,7 @@
 // !warn, !sancion). Comprueban el permiso del autor, resuelven al usuario y
 // aplican la sanción por el motor común (moderationManager).
 const { PermissionsBitField } = require('discord.js');
-const { aplicarSancion, duracionTexto } = require('./moderationManager.js');
+const { aplicarSancion, duracionTexto, metaFor } = require('./moderationManager.js');
 const { getConfigCached } = require('./config.js');
 const { miembroPuedeModerar } = require('./permisos.js');
 const { t } = require('./i18n.js');
@@ -43,9 +43,10 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
             moderador: { id: message.author.id, tag: message.author.username },
         });
         const extra = duracionMin > 0 ? `, ${duracionTexto(duracionMin, cfg)}` : '';
+        const etiqueta = nombre || (metaFor(cfg)[accion] || {}).etiqueta || accion;
         return message.reply(t(cfg,
-            `✅ Sanción aplicada a **${target.username}** (${nombre || accion}${extra}).`,
-            `✅ Sanction applied to **${target.username}** (${nombre || accion}${extra}).`));
+            `✅ Sanción aplicada a **${target.username}** (${etiqueta}${extra}).`,
+            `✅ Sanction applied to **${target.username}** (${etiqueta}${extra}).`));
     } catch (e) {
         return message.reply(`❌ ${e.message}`);
     }

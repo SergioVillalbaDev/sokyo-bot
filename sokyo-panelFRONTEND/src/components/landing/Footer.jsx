@@ -1,7 +1,9 @@
 // Pie de página. Textos vía i18n.
 import { useTranslation } from 'react-i18next';
 import { Send, AtSign, MessageCircle } from 'lucide-react';
-import { inviteUrl } from '../../lib/landingConfig';
+import { inviteUrl, redes } from '../../lib/landingConfig';
+
+const ICONOS = { discord: MessageCircle, email: AtSign, x: Send };
 
 export default function Footer({ onEnterDashboard }) {
   const { t } = useTranslation();
@@ -26,14 +28,19 @@ export default function Footer({ onEnterDashboard }) {
               <span className="text-lg font-extrabold text-fg">{t('landing.nav.brand')}</span>
             </div>
             <p className="mt-4 max-w-xs text-sm text-muted">{t('landing.footer.brandDesc')}</p>
-            <div className="mt-5 flex gap-3">
-              {/* // TODO: DESIGN TEAM — URLs reales de redes sociales */}
-              {[MessageCircle, AtSign, Send].map((Icon, i) => (
-                <a key={i} href="#" className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-fg">
-                  <Icon size={17} />
-                </a>
-              ))}
-            </div>
+            {/* Solo las redes configuradas en landingConfig (sin enlaces vacíos). */}
+            {redes.length > 0 && (
+              <div className="mt-5 flex gap-3">
+                {redes.map((r) => {
+                  const Icon = ICONOS[r.icono] || MessageCircle;
+                  return (
+                    <a key={r.href} href={r.href} target="_blank" rel="noreferrer" aria-label={r.label} title={r.label} className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-fg">
+                      <Icon size={17} />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {columns.map((col) => (

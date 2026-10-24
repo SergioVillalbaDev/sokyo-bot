@@ -8,6 +8,8 @@ const { otorgarXpVoz } = require('../utils/niveles.js');
 const { getConfigCached } = require('../utils/config.js');
 const { barrerCanales: barrerCanalesVoz } = require('../utils/vozTemporal.js');
 const { anunciarActualizacion } = require('../utils/anuncioActualizacion.js');
+const { adaptarTodos } = require('../utils/textosPorDefecto.js');
+const { esperarMongo } = require('../utils/config.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -33,6 +35,9 @@ module.exports = {
         };
         rotarPresencia();
         setInterval(rotarPresencia, 25000);
+
+        // Textos de fábrica de cada servidor en su idioma (p. ej. "Abrir un ticket" en español).
+        esperarMongo().then(adaptarTodos).catch((e) => console.error('Adaptar textos al idioma:', e.message));
 
         // Primera vez con una versión nueva: avisar de "Bot actualizado" (ANUNCIO_SERVIDOR).
         anunciarActualizacion(client).catch((e) => console.error('Aviso de actualización:', e.message));

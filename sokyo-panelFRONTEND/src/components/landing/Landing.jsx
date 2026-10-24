@@ -19,6 +19,10 @@ export default function Landing({ onEnterDashboard }) {
     // La landing mantiene su identidad "Acid" (lima) independientemente del
     // tema elegido en el panel.
     document.documentElement.setAttribute('data-theme', 'lima');
+    // Enlace directo a una sección (p. ej. sokyo.studio/#pricing): al cargar,
+    // la sección aún no existía cuando el navegador buscó el ancla.
+    const seccion = window.location.hash.length > 1 && document.getElementById(window.location.hash.slice(1));
+    if (seccion) setTimeout(() => seccion.scrollIntoView({ block: 'start' }), 50);
   }, []);
 
   return (

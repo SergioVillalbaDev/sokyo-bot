@@ -2,14 +2,15 @@
 // Lista todos los comandos agrupados por categoría, usando el prefijo del server.
 const { EmbedBuilder } = require('discord.js');
 const { getConfigCached } = require('../utils/config.js');
+const { t } = require('../utils/i18n.js');
 
 // 's' = comando slash (/), 'p' = comando de texto (prefijo del servidor).
 const CATEGORIAS = [
-    { titulo: '🎵 Music', cmds: [['play', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'], ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's']] },
-    { titulo: '🪙 Economy', cmds: [['daily', 's'], ['shop', 's'], ['inventory', 's'], ['use', 's'], ['givegold', 's'], ['rich', 's'], ['system', 's']] },
-    { titulo: '📈 Levels', cmds: [['level', 's'], ['ranking', 'p'], ['xp', 'p']] },
-    { titulo: '🛡️ Moderation', cmds: [['ban', 'p'], ['unban', 'p'], ['kick', 'p'], ['timeout', 'p'], ['warn', 'p'], ['sanction', 'p'], ['history', 'p'], ['report', 'p']] },
-    { titulo: '🧰 Utility', cmds: [['ping', 'p'], ['user', 'p'], ['activity', 'p'], ['role', 'p'], ['remind', 'p'], ['emoji', 'p'], ['sticker', 'p'], ['dice', 'p'], ['setup', 'p'], ['sokyo', 'p']] },
+    { titulo: ['🎵 Música', '🎵 Music'], cmds: [['play', 's'], ['queue', 's'], ['nowplaying', 's'], ['pause', 's'], ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's']] },
+    { titulo: ['🪙 Economía', '🪙 Economy'], cmds: [['daily', 's'], ['shop', 's'], ['inventory', 's'], ['use', 's'], ['givegold', 's'], ['rich', 's'], ['system', 's']] },
+    { titulo: ['📈 Niveles', '📈 Levels'], cmds: [['level', 's'], ['ranking', 'p'], ['xp', 'p']] },
+    { titulo: ['🛡️ Moderación', '🛡️ Moderation'], cmds: [['ban', 'p'], ['unban', 'p'], ['kick', 'p'], ['timeout', 'p'], ['warn', 'p'], ['sanction', 'p'], ['history', 'p'], ['report', 'p']] },
+    { titulo: ['🧰 Utilidades', '🧰 Utility'], cmds: [['ping', 'p'], ['user', 'p'], ['activity', 'p'], ['role', 'p'], ['remind', 'p'], ['emoji', 'p'], ['sticker', 'p'], ['dice', 'p'], ['setup', 'p'], ['sokyo', 'p']] },
 ];
 
 module.exports = {
@@ -22,14 +23,16 @@ module.exports = {
         const prefijo = (cfg && cfg.prefijo) || '!';
 
         const embed = new EmbedBuilder()
-            .setTitle('📖 Command guide')
+            .setTitle(t(cfg, '📖 Guía de comandos', '📖 Command guide'))
             .setColor(cfg && cfg.colorEmbed ? cfg.colorEmbed : '#5865F2')
-            .setDescription(`Commands with **/** are Discord slash commands; the ones with **${prefijo}** are typed with the server prefix.`)
+            .setDescription(t(cfg,
+                `Los comandos con **/** son comandos de barra de Discord; los que llevan **${prefijo}** se escriben con el prefijo del servidor.`,
+                `Commands with **/** are Discord slash commands; the ones with **${prefijo}** are typed with the server prefix.`))
             .setTimestamp();
 
         for (const cat of CATEGORIAS) {
             const lista = cat.cmds.map(([nombre, tipo]) => `\`${tipo === 's' ? '/' : prefijo}${nombre}\``).join('  ');
-            embed.addFields({ name: cat.titulo, value: lista, inline: false });
+            embed.addFields({ name: t(cfg, cat.titulo[0], cat.titulo[1]), value: lista, inline: false });
         }
 
         if (message.guild && message.guild.iconURL()) embed.setThumbnail(message.guild.iconURL({ size: 64 }));

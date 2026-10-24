@@ -12,6 +12,7 @@
 // ============================================================================
 const path = require('path');
 const { construirMensaje } = require('./embeds.js');
+const { t } = require('./i18n.js');
 
 // Carpeta de imágenes subidas (misma que usa la API para los embeds).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -58,17 +59,18 @@ function datosDe(member) {
 
 // Envía el mensaje (bienvenida o despedida) según su config. Devuelve true si se
 // envió, o un objeto { error } si algo falló (lo usa el botón "Probar").
-async function enviar(member, conf) {
-    if (!conf || !conf.activo) return { error: 'Disabled.' };
-    if (!conf.canalId) return { error: 'No channel configured.' };
+// `cfg` solo da el idioma de los errores (los ve el staff al pulsar "Probar").
+async function enviar(member, conf, cfg) {
+    if (!conf || !conf.activo) return { error: t(cfg, 'Está desactivado.', 'Disabled.') };
+    if (!conf.canalId) return { error: t(cfg, 'No hay ningún canal configurado.', 'No channel configured.') };
     const canal = member.guild.channels.cache.get(conf.canalId);
-    if (!canal || typeof canal.send !== 'function') return { error: 'The channel doesn’t exist or isn’t a text channel.' };
+    if (!canal || typeof canal.send !== 'function') return { error: t(cfg, 'El canal no existe o no es de texto.', 'The channel doesn’t exist or isn’t a text channel.') };
 
     const datos = datosDe(member);
     const contenido = reemplazar(conf.contenido, datos);
     const embed = reemplazarEmbed(conf.embed, datos);
     const payload = construirMensaje(contenido, embed, UPLOADS_DIR);
-    if (!payload.content && !(payload.embeds && payload.embeds.length)) return { error: 'The message is empty.' };
+    if (!payload.content && !(payload.embeds && payload.embeds.length)) return { error: t(cfg, 'El mensaje está vacío.', 'The message is empty.') };
 
     // Solo se pingea al usuario si está activado; nunca @everyone/roles por accidente.
     payload.allowedMentions = conf.mencionar ? { users: [member.id] } : { parse: [] };
@@ -78,12 +80,12 @@ async function enviar(member, conf) {
 }
 
 async function enviarBienvenida(member, cfg) {
-    try { return await enviar(member, cfg && cfg.bienvenida); }
+    try { return await enviar(member, cfg && cfg.bienvenida, cfg); }
     catch (e) { console.error('Error enviando bienvenida:', e.message); return { error: e.message }; }
 }
 
 async function enviarDespedida(member, cfg) {
-    try { return await enviar(member, cfg && cfg.despedida); }
+    try { return await enviar(member, cfg && cfg.despedida, cfg); }
     catch (e) { console.error('Error enviando despedida:', e.message); return { error: e.message }; }
 }
 

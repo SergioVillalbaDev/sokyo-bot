@@ -3,6 +3,7 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const RegistroMensaje = require('../models/RegistroMensaje.js');
 const { getConfigCached } = require('../utils/config.js');
 const { miembroPuedeModerar } = require('../utils/permisos.js');
+const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'activity',
@@ -12,11 +13,11 @@ module.exports = {
         // Requiere permiso de moderación (es información sensible).
         const cfg = await getConfigCached(message.guild.id);
         if (!miembroPuedeModerar(message.member, cfg, PermissionsBitField.Flags.ModerateMembers)) {
-            return message.reply('❌ You need moderation permission to view activity.');
+            return message.reply(t(cfg, '❌ Necesitas permiso de moderación para ver la actividad.', '❌ You need moderation permission to view activity.'));
         }
 
         const target = message.mentions.users.first();
-        if (!target) return message.reply('❌ Mention a user. e.g. `!activity @user`');
+        if (!target) return message.reply(t(cfg, '❌ Menciona a un usuario. Ej.: `!activity @usuario`', '❌ Mention a user. e.g. `!activity @user`'));
 
         const act = await ActividadUsuario.findOne({ guildId: message.guild.id, userId: target.id });
         const ultimos = await RegistroMensaje.find({ guildId: message.guild.id, userId: target.id }).sort({ fecha: -1 }).limit(5);
@@ -29,22 +30,22 @@ module.exports = {
         const rel = (d) => (d ? `<t:${Math.floor(new Date(d).getTime() / 1000)}:R>` : '—');
 
         const voz = canalVozAhora
-            ? `🟢 **In voice now** in <#${canalVozAhora}>`
-            : (act?.ultimaVozFecha ? `${rel(act.ultimaVozFecha)} in <#${act.ultimaVozCanalId}>` : 'No record');
+            ? t(cfg, `🟢 **En voz ahora** en <#${canalVozAhora}>`, `🟢 **In voice now** in <#${canalVozAhora}>`)
+            : (act?.ultimaVozFecha ? t(cfg, `${rel(act.ultimaVozFecha)} en <#${act.ultimaVozCanalId}>`, `${rel(act.ultimaVozFecha)} in <#${act.ultimaVozCanalId}>`) : t(cfg, 'Sin registro', 'No record'));
 
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setAuthor({ name: `${target.username}’s activity`, iconURL: target.displayAvatarURL() })
+            .setAuthor({ name: t(cfg, `Actividad de ${target.username}`, `${target.username}’s activity`), iconURL: target.displayAvatarURL() })
             .addFields(
-                { name: '💬 Last message', value: act?.ultimoMensajeFecha ? `${rel(act.ultimoMensajeFecha)} in <#${act.ultimoMensajeCanalId}>` : 'No record', inline: false },
-                { name: '📊 Messages', value: String(act?.mensajesTotal || 0), inline: true },
-                { name: '🔊 Voice', value: voz, inline: true },
+                { name: t(cfg, '💬 Último mensaje', '💬 Last message'), value: act?.ultimoMensajeFecha ? t(cfg, `${rel(act.ultimoMensajeFecha)} en <#${act.ultimoMensajeCanalId}>`, `${rel(act.ultimoMensajeFecha)} in <#${act.ultimoMensajeCanalId}>`) : t(cfg, 'Sin registro', 'No record'), inline: false },
+                { name: t(cfg, '📊 Mensajes', '📊 Messages'), value: String(act?.mensajesTotal || 0), inline: true },
+                { name: t(cfg, '🔊 Voz', '🔊 Voice'), value: voz, inline: true },
             );
 
         if (ultimos.length) {
             embed.addFields({
-                name: '🗒️ Recent messages',
-                value: ultimos.map((m) => `• ${m.contenido ? m.contenido.slice(0, 80) : '_(attachment / empty)_'}`).join('\n').slice(0, 1024),
+                name: t(cfg, '🗒️ Mensajes recientes', '🗒️ Recent messages'),
+                value: ultimos.map((m) => `• ${m.contenido ? m.contenido.slice(0, 80) : t(cfg, '_(adjunto / vacío)_', '_(attachment / empty)_')}`).join('\n').slice(0, 1024),
             });
         }
 

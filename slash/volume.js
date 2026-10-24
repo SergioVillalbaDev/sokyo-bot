@@ -16,7 +16,7 @@ module.exports = {
     async execute(interaction, client, cfg) {
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: t(cfg, '⏹️ No hay nada sonando.', '⏹️ Nothing is playing.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⏹️ No hay nada sonando.', '⏹️ Nothing is playing.'), flags: 64 });
         }
 
         const nivel = interaction.options.getInteger('level');
@@ -27,11 +27,11 @@ module.exports = {
 
         // Cambiar el volumen requiere voz + música activa + rol DJ.
         const voz = await gateMusica(interaction);
-        if (!voz.ok) return interaction.reply({ content: voz.error, ephemeral: true });
+        if (!voz.ok) return interaction.reply({ content: voz.error, flags: 64 });
 
         // Respetar el tope de volumen configurado.
         if (nivel > voz.cfg.volumenMax) {
-            return interaction.reply({ content: t(cfg, `🔊 El máximo permitido aquí es **${voz.cfg.volumenMax}%**.`, `🔊 The maximum allowed here is **${voz.cfg.volumenMax}%**.`), ephemeral: true });
+            return interaction.reply({ content: t(cfg, `🔊 El máximo permitido aquí es **${voz.cfg.volumenMax}%**.`, `🔊 The maximum allowed here is **${voz.cfg.volumenMax}%**.`), flags: 64 });
         }
         await player.setVolume(nivel);
         const icono = nivel === 0 ? '🔇' : nivel < 50 ? '🔉' : '🔊';

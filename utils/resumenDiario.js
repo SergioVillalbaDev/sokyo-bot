@@ -58,9 +58,9 @@ function construirEmbed(data, guild, cfg) {
 // Genera y entrega el parte de un servidor. `prueba` no marca el día (para test).
 async function enviarResumen(client, gid, { prueba = false } = {}) {
     const guild = client.guilds.cache.get(gid);
-    if (!guild) return { error: 'Server not found' };
+    if (!guild) return { error: 'Servidor no encontrado' };
     const cfg = await ServidorConfig.findOne({ guildId: gid });
-    if (!billing.esPro(cfg)) return { error: 'The daily report is a Pro feature.' };
+    if (!billing.esPro(cfg)) return { error: t(cfg, 'El parte diario es una función Pro.', 'The daily report is a Pro feature.') };
 
     const data = await construirAnalitica(client, gid, cfg, 7);
     const embed = construirEmbed(data, guild, cfg);
@@ -87,7 +87,7 @@ async function enviarResumen(client, gid, { prueba = false } = {}) {
     if (!prueba) {
         await ServidorConfig.updateOne({ guildId: gid }, { $set: { 'resumenDiario.lastDia': new Date().toISOString().slice(0, 10) } });
     }
-    return entregado ? { ok: true } : { error: 'Couldn’t deliver it (the recipient has DMs closed and no channel is configured).' };
+    return entregado ? { ok: true } : { error: t(cfg, 'No se ha podido entregar (el destinatario tiene los MD cerrados y no hay canal configurado).', 'Couldn’t deliver it (the recipient has DMs closed and no channel is configured).') };
 }
 
 module.exports = { enviarResumen };

@@ -23,6 +23,6 @@ module.exports = {
             .addFields({ name: t(cfg, '🪙 Oro', '🪙 Gold'), value: `**${usuario.balance}**`, inline: true })
             .setDescription(lineas.length ? lineas.join('\n') : t(cfg, '_Tu mochila está vacía. Visita `/shop`._', '_Your bag is empty. Visit `/shop`._'));
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: 64 });
     },
 };

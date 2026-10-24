@@ -42,6 +42,7 @@ export default {
       panelBtn: 'Panel',
       accountBtn: 'Mi cuenta',
       cta: 'Añadir a Discord',
+      ctaShort: 'Añadir',
       links: { features: 'Funciones', pricing: 'Precios', panel: 'Panel' },
     },
     hero: {
@@ -66,7 +67,7 @@ export default {
     },
     stats: [
       { to: 5, suffix: '+', label: 'Bots que reemplaza en uno' },
-      { to: 37, label: 'Comandos listos para usar' },
+      { to: 40, suffix: '+', label: 'Comandos listos para usar' },
       { to: 100, suffix: '%', label: 'Configurable sin tocar código' },
       { to: 60, prefix: '<', suffix: 's', label: 'Para ponerlo en marcha' },
     ],
@@ -192,6 +193,7 @@ export default {
       loginTitle: 'Panel de Staff',
       loginSubtitle: 'Inicia sesión con Discord para gestionar tus servidores.',
       loginButton: 'Iniciar sesión con Discord',
+      back: 'Volver al inicio',
       logout: 'Cerrar sesión',
       errDenied: 'Has cancelado el inicio de sesión.',
       errNoStaff: 'No eres staff en ningún servidor donde esté el bot.',
@@ -743,6 +745,7 @@ export default {
       premium: 'Premium',
       lockedHint: '🔒 Desbloquea 8 temas con estilo propio activando Sokyo Pro.',
     },
+    priority: { urgent: 'Urgente', high: 'Alta', normal: 'Normal', low: 'Baja' },
     error: {
       detail: 'Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que las claves coincidan. (Abre la consola con F12 para más detalles.)',
     },
@@ -1580,6 +1583,9 @@ export default {
       },
     },
     presentaciones_v: {
+      defaultQName: '¿Cómo te llamas o qué apodo usas?',
+      defaultQAge: '¿Cuántos años tienes?',
+      defaultQInterests: '¿Qué te gusta o por qué te unes al servidor?',
       intro: 'Pide a los nuevos miembros que se presenten antes de acceder al servidor. Configura el formulario, define las reglas de descarte automático y recibe cada presentación en el canal del staff.',
       note: 'Cuando alguien entra, el bot le envía el formulario por DM. Si pasa los filtros, publica la presentación en el canal elegido. Si no, la descarta y puede avisar al usuario automáticamente.',
       formatTitle: 'Formato de la presentación',
@@ -1627,12 +1633,16 @@ export default {
   portal: {
     login: {
       title: 'Portal de soporte',
+      back: 'Volver al inicio',
       subtitle: 'Inicia sesión para ver y gestionar tus tickets.',
       errDenied: 'Cancelaste el inicio de sesión.',
       errOauth: 'No se pudo iniciar sesión con Discord.',
+      errSession: 'Tu sesión ya no es válida. Vuelve a iniciar sesión con Discord.',
+      errConexion: 'No se ha podido conectar con el servidor. Comprueba tu conexión.',
+      retry: 'Reintentar',
       button: 'Iniciar sesión con Discord',
     },
-    header: { brand: 'Sokyo · Soporte', logout: 'Cerrar sesión' },
+    header: { brand: 'Sokyo · Soporte', logout: 'Cerrar sesión', home: 'Inicio', homeTitle: 'Volver a la web de Sokyo' },
     nav: { tickets: 'Mis tickets', card: 'Mi tarjeta', music: 'Música' },
     tickets: {
       title: 'Mis tickets',

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LogIn, AlertTriangle, ArrowLeft, Send, Ticket as TicketIcon, Palette, Music as MusicIcon,
-  Inbox, Upload, X, Check, Loader2,
+  Inbox, Upload, X, Check, Loader2, Home, LogOut,
 } from 'lucide-react';
 import { PRESETS_TARJETA } from './presetsTarjeta';
 import MusicaPortal from './components/portal/MusicaPortal';
@@ -25,6 +25,7 @@ function Portal() {
   const [nuevoMensaje, setNuevoMensaje] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [intento, setIntento] = useState(0); // sube al pulsar "Reintentar" tras un fallo de red
   const [vista, setVista] = useState('tickets');
   const [tarjeta, setTarjeta] = useState({ colorAcento: '#5865F2', fondoTipo: 'color', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoImagen: '', preset: null, animado: false });
   const [guardadoT, setGuardadoT] = useState(false);
@@ -55,6 +56,12 @@ function Portal() {
   const portalFetch = (path, options = {}) => fetch(`${API_URL}${path}`, {
     ...options,
     headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` }
+  }).then((res) => {
+    // Sesión renovada por el servidor (X-Sokyo-Token): se guarda para la próxima
+    // visita; la actual sigue con la que tiene, que aún es válida.
+    const renovada = res.headers.get('X-Sokyo-Token');
+    if (renovada && localStorage.getItem('portalToken') === token) localStorage.setItem('portalToken', renovada);
+    return res;
   });
 
   const logout = () => { localStorage.removeItem('portalToken'); setToken(''); setUsuario(null); setTickets([]); setTicketSel(null); };
@@ -64,7 +71,7 @@ function Portal() {
     if (!token) return;
     setCargando(true);
     Promise.all([
-      portalFetch('/api/portal/yo').then(r => { if (r.status === 401) throw new Error('sesion'); return r.json(); }),
+      portalFetch('/api/portal/yo').then(r => { if (r.status === 401) throw new Error('sesion'); if (!r.ok) throw new Error('red'); return r.json(); }),
       portalFetch('/api/portal/tickets').then(r => r.json()),
       portalFetch('/api/portal/tarjeta').then(r => r.json()).catch(() => ({})),
       portalFetch('/api/portal/presets').then(r => r.json()).catch(() => ({ ocultos: [], personalizados: [] }))
@@ -74,10 +81,15 @@ function Portal() {
         setCatalogo({ ocultos: cat?.ocultos || [], personalizados: cat?.personalizados || [] });
         if (tj && tj.colorAcento) setTarjeta({ colorAcento: tj.colorAcento, fondoTipo: tj.fondoTipo || 'color', fondoColor: tj.fondoColor || '#1e2030', colorSecundario: tj.colorSecundario || '#9b59b6', fondoImagen: tj.fondoImagen || '', preset: tj.preset || null, animado: !!tj.animado });
       })
-      .catch(() => { setError(t('portal.login.errOauth')); logout(); })
+      // Solo un 401 cierra la sesión. Un fallo de red o del servidor (p. ej. el
+      // móvil sin cobertura) la conserva y deja reintentar; antes echaba al usuario.
+      .catch((e) => {
+        if (e.message === 'sesion') { logout(); setError(t('portal.login.errSession')); }
+        else setError(t('portal.login.errConexion'));
+      })
       .finally(() => setCargando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, intento]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Refresco del chat abierto cada 4s
@@ -178,6 +190,10 @@ function Portal() {
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg p-4 text-fg">
+        {/* Salida a la web: antes "Mi cuenta" no tenía forma de volver. */}
+        <a href="/" className="absolute left-5 top-5 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg">
+          <ArrowLeft size={16} /> {t('portal.login.back')}
+        </a>
         <div className="absolute right-5 top-5"><LanguageSwitcher /></div>
         <div className="w-full max-w-sm rounded-3xl border border-line bg-card p-8 text-center shadow-soft">
           <img src="/assets/logo.jpg" alt="Sokyo" className="mx-auto h-14 w-14 rounded-full object-cover" />
@@ -419,7 +435,12 @@ function Portal() {
 
         {error && (
           <div className="mt-4 flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-            <AlertTriangle size={16} className="shrink-0" /> {error}
+            <AlertTriangle size={16} className="shrink-0" /> <span className="flex-1">{error}</span>
+            {!usuario && !cargando && (
+              <button onClick={() => setIntento((n) => n + 1)} className="shrink-0 rounded-lg border border-danger/40 px-2.5 py-1 text-xs font-semibold hover:bg-danger/10">
+                {t('portal.login.retry')}
+              </button>
+            )}
           </div>
         )}
 
@@ -485,21 +506,33 @@ function Cabecera({ usuario, onLogout }) {
   const { t } = useTranslation();
   return (
     <header className="flex items-center justify-between gap-2 border-b border-line bg-card px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
-      <div className="flex min-w-0 items-center gap-2.5">
+      {/* El logo lleva a la web de Sokyo, como en cualquier sitio. */}
+      <a href="/" title={t('portal.header.homeTitle')} className="flex min-w-0 items-center gap-2.5">
         <img src="/assets/logo.jpg" alt="Sokyo" className="h-8 w-8 shrink-0 rounded-full object-cover" />
         <span className="truncate text-base font-extrabold tracking-tight text-fg">{t('portal.header.brand')}</span>
-      </div>
+      </a>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <a
+          href="/"
+          title={t('portal.header.homeTitle')}
+          aria-label={t('portal.header.homeTitle')}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
+        >
+          <Home size={15} /> <span className="hidden sm:inline">{t('portal.header.home')}</span>
+        </a>
         <LanguageSwitcher />
         {usuario && (
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Avatar src={usuario.avatar} name={usuario.username} size={32} />
             <span className="hidden text-sm font-semibold text-fg sm:inline">{usuario.username}</span>
+            {/* En el móvil solo el icono: con el texto no cabía el nombre del portal. */}
             <button
               onClick={onLogout}
-              className="shrink-0 whitespace-nowrap rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg"
+              title={t('portal.header.logout')}
+              aria-label={t('portal.header.logout')}
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg sm:px-3"
             >
-              {t('portal.header.logout')}
+              <LogOut size={15} className="sm:hidden" /> <span className="hidden sm:inline">{t('portal.header.logout')}</span>
             </button>
           </div>
         )}

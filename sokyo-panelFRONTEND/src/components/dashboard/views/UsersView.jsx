@@ -24,7 +24,7 @@ export default function UsersView({ dash }) {
   return (
     <Card data-help="users-tabla" className="overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-line bg-bg text-xs uppercase tracking-wide text-muted">
               <th className="px-6 py-4 font-semibold">{t('dashboard.users_v.user')}</th>

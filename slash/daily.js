@@ -11,9 +11,12 @@ module.exports = {
         const r = await economia.reclamarDaily(interaction.user.id);
 
         if (!r.ok) {
-            const h = Math.floor(r.esperaHoras);
-            const m = Math.round((r.esperaHoras - h) * 60);
-            return interaction.reply({ content: t(cfg, `⏳ Ya reclamaste tu recompensa hace poco. Vuelve en **${h}h ${m}m**.`, `⏳ You already claimed recently. Come back in **${h}h ${m}m**.`), ephemeral: true });
+            // Minutos redondeados hacia arriba antes de partir en horas: con
+            // floor + round salían cosas como "19h 60m".
+            const totalMin = Math.max(1, Math.ceil(r.esperaHoras * 60));
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            return interaction.reply({ content: t(cfg, `⏳ Ya reclamaste tu recompensa hace poco. Vuelve en **${h}h ${m}m**.`, `⏳ You already claimed recently. Come back in **${h}h ${m}m**.`), flags: 64 });
         }
 
         const embed = new EmbedBuilder()

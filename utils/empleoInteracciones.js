@@ -11,7 +11,7 @@ const OWNER_IDS = new Set((process.env.OWNER_IDS || '').split(',').map((s) => s.
 // customId: empleo:aplicada:<ofertaEmpleoId>
 async function manejarBotonEmpleo(interaction) {
     if (!OWNER_IDS.has(interaction.user.id)) {
-        return interaction.reply({ content: '⛔ This button is only for the bot owners.', ephemeral: true });
+        return interaction.reply({ content: '⛔ This button is only for the bot owners.', flags: 64 });
     }
 
     const [, accion, ofertaId] = interaction.customId.split(':');
@@ -23,7 +23,7 @@ async function manejarBotonEmpleo(interaction) {
         { returnDocument: 'after' },
     ).catch(() => null);
 
-    if (!oferta) return interaction.reply({ content: '⛔ Couldn\'t find that offer.', ephemeral: true });
+    if (!oferta) return interaction.reply({ content: '⛔ Couldn\'t find that offer.', flags: 64 });
 
     // Deshabilita solo el botón pulsado, dejando el resto de la fila intacto
     // (mismo patrón que el botón "reclamar ticket" en interactionCreate.js).
@@ -35,7 +35,7 @@ async function manejarBotonEmpleo(interaction) {
     });
 
     await interaction.update({ components: nuevosComponentes }).catch(() => {});
-    await interaction.followUp({ content: `✅ Marked as applied: **${oferta.titulo}**`, ephemeral: true }).catch(() => {});
+    await interaction.followUp({ content: `✅ Marked as applied: **${oferta.titulo}**`, flags: 64 }).catch(() => {});
 }
 
 module.exports = { manejarBotonEmpleo };

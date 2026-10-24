@@ -2,6 +2,7 @@
 // Usa HMAC-SHA256 con el módulo nativo `crypto` — sin dependencias externas.
 // Formato: base64url(payload).base64url(firma)  (estilo JWT simplificado).
 const crypto = require('crypto');
+const fs = require('fs');
 
 const b64url = (str) => Buffer.from(str).toString('base64url');
 
@@ -30,4 +31,20 @@ function verificarToken(token, secret) {
     return payload;
 }
 
-module.exports = { firmarToken, verificarToken };
+// Secreto aleatorio guardado en un archivo: se crea la primera vez y después se
+// reutiliza, para que las sesiones firmadas con él sobrevivan a los reinicios.
+function secretoGuardado(ruta) {
+    try {
+        const guardado = fs.readFileSync(ruta, 'utf8').trim();
+        if (guardado.length >= 32) return guardado;
+    } catch { /* todavía no existe */ }
+    const nuevo = crypto.randomBytes(32).toString('hex');
+    try {
+        fs.writeFileSync(ruta, nuevo, { mode: 0o600 });
+    } catch (e) {
+        console.warn(`⚠️ No se pudo guardar el secreto de sesión en ${ruta} (${e.message}): las sesiones se perderán al reiniciar.`);
+    }
+    return nuevo;
+}
+
+module.exports = { firmarToken, verificarToken, secretoGuardado };

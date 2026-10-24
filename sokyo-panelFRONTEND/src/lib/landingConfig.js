@@ -12,5 +12,9 @@ export const statsAccent = ['text-brand', 'text-sky-300', 'text-violet-300', 'te
 // Colores de las barras de prioridad del tile grande de Features (por orden).
 export const prioridadBar = ['bg-red-400', 'bg-amber-400', 'bg-brand', 'bg-emerald-400'];
 
+// Redes sociales del pie de página. Solo se muestran las que tengan enlace:
+// añade aquí { icono: 'discord' | 'email' | 'x', href: 'https://…', label: '…' }.
+export const redes = [];
+
 // Comandos de ejemplo (no se traducen: son literales del bot).
 export const comandos = ['!sokyo', '!user', '!dice', '!coin'];

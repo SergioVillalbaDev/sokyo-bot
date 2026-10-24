@@ -9,14 +9,14 @@ module.exports = {
 
     async execute(interaction, client, cfg) {
         const voz = await gateMusica(interaction);
-        if (!voz.ok) return interaction.reply({ content: voz.error, ephemeral: true });
+        if (!voz.ok) return interaction.reply({ content: voz.error, flags: 64 });
 
         const player = client.lavalink.getPlayer(interaction.guildId);
         if (!player || !player.queue.current) {
-            return interaction.reply({ content: t(cfg, '⏹️ Ahora mismo no hay nada sonando.', '⏹️ Nothing is playing right now.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⏹️ Ahora mismo no hay nada sonando.', '⏹️ Nothing is playing right now.'), flags: 64 });
         }
         if (!player.queue.tracks.length) {
-            return interaction.reply({ content: t(cfg, '🚫 No hay más canciones en la cola. Usa `/stop` para detener la música.', '🚫 No more songs in the queue. Use `/stop` to stop.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '🚫 No hay más canciones en la cola. Usa `/stop` para detener la música.', '🚫 No more songs in the queue. Use `/stop` to stop.'), flags: 64 });
         }
 
         const saltada = player.queue.current;

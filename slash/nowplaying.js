@@ -11,7 +11,7 @@ module.exports = {
         const player = client.lavalink.getPlayer(interaction.guildId);
         const track = player?.queue.current;
         if (!player || !track) {
-            return interaction.reply({ content: t(cfg, '⏹️ Ahora mismo no hay nada sonando.', '⏹️ Nothing is playing right now.'), ephemeral: true });
+            return interaction.reply({ content: t(cfg, '⏹️ Ahora mismo no hay nada sonando.', '⏹️ Nothing is playing right now.'), flags: 64 });
         }
 
         // Barra de progreso visual.
