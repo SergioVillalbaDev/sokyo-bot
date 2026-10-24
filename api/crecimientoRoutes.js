@@ -4,6 +4,7 @@
 // servidores, y exigeArea('crecimiento') respeta "quién ve cada sección".
 const ServidorConfig = require('../models/ServidorConfig.js');
 const FuenteDirecto = require('../models/FuenteDirecto.js');
+const Bump = require('../models/Bump.js');
 const { errorRolesNuevos } = require('../utils/permisos.js');
 const invitaciones = require('../utils/invitaciones.js');
 const bump = require('../utils/bump.js');
@@ -116,9 +117,9 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             const cfg = await cfgDe(guild.id);
             const c = cfg.crecimiento.bump;
             const hace30 = new Date(Date.now() - 30 * 24 * 3600 * 1000);
-            const [mes, siempre, disboard] = await Promise.all([
+            const [mes, total, disboard] = await Promise.all([
                 bump.rankingBumps(guild.id, { desde: hace30, limite: 10 }),
-                bump.rankingBumps(guild.id, { limite: 1000 }),
+                Bump.countDocuments({ guildId: guild.id }),
                 guild.members.fetch(bump.DISBOARD_ID).then(() => true).catch(() => false),
             ]);
             res.json({
@@ -128,7 +129,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
                 },
                 estado: { proximoBump: c.proximoBump, recordado: c.recordado, ultimoBumpPor: await usuario(c.ultimoBumpPor), ultimoBumpFecha: c.ultimoBumpFecha, ultimoCanalId: c.ultimoCanalId },
                 disboard,
-                total: siempre.reduce((s, f) => s + f.bumps, 0),
+                total,
                 ranking: await Promise.all(mes.map(async (f) => ({ ...f, ...(await usuario(f.userId)) }))),
             });
         } catch (e) { console.error('GET bump:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
@@ -157,7 +158,16 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
     });
 
     // =========================== PÁGINA PÚBLICA ===========================
-    const datosPagina = (req, guild, p) => ({
+    // Dirección sugerida: el nombre del servidor, siempre válida y sin usar.
+    const sugerirSlug = async (guild) => {
+        const base = pagina.slugDe(guild.name);
+        const opciones = [base, `${base}-${guild.id.slice(-4)}`, `servidor-${guild.id.slice(-6)}`].filter(pagina.slugValido);
+        for (const s of opciones) {
+            if (!(await ServidorConfig.exists({ 'crecimiento.pagina.slug': s, guildId: { $ne: guild.id } }))) return s;
+        }
+        return `servidor-${guild.id.slice(-8)}`;
+    };
+    const datosPagina = async (req, guild, p) => ({
         config: {
             activo: p.activo, slug: p.slug, descripcion: p.descripcion, etiquetas: p.etiquetas, listado: p.listado,
             mostrarRanking: p.mostrarRanking, mostrarEventos: p.mostrarEventos, canalInvitacionId: p.canalInvitacionId,
@@ -165,7 +175,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
         url: p.slug ? `${pagina.urlBase(req)}/s/${p.slug}` : null,
         base: `${pagina.urlBase(req)}/s/`,
         directorio: `${pagina.urlBase(req)}/servidores`,
-        sugerido: pagina.slugDe(guild.name) || `servidor-${guild.id.slice(-6)}`,
+        sugerido: p.slug ? null : await sugerirSlug(guild),
         invitacion: p.invitacionCodigo ? `https://discord.gg/${p.invitacionCodigo}` : null,
         visitas: p.visitas || 0,
         descripcionDiscord: guild.description || '',
@@ -175,7 +185,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
         try {
             const guild = guildDe(req, res); if (!guild) return;
             const cfg = await cfgDe(guild.id);
-            res.json(datosPagina(req, guild, cfg.crecimiento.pagina));
+            res.json(await datosPagina(req, guild, cfg.crecimiento.pagina));
         } catch (e) { console.error('GET página pública:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 
@@ -215,7 +225,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
                 nueva = await ServidorConfig.findOne({ guildId: guild.id });
             }
             pagina.olvidarDirectorio();
-            res.json({ success: true, aviso, ...datosPagina(req, guild, nueva.crecimiento.pagina) });
+            res.json({ success: true, aviso, ...(await datosPagina(req, guild, nueva.crecimiento.pagina)) });
         } catch (e) {
             if (e && e.code === 11000) return res.status(409).json({ error: 'Esa dirección ya la usa otro servidor. Prueba con otra.' });
             console.error('PUT página pública:', e.message);

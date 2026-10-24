@@ -39,13 +39,15 @@ function analizarMensaje(message) {
         || ((texto.match(/<@!?(\d{15,25})>/) || [])[1])
         || null;
 
+    // Primero la espera ("Please wait another 87 minutes…"): ese aviso nunca es un
+    // bump hecho, aunque traiga imagen o emojis. Así no se puede farmear oro.
+    const espera = texto.match(/(\d{1,3})\s*(?:minutes?|minutos?|minuten|minuti|min\b)/i);
+    if (espera) return { tipo: 'espera', minutos: Math.min(ESPERA_MIN, parseInt(espera[1], 10)), usuarioId };
+
     const exito = /bump done|bump effectu|bump erfolgreich|bump realizado|bump hecho|bump fatto|bump concluído|bump concluido/i.test(texto)
         || /:thumbsup:|👍/.test(texto)
         || /bump/i.test(imagen);
     if (exito) return { tipo: 'exito', minutos: ESPERA_MIN, usuarioId };
-
-    const espera = texto.match(/(\d{1,3})\s*(?:minutes?|minutos?|minuten|minuti|min\b)/i);
-    if (espera) return { tipo: 'espera', minutos: Math.min(ESPERA_MIN, parseInt(espera[1], 10)), usuarioId };
     return null;
 }
 

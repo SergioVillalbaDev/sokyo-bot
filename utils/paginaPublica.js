@@ -82,20 +82,29 @@ async function asegurarInvitacion(client, guild, cfg, { forzar = false } = {}) {
     let codigo = p.invitacionCodigo;
     const visto = codigo && comprobadas.get(codigo);
     if (codigo && !forzar && visto && Date.now() - visto < 30 * 60 * 1000) return codigo;
+    const canal = canalParaInvitar(guild, p.canalInvitacionId);
+    let vieja = null;
     if (codigo) {
         const inv = await client.fetchInvite(codigo).catch((e) => (e.code === 10006 ? null : 'error'));
         if (inv === 'error') return codigo; // Discord no responde: se usa la que había
-        if (inv && inv.guild && inv.guild.id === guild.id && (!inv.channel || !p.canalInvitacionId || inv.channel.id === p.canalInvitacionId)) {
-            comprobadas.set(codigo, Date.now());
-            return codigo;
+        if (inv && inv.guild && inv.guild.id === guild.id) {
+            // Sigue valiendo, salvo que se haya elegido OTRO canal donde el bot sí puede
+            // invitar (si no puede, se queda la que hay: no se crea una nueva cada vez).
+            const cambiaCanal = canal && inv.channel && canal.id !== inv.channel.id && canal.id === p.canalInvitacionId;
+            if (!cambiaCanal) {
+                comprobadas.set(codigo, Date.now());
+                return codigo;
+            }
+            vieja = inv;
         }
     }
-    const canal = canalParaInvitar(guild, p.canalInvitacionId);
     if (!canal) return null;
     const nueva = await canal.createInvite({ maxAge: 0, maxUses: 0, unique: true, reason: 'Sokyo: página pública del servidor' }).catch(() => null);
     if (!nueva) return null;
     codigo = nueva.code;
     comprobadas.set(codigo, Date.now());
+    // La anterior (de otro canal) la había creado el bot para esta página: se borra.
+    if (vieja && vieja.inviterId === client.user.id) await vieja.delete('Sokyo: nuevo canal para la página pública').catch(() => {});
     await ServidorConfig.updateOne({ guildId: guild.id }, { $set: { 'crecimiento.pagina.invitacionCodigo': codigo } });
     return codigo;
 }

@@ -1980,6 +1980,29 @@ app.get('/api/stats/uso', async (req, res) => {
             if (typeof entrante !== 'object' || Array.isArray(entrante)) return res.status(400).json({ error: 'Formato no válido' });
             const cambios = { ...entrante };
             for (const k of CAMPOS_NO_BACKUP) delete cambios[k];
+            const guildId = req.params.guildId;
+            // Quién entra al panel y quién modera solo lo cambia un administrador (igual
+            // que en Acceso y permisos): importando tampoco se lo puede dar nadie más.
+            let esAdmin = !req.staff || req.staff.owner;
+            if (!esAdmin) {
+                const g = client.guilds.cache.get(guildId);
+                const m = g ? await g.members.fetch(req.staff.id).catch(() => null) : null;
+                esAdmin = !!(m && m.permissions.has(PermissionsBitField.Flags.Administrator));
+            }
+            if (!esAdmin) for (const k of ['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']) delete cambios[k];
+            // Los roles que reparte el bot (autorol, recompensas, verificación…) siguen la
+            // misma regla de jerarquía que al configurarlos uno a uno.
+            const rolesQueDaElBot = (c) => [
+                ...(c.autoRoles || []), ...(c.autoRolesBots || []),
+                ...(c.recompensasNivel || []).map((r) => r && r.rolId),
+                c.verificacion && c.verificacion.rolVerificadoId,
+                c.embudoAB && c.embudoAB.rolVerificadoId,
+                c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
+                ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
+            ].filter((x) => typeof x === 'string' && x);
+            const actualCfg = (await ServidorConfig.findOne({ guildId }).lean()) || {};
+            const errRoles = await errorRolesNuevos(client, req.staff, guildId, rolesQueDaElBot(entrante), rolesQueDaElBot(actualCfg));
+            if (errRoles) return res.status(403).json({ error: errRoles });
             // mensajeId de la verificación no debe importarse (es de otro servidor).
             if (cambios.verificacion) delete cambios.verificacion.mensajeId;
             // Crecimiento campo a campo: así no se pisa la página ni el bump de este servidor.

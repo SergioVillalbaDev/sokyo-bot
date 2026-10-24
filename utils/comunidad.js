@@ -16,7 +16,7 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const { aplicarPieMarca } = require('./marca.js');
 const { getConfigCached } = require('./config.js');
 const { t } = require('./i18n.js');
-const { contarActivas } = require('./invitaciones.js');
+const { contarActivas, contarActivasDe } = require('./invitaciones.js');
 
 const COLOR = '#5865F2';
 const EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
@@ -272,7 +272,8 @@ async function actualizarMensajeSorteo(client, s) {
 // Papeletas de un participante: el multiplicador de rol más alto (1 si no tiene) más
 // las extra por invitar. Solo cuentan las personas que entraron mientras dura el
 // sorteo y siguen en el servidor (utils/invitaciones.js).
-async function papeletasDe(guild, s, uid, miembro = undefined) {
+// `invitadas` (opcional): ya contadas en bloque por quien llama (finalizarSorteo).
+async function papeletasDe(guild, s, uid, miembro = undefined, invitadas = undefined) {
     let base = 1;
     if (s.multiplicadores?.length && guild) {
         const m = miembro !== undefined ? miembro : await guild.members.fetch(uid).catch(() => null);
@@ -280,8 +281,8 @@ async function papeletasDe(guild, s, uid, miembro = undefined) {
     }
     let extra = 0;
     if (s.entradasPorInvitacion > 0) {
-        const invitadas = await contarActivas(s.guildId, uid, { desde: s.creadoFecha, hasta: s.activo ? null : s.fechaFin });
-        extra = Math.min(Math.max(0, s.maxEntradasExtra || 0), invitadas * s.entradasPorInvitacion);
+        const n = invitadas !== undefined ? invitadas : await contarActivas(s.guildId, uid, { desde: s.creadoFecha, hasta: s.activo ? null : s.fechaFin });
+        extra = Math.min(Math.max(0, s.maxEntradasExtra || 0), n * s.entradasPorInvitacion);
     }
     return base + extra;
 }
@@ -308,18 +309,21 @@ async function finalizarSorteo(client, s, { reroll = false } = {}) {
 
     // Papeletas de cada participante (roles multiplicadores + invitaciones). Quien
     // ya no cumple el mínimo de invitaciones (p. ej. sus invitados se fueron) queda fuera.
+    // Las invitaciones de todos se cuentan con una sola consulta.
     const pesos = {};
     let validos = s.participantes;
     if ((s.multiplicadores?.length || s.entradasPorInvitacion > 0) && guild) {
+        const durante = s.entradasPorInvitacion > 0
+            ? await contarActivasDe(s.guildId, s.participantes, { desde: s.creadoFecha, hasta: s.activo ? null : s.fechaFin })
+            : new Map();
         for (const id of s.participantes) {
             const miembro = s.multiplicadores?.length ? await guild.members.fetch(id).catch(() => null) : null;
-            pesos[id] = await papeletasDe(guild, s, id, miembro);
+            pesos[id] = await papeletasDe(guild, s, id, miembro, durante.get(id) || 0);
         }
     }
     if (s.invitacionesMin > 0) {
-        const cumplen = [];
-        for (const id of s.participantes) if (await contarActivas(s.guildId, id) >= s.invitacionesMin) cumplen.push(id);
-        validos = cumplen;
+        const totales = await contarActivasDe(s.guildId, s.participantes);
+        validos = s.participantes.filter((id) => (totales.get(id) || 0) >= s.invitacionesMin);
     }
 
     const ids = elegirPonderado(validos, Math.max(1, s.ganadores), pesos);

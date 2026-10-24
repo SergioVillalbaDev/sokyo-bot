@@ -29,6 +29,10 @@ describe('bump: mensajes de DISBOARD', () => {
         assert.strictEqual(r.minutos, 87);
         assert.strictEqual(r.usuarioId, '222222222222222222');
     });
+    it('el aviso de espera nunca cuenta como bump, aunque traiga la imagen de bump', () => {
+        const r = bump.analizarMensaje(msg({ description: 'Please wait another 30 minutes until the server can be bumped 👍', image: { url: 'https://disboard.org/images/bot-command-image-bump.png' } }));
+        assert.strictEqual(r.tipo, 'espera');
+    });
     it('ignora el "pensando…" (sin embed) y otros mensajes', () => {
         assert.strictEqual(bump.analizarMensaje(msg(null)), null);
         assert.strictEqual(bump.analizarMensaje(msg({ description: 'Server listing updated.' })), null);

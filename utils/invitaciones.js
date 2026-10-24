@@ -157,6 +157,18 @@ async function contarActivas(guildId, userId, { desde = null, hasta = null } = {
     return Invitacion.countDocuments(filtro);
 }
 
+// Lo mismo para muchas personas a la vez (sorteos): Map(userId -> nº).
+async function contarActivasDe(guildId, userIds, { desde = null, hasta = null } = {}) {
+    const match = { guildId, invitadorId: { $in: userIds }, estado: { $in: ['valida', 'pendiente'] }, seFue: null };
+    if (desde || hasta) {
+        match.fechaEntrada = {};
+        if (desde) match.fechaEntrada.$gte = new Date(desde);
+        if (hasta) match.fechaEntrada.$lte = new Date(hasta);
+    }
+    const filas = userIds.length ? await Invitacion.aggregate([{ $match: match }, { $group: { _id: '$invitadorId', n: { $sum: 1 } } }]) : [];
+    return new Map(filas.map((f) => [f._id, f.n]));
+}
+
 // Ranking de quien más invita (por invitaciones confirmadas).
 async function ranking(guildId, limite = 10) {
     const filas = await Invitacion.aggregate([
@@ -335,7 +347,11 @@ async function confirmar(doc, client) {
     if (!guild) return false;
     let sigue = true;
     try { await guild.members.fetch(doc.invitadoId); } catch (e) {
-        if (e.code !== 10007) return false; // fallo puntual de Discord: se reintenta en la siguiente pasada
+        if (e.code !== 10007) {
+            // Fallo puntual de Discord: se reintenta en 5 min (sin bloquear al resto).
+            await Invitacion.updateOne({ _id: doc._id, estado: 'pendiente' }, { $set: { confirmarEn: new Date(Date.now() + 5 * 60 * 1000) } });
+            return false;
+        }
         sigue = false;
     }
     if (!sigue) {
@@ -355,13 +371,16 @@ async function confirmar(doc, client) {
 // Barrido periódico (programador): confirma las invitaciones que ya han cumplido
 // su espera en los servidores con el sistema activo.
 async function barrerInvitaciones(client) {
-    const vencidas = await Invitacion.find({ estado: 'pendiente', confirmarEn: { $lte: new Date() } }).sort({ confirmarEn: 1 }).limit(200);
+    // Solo los servidores donde está el bot y el sistema está activo: los pausados
+    // (se confirmarán al reactivarlo) no ocupan la cola de los demás.
+    const ServidorConfig = require('../models/ServidorConfig.js');
+    const activos = (await ServidorConfig.find({ 'crecimiento.invitaciones.activo': true }).distinct('guildId'))
+        .filter((id) => client.guilds.cache.has(id));
+    if (!activos.length) return;
+    const vencidas = await Invitacion.find({ estado: 'pendiente', guildId: { $in: activos }, confirmarEn: { $lte: new Date() } })
+        .sort({ confirmarEn: 1 }).limit(200);
     for (const doc of vencidas) {
-        try {
-            const cfg = await getConfigCached(doc.guildId);
-            if (!cfg?.crecimiento?.invitaciones?.activo) continue; // en pausa: se confirmarán al reactivarlo
-            await confirmar(doc, client);
-        } catch (e) { console.error('Barrido de invitaciones:', e.message); }
+        try { await confirmar(doc, client); } catch (e) { console.error('Barrido de invitaciones:', e.message); }
     }
 }
 
@@ -412,5 +431,5 @@ module.exports = {
     embedInvitaciones,
     cargarInvitaciones, cargarTodas, alCrearInvitacion, alBorrarInvitacion, puedeVerInvitaciones,
     detectarOrigen, registrarEntrada, registrarSalida, confirmar, barrerInvitaciones,
-    estadisticasDe, contarActivas, ranking, puestoDe, resumen, recientes, siguienteRecompensa, rellenar,
+    estadisticasDe, contarActivas, contarActivasDe, ranking, puestoDe, resumen, recientes, siguienteRecompensa, rellenar,
 };

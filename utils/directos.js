@@ -90,7 +90,9 @@ async function paginaTwitch(login) {
     return analizarPaginaTwitch(await r.text(), login);
 }
 
-// Estado de varios canales a la vez: Map(login -> directo | null). Los que fallan no aparecen.
+let cursorTwitch = 0;
+// Estado de varios canales a la vez: Map(login -> directo | null). Los que fallan
+// (o no han entrado en esta pasada) no aparecen.
 async function estadoTwitch(logins) {
     const estados = new Map();
     if (!logins.length) return estados;
@@ -108,7 +110,15 @@ async function estadoTwitch(logins) {
         }
         return estados;
     }
-    for (const login of logins.slice(0, 60)) {
+    // Modo básico: como mucho 60 canales por pasada, por turnos (los demás, en las siguientes).
+    const LOTE = 60;
+    let turno = logins;
+    if (logins.length > LOTE) {
+        const desde = cursorTwitch % logins.length;
+        turno = [...logins.slice(desde), ...logins.slice(0, desde)].slice(0, LOTE);
+        cursorTwitch = (desde + LOTE) % logins.length;
+    }
+    for (const login of turno) {
         try {
             const p = await paginaTwitch(login);
             if (p) estados.set(login, p.directo);
@@ -334,51 +344,75 @@ async function revisarYoutube(client) {
     }
     const conClave = !!process.env.YOUTUBE_API_KEY;
 
+    // 1) Qué hay de nuevo en cada canal.
+    const planes = [];
     for (const { fuente, cfg } of lista) {
         const feed = feeds.get(fuente.externoId);
-        try {
-            if (feed instanceof Error) throw feed;
-            if (!feed) throw new Error('El canal de YouTube ya no existe');
-            const conf = cfg.crecimiento.directos;
-            const corte = fuente.ultimaFecha ? new Date(fuente.ultimaFecha) : null;
-            const masNueva = feed.entradas[0];
-            if (!corte) {
-                // Primera pasada: solo marca por dónde va el canal (sin avisar de lo antiguo).
-                fuente.ultimaFecha = masNueva ? masNueva.publicado : new Date();
-                fuente.ultimoId = masNueva ? masNueva.id : null;
-            } else {
-                const nuevas = feed.entradas
-                    .filter((e) => e.publicado > corte && e.id !== fuente.ultimoId && (conf.incluirShorts || !e.esShort))
-                    .slice(0, 3)
-                    .reverse(); // de la más antigua a la más nueva
-                const revisar = [...new Set([...nuevas.map((e) => e.id), ...fuente.pendientes])];
-                const estados = conClave && revisar.length ? await estadoVideosYoutube(revisar) : new Map();
-                const porId = new Map(feed.entradas.map((e) => [e.id, e]));
-                const pendientes = [];
+        if (!feed || feed instanceof Error) {
+            fuente.ultimoError = (feed ? feed.message : 'El canal de YouTube ya no existe').slice(0, 200);
+            await fuente.save().catch(() => {});
+            continue;
+        }
+        const masNueva = feed.entradas[0];
+        if (!fuente.ultimaFecha) {
+            // Primera pasada: solo marca por dónde va el canal (sin avisar de lo antiguo).
+            fuente.ultimaFecha = masNueva ? masNueva.publicado : new Date();
+            fuente.ultimoId = masNueva ? masNueva.id : null;
+            fuente.ultimoError = '';
+            await fuente.save().catch(() => {});
+            continue;
+        }
+        const corte = new Date(fuente.ultimaFecha);
+        const nuevas = feed.entradas
+            .filter((e) => e.publicado > corte && e.id !== fuente.ultimoId && (cfg.crecimiento.directos.incluirShorts || !e.esShort))
+            .slice(0, 3)
+            .reverse(); // de la más antigua a la más nueva
+        planes.push({ fuente, cfg, feed, masNueva, revisar: [...new Set([...nuevas.map((e) => e.id), ...fuente.pendientes])] });
+    }
 
-                for (const id of revisar) {
-                    const e = porId.get(id);
-                    // Sin clave de la API todo es "publicación"; con ella, live / upcoming / none.
-                    const estado = conClave ? estados.get(id) : 'none';
-                    if (estado === 'upcoming') { pendientes.push(id); continue; } // aún no ha empezado
-                    if (estado === undefined) continue; // borrado o privado
-                    if (!e && estado !== 'live' && !fuente.pendientes.includes(id)) continue;
-                    await anunciar(client, fuente, cfg, {
-                        tipo: estado === 'live' ? 'directo' : 'video',
-                        titulo: e ? e.titulo : '',
-                        url: e ? e.url : `https://www.youtube.com/watch?v=${id}`,
-                        miniatura: e ? e.miniatura : `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-                    });
-                    fuente.ultimoAviso = new Date();
-                }
-                fuente.pendientes = pendientes.slice(0, 10);
-                if (masNueva && masNueva.publicado > corte) {
-                    fuente.ultimaFecha = masNueva.publicado;
-                    fuente.ultimoId = masNueva.id;
-                }
+    // 2) Con clave de la API: el estado de los vídeos de TODOS los canales en una sola
+    //    tanda (50 por llamada), para no gastar la cuota diaria.
+    let estados = new Map();
+    if (conClave) {
+        const ids = [...new Set(planes.flatMap((p) => p.revisar))];
+        if (ids.length) {
+            try { estados = await estadoVideosYoutube(ids); } catch (e) {
+                for (const { fuente } of planes) { fuente.ultimoError = e.message.slice(0, 200); await fuente.save().catch(() => {}); }
+                return;
+            }
+        }
+    }
+
+    // 3) Avisos. La marca avanza tras cada aviso: si uno falla, en la siguiente pasada
+    //    no se repiten los que ya salieron.
+    for (const { fuente, cfg, feed, masNueva, revisar } of planes) {
+        const porId = new Map(feed.entradas.map((e) => [e.id, e]));
+        const pendientes = new Set(fuente.pendientes);
+        try {
+            for (const id of revisar) {
+                const e = porId.get(id);
+                // Sin clave de la API todo es "publicación"; con ella, live / upcoming / none.
+                const estado = conClave ? estados.get(id) : 'none';
+                if (estado === 'upcoming') { pendientes.add(id); continue; } // aún no ha empezado
+                pendientes.delete(id);
+                if (estado === undefined) continue; // borrado o privado
+                if (!e && estado !== 'live' && !fuente.pendientes.includes(id)) continue;
+                await anunciar(client, fuente, cfg, {
+                    tipo: estado === 'live' ? 'directo' : 'video',
+                    titulo: e ? e.titulo : '',
+                    url: e ? e.url : `https://www.youtube.com/watch?v=${id}`,
+                    miniatura: e ? e.miniatura : `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+                });
+                fuente.ultimoAviso = new Date();
+                if (e && e.publicado > new Date(fuente.ultimaFecha)) { fuente.ultimaFecha = e.publicado; fuente.ultimoId = e.id; }
+            }
+            if (masNueva && masNueva.publicado > new Date(fuente.ultimaFecha)) {
+                fuente.ultimaFecha = masNueva.publicado;
+                fuente.ultimoId = masNueva.id;
             }
             fuente.ultimoError = '';
         } catch (e) { fuente.ultimoError = e.message.slice(0, 200); }
+        fuente.pendientes = [...pendientes].slice(-10);
         await fuente.save().catch(() => {});
     }
 }
