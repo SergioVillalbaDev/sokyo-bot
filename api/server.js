@@ -2814,7 +2814,8 @@ app.get('/api/stats/uso', async (req, res) => {
     // ===================== MODERACIÓN (Centro de Mando) =====================
 
     // Moderador que ejecuta la acción (sesión de staff) o null (API key del dueño).
-    const moderadorDe = (req) => (req.staff ? { id: req.staff.id, tag: req.staff.username } : null);
+    // sinLimite: los propietarios del bot (OWNER_IDS) no tienen el límite de jerarquía.
+    const moderadorDe = (req) => (req.staff ? { id: req.staff.id, tag: req.staff.username, sinLimite: !!req.staff.owner } : null);
 
     // --- Tipos de sanción (plantillas) ---
     app.get('/api/sanciones/tipos', exigeModerador, async (req, res) => {
