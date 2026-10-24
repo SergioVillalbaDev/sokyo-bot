@@ -4,13 +4,15 @@ import './index.css'
 import './i18n'
 import App from './App.jsx'
 
-// Cargado solo si llega ?portal=1: el resto de visitantes (landing pública,
-// Googlebot) no necesita descargar el código del Portal del Cliente.
+// Cargado solo en "Mi cuenta": el resto de visitantes (landing pública,
+// Googlebot) no necesita descargar el código del portal de usuarios.
 // eslint-disable-next-line react-refresh/only-export-components -- entry point, no es un módulo con Fast Refresh
 const Portal = lazy(() => import('./Portal.jsx'))
 
-// ?portal=1 en la URL -> Portal del Cliente; si no, el panel de staff.
-const esPortal = new URLSearchParams(window.location.search).has('portal')
+// /cuenta (o /account, /mi-cuenta) -> "Mi cuenta" de cada usuario. ?portal=1 es
+// la dirección antigua y sigue valiendo. Si no, la landing y el panel de staff.
+const esPortal = /^\/(cuenta|account|mi-cuenta)\/?$/i.test(window.location.pathname)
+  || new URLSearchParams(window.location.search).has('portal')
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

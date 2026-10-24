@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBui
 const Item = require('../models/Item.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
+const { botonWeb } = require('../utils/cuenta.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -34,6 +35,8 @@ module.exports = {
                 value: i._id.toString(), // el MISMO _id que usa la web
             })));
 
-        await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)], flags: 64 });
+        // En la web la tienda se ve con imágenes, ofertas y la mochila al lado.
+        const web = new ActionRowBuilder().addComponents(botonWeb(cfg, 'tienda', t(cfg, 'Ver la tienda en la web', 'See the shop on the web')));
+        await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu), web], flags: 64 });
     },
 };

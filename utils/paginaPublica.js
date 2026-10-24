@@ -211,6 +211,8 @@ const TEXTO = {
         hecho: 'Página creada con',
         anadir: 'Añade Sokyo a tu servidor',
         anadirCorto: '+ Añadir Sokyo',
+        cuenta: '👤 Mi cuenta',
+        explorarCorto: 'Explorar',
         dirTitulo: 'Servidores de Discord con Sokyo',
         dirDesc: 'Descubre comunidades que usan Sokyo y únete a la que más te guste.',
         buscar: 'Buscar por nombre, tema o etiqueta…',
@@ -240,6 +242,8 @@ const TEXTO = {
         hecho: 'Page made with',
         anadir: 'Add Sokyo to your server',
         anadirCorto: '+ Add Sokyo',
+        cuenta: '👤 My account',
+        explorarCorto: 'Browse',
         dirTitulo: 'Discord servers with Sokyo',
         dirDesc: 'Discover communities that use Sokyo and join the one you like most.',
         buscar: 'Search by name, topic or tag…',
@@ -267,6 +271,7 @@ a{color:inherit}
 .marca img{width:34px;height:34px;border-radius:50%;object-fit:cover}
 .enlace{font-size:14px;font-weight:600;color:var(--muted);text-decoration:none;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(14,16,32,.6);white-space:nowrap}
 .enlace:hover{color:var(--fg);border-color:#2c2f4d}
+.cab-acc{display:flex;gap:8px;justify-content:flex-end}
 main{max-width:1080px;margin:0 auto;padding:0 20px 56px}
 .tarjeta{background:var(--card);border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:0 18px 50px -24px rgba(0,0,0,.7)}
 .banner{height:170px;background:linear-gradient(135deg,var(--from),var(--to));background-size:cover;background-position:center}
@@ -346,11 +351,16 @@ ${cuerpo}
 }
 
 // En el propio directorio, el botón de arriba invita a añadir Sokyo (no a volver a él).
+// "Mi cuenta" siempre a mano: quien llega a la página de su servidor puede ver
+// ahí mismo su nivel, su oro y sus tickets.
 const cabecera = (L, enDirectorio = false) => `<header class="cab">
 <a class="marca" href="/"><img src="/assets/logo.jpg" alt="" width="34" height="34">Sokyo</a>
+<span class="cab-acc">
+<a class="enlace" href="/cuenta">${esc(L.cuenta)}</a>
 ${enDirectorio
         ? `<a class="enlace" href="${esc(urlInvitarBot())}" rel="noopener">${esc(L.anadirCorto)}</a>`
-        : `<a class="enlace" href="/servidores">${esc(L.explorar)}</a>`}
+        : `<a class="enlace" href="/servidores">${esc(L.explorarCorto)}</a>`}
+</span>
 </header>`;
 
 const pie = (L) => `<footer class="pie">

@@ -34,6 +34,7 @@ const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
+const cuenta = require('../utils/cuenta.js');
 const { errorRolesNuevos, errorJerarquiaStaff } = require('../utils/permisos.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
@@ -568,8 +569,8 @@ module.exports = (client) => {
         const esStaff = tipoRaw === 'staff';
         const esTienda = tipoRaw === 'tienda';
         const destino = (error) => (esStaff ? `${FRONTEND_URL}/?staff=1&error=${error}`
-            : esTienda ? `/tienda.html?error=${error}`
-            : `${FRONTEND_URL}/?portal=1&error=${error}`);
+            : esTienda ? `${FRONTEND_URL}/cuenta?error=${error}#tienda`
+            : `${FRONTEND_URL}/cuenta?error=${error}`);
         const cookieNonce = leerCookie(req, 'sokyo_oauth_state');
         res.clearCookie('sokyo_oauth_state', { path: '/' });
         // El usuario pulsó "Cancelar" en Discord.
@@ -620,16 +621,26 @@ module.exports = (client) => {
             // volvemos a ella, en el mismo origen, con la sesión ya puesta.
             if (esTienda) {
                 const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET, DURACION_SESION);
-                return res.redirect(`/tienda.html?token=${sesion}`);
+                return res.redirect(`${FRONTEND_URL}/cuenta?token=${sesion}#tienda`);
             }
 
-            // Login del PORTAL del cliente (comportamiento existente).
+            // Login del PORTAL del cliente ("Mi cuenta").
             const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET, DURACION_SESION);
-            res.redirect(`${FRONTEND_URL}/?portal=1&token=${sesion}`);
+            res.redirect(`${FRONTEND_URL}/cuenta?token=${sesion}`);
         } catch (error) {
             console.error('Error en el callback de OAuth:', error);
             res.redirect(destino('oauth'));
         }
+    });
+
+    // Entrada con un clic desde Discord (/cuenta): el bot da un código de un solo
+    // uso (utils/cuenta.js) y aquí se cambia por una sesión normal del portal.
+    app.get('/api/auth/magic', (req, res) => {
+        const datos = cuenta.canjear(String(req.query.c || ''));
+        if (!datos) return res.redirect(`${FRONTEND_URL}/cuenta?error=magic`);
+        const sesion = firmarToken({ id: datos.id, username: datos.username, avatar: datos.avatar }, JWT_SECRET, DURACION_SESION);
+        res.set('Cache-Control', 'no-store');
+        res.redirect(`${FRONTEND_URL}/cuenta?token=${sesion}${datos.vista && datos.vista !== 'inicio' ? `#${datos.vista}` : ''}`);
     });
 
     // ¿El usuario tiene Premium? Lo es si es miembro de algún servidor Premium.
@@ -650,6 +661,9 @@ module.exports = (client) => {
         const esPremium = await usuarioEsPremium(req.usuario.id).catch(() => false);
         res.json({ id: req.usuario.id, username: req.usuario.username, avatar: req.usuario.avatar, esPremium });
     });
+
+    // "Mi cuenta": resumen del usuario (inicio del portal) y recompensa diaria.
+    app.use('/api', require('./routes/cuenta.js')({ portalAuth, client, usuarioEsPremium }));
 
     // Tarjeta de rango personalizada del usuario (premium). Leer / guardar.
     app.get('/api/portal/tarjeta', portalAuth, async (req, res) => {

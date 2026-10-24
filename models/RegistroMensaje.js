@@ -15,6 +15,7 @@ const RegistroMensajeSchema = new mongoose.Schema({
 });
 
 RegistroMensajeSchema.index({ guildId: 1, userId: 1, fecha: -1 });
+RegistroMensajeSchema.index({ userId: 1, fecha: -1 }); // gráfica de actividad de "Mi cuenta" (todos sus servidores)
 RegistroMensajeSchema.index({ expiraEn: 1 }, { expireAfterSeconds: 0 }); // TTL variable
 
 module.exports = mongoose.model('RegistroMensaje', RegistroMensajeSchema);

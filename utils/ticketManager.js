@@ -305,6 +305,10 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
         new ButtonBuilder().setCustomId('add_user_prompt').setLabel(t(cfg, '➕ Añadir usuario', '➕ Add user')).setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('close_ticket').setLabel(t(cfg, '🔒 Cerrar ticket', '🔒 Close ticket')).setStyle(ButtonStyle.Danger),
     );
+    // Quien lo abre puede seguirlo también desde su cuenta en la web.
+    if (darAccesoCreador && creador && creador.id) {
+        row.addComponents(require('./cuenta.js').botonWeb(cfg, 'tickets', t(cfg, 'Seguir en la web', 'Follow on the web'), canal.id));
+    }
     const saludo = (darAccesoCreador && creador && creador.id) ? t(cfg, `¡Hola <@${creador.id}>! Aquí tienes tu ticket. 👇`, `Hi <@${creador.id}>! Here’s your ticket. 👇`) : t(cfg, 'Nuevo ticket 👇', 'New ticket 👇');
     await canal.send({ content: saludo, embeds: [embed], components: [row] });
 

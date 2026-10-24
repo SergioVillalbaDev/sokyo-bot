@@ -10,6 +10,7 @@ const embudo = require('../utils/embudo.js');
 const { getConfigCached } = require('../utils/config.js');
 const { t } = require('../utils/i18n.js');
 const { adaptarTextosAlIdioma, nombreUrgencia } = require('../utils/textosPorDefecto.js');
+const { botonWeb } = require('../utils/cuenta.js');
 
 // --- Paneles de roles: botón de rol o de verificación ---
 async function manejarBotonRol(interaction) {
@@ -577,7 +578,9 @@ module.exports = {
                 const rowBotones = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('reclamar_ticket').setLabel(t(config, '🙋‍♂️ Reclamar ticket', '🙋‍♂️ Claim ticket')).setStyle(ButtonStyle.Primary),
                     new ButtonBuilder().setCustomId('add_user_prompt').setLabel(t(config, '➕ Añadir usuario', '➕ Add user')).setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('close_ticket').setLabel(t(config, '🔒 Cerrar ticket', '🔒 Close ticket')).setStyle(ButtonStyle.Danger)
+                    new ButtonBuilder().setCustomId('close_ticket').setLabel(t(config, '🔒 Cerrar ticket', '🔒 Close ticket')).setStyle(ButtonStyle.Danger),
+                    // Quien lo abre puede seguirlo también desde su cuenta en la web.
+                    botonWeb(config, 'tickets', t(config, 'Seguir en la web', 'Follow on the web'), canalTicket.id),
                 );
 
                 await canalTicket.send({ content: t(config, `¡Hola <@${interaction.user.id}>! Aquí tienes tu ticket. 👇`, `Hi <@${interaction.user.id}>! Here’s your ticket. 👇`), embeds: [embedBienvenida], components: [rowBotones] });

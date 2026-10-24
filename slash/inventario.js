@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder } = require('discord.js');
 const Usuario = require('../models/Usuario.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
+const { botonWeb } = require('../utils/cuenta.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -23,6 +24,7 @@ module.exports = {
             .addFields({ name: t(cfg, '🪙 Oro', '🪙 Gold'), value: `**${usuario.balance}**`, inline: true })
             .setDescription(lineas.length ? lineas.join('\n') : t(cfg, '_Tu mochila está vacía. Visita `/shop`._', '_Your bag is empty. Visit `/shop`._'));
 
-        await interaction.reply({ embeds: [embed], flags: 64 });
+        const web = new ActionRowBuilder().addComponents(botonWeb(cfg, 'tienda', t(cfg, 'Abrir mi mochila en la web', 'Open my bag on the web'), 'mochila'));
+        await interaction.reply({ embeds: [embed], components: [web], flags: 64 });
     },
 };

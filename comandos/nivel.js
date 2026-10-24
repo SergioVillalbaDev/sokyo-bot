@@ -1,8 +1,9 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder } = require('discord.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const { progreso, adjuntoTarjeta } = require('../utils/niveles.js');
 const { getConfigCached } = require('../utils/config.js');
 const { t } = require('../utils/i18n.js');
+const { botonWeb } = require('../utils/cuenta.js');
 
 module.exports = {
     name: 'level',
@@ -28,7 +29,7 @@ module.exports = {
                 nombre: member ? member.displayName : target.username,
                 nivel, rank, xpActual: actual, xpNecesaria: necesaria,
             });
-            if (adjunto) return message.reply({ files: [adjunto] });
+            if (adjunto) return message.reply({ files: [adjunto], components: filaTarjeta(cfg, target, message) });
         }
 
         // Respaldo en embed.
@@ -43,6 +44,12 @@ module.exports = {
                 { name: t(cfg, 'XP total', 'Total XP'), value: `**${xp}**`, inline: true },
                 { name: t(cfg, 'Progreso', 'Progress'), value: `${barra}\n${actual} / ${necesaria} XP` },
             );
-        await message.reply({ embeds: [embed] });
+        await message.reply({ embeds: [embed], components: filaTarjeta(cfg, target, message) });
     },
 };
+
+// Con tu propia tarjeta, un botón para personalizarla en la web.
+function filaTarjeta(cfg, target, message) {
+    if (target.id !== message.author.id) return [];
+    return [new ActionRowBuilder().addComponents(botonWeb(cfg, 'tarjeta', t(cfg, 'Personalizar mi tarjeta', 'Customise my card')))];
+}

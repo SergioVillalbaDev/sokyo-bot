@@ -35,5 +35,6 @@ const ActividadUsuarioSchema = new mongoose.Schema({
 
 ActividadUsuarioSchema.index({ guildId: 1, userId: 1 }, { unique: true });
 ActividadUsuarioSchema.index({ guildId: 1, xp: -1 }); // para el ranking
+ActividadUsuarioSchema.index({ userId: 1 }); // "Mi cuenta": los servidores de un usuario
 
 module.exports = mongoose.model('ActividadUsuario', ActividadUsuarioSchema);

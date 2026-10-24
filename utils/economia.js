@@ -125,14 +125,17 @@ async function darOro(discordId, cantidad) {
 
 // Recompensa diaria con racha. Se puede reclamar cada ~20h; si pasan más de 48h
 // sin reclamar, la racha se reinicia. Cada 7 días seguidos hay premio gordo.
+// (La web de "Mi cuenta" usa las mismas horas para su cuenta atrás.)
+const HORAS_DAILY = 20;
+const HORAS_RACHA = 48;
 async function reclamarDaily(discordId) {
     const u = await obtenerUsuario(discordId);
     const ahora = new Date();
     let racha;
     if (u.ultimoDaily) {
         const horas = (ahora - new Date(u.ultimoDaily)) / 3600000;
-        if (horas < 20) return { ok: false, esperaHoras: 20 - horas };
-        racha = horas <= 48 ? (u.rachaDaily || 0) + 1 : 1; // dentro de 48h continúa; si no, reinicia
+        if (horas < HORAS_DAILY) return { ok: false, esperaHoras: HORAS_DAILY - horas };
+        racha = horas <= HORAS_RACHA ? (u.rachaDaily || 0) + 1 : 1; // dentro de 48h continúa; si no, reinicia
     } else {
         racha = 1;
     }
@@ -150,7 +153,7 @@ async function reclamarDaily(discordId) {
         { $set: { ultimoDaily: ahora, rachaDaily: racha }, $inc: { balance: total } },
         { returnDocument: 'after' }
     );
-    if (!actualizado) return { ok: false, esperaHoras: 20 }; // otra petición ganó la carrera justo antes
+    if (!actualizado) return { ok: false, esperaHoras: HORAS_DAILY }; // otra petición ganó la carrera justo antes
     return { ok: true, total, racha, jackpot, balance: actualizado.balance };
 }
 
@@ -252,4 +255,4 @@ async function multiplicadorBoost(discordId) {
     return 1;
 }
 
-module.exports = { obtenerUsuario, comprarItem, darOro, reclamarDaily, topRicos, usarItem, multiplicadorBoost, precioEfectivo, ponerOferta };
+module.exports = { obtenerUsuario, comprarItem, darOro, reclamarDaily, topRicos, usarItem, multiplicadorBoost, precioEfectivo, ponerOferta, HORAS_DAILY, HORAS_RACHA };
