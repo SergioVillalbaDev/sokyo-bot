@@ -56,11 +56,11 @@ function contenidoPanel(v, cfg) {
 async function publicarPanel(client, guildId) {
     const cfg = await ServidorConfig.findOne({ guildId });
     const v = cfg && cfg.verificacion;
-    if (!v || !v.canalId) throw new Error('Set up the verification channel first.');
+    if (!v || !v.canalId) throw new Error(t(cfg, 'Configura primero el canal de verificación.', 'Set up the verification channel first.'));
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) throw new Error('Server not found.');
+    if (!guild) throw new Error(t(cfg, 'Servidor no encontrado.', 'Server not found.'));
     const canal = guild.channels.cache.get(v.canalId);
-    if (!canal) throw new Error('The verification channel doesn’t exist.');
+    if (!canal) throw new Error(t(cfg, 'El canal de verificación no existe.', 'The verification channel doesn’t exist.'));
 
     const contenido = contenidoPanel(v, cfg);
     let mensaje = null;

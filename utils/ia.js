@@ -103,7 +103,7 @@ async function informeServidor(data, idioma) {
 }
 
 // Briefing diario: parte del día anterior, en tono de mensaje matutino al dueño.
-async function resumenDiario(data, nombre) {
+async function resumenDiario(data, nombre, idioma = 'en') {
     const ayer = (arr) => (arr && arr.length >= 2 ? arr[arr.length - 2] : (arr && arr[arr.length - 1]) || {});
     const com = ayer(data.comunidad && data.comunidad.serie);
     const msg = ayer(data.actividad && data.actividad.serie);
@@ -119,7 +119,7 @@ async function resumenDiario(data, nombre) {
         `Hora pico: ${data.actividad && data.actividad.horaPico} (UTC) · canal más activo: ${topCanal}`,
         `Señales: ${(data.insights || []).map((i) => i.titulo).join('; ') || 'ninguna'}`,
     ].join('\n');
-    const system = 'You are the assistant to a Discord server owner. Write in English a short, friendly daily BRIEFING, good-morning message style (max ~120 words): a greeting, 3-4 key facts from YESTERDAY, any ALERT that needs their attention today, and ONE concrete recommendation for today. Use a few emojis sparingly. Don’t make up data that isn’t here.';
+    const system = `You are the assistant to a Discord server owner. Write in ${nombreIdioma(idioma)} a short, friendly daily BRIEFING, good-morning message style (max ~120 words): a greeting, 3-4 key facts from YESTERDAY, any ALERT that needs their attention today, and ONE concrete recommendation for today. Use a few emojis sparingly. Don’t make up data that isn’t here.`;
     return pedir(system, contenido, 700);
 }
 

@@ -302,8 +302,8 @@ module.exports = {
                 }
 
                 const embedPanel = new EmbedBuilder()
-                    .setTitle(config?.mensajeSoporteTitulo || '🎫 Support')
-                    .setDescription(config?.mensajeSoporteDescripcion || 'Click the button below to open a ticket.')
+                    .setTitle(config?.mensajeSoporteTitulo || t(config, '🎫 Soporte', '🎫 Support'))
+                    .setDescription(config?.mensajeSoporteDescripcion || t(config, 'Pulsa el botón de abajo para abrir un ticket.', 'Click the button below to open a ticket.'))
                     .setColor(config?.colorEmbed || '#5865F2')
                     .setTimestamp();
                 const { aplicarPieMarca } = require('../utils/marca.js');
