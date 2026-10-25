@@ -1,5 +1,5 @@
 // Preguntas frecuentes — resuelve las objeciones típicas antes del CTA final
-// (¿sé programar?, ¿mis datos?, ¿gratis?, ¿y si cancelo?). Acordeón simple.
+// (¿sé programar?, ¿cómo entran mis miembros?, ¿gratis?, ¿y si cancelo?). Acordeón de cristal.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
@@ -11,10 +11,10 @@ export default function Faq() {
   const [abierto, setAbierto] = useState(0);
 
   return (
-    <section id="faq" className="relative mx-auto max-w-3xl px-6 py-24">
+    <section id="faq" className="lx-diferido relative mx-auto max-w-3xl px-5 py-24 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-4xl font-extrabold tracking-tight text-fg sm:text-5xl">
-          {t('landing.faq.title')} <span className="text-gradient-brand">{t('landing.faq.titleHighlight')}</span>
+          {t('landing.faq.title')} <span className="lx-texto">{t('landing.faq.titleHighlight')}</span>
         </h2>
         <p className="mt-4 text-lg text-muted">{t('landing.faq.subtitle')}</p>
       </div>
@@ -23,17 +23,14 @@ export default function Faq() {
         {lista.map((item, i) => {
           const open = abierto === i;
           return (
-            <div key={item.q} className="overflow-hidden rounded-2xl border border-line bg-card/60">
+            <div key={item.q} className={`lx-card overflow-hidden rounded-2xl transition-shadow ${open ? 'lx-halo' : ''}`}>
               <button
                 onClick={() => setAbierto(open ? -1 : i)}
                 aria-expanded={open}
                 className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
               >
                 <span className="text-sm font-semibold text-fg sm:text-base">{item.q}</span>
-                <ChevronDown
-                  size={18}
-                  className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180 text-brand' : ''}`}
-                />
+                <ChevronDown size={18} className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180 text-violet-300' : ''}`} />
               </button>
               <div className={`sk-plegable ${open ? 'sk-abierto' : ''}`} aria-hidden={!open}>
                 <div>

@@ -22,7 +22,7 @@ const FILAS = [
 ];
 
 function Celda({ estado }) {
-  if (estado === 'si') return <Check size={18} className="mx-auto text-brand" strokeWidth={3} />;
+  if (estado === 'si') return <Check size={18} className="mx-auto text-violet-300" strokeWidth={3} />;
   if (estado === 'lim') return <Minus size={18} className="mx-auto text-amber-400" strokeWidth={3} />;
   return <X size={16} className="mx-auto text-muted/50" strokeWidth={2.5} />;
 }
@@ -34,15 +34,15 @@ export default function Comparison() {
   const colLabels = ['Sokyo', ...COLS_OTROS.map((k) => t(`landing.comparison.cols.${k}`))];
 
   return (
-    <section className="relative mx-auto max-w-5xl px-6 py-24">
+    <section className="lx-diferido relative mx-auto max-w-5xl px-5 py-24 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-4xl font-extrabold tracking-tight text-fg sm:text-5xl">
-          {t('landing.comparison.title')} <span className="text-gradient-brand">{t('landing.comparison.titleHighlight')}</span>
+          {t('landing.comparison.title')} <span className="lx-texto">{t('landing.comparison.titleHighlight')}</span>
         </h2>
         <p className="mt-4 text-lg text-muted">{t('landing.comparison.subtitle')}</p>
       </div>
 
-      <Revelar className="mt-14 overflow-x-auto">
+      <Revelar className="lx-card mt-14 overflow-x-auto p-3 sm:p-5">
         <table className="w-full min-w-[560px] border-separate border-spacing-0">
           <thead>
             <tr>
@@ -52,7 +52,7 @@ export default function Comparison() {
                   key={col}
                   className={`px-4 py-3 text-center text-sm font-bold ${
                     i === 0
-                      ? 'rounded-t-2xl bg-gradient-brand text-on-brand'
+                      ? 'rounded-t-2xl bg-gradient-to-br from-[#b4d8fc] via-[#a78bfa] to-[#f472b6] text-[#0a0b18]'
                       : 'text-muted'
                   }`}
                 >
@@ -64,11 +64,11 @@ export default function Comparison() {
           <tbody>
             {FILAS.map((fila, r) => (
               <tr key={fila.key}>
-                <td className="px-4 py-3 text-sm font-medium text-fg/90">{rows[fila.key]}</td>
+                <td className={`px-4 py-3 text-sm font-medium text-fg/90 ${r ? 'border-t border-white/[.06]' : ''}`}>{rows[fila.key]}</td>
                 {fila.cells.map((estado, c) => (
                   <td
                     key={c}
-                    className={`px-4 py-3 ${c === 0 ? 'bg-brand/[0.07] ring-1 ring-inset ring-brand/15' : ''} ${
+                    className={`px-4 py-3 ${c === 0 ? 'bg-violet-400/[.09] ring-1 ring-inset ring-violet-300/20' : (r ? 'border-t border-white/[.06]' : '')} ${
                       r === FILAS.length - 1 && c === 0 ? 'rounded-b-2xl' : ''
                     }`}
                   >
@@ -82,7 +82,7 @@ export default function Comparison() {
       </Revelar>
 
       <p className="mt-6 flex items-center justify-center gap-4 text-xs text-muted">
-        <span className="flex items-center gap-1"><Check size={13} className="text-brand" /> {t('landing.comparison.legendYes')}</span>
+        <span className="flex items-center gap-1"><Check size={13} className="text-violet-300" /> {t('landing.comparison.legendYes')}</span>
         <span className="flex items-center gap-1"><Minus size={13} className="text-amber-400" /> {t('landing.comparison.legendLimited')}</span>
         <span className="flex items-center gap-1"><X size={13} className="text-muted/50" /> {t('landing.comparison.legendNo')}</span>
       </p>
