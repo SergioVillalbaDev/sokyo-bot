@@ -160,16 +160,33 @@ describe('ordenar canales y categorías', () => {
         assert.deepStrictEqual(llamadas, []);
     });
 
-    it('si un canal o categoría ya no existe, avisa de que la lista está desfasada', async () => {
-        for (const cuerpo of [
-            { categorias: ['no-existe'], canales: [] },
-            { categorias: [], canales: [{ id: 'no-existe' }] },
-            { categorias: [], canales: [{ id: 't-general', categoriaId: 'no-existe' }] },
-        ]) {
-            const r = await ordenar(cuerpo);
-            assert.strictEqual(r.status, 409, JSON.stringify(cuerpo));
-            assert.strictEqual((await r.json()).codigo, 'desactualizado');
-        }
+    it('lo que ya no existe en Discord (sala temporal cerrada, ticket borrado…) se salta y se guarda el resto', async () => {
+        const r = await ordenar({
+            categorias: ['c-info', 'c-comunidad', 'cat-borrada'],
+            canales: [
+                { id: 'f-ayuda', categoriaId: null },
+                { id: 't-normas', categoriaId: 'c-info' },
+                { id: 't-general', categoriaId: 'c-info' },
+                { id: 'sala-temporal-cerrada', categoriaId: 'c-comunidad' },
+                { id: 'm-clips', categoriaId: 'c-comunidad' },
+                { id: 'v-charla', categoriaId: 'c-comunidad' },
+                { id: 'f-ayuda-2', categoriaId: 'cat-borrada' },
+            ],
+        });
+        assert.strictEqual(r.status, 200);
+        const cuerpo = await r.json();
+        assert.strictEqual(cuerpo.success, true);
+        assert.strictEqual(cuerpo.ignorados, 3);
+        assert.deepStrictEqual(llamadas, [[
+            { channel: 't-normas', position: 0 },
+            { channel: 't-general', position: 1, parent: 'c-info', lockPermissions: false },
+        ]]);
+    });
+
+    it('un canal existente movido a una categoría que ya no existe se queda donde estaba', async () => {
+        const r = await ordenar({ categorias: [], canales: [{ id: 't-general', categoriaId: 'no-existe' }] });
+        assert.strictEqual(r.status, 200);
+        assert.strictEqual((await r.json()).ignorados, 1);
         assert.deepStrictEqual(llamadas, []);
     });
 

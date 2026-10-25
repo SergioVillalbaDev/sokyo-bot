@@ -286,14 +286,18 @@ module.exports = ({ client, exigeArea = pasar }) => {
             const lista = Array.isArray(cuerpo.canales) ? cuerpo.canales : [];
             if (cats.length > 100 || lista.length > 500) return res.status(400).json({ error: 'Demasiados canales' });
 
-            // Canales o categorías que ya no existen: la lista del panel está desfasada.
-            const desfasada = { error: 'La lista ha cambiado en Discord', codigo: 'desactualizado' };
+            // Lo que ya no existe en Discord (una sala de voz temporal que se cerró,
+            // un ticket borrado… mientras se ordenaba) se salta: no hay nada que
+            // colocar y no debe impedir guardar el resto. Lo que existe pero no es
+            // del tipo correcto es una petición mal hecha (400).
             const esCategoria = (id) => guild.channels.cache.get(id)?.type === ChannelType.GuildCategory;
             const existe = (id) => guild.channels.cache.has(id);
             if (new Set(cats).size !== cats.length || !cats.every((id) => esCategoria(id) || !existe(id))) {
                 return res.status(400).json({ error: 'Categoría no válida' });
             }
-            if (!cats.every(esCategoria)) return res.status(409).json(desfasada);
+            let ignorados = 0;
+            const catsVivas = cats.filter(esCategoria);
+            ignorados += cats.length - catsVivas.length;
 
             // Orden pedido: categoría ('' = sin categoría) -> canales en orden.
             const pedido = new Map();
@@ -301,12 +305,13 @@ module.exports = ({ client, exigeArea = pasar }) => {
             for (const it of lista) {
                 const id = String(it && it.id);
                 if (vistos.has(id)) return res.status(400).json({ error: 'Canal no válido' });
-                const canal = guild.channels.cache.get(id);
-                if (!canal) return res.status(409).json(desfasada);
-                if (!esOrdenable(canal)) return res.status(400).json({ error: 'Canal no válido' });
-                const parent = it.categoriaId ? String(it.categoriaId) : '';
-                if (parent && !esCategoria(parent)) return existe(parent) ? res.status(400).json({ error: 'Categoría no válida' }) : res.status(409).json(desfasada);
                 vistos.add(id);
+                const canal = guild.channels.cache.get(id);
+                if (canal && !esOrdenable(canal)) return res.status(400).json({ error: 'Canal no válido' });
+                const parent = it.categoriaId ? String(it.categoriaId) : '';
+                if (parent && !esCategoria(parent) && existe(parent)) return res.status(400).json({ error: 'Categoría no válida' });
+                // Canal borrado, o categoría de destino borrada: se salta.
+                if (!canal || (parent && !esCategoria(parent))) { ignorados++; continue; }
                 if (!pedido.has(parent)) pedido.set(parent, []);
                 pedido.get(parent).push(id);
             }
@@ -316,8 +321,8 @@ module.exports = ({ client, exigeArea = pasar }) => {
             const iguales = (a, b) => a.length === b.length && a.every((id, i) => id === b[i]);
 
             const posiciones = [];
-            const catsActuales = actuales((c) => c.type === ChannelType.GuildCategory && cats.includes(c.id));
-            if (!iguales(cats, catsActuales)) cats.forEach((id, i) => posiciones.push({ channel: id, position: i }));
+            const catsActuales = actuales((c) => c.type === ChannelType.GuildCategory && catsVivas.includes(c.id));
+            if (!iguales(catsVivas, catsActuales)) catsVivas.forEach((id, i) => posiciones.push({ channel: id, position: i }));
             for (const [parent, ids] of pedido) {
                 const antes = actuales((c) => (c.parentId || '') === parent && esOrdenable(c) && ids.includes(c.id));
                 if (iguales(ids, antes)) continue;
@@ -329,7 +334,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
                     posiciones.push(nueva);
                 });
             }
-            if (!posiciones.length) return res.json({ success: true, sinCambios: true });
+            if (!posiciones.length) return res.json({ success: true, sinCambios: true, ignorados });
 
             // Antes de llamar a Discord: ¿puede el bot tocar todo lo que se mueve
             // (y las categorías que reciben canales)? Si no, se dice cuáles.
@@ -356,9 +361,9 @@ module.exports = ({ client, exigeArea = pasar }) => {
             const resultado = await Promise.race([peticion.then(() => 'hecho'), plazo]).finally(() => clearTimeout(temporizador));
             if (resultado === 'en-cola') {
                 peticion.catch((e) => console.error(`Orden pendiente en Discord (servidor ${guild.id}):`, e.message));
-                return res.json({ success: true, aviso: 'en_cola' });
+                return res.json({ success: true, aviso: 'en_cola', ignorados });
             }
-            res.json({ success: true });
+            res.json({ success: true, ignorados });
         } catch (error) {
             console.error('Error al reordenar canales:', error);
             const { status, cuerpo } = respuestaDeError(error);

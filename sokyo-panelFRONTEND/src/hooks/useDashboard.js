@@ -312,7 +312,7 @@ export function useDashboard() {
   const editarCanalServidor = (canalId, cambios) => guardarCanales(`/${canalId}`, 'PATCH', cambios, 'editando canal');
 
   // Guarda de una vez el orden hecho arrastrando: categorías y, en orden, cada
-  // canal con su categoría. Devuelve { ok, aviso } o { ok: false, codigo,
+  // canal con su categoría. Devuelve { ok, aviso, ignorados } o { ok: false, codigo,
   // canales, detalle } para que el panel diga exactamente qué ha pasado.
   const reordenarCanales = async ({ categorias, canales }) => {
     if (!gidActivo()) return { ok: false };
@@ -326,9 +326,9 @@ export function useDashboard() {
         await cargarEstructuraCanales();
         // Discord lo está aplicando con retraso: se vuelve a mirar en unos segundos.
         if (data.aviso === 'en_cola') [8000, 25000].forEach((ms) => setTimeout(() => cargarEstructuraCanales(), ms));
-        return { ok: true, aviso: data.aviso || null };
+        // ignorados: canales que ya no existían en Discord (se saltan al guardar).
+        return { ok: true, aviso: data.aviso || null, ignorados: Number(data.ignorados) || 0 };
       }
-      if (data.codigo === 'desactualizado') await cargarEstructuraCanales();
       return {
         ok: false,
         codigo: data.codigo || (res.status === 403 ? 'acceso' : null),

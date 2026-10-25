@@ -897,7 +897,7 @@ export default {
       orderNoAccess: 'Your account doesn’t have access to “Categories & channels” in this panel. Ask the server owner to grant it in “Panel access”.',
       orderRateLimit: 'Discord is slowing down changes because there were many in a row. Wait a minute and save again.',
       orderNetwork: 'Couldn’t connect. Check your connection and save again.',
-      orderStale: 'Someone created or deleted a channel while you were reordering. Here’s the current list: arrange them again and save.',
+      orderSkipped_one: '({{count}} channel no longer existed on Discord and was skipped.)', orderSkipped_other: '({{count}} channels no longer existed on Discord and were skipped.)',
       orderDiscord: 'Discord didn’t accept the order: {{detalle}}',
       voiceNote: 'On Discord, voice channels always show below text channels inside each category; that’s already reflected here.',
       dropHere: 'Drop a channel here', dragChannel: 'Drag channel {{name}}', dragCategory: 'Drag category {{name}}', dragHint: 'Press and drag', moveUp: 'Move up', moveDown: 'Move down',

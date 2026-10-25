@@ -262,3 +262,40 @@ describe('publicar el mensaje fijo de «Mi cuenta»', () => {
         assert.strictEqual(canal.enviados.length, 2);
     });
 });
+
+describe('/panel-cuenta', () => {
+    const { PermissionsBitField } = require('discord.js');
+    const comando = require('../slash/panelCuenta.js');
+    const interaccion = (canal) => {
+        const respuestas = [];
+        return {
+            respuestas, guild: { id: 'g1' }, channel: canal,
+            memberPermissions: new PermissionsBitField(['ManageGuild']),
+            options: { getChannel: () => null },
+            reply: async (r) => respuestas.push(['reply', r]),
+            deferReply: async () => respuestas.push(['defer']),
+            editReply: async (r) => respuestas.push(['edit', r]),
+        };
+    };
+    const canalQue = (send) => ({
+        id: 'c1', guild: { id: 'g1', members: { me: { id: 'bot' } } }, send,
+        permissionsFor: () => new PermissionsBitField(['ViewChannel', 'SendMessages', 'EmbedLinks']),
+        messages: { fetch: async () => null },
+    });
+
+    it('si Discord rechaza el mensaje, responde con el error (no se queda en «pensando…»)', async () => {
+        const i = interaccion(canalQue(async () => { throw new Error('Missing Access'); }));
+        await comando.execute(i, null, { idioma: 'es' });
+        const ultima = i.respuestas.at(-1);
+        assert.strictEqual(ultima[0], 'edit');
+        assert.match(ultima[1], /No he podido publicarlo/);
+    });
+
+    it('sin «Gestionar servidor» no publica nada', async () => {
+        const i = interaccion(canalQue(async () => assert.fail('no debe publicar')));
+        i.memberPermissions = new PermissionsBitField([]);
+        await comando.execute(i, null, { idioma: 'es' });
+        assert.strictEqual(i.respuestas[0][0], 'reply');
+        assert.strictEqual(i.respuestas[0][1].flags, 64);
+    });
+});

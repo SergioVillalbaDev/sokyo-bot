@@ -897,7 +897,7 @@ export default {
       orderNoAccess: 'Tu cuenta no tiene acceso a «Categorías y canales» en este panel. Pide al dueño del servidor que te lo dé en «Acceso al panel».',
       orderRateLimit: 'Discord está frenando los cambios por hacer muchos seguidos. Espera un minuto y vuelve a guardar.',
       orderNetwork: 'No se ha podido conectar. Revisa la conexión y vuelve a guardar.',
-      orderStale: 'Alguien ha creado o borrado un canal mientras ordenabas. Aquí tienes la lista actual: vuelve a colocarlos y guarda.',
+      orderSkipped_one: '({{count}} canal ya no existía en Discord y se ha saltado).', orderSkipped_other: '({{count}} canales ya no existían en Discord y se han saltado).',
       orderDiscord: 'Discord no ha aceptado el orden: {{detalle}}',
       voiceNote: 'En Discord los canales de voz siempre aparecen debajo de los de texto dentro de cada categoría; aquí ya se ve así.',
       dropHere: 'Suelta aquí un canal', dragChannel: 'Arrastrar el canal {{name}}', dragCategory: 'Arrastrar la categoría {{name}}', dragHint: 'Mantén pulsado y arrastra', moveUp: 'Subir', moveDown: 'Bajar',

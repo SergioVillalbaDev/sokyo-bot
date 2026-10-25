@@ -22,7 +22,7 @@ function borradorDe(estructura) {
   };
 }
 
-export default function OrdenarCanales({ estructura, onGuardar, onCerrar, avisoInicial = '' }) {
+export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
   const { t } = useTranslation();
   const datos = useMemo(() => {
     const canales = new Map();
@@ -36,7 +36,7 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar, avisoI
   const [borrador, setBorrador] = useState(() => borradorDe(estructura));
   const [arrastre, setArrastre] = useState(null); // { tipo, id, x, y, dx, dy, ancho }
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState(avisoInicial);
+  const [error, setError] = useState('');
   const raiz = useRef(null);
   const puntero = useRef({ x: 0, y: 0 });
   const hayCambios = JSON.stringify(borrador) !== original;
@@ -196,7 +196,7 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar, avisoI
       ],
     });
     setGuardando(false);
-    if (r?.ok) onCerrar(true, r.aviso);
+    if (r?.ok) onCerrar(r);
     else setError(mensajeError(r || {}));
   };
 
@@ -206,7 +206,7 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar, avisoI
     if (codigo === 'sin_permiso' && canales.length) return clave('orderNoPermChannels', { lista: canales.map((n) => `«${n}»`).join(', ') });
     const porCodigo = {
       sin_permiso: 'orderNoPerm', sin_permiso_servidor: 'orderNoPermServer', acceso: 'orderNoAccess',
-      limite: 'orderRateLimit', tiempo: 'saveTimeout', red: 'orderNetwork', desactualizado: 'orderStale',
+      limite: 'orderRateLimit', tiempo: 'saveTimeout', red: 'orderNetwork',
     };
     if (porCodigo[codigo]) return clave(porCodigo[codigo]);
     return detalle ? clave('orderDiscord', { detalle }) : clave('orderError');

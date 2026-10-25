@@ -32,7 +32,15 @@ module.exports = {
             return interaction.reply({ content: t(cfg, `❌ No puedo escribir en <#${canal.id}>: dame «Ver canal», «Enviar mensajes» e «Insertar enlaces» ahí.`, `❌ I can’t post in <#${canal.id}>: give me “View Channel”, “Send Messages” and “Embed Links” there.`), flags: 64 });
         }
         await interaction.deferReply({ flags: 64 });
-        const { mensaje, actualizado } = await publicarPanelCuenta(canal, cfg);
+        let publicado;
+        try {
+            publicado = await publicarPanelCuenta(canal, cfg);
+        } catch (e) {
+            // Sin esto, la respuesta se quedaría en «pensando…» para siempre.
+            console.error('Error al publicar el botón de Mi cuenta:', e.message);
+            return interaction.editReply(t(cfg, `❌ No he podido publicarlo en <#${canal.id}>. Revisa mis permisos ahí y vuelve a intentarlo.`, `❌ I couldn’t post it in <#${canal.id}>. Check my permissions there and try again.`));
+        }
+        const { mensaje, actualizado } = publicado;
         await interaction.editReply(actualizado
             ? t(cfg, `✅ He actualizado el botón de «Mi cuenta» en <#${canal.id}>: ${mensaje.url}`, `✅ I updated the “My account” button in <#${canal.id}>: ${mensaje.url}`)
             : t(cfg, `✅ Listo: <#${canal.id}> ya tiene el botón para que cada miembro entre a su cuenta con un clic.`, `✅ Done: <#${canal.id}> now has the button so every member can open their account in one click.`));
