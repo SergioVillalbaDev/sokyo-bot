@@ -39,14 +39,14 @@ export default function Stats() {
   const stats = t('landing.stats', { returnObjects: true });
 
   return (
-    <section className="relative mx-auto max-w-7xl px-6 py-12">
-      <div className="grid grid-cols-2 gap-4 rounded-3xl border border-line bg-card/80 p-8 md:grid-cols-4">
-        {stats.map((s, i) => (
-          <div key={s.label} className="text-center">
-            <div className={`text-3xl font-extrabold tracking-tight sm:text-4xl ${statsAccent[i] || 'text-brand'}`}>
+    <section className="lx-diferido relative mx-auto max-w-7xl px-5 py-12 sm:px-6">
+      <div className="lx-card lx-brillo grid grid-cols-2 gap-y-8 p-7 sm:p-9 md:grid-cols-4">
+        {(Array.isArray(stats) ? stats : []).map((s, i) => (
+          <div key={s.label} className={`px-2 text-center ${i % 2 ? 'border-l border-white/[.08]' : ''} ${i === 2 ? 'md:border-l' : ''}`}>
+            <div className="text-3xl font-extrabold tracking-tight sm:text-5xl" style={{ color: statsAccent[i] || '#c4b5fd', textShadow: `0 0 28px ${statsAccent[i] || '#c4b5fd'}66` }}>
               <Counter to={s.to} decimals={s.decimals} prefix={s.prefix} suffix={s.suffix} />
             </div>
-            <p className="mt-1.5 text-xs font-medium text-muted sm:text-sm">{s.label}</p>
+            <p className="mt-2 text-xs font-medium text-muted sm:text-sm">{s.label}</p>
           </div>
         ))}
       </div>

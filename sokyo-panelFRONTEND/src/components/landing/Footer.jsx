@@ -19,12 +19,14 @@ export default function Footer({ onEnterDashboard }) {
   };
 
   return (
-    <footer className="border-t border-line bg-sidebar">
-      <div className="mx-auto max-w-7xl px-6 py-14">
+    <footer className="lx-diferido relative border-t border-white/[.08] bg-[#05040d]/70">
+      {/* Línea de luz arriba del pie */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
+      <div className="mx-auto max-w-7xl px-5 py-14 sm:px-6">
         <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
           <div className="col-span-2">
             <div className="flex items-center gap-2.5">
-              <img src="/assets/logo-96.webp" alt="Sokyo" width="36" height="36" className="h-9 w-9 rounded-full object-cover" />
+              <span className="lx-aro"><img src="/assets/logo-96.webp" alt="Sokyo" width="34" height="34" loading="lazy" className="h-[34px] w-[34px] object-cover" /></span>
               <span className="text-lg font-extrabold text-fg">{t('landing.nav.brand')}</span>
             </div>
             <p className="mt-4 max-w-xs text-sm text-muted">{t('landing.footer.brandDesc')}</p>
@@ -34,7 +36,7 @@ export default function Footer({ onEnterDashboard }) {
                 {redes.map((r) => {
                   const Icon = ICONOS[r.icono] || MessageCircle;
                   return (
-                    <a key={r.href} href={r.href} target="_blank" rel="noreferrer" aria-label={r.label} title={r.label} className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-fg">
+                    <a key={r.href} href={r.href} target="_blank" rel="noreferrer" aria-label={r.label} title={r.label} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[.05] text-muted transition-colors hover:text-fg">
                       <Icon size={17} />
                     </a>
                   );
@@ -55,7 +57,7 @@ export default function Footer({ onEnterDashboard }) {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 sm:flex-row">
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[.08] pt-6 sm:flex-row">
           <p className="text-sm text-muted">© {new Date().getFullYear()} {t('landing.footer.copyright')}</p>
           <p className="text-xs text-muted">{t('landing.footer.madeWith')}</p>
         </div>

@@ -6,8 +6,11 @@
 // scope bot+applications.commands -> entra como bot y habilita los slash commands.
 export const inviteUrl = 'https://discord.com/oauth2/authorize?client_id=1512125911439376506&permissions=8&scope=bot+applications.commands';
 
-// Clases de color (acento) de cada stat, en el mismo orden que landing.stats.
-export const statsAccent = ['text-brand', 'text-sky-300', 'text-violet-300', 'text-zinc-200'];
+// «Mi cuenta» de cada miembro (main.jsx la abre en /cuenta).
+export const URL_CUENTA = '/cuenta';
+
+// Color de cada cifra, en el mismo orden que landing.stats.
+export const statsAccent = ['#b4d8fc', '#c4b5fd', '#f0abfc', '#f9a8d4'];
 
 // Colores de las barras de prioridad del tile grande de Features (por orden).
 export const prioridadBar = ['bg-red-400', 'bg-amber-400', 'bg-brand', 'bg-emerald-400'];
@@ -16,5 +19,3 @@ export const prioridadBar = ['bg-red-400', 'bg-amber-400', 'bg-brand', 'bg-emera
 // añade aquí { icono: 'discord' | 'email' | 'x', href: 'https://…', label: '…' }.
 export const redes = [];
 
-// Comandos de ejemplo (no se traducen: son literales del bot).
-export const comandos = ['!sokyo', '!user', '!dice', '!coin'];

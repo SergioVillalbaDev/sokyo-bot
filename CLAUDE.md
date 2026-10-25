@@ -42,7 +42,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.3.5.**
+  --no-git-tag-version`. **Versión actual: 1.4.0.**
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -77,9 +77,16 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
 - **Temas**: `src/lib/themes.js` (3 gratis + 8 premium). En `useDashboard`,
   `esPremium` empieza en `null` («cargando») y `temasPremium` = propietario o plan
   que no es Free. Nunca tratar «cargando» como Free.
-- **Landing**: sin framer-motion (sí se usa en el panel). Animaciones en CSS
+- **Landing** (`components/landing/`, estilo cristal en `src/landing.css`, clases
+  `.lx-*`): sin framer-motion (sí se usa en el panel). Animaciones en CSS
   (`.sk-entra`, `.sk-revelar`, `.sk-plegable` en `index.css`) con
-  `components/landing/Revelar.jsx` y `observar.js`.
+  `components/landing/Revelar.jsx` y `observar.js`; solo con `transform`/`opacity`
+  (animar `width`/`height` disparaba el bloqueo en Lighthouse). Las secciones de
+  abajo llevan `.lx-diferido` (`content-visibility: auto`); al pulsar un enlace
+  `#…` `Landing.jsx` añade `.lx-listo` para pintarlas todas y caer en su sitio.
+  `Revelar` va por fuera de la tarjeta (`lx-card lx-pulsable` dentro): si no, sus
+  transiciones se pisan. Textos en `landing.*` (es/en), incluida la demo de
+  «Mi cuenta» (`MiCuentaDemo.jsx`, `landing.cuenta`).
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -131,5 +138,10 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   miembros»), «Ver mis tickets» en el panel de tickets, y el botón en `!help` y al
   mencionar al bot. Los botones `cuenta:abrir[:vista]` responden con el enlace
   mágico de cada uno (utils/cuenta.js).
+- 1.4.0 Web principal rehecha en cristal: hero con las dos entradas (añadir el
+  bot / entrar a mi cuenta), «¿Por dónde empiezas?», funciones en rejilla, demo
+  en 3 pasos de cómo se entra a «Mi cuenta», precios, preguntas, CTA y páginas
+  legales en cristal. Lighthouse móvil igual que antes en local (76-78, sin
+  compresión). El tutorial del panel ya no parte «Siguiente →» en dos líneas.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

@@ -91,6 +91,7 @@
 .driver-popover.sokyo-popover .driver-popover-footer {
   margin-top: 24px;
   display: flex;
+  flex-wrap: wrap; /* si no caben, los botones bajan a otra línea en vez de partirse */
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
@@ -112,6 +113,7 @@
 }
 
 .driver-popover.sokyo-popover .driver-popover-navigation-btns button {
+  white-space: nowrap; /* «Siguiente →» y «← Atrás» en una sola línea */
   font-family: inherit;
   font-size: 0.88rem;
   font-weight: 700;
