@@ -60,6 +60,7 @@ const CARGAR_VISTA = {
   CrecPaginaView: () => import('./views/CrecPaginaView'),
   CrecDirectosView: () => import('./views/CrecDirectosView'),
   AppMovilView: () => import('./views/AppMovilView'),
+  MiCuentaView: () => import('./views/MiCuentaView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
 
@@ -185,6 +186,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'prod-anuncios') return <V.AnunciosView dash={dash} />;
     if (activeTab === 'prod-bienvenidas') return <V.BienvenidaView dash={dash} />;
     if (activeTab === 'cuenta-plan') return <V.PlanesView dash={dash} />;
+    if (activeTab === 'com-micuenta') return <V.MiCuentaView dash={dash} />;
     if (activeTab === 'com-sorteos') return <V.SorteosView dash={dash} />;
     if (activeTab === 'com-eventos') return <V.EventosView dash={dash} />;
     if (activeTab === 'com-encuestas') return <V.EncuestasView dash={dash} />;

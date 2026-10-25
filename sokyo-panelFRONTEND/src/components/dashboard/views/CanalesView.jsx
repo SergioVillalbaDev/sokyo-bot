@@ -27,9 +27,6 @@ export default function CanalesView({ dash }) {
   // Modo "Mover y ordenar" (arrastrar y soltar) y aviso tras guardar algo:
   // { tipo: 'ok' | 'info', texto }.
   const [ordenando, setOrdenando] = useState(false);
-  // Si la lista cambia en Discord mientras se ordena, se vuelve a abrir con la
-  // lista nueva (otra `key`) y un aviso arriba.
-  const [orden, setOrden] = useState({ vez: 0, aviso: '' });
   const [aviso, setAviso] = useState(null);
   const avisar = (tipo, texto) => { setAviso({ tipo, texto }); setTimeout(() => setAviso((a) => (a?.texto === texto ? null : a)), tipo === 'ok' ? 3500 : 9000); };
   // Tras guardar en un modal: se cierra y se cuenta qué ha pasado (o el error se
@@ -53,18 +50,15 @@ export default function CanalesView({ dash }) {
   if (ordenando) {
     return (
       <OrdenarCanales
-        key={orden.vez}
-        avisoInicial={orden.aviso}
         estructura={estructuraCanales || { categorias: [], sinCategoria: [] }}
-        onGuardar={async (datos) => {
-          const r = await reordenarCanales(datos);
-          if (r.codigo === 'desactualizado') setOrden((o) => ({ vez: o.vez + 1, aviso: t('dashboard.canales_v.orderStale') }));
-          return r;
-        }}
-        onCerrar={(ok, avisoGuardado) => {
+        onGuardar={reordenarCanales}
+        onCerrar={(r) => {
           setOrdenando(false);
-          setOrden((o) => ({ ...o, aviso: '' }));
-          if (ok) avisar(avisoGuardado === 'en_cola' ? 'info' : 'ok', t(avisoGuardado === 'en_cola' ? 'dashboard.canales_v.orderQueued' : 'dashboard.canales_v.orderSaved'));
+          if (!r) return;
+          // Canales que ya no existían (una sala de voz temporal, un ticket borrado…): se saltaron.
+          const saltados = r.ignorados ? ` ${t('dashboard.canales_v.orderSkipped', { count: r.ignorados })}` : '';
+          if (r.aviso === 'en_cola') avisar('info', t('dashboard.canales_v.orderQueued') + saltados);
+          else avisar(saltados ? 'info' : 'ok', t('dashboard.canales_v.orderSaved') + saltados);
         }}
       />
     );

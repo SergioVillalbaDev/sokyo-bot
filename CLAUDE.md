@@ -42,7 +42,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.3.4.**
+  --no-git-tag-version`. **Versión actual: 1.3.5.**
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -68,6 +68,8 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   guardar, manda una sola petición con lo que cambia (`guardarEnDiscord`).
   Reordenar (`PUT …/canales/orden`) manda solo las listas que cambian: Discord
   rechaza la petición entera (50013) si el bot no puede tocar uno de los canales.
+  Lo que ya no existe (salas de voz temporales, tickets borrados mientras se
+  ordena) se salta y se cuenta en `ignorados`; nunca bloquea el guardado.
 - **Estilo cristal**: `src/dashboard.css` (`.sk-*`) y `src/portal.css` (`.gx-*`).
   En Tailwind v4 el CSS sin capa gana a las utilidades: las clases propias van en
   `@layer components`. En móvil/tablet (≤1023 px o `pointer: coarse`) las tarjetas
@@ -122,5 +124,12 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   categoría: solo se manda a Discord lo que cambia, se comprueban antes los
   permisos del bot canal por canal y el panel dice cuál falla y por qué. La barra
   de guardar es opaca en el móvil (`sk-flotante`).
+- 1.3.5 Mover un canal a otra categoría ya no falla con «Alguien ha creado o
+  borrado un canal…» (se saltan los canales que desaparecen mientras se ordena).
+  «Mi cuenta» para todo el servidor: mensaje fijo con el botón «Abrir mi cuenta»
+  (`/panel-cuenta`, `!panelcuenta` o el panel → Tu comunidad → «Mi cuenta de los
+  miembros»), «Ver mis tickets» en el panel de tickets, y el botón en `!help` y al
+  mencionar al bot. Los botones `cuenta:abrir[:vista]` responden con el enlace
+  mágico de cada uno (utils/cuenta.js).
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

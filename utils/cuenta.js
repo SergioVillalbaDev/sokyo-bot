@@ -7,8 +7,8 @@
 // minutos: si se reinicia el bot, basta con pedir otro.
 // ============================================================================
 const crypto = require('crypto');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { t } = require('./i18n.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { t, resolverIdioma } = require('./i18n.js');
 
 const DURACION_MS = 15 * 60 * 1000;
 const MAX_CODIGOS = 5000;
@@ -92,4 +92,110 @@ function botonWeb(cfg, vista, etiqueta = null, extra = null) {
         .setEmoji('🌐');
 }
 
-module.exports = { VISTAS, DURACION_MS, crearEnlace, canjear, mensajeAcceso, botonWeb, urlCuenta, origenApi, _codigos: codigos };
+// Idioma para un mensaje que solo ve quien pulsa: el de SU Discord y, si no es
+// ni español ni inglés, el del servidor.
+function idiomaDe(interaction, cfg) {
+    const loc = String(interaction.locale || '');
+    return loc.startsWith('es') ? 'es' : loc.startsWith('en') ? 'en' : resolverIdioma(cfg);
+}
+
+// Botón para mensajes PÚBLICOS: quien lo pulsa recibe (solo él) su propio
+// enlace de entrada directa. Con `vista` abre esa pantalla de su cuenta.
+function botonAbrirCuenta(idioma, { vista = 'inicio', etiqueta = null, emoji = '✨', estilo = ButtonStyle.Success } = {}) {
+    return new ButtonBuilder()
+        .setCustomId(`cuenta:abrir:${VISTAS.includes(vista) ? vista : 'inicio'}`)
+        .setLabel(etiqueta || t(idioma, 'Abrir mi cuenta', 'Open my account'))
+        .setEmoji(emoji)
+        .setStyle(estilo);
+}
+
+// Al pulsar un botón `cuenta:abrir[:vista]`: el botón de entrada, solo para él.
+function responderBotonCuenta(interaction, cfg) {
+    const vista = interaction.customId.split(':')[2] || 'inicio';
+    return interaction.reply({ ...mensajeAcceso(interaction.user, idiomaDe(interaction, cfg), vista), flags: 64 });
+}
+
+// Mensaje fijo para un canal (#información, #bienvenida…): explica qué es "Mi
+// cuenta" y cómo entrar, con un botón para cada uno. Lo publican /panel-cuenta,
+// !panelcuenta y el panel web («Mi cuenta de los miembros»).
+function panelCuenta(cfg) {
+    const web = urlCuenta().replace(/^https?:\/\//, '');
+    const embed = new EmbedBuilder()
+        .setColor('#a855f7')
+        .setTitle(t(cfg, '✨ Tu cuenta Sokyo: todo lo tuyo en un sitio', '✨ Your Sokyo account: all your stuff in one place'))
+        .setDescription(t(cfg,
+            'Cada miembro tiene **su propia web** con lo suyo de este servidor:\n\n'
+            + '🎫 **Tus tickets** · habla con el staff también desde el móvil\n'
+            + '🛒 **Tienda y mochila** · gasta tu oro y usa tus objetos\n'
+            + '🎵 **Música** · pon canciones en tu canal de voz\n'
+            + '🎨 **Tu tarjeta de nivel** · cámbiale el estilo a tu gusto',
+            'Every member gets **their own web page** with everything of theirs on this server:\n\n'
+            + '🎫 **Your tickets** · talk to the staff, from your phone too\n'
+            + '🛒 **Shop and bag** · spend your gold and use your items\n'
+            + '🎵 **Music** · play songs in your voice channel\n'
+            + '🎨 **Your level card** · style it the way you like'))
+        .addFields(
+            {
+                name: t(cfg, '👇 Cómo entrar (1 clic)', '👇 How to get in (1 click)'),
+                value: t(cfg,
+                    '**1.** Pulsa **Abrir mi cuenta**.\n**2.** Pulsa el botón que te aparece (solo lo ves tú).\n**3.** ¡Dentro! Sin contraseñas ni formularios.',
+                    '**1.** Press **Open my account**.\n**2.** Press the button you get (only you can see it).\n**3.** You’re in! No passwords, no forms.'),
+            },
+            {
+                name: t(cfg, 'También puedes', 'You can also'),
+                value: t(cfg,
+                    `Escribir \`/cuenta\` en cualquier canal · Entrar en **${web}** con tu Discord`,
+                    `Type \`/account\` in any channel · Go to **${web}** and log in with Discord`),
+            },
+        );
+    require('./marca.js').aplicarPieMarca(embed, cfg);
+    const filaPrincipal = new ActionRowBuilder().addComponents(
+        botonAbrirCuenta(cfg),
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(urlCuenta()).setLabel(web.slice(0, 80)).setEmoji('🌐'),
+    );
+    const secundario = { estilo: ButtonStyle.Secondary };
+    const filaSecciones = new ActionRowBuilder().addComponents(
+        botonAbrirCuenta(cfg, { ...secundario, vista: 'tickets', emoji: '🎫', etiqueta: t(cfg, 'Mis tickets', 'My tickets') }),
+        botonAbrirCuenta(cfg, { ...secundario, vista: 'tienda', emoji: '🛒', etiqueta: t(cfg, 'Tienda', 'Shop') }),
+        botonAbrirCuenta(cfg, { ...secundario, vista: 'musica', emoji: '🎵', etiqueta: t(cfg, 'Música', 'Music') }),
+        botonAbrirCuenta(cfg, { ...secundario, vista: 'tarjeta', emoji: '🎨', etiqueta: t(cfg, 'Mi tarjeta', 'My card') }),
+    );
+    return { embeds: [embed], components: [filaPrincipal, filaSecciones] };
+}
+
+// ¿Puede el bot publicar el mensaje en ese canal? (ver, escribir y poner embeds)
+function puedePublicar(canal) {
+    const yo = canal?.guild?.members?.me;
+    if (!canal || typeof canal.send !== 'function' || !yo) return false;
+    const F = PermissionsBitField.Flags;
+    return !!canal.permissionsFor(yo)?.has([F.ViewChannel, F.SendMessages, F.EmbedLinks]);
+}
+
+// Publica el mensaje fijo en `canal`. Si ya estaba publicado en ese mismo canal,
+// lo actualiza en vez de repetirlo. Guarda dónde está en la config del servidor.
+async function publicarPanelCuenta(canal, cfg) {
+    const ServidorConfig = require('../models/ServidorConfig.js'); // perezoso: la API lo carga antes que Mongo
+    const { invalidateConfig } = require('./config.js');
+    const contenido = panelCuenta(cfg);
+    const previo = cfg && cfg.panelCuenta;
+    let mensaje = null;
+    let actualizado = false;
+    if (previo && previo.mensajeId && previo.canalId === canal.id) {
+        mensaje = await canal.messages.fetch(previo.mensajeId).catch(() => null);
+        if (mensaje) { await mensaje.edit(contenido); actualizado = true; }
+    }
+    if (!mensaje) mensaje = await canal.send(contenido);
+    await ServidorConfig.updateOne(
+        { guildId: canal.guild.id },
+        { $set: { panelCuenta: { canalId: canal.id, mensajeId: mensaje.id, fecha: new Date() } } },
+        { upsert: true },
+    );
+    invalidateConfig(canal.guild.id);
+    return { mensaje, actualizado };
+}
+
+module.exports = {
+    VISTAS, DURACION_MS, crearEnlace, canjear, mensajeAcceso, botonWeb, urlCuenta, origenApi,
+    idiomaDe, botonAbrirCuenta, responderBotonCuenta, panelCuenta, puedePublicar, publicarPanelCuenta,
+    _codigos: codigos,
+};

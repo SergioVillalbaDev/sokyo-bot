@@ -15,7 +15,7 @@ import {
   DoorOpen, UserCheck, Sparkles, UserPlus, UsersRound, UserCog, MousePointerClick,
   PartyPopper, TrendingUp, Gift, CalendarDays, BarChart2, Lightbulb, ClipboardList, Gamepad2,
   Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
-  BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone,
+  BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
 } from 'lucide-react';
 
 export const navSections = [
@@ -71,6 +71,7 @@ export const navGroups = [
     icon: PartyPopper,
     color: '#f472b6',
     items: [
+      { tab: 'com-micuenta', icon: CircleUserRound, area: 'config', kw: 'mi cuenta portal web de usuarios miembros boton abrir mi cuenta acceso /cuenta panel de usuario my account members portal button' },
       { tab: 'config-niveles', icon: TrendingUp, area: 'entrada', kw: 'niveles xp experiencia ranking rango tarjeta subir de nivel levels leaderboard rank' },
       { tab: 'com-sorteos', icon: Gift, kw: 'sorteos giveaway premios ganadores' },
       { tab: 'com-eventos', icon: CalendarDays, kw: 'eventos calendario quedadas recordatorio events' },

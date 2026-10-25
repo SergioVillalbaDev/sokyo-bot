@@ -160,3 +160,142 @@ describe('gráfica de actividad', () => {
         assert.strictEqual(r.cambio, null);
     });
 });
+
+// Botón «Abrir mi cuenta» para mensajes públicos (/panel-cuenta, !help, el
+// panel de tickets, mencionar al bot): cada uno recibe SU enlace, solo él.
+describe('botón «Abrir mi cuenta» en mensajes públicos', () => {
+    const { ButtonStyle, ComponentType } = require('discord.js');
+    beforeEach(() => cuenta._codigos.clear());
+
+    it('el mensaje fijo lleva el botón principal, la web y un atajo a cada sección', () => {
+        const { embeds, components } = cuenta.panelCuenta({ idioma: 'es' });
+        const [principal, secciones] = components.map((f) => f.toJSON().components);
+        assert.strictEqual(principal[0].custom_id, 'cuenta:abrir:inicio');
+        assert.strictEqual(principal[0].style, ButtonStyle.Success);
+        assert.strictEqual(principal[0].label, 'Abrir mi cuenta');
+        assert.strictEqual(principal[1].style, ButtonStyle.Link);
+        assert.strictEqual(principal[1].url, 'https://dashboard.sokyo.studio/cuenta');
+        assert.deepStrictEqual(secciones.map((b) => b.custom_id), ['cuenta:abrir:tickets', 'cuenta:abrir:tienda', 'cuenta:abrir:musica', 'cuenta:abrir:tarjeta']);
+        assert.ok(secciones.every((b) => b.type === ComponentType.Button && b.label.length <= 80));
+        const texto = JSON.stringify(embeds[0].toJSON());
+        assert.match(texto, /\/cuenta/);
+        assert.match(texto, /dashboard\.sokyo\.studio\/cuenta/);
+        assert.strictEqual(cuenta._codigos.size, 0, 'publicar el mensaje no crea enlaces: se crean al pulsar');
+    });
+
+    it('en inglés si el servidor está en inglés', () => {
+        const { components } = cuenta.panelCuenta({ idioma: 'en' });
+        assert.strictEqual(components[0].toJSON().components[0].label, 'Open my account');
+    });
+
+    it('al pulsarlo responde solo a quien lo pulsa, con su enlace y la sección pedida', async () => {
+        let respuesta = null;
+        const interaccion = { customId: 'cuenta:abrir:tienda', locale: 'es-ES', user: usuario, reply: async (r) => { respuesta = r; } };
+        await cuenta.responderBotonCuenta(interaccion, { idioma: 'en' });
+        assert.strictEqual(respuesta.flags, 64, 'efímero: solo lo ve quien pulsa');
+        const boton = respuesta.components[0].toJSON().components[0];
+        assert.strictEqual(boton.label, 'Abrir mi cuenta', 'en el idioma de su Discord');
+        const d = cuenta.canjear(codigoDe(boton.url));
+        assert.strictEqual(d.id, usuario.id);
+        assert.strictEqual(d.vista, 'tienda');
+    });
+
+    it('un botón antiguo o raro lleva al inicio', async () => {
+        let respuesta = null;
+        await cuenta.responderBotonCuenta({ customId: 'cuenta:abrir', locale: 'fr', user: usuario, reply: async (r) => { respuesta = r; } }, { idioma: 'es' });
+        const d = cuenta.canjear(codigoDe(respuesta.components[0].toJSON().components[0].url));
+        assert.strictEqual(d.vista, 'inicio');
+        assert.strictEqual(respuesta.components[0].toJSON().components[0].label, 'Abrir mi cuenta', 'idioma del servidor si su Discord no es es/en');
+    });
+
+    it('solo se publica donde el bot puede ver, escribir y poner embeds', () => {
+        const { PermissionsBitField } = require('discord.js');
+        const yo = { id: 'bot' };
+        const canal = (flags) => ({ send() {}, guild: { members: { me: yo } }, permissionsFor: () => new PermissionsBitField(flags) });
+        assert.strictEqual(cuenta.puedePublicar(canal(['ViewChannel', 'SendMessages', 'EmbedLinks'])), true);
+        assert.strictEqual(cuenta.puedePublicar(canal(['ViewChannel', 'SendMessages'])), false);
+        assert.strictEqual(cuenta.puedePublicar(null), false);
+    });
+});
+
+describe('publicar el mensaje fijo de «Mi cuenta»', () => {
+    const ServidorConfig = require('../models/ServidorConfig.js');
+    const hacerCanal = (id, mensajes = new Map()) => {
+        const enviados = [];
+        return {
+            id, guild: { id: 'g1' }, enviados,
+            send: async (c) => { const m = { id: `m${enviados.length + 1}`, url: `https://discord.com/channels/g1/${id}/m`, contenido: c }; enviados.push(m); return m; },
+            messages: { fetch: async (mid) => mensajes.get(mid) || Promise.reject(new Error('Unknown Message')) },
+        };
+    };
+
+    it('la primera vez lo envía y guarda dónde está', async (t) => {
+        const guardado = t.mock.method(ServidorConfig, 'updateOne', async () => ({}));
+        const canal = hacerCanal('c1');
+        const r = await cuenta.publicarPanelCuenta(canal, { idioma: 'es' });
+        assert.strictEqual(r.actualizado, false);
+        assert.strictEqual(canal.enviados.length, 1);
+        const [filtro, cambios] = guardado.mock.calls[0].arguments;
+        assert.deepStrictEqual(filtro, { guildId: 'g1' });
+        assert.strictEqual(cambios.$set.panelCuenta.canalId, 'c1');
+        assert.strictEqual(cambios.$set.panelCuenta.mensajeId, 'm1');
+    });
+
+    it('si ya estaba en ese canal, lo actualiza en vez de repetirlo', async (t) => {
+        t.mock.method(ServidorConfig, 'updateOne', async () => ({}));
+        let editado = null;
+        const existente = { id: 'viejo', url: 'u', edit: async (c) => { editado = c; } };
+        const canal = hacerCanal('c1', new Map([['viejo', existente]]));
+        const r = await cuenta.publicarPanelCuenta(canal, { idioma: 'es', panelCuenta: { canalId: 'c1', mensajeId: 'viejo' } });
+        assert.strictEqual(r.actualizado, true);
+        assert.ok(editado && editado.components.length === 2);
+        assert.strictEqual(canal.enviados.length, 0);
+    });
+
+    it('si lo borraron (o está en otro canal), publica uno nuevo', async (t) => {
+        t.mock.method(ServidorConfig, 'updateOne', async () => ({}));
+        const canal = hacerCanal('c1');
+        let r = await cuenta.publicarPanelCuenta(canal, { idioma: 'es', panelCuenta: { canalId: 'c1', mensajeId: 'borrado' } });
+        assert.strictEqual(r.actualizado, false);
+        r = await cuenta.publicarPanelCuenta(canal, { idioma: 'es', panelCuenta: { canalId: 'otro', mensajeId: 'x' } });
+        assert.strictEqual(r.actualizado, false);
+        assert.strictEqual(canal.enviados.length, 2);
+    });
+});
+
+describe('/panel-cuenta', () => {
+    const { PermissionsBitField } = require('discord.js');
+    const comando = require('../slash/panelCuenta.js');
+    const interaccion = (canal) => {
+        const respuestas = [];
+        return {
+            respuestas, guild: { id: 'g1' }, channel: canal,
+            memberPermissions: new PermissionsBitField(['ManageGuild']),
+            options: { getChannel: () => null },
+            reply: async (r) => respuestas.push(['reply', r]),
+            deferReply: async () => respuestas.push(['defer']),
+            editReply: async (r) => respuestas.push(['edit', r]),
+        };
+    };
+    const canalQue = (send) => ({
+        id: 'c1', guild: { id: 'g1', members: { me: { id: 'bot' } } }, send,
+        permissionsFor: () => new PermissionsBitField(['ViewChannel', 'SendMessages', 'EmbedLinks']),
+        messages: { fetch: async () => null },
+    });
+
+    it('si Discord rechaza el mensaje, responde con el error (no se queda en «pensando…»)', async () => {
+        const i = interaccion(canalQue(async () => { throw new Error('Missing Access'); }));
+        await comando.execute(i, null, { idioma: 'es' });
+        const ultima = i.respuestas.at(-1);
+        assert.strictEqual(ultima[0], 'edit');
+        assert.match(ultima[1], /No he podido publicarlo/);
+    });
+
+    it('sin «Gestionar servidor» no publica nada', async () => {
+        const i = interaccion(canalQue(async () => assert.fail('no debe publicar')));
+        i.memberPermissions = new PermissionsBitField([]);
+        await comando.execute(i, null, { idioma: 'es' });
+        assert.strictEqual(i.respuestas[0][0], 'reply');
+        assert.strictEqual(i.respuestas[0][1].flags, 64);
+    });
+});

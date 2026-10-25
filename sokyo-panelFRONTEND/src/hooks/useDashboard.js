@@ -312,7 +312,7 @@ export function useDashboard() {
   const editarCanalServidor = (canalId, cambios) => guardarCanales(`/${canalId}`, 'PATCH', cambios, 'editando canal');
 
   // Guarda de una vez el orden hecho arrastrando: categorías y, en orden, cada
-  // canal con su categoría. Devuelve { ok, aviso } o { ok: false, codigo,
+  // canal con su categoría. Devuelve { ok, aviso, ignorados } o { ok: false, codigo,
   // canales, detalle } para que el panel diga exactamente qué ha pasado.
   const reordenarCanales = async ({ categorias, canales }) => {
     if (!gidActivo()) return { ok: false };
@@ -326,9 +326,9 @@ export function useDashboard() {
         await cargarEstructuraCanales();
         // Discord lo está aplicando con retraso: se vuelve a mirar en unos segundos.
         if (data.aviso === 'en_cola') [8000, 25000].forEach((ms) => setTimeout(() => cargarEstructuraCanales(), ms));
-        return { ok: true, aviso: data.aviso || null };
+        // ignorados: canales que ya no existían en Discord (se saltan al guardar).
+        return { ok: true, aviso: data.aviso || null, ignorados: Number(data.ignorados) || 0 };
       }
-      if (data.codigo === 'desactualizado') await cargarEstructuraCanales();
       return {
         ok: false,
         codigo: data.codigo || (res.status === 403 ? 'acceso' : null),
@@ -338,6 +338,24 @@ export function useDashboard() {
     } catch (error) {
       console.error('Error reordenando canales:', error);
       return { ok: false, codigo: error?.name === 'TimeoutError' ? 'tiempo' : 'red' };
+    }
+  };
+
+  // «Mi cuenta de los miembros»: publica (o actualiza) en un canal el mensaje
+  // con el botón «Abrir mi cuenta». Devuelve { ok, actualizado, url } o { ok: false, codigo }.
+  const publicarPanelCuenta = async (canalId) => {
+    if (!gidActivo()) return { ok: false };
+    try {
+      const res = await apiFetch(`/api/cuenta/${gidActivo()}/panel`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canalId }),
+        signal: AbortSignal.timeout?.(30000),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { cargarConfiguracion(); return { ok: true, actualizado: !!data.actualizado, url: data.url || null }; }
+      return { ok: false, codigo: data.codigo || (res.status === 403 ? 'acceso' : 'error') };
+    } catch (error) {
+      console.error('Error publicando el botón de Mi cuenta:', error);
+      return { ok: false, codigo: 'red' };
     }
   };
 
@@ -1384,6 +1402,7 @@ export function useDashboard() {
     else if (activeTab === 'config-niveles') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarRanking(); cargarCatalogoPresets(); }
     else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); }
     else if (activeTab === 'config-canales') { cargarEstructuraCanales(); cargarPermisosCanalCatalogo(); cargarRoles(); }
+    else if (activeTab === 'com-micuenta') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
     else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
@@ -1464,6 +1483,7 @@ export function useDashboard() {
       'crec-bump': b(c.crecimiento && c.crecimiento.bump && c.crecimiento.bump.activo),
       'crec-pagina': b(c.crecimiento && c.crecimiento.pagina && c.crecimiento.pagina.activo),
       'crec-directos': b(c.crecimiento && c.crecimiento.directos && c.crecimiento.directos.activo),
+      'com-micuenta': b(c.panelCuenta && c.panelCuenta.mensajeId),
     };
   })();
 
@@ -1487,7 +1507,7 @@ export function useDashboard() {
     // gestión de categorías y canales (texto/voz/anuncios/foro/escenario, con permisos)
     estructuraCanales, permisosCanalCatalogo,
     crearCategoriaCanal, editarCategoriaCanal, eliminarCategoriaCanal,
-    crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales,
+    crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales, publicarPanelCuenta,
     // sistema de roles: autorol + paneles
     guardarAutoRoles,
     paneles, canales, emojisServidor, crearPanel, editarPanel, publicarPanel, eliminarPanel, subirImagenPanel,
