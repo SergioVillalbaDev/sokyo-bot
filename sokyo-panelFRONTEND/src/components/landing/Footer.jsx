@@ -2,6 +2,8 @@
 import { useTranslation } from 'react-i18next';
 import { Send, AtSign, MessageCircle } from 'lucide-react';
 import { inviteUrl, redes } from '../../lib/landingConfig';
+import { APK_URL } from '../../lib/appMovil';
+import { EnlacePanel } from './Marcos';
 
 const ICONOS = { discord: MessageCircle, email: AtSign, x: Send };
 
@@ -10,11 +12,13 @@ export default function Footer({ onEnterDashboard }) {
   const columns = t('landing.footer.columns', { returnObjects: true });
 
   // Un enlace del footer. Resuelve los hrefs especiales: INVITE (invitar el bot,
-  // en pestaña nueva) y DASHBOARD (abrir el panel). El resto son anclas o rutas.
+  // en pestaña nueva), DASHBOARD (abrir el panel) y APK (descargar la app de
+  // Android). El resto son anclas, rutas o mailto:.
   const FooterLink = ({ label, href }) => {
     const cls = 'text-sm text-muted transition-colors hover:text-fg';
     if (href === 'INVITE') return <a href={inviteUrl} target="_blank" rel="noreferrer" className={cls}>{label}</a>;
-    if (href === 'DASHBOARD') return <a href="#dashboard" onClick={onEnterDashboard} className={cls}>{label}</a>;
+    if (href === 'DASHBOARD') return <EnlacePanel onEnterDashboard={onEnterDashboard} className={cls}>{label}</EnlacePanel>;
+    if (href === 'APK') return <a href={APK_URL} download className={cls}>{label}</a>;
     return <a href={href} className={cls}>{label}</a>;
   };
 

@@ -60,37 +60,40 @@ export default function ChatView({ dash }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Barra superior */}
-      <div className="mb-5 flex items-center justify-between gap-4 border-b border-line pb-4">
-        <div className="flex items-center gap-3">
+      {/* Barra superior. En el móvil los botones bajan a otra fila (si no, el
+          título se quedaba en una columna de una palabra por línea). */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+        <div className="flex min-w-0 flex-1 basis-64 items-center gap-3">
           <button
             onClick={cerrarMensajes}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
           >
             <ArrowLeft size={16} /> {t('dashboard.chat_v.back')}
           </button>
-          <span className="text-lg font-bold text-fg">
+          <span className="line-clamp-2 min-w-0 break-words text-lg font-bold text-fg">
             {ticket.titulo || ticket.creadorNombre}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {esPremium && (
             <>
               <button
                 type="button"
                 onClick={() => bajarTranscript('html')}
                 title={t('dashboard.chat_v.transcript')}
+                aria-label={t('dashboard.chat_v.transcript')}
                 className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
               >
-                <FileDown size={15} /> {t('dashboard.chat_v.transcript')}
+                <FileDown size={15} /> <span className="sm:hidden">HTML</span><span className="hidden sm:inline">{t('dashboard.chat_v.transcript')}</span>
               </button>
               <button
                 type="button"
                 onClick={() => bajarTranscript('pdf')}
                 title={t('dashboard.chat_v.transcriptPdf')}
+                aria-label={t('dashboard.chat_v.transcriptPdf')}
                 className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
               >
-                <FileDown size={15} /> {t('dashboard.chat_v.transcriptPdf')}
+                <FileDown size={15} /> <span className="sm:hidden">PDF</span><span className="hidden sm:inline">{t('dashboard.chat_v.transcriptPdf')}</span>
               </button>
             </>
           )}
@@ -167,8 +170,8 @@ export default function ChatView({ dash }) {
           </Card>
         </div>
 
-        {/* Columna central: Chat */}
-        <div className="flex min-w-0 flex-col">
+        {/* Columna central: Chat (en el móvil va la primera: es a lo que se entra) */}
+        <div className="order-first flex min-w-0 flex-col lg:order-none">
           {ticket.descripcion && (
             <Card className="mb-4 p-4" style={{ borderLeft: '4px solid var(--accent-color)' }}>
               <p className="mb-1 text-sm font-bold text-brand">{t('dashboard.chat_v.subject')}</p>
@@ -227,7 +230,7 @@ export default function ChatView({ dash }) {
           )}
           {iaError && <p className="mb-3 text-xs font-semibold text-danger">{iaError}</p>}
           {iaResumen && (
-            <Card className="mb-4 p-4" style={{ borderLeft: '4px solid var(--brand)' }}>
+            <Card className="mb-4 p-4" style={{ borderLeft: '4px solid var(--accent-color)' }}>
               <div className="mb-1.5 flex items-center justify-between">
                 <p className="flex items-center gap-1.5 text-sm font-bold text-brand"><Sparkles size={14} /> {t('dashboard.chat_v.aiSummaryTitle')}</p>
                 <button type="button" onClick={() => setIaResumen('')} className="text-muted transition-opacity hover:opacity-70" aria-label="Cerrar"><X size={15} /></button>
