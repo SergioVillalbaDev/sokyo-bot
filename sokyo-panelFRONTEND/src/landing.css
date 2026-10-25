@@ -121,19 +121,15 @@
   box-shadow: 0 0 0 1px rgba(236, 72, 153, .18), 0 12px 34px -10px rgba(217, 70, 239, .8), inset 0 1px 0 rgba(255, 255, 255, .25);
 }
 .lx-btn-cuenta:hover { background: linear-gradient(135deg, #9d6cff, #e15bf7 55%, #f05aa8); }
-/* Contorno de neón (secundario). */
-.lx-btn-neon {
-  position: relative; color: #fff; background: rgba(168, 85, 247, .07); border-color: transparent;
-  box-shadow: 0 0 22px -8px rgba(217, 70, 239, .6), inset 0 0 16px -8px rgba(217, 70, 239, .5);
+/* Panel de control: el degradado del menú del panel (azul periwinkle → violeta),
+   con el texto oscuro como su pestaña activa. Así se reconoce a la primera. */
+.lx-btn-panel {
+  color: #0a0b18; border-color: rgba(255, 255, 255, .35);
+  background: linear-gradient(135deg, #c7e2fd, #9d8ce0 60%, #7860c0);
+  box-shadow: 0 0 0 1px rgba(180, 216, 252, .25), 0 12px 34px -12px rgba(147, 129, 230, .95), inset 0 1px 0 rgba(255, 255, 255, .55);
 }
-.lx-btn-neon::before {
-  content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; pointer-events: none;
-  background: linear-gradient(90deg, #b4d8fc, #a855f7, #ec4899);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
-}
-.lx-btn-neon:hover { background: rgba(168, 85, 247, .16); box-shadow: 0 0 32px -6px rgba(217, 70, 239, .8), inset 0 0 20px -8px rgba(217, 70, 239, .7); }
-
+.lx-btn-panel:hover { background: linear-gradient(135deg, #d8ebfe, #ab9ce8 60%, #8670cc); border-color: rgba(255, 255, 255, .5); }
+.lx-btn-panel:focus-visible { outline-color: #c7e2fd; }
 /* ---------------------------------------------------------------- piezas */
 .lx-texto { background-image: var(--lx-marca); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .lx-etiqueta {
@@ -176,6 +172,19 @@
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 0 50px -12px rgba(217, 70, 239, .6), 0 30px 60px -20px rgba(0, 0, 0, .9);
 }
 .lx-movil-pantalla { border-radius: 24px; overflow: hidden; background: radial-gradient(260px 200px at 20% 0%, rgba(124, 58, 237, .45), transparent 70%), radial-gradient(260px 220px at 100% 100%, rgba(236, 72, 153, .3), transparent 70%), #0a0818; }
+/* Capturas reales del panel: dentro de una ventana del navegador. El fondo
+   reserva el sitio mientras llega la imagen (width/height evitan saltos). */
+.lx-captura { display: block; width: 100%; height: auto; background: #0b0a1a; border-radius: 0 0 21px 21px; }
+.lx-barra-url { display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid rgba(255, 255, 255, .07); padding: .7rem 1rem; }
+.lx-barra-url > i { width: .6rem; height: .6rem; border-radius: 999px; flex-shrink: 0; }
+/* Pestañas del recorrido por el panel. */
+.lx-pestana { transition: background .2s, border-color .2s, color .2s; border: 1px solid transparent; }
+.lx-pestana:hover { background: rgba(255, 255, 255, .05); }
+.lx-pestana[aria-selected='true'] { background: rgba(255, 255, 255, .08); border-color: rgba(196, 181, 253, .28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 30px -14px var(--lx-color, rgba(168, 85, 247, .7)); }
+.lx-pestana:focus-visible { outline: 2px solid rgba(196, 181, 253, .85); outline-offset: 2px; }
+/* Fila que se desliza con el dedo sin barra visible (pestañas en el móvil). */
+.lx-deslizable { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.lx-deslizable::-webkit-scrollbar { display: none; }
 /* Discord: sus colores reales, no los del tema. */
 .lx-discord { background: #313338; color: #dbdee1; }
 .lx-discord-embed { background: #2b2d31; border-left: 4px solid #a855f7; border-radius: 4px; }

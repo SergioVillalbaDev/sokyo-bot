@@ -12,16 +12,28 @@ import { nombrePrioridad } from '../../../lib/prioridad';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
 // Gráfica de líneas (una o varias series). Módulo (regla react-hooks).
-function LineaChart({ serie, lineas }) {
+// `ajustada`: el eje empieza cerca del valor más bajo y no en 0 (miembros: si no,
+// un servidor de miles que crece un 20 % sale como una línea plana). Los días sin
+// dato (null: antes del primer recuento de miembros) no se dibujan.
+const hayDato = (v) => v !== null && v !== undefined;
+function LineaChart({ serie, lineas, ajustada = false }) {
   const W = 720, H = 170, pad = 22;
   const pts = serie || [];
-  const max = Math.max(1, ...pts.flatMap((d) => lineas.map((l) => d[l.key] || 0)));
+  const valores = pts.flatMap((d) => lineas.map((l) => d[l.key]).filter(hayDato));
+  const max = Math.max(1, ...valores);
+  const min = ajustada && valores.length ? Math.max(0, Math.min(...valores) - (max - Math.min(...valores)) * 0.15) : 0;
+  const rango = Math.max(1, max - min);
   const x = (i) => pad + (i * (W - pad * 2)) / Math.max(1, pts.length - 1);
-  const y = (v) => H - pad - ((v || 0) * (H - pad * 2)) / max;
-  const path = (key) => pts.map((d, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ');
+  const y = (v) => H - pad - (((v || 0) - min) * (H - pad * 2)) / rango;
+  // Tras un hueco, la línea vuelve a empezar (M) en el siguiente día con dato.
+  const path = (key) => pts.map((d, i) => {
+    if (!hayDato(d[key])) return '';
+    const sigue = i > 0 && hayDato(pts[i - 1][key]);
+    return `${sigue ? 'L' : 'M'}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`;
+  }).join(' ');
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: 170 }}>
-      {[0, 0.5, 1].map((f) => <line key={f} x1={pad} x2={W - pad} y1={y(max * f)} y2={y(max * f)} stroke="var(--line)" strokeWidth="1" />)}
+      {[0, 0.5, 1].map((f) => <line key={f} x1={pad} x2={W - pad} y1={y(min + rango * f)} y2={y(min + rango * f)} stroke="var(--border-color)" strokeWidth="1" />)}
       {lineas.map((l) => pts.length > 1 && <path key={l.key} d={path(l.key)} fill="none" stroke={l.color} strokeWidth="2.5" strokeDasharray={l.dash || '0'} />)}
     </svg>
   );
@@ -85,7 +97,7 @@ function Seccion({ icon: Icon, titulo, children, right }) {
 }
 
 const ICONO_INSIGHT = { ok: CheckCircle2, warn: AlertTriangle, tip: Lightbulb };
-const COLOR_INSIGHT = { ok: 'var(--success)', warn: 'var(--warning)', tip: 'var(--brand)' };
+const COLOR_INSIGHT = { ok: 'var(--success)', warn: 'var(--warning)', tip: 'var(--accent-color)' };
 
 // Una métrica del embudo (porcentaje grande con su etiqueta).
 function MetricaEmbudo({ label, value, sufijo }) {
@@ -202,11 +214,11 @@ export default function AnaliticaView({ dash }) {
 
       {/* KPIs */}
       <div data-help="analitica-kpis" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={Users} label={t('dashboard.analitica_v.members')} value={v(r.miembros)} sub={sv.boosts != null ? t('dashboard.analitica_v.boosts', { n: sv.boosts }) : null} color="var(--brand)" />
+        <Stat icon={Users} label={t('dashboard.analitica_v.members')} value={v(r.miembros)} sub={sv.boosts != null ? t('dashboard.analitica_v.boosts', { n: sv.boosts }) : null} color="var(--accent-color)" />
         <Stat icon={TrendingUp} label={t('dashboard.analitica_v.growth')} value={r.crecimientoNeto > 0 ? `+${r.crecimientoNeto}` : v(r.crecimientoNeto)} sub={t('dashboard.analitica_v.inDays', { dias: a.dias })} color="var(--success)" />
         <Stat icon={MessageSquare} label={t('dashboard.analitica_v.messages')} value={v(r.mensajes)} sub={r.pctActivos != null ? t('dashboard.analitica_v.activePct', { pct: r.pctActivos }) : null} color="#8ab4ff" />
         <Stat icon={Star} label={t('dashboard.analitica_v.csat')} value={r.csat != null ? `${r.csat}★` : '—'} sub={t('dashboard.analitica_v.ticketsN', { n: r.ticketsTotales || 0 })} color="#f59e0b" />
-        <Stat icon={Gauge} label={t('dashboard.analitica_v.msgsPerActive')} value={v(r.mensajesPorActivo)} color="var(--brand)" />
+        <Stat icon={Gauge} label={t('dashboard.analitica_v.msgsPerActive')} value={v(r.mensajesPorActivo)} color="var(--accent-color)" />
         <Stat icon={Mic} label={t('dashboard.analitica_v.voiceActive')} value={v(r.vozActivos)} color="#a78bfa" />
       </div>
 
@@ -215,7 +227,7 @@ export default function AnaliticaView({ dash }) {
         <div className="grid gap-3 md:grid-cols-2">
           {(a.insights || []).map((ins, i) => {
             const Icon = ICONO_INSIGHT[ins.tipo] || Lightbulb;
-            const color = COLOR_INSIGHT[ins.tipo] || 'var(--brand)';
+            const color = COLOR_INSIGHT[ins.tipo] || 'var(--accent-color)';
             return (
               <div key={i} className="flex gap-3 rounded-2xl border border-line bg-bg p-3.5" style={{ borderLeft: `4px solid ${color}` }}>
                 <Icon size={18} className="mt-0.5 shrink-0" style={{ color }} />
@@ -232,7 +244,7 @@ export default function AnaliticaView({ dash }) {
       {/* Crecimiento de miembros (histórico real) */}
       <Seccion icon={TrendingUp} titulo={t('dashboard.analitica_v.memberTrend')}>
         {a.comunidad.hayMiembros
-          ? <LineaChart serie={a.comunidad.serieMiembros} lineas={[{ key: 'miembros', color: 'var(--brand)' }]} />
+          ? <LineaChart serie={a.comunidad.serieMiembros} lineas={[{ key: 'miembros', color: 'var(--accent-color)' }]} ajustada />
           : <p className="py-6 text-center text-sm italic text-muted">{t('dashboard.analitica_v.memberTrendNote')}</p>}
       </Seccion>
 
@@ -275,7 +287,7 @@ export default function AnaliticaView({ dash }) {
       {/* Actividad */}
       <div data-help="analitica-graficas" className="grid gap-4 lg:grid-cols-2">
         <Seccion icon={Activity} titulo={t('dashboard.analitica_v.msgsPerDay')}>
-          <LineaChart serie={a.actividad.serie} lineas={[{ key: 'n', color: 'var(--brand)' }]} />
+          <LineaChart serie={a.actividad.serie} lineas={[{ key: 'n', color: 'var(--accent-color)' }]} />
         </Seccion>
         <Seccion icon={Clock} titulo={t('dashboard.analitica_v.byHour')} right={<span className="text-xs text-muted">{t('dashboard.analitica_v.peak')}: {a.actividad.horaPico}</span>}>
           <Columnas data={a.actividad.porHora} />
@@ -379,7 +391,7 @@ export default function AnaliticaView({ dash }) {
           {t('dashboard.analitica_v.open')}: {a.tickets.totales.abiertos} · {t('dashboard.analitica_v.closed')}: {a.tickets.totales.cerrados}
           {a.tickets.totales.tiempoMedioCierreH != null && ` · ${t('dashboard.analitica_v.avgClose', { h: a.tickets.totales.tiempoMedioCierreH })}`}
         </span>}>
-        <LineaChart serie={a.tickets.serie} lineas={[{ key: 'creados', color: 'var(--brand)' }, { key: 'cerrados', color: 'var(--success)', dash: '4 3' }]} />
+        <LineaChart serie={a.tickets.serie} lineas={[{ key: 'creados', color: 'var(--accent-color)' }, { key: 'cerrados', color: 'var(--success)', dash: '4 3' }]} />
         <div className="mt-4 grid gap-5 md:grid-cols-2">
           <div>
             <p className="mb-2 text-xs font-semibold text-muted">{t('dashboard.analitica_v.byUrgency')}</p>

@@ -1385,11 +1385,15 @@ export function useDashboard() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Al cambiar de servidor se descarta la configuración del anterior (cada pestaña
-  // recarga la suya) y se recarga qué secciones puede ver el usuario.
+  // recarga la suya) y se recarga qué secciones puede ver el usuario. El plan y el
+  // nombre del servidor también: si se entra directo a otra sección que no es
+  // Inicio (enlace, recarga, app), sin esto se quedaba en «Plan Free».
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- descarte intencionado al cambiar de servidor
     setConfigServidor((c) => (c && guildId && c.guildId !== guildId ? null : c));
-    if (guildId) cargarMisPermisos();
+    // El plan es de cada servidor: «cargando» hasta saber el del nuevo.
+    setEsPremium(null);
+    if (guildId) { cargarMisPermisos(); if (activeTab !== 'inicio') cargarUso(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guildId]);
 

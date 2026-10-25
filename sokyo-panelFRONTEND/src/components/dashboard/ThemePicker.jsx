@@ -89,9 +89,11 @@ export default function ThemePicker({ theme, setTheme, esPremium, desbloqueados 
           >
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-sm font-bold text-fg">{t('dashboard.theme.title')}</h4>
-              <span className="rounded-full bg-elevated px-2 py-0.5 text-[10px] font-bold text-muted">
-                {esPremium ? t('dashboard.plan.premium') : t('dashboard.plan.free')}
-              </span>
+              {esPremium !== null && (
+                <span className="rounded-full bg-elevated px-2 py-0.5 text-[10px] font-bold text-muted">
+                  {esPremium ? t('dashboard.plan.premium') : t('dashboard.plan.free')}
+                </span>
+              )}
             </div>
             <ThemeGrid theme={theme} setTheme={setTheme} desbloqueados={desbloqueados} />
           </motion.div>

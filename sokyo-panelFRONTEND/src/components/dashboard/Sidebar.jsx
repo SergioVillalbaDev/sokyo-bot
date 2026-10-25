@@ -123,7 +123,7 @@ export default function Sidebar({
               <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-muted">
                 {esOwner
                   ? <span className="flex items-center gap-1 text-amber-400"><Crown size={11} /> {t('dashboard.plan.owner')}</span>
-                  : esPremium ? <><Crown size={11} className="text-amber-400" /> {t('dashboard.plan.premium')}</> : t('dashboard.plan.free')}
+                  : esPremium ? <><Crown size={11} className="text-amber-400" /> {t('dashboard.plan.premium')}</> : esPremium === false ? t('dashboard.plan.free') : '\u00a0'}
               </span>
             </span>
           )}
@@ -241,8 +241,8 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Subir a Pro (servidores Free, si puede ver la facturación) */}
-        {!esOwner && !esPremium && (!permisos || permisos.cuenta !== false) && (
+        {/* Subir a Pro (servidores Free, si puede ver la facturación; mientras carga el plan, nada) */}
+        {!esOwner && esPremium === false && (!permisos || permisos.cuenta !== false) && (
           <button
             onClick={() => irA('cuenta-plan')}
             className={cn('sk-foco sk-nav-activo mt-2 flex items-center gap-2.5 rounded-2xl px-3 py-2.5 transition-transform hover:scale-[1.02]', plegado ? 'lg:justify-center lg:px-0' : 'w-full')}

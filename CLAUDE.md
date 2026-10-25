@@ -42,7 +42,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.4.0.**
+  --no-git-tag-version`. **Versión actual: 1.5.0.**
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -87,6 +87,21 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `Revelar` va por fuera de la tarjeta (`lx-card lx-pulsable` dentro): si no, sus
   transiciones se pisan. Textos en `landing.*` (es/en), incluida la demo de
   «Mi cuenta» (`MiCuentaDemo.jsx`, `landing.cuenta`).
+- **Landing, estructura (1.5.0)**: `Landing.jsx` pinta la barra, el hero y «Dos
+  entradas» (`Accesos.jsx`); todo lo demás (`LandingResto.jsx`: recorrido por el
+  panel `Tour.jsx`, funciones, «Así está organizado» `Mapa.jsx`, Mi cuenta, app
+  móvil `AppMovil.jsx`, seguridad, precios, preguntas, CTA y pie) llega en otra
+  descarga dos fotogramas después de pintar la portada (si no, el móvil tarda más
+  en enseñarla). Los enlaces `#…` a esas secciones se resuelven al llegar
+  (`irAlEnlace`). El botón del panel es `EnlacePanel` (`Marcos.jsx`, clase
+  `.lx-btn-panel`) y va siempre visible en la barra, también en el móvil.
+  `Mapa.jsx` saca los bloques y grupos de `navConfig.js` (los nombres, de
+  `landing.map`: si cambia el menú del panel, actualízalos igual que en el panel).
+- **Capturas de la landing**: `public/landing/<es|en>-<nombre>-<640|960|1800>.webp`
+  (escritorio) y `<es|en>-m-<inicio|cuenta>-<390|780>.webp` (móvil), elegidas con
+  `srcset` (`components/landing/capturas.js`). Se sacaron con un servidor de
+  ejemplo («Nébula Gaming», usuario «alex») y Playwright; esos scripts vivían en el
+  scratchpad. Si cambia mucho el panel, hay que repetirlas en los dos idiomas.
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -143,5 +158,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   en 3 pasos de cómo se entra a «Mi cuenta», precios, preguntas, CTA y páginas
   legales en cristal. Lighthouse móvil igual que antes en local (76-78, sin
   compresión). El tutorial del panel ya no parte «Siguiente →» en dos líneas.
+- 1.5.0 Web principal rehecha con el **panel de control al frente**: botón
+  «Panel de control» siempre a la vista (también en el móvil), hero con capturas
+  reales del panel y de Mi cuenta, «Dos entradas, cada una a lo suyo», recorrido
+  por el panel en pestañas, «Así está organizado» (el menú del panel), app móvil
+  (APK e iPhone), seguridad, más preguntas y pie con todos los accesos. Lighthouse
+  móvil igual que 1.4.0 (93-97). Arreglos del panel: al entrar directo a una
+  sección que no es Inicio ya no sale «Plan Free»/«Subir a Pro» en servidores
+  Premium; las gráficas de Analítica (miembros, mensajes por día, tickets) salían
+  vacías por un color inexistente (`var(--brand)`); en el móvil, el título de un
+  ticket abierto ya no se parte palabra por palabra y la conversación va primero.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).
