@@ -6,6 +6,7 @@ import { Send, ShieldCheck, Gift, Trophy, Users, Plus, X, ArrowRight } from 'luc
 import { Avatar } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { relativo } from './crecimientoUtils';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
 
 const COLOR_ESTADO = { valida: 'text-success', pendiente: 'text-warning', salio: 'text-muted', falsa: 'text-danger' };
 
@@ -27,6 +28,21 @@ export default function CrecInvitacionesView({ dash }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 
+  const guardar = async () => {
+    setEstado('guardando');
+    const r = await guardarCrecimiento('invitaciones', {
+      ...form,
+      recompensas: form.recompensas.filter((x) => x.rolId && Number(x.invitaciones) > 0),
+    });
+    if (r.error) { setEstado(r.error); return false; }
+    setEstado('ok');
+    setDatos((d) => ({ ...d, config: r.config, permiso: r.permiso }));
+    setForm({ ...r.config, recompensas: (r.config.recompensas || []).map((x) => ({ invitaciones: x.invitaciones, rolId: x.rolId })) });
+    return true;
+  };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado(form, guardar, { listo: !!form });
+
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.crec_v.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
   if (!form) return null;
@@ -34,18 +50,6 @@ export default function CrecInvitacionesView({ dash }) {
   const set = (k) => (v) => { setForm((f) => ({ ...f, [k]: v })); setEstado(''); };
   const setRecompensa = (i, k, v) => set('recompensas')(form.recompensas.map((r, idx) => (idx === i ? { ...r, [k]: v } : r)));
   const nivelesActivos = !!(configServidor && configServidor.nivelesActivo);
-
-  const guardar = async () => {
-    setEstado('guardando');
-    const r = await guardarCrecimiento('invitaciones', {
-      ...form,
-      recompensas: form.recompensas.filter((x) => x.rolId && Number(x.invitaciones) > 0),
-    });
-    if (r.error) { setEstado(r.error); return; }
-    setEstado('ok');
-    setDatos((d) => ({ ...d, config: r.config, permiso: r.permiso }));
-    setForm({ ...r.config, recompensas: (r.config.recompensas || []).map((x) => ({ invitaciones: x.invitaciones, rolId: x.rolId })) });
-  };
 
   const { resumen, ranking = [], recientes = [] } = datos;
   const origen = (r) => {
@@ -124,7 +128,7 @@ export default function CrecInvitacionesView({ dash }) {
         </div>
       </div>
 
-      <BotonGuardar estado={estado} onClick={guardar} />
+      <BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} />
 
       {resumen && (
         <div className={tarjeta}>

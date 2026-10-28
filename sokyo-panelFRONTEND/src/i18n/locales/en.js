@@ -185,7 +185,7 @@ export default {
       groups: { tickets: 'Tickets', moderacion: 'Moderation', entrada: 'New members', roles: 'Roles', comunidad: 'Community', crecimiento: 'Growth', musica: 'Music & voice', mensajes: 'Messages & announcements', datos: 'Stats & logs', config: 'Server & settings' },
       items: {
         'tickets-gestion': 'Ticket inbox', 'tickets-usuarios': 'Users & ratings', 'tickets-config': 'Ticket settings',
-        'mod-centro': 'Command center', 'mod-automod': 'Automod', 'mod-reportes': 'Reports', 'mod-registro': 'Sanction history', 'mod-tipos': 'Sanction types',
+        'mod-miembros': 'Members & bans', 'mod-centro': 'Command center', 'mod-automod': 'Automod', 'mod-reportes': 'Reports', 'mod-registro': 'Sanction history', 'mod-tipos': 'Sanction types',
         'seg-verificacion': 'Verification', 'prod-bienvenidas': 'Welcome & farewell', 'roles-autorol': 'Roles on join',
         'roles-gestion': 'Roles & permissions', 'roles-paneles': 'Role panels',
         'com-micuenta': 'Members’ My account', 'config-niveles': 'Levels & XP', 'com-sorteos': 'Giveaways', 'com-eventos': 'Events', 'com-encuestas': 'Polls', 'com-sugerencias': 'Suggestions', 'com-presentaciones': 'Introductions', 'com-dinamicas': 'Games & challenges',
@@ -447,6 +447,7 @@ export default {
     },
     header: {
       brand: 'My account', logout: 'Log out', home: 'Home', homeTitle: 'Back to the Sokyo website',
+      panel: 'Control panel (admins)', panelShort: 'Panel',
       searchTitle: 'What do you want to do? (Ctrl + K)', notifications: 'Notifications', allCaughtUp: 'All caught up. We’ll let you know when someone replies.',
       replyFrom: '{{name}} replied to you', settings: 'Settings', language: 'Language',
     },
@@ -616,7 +617,7 @@ export default {
       nothing: 'Nothing matches that.',
       home: 'Go home', tickets: 'See my tickets', shop: 'Open the shop', bag: 'See my bag',
       music: 'Play music', card: 'Customise my card', daily: 'Claim the daily reward',
-      web: 'Back to the Sokyo website', logout: 'Log out',
+      web: 'Back to the Sokyo website', logout: 'Log out', panel: 'Go to the control panel',
     },
   },
 };

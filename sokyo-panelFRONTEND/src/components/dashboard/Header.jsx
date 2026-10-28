@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell, HelpCircle, Menu, ChevronRight, ChevronsUpDown, Ticket as TicketIcon, Flag, Lightbulb, X, CheckCircle2, CheckCheck, SlidersHorizontal, Check, LayoutDashboard, PlayCircle } from 'lucide-react';
+import { Search, Bell, HelpCircle, Menu, ChevronRight, ChevronsUpDown, Ticket as TicketIcon, Flag, Lightbulb, X, CheckCircle2, CheckCheck, SlidersHorizontal, Check, LayoutDashboard, PlayCircle, ArrowLeft } from 'lucide-react';
 import { metaKey, ubicacion } from './navConfig';
 import { startOnboarding, startSectionTour, hasSectionTour } from '../../lib/onboarding';
 import OwnerBadge from './OwnerBadge';
@@ -15,6 +15,7 @@ import { Avatar } from '../ui/primitives';
 import { IDIOMAS, cambiarIdioma } from '../../i18n';
 import { VIDEOS_PANEL } from '../../lib/videos';
 import VideoAyuda from './VideoAyuda';
+import BotonPreferencias, { OpcionesComodidad } from './Preferencias';
 
 // Notificaciones descartadas (por servidor, guardadas en el navegador): al
 // visitar el panel de esa categoría o pulsar la "x" se marcan como vistas y
@@ -103,7 +104,7 @@ function NotifItem({ icon: Icon, color, titulo, meta, fecha, onClick, onDismiss 
   );
 }
 
-export default function Header({ dash, onOpenMenu, onBuscar }) {
+export default function Header({ dash, onOpenMenu, onBuscar, puedeVolver = false, onAtras, onAtajos }) {
   const { t, i18n } = useTranslation();
   const {
     activeTab, theme, setTheme, temasPremium, esPremium, servidorInfo,
@@ -251,6 +252,12 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
         <button onClick={onOpenMenu} className="sk-boton-icono shrink-0 lg:hidden" aria-label={t('dashboard.sidebar.open')}>
           <Menu size={18} />
         </button>
+        {/* Atrás: a la sección anterior del panel (como el «atrás» del navegador) */}
+        {puedeVolver && onAtras && (
+          <button onClick={onAtras} className="sk-boton-icono shrink-0" aria-label={t('dashboard.header.back')} title={t('dashboard.header.backHint')}>
+            <ArrowLeft size={18} />
+          </button>
+        )}
 
         <motion.div key={activeTab} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} className="min-w-0 flex-1">
           {/* Dónde estás: Grupo › Sección */}
@@ -424,6 +431,7 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
         <div data-tour="tools" className="hidden shrink-0 items-center gap-2 sm:flex">
           <LanguageSwitcher />
           <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} desbloqueados={temasPremium} />
+          <BotonPreferencias onAtajos={onAtajos} />
         </div>
 
         {/* Móvil: un solo botón con ayuda, idioma y tema */}
@@ -464,6 +472,8 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
                   ))}
                 </div>
                 <div className="mt-4"><ThemeGrid theme={theme} setTheme={setTheme} desbloqueados={temasPremium} /></div>
+                <p className="mb-3 mt-5 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.prefs.title')}</p>
+                <OpcionesComodidad />
               </motion.div>
             )}
           </AnimatePresence>

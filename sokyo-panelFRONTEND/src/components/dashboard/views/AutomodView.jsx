@@ -8,6 +8,8 @@ import {
   Sparkles, Crown,
 } from 'lucide-react';
 import { PRESETS } from '../../../automodPresets';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
@@ -254,7 +256,10 @@ export default function AutomodView({ dash }) {
     const ok = await guardarAutomod(am);
     setGuardando(false);
     setGuardado(ok);
+    return ok;
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado(am, guardar, { listo: !!configServidor });
 
   const textoLista = (arr) => (arr || []).join('\n');
   const parseLista = (txt) => txt.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
@@ -490,6 +495,7 @@ export default function AutomodView({ dash }) {
         >
           <Save size={16} /> {guardando ? t('dashboard.automod_v.saving') : t('dashboard.automod_v.save')}
         </button>
+        <EstadoAutoguardado estado={autoguardado} />
         {guardado && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.automod_v.saved')}</span>}
       </div>
     </div>

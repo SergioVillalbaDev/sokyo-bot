@@ -28,15 +28,31 @@ const ordenDiscord = (a, b) => (VOZ.has(a.type) - VOZ.has(b.type))
     || (a.rawPosition - b.rawPosition)
     || (a.id.length - b.id.length) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
-// Permisos con sentido para un permiso "por canal" (overwrite), agrupados por
-// contexto. Es un catálogo curado (no los ~40 flags de Discord), igual que
-// PERMISOS_CATALOGO hace para los roles.
+// Todos los permisos que Discord deja poner "por canal" (overwrite), agrupados
+// como en Discord. Los del servidor entero (banear, gestionar el servidor…) no
+// tienen sentido aquí: están en PERMISOS_CATALOGO, el de los roles.
 const PERMISOS_CANAL = [
-    { grupo: 'General', permisos: ['ViewChannel', 'ManageChannels', 'ManageRoles'] },
-    { grupo: 'Texto', permisos: ['SendMessages', 'ReadMessageHistory', 'EmbedLinks', 'AttachFiles', 'AddReactions', 'ManageMessages', 'MentionEveryone', 'UseApplicationCommands', 'SendMessagesInThreads', 'CreatePublicThreads'] },
-    { grupo: 'Voz', permisos: ['Connect', 'Speak', 'Stream', 'UseVAD', 'PrioritySpeaker', 'MuteMembers', 'DeafenMembers', 'MoveMembers'] },
-];
+    { grupo: 'General', permisos: ['ViewChannel', 'ManageChannels', 'ManageRoles', 'ManageWebhooks', 'CreateInstantInvite'] },
+    { grupo: 'Texto', permisos: [
+        'SendMessages', 'SendMessagesInThreads', 'CreatePublicThreads', 'CreatePrivateThreads', 'EmbedLinks', 'AttachFiles',
+        'AddReactions', 'UseExternalEmojis', 'UseExternalStickers', 'MentionEveryone', 'ManageMessages', 'PinMessages',
+        'ManageThreads', 'ReadMessageHistory', 'SendTTSMessages', 'SendVoiceMessages', 'SendPolls', 'BypassSlowmode',
+    ] },
+    { grupo: 'Apps', permisos: ['UseApplicationCommands', 'UseEmbeddedActivities', 'UseExternalApps'] },
+    { grupo: 'Voz', permisos: [
+        'Connect', 'Speak', 'Stream', 'UseSoundboard', 'UseExternalSounds', 'UseVAD', 'PrioritySpeaker',
+        'MuteMembers', 'DeafenMembers', 'MoveMembers', 'SetVoiceChannelStatus', 'RequestToSpeak',
+    ] },
+    { grupo: 'Eventos', permisos: ['CreateEvents', 'ManageEvents'] },
+].map((g) => ({ ...g, permisos: g.permisos.filter((f) => PermissionsBitField.Flags[f] !== undefined) }));
 const FLAGS_VALIDOS = new Set(PERMISOS_CANAL.flatMap((g) => g.permisos));
+
+// Anuncios y escenario solo existen en servidores con la Comunidad activada:
+// en los demás Discord rechaza el tipo de canal sin decir por qué.
+const SOLO_COMUNIDAD = new Set([ChannelType.GuildAnnouncement, ChannelType.GuildStageVoice]);
+const esComunidad = (guild) => (guild.features || []).includes('COMMUNITY');
+// En los de anuncios no hay modo lento (Discord no lo admite en ese tipo).
+const CON_MODO_LENTO = new Set([ChannelType.GuildText, ChannelType.GuildForum]);
 
 // `exigeArea` (de server.js): los cambios piden el área "config" de Acceso al
 // panel, la misma que muestra "Categorías y canales" en el menú.
@@ -116,6 +132,43 @@ module.exports = ({ client, exigeArea = pasar }) => {
         return aviso;
     }
 
+    // Permisos del bot en el servidor (todos si es administrador). Discord solo le
+    // deja permitir o denegar en un canal lo que él mismo tiene.
+    const F = PermissionsBitField.Flags;
+    function permisosDelBot(guild) {
+        const yo = guild.members.me;
+        if (!yo) return [...FLAGS_VALIDOS];
+        if (yo.permissions.has(F.Administrator)) return [...FLAGS_VALIDOS];
+        return [...FLAGS_VALIDOS].filter((f) => yo.permissions.has(F[f]));
+    }
+
+    // Antes de mandar a Discord un canal o una categoría: ¿puede el bot hacerlo?
+    // Devuelve { status, cuerpo } con el motivo para el panel, o null si puede.
+    // `previos`: overwrites que ya tenía (al editar solo cuenta lo que se añade);
+    // `tocar`: canales o categorías que el bot debe poder gestionar.
+    function comprobarAntes(guild, { overwrites, previos = [], tocar = [] } = {}) {
+        const yo = guild.members.me;
+        if (!yo) return null;
+        if (!yo.permissions.has(F.ManageChannels)) {
+            return { status: 403, cuerpo: { error: 'El bot no tiene "Gestionar canales" en el servidor', codigo: 'sin_permiso_servidor' } };
+        }
+        const bloqueados = tocar.filter((c) => c && !puedeGestionar(c, yo)).map((c) => c.name);
+        if (bloqueados.length) {
+            return { status: 403, cuerpo: { error: 'El bot no tiene permiso en ese canal o categoría', codigo: 'sin_permiso', canales: bloqueados } };
+        }
+        const lista = construirOverwrites(overwrites);
+        if (lista && !yo.permissions.has(F.Administrator)) {
+            const ya = new Set(previos.flatMap((o) => [...(o.allow || []), ...(o.deny || [])].map((f) => `${o.id}:${f}`)));
+            const faltan = new Set();
+            for (const o of lista) {
+                for (const f of [...o.allow, ...o.deny]) if (!ya.has(`${o.id}:${f}`) && !yo.permissions.has(F[f])) faltan.add(f);
+            }
+            if (faltan.size) return { status: 403, cuerpo: { error: 'El bot no puede dar permisos que él no tiene', codigo: 'permisos_bot', permisos: [...faltan] } };
+        }
+        return null;
+    }
+    const previosDe = (canal) => canal.permissionOverwrites.cache.map((ov) => ({ id: ov.id, allow: ov.allow.toArray(), deny: ov.deny.toArray() }));
+
     // Overwrites de un canal/categoría en formato panel (con nombre para mostrar).
     function serializarOverwrites(canal, guild) {
         return canal.permissionOverwrites.cache.map((ov) => ({
@@ -177,7 +230,9 @@ module.exports = ({ client, exigeArea = pasar }) => {
                 .sort(ordenDiscord)
                 .map((c) => serializarCanal(c, guild));
 
-            res.json({ categorias, sinCategoria });
+            // Para que el panel avise antes de guardar: si el servidor tiene la
+            // Comunidad (anuncios, escenario) y qué permisos puede dar el bot.
+            res.json({ categorias, sinCategoria, comunidad: esComunidad(guild), permisosBot: permisosDelBot(guild) });
         } catch (error) {
             console.error('Error al obtener la estructura de canales:', error);
             res.status(500).json({ error: 'Error del servidor' });
@@ -191,6 +246,8 @@ module.exports = ({ client, exigeArea = pasar }) => {
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
             const nombre = String(req.body.nombre || '').trim().slice(0, 100);
             if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
+            const antes = comprobarAntes(guild, { overwrites: req.body.overwrites });
+            if (antes) return res.status(antes.status).json(antes.cuerpo);
 
             const categoria = await guild.channels.create({
                 name: nombre,
@@ -200,7 +257,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
             res.json({ success: true, categoria: serializarCategoria(categoria, guild) });
         } catch (error) {
             console.error('Error al crear categoría:', error);
-            res.status(500).json({ error: 'No se pudo crear la categoría' });
+            responderError(res, error, 'No se pudo crear la categoría');
         }
     });
 
@@ -224,12 +281,14 @@ module.exports = ({ client, exigeArea = pasar }) => {
                 const permisos = overwritesConLosDeMiembro(categoria, cuerpo.overwrites);
                 if (!mismosPermisos(categoria, permisos)) cambios.permissionOverwrites = permisos;
             }
+            const antes = comprobarAntes(guild, { overwrites: cambios.permissionOverwrites ? cuerpo.overwrites : undefined, previos: previosDe(categoria), tocar: [categoria] });
+            if (antes) return res.status(antes.status).json(antes.cuerpo);
             const aviso = await guardarEnDiscord(categoria, cambios);
 
             res.json({ success: true, ...aviso, categoria: serializarCategoria(categoria, guild) });
         } catch (error) {
             console.error('Error al editar categoría:', error);
-            res.status(500).json({ error: 'No se pudo editar la categoría' });
+            responderError(res, error, 'No se pudo editar la categoría');
         }
     });
 
@@ -245,14 +304,13 @@ module.exports = ({ client, exigeArea = pasar }) => {
             res.json({ success: true });
         } catch (error) {
             console.error('Error al eliminar categoría:', error);
-            res.status(500).json({ error: 'No se pudo eliminar la categoría' });
+            responderError(res, error, 'No se pudo eliminar la categoría');
         }
     });
 
     // ¿Puede el bot mover este canal o categoría? Discord exige "Ver canal" y
     // "Gestionar canales" en CADA canal que se toca (los permisos del canal
     // pueden quitárselos aunque los tenga en el servidor).
-    const F = PermissionsBitField.Flags;
     function puedeGestionar(canal, yo) {
         if (!yo || typeof canal.permissionsFor !== 'function') return true;
         const permisos = canal.permissionsFor(yo);
@@ -261,14 +319,16 @@ module.exports = ({ client, exigeArea = pasar }) => {
 
     // Error de Discord -> respuesta para el panel, con un código que el panel
     // traduce a un mensaje claro (y el texto de Discord para lo que no se espera).
-    function respuestaDeError(error) {
+    function respuestaDeError(error, mensaje = 'No se pudo guardar el orden') {
         if (error && error.code === 50013) return { status: 403, cuerpo: { error: 'Al bot le faltan permisos en Discord', codigo: 'sin_permiso' } };
         if (error && (error.status === 429 || error.name === 'RateLimitError')) return { status: 429, cuerpo: { error: 'Discord está limitando los cambios', codigo: 'limite' } };
+        if (error && error.code === 30013) return { status: 400, cuerpo: { error: 'El servidor ya tiene el máximo de canales', codigo: 'max_canales' } };
         if (error && typeof error.code === 'number') {
             return { status: 502, cuerpo: { error: 'Discord ha rechazado el cambio', codigo: 'discord', detalle: String(error.message || '').slice(0, 300) } };
         }
-        return { status: 500, cuerpo: { error: 'No se pudo guardar el orden', codigo: 'error' } };
+        return { status: 500, cuerpo: { error: mensaje, codigo: 'error' } };
     }
+    const responderError = (res, error, mensaje) => { const { status, cuerpo } = respuestaDeError(error, mensaje); res.status(status).json(cuerpo); };
 
     // Reordenar de golpe (arrastrar y soltar en el panel): el orden de las
     // categorías y, en el orden final, cada canal con la categoría donde queda.
@@ -382,6 +442,13 @@ module.exports = ({ client, exigeArea = pasar }) => {
             if (tipoDiscord === undefined) return res.status(400).json({ error: 'Tipo de canal no válido' });
             const nombreLimpio = String(nombre || '').trim().slice(0, 100);
             if (!nombreLimpio) return res.status(400).json({ error: 'El nombre es obligatorio' });
+            if (SOLO_COMUNIDAD.has(tipoDiscord) && !esComunidad(guild)) {
+                return res.status(400).json({ error: 'Ese tipo de canal solo existe en servidores con la Comunidad activada', codigo: 'requiere_comunidad' });
+            }
+            const categoria = categoriaId ? guild.channels.cache.get(String(categoriaId)) : null;
+            if (categoriaId && categoria?.type !== ChannelType.GuildCategory) return res.status(400).json({ error: 'Categoría no válida' });
+            const antes = comprobarAntes(guild, { overwrites, tocar: [categoria] });
+            if (antes) return res.status(antes.status).json(antes.cuerpo);
 
             const opciones = {
                 name: nombreLimpio,
@@ -392,7 +459,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
             if ([ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum].includes(tipoDiscord)) {
                 if (topic !== undefined) opciones.topic = String(topic || '').slice(0, 1024);
                 if (nsfw !== undefined) opciones.nsfw = !!nsfw;
-                if (slowmode !== undefined) opciones.rateLimitPerUser = Math.min(21600, Math.max(0, parseInt(slowmode, 10) || 0));
+                if (slowmode !== undefined && CON_MODO_LENTO.has(tipoDiscord)) opciones.rateLimitPerUser = Math.min(21600, Math.max(0, parseInt(slowmode, 10) || 0));
             }
             if ([ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(tipoDiscord)) {
                 if (bitrate !== undefined) opciones.bitrate = Math.min(guild.maximumBitrate || 96000, Math.max(8000, parseInt(bitrate, 10) || 64000));
@@ -403,7 +470,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
             res.json({ success: true, canal: serializarCanal(canal, guild) });
         } catch (error) {
             console.error('Error al crear canal:', error);
-            res.status(500).json({ error: 'No se pudo crear el canal' });
+            responderError(res, error, 'No se pudo crear el canal');
         }
     });
 
@@ -424,19 +491,23 @@ module.exports = ({ client, exigeArea = pasar }) => {
             if (posicion !== undefined) poner('position', Math.max(0, parseInt(posicion, 10) || 0), canal.position);
             if (topic !== undefined) poner('topic', String(topic || '').slice(0, 1024), canal.topic || '');
             if (nsfw !== undefined) poner('nsfw', !!nsfw, !!canal.nsfw);
-            if (slowmode !== undefined) poner('rateLimitPerUser', Math.min(21600, Math.max(0, parseInt(slowmode, 10) || 0)), canal.rateLimitPerUser || 0);
+            if (slowmode !== undefined && CON_MODO_LENTO.has(canal.type)) poner('rateLimitPerUser', Math.min(21600, Math.max(0, parseInt(slowmode, 10) || 0)), canal.rateLimitPerUser || 0);
             if (bitrate !== undefined) poner('bitrate', Math.min(guild.maximumBitrate || 96000, Math.max(8000, parseInt(bitrate, 10) || 64000)), canal.bitrate);
             if (userLimit !== undefined) poner('userLimit', Math.min(99, Math.max(0, parseInt(userLimit, 10) || 0)), canal.userLimit || 0);
             if (Array.isArray(overwrites)) {
                 const permisos = overwritesConLosDeMiembro(canal, overwrites);
                 if (!mismosPermisos(canal, permisos)) cambios.permissionOverwrites = permisos;
             }
+            const destino = cambios.parent ? guild.channels.cache.get(String(cambios.parent)) : null;
+            if (cambios.parent && destino?.type !== ChannelType.GuildCategory) return res.status(400).json({ error: 'Categoría no válida' });
+            const antes = comprobarAntes(guild, { overwrites: cambios.permissionOverwrites ? overwrites : undefined, previos: previosDe(canal), tocar: [canal, destino] });
+            if (antes) return res.status(antes.status).json(antes.cuerpo);
             const aviso = await guardarEnDiscord(canal, cambios);
 
             res.json({ success: true, ...aviso, canal: serializarCanal(canal, guild) });
         } catch (error) {
             console.error('Error al editar canal:', error);
-            res.status(500).json({ error: 'No se pudo editar el canal' });
+            responderError(res, error, 'No se pudo editar el canal');
         }
     });
 
@@ -452,7 +523,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
             res.json({ success: true });
         } catch (error) {
             console.error('Error al eliminar canal:', error);
-            res.status(500).json({ error: 'No se pudo eliminar el canal' });
+            responderError(res, error, 'No se pudo eliminar el canal');
         }
     });
 

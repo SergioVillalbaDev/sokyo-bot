@@ -11,6 +11,8 @@ import { Toggle } from '../../ui/primitives';
 import { ShieldCheck, Save, Check, Info, Send, MousePointerClick, Puzzle, Users, Crown, Lock, FileText, LayoutTemplate, BarChart3 } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
 import { EMBED_VACIO } from './embedDefaults';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -112,7 +114,10 @@ export default function VerificacionView({ dash }) {
     const ok = esAB ? await guardarEmbudo(e) : await guardarVerificacion(v);
     setGuardando(false);
     setGuardado(ok);
+    return ok;
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado([v, e], guardar, { listo: !!configServidor });
   const publicar = async () => {
     setPub('...');
     const r = esAB ? await publicarEmbudo() : await publicarVerificacion();
@@ -304,6 +309,7 @@ export default function VerificacionView({ dash }) {
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
             <Save size={16} /> {guardando ? t('dashboard.verif_v.saving') : t('dashboard.verif_v.save')}
           </button>
+          <EstadoAutoguardado estado={autoguardado} />
           <button type="button" onClick={publicar}
             disabled={!configServidor || (esAB ? (entregaConPanel && !e.canalId) : !v.canalId)}
             className="flex items-center gap-2 rounded-2xl border border-line bg-bg px-5 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">

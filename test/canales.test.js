@@ -411,3 +411,109 @@ describe('ordenar: permisos del bot y errores de Discord', () => {
         assert.strictEqual(r.aviso, 'en_cola');
     });
 });
+
+// Crear un canal: antes cualquier fallo salía en el panel como «comprueba que el
+// bot tiene permiso para gestionar canales». Los de anuncios fallaban siempre en
+// servidores sin la Comunidad activada, y además se les mandaba un modo lento que
+// Discord no admite en ese tipo.
+describe('crear canales', () => {
+    const { PermissionsBitField } = require('discord.js');
+    let creados = [];
+    let fallo = null;
+    let permisosBot = ['ManageChannels', 'ViewChannel', 'SendMessages'];
+    const yo = { id: 'bot', permissions: { has: (p) => new PermissionsBitField(permisosBot).has(p) } };
+    const cat = {
+        id: 'cat-x', type: ChannelType.GuildCategory, parentId: null, rawPosition: 0, position: 0, name: 'Info',
+        permissionOverwrites: { cache: new Collection() }, permissionsFor: () => new PermissionsBitField(permisosBot),
+    };
+    const g = {
+        id: '900000000000000003', features: [],
+        roles: { cache: new Collection() },
+        members: { cache: new Collection(), me: yo },
+        channels: {
+            cache: new Collection([[cat.id, cat]]),
+            create: async (opciones) => {
+                if (fallo) throw fallo;
+                creados.push(opciones);
+                return { id: 'nuevo', type: opciones.type, parentId: opciones.parent || null, name: opciones.name, position: 0, permissionOverwrites: { cache: new Collection() } };
+            },
+        },
+    };
+    const cli = { guilds: { cache: new Map([[g.id, g]]) } };
+    let s; let url;
+    const crear = (cuerpo) => fetch(`${url}/api/config/${g.id}/canales`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo),
+    }).then(async (r) => ({ status: r.status, ...(await r.json()) }));
+
+    before(async () => {
+        const app = express();
+        app.use(express.json());
+        app.use('/api', rutasCanales({ client: cli }));
+        s = await new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
+        url = `http://127.0.0.1:${s.address().port}`;
+    });
+    after(() => s.close());
+    beforeEach(() => { creados = []; fallo = null; g.features = []; permisosBot = ['ManageChannels', 'ViewChannel', 'SendMessages']; });
+
+    it('anuncios sin la Comunidad activada: lo dice claro y no llama a Discord', async () => {
+        const r = await crear({ tipo: 'anuncios', nombre: 'novedades', slowmode: 0 });
+        assert.strictEqual(r.status, 400);
+        assert.strictEqual(r.codigo, 'requiere_comunidad');
+        assert.deepStrictEqual(creados, []);
+    });
+
+    it('anuncios con la Comunidad: se crea sin modo lento', async () => {
+        g.features = ['COMMUNITY'];
+        const r = await crear({ tipo: 'anuncios', nombre: 'novedades', categoriaId: 'cat-x', topic: 'Lo nuevo', nsfw: false, slowmode: 0 });
+        assert.strictEqual(r.status, 200);
+        assert.strictEqual(creados.length, 1);
+        assert.strictEqual(creados[0].type, ChannelType.GuildAnnouncement);
+        assert.strictEqual(creados[0].rateLimitPerUser, undefined);
+        assert.strictEqual(creados[0].topic, 'Lo nuevo');
+    });
+
+    it('un canal de texto sí lleva su modo lento', async () => {
+        await crear({ tipo: 'texto', nombre: 'general', slowmode: 5 });
+        assert.strictEqual(creados[0].rateLimitPerUser, 5);
+    });
+
+    it('sin «Gestionar canales» lo dice tal cual', async () => {
+        permisosBot = ['ViewChannel'];
+        const r = await crear({ tipo: 'texto', nombre: 'general' });
+        assert.strictEqual(r.status, 403);
+        assert.strictEqual(r.codigo, 'sin_permiso_servidor');
+        assert.deepStrictEqual(creados, []);
+    });
+
+    it('dar un permiso que el bot no tiene: dice cuáles', async () => {
+        const r = await crear({ tipo: 'texto', nombre: 'staff', overwrites: [{ id: 'rol', allow: ['SendMessages', 'MentionEveryone'], deny: ['PinMessages'] }] });
+        assert.strictEqual(r.status, 403);
+        assert.strictEqual(r.codigo, 'permisos_bot');
+        assert.deepStrictEqual(r.permisos.sort(), ['MentionEveryone', 'PinMessages']);
+        assert.deepStrictEqual(creados, []);
+    });
+
+    it('los errores de Discord llegan con su código (no siempre «permisos»)', async () => {
+        fallo = Object.assign(new Error('Maximum number of guild channels reached (500)'), { code: 30013, status: 400 });
+        let r = await crear({ tipo: 'texto', nombre: 'uno-mas' });
+        assert.strictEqual(r.codigo, 'max_canales');
+        fallo = Object.assign(new Error('Missing Permissions'), { code: 50013, status: 403 });
+        r = await crear({ tipo: 'texto', nombre: 'uno-mas' });
+        assert.strictEqual(r.codigo, 'sin_permiso');
+    });
+
+    it('la estructura dice si hay Comunidad y qué permisos puede dar el bot', async () => {
+        const r = await fetch(`${url}/api/config/${g.id}/canales/estructura`).then((x) => x.json());
+        assert.strictEqual(r.comunidad, false);
+        assert.deepStrictEqual(r.permisosBot.sort(), ['ManageChannels', 'SendMessages', 'ViewChannel']);
+    });
+
+    it('el catálogo de permisos por canal trae todos los de Discord que tienen sentido en un canal', async () => {
+        const catalogo = await fetch(`${url}/api/servidor/permisos-canal`).then((x) => x.json());
+        const todos = catalogo.flatMap((gr) => gr.permisos);
+        for (const f of ['PinMessages', 'BypassSlowmode', 'SendVoiceMessages', 'UseSoundboard', 'SetVoiceChannelStatus', 'ManageThreads', 'CreatePrivateThreads', 'ManageWebhooks']) {
+            assert.ok(todos.includes(f), f);
+        }
+        assert.ok(!todos.includes('BanMembers'), 'banear no es un permiso de canal');
+    });
+});

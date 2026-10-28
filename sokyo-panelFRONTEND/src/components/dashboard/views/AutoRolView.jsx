@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserPlus, Bot, Save, Lock, Check, Info } from 'lucide-react';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
@@ -63,7 +65,10 @@ export default function AutoRolView({ dash }) {
     const ok = await guardarAutoRoles({ autoRoles, autoRolesBots });
     setGuardando(false);
     setGuardado(ok);
+    return ok;
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado([autoRoles, autoRolesBots], guardar, { listo: !!configServidor });
 
   const hayBloqueados = rolesDetalle.some((r) => !r.gestionable);
 
@@ -102,6 +107,7 @@ export default function AutoRolView({ dash }) {
         >
           <Save size={16} /> {guardando ? t('dashboard.autorol_v.saving') : t('dashboard.autorol_v.save')}
         </button>
+        <EstadoAutoguardado estado={autoguardado} />
         {guardado && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.autorol_v.saved')}</span>}
       </div>
     </div>

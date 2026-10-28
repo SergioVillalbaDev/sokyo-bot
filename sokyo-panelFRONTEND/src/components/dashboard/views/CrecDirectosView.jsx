@@ -7,6 +7,7 @@ import { Avatar, Toggle } from '../../ui/primitives';
 import { getStaffSession } from '../../../lib/api';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Aviso, BotonGuardar } from './crecimientoShared';
 import { relativo } from './crecimientoUtils';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
 
 const COLOR = { twitch: '#9146FF', youtube: '#FF0000' };
 
@@ -34,19 +35,23 @@ export default function CrecDirectosView({ dash }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 
+  const guardar = async () => {
+    setEstado('guardando'); setAviso('');
+    const r = await guardarCrecimiento('directos', form);
+    if (r.error) { setEstado(r.error); return false; }
+    setEstado('ok');
+    if (r.aviso) setAviso(r.aviso);
+    setForm(r.config);
+    return true;
+  };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado(form, guardar, { listo: !!form });
+
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.crec_v.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
   if (!form) return null;
 
   const set = (k) => (v) => { setForm((f) => ({ ...f, [k]: v })); setEstado(''); setAviso(''); };
-  const guardar = async () => {
-    setEstado('guardando'); setAviso('');
-    const r = await guardarCrecimiento('directos', form);
-    if (r.error) { setEstado(r.error); return; }
-    setEstado('ok');
-    if (r.aviso) setAviso(r.aviso);
-    setForm(r.config);
-  };
 
   const anadir = async () => {
     if (!entrada.trim()) return;
@@ -97,7 +102,7 @@ export default function CrecDirectosView({ dash }) {
             <Toggle checked={!!form.incluirShorts} onChange={set('incluirShorts')} />
           </div>
         </div>
-        <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} /></div>
+        <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
         {aviso && <div className="mt-3"><Aviso tipo="alerta">{aviso}</Aviso></div>}
       </div>
 

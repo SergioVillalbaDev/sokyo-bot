@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Info, Filter, Check, AlertTriangle, Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -109,6 +111,8 @@ export default function PresentacionesView({ dash }) {
     setGuardando(false);
     setTimeout(() => setGuardadoOk(false), 2500);
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros], guardar, { listo: !!configServidor });
 
   const pendientes = presentaciones.filter((p) => !p.procesada);
   const procesadas = presentaciones.filter((p) => p.procesada);
@@ -387,6 +391,7 @@ export default function PresentacionesView({ dash }) {
           <Check size={16} />
           {guardando ? t('dashboard.presentaciones_v.saving') : t('dashboard.presentaciones_v.save')}
         </button>
+        <EstadoAutoguardado estado={autoguardado} />
         {guardadoOk && <span className="text-sm font-semibold text-success">{t('dashboard.presentaciones_v.savedOk')}</span>}
       </div>
 

@@ -6,6 +6,7 @@ import { ChevronsUp, Timer, Trophy, ExternalLink } from 'lucide-react';
 import { Avatar } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { relativo } from './crecimientoUtils';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
 
 export default function CrecBumpView({ dash }) {
   const { t, i18n } = useTranslation();
@@ -28,18 +29,22 @@ export default function CrecBumpView({ dash }) {
   // La cuenta atrás del próximo bump se refresca cada 30 s.
   useEffect(() => { const id = setInterval(() => setAhora(Date.now()), 30000); return () => clearInterval(id); }, []);
 
+  const guardar = async () => {
+    setEstado('guardando');
+    const r = await guardarCrecimiento('bump', form);
+    if (r.error) { setEstado(r.error); return false; }
+    setEstado('ok');
+    cargar();
+    return true;
+  };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado(form, guardar, { listo: !!form });
+
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.crec_v.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
   if (!form) return null;
 
   const set = (k) => (v) => { setForm((f) => ({ ...f, [k]: v })); setEstado(''); };
-  const guardar = async () => {
-    setEstado('guardando');
-    const r = await guardarCrecimiento('bump', form);
-    if (r.error) { setEstado(r.error); return; }
-    setEstado('ok');
-    cargar();
-  };
 
   const e = datos.estado || {};
   const proximo = e.proximoBump ? new Date(e.proximoBump) : null;
@@ -77,7 +82,7 @@ export default function CrecBumpView({ dash }) {
             <textarea rows={2} maxLength={500} value={form.mensajeGracias || ''} onChange={(ev) => set('mensajeGracias')(ev.target.value)} className={campo} />
           </Campo>
         </div>
-        <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} /></div>
+        <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">

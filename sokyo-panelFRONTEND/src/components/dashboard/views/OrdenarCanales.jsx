@@ -2,11 +2,12 @@
 // Se agarra por el asa ⠿ y se suelta donde se quiera: un canal puede cambiar
 // de categoría. Las demás filas se apartan con una animación y, al guardar, el
 // nuevo orden se aplica en Discord de una sola vez. Las flechas ↑ ↓ hacen lo
-// mismo sin arrastrar (teclado y lectores de pantalla).
+// mismo sin arrastrar (teclado y lectores de pantalla). Con «Solo categorías»
+// se pliegan los canales: así se ordenan las categorías sin recorrer media página.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { GripVertical, FolderTree, Hash, Volume2, Megaphone, MessagesSquare, Radio, ChevronUp, ChevronDown, Save, X, Loader2, Move, Inbox } from 'lucide-react';
+import { GripVertical, FolderTree, Hash, Volume2, Megaphone, MessagesSquare, Radio, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Save, X, Loader2, Move, Inbox, ListCollapse } from 'lucide-react';
 import { cn } from '../../../lib/cn';
 
 const ICONO_TIPO = { texto: Hash, voz: Volume2, anuncios: Megaphone, foro: MessagesSquare, escenario: Radio };
@@ -22,8 +23,11 @@ function borradorDe(estructura) {
   };
 }
 
-export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
+// `foco`: categoría a la que llevar la vista al abrir (se resalta un momento).
+export default function OrdenarCanales({ estructura, foco = null, compactoInicial = false, onGuardar, onCerrar }) {
   const { t } = useTranslation();
+  const [compacto, setCompacto] = useState(compactoInicial);
+  const [resaltada, setResaltada] = useState(foco);
   const datos = useMemo(() => {
     const canales = new Map();
     const cats = new Map();
@@ -98,6 +102,24 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
     if (i < 0 || destino < 0 || destino > borrador.cats.length) return;
     moverCategoria(id, destino);
   };
+  // Del tirón al principio o al final (y la vista la sigue).
+  const extremoCategoria = (id, alFinal) => {
+    moverCategoria(id, alFinal ? borrador.cats.length : 0);
+    setResaltada(id);
+    requestAnimationFrame(() => requestAnimationFrame(() => raiz.current?.querySelector(`[data-bloque-cat="${id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })));
+  };
+
+  // Al abrir desde una categoría: se lleva la vista hasta ella y se resalta.
+  useEffect(() => {
+    if (!foco) return undefined;
+    raiz.current?.querySelector(`[data-bloque-cat="${foco}"]`)?.scrollIntoView({ block: 'center' });
+    return undefined;
+  }, [foco]);
+  useEffect(() => {
+    if (!resaltada) return undefined;
+    const id = setTimeout(() => setResaltada(null), 2200);
+    return () => clearTimeout(id);
+  }, [resaltada]);
 
   // ---- Arrastrar ----
   const empezar = (e, tipo, id) => {
@@ -287,7 +309,15 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
             )}
           </AnimatePresence>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button" onClick={() => setCompacto((v) => !v)} aria-pressed={compacto}
+            className={cn('flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors sm:flex-none',
+              compacto ? 'border-brand bg-brand/15 text-fg' : 'border-line text-fg hover:bg-elevated')}
+            title={t('dashboard.canales_v.onlyCategoriesHint')}
+          >
+            <ListCollapse size={15} /> {t('dashboard.canales_v.onlyCategories')}
+          </button>
           <button onClick={() => onCerrar(false)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line px-3.5 py-2 text-sm font-semibold text-fg transition-colors hover:bg-elevated sm:flex-none">
             <X size={15} /> {t('dashboard.canales_v.orderCancel')}
           </button>
@@ -318,7 +348,9 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
             <motion.div
               key={cat.id} layout layoutId={`cat-${cat.id}`} transition={{ type: 'spring', stiffness: 420, damping: 38 }}
               data-arrastrable data-bloque-cat={cat.id} data-indice={ci}
-              className={cn('rounded-3xl border p-3 shadow-soft', arrastrando ? 'border-dashed border-brand/60 bg-brand/10 opacity-60' : 'border-line bg-card')}
+              className={cn('rounded-3xl border shadow-soft transition-shadow', compacto ? 'p-2' : 'p-3',
+                arrastrando ? 'border-dashed border-brand/60 bg-brand/10 opacity-60' : 'border-line bg-card',
+                resaltada === cat.id && !arrastrando && 'ring-2 ring-brand')}
             >
               <div className="flex items-center gap-2" data-cabecera-lista={cat.id}>
                 <button
@@ -331,13 +363,17 @@ export default function OrdenarCanales({ estructura, onGuardar, onCerrar }) {
                 <FolderTree size={16} className="shrink-0 text-brand" />
                 <span className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-fg">{info?.nombre}</span>
                 <span className="shrink-0 text-xs text-muted">{cat.canales.length}</span>
+                <button type="button" onClick={() => extremoCategoria(cat.id, false)} disabled={ci === 0} className="sk-foco hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-fg disabled:opacity-30 sm:grid" aria-label={t('dashboard.canales_v.toTop')} title={t('dashboard.canales_v.toTop')}><ChevronsUp size={16} /></button>
                 <button type="button" onClick={() => pasoCategoria(cat.id, -1)} className="sk-foco grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-fg" aria-label={t('dashboard.canales_v.moveUp')}><ChevronUp size={16} /></button>
                 <button type="button" onClick={() => pasoCategoria(cat.id, 1)} className="sk-foco grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-fg" aria-label={t('dashboard.canales_v.moveDown')}><ChevronDown size={16} /></button>
+                <button type="button" onClick={() => extremoCategoria(cat.id, true)} disabled={ci === borrador.cats.length - 1} className="sk-foco hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-fg disabled:opacity-30 sm:grid" aria-label={t('dashboard.canales_v.toBottom')} title={t('dashboard.canales_v.toBottom')}><ChevronsDown size={16} /></button>
               </div>
-              <div className="mt-2 space-y-1.5 pl-1 sm:pl-3" data-zona-lista={cat.id}>
-                {cat.canales.map((id, i) => filaCanal(id, cat.id, i))}
-                {cat.canales.length === 0 && <p className="rounded-xl border border-dashed border-line px-3 py-3 text-center text-xs text-muted">{t('dashboard.canales_v.dropHere')}</p>}
-              </div>
+              {!compacto && (
+                <div className="mt-2 space-y-1.5 pl-1 sm:pl-3" data-zona-lista={cat.id}>
+                  {cat.canales.map((id, i) => filaCanal(id, cat.id, i))}
+                  {cat.canales.length === 0 && <p className="rounded-xl border border-dashed border-line px-3 py-3 text-center text-xs text-muted">{t('dashboard.canales_v.dropHere')}</p>}
+                </div>
+              )}
             </motion.div>
           );
         })}

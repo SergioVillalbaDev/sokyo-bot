@@ -42,7 +42,16 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.6.0.**
+  --no-git-tag-version`. **Versión actual: 1.7.0.** El aviso lleva la lista de
+  novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
+  pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
+  `ANUNCIO_MENSAJE`).
+- **Música (Lavalink)**: desde marzo de 2026 Discord exige audio cifrado (DAVE) y
+  solo lo hace Lavalink 4.2+. `scripts/lavalink.js` (pm2 `lavalink`) mira la versión
+  del `lavalink/Lavalink.jar` y, si es vieja, descarga la 4.2.2 de GitHub (la
+  anterior queda en `Lavalink.jar.anterior`). DAVE necesita glibc 2.35+ (Raspberry
+  Pi OS Bookworm). `/api/health` dice en `musica` si está conectado y su versión, y
+  el panel (Música) avisa si no puede sonar.
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -114,6 +123,30 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   el servidor de ejemplo (puntero visible) y ffmpeg; los scripts vivían en el
   scratchpad. Si cambia una pantalla, hay que regrabar su vídeo en los dos idiomas
   y subir `VERSION` en `lib/videos.js` (va en la dirección; se guardan un mes).
+- **Autoguardado** (`hooks/useAutoguardado.js` + `EstadoAutoguardado.jsx`): en las
+  secciones de ajustes, `useAutoguardado(valor, guardar, { listo })` guarda solo al
+  dejar de tocar (1,5 s), con Ctrl + S y al salir de la sección; avisa si se cierra
+  la pestaña con cambios. El `guardar` de la sección debe devolver `false` /
+  `{ ok: false }` si falla (entonces reintenta, cada vez más espaciado). Solo cuenta
+  como cambio lo que pasa tras tocar algo. No va en secciones que publican en
+  Discord o tienen límites (canales, paneles). Se apaga en Preferencias (⚙).
+- **Modo ligero** (`lib/ligero.js`, `src/ligero.css`, clase `sk-ligero` en `<html>`):
+  sin cristal difuminado ni fondo animado. Automático en Firefox, con ≤4 núcleos o
+  ≤4 GB; se elige en Preferencias (vale para web, panel y Mi cuenta). En el panel,
+  además, `MotionConfig reducedMotion`.
+- **Historial del panel**: cada sección (y el ticket abierto, `…/t/<canal>`) es un
+  paso del historial (`Dashboard.jsx`): el atrás del navegador y el botón «Atrás»
+  de la cabecera vuelven a lo anterior. Atajos: Ctrl+K, /, ?, Ctrl+S, Alt+←.
+- **Miembros** (`views/MiembrosView.jsx`, pestaña `mod-miembros`): lista de todo el
+  servidor (`GET /api/servidor/miembros/lista`, por páginas) con Aislar · Expulsar ·
+  Banear (el formulario `AplicarModal` del Centro de mando) y baneados
+  (`/api/servidor/baneos`). La foto de abajo del menú abre «Mi perfil» (Mi cuenta)
+  con `POST /api/staff/mi-cuenta`; «Mi cuenta» tiene botón al panel si ya se entró.
+- **Permisos**: `PERMISOS_CATALOGO` (roles, `api/server.js`) y `PERMISOS_CANAL`
+  (`api/routes/canales.js`) tienen todos los de Discord, con nombre y explicación en
+  `roles_v.perms` / `roles_v.permsDesc`. Crear/editar canales comprueba antes
+  Comunidad (anuncios/escenario), «Gestionar canales» y permisos que el bot no puede
+  dar, y responde con `codigo` para que el panel lo explique.
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -190,5 +223,13 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   del chat ya no se desplaza de lado ni se queda estrecha a 1280 px; la rueda
   del ratón encima de un campo numérico ya no cambia su valor (main.jsx); los
   botones de variables de la bienvenida insertan `{server}`/`{members}`.
+- 1.7.0 La música vuelve a sonar (Lavalink 4.2.2 automático por el audio cifrado de
+  Discord; aviso en el panel y en el canal si Discord rechaza la voz). Crear canales
+  de anuncios dice el motivo real (p. ej., falta la Comunidad) en vez de «permisos».
+  Sección «Miembros y baneos». Todos los permisos de Discord con explicación y
+  buscador. Autoguardado, botón «Atrás» e historial del navegador, perfil desde la
+  foto del menú, acceso al panel desde Mi cuenta, mover categorías con «Mover» /
+  «Solo categorías» / «Al principio», modo ligero (Firefox y PCs modestos), atajos
+  (?), «Volver arriba» y recientes en el buscador.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

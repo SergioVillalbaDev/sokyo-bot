@@ -7,6 +7,7 @@ import { Search, CornerDownLeft, Crown, Ticket as TicketIcon, ArrowUp, ArrowDown
 import { gruposVisibles, normalizar, metaKey, bloqueadoPorPlan, itemVisible } from './navConfig';
 import { getStaffSession } from '../../lib/api';
 import { cn } from '../../lib/cn';
+import { leerRecientes } from '../../lib/recientes';
 
 const esOwner = !!getStaffSession()?.owner;
 
@@ -31,7 +32,12 @@ export default function BuscadorPanel({ abierto, onCerrar, irA, permisos, esPrem
 
   const resultados = useMemo(() => {
     const palabras = normalizar(q).split(/\s+/).filter(Boolean);
-    if (!palabras.length) return secciones;
+    // Sin escribir: primero lo último que se ha abierto y después todo el índice.
+    if (!palabras.length) {
+      const recientes = leerRecientes().map((tab) => secciones.find((s) => s.tab === tab)).filter(Boolean).slice(0, 4)
+        .map((s) => ({ ...s, id: `rec-${s.id}`, grupoId: '__recientes', grupo: t('dashboard.search.recent') }));
+      return [...recientes, ...secciones];
+    }
     const puntos = (s) => {
       if (!palabras.every((p) => s.texto.includes(p))) return -1;
       const frase = palabras.join(' ');
@@ -46,12 +52,9 @@ export default function BuscadorPanel({ abierto, onCerrar, irA, permisos, esPrem
       .slice(0, 5)
       .map((tk) => ({ tipo: 'ticket', id: `tk-${tk.canalId}`, ticket: tk, titulo: tk.titulo || tk.motivo || 'Ticket', desc: `${tk.creadorNombre || ''} · ${tk.estado || ''}` }));
     return [...secc, ...tks];
-  }, [q, secciones, tickets, permisos]);
-
-  // Al abrir: vacío y con el foco en el primero.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => { if (abierto) { setQ(''); setSel(0); } }, [abierto]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+    // `abierto`: los recientes se vuelven a leer cada vez que se abre.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, secciones, tickets, permisos, abierto, t]);
 
   // Mantener visible la fila elegida con el teclado.
   useEffect(() => {

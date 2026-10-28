@@ -1,9 +1,9 @@
 // Contenedor del Dashboard — une el layout (Sidebar + Header) con las vistas.
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useSyncExternalStore, lazy, Suspense } from 'react';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, LogIn } from 'lucide-react';
+import { AlertTriangle, LogIn, ArrowUp } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
 import { maybeStartOnboarding } from '../../lib/onboarding';
 import { marcarEnPanel } from '../../i18n';
@@ -14,6 +14,9 @@ import BuscadorPanel from './BuscadorPanel';
 import '../../dashboard.css';
 import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
+import { AtajosTeclado } from './Preferencias';
+import { ligeroActivo, suscribirLigero } from '../../lib/ligero';
+import { anotarReciente } from '../../lib/recientes';
 import InicioView from './views/InicioView';
 // Cada sección se descarga al abrirla (el Inicio va incluido): así el panel
 // arranca rápido en el móvil. Cuando el navegador está libre se precargan
@@ -29,6 +32,7 @@ const CARGAR_VISTA = {
   AutoRolView: () => import('./views/AutoRolView'),
   PanelesView: () => import('./views/PanelesView'),
   CentroMandoView: () => import('./views/CentroMandoView'),
+  MiembrosView: () => import('./views/MiembrosView'),
   TiposSancionView: () => import('./views/TiposSancionView'),
   RegistroSancionesView: () => import('./views/RegistroSancionesView'),
   AutomodView: () => import('./views/AutomodView'),
@@ -105,11 +109,17 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   // Buscador de todo el panel: Ctrl/⌘ + K desde cualquier sitio, o "/" si no se
   // está escribiendo en un campo.
   const [buscador, setBuscador] = useState(false);
+  // Chuleta de atajos: «?» desde cualquier sitio (o desde las preferencias).
+  const [atajos, setAtajos] = useState(false);
   useEffect(() => {
     const tecla = (e) => {
       const enCampo = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) || e.target?.isContentEditable;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setBuscador((v) => !v); }
       else if (e.key === '/' && !enCampo && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setBuscador(true); }
+      else if (e.key === '?' && !enCampo && !e.ctrlKey && !e.metaKey) { e.preventDefault(); setAtajos(true); }
+      // Ctrl + S: guarda ya la sección abierta (la que tiene autoguardado), sin
+      // el «Guardar página» del navegador.
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); window.dispatchEvent(new Event('sokyo-guardar')); }
     };
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
@@ -133,12 +143,70 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     return () => clearTimeout(id);
   }, [activeTab, t, guildId, mostrarSelectorServidor, servidores.length]);
 
-  // La pestaña abierta va en la URL (#dashboard/<pestaña>): al recargar, o al
-  // compartir el enlace, se vuelve a la misma sección.
+  // La pestaña abierta va en la URL (#dashboard/<pestaña>, y el ticket abierto en
+  // …/t/<canal>): al recargar, o al compartir el enlace, se vuelve a la misma
+  // sección. Cada cambio es un paso del historial: el «atrás» del navegador, del
+  // ratón o del móvil vuelve a lo anterior del panel en vez de salir de él.
+  const ticketEnUrl = activeTab === 'tickets-gestion' ? ticketSeleccionado?.canalId || null : null;
+  // Ticket de la URL al abrir el panel (un enlace compartido o al recargar): se
+  // abre en cuanto llega la lista de tickets.
+  const ticketInicial = useRef((window.location.hash.match(/^#dashboard\/tickets-gestion\/t\/([\w-]+)/) || [])[1] || null);
+  const primeraUrl = useRef(true);
   useEffect(() => {
-    const destino = activeTab === 'inicio' ? '#dashboard' : `#dashboard/${activeTab}`;
-    if (window.location.hash !== destino) window.history.replaceState(null, '', destino);
-  }, [activeTab]);
+    const id = ticketInicial.current;
+    if (!id || !dash.ticketsReales?.length) return;
+    ticketInicial.current = null;
+    const tk = dash.ticketsReales.find((x) => x.canalId === id);
+    if (tk) dash.verMensajes(tk);
+  }, [dash.ticketsReales, dash]);
+  useEffect(() => {
+    const destino = activeTab === 'inicio' ? '#dashboard' : `#dashboard/${activeTab}${ticketEnUrl ? `/t/${ticketEnUrl}` : ''}`;
+    // Mientras se abre el ticket de la URL, la dirección se deja como está.
+    if (ticketInicial.current && window.location.hash.startsWith(`${destino}/t/`)) return;
+    const estado = window.history.state;
+    // La entrada con la que se abre el panel es el paso 0 (se corrige, no se añade otra).
+    if (primeraUrl.current) {
+      primeraUrl.current = false;
+      if (typeof estado?.sokyoPaso !== 'number' || window.location.hash !== destino) {
+        window.history.replaceState({ ...estado, sokyoPaso: typeof estado?.sokyoPaso === 'number' ? estado.sokyoPaso : 0 }, '', destino);
+        window.dispatchEvent(new Event('sokyo-historial'));
+      }
+      return;
+    }
+    if (window.location.hash === destino) return;
+    const paso = estado?.sokyoPaso;
+    window.history.pushState({ sokyoPaso: typeof paso === 'number' ? paso + 1 : 1, sokyoTicket: !!ticketEnUrl }, '', destino);
+    window.dispatchEvent(new Event('sokyo-historial'));
+  }, [activeTab, ticketEnUrl]);
+  // Al volver (o avanzar) con el navegador: se abre la sección de la URL.
+  const dashRef = useRef(dash);
+  useEffect(() => { dashRef.current = dash; });
+  useEffect(() => {
+    const alVolver = () => {
+      const m = window.location.hash.match(/^#dashboard(?:\/([\w-]+))?(?:\/t\/([\w-]+))?/);
+      if (!m) return; // ha salido del panel: de eso se encarga App
+      const d = dashRef.current;
+      const tab = m[1] || 'inicio';
+      if (m[2] && tab === 'tickets-gestion') {
+        const tk = (d.ticketsReales || []).find((x) => x.canalId === m[2]);
+        if (tk && d.ticketSeleccionado?.canalId !== tk.canalId) d.verMensajes(tk);
+      } else if (d.ticketSeleccionado) d.cerrarMensajes();
+      d.setActiveTab(tab);
+    };
+    window.addEventListener('popstate', alVolver);
+    return () => window.removeEventListener('popstate', alVolver);
+  }, []);
+  // Cuántos pasos hay para volver dentro del panel (botón «Atrás» de la cabecera).
+  const pasosAtras = useSyncExternalStore(suscribirHistorial, leerPaso);
+  const irAtras = () => {
+    if (pasosAtras > 0) window.history.back();
+    else navigate('inicio');
+  };
+  // «Volver» desde un ticket: si se abrió desde la lista, es un paso atrás.
+  const cerrarChat = () => {
+    if (pasosAtras > 0 && window.history.state?.sokyoTicket) window.history.back();
+    else dash.cerrarMensajes();
+  };
 
   const mainRef = useRef(null);
 
@@ -150,8 +218,14 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     setMobileOpen(false);
   };
   // Cada sección empieza arriba del todo, se llegue desde donde se llegue
-  // (menú, buscador, migas de pan, avisos o el mapa del inicio).
-  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); }, [activeTab]);
+  // (menú, buscador, migas de pan, avisos o el mapa del inicio). Y se apunta en
+  // «Recientes» del buscador.
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); anotarReciente(activeTab); }, [activeTab]);
+  // Botón «Volver arriba» cuando se ha bajado mucho en una sección larga.
+  const [lejos, setLejos] = useState(false);
+  const alDesplazar = (e) => { const abajo = e.currentTarget.scrollTop > 700; if (abajo !== lejos) setLejos(abajo); };
+  // Modo ligero (PCs con pocos recursos y Firefox): sin animaciones de movimiento.
+  const ligero = useSyncExternalStore(suscribirLigero, ligeroActivo, () => false);
   // Con el panel ya pintado (y un respiro), se precargan las demás secciones.
   useEffect(() => {
     let parar = () => {};
@@ -163,7 +237,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
 
   const renderView = () => {
     if (activeTab === 'inicio') return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
-    if (activeTab === 'tickets-gestion') return ticketSeleccionado ? <V.ChatView dash={dash} /> : <V.TicketsView dash={dash} />;
+    if (activeTab === 'tickets-gestion') return ticketSeleccionado ? <V.ChatView dash={{ ...dash, cerrarMensajes: cerrarChat }} /> : <V.TicketsView dash={dash} />;
     if (activeTab === 'tickets-usuarios') return <V.UsersView dash={dash} />;
     if (activeTab === 'tickets-config') return <V.TicketsAjustesView dash={dash} />;
     if (activeTab === 'config-textos') return <V.TextsView dash={dash} />;
@@ -175,6 +249,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'roles-autorol') return <V.AutoRolView dash={dash} />;
     if (activeTab === 'roles-paneles') return <V.PanelesView dash={dash} />;
     if (activeTab === 'mod-centro') return <V.CentroMandoView dash={dash} />;
+    if (activeTab === 'mod-miembros') return <V.MiembrosView dash={dash} />;
     if (activeTab === 'mod-tipos') return <V.TiposSancionView dash={dash} />;
     if (activeTab === 'mod-automod') return <V.AutomodView dash={dash} />;
     if (activeTab === 'mod-registro') return <V.RegistroSancionesView dash={dash} />;
@@ -214,6 +289,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   // h-dvh y no h-screen: en el móvil 100vh es más alto que la parte visible
   // (por la barra del navegador) y lo de abajo quedaba fuera de la pantalla.
   return (
+    <MotionConfig reducedMotion={ligero ? 'always' : 'user'}>
     <div className="sk-dash flex h-dvh overflow-hidden text-fg">
       <FondoPanel />
       <Sidebar
@@ -237,9 +313,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} onBuscar={() => setBuscador(true)} />
+        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} onBuscar={() => setBuscador(true)} puedeVolver={pasosAtras > 0 || activeTab !== 'inicio'} onAtras={irAtras} onAtajos={() => setAtajos(true)} />
 
-        <main ref={mainRef} className="flex-1 overflow-y-auto px-3 pb-10 pt-4 sm:px-4 sm:pt-5 lg:pl-4 lg:pr-5">
+        <main ref={mainRef} onScroll={alDesplazar} className="flex-1 overflow-y-auto px-3 pb-10 pt-4 sm:px-4 sm:pt-5 lg:pl-4 lg:pr-5">
           <div className="mx-auto w-full max-w-[1500px]">
           {errorConexion && (
             <div className="mb-6 rounded-2xl border border-danger/40 bg-danger/10 p-5">
@@ -283,8 +359,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
         onCerrar={() => setMostrarSelectorServidor(false)}
       />
 
-      <BuscadorPanel
-        abierto={buscador}
+      {/* Se monta al abrirlo: así empieza siempre vacío, sin perder lo que se teclea nada más abrir. */}
+      {buscador && <BuscadorPanel
+        abierto
         onCerrar={() => setBuscador(false)}
         irA={navigate}
         permisos={misPermisos}
@@ -293,16 +370,38 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
         tickets={dash.ticketsReales}
         abrirTicket={(tk) => { navigate('tickets-gestion'); dash.verMensajes(tk); }}
         onRequestUpgrade={setUpgradeFeature}
-      />
+      />}
 
       <UpgradeModal
         feature={upgradeFeature}
         onClose={() => setUpgradeFeature(null)}
         onVerPlanes={() => { setUpgradeFeature(null); navigate('cuenta-plan'); }}
       />
+
+      {atajos && <AtajosTeclado onCerrar={() => setAtajos(false)} />}
+
+      {lejos && (
+        <button
+          type="button" onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: ligero ? 'auto' : 'smooth' })}
+          className="sk-boton-icono sk-aparece fixed bottom-5 right-5 z-30 !h-11 !w-11 shadow-lg"
+          aria-label={t('dashboard.backToTop')} title={t('dashboard.backToTop')}
+        >
+          <ArrowUp size={18} />
+        </button>
+      )}
     </div>
+    </MotionConfig>
   );
 }
+
+// Historial del navegador para el botón «Atrás» (lo actualiza el propio panel al
+// cambiar de sección y el navegador al volver o avanzar).
+function suscribirHistorial(avisar) {
+  window.addEventListener('popstate', avisar);
+  window.addEventListener('sokyo-historial', avisar);
+  return () => { window.removeEventListener('popstate', avisar); window.removeEventListener('sokyo-historial', avisar); };
+}
+const leerPaso = () => (typeof window.history.state?.sokyoPaso === 'number' ? window.history.state.sokyoPaso : 0);
 
 // Fondo del panel: nebulosas con los colores del tema, polvo de estrellas y
 // dos estelas de luz quietas (src/dashboard.css). Sin animación: es un sitio de

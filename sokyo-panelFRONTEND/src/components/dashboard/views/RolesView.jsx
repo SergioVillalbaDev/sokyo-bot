@@ -26,8 +26,8 @@ const PERMISOS_CLAVE = new Set([
 const CATEGORIAS = [
   { id: 'moderacion', icon: ShieldAlert, flags: ['KickMembers', 'BanMembers', 'ModerateMembers', 'ManageNicknames', 'ManageRoles'] },
   { id: 'general', icon: Globe, flags: ['ViewChannel', 'CreateInstantInvite', 'ChangeNickname', 'AddReactions'] },
-  { id: 'texto', icon: MessageSquare, flags: ['SendMessages', 'SendTTSMessages', 'ManageMessages', 'EmbedLinks', 'AttachFiles', 'ReadMessageHistory', 'MentionEveryone', 'UseExternalEmojis', 'UseExternalStickers', 'SendMessagesInThreads', 'CreatePublicThreads', 'CreatePrivateThreads', 'ManageThreads', 'UseApplicationCommands', 'SendPolls', 'UseExternalApps'] },
-  { id: 'voz', icon: Volume2, flags: ['Connect', 'Speak', 'Stream', 'MuteMembers', 'DeafenMembers', 'MoveMembers', 'UseVAD', 'PrioritySpeaker', 'RequestToSpeak', 'UseSoundboard', 'UseExternalSounds', 'UseEmbeddedActivities'] },
+  { id: 'texto', icon: MessageSquare, flags: ['SendMessages', 'SendTTSMessages', 'ManageMessages', 'PinMessages', 'EmbedLinks', 'AttachFiles', 'ReadMessageHistory', 'MentionEveryone', 'UseExternalEmojis', 'UseExternalStickers', 'SendMessagesInThreads', 'CreatePublicThreads', 'CreatePrivateThreads', 'ManageThreads', 'UseApplicationCommands', 'SendPolls', 'SendVoiceMessages', 'BypassSlowmode', 'UseExternalApps'] },
+  { id: 'voz', icon: Volume2, flags: ['Connect', 'Speak', 'Stream', 'MuteMembers', 'DeafenMembers', 'MoveMembers', 'UseVAD', 'PrioritySpeaker', 'RequestToSpeak', 'UseSoundboard', 'UseExternalSounds', 'UseEmbeddedActivities', 'SetVoiceChannelStatus'] },
 ];
 // Índice flag -> categoría, para clasificar rápido.
 const CAT_DE_FLAG = new Map(CATEGORIAS.flatMap((c) => c.flags.map((f) => [f, c.id])));
@@ -88,9 +88,9 @@ export default function RolesView({ dash }) {
             catalogo={permisosCatalogo}
             onClose={() => setEditando(null)}
             onGuardar={async (datos) => {
-              const ok = editando.id ? await editarRol(editando.id, datos) : await crearRol(datos);
-              if (ok) setEditando(null);
-              return ok;
+              const r = editando.id ? await editarRol(editando.id, datos) : await crearRol(datos);
+              if (r?.ok) setEditando(null);
+              return r;
             }}
           />
         )}
@@ -377,8 +377,16 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
   const [color, setColor] = useState(colorVisible(rol.color));
   const [permisos, setPermisos] = useState(new Set(rol.permisos || []));
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+  // Buscador: con todos los permisos de Discord la lista es larga.
+  const [busqueda, setBusqueda] = useState('');
 
   const etiquetaPermiso = (flag) => t(`dashboard.roles_v.perms.${flag}`, humanizar(flag));
+  const descPermiso = (flag) => t(`dashboard.roles_v.permsDesc.${flag}`, '');
+  const sinAcentos = (x) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const q = sinAcentos(busqueda.trim());
+  const coincide = (flag) => !q || [flag, etiquetaPermiso(flag), descPermiso(flag)].some((x) => sinAcentos(x).includes(q));
+  const grupos = catalogo.map((g) => ({ ...g, permisos: g.permisos.filter(coincide) })).filter((g) => g.permisos.length);
 
   const togglePermiso = (flag) => {
     const next = new Set(permisos);
@@ -391,9 +399,12 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
 
   const guardar = async () => {
     if (!nombre.trim()) return;
-    setGuardando(true);
-    await onGuardar({ nombre: nombreFinal, color, permisos: [...permisos] });
+    setGuardando(true); setError(null);
+    const r = await onGuardar({ nombre: nombreFinal, color, permisos: [...permisos] });
     setGuardando(false);
+    if (r?.ok) return;
+    if (r?.codigo === 'permisos_bot') setError(t('dashboard.roles_v.errPermBot', { lista: (r.permisos || []).map((f) => `«${etiquetaPermiso(f)}»`).join(', ') }));
+    else setError(r?.error || t('dashboard.roles_v.saveErr'));
   };
 
   return (
@@ -453,16 +464,27 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
 
         {/* Permisos agrupados */}
         <label className="mb-2 block text-xs font-semibold text-muted">{t('dashboard.roles_v.fieldPerms')}</label>
+        <div className="relative mb-3">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder={t('dashboard.roles_v.searchPerm')}
+            className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-3 text-sm text-fg outline-none focus:border-brand"
+          />
+        </div>
         <div className="space-y-4">
-          {catalogo.map((grupo) => (
+          {grupos.length === 0 && <p className="text-sm italic text-muted">{t('dashboard.roles_v.noPermMatch', { q: busqueda.trim() })}</p>}
+          {grupos.map((grupo) => (
             <Card key={grupo.grupo} className="p-3.5">
               <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-muted">{t(`dashboard.roles_v.groups.${grupo.grupo}`, grupo.grupo)}</p>
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {grupo.permisos.map((flag) => (
-                  <div key={flag} className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-fg">{etiquetaPermiso(flag)}</span>
+                  <label key={flag} className="flex cursor-pointer items-center justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block text-sm text-fg">{etiquetaPermiso(flag)}</span>
+                      {descPermiso(flag) && <span className="block text-xs leading-snug text-muted">{descPermiso(flag)}</span>}
+                    </span>
                     <Toggle checked={permisos.has(flag)} onChange={() => togglePermiso(flag)} />
-                  </div>
+                  </label>
                 ))}
               </div>
             </Card>
@@ -475,6 +497,8 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
             {t('dashboard.roles_v.adminWarning')}
           </p>
         )}
+
+        {error && <p role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
         {/* Acciones */}
         <div className="mt-6 flex justify-end gap-3">

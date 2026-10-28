@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mail, Send, Save, Check, AlertTriangle, Loader2, Info } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
@@ -31,14 +33,18 @@ export default function ResumenView({ dash }) {
   }, [configServidor]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  if (!configServidor) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
-
   const guardar = async () => {
     setEstado(''); setAviso('');
     const r = await guardarResumen({ activo, hora, canalId: canalId || null, destinatarioId: destinatario.trim() || null });
     setEstado(r.ok ? 'guardado' : 'error');
     if (r.error) setAviso(r.error);
+    return r.ok;
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado([activo, hora, canalId, destinatario], guardar, { listo: !!configServidor });
+
+  if (!configServidor) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
+
   const probar = async () => {
     setAviso(''); setEnviando(true);
     const r = await probarResumen();
@@ -91,6 +97,7 @@ export default function ResumenView({ dash }) {
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand shadow-soft transition-opacity hover:opacity-90">
             <Save size={16} /> {t('dashboard.resumen_v.save')}
           </button>
+          <EstadoAutoguardado estado={autoguardado} />
           <button type="button" onClick={probar} disabled={enviando}
             className="flex items-center gap-2 rounded-2xl border border-line bg-bg px-5 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:opacity-50">
             {enviando ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} {t('dashboard.resumen_v.test')}

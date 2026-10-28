@@ -8,6 +8,8 @@ import { Toggle } from '../../ui/primitives';
 import { LogIn, LogOut, Save, Check, Info, Send, Hash } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
 import { EMBED_VACIO } from './embedDefaults';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -60,7 +62,10 @@ export default function BienvenidaView({ dash }) {
     const ok = await guardarBienvenidas(b, d);
     setGuardando(false);
     setGuardado(ok);
+    return ok;
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado([b, d], guardar, { listo: !!configServidor });
   const probar = async () => {
     setPrueba('...');
     const r = await probarBienvenida(tab);
@@ -135,6 +140,7 @@ export default function BienvenidaView({ dash }) {
           className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save size={16} /> {guardando ? t('dashboard.bienvenida_v.saving') : t('dashboard.bienvenida_v.save')}
         </button>
+        <EstadoAutoguardado estado={autoguardado} />
         <button type="button" onClick={probar} disabled={!configServidor || !actual.canalId}
           className="flex items-center gap-2 rounded-2xl border border-line bg-bg px-5 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">
           <Send size={16} /> {t('dashboard.bienvenida_v.test')}

@@ -185,7 +185,7 @@ export default {
       groups: { tickets: 'Tickets', moderacion: 'Moderación', entrada: 'Llegada de miembros', roles: 'Roles', comunidad: 'Comunidad', crecimiento: 'Crecimiento', musica: 'Música y voz', mensajes: 'Mensajes y anuncios', datos: 'Estadísticas y registros', config: 'Servidor y ajustes' },
       items: {
         'tickets-gestion': 'Bandeja de tickets', 'tickets-usuarios': 'Usuarios y valoraciones', 'tickets-config': 'Ajustes de tickets',
-        'mod-centro': 'Centro de mando', 'mod-automod': 'Automoderador', 'mod-reportes': 'Reportes', 'mod-registro': 'Historial de sanciones', 'mod-tipos': 'Tipos de sanción',
+        'mod-miembros': 'Miembros y baneos', 'mod-centro': 'Centro de mando', 'mod-automod': 'Automoderador', 'mod-reportes': 'Reportes', 'mod-registro': 'Historial de sanciones', 'mod-tipos': 'Tipos de sanción',
         'seg-verificacion': 'Verificación', 'prod-bienvenidas': 'Bienvenida y despedida', 'roles-autorol': 'Roles al entrar',
         'roles-gestion': 'Roles y permisos', 'roles-paneles': 'Paneles de roles',
         'com-micuenta': 'Mi cuenta de los miembros', 'config-niveles': 'Niveles y XP', 'com-sorteos': 'Sorteos', 'com-eventos': 'Eventos', 'com-encuestas': 'Encuestas', 'com-sugerencias': 'Sugerencias', 'com-presentaciones': 'Presentaciones', 'com-dinamicas': 'Juegos y retos',
@@ -447,6 +447,7 @@ export default {
     },
     header: {
       brand: 'Mi cuenta', logout: 'Cerrar sesión', home: 'Inicio', homeTitle: 'Volver a la web de Sokyo',
+      panel: 'Panel de control (administradores)', panelShort: 'Panel',
       searchTitle: '¿Qué quieres hacer? (Ctrl + K)', notifications: 'Avisos', allCaughtUp: 'Todo al día. Te avisaremos cuando te respondan.',
       replyFrom: '{{name}} te ha respondido', settings: 'Ajustes', language: 'Idioma',
     },
@@ -616,7 +617,7 @@ export default {
       nothing: 'No hay nada con ese nombre.',
       home: 'Ir al inicio', tickets: 'Ver mis tickets', shop: 'Abrir la tienda', bag: 'Ver mi mochila',
       music: 'Poner música', card: 'Personalizar mi tarjeta', daily: 'Reclamar la recompensa diaria',
-      web: 'Volver a la web de Sokyo', logout: 'Cerrar sesión',
+      web: 'Volver a la web de Sokyo', logout: 'Cerrar sesión', panel: 'Ir al panel de control',
     },
   },
 };

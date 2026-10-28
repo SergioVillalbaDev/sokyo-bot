@@ -64,6 +64,24 @@ async function pistasAleatorias(player, lastTrack, n = 5) {
 // Último mensaje-panel de música por servidor, para editarlo/reemplazarlo.
 const panelMsgs = new Map(); // guildId -> { channelId, messageId }
 
+// Estado del servidor de música (Lavalink) para el panel. Desde marzo de 2026
+// Discord solo deja sonar el audio cifrado (DAVE): con Lavalink anterior a 4.2
+// el bot entra al canal y «reproduce», pero Discord cierra la voz (código 4017)
+// y no se oye nada. Se guarda para avisar en el panel y en el canal.
+const LAVALINK_MINIMO = [4, 2, 0];
+const estadoServidor = { conectado: false, version: null, desactualizado: false, vozRechazada: null };
+const versionVieja = (v) => {
+    if (!v) return false;
+    const x = [v.major, v.minor, v.patch].map((n) => Number(n) || 0);
+    for (let i = 0; i < 3; i++) if (x[i] !== LAVALINK_MINIMO[i]) return x[i] < LAVALINK_MINIMO[i];
+    return false;
+};
+// vozRechazada: si Discord ha rechazado la voz en la última media hora.
+const estadoServidorMusica = () => ({
+    ...estadoServidor,
+    vozRechazada: !!estadoServidor.vozRechazada && Date.now() - estadoServidor.vozRechazada < 30 * 60 * 1000,
+});
+
 // Lee la configuración de música de un servidor, con los defaults aplicados.
 async function getMusicaConfig(guildId) {
     try {
@@ -385,10 +403,50 @@ function initMusica(client) {
 
     // Estado del nodo Lavalink (para ver en consola si conecta).
     client.lavalink.nodeManager
-        .on('connect', (node) => console.log(`🎵 Lavalink conectado (nodo: ${node.id})`))
-        .on('disconnect', (node) => console.warn(`🎵 Lavalink desconectado (nodo: ${node.id})`))
+        .on('connect', async (node) => {
+            estadoServidor.conectado = true;
+            const info = node.info || await node.fetchInfo().catch(() => null);
+            estadoServidor.version = info?.version?.semver || null;
+            estadoServidor.desactualizado = versionVieja(info?.version);
+            console.log(`🎵 Lavalink conectado (nodo: ${node.id}${estadoServidor.version ? `, versión ${estadoServidor.version}` : ''})`);
+            if (estadoServidor.desactualizado) {
+                console.error(`🎵 Lavalink ${estadoServidor.version} es demasiado viejo: Discord exige audio cifrado (DAVE) y eso necesita Lavalink 4.2 o más nuevo. Reinicia el servidor de música (pm2 restart lavalink) y se actualizará solo.`);
+            }
+        })
+        .on('disconnect', (node) => { estadoServidor.conectado = false; console.warn(`🎵 Lavalink desconectado (nodo: ${node.id})`); })
         .on('error', (node, error) =>
             console.error(`🎵 Error de Lavalink (nodo: ${node.id}):`, error?.message || error));
+
+    // Discord ha cerrado la conexión de voz. 4017 = exige audio cifrado (DAVE) y
+    // este Lavalink no lo hace (viejo, o un sistema sin glibc 2.35): no sonará.
+    client.lavalink.on('playerSocketClosed', async (player, payload) => {
+        if (payload?.code !== 4017) return;
+        estadoServidor.vozRechazada = Date.now();
+        console.error(`🎵 Discord ha rechazado la voz en ${player.guildId} (4017: exige audio cifrado DAVE). Lavalink ${estadoServidor.version || '?'}: hace falta 4.2 o más nuevo y glibc 2.35+ (Raspberry Pi OS Bookworm).`);
+        if (player.getData('sokyoAvisoVoz')) return; // un aviso por reproductor
+        player.setData('sokyoAvisoVoz', true);
+        const idioma = await getConfigCached(player.guildId).catch(() => null);
+        const canal = client.channels.cache.get(player.textChannelId);
+        if (canal?.isTextBased()) {
+            canal.send(t(idioma,
+                '🔇 Discord no deja sonar el audio: el servidor de música necesita actualizarse (desde 2026 Discord exige audio cifrado). Avisa al dueño del bot; en cuanto se actualice volverá a sonar.',
+                '🔇 Discord won’t let the audio play: the music server needs an update (since 2026 Discord requires encrypted audio). Let the bot owner know; it will play again once it’s updated.')).catch(() => {});
+        }
+    });
+
+    // Una canción que no se puede reproducir (YouTube la bloquea, se cae el
+    // directo…): se dice en el canal en vez de saltarla en silencio.
+    client.lavalink.on('trackError', async (player, track, payload) => {
+        const motivo = String(payload?.exception?.message || '').slice(0, 160);
+        console.warn(`🎵 No se pudo reproducir «${track?.info?.title || '?'}» en ${player.guildId}: ${motivo || 'sin detalle'}`);
+        const idioma = await getConfigCached(player.guildId).catch(() => null);
+        const canal = client.channels.cache.get(player.textChannelId);
+        if (!canal?.isTextBased()) return;
+        const titulo = track?.info?.title || t(idioma, 'esta canción', 'this song');
+        canal.send(t(idioma,
+            `⚠️ No he podido reproducir **${titulo}**${motivo ? ` (${motivo})` : ''}. Paso a la siguiente.`,
+            `⚠️ I couldn’t play **${titulo}**${motivo ? ` (${motivo})` : ''}. Skipping to the next one.`)).catch(() => {});
+    });
 
     // Panel visual "Reproduciendo ahora" (embed + botones) en cada canción.
     client.lavalink.on('trackStart', async (player) => {
@@ -476,5 +534,5 @@ async function buscarMusica(buscador, query, requester) {
 module.exports = {
     initMusica, formatDuration, ensureVoice, gateMusica, COLOR_MUSICA,
     getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON,
-    manejarBotonMusica, MUSICA_DEFAULTS, buscarMusica, es247,
+    manejarBotonMusica, MUSICA_DEFAULTS, buscarMusica, es247, estadoServidorMusica,
 };

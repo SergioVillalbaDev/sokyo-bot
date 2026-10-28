@@ -437,7 +437,8 @@ function BulkModal({ dash, onClose, onDone }) {
 }
 
 // --- Modal de aplicar sanción (motivo + pruebas) ---
-function AplicarModal({ tipo, usuario, dash, onClose, onAplicado }) {
+// También lo usa la sección «Miembros» (botones Aislar · Expulsar · Banear de cada fila).
+export function AplicarModal({ tipo, usuario, dash, onClose, onAplicado }) {
   const { t } = useTranslation();
   const { aplicarSancion, subirPrueba } = dash;
   const meta = accionMeta(tipo.accion);

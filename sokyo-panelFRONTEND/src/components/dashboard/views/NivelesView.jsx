@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { TrendingUp, Trophy, Save, Check, Plus, X, Mic, Gauge, Megaphone, Ban, Image, Zap, Palette, Eye, EyeOff, Info, Sparkles } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
 import { PRESETS_TARJETA } from '../../../presetsTarjeta';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -71,6 +73,20 @@ export default function NivelesView({ dash }) {
   }, [configServidor]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const guardar = async () => {
+    setGuardando(true);
+    const ok = await guardarNiveles({
+      ...f, canalNivelesId: f.canalNivelesId || null,
+      recompensasNivel: recompensas.filter((r) => r.rolId).map((r) => ({ nivel: Number(r.nivel) || 1, rolId: r.rolId })),
+      multiplicadoresRol: multiplicadores.filter((m) => m.rolId).map((m) => ({ rolId: m.rolId, multiplicador: Number(m.multiplicador) || 1 })),
+    });
+    setGuardando(false);
+    setGuardado(ok);
+    return ok;
+  };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado([f, recompensas, multiplicadores], guardar, { listo: !!f });
+
   if (!f) return null;
   const set = (campo, valor) => { setGuardado(false); setF((p) => ({ ...p, [campo]: valor })); };
   const toggleEnLista = (campo, id) => set(campo, f[campo].includes(id) ? f[campo].filter((x) => x !== id) : [...f[campo], id]);
@@ -82,17 +98,6 @@ export default function NivelesView({ dash }) {
   const setMulti = (i, c, v) => { setGuardado(false); setMultiplicadores(multiplicadores.map((m, j) => (j === i ? { ...m, [c]: v } : m))); };
   const addMulti = () => { setGuardado(false); setMultiplicadores([...multiplicadores, { rolId: '', multiplicador: 2 }]); };
   const removeMulti = (i) => { setGuardado(false); setMultiplicadores(multiplicadores.filter((_, j) => j !== i)); };
-
-  const guardar = async () => {
-    setGuardando(true);
-    const ok = await guardarNiveles({
-      ...f, canalNivelesId: f.canalNivelesId || null,
-      recompensasNivel: recompensas.filter((r) => r.rolId).map((r) => ({ nivel: Number(r.nivel) || 1, rolId: r.rolId })),
-      multiplicadoresRol: multiplicadores.filter((m) => m.rolId).map((m) => ({ rolId: m.rolId, multiplicador: Number(m.multiplicador) || 1 })),
-    });
-    setGuardando(false);
-    setGuardado(ok);
-  };
 
   // --- Catálogo de presets ---
   const toggleOculto = (id) => { setGuardadoCat(false); setOcultos((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id])); };
@@ -320,6 +325,7 @@ export default function NivelesView({ dash }) {
           <button onClick={guardar} disabled={guardando} className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50">
             <Save size={16} /> {guardando ? t('dashboard.niveles_v.saving') : t('dashboard.niveles_v.save')}
           </button>
+          <EstadoAutoguardado estado={autoguardado} />
           {guardado && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.niveles_v.saved')}</span>}
         </div>
       </div>
