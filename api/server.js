@@ -1163,17 +1163,20 @@ app.get('/api/stats/uso', async (req, res) => {
             // con acceso a la API podría firmar el mensaje con el nombre que quisiera.
             const usuario = (req.staff && req.staff.username) || String(req.body.usuario || 'Panel Web').slice(0, 80);
 
+            // Primero a Discord y después a la base de datos: si Discord falla (sin
+            // permiso en el canal, caída…) no se guarda nada y el panel puede
+            // reintentar sin que el mensaje salga dos veces.
+            const canal = client.channels.cache.get(ticketId);
+            if (canal) {
+                await canal.send({ content: `**[${usuario}]** ${contenido}`, allowedMentions: { parse: [] } });
+            }
+
             const nuevoMsg = await Mensaje.create({
                 ticketId: ticketId,
                 usuarioId: 'sokyo-web',
                 usuario: usuario,
                 contenido: contenido
             });
-
-            const canal = client.channels.cache.get(ticketId);
-            if (canal) {
-                await canal.send({ content: `**[${usuario}]** ${contenido}`, allowedMentions: { parse: [] } });
-            }
 
             res.json({ success: true, mensaje: nuevoMsg });
         } catch (error) {
@@ -3348,12 +3351,15 @@ app.get('/api/stats/uso', async (req, res) => {
         // Los .js/.css del build llevan una huella en el nombre (index-BS0UgXRw.js):
         // si cambian, cambia el nombre. Se guardan un año en el navegador y en
         // Cloudflare, así que al volver (sobre todo en el móvil) no se descargan.
-        // Las fuentes no llevan huella: un mes.
+        // Las fuentes no llevan huella: un mes. Los vídeos y las capturas de la web
+        // tampoco, pero se piden con su versión (?v=1, en lib/videos.js y
+        // components/landing/capturas.js), que se sube al regrabarlos: un mes.
         const CON_HUELLA = /[\\/]assets[\\/][^\\/]+-[\w-]{8}\.(js|css)$/;
         app.use(express.static(panelDist, {
             setHeaders: (res, ruta) => {
                 if (CON_HUELLA.test(ruta)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
                 else if (/[\\/]fonts[\\/][^\\/]+\.woff2$/.test(ruta)) res.setHeader('Cache-Control', 'public, max-age=2592000');
+                else if (/[\\/](videos|landing)[\\/][^\\/]+$/.test(ruta)) res.setHeader('Cache-Control', 'public, max-age=2592000');
             },
         }));
         // Fallback SPA: las rutas que no son de la API ni archivos subidos
@@ -3364,7 +3370,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
             // Un archivo del build que ya no existe (p. ej. de antes de un despliegue)
             // es un 404, no la página: así el panel sabe que debe recargarse.
-            if (/^\/(assets|fonts)\//.test(req.path)) return next();
+            if (/^\/(assets|fonts|videos|landing)\//.test(req.path)) return next();
             res.sendFile(path.join(panelDist, 'index.html'));
         });
         console.log('🖥️  Panel web servido desde sokyo-panelFRONTEND/dist');

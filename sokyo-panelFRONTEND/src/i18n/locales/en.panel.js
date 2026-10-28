@@ -242,6 +242,21 @@ export default {
         },
       },
     },
+    videoAyuda: {
+      boton: 'See how it’s done', titulo: 'How it’s done', cerrar: 'Close', entendido: 'Got it, let’s try!',
+      nota: 'Real video of the panel with an example server.',
+      pasos: {
+        inicio: ['At the top you see tickets, ratings and the bot status.', 'In “Your server at a glance” you see which features are on.', 'Click any of them (or the map below) to go to its section.'],
+        tickets: ['Click “View conversation” on the ticket.', 'Type at the bottom and click “Send”: the user gets it on Discord.', 'Internal notes (on the right) are only seen by the staff.'],
+        automod: ['Choose a preset (Balanced, Strict…) and its filters switch on.', 'Scroll down to see each filter and fine-tune it.', 'Click “Save automod”.'],
+        niveles: ['Turn on voice XP if you want to reward voice chats.', 'Set how much XP each message gives and how level-ups are announced.', 'Click “Save” at the very bottom. The leaderboard is on the right.'],
+        analitica: ['Choose the period: 7, 30 or 90 days.', 'At the top you have the key numbers and tips to grow.', 'Scroll down for the member, message and activity charts.'],
+        sorteos: ['Type the name and the prize, and choose the channel.', 'Choose how long it lasts and how many winners there will be.', 'Click “Launch giveaway”: the bot posts it on Discord.'],
+        bienvenidas: ['Choose the channel and write the message: {mention} mentions whoever joins.', 'If you like, add an embed with title, text and colour: the preview updates instantly.', 'Click “Save”.'],
+        canales: ['Click “Move & reorder”.', 'Drag channels or categories by the ⠿ handle wherever you want.', 'Click “Save order” and it is applied on Discord.'],
+        micuenta: ['Choose the channel where everyone will see it.', 'Click “Post in the channel”.', 'Each member presses “Open my account” and gets into their page with one click.'],
+      },
+    },
     sectionHelp: {
       aria: 'Explain this section',
       done: 'Got it!',
@@ -1266,6 +1281,7 @@ export default {
       allTags: 'All',
     },
     chat_v: {
+      sendError: 'Couldn’t send it. Your message is still in the box: try again in a moment.',
       back: 'Back', close: 'Close ticket', reopen: 'Reopen ticket',
       involved: 'Participants', user: 'User', unknownUser: 'Unknown user',
       subject: 'Initial subject', noMessages: 'No messages recorded in this ticket.',

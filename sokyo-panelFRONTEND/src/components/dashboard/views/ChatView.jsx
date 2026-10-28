@@ -8,7 +8,7 @@ import { Avatar, Card } from '../../ui/primitives';
 export default function ChatView({ dash }) {
   const { t } = useTranslation();
   const {
-    ticketSeleccionado: ticket, mensajes, nuevoMensaje, setNuevoMensaje, enviarMensaje,
+    ticketSeleccionado: ticket, mensajes, nuevoMensaje, setNuevoMensaje, enviarMensaje, errorEnvio,
     nuevaNota, setNuevaNota, agregarNotaInterna, obtenerParticipantes,
     cerrarMensajes, handleCerrarTicket, handleReabrirTicket, configServidor, guardarEtiquetas,
     ticketsReales, verMensajes, esPremium, iaTicket, descargarTranscript,
@@ -56,7 +56,11 @@ export default function ChatView({ dash }) {
   const removeTag = (tag) => guardarEtiquetas(ticket.canalId, tags.filter((x) => x !== tag));
 
   const cerrado = ticket.estado === 'Cerrado';
-  const esStaff = (autor) => autor === 'Admin' || autor === 'Sokyo';
+  // A la izquierda, el lado del usuario: quien abrió el ticket y los que se
+  // añadieron a él (rol «Invitado»). A la derecha, el staff (desde Discord o desde
+  // la web, que guarda el nombre de quien responde) y el bot.
+  const ladoUsuario = new Set([ticket.creadorId, ...(ticket.participantes || []).filter((p) => p.rol === 'Invitado').map((p) => p.id)]);
+  const esStaff = (msg) => !ladoUsuario.has(msg.usuarioId);
 
   return (
     <div className="flex h-full flex-col">
@@ -115,9 +119,12 @@ export default function ChatView({ dash }) {
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_300px]">
+      {/* Móvil: el chat primero. Portátil (lg): el chat a la izquierda y, a su lado,
+          implicados e historial arriba y notas debajo. Pantalla grande (xl): tres columnas.
+          Con tres columnas desde lg el chat se quedaba en ~340 px y la caja de escribir no cabía. */}
+      <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_280px] xl:grid-cols-[240px_1fr_290px]">
         {/* Columna izquierda: Implicados + Historial */}
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-1 xl:col-start-1">
           <Card className="flex flex-col overflow-hidden">
             <div className="flex items-center gap-2 border-b border-line bg-brand/10 px-4 py-3.5">
               <Users size={18} className="text-brand" />
@@ -171,7 +178,7 @@ export default function ChatView({ dash }) {
         </div>
 
         {/* Columna central: Chat (en el móvil va la primera: es a lo que se entra) */}
-        <div className="order-first flex min-w-0 flex-col lg:order-none">
+        <div className="order-first flex min-w-0 flex-col lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1 xl:col-start-2 xl:row-span-1">
           {ticket.descripcion && (
             <Card className="mb-4 p-4" style={{ borderLeft: '4px solid var(--accent-color)' }}>
               <p className="mb-1 text-sm font-bold text-brand">{t('dashboard.chat_v.subject')}</p>
@@ -245,7 +252,7 @@ export default function ChatView({ dash }) {
                 <p className="m-auto text-center text-sm italic text-muted">{t('dashboard.chat_v.noMessages')}</p>
               ) : (
                 mensajes.map((msg, i) => {
-                  const mine = esStaff(msg.usuario);
+                  const mine = esStaff(msg);
                   return (
                     <motion.div
                       key={i}
@@ -277,6 +284,9 @@ export default function ChatView({ dash }) {
 
             {/* Caja de envío */}
             <div className="border-t border-line p-3">
+              {errorEnvio && errorEnvio.canalId === ticket.canalId && (
+                <p role="alert" className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-xs font-semibold text-danger">{t('dashboard.chat_v.sendError')}</p>
+              )}
               {cerrado ? (
                 <p className="py-2 text-center text-sm text-muted">{t('dashboard.chat_v.closedNote')}</p>
               ) : (
@@ -323,7 +333,7 @@ export default function ChatView({ dash }) {
                     onChange={(e) => setNuevoMensaje(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && enviarMensaje()}
                     placeholder={t('dashboard.chat_v.reply')}
-                    className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-fg outline-none transition-shadow focus:ring-2 focus:ring-brand/40"
+                    className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-fg outline-none transition-shadow focus:ring-2 focus:ring-brand/40"
                   />
                   <button
                     onClick={enviarMensaje}
@@ -338,7 +348,7 @@ export default function ChatView({ dash }) {
         </div>
 
         {/* Columna derecha: Notas internas */}
-        <Card className="flex flex-col overflow-hidden border-amber-500/30">
+        <Card className="flex flex-col overflow-hidden border-amber-500/30 lg:col-start-2 lg:row-start-2 xl:col-start-3 xl:row-start-1">
           <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3.5">
             <div className="flex items-center gap-2">
               <StickyNote size={18} className="text-amber-500" />

@@ -5,7 +5,7 @@
 // por dentro (capturas reales), qué hace, cómo está organizado, cómo entra cada
 // miembro a su cuenta, la app del móvil, seguridad, cómo se empieza,
 // comparativa, precios, dudas y CTA final.
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react';
 import FondoLanding from './FondoLanding';
 import Navbar from './Navbar';
 import Hero from './Hero';
@@ -20,10 +20,11 @@ const Pie = lazy(() => import('./LandingResto').then((m) => ({ default: m.Pie })
 export default function Landing({ onEnterDashboard }) {
   const raiz = useRef(null);
   // Lo de abajo se pide cuando la portada ya está pintada (dos fotogramas
-  // después): así no le quita al móvil tiempo de descarga ni de proceso.
+  // después): así no le quita al móvil tiempo de descarga ni de proceso. Y se
+  // monta como transición: React lo hace a trozos y no bloquea la página.
   const [resto, setResto] = useState(false);
   useEffect(() => {
-    let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => setResto(true)); });
+    let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => startTransition(() => setResto(true))); });
     return () => cancelAnimationFrame(id);
   }, []);
   // Las secciones de abajo no se pintan hasta que se acercan (lx-diferido): con

@@ -242,6 +242,21 @@ export default {
         },
       },
     },
+    videoAyuda: {
+      boton: 'Ver cómo se hace', titulo: 'Así se hace', cerrar: 'Cerrar', entendido: '¡Entendido, a probarlo!',
+      nota: 'Vídeo real del panel con un servidor de ejemplo.',
+      pasos: {
+        inicio: ['Arriba ves los tickets, la valoración y el estado del bot.', 'En «Estado de tu servidor» ves qué funciones tienes encendidas.', 'Pulsa cualquiera (o el mapa de abajo) para ir a su sección.'],
+        tickets: ['Pulsa «Ver conversación» en el ticket.', 'Escribe abajo y pulsa «Enviar»: le llega al usuario en Discord.', 'Las notas internas (a la derecha) solo las ve el staff.'],
+        automod: ['Elige un preset (Equilibrado, Estricto…) y se encienden sus filtros.', 'Baja para ver cada filtro y retocarlo a tu gusto.', 'Pulsa «Guardar automod».'],
+        niveles: ['Activa la XP por voz si quieres premiar las charlas.', 'Ajusta cuánta XP da cada mensaje y cómo se avisa al subir de nivel.', 'Pulsa «Guardar», abajo del todo. El ranking está a la derecha.'],
+        analitica: ['Elige el periodo: 7, 30 o 90 días.', 'Arriba tienes las cifras clave y recomendaciones para crecer.', 'Baja para ver las gráficas de miembros, mensajes y actividad.'],
+        sorteos: ['Escribe el nombre y el premio, y elige el canal.', 'Elige cuánto dura y cuántos ganadores habrá.', 'Pulsa «Lanzar sorteo»: el bot lo publica en Discord.'],
+        bienvenidas: ['Elige el canal y escribe el mensaje: {mention} menciona a quien entra.', 'Si quieres, añade un embed con título, texto y color: la vista previa cambia al momento.', 'Pulsa «Guardar».'],
+        canales: ['Pulsa «Mover y ordenar».', 'Arrastra los canales o las categorías por el asa ⠿ hasta donde quieras.', 'Pulsa «Guardar orden» y se aplica en Discord.'],
+        micuenta: ['Elige el canal donde lo verá todo el mundo.', 'Pulsa «Publicar en el canal».', 'Cada miembro pulsa «Abrir mi cuenta» y entra a su web con un clic.'],
+      },
+    },
     sectionHelp: {
       aria: 'Explicar esta sección',
       done: '¡Entendido!',
@@ -1271,6 +1286,7 @@ export default {
       allTags: 'Todas',
     },
     chat_v: {
+      sendError: 'No se ha podido enviar. Tu mensaje sigue en la caja: vuelve a intentarlo en un momento.',
       back: 'Volver', close: 'Cerrar Ticket', reopen: 'Reabrir Ticket',
       involved: 'Implicados', user: 'Usuario', unknownUser: 'Usuario Desconocido',
       subject: 'Asunto Inicial', noMessages: 'No hay mensajes registrados en este ticket.',

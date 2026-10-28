@@ -6,7 +6,7 @@
 // un hook para que la nueva UI (Tailwind + Framer Motion) la consuma sin
 // cambiar el comportamiento. NO se ha alterado ninguna llamada a la API.
 // ============================================================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch, API_URL, procesarRespuesta, getStaffSession } from '../lib/api';
 import { isValidTheme, isPremiumTheme } from '../lib/themes';
 
@@ -47,6 +47,13 @@ export function useDashboard() {
   const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
   const [mensajes, setMensajes] = useState([]);
   const [nuevoMensaje, setNuevoMensaje] = useState('');
+  // Respuesta a un ticket: el que está abierto ahora (para no pintar una respuesta
+  // en otro chat si se cambia mientras se envía), si hay un envío en curso, cuándo
+  // llegó el último (para no pisarlo con un refresco que salió antes) y el error.
+  const ticketAbierto = useRef(null);
+  const enviandoMensaje = useRef(false);
+  const ultimoEnvio = useRef(0);
+  const [errorEnvio, setErrorEnvio] = useState(null); // { canalId } del envío que falló
   const [nuevaNota, setNuevaNota] = useState('');
 
   // Estados de Configuración de Textos
@@ -1244,11 +1251,38 @@ export function useDashboard() {
     apiFetch(`/api/mensajes/${ticket.canalId}`).then((res) => res.json()).then((datos) => { setMensajes(datos); setTicketSeleccionado(ticket); });
   };
 
-  const cerrarMensajes = () => { setTicketSeleccionado(null); setMensajes([]); cargarTickets(); };
+  const cerrarMensajes = () => { setTicketSeleccionado(null); setMensajes([]); setErrorEnvio(null); cargarTickets(); };
 
+  // La caja se vacía al enviar (lo que escribas mientras tanto no se pierde) y la
+  // respuesta sale en el chat al llegar, sin esperar al refresco de cada 3 s. Si no
+  // se ha podido enviar, el texto vuelve a la caja y se avisa. Un doble Enter no
+  // la manda dos veces.
   const enviarMensaje = () => {
-    if (nuevoMensaje.trim() === '') return;
-    apiFetch(`/api/mensajes/${ticketSeleccionado.canalId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario: 'Sokyo', contenido: nuevoMensaje }) }).then(() => setNuevoMensaje(''));
+    const texto = nuevoMensaje.trim();
+    if (!texto || !ticketSeleccionado || enviandoMensaje.current) return;
+    const canalId = ticketSeleccionado.canalId;
+    enviandoMensaje.current = true;
+    setErrorEnvio(null);
+    setNuevoMensaje('');
+    apiFetch(`/api/mensajes/${canalId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario: 'Sokyo', contenido: texto }) })
+      .then(async (res) => {
+        if (res.status === 401) return procesarRespuesta(res); // sesión caducada: lanza el error con su código
+        const datos = await res.json().catch(() => ({}));
+        if (!res.ok || !datos.success) throw new Error(datos.error || `HTTP ${res.status}`);
+        return datos;
+      })
+      .then((datos) => {
+        ultimoEnvio.current = Date.now();
+        const nuevo = datos.mensaje;
+        if (nuevo && ticketAbierto.current === canalId) setMensajes((lista) => (Array.isArray(lista) && !lista.some((m) => m._id === nuevo._id) ? [...lista, nuevo] : lista));
+      })
+      .catch((err) => {
+        if (ticketAbierto.current === canalId) setNuevoMensaje((actual) => actual || texto);
+        if (err && err.code === 'session_invalid') { reportarError('enviando mensaje')(err); return; }
+        console.error('Error enviando mensaje:', err);
+        setErrorEnvio({ canalId });
+      })
+      .finally(() => { enviandoMensaje.current = false; });
   };
 
   const agregarNotaInterna = async () => {
@@ -1454,12 +1488,15 @@ export function useDashboard() {
   }, [guildId]);
 
   useEffect(() => {
+    ticketAbierto.current = ticketSeleccionado ? ticketSeleccionado.canalId : null;
     let intervalo;
     if (ticketSeleccionado && activeTab === 'tickets-gestion') {
       intervalo = setInterval(() => {
+        const pedido = Date.now();
         apiFetch(`/api/mensajes/${ticketSeleccionado.canalId}`)
           .then((res) => res.json())
-          .then((datos) => setMensajes(datos))
+          // Un refresco que salió antes de que llegara una respuesta no la borra.
+          .then((datos) => { if (pedido >= ultimoEnvio.current) setMensajes(datos); })
           .catch((err) => console.error(err));
       }, 3000);
     }
@@ -1580,7 +1617,7 @@ export function useDashboard() {
     // errores
     errorConexion, sesionCaducada, ping,
     // acciones
-    verMensajes, cerrarMensajes, enviarMensaje, agregarNotaInterna,
+    verMensajes, cerrarMensajes, enviarMensaje, errorEnvio, agregarNotaInterna,
     handleCerrarTicket, handleReabrirTicket, handleOcultarTicket,
     agregarUrgencia, eliminarUrgencia, agregarMotivo, eliminarMotivo,
     guardarCambiosConfig, guardarTextosConfig,

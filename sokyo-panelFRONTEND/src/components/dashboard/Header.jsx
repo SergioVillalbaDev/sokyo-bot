@@ -1,10 +1,11 @@
 // Cabecera del panel (cristal): dónde estás (Grupo › Sección), el título y la
 // ayuda de la sección; a la derecha el buscador, los avisos, la ayuda, el idioma
 // y el tema. En el móvil, idioma, tema y ayuda van juntos en un solo botón.
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Bell, HelpCircle, Menu, ChevronRight, ChevronsUpDown, Ticket as TicketIcon, Flag, Lightbulb, X, CheckCircle2, CheckCheck, SlidersHorizontal, Check, LayoutDashboard } from 'lucide-react';
+import { Search, Bell, HelpCircle, Menu, ChevronRight, ChevronsUpDown, Ticket as TicketIcon, Flag, Lightbulb, X, CheckCircle2, CheckCheck, SlidersHorizontal, Check, LayoutDashboard, PlayCircle } from 'lucide-react';
 import { metaKey, ubicacion } from './navConfig';
 import { startOnboarding, startSectionTour, hasSectionTour } from '../../lib/onboarding';
 import OwnerBadge from './OwnerBadge';
@@ -12,6 +13,8 @@ import ThemePicker, { ThemeGrid } from './ThemePicker';
 import LanguageSwitcher from '../LanguageSwitcher';
 import { Avatar } from '../ui/primitives';
 import { IDIOMAS, cambiarIdioma } from '../../i18n';
+import { VIDEOS_PANEL } from '../../lib/videos';
+import VideoAyuda from './VideoAyuda';
 
 // Notificaciones descartadas (por servidor, guardadas en el navegador): al
 // visitar el panel de esa categoría o pulsar la "x" se marcan como vistas y
@@ -109,6 +112,8 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
   } = dash;
   const [notifAbiertas, setNotifAbiertas] = useState(false);
   const [prefsAbiertas, setPrefsAbiertas] = useState(false);
+  const [verVideo, setVerVideo] = useState(false);
+  const cerrarVideo = useCallback(() => setVerVideo(false), []);
   const [vistos, setVistos] = useState(() => cargarVistos(guildId));
   const notifRef = useRef(null);
   const prefsRef = useRef(null);
@@ -223,6 +228,19 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
     </button>
   ) : null;
 
+  // ▶ junto al título: el vídeo de cómo se hace (en las secciones que lo tienen).
+  const video = VIDEOS_PANEL[activeTab];
+  const botonVideo = video ? (
+    <button
+      onClick={() => setVerVideo(true)}
+      className="sk-foco flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-brand/40 bg-brand/10 px-2 text-xs font-semibold text-brand transition-colors hover:bg-brand/20 sm:px-2.5"
+      aria-label={t('dashboard.videoAyuda.boton')}
+      title={t('dashboard.videoAyuda.boton')}
+    >
+      <PlayCircle size={15} /> <span className="hidden sm:inline">{t('dashboard.videoAyuda.boton')}</span>
+    </button>
+  ) : null;
+
   const titulo = enInicio ? t('dashboard.header.greeting', { name: servidorInfo?.nombre || 'servidor' }) : t(`dashboard.meta.${mk}.title`);
   const subtitulo = enInicio ? t('dashboard.header.greetingSub') : t(`dashboard.meta.${mk}.subtitle`);
 
@@ -252,6 +270,7 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
           <div className="mt-0.5 flex min-w-0 items-center gap-2">
             <h1 className="sk-titulo text-[17px] font-extrabold leading-tight tracking-tight text-fg sm:text-2xl sm:leading-8">{titulo}</h1>
             <span className="hidden sm:block">{ayudaSeccion}</span>
+            {botonVideo}
           </div>
           <p className="hidden truncate text-[13px] text-muted md:block">{subtitulo}</p>
         </motion.div>
@@ -450,6 +469,8 @@ export default function Header({ dash, onOpenMenu, onBuscar }) {
           </AnimatePresence>
         </div>
       </div>
+      {/* Fuera de la cabecera (tiene su propio desenfoque y apilado), dentro del panel para que lleve su estilo. */}
+      {verVideo && video && createPortal(<VideoAyuda video={video} seccion={enInicio ? t('dashboard.inicio') : titulo} onCerrar={cerrarVideo} />, document.querySelector('.sk-dash') || document.body)}
     </header>
   );
 }

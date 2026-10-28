@@ -18,6 +18,14 @@ const esPortal = /^\/(cuenta|account|mi-cuenta)\/?$/i.test(window.location.pathn
 // ¿Abierto desde la app de Android? (se mira antes de que el login cambie la URL)
 marcarSiEsApp()
 
+// Girar la rueda del ratón encima de un campo numérico con el cursor dentro le
+// cambia el valor sin querer (un 2 se volvía 1 al bajar por la página). Se quita
+// el foco y la rueda desplaza la página, como en el resto de sitios.
+document.addEventListener('wheel', (e) => {
+  const el = e.target
+  if (el instanceof HTMLInputElement && el.type === 'number' && el === document.activeElement) el.blur()
+}, { passive: true })
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     {esPortal ? <Suspense fallback={null}><Portal /></Suspense> : <App />}
