@@ -18,6 +18,8 @@ api/uploads/*
 # Lavalink: el .jar (~96MB) y los plugins se descargan, no van al repo.
 # La configuración (application.yml) SÍ se sube.
 lavalink/Lavalink.jar
+lavalink/Lavalink.jar.*
+lavalink/.version.json
 lavalink/plugins/
 lavalink/logs/
 

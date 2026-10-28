@@ -8,10 +8,13 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const Log = require('../models/Log.js');
 const { enviarLogADiscord } = require('./logsManager.js');
 const { esperarMongo } = require('./config.js');
+const { mensajeNovedades } = require('./novedades.js');
 
 // Servidor al que avisar (nombre o ID). Vacío = aviso desactivado.
 const SERVIDOR = process.env.ANUNCIO_SERVIDOR ?? 'Tokyto';
-const MENSAJE = process.env.ANUNCIO_MENSAJE || '🚀 **Bot actualizado**\nYa están disponibles las últimas mejoras. ¡Gracias por usar Sokyo!';
+// Con novedades apuntadas para esta versión (utils/novedades.js) se mandan esas;
+// si no, el texto de ANUNCIO_MENSAJE o el genérico.
+const MENSAJE = mensajeNovedades(version) || process.env.ANUNCIO_MENSAJE || '🚀 **Bot actualizado**\nYa están disponibles las últimas mejoras. ¡Gracias por usar Sokyo!';
 // Mandar el mismo DM a muchísima gente es lo que Discord considera spam: por encima
 // de este número de miembros solo se publica en el canal general.
 const MAX_DMS = Number(process.env.ANUNCIO_MAX_DMS) || 250;

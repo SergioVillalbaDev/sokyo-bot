@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
   FolderTree, FolderPlus, Plus, Pencil, Trash2, X, ChevronDown,
-  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search, Move, CheckCircle2, Info,
+  Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search, Move, CheckCircle2, Info, Lock, ChevronsDownUp, ChevronsUpDown,
 } from 'lucide-react';
 import OrdenarCanales from './OrdenarCanales';
 import { Toggle } from '../../ui/primitives';
@@ -15,6 +15,8 @@ import { ESTILOS_FUENTE, aplicarEstilo } from '../../../lib/fancyText';
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const ICONO_TIPO = { texto: Hash, voz: Volume2, anuncios: Megaphone, foro: MessagesSquare, escenario: Radio };
 const COLOR_DEFECTO = '#99AAB5';
+// Tipos que Discord solo deja crear en servidores con la Comunidad activada.
+const SOLO_COMUNIDAD = new Set(['anuncios', 'escenario']);
 const colorVisible = (c) => (!c || c === '#000000' ? COLOR_DEFECTO : c);
 
 export default function CanalesView({ dash }) {
@@ -26,13 +28,15 @@ export default function CanalesView({ dash }) {
   } = dash;
   // Modo "Mover y ordenar" (arrastrar y soltar) y aviso tras guardar algo:
   // { tipo: 'ok' | 'info', texto }.
+  // false = lista normal · { foco, compacto } = modo ordenar (foco: categoría a
+  // la que llevar la vista; compacto: solo las categorías, sin sus canales).
   const [ordenando, setOrdenando] = useState(false);
   const [aviso, setAviso] = useState(null);
   const avisar = (tipo, texto) => { setAviso({ tipo, texto }); setTimeout(() => setAviso((a) => (a?.texto === texto ? null : a)), tipo === 'ok' ? 3500 : 9000); };
   // Tras guardar en un modal: se cierra y se cuenta qué ha pasado (o el error se
   // queda en el modal para corregir y reintentar).
   const trasGuardar = (r, cerrar) => {
-    if (!r.ok) return t(r.error === 'tiempo' ? 'dashboard.canales_v.saveTimeout' : 'dashboard.canales_v.saveError');
+    if (!r.ok) return mensajeDeError(r);
     cerrar();
     if (r.aviso === 'limite_nombre') avisar('info', t('dashboard.canales_v.renameLimit', { min: r.minutos }));
     else if (r.aviso === 'en_cola') avisar('info', t('dashboard.canales_v.saveQueued'));
@@ -40,7 +44,28 @@ export default function CanalesView({ dash }) {
     return null;
   };
 
-  const { categorias = [], sinCategoria = [] } = estructuraCanales || {};
+  // Qué ha fallado, con lo que hay que hacer (lo dice la API en `codigo`).
+  const nombrePermiso = (flag) => t(`dashboard.canales_v.perms.${flag}`, { defaultValue: t(`dashboard.roles_v.perms.${flag}`, flag) });
+  const mensajeDeError = ({ error, codigo, canales: nombres = [], permisos = [], detalle = '' }) => {
+    const c = (k, extra) => t(`dashboard.canales_v.${k}`, extra);
+    const lista = (xs) => xs.map((x) => `«${x}»`).join(', ');
+    if (error === 'tiempo') return c('saveTimeout');
+    if (codigo === 'requiere_comunidad') return c('errCommunity');
+    if (codigo === 'sin_permiso_servidor') return c('orderNoPermServer');
+    if (codigo === 'sin_permiso' && nombres.length) return c('errPermChannels', { lista: lista(nombres) });
+    if (codigo === 'sin_permiso') return c('orderNoPerm');
+    if (codigo === 'permisos_bot') return c('errPermBot', { lista: lista(permisos.map(nombrePermiso)) });
+    if (codigo === 'max_canales') return c('errMax');
+    if (codigo === 'limite') return c('orderRateLimit');
+    if (codigo === 'discord' && detalle) return c('errDiscord', { detalle });
+    return c('saveError');
+  };
+
+  const { categorias = [], sinCategoria = [], comunidad = true, permisosBot = null } = estructuraCanales || {};
+  // Categorías plegadas en la lista (para ver muchas de un vistazo).
+  const [plegadas, setPlegadas] = useState(() => new Set());
+  const todasPlegadas = categorias.length > 0 && categorias.every((c) => plegadas.has(c.id));
+  const alternarPlegada = (id) => setPlegadas((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   // Modal de categoría: null = cerrado · {} = creando · {categoria} = editando.
   const [editandoCategoria, setEditandoCategoria] = useState(null);
@@ -51,6 +76,7 @@ export default function CanalesView({ dash }) {
     return (
       <OrdenarCanales
         estructura={estructuraCanales || { categorias: [], sinCategoria: [] }}
+        foco={ordenando.foco || null} compactoInicial={!!ordenando.compacto}
         onGuardar={reordenarCanales}
         onCerrar={(r) => {
           setOrdenando(false);
@@ -66,11 +92,21 @@ export default function CanalesView({ dash }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="min-w-0 flex-1 text-sm text-muted">{t('dashboard.canales_v.intro')}</p>
-        <div className="flex flex-wrap gap-2">
+      <p className="text-sm text-muted">{t('dashboard.canales_v.intro')}</p>
+      {/* Siempre a la vista al bajar por la lista: no hay que volver arriba para mover o crear. */}
+      <div className="sk-flotante sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-line px-3 py-2.5 shadow-lg">
+        {categorias.length > 0 && (
           <button
-            onClick={() => setOrdenando(true)}
+            onClick={() => setPlegadas(todasPlegadas ? new Set() : new Set(categorias.map((c) => c.id)))}
+            className="flex items-center gap-2 rounded-2xl border border-line px-3.5 py-2.5 text-sm font-semibold text-fg transition-colors hover:border-brand"
+          >
+            {todasPlegadas ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}
+            <span className="hidden sm:inline">{t(todasPlegadas ? 'dashboard.canales_v.expandAll' : 'dashboard.canales_v.collapseAll')}</span>
+          </button>
+        )}
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            onClick={() => setOrdenando({})}
             disabled={categorias.length === 0 && sinCategoria.length === 0}
             className="flex items-center gap-2 rounded-2xl border border-brand/40 bg-brand/10 px-4 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:opacity-40"
           >
@@ -114,6 +150,8 @@ export default function CanalesView({ dash }) {
           {categorias.map((cat, i) => (
             <CategoriaRow
               key={cat.id} categoria={cat} index={i}
+              abierto={!plegadas.has(cat.id)} onAlternar={() => alternarPlegada(cat.id)}
+              onMover={() => setOrdenando({ foco: cat.id, compacto: true })}
               onEditar={() => setEditandoCategoria(cat)}
               onEliminar={async () => { if (window.confirm(t('dashboard.canales_v.confirmDeleteCategory', { name: cat.nombre }))) await eliminarCategoriaCanal(cat.id); }}
               onAddCanal={() => setEditandoCanal({ categoriaId: cat.id })}
@@ -146,7 +184,7 @@ export default function CanalesView({ dash }) {
         {editandoCategoria && (
           <CategoriaModal
             categoria={editandoCategoria}
-            roles={roles} catalogo={permisosCanalCatalogo}
+            roles={roles} catalogo={permisosCanalCatalogo} permisosBot={permisosBot}
             onClose={() => setEditandoCategoria(null)}
             onGuardar={async (datos) => trasGuardar(
               editandoCategoria.id ? await editarCategoriaCanal(editandoCategoria.id, datos) : await crearCategoriaCanal(datos),
@@ -157,7 +195,7 @@ export default function CanalesView({ dash }) {
         {editandoCanal && (
           <CanalModal
             estado={editandoCanal}
-            categorias={categorias} roles={roles} catalogo={permisosCanalCatalogo}
+            categorias={categorias} roles={roles} catalogo={permisosCanalCatalogo} permisosBot={permisosBot} comunidad={comunidad}
             onClose={() => setEditandoCanal(null)}
             onGuardar={async (datos) => trasGuardar(
               editandoCanal.canal ? await editarCanalServidor(editandoCanal.canal.id, datos) : await crearCanalServidor(datos),
@@ -171,9 +209,8 @@ export default function CanalesView({ dash }) {
 }
 
 // --- Fila de categoría (desplegable con sus canales dentro) ---
-function CategoriaRow({ categoria, index, onEditar, onEliminar, onAddCanal, onEditarCanal, onEliminarCanal }) {
+function CategoriaRow({ categoria, index, abierto, onAlternar, onMover, onEditar, onEliminar, onAddCanal, onEditarCanal, onEliminarCanal }) {
   const { t } = useTranslation();
-  const [abierto, setAbierto] = useState(true);
 
   return (
     <motion.div
@@ -181,13 +218,16 @@ function CategoriaRow({ categoria, index, onEditar, onEliminar, onAddCanal, onEd
       className={card}
     >
       <div className="flex items-center gap-3 p-4">
-        <button onClick={() => setAbierto((v) => !v)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <button onClick={onAlternar} aria-expanded={abierto} className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <ChevronDown size={18} className={`shrink-0 text-muted transition-transform ${abierto ? 'rotate-180' : ''}`} />
           <FolderTree size={16} className="shrink-0 text-brand" />
           <span className="truncate font-bold text-fg">{categoria.nombre}</span>
           <span className="ml-1 shrink-0 text-xs text-muted">{categoria.canales.length}</span>
         </button>
         <div className="flex shrink-0 gap-2">
+          <button onClick={onMover} className="flex h-9 w-9 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-brand hover:text-brand" title={t('dashboard.canales_v.moveThis')} aria-label={t('dashboard.canales_v.moveThis')}>
+            <Move size={15} />
+          </button>
           <button onClick={onAddCanal} className="flex h-9 w-9 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:text-fg" title={t('dashboard.canales_v.addChannel')}>
             <Plus size={15} />
           </button>
@@ -238,9 +278,11 @@ function CanalRow({ canal, onEditar, onEliminar }) {
 }
 
 // --- Editor de permisos por rol (overwrites), reutilizado en ambos modales ---
-function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
+// `permisosBot`: los que el bot puede dar (null = no se sabe, se deja todo).
+function EditorPermisos({ overwrites, setOverwrites, roles, catalogo, permisosBot }) {
   const { t } = useTranslation();
-  const etiquetaPermiso = (flag) => t(`dashboard.roles_v.perms.${flag}`, flag);
+  const etiquetaPermiso = (flag) => t(`dashboard.canales_v.perms.${flag}`, { defaultValue: t(`dashboard.roles_v.perms.${flag}`, flag) });
+  const bloqueado = (flag) => Array.isArray(permisosBot) && !permisosBot.includes(flag);
   const [busqueda, setBusqueda] = useState('');
 
   const colorDe = (id) => colorVisible((roles || []).find((r) => r.id === id)?.color);
@@ -257,12 +299,14 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
 
   const quitar = (id) => setOverwrites(overwrites.filter((o) => o.id !== id));
 
-  // Ciclo: heredar -> permitir -> denegar -> heredar.
+  // Ciclo: heredar -> permitir -> denegar -> heredar. Uno que el bot no tiene solo
+  // se puede quitar (Discord no le deja darlo).
   const ciclar = (id, flag) => {
     setOverwrites(overwrites.map((o) => {
       if (o.id !== id) return o;
       const enAllow = o.allow.includes(flag);
       const enDeny = o.deny.includes(flag);
+      if (bloqueado(flag)) return { ...o, allow: o.allow.filter((f) => f !== flag), deny: o.deny.filter((f) => f !== flag) };
       if (enAllow) return { ...o, allow: o.allow.filter((f) => f !== flag), deny: [...o.deny, flag] };
       if (enDeny) return { ...o, deny: o.deny.filter((f) => f !== flag) };
       return { ...o, allow: [...o.allow, flag] };
@@ -273,8 +317,10 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
     <div>
       <label className="mb-2 block text-xs font-semibold text-muted">{t('dashboard.canales_v.fieldPerms')}</label>
 
-      {overwrites.length === 0 && (
+      {overwrites.length === 0 ? (
         <p className="mb-2 text-sm italic text-muted">{t('dashboard.canales_v.noOverwrites')}</p>
+      ) : (
+        <p className="mb-2 text-xs text-muted">{t('dashboard.canales_v.permsHelp')}</p>
       )}
 
       <div className="space-y-3">
@@ -294,17 +340,21 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
                   <div className="flex flex-wrap gap-1.5">
                     {grupo.permisos.map((flag) => {
                       const estado = o.allow.includes(flag) ? 'allow' : o.deny.includes(flag) ? 'deny' : 'neutral';
+                      const sinPermiso = bloqueado(flag);
+                      const desc = t(`dashboard.roles_v.permsDesc.${flag}`, '');
+                      const titulo = sinPermiso ? t('dashboard.canales_v.permLocked') : `${estado === 'allow' ? t('dashboard.canales_v.permAllow') : estado === 'deny' ? t('dashboard.canales_v.permDeny') : t('dashboard.canales_v.permNeutral')}${desc ? ` · ${desc}` : ''}`;
                       const estilos = {
                         allow: 'border-success/40 bg-success/10 text-success',
                         deny: 'border-danger/40 bg-danger/10 text-danger',
                         neutral: 'border-line text-muted',
                       };
-                      const Icono = estado === 'allow' ? Check : estado === 'deny' ? X : Minus;
+                      const Icono = sinPermiso && estado === 'neutral' ? Lock : estado === 'allow' ? Check : estado === 'deny' ? X : Minus;
                       return (
                         <button
-                          key={flag} onClick={() => ciclar(o.id, flag)}
-                          className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors ${estilos[estado]}`}
-                          title={estado === 'allow' ? t('dashboard.canales_v.permAllow') : estado === 'deny' ? t('dashboard.canales_v.permDeny') : t('dashboard.canales_v.permNeutral')}
+                          key={flag} type="button" onClick={() => ciclar(o.id, flag)}
+                          disabled={sinPermiso && estado === 'neutral'}
+                          className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${estilos[estado]}`}
+                          title={titulo} aria-label={`${etiquetaPermiso(flag)}: ${titulo}`}
                         >
                           <Icono size={11} /> {etiquetaPermiso(flag)}
                         </button>
@@ -353,7 +403,7 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo }) {
 }
 
 // --- Modal de crear / editar CATEGORÍA ---
-function CategoriaModal({ categoria, roles, catalogo, onClose, onGuardar }) {
+function CategoriaModal({ categoria, roles, catalogo, permisosBot, onClose, onGuardar }) {
   const { t } = useTranslation();
   const editando = !!categoria.id;
 
@@ -397,7 +447,7 @@ function CategoriaModal({ categoria, roles, catalogo, onClose, onGuardar }) {
         )}
 
         <div className="mb-2">
-          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} />
+          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} permisosBot={permisosBot} />
         </div>
 
         {error && <p role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger">{error}</p>}
@@ -413,7 +463,7 @@ function CategoriaModal({ categoria, roles, catalogo, onClose, onGuardar }) {
 }
 
 // --- Modal de crear / editar CANAL ---
-function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar }) {
+function CanalModal({ estado, categorias, roles, catalogo, permisosBot, comunidad = true, onClose, onGuardar }) {
   const { t } = useTranslation();
   const canal = estado.canal || null;
   const editando = !!canal;
@@ -432,6 +482,8 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
   const [error, setError] = useState(null);
 
   const esTexto = ['texto', 'anuncios', 'foro'].includes(tipo);
+  const conModoLento = tipo !== 'anuncios'; // Discord no lo admite en los de anuncios
+  const faltaComunidad = !editando && !comunidad && SOLO_COMUNIDAD.has(tipo);
   const esVoz = ['voz', 'escenario'].includes(tipo);
   const nombreFinal = aplicarEstilo(nombre.trim(), estiloFuente);
 
@@ -443,7 +495,7 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
       overwrites: overwrites.map(({ id, allow, deny }) => ({ id, allow, deny })),
     };
     if (!editando) datos.tipo = tipo;
-    if (esTexto) { datos.topic = topic; datos.nsfw = nsfw; datos.slowmode = slowmode; }
+    if (esTexto) { datos.topic = topic; datos.nsfw = nsfw; if (conModoLento) datos.slowmode = slowmode; }
     if (esVoz) { datos.bitrate = bitrate * 1000; datos.userLimit = userLimit; }
     const fallo = await onGuardar(datos);
     setGuardando(false);
@@ -466,8 +518,15 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
           <>
             <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.canales_v.fieldType')}</label>
             <select value={tipo} onChange={(e) => setTipo(e.target.value)} className="mb-4 w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand">
-              {Object.keys(ICONO_TIPO).map((id) => <option key={id} value={id}>{t(`dashboard.canales_v.types.${id}`)}</option>)}
+              {Object.keys(ICONO_TIPO).map((id) => (
+                <option key={id} value={id} disabled={!comunidad && SOLO_COMUNIDAD.has(id)}>
+                  {t(`dashboard.canales_v.types.${id}`)}{!comunidad && SOLO_COMUNIDAD.has(id) ? ` (${t('dashboard.canales_v.needsCommunity')})` : ''}
+                </option>
+              ))}
             </select>
+            {!comunidad && (
+              <p className="-mt-2 mb-4 flex items-start gap-2 text-xs text-muted"><Info size={14} className="mt-px shrink-0 text-brand" /> {t('dashboard.canales_v.communityNote')}</p>
+            )}
           </>
         )}
 
@@ -498,8 +557,12 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
               <Toggle checked={nsfw} onChange={() => setNsfw((v) => !v)} />
             </div>
 
-            <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.canales_v.fieldSlowmode')}</label>
-            <input type="number" min={0} max={21600} value={slowmode} onChange={(e) => setSlowmode(Math.max(0, parseInt(e.target.value, 10) || 0))} className="mb-4 w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand" />
+            {conModoLento && (
+              <>
+                <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.canales_v.fieldSlowmode')}</label>
+                <input type="number" min={0} max={21600} value={slowmode} onChange={(e) => setSlowmode(Math.max(0, parseInt(e.target.value, 10) || 0))} className="mb-4 w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand" />
+              </>
+            )}
           </>
         )}
 
@@ -514,13 +577,13 @@ function CanalModal({ estado, categorias, roles, catalogo, onClose, onGuardar })
         )}
 
         <div className="mb-2">
-          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} />
+          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} permisosBot={permisosBot} />
         </div>
 
         {error && <p role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger">{error}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} className="rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">{t('dashboard.canales_v.cancel')}</button>
-          <button onClick={guardar} disabled={guardando || !nombre.trim()} className="rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+          <button onClick={guardar} disabled={guardando || !nombre.trim() || faltaComunidad} className="rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
             {guardando ? t('dashboard.canales_v.saving') : t('dashboard.canales_v.save')}
           </button>
         </div>

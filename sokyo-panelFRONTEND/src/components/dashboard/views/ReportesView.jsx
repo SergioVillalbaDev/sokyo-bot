@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { Flag, Save, Check, X, Info, Ticket } from 'lucide-react';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -34,7 +36,10 @@ export default function ReportesView({ dash }) {
     const ok = await guardarReportes(cfg);
     setGuardando(false);
     setGuardado(ok);
+    return ok;
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado(cfg, guardar, { listo: !!configServidor });
 
   const lista = (reportes || []).filter((r) => filtro === 'todos' || r.estado === filtro);
   const fecha = (d) => new Date(d).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
@@ -74,6 +79,7 @@ export default function ReportesView({ dash }) {
           >
             <Save size={16} /> {guardando ? t('dashboard.reportes_v.saving') : t('dashboard.reportes_v.save')}
           </button>
+          <EstadoAutoguardado estado={autoguardado} />
           {guardado && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.reportes_v.saved')}</span>}
         </div>
       </div>

@@ -8,7 +8,7 @@
 const express = require('express');
 const ServidorConfig = require('../../models/ServidorConfig.js');
 const {
-    getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON, buscarMusica,
+    getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON, buscarMusica, estadoServidorMusica,
 } = require('../../utils/musica.js');
 
 module.exports = ({ portalAuth, client }) => {
@@ -249,6 +249,8 @@ module.exports = ({ portalAuth, client }) => {
             res.json({
                 ...serializarEstado(player),
                 canalVoz: canalVoz ? { id: canalVoz.id, nombre: canalVoz.name } : null,
+                // Para avisar en el panel si el servidor de música no puede sonar.
+                servidor: estadoServidorMusica(),
             });
         } catch (e) {
             console.error('config/musica/estado:', e.message);

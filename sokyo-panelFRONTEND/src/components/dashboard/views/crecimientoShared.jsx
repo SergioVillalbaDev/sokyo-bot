@@ -3,6 +3,7 @@
 import { useTranslation } from 'react-i18next';
 import { Save, Check, Loader2, AlertTriangle, Info } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 export const tarjeta = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 export const campo = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 disabled:opacity-50';
@@ -77,7 +78,8 @@ export function Aviso({ tipo = 'info', children, accion }) {
 }
 
 // Botón de guardar con su estado ('' | 'guardando' | 'ok' | mensaje de error).
-export function BotonGuardar({ estado, onClick, disabled }) {
+// `autoguardado`: estado de useAutoguardado (se enseña al lado, si se pasa).
+export function BotonGuardar({ estado, onClick, disabled, autoguardado }) {
   const { t } = useTranslation();
   const guardando = estado === 'guardando';
   return (
@@ -89,6 +91,7 @@ export function BotonGuardar({ estado, onClick, disabled }) {
       </button>
       {estado === 'ok' && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.crec_v.saved')}</span>}
       {estado && estado !== 'ok' && !guardando && <span className="text-sm font-semibold text-danger">{estado}</span>}
+      {autoguardado && <EstadoAutoguardado estado={autoguardado} />}
     </div>
   );
 }

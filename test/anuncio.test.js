@@ -85,3 +85,18 @@ describe('canalGeneral', () => {
         assert.strictEqual(canalGeneral(servidorCon([canal('1', 'voz', { type: ChannelType.GuildVoice })])), null);
     });
 });
+
+// Las novedades de cada versión van en el aviso (y caben en un mensaje de Discord).
+describe('novedades del aviso', () => {
+    const { NOVEDADES, mensajeNovedades } = require('../utils/novedades.js');
+    it('cada versión con novedades da un mensaje de menos de 2000 caracteres con su número', () => {
+        for (const v of Object.keys(NOVEDADES)) {
+            const m = mensajeNovedades(v);
+            assert.ok(m.includes(`v${v}`));
+            assert.ok(m.length <= 2000, `${v}: ${m.length} caracteres`);
+        }
+    });
+    it('sin novedades apuntadas no hay mensaje propio (se usa el genérico)', () => {
+        assert.strictEqual(mensajeNovedades('0.0.1'), null);
+    });
+});

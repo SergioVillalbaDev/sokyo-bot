@@ -9,6 +9,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Home, LayoutDas
 import { navSections, gruposVisibles, tabDeMenu, bloqueadoPorPlan } from './navConfig';
 import { Avatar } from '../ui/primitives';
 import { cn } from '../../lib/cn';
+import MenuPerfil from './MenuPerfil';
 import { getStaffSession } from '../../lib/api';
 import { enLaAppAndroid } from '../../lib/appMovil';
 
@@ -260,11 +261,11 @@ export default function Sidebar({
 
         {/* Pie: quién ha entrado, volver a la web y salir */}
         <div className={cn('mt-2 flex items-center gap-1 border-t border-line pt-2', plegado && 'lg:flex-col')}>
-          {sesion?.username && !plegado && (
-            <span className="flex min-w-0 flex-1 items-center gap-2 px-1.5">
-              <Avatar src={sesion.avatar} name={sesion.username} size={28} />
-              <span className="min-w-0 truncate text-[13px] font-semibold text-fg">{sesion.username}</span>
-            </span>
+          {sesion?.username && (
+            <MenuPerfil
+              sesion={sesion} plegado={plegado} variosServidores={variosServidores}
+              onCambiarServidor={onCambiarServidor} onExitToLanding={onExitToLanding} onLogout={onLogout}
+            />
           )}
           {/* Acceso directo a la app móvil (dentro de la app ya no hace falta). */}
           {!enApp && (

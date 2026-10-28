@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LogIn, AlertTriangle, ArrowLeft, Ticket as TicketIcon, Palette, Music as MusicIcon, Home, LogOut,
-  ShoppingBag, Bell, Settings, Search, Zap, Check, Gift, Globe, Backpack, CornerDownLeft, Sparkles,
+  ShoppingBag, Bell, Settings, Search, Zap, Check, Gift, Globe, Backpack, CornerDownLeft, Sparkles, LayoutDashboard,
 } from 'lucide-react';
 import InicioPortal from './components/portal/InicioPortal';
 import TicketsPortal from './components/portal/TicketsPortal';
@@ -26,6 +26,9 @@ import './portal.css';
 // En producción la API y el portal se sirven en el mismo dominio: por defecto
 // usamos rutas relativas (mismo origen). Para desarrollo define VITE_API_URL.
 const API_URL = import.meta.env.VITE_API_URL || '';
+// ¿Ha entrado alguna vez al panel de admin en este navegador? Entonces se le
+// enseña el acceso directo al panel (sin pasar por la web principal).
+const esStaff = (() => { try { return !!localStorage.getItem('sokyoStaffToken'); } catch { return false; } })();
 const RUTA = '/cuenta';
 // Pantalla pedida antes de pasar por el login de Discord (p. ej. #tickets/123).
 const CLAVE_DESTINO = 'portalDestino';
@@ -311,6 +314,11 @@ function Cabecera({ usuario, nuevas, irA, onLogout, onBuscar }) {
       </a>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+        {esStaff && (
+          <a href="/panel" className="gx-icono sm:!flex sm:!w-auto sm:items-center sm:gap-2 sm:px-3.5" title={t('portal.header.panel')} aria-label={t('portal.header.panel')}>
+            <LayoutDashboard size={18} /> <span className="hidden text-sm font-bold sm:inline">{t('portal.header.panelShort')}</span>
+          </a>
+        )}
         <button onClick={onBuscar} className="gx-icono" title={t('portal.header.searchTitle')} aria-label={t('portal.header.searchTitle')}><Search size={18} /></button>
         <div className="relative">
           <button onClick={() => alternar('avisos')} className="gx-icono" aria-expanded={abierto === 'avisos'} title={t('portal.header.notifications')} aria-label={t('portal.header.notifications')}>
@@ -370,6 +378,7 @@ function MenuAjustes({ usuario, onLogout }) {
         </button>
       ))}
       <div className="my-1.5 h-px bg-white/10" />
+      {esStaff && <a href="/panel" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]"><LayoutDashboard size={15} /> {t('portal.header.panel')}</a>}
       <a href="/" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]"><Home size={15} /> {t('portal.header.homeTitle')}</a>
       <button onClick={onLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-300 transition-colors hover:bg-rose-500/10"><LogOut size={15} /> {t('portal.header.logout')}</button>
     </Desplegable>
@@ -405,6 +414,7 @@ function Paleta({ irA, onCerrar, onDaily, onLogout }) {
     { id: 'musica', icono: MusicIcon, texto: t('portal.palette.music'), hacer: () => irA('musica') },
     { id: 'tarjeta', icono: Palette, texto: t('portal.palette.card'), hacer: () => irA('tarjeta') },
     { id: 'daily', icono: Gift, texto: t('portal.palette.daily'), hacer: () => { onCerrar(); onDaily(); } },
+    ...(esStaff ? [{ id: 'panel', icono: LayoutDashboard, texto: t('portal.palette.panel'), hacer: () => window.location.assign('/panel') }] : []),
     { id: 'web', icono: Globe, texto: t('portal.palette.web'), hacer: () => window.location.assign('/') },
     { id: 'salir', icono: LogOut, texto: t('portal.palette.logout'), hacer: () => { onCerrar(); onLogout(); } },
   ];

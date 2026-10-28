@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { apiFetch, getStaffSession } from '../../../lib/api';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const VERDE = '#1db954';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -155,7 +157,10 @@ export default function MusicaView({ dash }) {
     const ok = await guardarMusica(f);
     setGuardando(false);
     setGuardado(ok);
+    return ok;
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado(f, guardar, { listo: !!f });
 
   const control = async (accion, valor) => {
     if (!gid) return;
@@ -409,9 +414,21 @@ export default function MusicaView({ dash }) {
   if (!f) return <p className="text-muted">{t('dashboard.music_v.loading')}</p>;
 
   const actual = estado?.actual;
+  // ¿Puede sonar? (servidor de música apagado, desactualizado o voz rechazada por Discord)
+  const servidor = estado?.servidor;
+  const avisoServidor = !servidor ? null
+    : !servidor.conectado ? t('dashboard.music_v.serverOff')
+      : servidor.desactualizado ? t('dashboard.music_v.serverOld', { v: servidor.version || '?' })
+        : servidor.vozRechazada ? t('dashboard.music_v.voiceRejected')
+          : null;
 
   return (
     <div className="space-y-6">
+      {avisoServidor && (
+        <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-fg">
+          <span aria-hidden="true">🔇</span><p>{avisoServidor}</p>
+        </div>
+      )}
 
       {/* ── PANEL EN VIVO ── */}
       <Card data-help="musica-player" className={card}>
@@ -611,6 +628,7 @@ export default function MusicaView({ dash }) {
               className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50">
               <Save size={16} /> {guardando ? t('dashboard.music_v.saving') : t('dashboard.music_v.saveChanges')}
             </button>
+            <EstadoAutoguardado estado={autoguardado} />
             {guardado && (
               <span className="flex items-center gap-1 font-semibold" style={{ color: VERDE }}>
                 <Check size={16} /> {t('dashboard.music_v.saved')}

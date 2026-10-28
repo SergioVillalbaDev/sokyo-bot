@@ -148,6 +148,12 @@ module.exports = (client) => {
     // consulte cada pocos minutos y avise si algo se cae. Devuelve 200 solo si
     // TODO está sano: servidor vivo + base de datos conectada + bot en Discord.
     // Si Mongo o Discord están caídos devuelve 503 → el monitor te alerta.
+    const musicaSalud = () => {
+        try {
+            const e = require('../utils/musica.js').estadoServidorMusica();
+            return { conectado: e.conectado, version: e.version, desactualizado: e.desactualizado, vozRechazada: e.vozRechazada };
+        } catch { return null; }
+    };
     app.get('/api/health', (req, res) => {
         const mongoOk = mongoose.connection.readyState === 1; // 1 = conectado
         const discordOk = !!(client && typeof client.isReady === 'function' && client.isReady());
@@ -157,6 +163,8 @@ module.exports = (client) => {
             uptime: Math.round(process.uptime()),
             mongo: mongoOk ? 'up' : 'down',
             discord: discordOk ? 'up' : 'down',
+            // Servidor de música: si está encendido y su versión (Discord exige 4.2+).
+            musica: musicaSalud(),
             ts: new Date().toISOString(),
         });
     });
@@ -656,6 +664,15 @@ module.exports = (client) => {
         const sesion = firmarToken({ id: datos.id, username: datos.username, avatar: datos.avatar }, JWT_SECRET, DURACION_SESION);
         res.set('Cache-Control', 'no-store');
         res.redirect(`${FRONTEND_URL}/cuenta?token=${sesion}${datos.vista && datos.vista !== 'inicio' ? `#${datos.vista}` : ''}`);
+    });
+
+    // Del panel a «Mi cuenta» sin volver a entrar: con la sesión de staff se da una
+    // del portal (solo con el usuario: sin servidores ni permisos del panel).
+    app.post('/api/staff/mi-cuenta', (req, res) => {
+        if (!req.staff || !req.staff.id) return res.status(400).json({ error: 'Esta sesión no tiene un usuario de Discord' });
+        const { id, username, avatar } = req.staff;
+        res.set('Cache-Control', 'no-store');
+        res.json({ token: firmarToken({ id, username, avatar }, JWT_SECRET, DURACION_SESION) });
     });
 
     // ¿El usuario tiene Premium? Lo es si es miembro de algún servidor Premium.
@@ -2400,12 +2417,34 @@ app.get('/api/stats/uso', async (req, res) => {
 
     // Catálogo curado de permisos: solo los más útiles, agrupados para el panel.
     // La clave es el flag real de Discord (PermissionsBitField.Flags).
+    // Todos los permisos de un rol en Discord, agrupados como en Discord.
     const PERMISOS_CATALOGO = [
-        { grupo: 'General', permisos: ['Administrator', 'ViewChannel', 'ManageGuild'] },
-        { grupo: 'Texto', permisos: ['SendMessages', 'ManageMessages', 'MentionEveryone'] },
-        { grupo: 'Voz', permisos: ['Connect', 'Speak', 'MoveMembers'] },
-        { grupo: 'Moderación', permisos: ['KickMembers', 'BanMembers', 'ModerateMembers'] },
-    ];
+        { grupo: 'General', permisos: [
+            'Administrator', 'ViewChannel', 'ManageChannels', 'ManageRoles', 'ManageGuildExpressions', 'CreateGuildExpressions',
+            'ViewAuditLog', 'ViewGuildInsights', 'ManageWebhooks', 'ManageGuild', 'ViewCreatorMonetizationAnalytics',
+        ] },
+        { grupo: 'Miembros', permisos: ['CreateInstantInvite', 'ChangeNickname', 'ManageNicknames', 'KickMembers', 'BanMembers', 'ModerateMembers'] },
+        { grupo: 'Texto', permisos: [
+            'SendMessages', 'SendMessagesInThreads', 'CreatePublicThreads', 'CreatePrivateThreads', 'EmbedLinks', 'AttachFiles',
+            'AddReactions', 'UseExternalEmojis', 'UseExternalStickers', 'MentionEveryone', 'ManageMessages', 'PinMessages',
+            'ManageThreads', 'ReadMessageHistory', 'SendTTSMessages', 'SendVoiceMessages', 'SendPolls', 'BypassSlowmode',
+        ] },
+        { grupo: 'Apps', permisos: ['UseApplicationCommands', 'UseEmbeddedActivities', 'UseExternalApps'] },
+        { grupo: 'Voz', permisos: [
+            'Connect', 'Speak', 'Stream', 'UseSoundboard', 'UseExternalSounds', 'UseVAD', 'PrioritySpeaker',
+            'MuteMembers', 'DeafenMembers', 'MoveMembers', 'SetVoiceChannelStatus', 'RequestToSpeak',
+        ] },
+        { grupo: 'Eventos', permisos: ['CreateEvents', 'ManageEvents'] },
+    ].map((g) => ({ ...g, permisos: g.permisos.filter((f) => PermissionsBitField.Flags[f] !== undefined) }));
+    // «Gestionar emojis y stickers» es el nombre antiguo de «Gestionar expresiones»
+    // (el mismo permiso): se enseña solo una vez.
+    const sinAlias = (lista) => lista.filter((f) => f !== 'ManageEmojisAndStickers');
+    // Discord solo deja a un bot dar a un rol los permisos que él mismo tiene.
+    const permisosQueElBotNoTiene = (guild, permisos) => {
+        const yo = guild.members.me;
+        if (!yo || yo.permissions.has(PermissionsBitField.Flags.Administrator)) return [];
+        return permisos.filter((p) => { try { return !yo.permissions.has(p); } catch { return false; } });
+    };
 
     // Resuelve el guild a partir de ?guildId=. Si no se indica: un staff (no dueño)
     // cae a SU primer servidor (nunca al de otro); el dueño/API key, al primero de la BD.
@@ -2431,7 +2470,7 @@ app.get('/api/stats/uso', async (req, res) => {
             miembros: rol.members.size,
             posicion: rol.position,
             gestionable: rol.editable,           // ¿el bot puede tocarlo? (jerarquía)
-            permisos: rol.permissions.toArray(), // lista de flags activos
+            permisos: sinAlias(rol.permissions.toArray()), // lista de flags activos
         };
     }
 
@@ -2468,6 +2507,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const permisosRol = Array.isArray(permisos) ? permisos : [];
             const errJer = await errorJerarquia(req, guild, null, permisosRol);
             if (errJer) return res.status(403).json({ error: errJer });
+            const faltan = permisosQueElBotNoTiene(guild, permisosRol);
+            if (faltan.length) return res.status(403).json({ error: 'El bot no puede dar permisos que él no tiene', codigo: 'permisos_bot', permisos: faltan });
             const rol = await guild.roles.create({
                 name: nombre.trim().slice(0, 100),
                 colors: { primaryColor: color || '#99AAB5' },
@@ -2494,6 +2535,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const nuevos = Array.isArray(permisos) ? permisos.filter((p) => { try { return !rol.permissions.has(p); } catch { return true; } }) : [];
             const errJer = await errorJerarquia(req, guild, rol, nuevos);
             if (errJer) return res.status(403).json({ error: errJer });
+            const faltan = permisosQueElBotNoTiene(guild, nuevos);
+            if (faltan.length) return res.status(403).json({ error: 'El bot no puede dar permisos que él no tiene', codigo: 'permisos_bot', permisos: faltan });
             const cambios = {};
             if (nombre !== undefined) cambios.name = String(nombre).trim().slice(0, 100);
             if (color !== undefined) cambios.colors = { primaryColor: color };
@@ -2909,6 +2952,21 @@ app.get('/api/stats/uso', async (req, res) => {
     // sinLimite: los propietarios del bot (OWNER_IDS) no tienen el límite de jerarquía.
     const moderadorDe = (req) => (req.staff ? { id: req.staff.id, tag: req.staff.username, sinLimite: !!req.staff.owner } : null);
 
+    // ¿Puede quien pide aplicar ESTA acción? Su permiso nativo de Discord (banear
+    // para un ban, expulsar para expulsar…), ser administrador o tener un rol de
+    // moderación configurado. El dueño del bot / la API key, siempre.
+    async function puedeSancionar(req, guildId, accion) {
+        if (!req.staff || req.staff.owner) return true;
+        const guild = client.guilds.cache.get(guildId);
+        const member = guild ? await guild.members.fetch(req.staff.id).catch(() => null) : null;
+        if (!member) return false;
+        const P = PermissionsBitField.Flags;
+        const requerido = { timeout: P.ModerateMembers, expulsion: P.KickMembers, ban: P.BanMembers, aviso: P.ModerateMembers }[accion] || P.BanMembers;
+        if (member.permissions.has(P.Administrator) || member.permissions.has(requerido)) return true;
+        const cfgMod = await ServidorConfig.findOne({ guildId });
+        return (cfgMod?.rolesModeracion || []).some((id) => member.roles.cache.has(id));
+    }
+
     // --- Tipos de sanción (plantillas) ---
     app.get('/api/sanciones/tipos', exigeModerador, async (req, res) => {
         try {
@@ -2990,16 +3048,7 @@ app.get('/api/stats/uso', async (req, res) => {
             }
 
             // Permiso ESPECÍFICO según la acción: nativo de Discord o rol de moderación configurado.
-            if (req.staff && !req.staff.owner) {
-                const guild = client.guilds.cache.get(guildId);
-                const member = guild ? await guild.members.fetch(req.staff.id).catch(() => null) : null;
-                const P = PermissionsBitField.Flags;
-                const requerido = { timeout: P.ModerateMembers, expulsion: P.KickMembers, ban: P.BanMembers, aviso: P.ModerateMembers }[tipo.accion];
-                const cfgMod = await ServidorConfig.findOne({ guildId });
-                const tieneRolMod = (cfgMod?.rolesModeracion || []).some((id) => member?.roles.cache.has(id));
-                const ok = member && (member.permissions.has(P.Administrator) || member.permissions.has(requerido) || tieneRolMod);
-                if (!ok) return res.status(403).json({ error: 'No tienes permiso para esta acción' });
-            }
+            if (!(await puedeSancionar(req, guildId, tipo.accion))) return res.status(403).json({ error: 'No tienes permiso para esta acción' });
 
             const sancion = await aplicarSancion(client, {
                 guildId, usuarioId, tipo, motivo: motivo || '',
@@ -3128,6 +3177,133 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- Ficha de un miembro (para el Centro de Mando) ---
+    // Todos los miembros del servidor, para la sección «Miembros» (con buscador,
+    // filtros y a quién puede sancionar el bot). Va por páginas: un servidor
+    // grande tiene miles y el panel no necesita pintarlos todos de golpe.
+    // El orden de la lista se guarda un momento por servidor: así buscar o pasar
+    // de página no vuelve a ordenar miles de miembros en cada pulsación.
+    const ordenMiembros = new Map(); // `${guildId}:${orden}` -> { t, n, lista }
+    function miembrosOrdenados(guild, orden) {
+        const clave = `${guild.id}:${orden}`;
+        const guardado = ordenMiembros.get(clave);
+        const n = guild.members.cache.size;
+        if (guardado && guardado.n === n && Date.now() - guardado.t < 30 * 1000) return guardado.lista;
+        const lista = [...guild.members.cache.values()];
+        if (orden === 'nombre') {
+            const comparar = new Intl.Collator('es', { sensitivity: 'base' }).compare;
+            lista.sort((a, b) => comparar(a.displayName, b.displayName));
+        } else if (orden === 'antiguo') lista.sort((a, b) => (a.joinedTimestamp || 0) - (b.joinedTimestamp || 0));
+        else lista.sort((a, b) => (b.joinedTimestamp || 0) - (a.joinedTimestamp || 0));
+        if (ordenMiembros.size > 200) ordenMiembros.clear();
+        ordenMiembros.set(clave, { t: Date.now(), n, lista });
+        return lista;
+    }
+
+    app.get('/api/servidor/miembros/lista', exigeModerador, async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            await asegurarMiembros(guild);
+            const q = String(req.query.q || '').trim().toLowerCase().slice(0, 100);
+            const rol = String(req.query.rol || '');
+            const filtro = String(req.query.filtro || 'todos');
+            const orden = String(req.query.orden || 'reciente');
+            const porPagina = Math.min(100, Math.max(10, parseInt(req.query.porPagina, 10) || 50));
+            const pagina = Math.max(0, parseInt(req.query.pagina, 10) || 0);
+            const ahora = Date.now();
+            const SEMANA = 7 * 24 * 60 * 60 * 1000;
+
+            let lista = miembrosOrdenados(guild, ['nombre', 'antiguo'].includes(orden) ? orden : 'reciente').filter((m) => {
+                if (q && !(m.user.username.toLowerCase().includes(q) || m.displayName.toLowerCase().includes(q) || m.id === q)) return false;
+                if (rol && !m.roles.cache.has(rol)) return false;
+                if (filtro === 'bots') return m.user.bot;
+                if (filtro === 'personas') return !m.user.bot;
+                if (filtro === 'nuevos') return !m.user.bot && m.joinedTimestamp && ahora - m.joinedTimestamp < SEMANA;
+                if (filtro === 'aislados') return (m.communicationDisabledUntilTimestamp || 0) > ahora;
+                return true;
+            });
+            const total = lista.length;
+            lista = lista.slice(pagina * porPagina, (pagina + 1) * porPagina);
+            res.json({
+                total,
+                totalServidor: guild.memberCount,
+                pagina, porPagina,
+                miembros: lista.map((m) => {
+                    const roles = m.roles.cache.filter((r) => r.id !== guild.id).sort((a, b) => b.position - a.position);
+                    return {
+                        id: m.id,
+                        username: m.user.username,
+                        displayName: m.displayName,
+                        avatar: m.user.displayAvatarURL({ size: 64 }),
+                        bot: m.user.bot,
+                        esDueno: guild.ownerId === m.id,
+                        unidoEn: m.joinedTimestamp || null,
+                        creadoEn: m.user.createdTimestamp,
+                        aisladoHasta: (m.communicationDisabledUntilTimestamp || 0) > ahora ? m.communicationDisabledUntilTimestamp : null,
+                        roles: roles.first(3).map((r) => ({ id: r.id, nombre: r.name, color: r.hexColor })),
+                        totalRoles: roles.size,
+                        // ¿Puede el bot hacerle esto? (Discord no deja tocar a quien tiene
+                        // un rol por encima del del bot, ni al dueño del servidor.)
+                        puede: { ban: m.bannable, expulsar: m.kickable, aislar: m.moderatable },
+                    };
+                }),
+            });
+        } catch (error) {
+            console.error('Error al listar miembros:', error);
+            res.status(500).json({ error: 'No se pudieron obtener los miembros' });
+        }
+    });
+
+    // Baneados del servidor (para poder quitar un ban desde el panel).
+    app.get('/api/servidor/baneos', exigeModerador, async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            // Discord los da de 1000 en 1000: se piden todas las páginas (hasta 10 000).
+            const bans = [];
+            let despues;
+            for (let i = 0; i < 10; i++) {
+                const pagina = await guild.bans.fetch({ limit: 1000, ...(despues ? { after: despues } : {}), cache: false });
+                bans.push(...pagina.values());
+                if (pagina.size < 1000) break;
+                despues = pagina.lastKey();
+            }
+            res.json(bans.map((b) => ({
+                id: b.user.id, username: b.user.username, displayName: b.user.globalName || b.user.username,
+                avatar: b.user.displayAvatarURL({ size: 64 }), motivo: b.reason || null,
+            })));
+        } catch (error) {
+            console.error('Error al listar baneos:', error);
+            if (error.code === 50013) return res.status(403).json({ error: 'El bot no tiene permiso para ver los baneos (Banear miembros)', codigo: 'sin_permiso' });
+            res.status(500).json({ error: 'No se pudieron obtener los baneos' });
+        }
+    });
+
+    // Quitar un ban. Si vino de una sanción del bot, se revoca esa sanción (queda
+    // en el registro); si no, se quita directamente en Discord.
+    app.delete('/api/servidor/baneos/:userId', exigeModerador, async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (!(await puedeSancionar(req, guild.id, 'ban'))) return res.status(403).json({ error: 'Necesitas el permiso «Banear miembros»' });
+            const userId = String(req.params.userId);
+            // Primero en Discord: si no deja (sin permiso…), se dice y no se toca el registro.
+            try {
+                await guild.members.unban(userId, `Ban quitado desde el panel por ${req.staff?.username || 'el dueño'}`);
+            } catch (e) {
+                if (e.code !== 10026) throw e; // 10026: ya no estaba baneado
+            }
+            // Si el ban vino de una sanción del bot, queda revocada en el historial.
+            const activa = await Sancion.findOne({ guildId: guild.id, usuarioId: userId, accion: 'ban', revocada: { $ne: true } }).sort({ fecha: -1 });
+            if (activa) await revocarSancion(client, activa._id, moderadorDe(req)).catch((e) => console.warn('Revocar sanción tras quitar ban:', e.message));
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al quitar ban:', error);
+            if (error.code === 50013) return res.status(403).json({ error: 'El bot no tiene permiso «Banear miembros»' });
+            res.status(400).json({ error: error.message || 'No se pudo quitar el ban' });
+        }
+    });
+
     app.get('/api/servidor/miembro/:userId', exigeModerador, async (req, res) => {
         try {
             const guild = await resolverGuild(req.query.guildId, req.staff);

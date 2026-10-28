@@ -1,0 +1,38 @@
+/*
+  Modo ligero (lib/ligero.js pone .sk-ligero en <html>): para PCs con pocos
+  recursos y para Firefox. Sin capa a propósito: tiene que ganar a todo.
+  - Fuera el cristal difuminado (backdrop-filter): es lo que más cuesta al
+    desplazarse, sobre todo en Firefox, que lo recalcula en cada fotograma.
+  - El fondo, quieto y sin el halo difuminado de las estelas (un filtro SVG).
+  - Las tarjetas, algo más opacas: sin desenfoque se leen igual de bien.
+*/
+html.sk-ligero *, html.sk-ligero *::before, html.sk-ligero *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.sk-ligero .lx-estelas, html.sk-ligero .gx-estelas, html.sk-ligero .sk-estelas { animation: none !important; will-change: auto !important; }
+html.sk-ligero .lx-estelas [filter], html.sk-ligero .gx-estelas [filter], html.sk-ligero .sk-estelas [filter] { display: none; }
+
+/* Web principal */
+html.sk-ligero .lx-card { background: var(--lx-vidrio), rgba(14, 12, 32, .7); }
+html.sk-ligero .lx-halo { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 30px 60px -35px rgba(0, 0, 0, .9); }
+
+/* Panel de admin */
+html.sk-ligero .sk-dash .sk-glass,
+html.sk-ligero .sk-dash .bg-card.shadow-soft,
+html.sk-ligero .sk-dash .bg-card.shadow-xl {
+  background-image: linear-gradient(150deg, color-mix(in srgb, var(--solido-card) 90%, transparent), color-mix(in srgb, var(--solido-card) 80%, transparent));
+}
+html.sk-ligero .sk-sidebar { background-image: linear-gradient(180deg, color-mix(in srgb, var(--solido-sidebar) 97%, transparent), color-mix(in srgb, var(--solido-sidebar) 94%, transparent)); }
+html.sk-ligero .sk-cabecera { background-image: linear-gradient(180deg, color-mix(in srgb, var(--solido-card) 94%, transparent), color-mix(in srgb, var(--solido-card) 88%, transparent)); }
+html.sk-ligero .sk-velo { background: color-mix(in srgb, var(--solido-bg) 80%, rgba(0, 0, 0, .6)); }
+/* Ventanas y menús flotantes: opacos del todo (sin desenfoque, lo de detrás se veía). */
+html.sk-ligero .sk-dash .fixed .bg-card,
+html.sk-ligero .sk-dash .fixed.bg-card,
+html.sk-ligero .sk-dash .absolute.bg-card,
+html.sk-ligero .sk-dash [role='dialog'].bg-card,
+html.sk-ligero .sk-dash .sk-flotante { background-image: none; background-color: var(--solido-card); }
+
+/* «Mi cuenta» */
+html.sk-ligero .gx-card { background: var(--gx-vidrio), rgba(17, 12, 38, .72); }
+html.sk-ligero .gx-velo { background: rgba(3, 2, 10, .86); }

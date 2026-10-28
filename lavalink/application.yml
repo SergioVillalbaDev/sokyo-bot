@@ -1,6 +1,8 @@
 # --- Configuración del servidor Lavalink (motor de música de Sokyo) ---
 # Lavalink es un programa Java aparte que procesa el audio. El bot le manda
 # órdenes y Lavalink reproduce en Discord. Arráncalo con:  npm run lavalink
+# (ese lanzador descarga solo Lavalink 4.2.2 si el que hay es anterior a 4.2:
+# Discord exige audio cifrado desde marzo de 2026 y sin él no se oye nada).
 #
 # La contraseña y las claves de Spotify se leen del .env del bot (gracias al
 # lanzador scripts/lavalink.js). No hace falta tocar nada aquí en condiciones
@@ -15,9 +17,13 @@ plugins:
   # de Lavalink, que está obsoleto.
   youtube:
     enabled: true
+    # Se prueban en este orden. MUSIC solo busca; los demás reproducen (si
+    # YouTube bloquea uno, se pasa al siguiente en vez de quedarse en silencio).
     clients:
       - MUSIC
       - ANDROID_VR
+      - TVHTML5_SIMPLY
+      - MWEB
       - WEB
       - WEBEMBEDDED
   # LavaSrc: permite pegar URLs de Spotify. Lee solo los TÍTULOS de Spotify y
@@ -43,7 +49,7 @@ plugins:
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.1"
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
       repository: "https://maven.lavalink.dev/releases"
     - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
       repository: "https://maven.lavalink.dev/releases"

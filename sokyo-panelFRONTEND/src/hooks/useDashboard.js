@@ -205,10 +205,11 @@ export function useDashboard() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ guildId, nombre, color, permisos }),
       });
-      const data = await res.json();
-      if (data.success) { await cargarRolesDetalle(); return true; }
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { await cargarRolesDetalle(); return { ok: true }; }
+      return { ok: false, error: data.error || null, codigo: data.codigo || null, permisos: data.permisos || [] };
     } catch (error) { console.error('Error creando rol:', error); }
-    return false;
+    return { ok: false };
   };
 
   // Edita un rol existente (nombre / color / permisos) y refresca la lista.
@@ -218,10 +219,11 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ guildId, nombre, color, permisos }),
       });
-      const data = await res.json();
-      if (data.success) { await cargarRolesDetalle(); return true; }
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { await cargarRolesDetalle(); return { ok: true }; }
+      return { ok: false, error: data.error || null, codigo: data.codigo || null, permisos: data.permisos || [] };
     } catch (error) { console.error('Error editando rol:', error); }
-    return false;
+    return { ok: false };
   };
 
   // Elimina un rol (con confirmación previa) y refresca la lista.
@@ -277,7 +279,12 @@ export function useDashboard() {
   const cargarEstructuraCanales = () => {
     if (!gidActivo()) return Promise.resolve();
     return apiFetch(`/api/config/${gidActivo()}/canales/estructura`).then(procesarRespuesta)
-      .then((datos) => setEstructuraCanales({ categorias: datos?.categorias || [], sinCategoria: datos?.sinCategoria || [] }))
+      // `comunidad` y `permisosBot` sirven para avisar antes de guardar (tipos de
+      // canal que no existen en el servidor, permisos que el bot no puede dar).
+      .then((datos) => setEstructuraCanales({
+        categorias: datos?.categorias || [], sinCategoria: datos?.sinCategoria || [],
+        comunidad: datos?.comunidad !== false, permisosBot: Array.isArray(datos?.permisosBot) ? datos.permisosBot : null,
+      }))
       .catch(reportarError('cargando la estructura de canales'));
   };
   const cargarPermisosCanalCatalogo = () => apiFetch('/api/servidor/permisos-canal').then(procesarRespuesta).then((datos) => setPermisosCanalCatalogo(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando catálogo de permisos de canal'));
@@ -297,7 +304,8 @@ export function useDashboard() {
         await cargarEstructuraCanales();
         return { ok: true, aviso: data.aviso || null, minutos: data.minutos || 0 };
       }
-      return { ok: false, error: data.error || null };
+      // `codigo` (y `canales`, `permisos`, `detalle`) dicen por qué para que el panel lo explique.
+      return { ok: false, error: data.error || null, codigo: data.codigo || null, canales: data.canales || [], permisos: data.permisos || [], detalle: data.detalle || '' };
     } catch (error) {
       console.error(`Error ${etiqueta}:`, error);
       return { ok: false, error: error?.name === 'TimeoutError' ? 'tiempo' : null };

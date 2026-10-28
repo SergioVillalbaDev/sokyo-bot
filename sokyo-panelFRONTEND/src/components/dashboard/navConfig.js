@@ -40,6 +40,7 @@ export const navGroups = [
     icon: ShieldAlert,
     color: '#f87171',
     items: [
+      { tab: 'mod-miembros', icon: Users, area: 'moderacion', kw: 'miembros usuarios lista todos gente banear ban expulsar kick aislar timeout desbanear unban baneados members users people' },
       { tab: 'mod-centro', icon: Gavel, area: 'moderacion', kw: 'sancionar ban expulsar kick aislar timeout mute avisar warn buscar usuario punish' },
       { tab: 'mod-automod', icon: Bot, area: 'moderacion', kw: 'automod filtro palabras prohibidas enlaces spam menciones mayusculas insultos ia filter links' },
       { tab: 'mod-reportes', icon: Flag, area: 'moderacion', kw: 'reportes denuncias quejas report' },

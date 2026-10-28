@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ThumbsUp, ThumbsDown, Trash2, Info, Check, X, Clock, Eye } from 'lucide-react';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -55,6 +57,8 @@ export default function SugerenciasView({ dash }) {
     setGuardando(false);
     setTimeout(() => setGuardadoOk(false), 2500);
   };
+  // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
+  const autoguardado = useAutoguardado([canalSugs, modo, plantilla, minLong], guardar, { listo: !!configServidor });
 
   const cambiarEstado = (id, nuevoEstado) => actualizarSugerencia(id, { estado: nuevoEstado });
 
@@ -113,6 +117,7 @@ export default function SugerenciasView({ dash }) {
         >
           {guardando ? '...' : t('dashboard.sugerencias_v.save')}
         </button>
+        <EstadoAutoguardado estado={autoguardado} />
         {guardadoOk && <p className="mt-2 text-xs font-semibold text-success">{t('dashboard.sugerencias_v.savedOk')}</p>}
       </div>
 

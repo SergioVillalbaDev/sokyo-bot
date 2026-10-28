@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, Sparkles, X } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { ligeroActivo } from '../../lib/ligero';
 
 // Fondo: nebulosas de color, estelas de luz que se mecen despacio y polvo de
 // estrellas (canvas). Todo lo que se mueve detrás del cristal obliga al
@@ -15,7 +16,8 @@ export function FondoEspacial() {
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx) return undefined;
-    const quieto = !!window.matchMedia?.('(prefers-reduced-motion: reduce), (max-width: 640px), (pointer: coarse)').matches;
+    // En modo ligero (lib/ligero.js) también quieto: se pinta una vez y ya.
+    const quieto = ligeroActivo() || !!window.matchMedia?.('(prefers-reduced-motion: reduce), (max-width: 640px), (pointer: coarse)').matches;
     const PASO = 1000 / 30;
     let ultimo = 0;
     const colores = ['255,255,255', '221,214,254', '249,168,212', '191,219,254', '254,215,170'];
