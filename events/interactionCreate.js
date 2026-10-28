@@ -11,6 +11,8 @@ const { getConfigCached } = require('../utils/config.js');
 const { t } = require('../utils/i18n.js');
 const { adaptarTextosAlIdioma, nombreUrgencia } = require('../utils/textosPorDefecto.js');
 const { botonWeb, botonAbrirCuenta, responderBotonCuenta } = require('../utils/cuenta.js');
+const { respuestaError } = require('../utils/erroresDiscord.js');
+const { idiomaInteraccion } = require('../utils/preferencias.js');
 
 // --- Paneles de roles: botón de rol o de verificación ---
 async function manejarBotonRol(interaction) {
@@ -80,11 +82,41 @@ module.exports = {
                 await comando.execute(interaction, client, cfgSlash);
             } catch (e) {
                 console.error('Error en slash command:', e);
-                const msg = { content: t(cfgSlash, '❌ Error al ejecutar el comando.', '❌ Error running the command.'), flags: 64 };
+                // Qué ha pasado en palabras normales y, si se arregla en el panel, el botón.
+                const msg = respuestaError(e, await idiomaInteraccion(interaction, cfgSlash));
                 (interaction.replied || interaction.deferred ? interaction.followUp(msg) : interaction.reply(msg)).catch(() => {});
             }
             return;
         }
+
+        // --- Autocompletado de los comandos (/play, /recordar…) ---
+        if (interaction.isAutocomplete()) {
+            const comando = client.slashCommands.get(interaction.commandName);
+            if (!comando || typeof comando.autocomplete !== 'function') return interaction.respond([]).catch(() => {});
+            const cfgAuto = await getConfigCached(interaction.guildId).catch(() => null);
+            try { await comando.autocomplete(interaction, client, cfgAuto); } catch (e) {
+                console.warn('Autocompletado:', e.message);
+                interaction.respond([]).catch(() => {});
+            }
+            return;
+        }
+
+        // --- Menú del clic derecho (Apps → Sancionar, Reportar mensaje…) ---
+        if (interaction.isUserContextMenuCommand() || interaction.isMessageContextMenuCommand()) {
+            const comando = client.slashCommands.get(interaction.commandName);
+            if (!comando) return;
+            const cfgCtx = await getConfigCached(interaction.guildId).catch(() => null);
+            try { await comando.execute(interaction, client, cfgCtx); } catch (e) {
+                console.error('Error en menú contextual:', e);
+                const msg = respuestaError(e, await idiomaInteraccion(interaction, cfgCtx));
+                (interaction.replied || interaction.deferred ? interaction.followUp(msg) : interaction.reply(msg)).catch(() => {});
+            }
+            return;
+        }
+
+        // --- Botones y ventanas de los comandos nuevos (clic derecho, ayuda, confirmar…) ---
+        const extra = require('../utils/interaccionesExtra.js');
+        if (await extra.manejar(interaction, client)) return;
 
         // --- TIENDA: compra al elegir en el menú (reutiliza la MISMA lógica que la web) ---
         if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_comprar') {
@@ -228,6 +260,9 @@ module.exports = {
         // --- COMUNIDAD: votos, participaciones y presentaciones ---
         if (interaction.isButton() && interaction.customId.startsWith('enc_vote:')) {
             return require('../utils/comunidad.js').manejarVotoEncuesta(interaction);
+        }
+        if (interaction.isButton() && interaction.customId.startsWith('evento_avisar:')) {
+            return require('../utils/comunidad.js').manejarAvisoEvento(interaction);
         }
         if (interaction.isButton() && interaction.customId.startsWith('sorteo_join:')) {
             return require('../utils/comunidad.js').manejarEntradaSorteo(interaction);

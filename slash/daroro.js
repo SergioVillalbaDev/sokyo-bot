@@ -1,13 +1,16 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('givegold')
+        .setNameLocalizations(ES('daroro'))
         .setDescription('(Admin) Give or take gold from a user')
-        .addUserOption(o => o.setName('user').setDescription('Who to give it to').setRequired(true))
-        .addIntegerOption(o => o.setName('amount').setDescription('Amount (negative to take away)').setRequired(true))
+        .setDescriptionLocalizations(ES('(Admin) Dar o quitar oro a alguien'))
+        .addUserOption(o => o.setName('user').setNameLocalizations(ES('usuario')).setDescription('Who to give it to').setDescriptionLocalizations(ES('A quién')).setRequired(true))
+        .addIntegerOption(o => o.setName('amount').setNameLocalizations(ES('cantidad')).setDescription('Amount (negative to take away)').setDescriptionLocalizations(ES('Cuánto (en negativo, para quitar)')).setRequired(true))
         // Solo lo ven/usan quienes tengan permiso de Administrador en el servidor.
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 

@@ -7,6 +7,7 @@ const { botonWeb } = require('../utils/cuenta.js');
 
 module.exports = {
     name: 'level',
+    aliases: ['nivel'], // en español también
     description: 'Show your level card. Usage: !level [@user]',
 
     async execute(message) {

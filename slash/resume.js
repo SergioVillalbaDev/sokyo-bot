@@ -1,11 +1,14 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { gateMusica } = require('../utils/musica.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resume')
-        .setDescription('Resume the paused music'),
+        .setNameLocalizations(ES('seguir'))
+        .setDescription('Resume the paused music')
+        .setDescriptionLocalizations(ES('Seguir con la música pausada')),
 
     async execute(interaction, client, cfg) {
         const voz = await gateMusica(interaction);

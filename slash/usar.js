@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const Usuario = require('../models/Usuario.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 // Texto que describe qué hace un efecto (para el menú).
 function descEfecto(ef, cfg) {
@@ -14,7 +15,9 @@ function descEfecto(ef, cfg) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('use')
-        .setDescription('Use an item from your bag to trigger its effect'),
+        .setNameLocalizations(ES('usar'))
+        .setDescription('Use an item from your bag to trigger its effect')
+        .setDescriptionLocalizations(ES('Usar un objeto de tu mochila')),
 
     async execute(interaction, client, cfg) {
         const usuario = await Usuario.findOne({ discordId: interaction.user.id }).populate('inventory.item');

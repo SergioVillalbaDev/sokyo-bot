@@ -2,6 +2,7 @@ const { aplicarComando } = require('../utils/modCommands.js');
 
 module.exports = {
     name: 'kick',
+    aliases: ['expulsar'], // en español también
     description: 'Kicks a user. Usage: !kick @user [reason]',
 
     async execute(message, args, client) {

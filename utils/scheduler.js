@@ -64,22 +64,29 @@ async function enviarAnunciosPendientes(client) {
     }
 }
 
-// Avisa de los recordatorios vencidos (en el canal, o por MD si el canal no existe).
+// Avisa de los recordatorios vencidos (en el canal, o por MD si se pidió así o el
+// canal ya no existe), con botones para posponerlo.
 async function enviarRecordatoriosPendientes(client) {
+    const { filaPosponer } = require('./recordatorios.js');
+    const { idiomaMiembro } = require('./preferencias.js');
     const ahora = new Date();
     const pendientes = await Recordatorio.find({ avisado: false, fechaAviso: { $lte: ahora } });
     for (const r of pendientes) {
         try {
             const cfg = r.guildId ? await ServidorConfig.findOne({ guildId: r.guildId }).lean().catch(() => null) : null;
-            const canal = await client.channels.fetch(r.canalId).catch(() => null);
-            const texto = t(cfg,
+            const idioma = await idiomaMiembro(r.userId, { cfg });
+            const canal = r.porMD ? null : await client.channels.fetch(r.canalId).catch(() => null);
+            const texto = t(idioma,
                 `⏰ <@${r.userId}>, recordatorio: ${r.mensaje || '(sin texto)'}`,
                 `⏰ <@${r.userId}>, reminder: ${r.mensaje || '(no text)'}`);
+            const components = [filaPosponer(r._id, idioma)];
+            let enviado = false;
             if (canal && canal.isTextBased()) {
-                await canal.send({ content: texto.slice(0, 2000), allowedMentions: { users: [r.userId] } });
-            } else {
+                enviado = !!(await canal.send({ content: texto.slice(0, 2000), allowedMentions: { users: [r.userId] }, components }).catch(() => null));
+            }
+            if (!enviado) {
                 const user = await client.users.fetch(r.userId).catch(() => null);
-                if (user) await user.send(t(cfg, `⏰ Recordatorio: ${r.mensaje || '(sin texto)'}`, `⏰ Reminder: ${r.mensaje || '(no text)'}`)).catch(() => {});
+                if (user) await user.send({ content: t(idioma, `⏰ Recordatorio: ${r.mensaje || '(sin texto)'}`, `⏰ Reminder: ${r.mensaje || '(no text)'}`).slice(0, 2000), components }).catch(() => {});
             }
         } catch (e) {
             console.error('Error enviando recordatorio:', e.message);

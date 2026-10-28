@@ -1,15 +1,29 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { gateMusica, formatDuration, COLOR_MUSICA, buscarMusica } = require('../utils/musica.js');
 const { t } = require('../utils/i18n.js');
+const { sugerenciasCanciones } = require('../utils/musicaExtra.js');
+const { idiomaInteraccion } = require('../utils/preferencias.js');
+
+const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play music (paste a YouTube/Spotify URL or search by name)')
+        .setDescription('Play music (type the song name and pick it from the list)')
+        .setDescriptionLocalizations(ES('Poner música (escribe el nombre de la canción y elígela de la lista)'))
         .addStringOption((opt) =>
             opt.setName('search')
-                .setDescription('YouTube/Spotify URL, or the song name')
-                .setRequired(true)),
+                .setNameLocalizations(ES('cancion'))
+                .setDescription('Song name, or a YouTube/Spotify link')
+                .setDescriptionLocalizations(ES('Nombre de la canción, o un enlace de YouTube/Spotify'))
+                .setRequired(true)
+                .setAutocomplete(true)),
+
+    // Mientras escribes, salen canciones de YouTube Music para elegir.
+    async autocomplete(interaction, client, cfg) {
+        const idioma = await idiomaInteraccion(interaction, cfg);
+        await interaction.respond(await sugerenciasCanciones(client, interaction.options.getFocused(), idioma));
+    },
 
     async execute(interaction, client, cfg) {
         // 1. Validar voz + música activa + rol DJ.

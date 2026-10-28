@@ -5,11 +5,13 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { esPro } = require('../utils/billing.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('247')
-        .setDescription('Turn music 24/7 mode on or off (Pro): the bot stays in the channel'),
+        .setDescription('Turn music 24/7 mode on or off (Pro): the bot stays in the channel')
+        .setDescriptionLocalizations(ES('Modo 24/7 de la música (Pro): el bot se queda en el canal')),
 
     async execute(interaction, client, cfgArg) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {

@@ -3,6 +3,7 @@ const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'timeout',
+    aliases: ['aislar'], // en español también
     description: 'Times out (mutes) a user. Usage: !timeout @user <time> [reason]',
 
     async execute(message, args, client, cfg) {

@@ -121,7 +121,9 @@ module.exports = {
             await command.execute(message, args, client, cfg);
         } catch (error) {
             console.error(`Error en el comando ${commandName}:`, error);
-            message.reply(t(cfg, '❌ Hubo un error al ejecutar ese comando.', '❌ There was an error trying to run that command.')).catch(() => {});
+            // Qué ha pasado en palabras normales y, si se arregla en el panel, el botón.
+            const { respuestaError } = require('../utils/erroresDiscord.js');
+            message.reply(respuestaError(error, cfg, { privado: false })).catch(() => {});
         }
     },
 };

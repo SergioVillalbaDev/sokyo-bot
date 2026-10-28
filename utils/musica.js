@@ -252,6 +252,9 @@ function construirPanel(player, cfg, idioma) {
         btnMusica('music_voldown', '🔉', ButtonStyle.Secondary, player.volume <= 0),
         btnMusica('music_volup', '🔊', ButtonStyle.Secondary, player.volume >= (cfg?.volumenMax ?? 150)),
         new ButtonBuilder().setCustomId('music_autoplay').setLabel(autoplayLabel).setStyle(autoplayStyle),
+        // Cualquiera puede ver la letra o guardarse la canción (no hace falta ser DJ).
+        new ButtonBuilder().setCustomId('music_letra').setEmoji('📝').setLabel(t(idioma, 'Letra', 'Lyrics')).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('music_guardar').setEmoji('❤️').setLabel(t(idioma, 'Guardar', 'Save')).setStyle(ButtonStyle.Secondary),
     );
     return { embeds: [embed], components: [fila1, fila2] };
 }
@@ -285,6 +288,19 @@ async function manejarBotonMusica(interaction, client) {
     if (!player || !player.queue.current) {
         return interaction.reply({ content: t(idioma, '⏹️ Ahora mismo no suena nada.', '⏹️ Nothing is playing right now.'), flags: 64 });
     }
+    // 📝 Letra y ❤️ Guardar: para cualquiera, aunque no esté en el canal de voz.
+    if (interaction.customId === 'music_letra' || interaction.customId === 'music_guardar') {
+        const extra = require('./musicaExtra.js');
+        const { idiomaInteraccion } = require('./preferencias.js');
+        const suIdioma = await idiomaInteraccion(interaction, idioma);
+        const pista = player.queue.current;
+        if (interaction.customId === 'music_guardar') {
+            const r = await extra.guardarEnFavoritas(interaction.user.id, pista, suIdioma).catch(() => ({ texto: t(suIdioma, '❌ No he podido guardarla. Prueba otra vez.', '❌ I couldn’t save it. Try again.') }));
+            return interaction.reply({ content: r.texto, flags: 64 });
+        }
+        await interaction.deferReply({ flags: 64 });
+        return interaction.editReply(await extra.respuestaLetra(pista.info.title, pista.info.author, pista.info.duration, suIdioma));
+    }
     const cfg = await getMusicaConfig(interaction.guildId);
     const canalUsuario = interaction.member?.voice?.channel;
     if (!canalUsuario) {
@@ -300,13 +316,18 @@ async function manejarBotonMusica(interaction, client) {
     let parar = false;
     switch (interaction.customId) {
         case 'music_toggle': player.paused ? await player.resume() : await player.pause(); break;
-        case 'music_skip':
+        case 'music_skip': {
+            // Con más gente escuchando, saltar la canción de otro se vota.
+            const { votarSaltar, textoVoto } = require('./musicaExtra.js');
+            const voto = votarSaltar(player, interaction.member, cfg);
+            if (!voto.saltar) return interaction.reply({ content: textoVoto(voto, idioma), flags: 64 });
             if (!player.queue.tracks.length) {
                 // Última canción: en 24/7 paramos pero seguimos en el canal; si no, salimos.
                 if (await es247(interaction.guildId)) { await player.stopPlaying().catch(() => {}); }
                 else { await player.destroy(); parar = true; }
             } else await player.skip();
             break;
+        }
         case 'music_stop': await player.destroy(); parar = true; break;
         case 'music_shuffle': if (typeof player.queue.shuffle === 'function') await player.queue.shuffle(); break;
         case 'music_voldown': await player.setVolume(Math.max(0, player.volume - 10)); break;

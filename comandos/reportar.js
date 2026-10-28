@@ -3,6 +3,7 @@ const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'report',
+    aliases: ['reportar'], // en español también
     description: 'Report a user to the staff. Usage: !report @user [reason] (or reply to a message with !report [reason])',
 
     async execute(message, args, client, cfg) {

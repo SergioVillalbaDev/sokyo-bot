@@ -14,6 +14,7 @@ function puedeGestionar(miembro, rol) {
 
 module.exports = {
     name: 'role',
+    aliases: ['rol'], // en español también
     description: 'Manage server roles (create, assign, remove)',
 
     async execute(message, args, client, cfg) {

@@ -9,6 +9,7 @@ const dur = (m) => (!m ? '' : ` · ${m >= 1440 ? `${Math.round(m / 1440)}d` : m 
 
 module.exports = {
     name: 'history',
+    aliases: ['historial'], // en español también
     description: 'Show a user’s sanction history. Usage: !history <id or @user>',
 
     async execute(message, args) {
