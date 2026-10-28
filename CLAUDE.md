@@ -42,7 +42,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.5.0.**
+  --no-git-tag-version`. **Versión actual: 1.6.0.**
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -101,7 +101,19 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   (escritorio) y `<es|en>-m-<inicio|cuenta>-<390|780>.webp` (móvil), elegidas con
   `srcset` (`components/landing/capturas.js`). Se sacaron con un servidor de
   ejemplo («Nébula Gaming», usuario «alex») y Playwright; esos scripts vivían en el
-  scratchpad. Si cambia mucho el panel, hay que repetirlas en los dos idiomas.
+  scratchpad. Si cambia mucho el panel, hay que repetirlas en los dos idiomas y
+  subir `VERSION` en `capturas.js` (va en la dirección, `?v=…`; se guardan un mes).
+- **Vídeos «cómo se hace»** (tipo GIF): `public/videos/<es|en>-<id>.{mp4,webm,webp}`
+  (H.264 + VP9 para los Chromium sin H.264, y póster). Ids: inicio, tickets,
+  automod, niveles, analitica, buscador, sorteos, bienvenidas, canales, micuenta.
+  `components/VideoDemo.jsx` los reproduce en bucle solo cuando se ven (y quietos
+  con reducir movimiento o ahorro de datos); `lib/videos.js` dice qué sección del
+  panel tiene vídeo (`VIDEOS_PANEL` → botón «Ver cómo se hace» de la cabecera,
+  ventana `VideoAyuda.jsx`, pasos en `dashboard.videoAyuda.pasos`). En la landing
+  van en el recorrido (`Tour.jsx`, 10 pestañas). Se grabaron con Playwright sobre
+  el servidor de ejemplo (puntero visible) y ffmpeg; los scripts vivían en el
+  scratchpad. Si cambia una pantalla, hay que regrabar su vídeo en los dos idiomas
+  y subir `VERSION` en `lib/videos.js` (va en la dirección; se guardan un mes).
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -168,5 +180,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Premium; las gráficas de Analítica (miembros, mensajes por día, tickets) salían
   vacías por un color inexistente (`var(--brand)`); en el móvil, el título de un
   ticket abierto ya no se parte palabra por palabra y la conversación va primero.
+- 1.6.0 Vídeos cortos «cómo se hace» (en bucle como un GIF, 150-600 KB) en el
+  recorrido de la web y en el panel (botón «Ver cómo se hace» con sus pasos).
+  Arreglos: en el chat de un ticket, las respuestas del staff salen a la derecha
+  (antes se miraba el nombre «Admin»/«Sokyo»; ahora, todo lo que no escribe el
+  autor del ticket ni un invitado es del staff), la respuesta aparece al momento,
+  primero va a Discord y luego se guarda (si Discord falla, el panel lo avisa y
+  devuelve el texto a la caja para reintentar), la columna
+  del chat ya no se desplaza de lado ni se queda estrecha a 1280 px; la rueda
+  del ratón encima de un campo numérico ya no cambia su valor (main.jsx); los
+  botones de variables de la bienvenida insertan `{server}`/`{members}`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

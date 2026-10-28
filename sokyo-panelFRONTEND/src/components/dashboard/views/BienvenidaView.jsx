@@ -17,8 +17,9 @@ const DEF = {
   despedida: { activo: false, canalId: null, contenido: '', mencionar: false, embed: null },
 };
 
-// Variables disponibles para el texto y el embed.
-const VARIABLES = ['{mention}', '{user}', '{servidor}', '{miembros}', '{avatar}'];
+// Variables disponibles para el texto y el embed: las mismas que explica la ayuda
+// (utils/bienvenida.js acepta también {servidor} y {miembros} por compatibilidad).
+const VARIABLES = ['{mention}', '{user}', '{server}', '{members}', '{avatar}'];
 
 function Select({ items, value, onChange, placeholder }) {
   return (
