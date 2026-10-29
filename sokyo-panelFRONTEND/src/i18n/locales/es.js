@@ -194,6 +194,7 @@ export default {
         'prod-anuncios': 'Anuncios programados', 'prod-embeds': 'Creador de mensajes', 'prod-autorespuestas': 'Respuestas automáticas',
         'datos-analitica': 'Analítica', 'datos-resumen': 'Parte diario', 'logs-todos': 'Registro de actividad',
         'config-canales': 'Categorías y canales', 'config-expresiones': 'Emojis y stickers', 'config-acceso': 'Acceso al panel', 'config-textos': 'Comandos y prefijo', 'seg-backup': 'Copia de seguridad', 'cuenta-plan': 'Plan y facturación', 'config-app': 'App móvil',
+        'config-diagnostico': '¿Algo no funciona?', 'config-cambios': 'Historial de cambios',
       },
     },
     app: {

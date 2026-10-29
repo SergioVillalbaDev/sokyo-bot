@@ -106,7 +106,7 @@ module.exports = (client) => {
             // (el navegador bloquea la respuesta) sin propagar una excepción con stack trace al cliente.
             callback(null, !origin || ORIGENES_PERMITIDOS.includes(origin));
         },
-        exposedHeaders: ['X-Sokyo-Token'], // sesión renovada (ver renovarSesion)
+        exposedHeaders: ['X-Sokyo-Token', 'X-Sokyo-Cambio'], // sesión renovada (ver renovarSesion) y cambio apuntado (historial)
     }));
 
     // --- CABECERAS DE SEGURIDAD (helmet) ---
@@ -325,6 +325,9 @@ module.exports = (client) => {
         next();
     });
 
+    // --- Historial de cambios del panel: apunta lo que cambia cada guardado ---
+    app.use('/api', require('../utils/historialCambios.js').middlewareHistorial());
+
     // --- Middleware de sesión del Portal: valida el token de Discord del usuario ---
     const portalAuth = (req, res, next) => {
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -480,6 +483,8 @@ module.exports = (client) => {
 
     // Categorías y canales del servidor (los cambios piden el área "config").
     app.use('/api', require('./routes/canales.js')({ client, exigeArea }));
+    // Diagnóstico «¿Por qué no funciona?» e historial de cambios con «Deshacer».
+    app.use('/api', require('./routes/panelExtra.js')({ client, exigeArea, tieneAreaAcceso, idiomaPanel }));
 
     // Middleware: exige ser Administrator de Discord en el guild (o dueño/API key).
     // Reservado para operaciones que OTORGAN permisos a otros (quién modera, quién

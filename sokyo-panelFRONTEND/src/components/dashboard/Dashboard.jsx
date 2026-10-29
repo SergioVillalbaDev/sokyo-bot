@@ -14,6 +14,7 @@ import BuscadorPanel from './BuscadorPanel';
 import '../../dashboard.css';
 import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
+import AvisoDeshacer from './AvisoDeshacer';
 import { AtajosTeclado } from './Preferencias';
 import { ligeroActivo, suscribirLigero } from '../../lib/ligero';
 import { anotarReciente } from '../../lib/recientes';
@@ -65,6 +66,8 @@ const CARGAR_VISTA = {
   CrecDirectosView: () => import('./views/CrecDirectosView'),
   AppMovilView: () => import('./views/AppMovilView'),
   MiCuentaView: () => import('./views/MiCuentaView'),
+  DiagnosticoView: () => import('./views/DiagnosticoView'),
+  CambiosView: () => import('./views/CambiosView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
 
@@ -278,13 +281,15 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'datos-analitica') return <V.AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <V.ResumenView dash={dash} />;
     if (activeTab === 'config-app') return <V.AppMovilView />;
+    if (activeTab === 'config-diagnostico') return <V.DiagnosticoView dash={dash} />;
+    if (activeTab === 'config-cambios') return <V.CambiosView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };
 
   // Con el servidor en la clave, cada vista se monta de cero al cambiar de servidor
   // y no arrastra formularios a medio editar del anterior.
-  const viewKey = `${guildId}:${activeTab === 'tickets-gestion' && ticketSeleccionado ? 'chat' : activeTab}`;
+  const viewKey = `${guildId}:${activeTab === 'tickets-gestion' && ticketSeleccionado ? 'chat' : activeTab}:${dash.recarga}`;
 
   // h-dvh y no h-screen: en el móvil 100vh es más alto que la parte visible
   // (por la barra del navegador) y lo de abajo quedaba fuera de la pantalla.
@@ -379,6 +384,11 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       />
 
       {atajos && <AtajosTeclado onCerrar={() => setAtajos(false)} />}
+
+      {/* «Guardado · Deshacer» tras cada cambio (solo quien puede deshacerlo). */}
+      {misPermisos?.config !== false && (
+        <AvisoDeshacer guildId={guildId} onDeshecho={() => dash.recargarSeccion()} onHistorial={() => navigate('config-cambios')} />
+      )}
 
       {lejos && (
         <button

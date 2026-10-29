@@ -194,6 +194,7 @@ export default {
         'prod-anuncios': 'Scheduled announcements', 'prod-embeds': 'Message creator', 'prod-autorespuestas': 'Auto-replies',
         'datos-analitica': 'Analytics', 'datos-resumen': 'Daily report', 'logs-todos': 'Activity log',
         'config-canales': 'Categories & channels', 'config-expresiones': 'Emojis & stickers', 'config-acceso': 'Panel access', 'config-textos': 'Commands & prefix', 'seg-backup': 'Backup', 'cuenta-plan': 'Plan & billing', 'config-app': 'Mobile app',
+        'config-diagnostico': 'Something not working?', 'config-cambios': 'Change history',
       },
     },
     app: {

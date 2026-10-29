@@ -48,6 +48,9 @@ export const apiFetch = (path, options = {}) => {
     // Solo se guarda si no se ha cerrado sesión mientras tanto.
     const renovada = res.headers.get('X-Sokyo-Token');
     if (renovada && token && getStaffToken() === token) localStorage.setItem('sokyoStaffToken', renovada);
+    // Un guardado que cambió la configuración: el panel ofrece «Deshacer» un momento.
+    const cambio = res.headers.get('X-Sokyo-Cambio');
+    if (cambio) window.dispatchEvent(new CustomEvent('sokyo-cambio', { detail: { id: cambio } }));
     return res;
   });
 };
