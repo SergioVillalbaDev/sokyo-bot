@@ -6,6 +6,19 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.0': [
+        { tab: 'com-cumpleanos', es: '🎂 Cumpleaños: guarda el tuyo con /cumple (o en Mi cuenta) y el servidor te felicita ese día, con rol especial y regalo si el staff quiere.', en: '🎂 Birthdays: save yours with /birthday (or in My account) and the server congratulates you on the day, with a special role and a gift if the staff likes.' },
+        { tab: 'com-grupos', es: '🎮 /grupo: busca gente para jugar y los demás se apuntan con un botón. Al llenarse, sala de voz solo para el grupo.', en: '🎮 /group: look for people to play with and others join with a button. When it’s full, a voice room just for the group.' },
+        { tab: 'com-clanes', es: '🛡️ Clanes: funda uno con /clan crear. Cada XP suma para tu clan y cada lunes gana el que más tiene.', en: '🛡️ Clans: found one with /clan create. Every XP counts for your clan and every Monday the top one wins.' },
+        { tab: 'com-salon', es: '⭐ Salón de la fama: los mensajes que llegan a varias estrellas se guardan en un canal especial.', en: '⭐ Hall of fame: messages that get enough stars are saved in a special channel.' },
+        { tab: 'com-confesiones', es: '💬 Confesiones anónimas con /confesar (con revisión del staff si se quiere).', en: '💬 Anonymous confessions with /confess (with staff review if wanted).' },
+        { tab: 'com-solicitudes', es: '📝 Solicitudes al staff: un formulario con botón en Discord; el staff acepta o rechaza y el bot da el rol.', en: '📝 Staff applications: a form with a button in Discord; the staff accepts or rejects and the bot gives the role.' },
+        { tab: 'tickets-config', es: '🎫 Tickets: antes de abrir uno, el bot busca la respuesta en las respuestas del servidor. Y ahora se pueden abrir escribiendo al bot por privado.', en: '🎫 Tickets: before opening one, the bot looks for the answer in the server’s replies. And now you can open one by DMing the bot.' },
+        { tab: 'prod-ausente', es: '🌐 Clic derecho en un mensaje → Apps → Traducir, y /ausente para avisar de que no estás si te mencionan.', en: '🌐 Right-click a message → Apps → Translate, and /afk to let people know you’re away when they mention you.' },
+        { tab: 'prod-fijos', es: '📌 Mensajes fijos: un mensaje (como las normas) que se queda siempre al final del canal.', en: '📌 Sticky messages: a message (like the rules) that always stays at the bottom of the channel.' },
+        { tab: 'crec-contadores', es: '🔢 Canales con contadores en el nombre: «👥 Miembros: 1.234», gente en voz, mejoras…', en: '🔢 Channels with counters in their name: “👥 Members: 1,234”, people in voice, boosts…' },
+        { tab: 'crec-directos', es: '📡 Avisos de directos de Kick y de lo nuevo en comunidades de Reddit o en cualquier web con RSS.', en: '📡 Alerts for Kick streams and for new posts in Reddit communities or on any website with RSS.' },
+    ],
     '1.8.0': [
         { tab: 'config-diagnostico', es: '🩺 «¿Algo no funciona?» en el panel: revisa permisos, canales y roles y te dice cómo arreglarlo, casi siempre con un botón.', en: '🩺 “Something not working?” in the panel: it checks permissions, channels and roles and tells you how to fix it, usually with one button.' },
         { tab: 'config-cambios', es: '↩️ «Deshacer» justo después de guardar e «Historial de cambios»: quién cambió qué y un botón para dejarlo como estaba.', en: '↩️ “Undo” right after saving, plus a “Change history”: who changed what and a button to put it back.' },

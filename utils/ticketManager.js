@@ -259,7 +259,7 @@ async function archivarCanal(canal, ticket, categoriaNombre = CATEGORIA_ARCHIVO)
 // Crea un ticket (canal de Discord + documento + mensaje de bienvenida con los
 // botones estándar). Reutilizable desde el flujo normal y desde otros sistemas
 // (p. ej. los reportes). Devuelve { ok, ticket, canal } o { ok: false, error }.
-async function crearTicket(client, { guildId, creador, motivo = 'Support', titulo = 'Support Ticket', descripcion = '', prioridad = 'Normal', darAccesoCreador = true } = {}) {
+async function crearTicket(client, { guildId, creador, motivo = 'Support', titulo = 'Support Ticket', descripcion = '', prioridad = 'Normal', darAccesoCreador = true, porPrivado = false } = {}) {
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return { ok: false, error: 'Server not found' };
 
@@ -285,6 +285,7 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
         participantes: (creador && creador.id) ? [{ id: creador.id, username: creador.username, avatar: creador.avatar, rol: 'Creador' }] : [],
         visibleWeb: true,
         esperaRespuesta: !!(creador && creador.id), ultimoMensajeUsuario: new Date(),
+        porPrivado: !!porPrivado,
     });
 
     await registrarLogTicket(client, ticket, '🎫 Ticket opened', '#2ecc71', (creador && creador.username) || 'System');
@@ -310,7 +311,8 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
     if (darAccesoCreador && creador && creador.id) {
         row.addComponents(require('./cuenta.js').botonWeb(cfg, 'tickets', t(cfg, 'Seguir en la web', 'Follow on the web'), canal.id));
     }
-    const saludo = (darAccesoCreador && creador && creador.id) ? t(cfg, `¡Hola <@${creador.id}>! Aquí tienes tu ticket. 👇`, `Hi <@${creador.id}>! Here’s your ticket. 👇`) : t(cfg, 'Nuevo ticket 👇', 'New ticket 👇');
+    let saludo = (darAccesoCreador && creador && creador.id) ? t(cfg, `¡Hola <@${creador.id}>! Aquí tienes tu ticket. 👇`, `Hi <@${creador.id}>! Here’s your ticket. 👇`) : t(cfg, 'Nuevo ticket 👇', 'New ticket 👇');
+    if (porPrivado) saludo += t(cfg, '\n✉️ Abierto por privado: lo que escribáis aquí le llega por privado, y lo que escriba al bot aparece aquí.', '\n✉️ Opened via DM: whatever you write here reaches them by DM, and what they write to the bot shows up here.');
     await canal.send({ content: saludo, embeds: [embed], components: [row] });
 
     return { ok: true, ticket, canal };

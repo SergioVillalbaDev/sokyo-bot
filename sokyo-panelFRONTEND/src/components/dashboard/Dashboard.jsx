@@ -73,6 +73,15 @@ const CARGAR_VISTA = {
   MiCuentaView: () => import('./views/MiCuentaView'),
   DiagnosticoView: () => import('./views/DiagnosticoView'),
   CambiosView: () => import('./views/CambiosView'),
+  CumpleanosView: () => import('./views/CumpleanosView'),
+  SolicitudesView: () => import('./views/SolicitudesView'),
+  SalonFamaView: () => import('./views/SalonFamaView'),
+  GruposView: () => import('./views/GruposView'),
+  ClanesView: () => import('./views/ClanesView'),
+  ConfesionesView: () => import('./views/ConfesionesView'),
+  AusenteView: () => import('./views/AusenteView'),
+  MensajesFijosView: () => import('./views/MensajesFijosView'),
+  ContadoresView: () => import('./views/ContadoresView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
 
@@ -350,6 +359,15 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'config-app') return <V.AppMovilView />;
     if (activeTab === 'config-diagnostico') return <V.DiagnosticoView dash={dash} />;
     if (activeTab === 'config-cambios') return <V.CambiosView dash={dash} />;
+    if (activeTab === 'com-cumpleanos') return <V.CumpleanosView dash={dash} />;
+    if (activeTab === 'com-solicitudes') return <V.SolicitudesView dash={dash} />;
+    if (activeTab === 'com-salon') return <V.SalonFamaView dash={dash} />;
+    if (activeTab === 'com-grupos') return <V.GruposView dash={dash} />;
+    if (activeTab === 'com-clanes') return <V.ClanesView dash={dash} />;
+    if (activeTab === 'com-confesiones') return <V.ConfesionesView dash={dash} />;
+    if (activeTab === 'prod-ausente') return <V.AusenteView dash={dash} />;
+    if (activeTab === 'prod-fijos') return <V.MensajesFijosView dash={dash} />;
+    if (activeTab === 'crec-contadores') return <V.ContadoresView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };

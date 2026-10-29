@@ -1,5 +1,6 @@
-// Crecimiento · Directos y vídeos — avisos cuando un canal de Twitch empieza
-// directo o uno de YouTube publica. Lógica del bot en utils/directos.js.
+// Crecimiento · Directos y vídeos — avisos cuando un canal de Twitch o Kick empieza
+// directo, uno de YouTube publica, o hay algo nuevo en una comunidad de Reddit o en
+// una web con RSS. Lógica del bot en utils/directos.js.
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Radio, Tv, Plus, Loader2, Send, Trash2, ExternalLink, AlertTriangle } from 'lucide-react';
@@ -9,7 +10,11 @@ import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Aviso, 
 import { relativo } from './crecimientoUtils';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 
-const COLOR = { twitch: '#9146FF', youtube: '#FF0000' };
+const COLOR = { twitch: '#9146FF', youtube: '#FF0000', kick: '#53FC18', reddit: '#FF4500', rss: '#F59E0B' };
+const NOMBRE = { twitch: 'Twitch', youtube: 'YouTube', kick: 'Kick', reddit: 'Reddit', rss: 'RSS' };
+const TIPOS = Object.keys(NOMBRE);
+const EN_DIRECTO = new Set(['twitch', 'kick']); // los que tienen «en directo / desconectado»
+const PLACEHOLDER = { twitch: 'placeholderTwitch', youtube: 'placeholderYoutube', kick: 'placeholderKick', reddit: 'placeholderReddit', rss: 'placeholderRss' };
 
 export default function CrecDirectosView({ dash }) {
   const { t, i18n } = useTranslation();
@@ -94,8 +99,11 @@ export default function CrecDirectosView({ dash }) {
           <Campo etiqueta={t('dashboard.crec_v.directos.message')} className="sm:col-span-2">
             <input maxLength={500} value={form.mensaje || ''} onChange={(e) => set('mensaje')(e.target.value)} className={campo} />
           </Campo>
-          <Campo etiqueta={t('dashboard.crec_v.directos.messageVideo')} ayuda={t('dashboard.crec_v.directos.messageHint')} className="sm:col-span-2">
+          <Campo etiqueta={t('dashboard.crec_v.directos.messageVideo')} className="sm:col-span-2">
             <input maxLength={500} value={form.mensajeVideo || ''} onChange={(e) => set('mensajeVideo')(e.target.value)} className={campo} />
+          </Campo>
+          <Campo etiqueta={t('dashboard.crec_v.directos.messagePost')} ayuda={t('dashboard.crec_v.directos.messageHint')} className="sm:col-span-2">
+            <input maxLength={500} value={form.mensajePost || ''} onChange={(e) => set('mensajePost')(e.target.value)} className={campo} />
           </Campo>
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-bg px-4 py-3 sm:col-span-2">
             <span className="text-sm font-semibold text-fg">{t('dashboard.crec_v.directos.shorts')}</span>
@@ -111,13 +119,14 @@ export default function CrecDirectosView({ dash }) {
 
         {!lleno && (
           <div className="mt-4 space-y-2">
-            <div className="flex gap-1 rounded-2xl border border-line bg-bg p-1 sm:w-72">
-              <button type="button" className={pestana('twitch')} onClick={() => { setTipo('twitch'); setErrorAlta(''); }}>Twitch</button>
-              <button type="button" className={pestana('youtube')} onClick={() => { setTipo('youtube'); setErrorAlta(''); }}>YouTube</button>
+            <div className="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-bg p-1 sm:w-fit">
+              {TIPOS.map((tp) => (
+                <button key={tp} type="button" className={`${pestana(tp)} shrink-0 whitespace-nowrap`} onClick={() => { setTipo(tp); setErrorAlta(''); }}>{NOMBRE[tp]}</button>
+              ))}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input value={entrada} onChange={(e) => setEntrada(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') anadir(); }}
-                placeholder={tipo === 'twitch' ? t('dashboard.crec_v.directos.placeholderTwitch') : t('dashboard.crec_v.directos.placeholderYoutube')}
+                placeholder={t(`dashboard.crec_v.directos.${PLACEHOLDER[tipo]}`)}
                 className={`${campo} sm:flex-1`} />
               <button type="button" onClick={anadir} disabled={anadiendo || !entrada.trim()}
                 className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50">
@@ -125,6 +134,7 @@ export default function CrecDirectosView({ dash }) {
                 {anadiendo ? t('dashboard.crec_v.directos.adding') : t('dashboard.crec_v.directos.add')}
               </button>
             </div>
+            {tipo === 'rss' && <p className="text-xs text-muted">{t('dashboard.crec_v.directos.rssHint')}</p>}
             {errorAlta && <p className="flex items-center gap-1.5 text-sm font-semibold text-danger"><AlertTriangle size={14} /> {errorAlta}</p>}
           </div>
         )}
@@ -142,8 +152,8 @@ export default function CrecDirectosView({ dash }) {
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
                         <span className="truncate">{f.nombre}</span>
-                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: COLOR[f.tipo] }}>{f.tipo === 'twitch' ? 'Twitch' : 'YouTube'}</span>
-                        {f.tipo === 'twitch' && (
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${f.tipo === 'kick' ? 'text-black' : 'text-white'}`} style={{ backgroundColor: COLOR[f.tipo] }}>{NOMBRE[f.tipo] || f.tipo}</span>
+                        {EN_DIRECTO.has(f.tipo) && (
                           <span className={`text-xs font-semibold ${f.enDirecto ? 'text-danger' : 'text-muted'}`}>
                             {f.enDirecto ? `● ${t('dashboard.crec_v.directos.live')}` : t('dashboard.crec_v.directos.offline')}
                           </span>
@@ -183,7 +193,7 @@ export default function CrecDirectosView({ dash }) {
             {datos.youtubeApi ? t('dashboard.crec_v.directos.ytApi') : t('dashboard.crec_v.directos.ytBasic')}{' '}
           </>
         )}
-        {t('dashboard.crec_v.directos.frequency')}
+        {t('dashboard.crec_v.directos.frequency')}{' '}{t('dashboard.crec_v.directos.tiktokNote')}
       </Aviso>
     </div>
   );

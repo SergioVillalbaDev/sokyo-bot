@@ -1,5 +1,6 @@
 // ============================================================================
-// directos — Crecimiento: avisos de directos de Twitch y vídeos de YouTube.
+// directos — Crecimiento: avisos de directos de Twitch y Kick, vídeos de YouTube
+// y publicaciones de comunidades de Reddit o de cualquier web con RSS.
 //
 // Twitch: con TWITCH_CLIENT_ID y TWITCH_CLIENT_SECRET en el .env se usa la API
 // oficial (Helix). Sin ellas, el bot mira la página pública del canal (modo
@@ -8,6 +9,10 @@
 // además distingue los directos (aviso de "en directo") de los vídeos, y espera a
 // que empiece un directo programado en vez de avisar al programarlo.
 // Los Shorts se ignoran salvo que el servidor los active.
+// Kick: la información pública del canal (kick.com/api/v2/channels/…), sin clave.
+// Reddit y RSS: el feed (RSS o Atom). La dirección del RSS la escribe el staff:
+// solo se aceptan direcciones de internet (utils/redSegura.js).
+// TikTok no tiene ninguna forma pública de saber cuándo alguien publica: no se ofrece.
 // ============================================================================
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const FuenteDirecto = require('../models/FuenteDirecto.js');
@@ -18,7 +23,9 @@ const NAVEGADOR = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, li
 // Cookie de consentimiento: en la UE YouTube redirige a su aviso de cookies sin ella.
 const COOKIE_YT = 'SOCS=CAI; CONSENT=YES+';
 const MAX_FUENTES = 10;
-const COLOR = { twitch: 0x9146ff, youtube: 0xff0000 };
+const COLOR = { twitch: 0x9146ff, youtube: 0xff0000, kick: 0x53fc18, reddit: 0xff4500, rss: 0xf59e0b };
+const PLATAFORMA = { twitch: 'Twitch', youtube: 'YouTube', kick: 'Kick', reddit: 'Reddit', rss: 'RSS' };
+const TIPOS = Object.keys(PLATAFORMA);
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function pedir(url, opciones = {}) {
@@ -246,6 +253,124 @@ async function estadoVideosYoutube(ids) {
     return estados;
 }
 
+
+// -------------------------------- KICK --------------------------------------
+
+// "xqc", "@xqc" o "https://kick.com/xqc" -> "xqc".
+function slugKick(entrada) {
+    const s = String(entrada || '').trim();
+    const m = s.match(/kick\.com\/([A-Za-z0-9_-]{2,30})(?:[/?#]|$)/i) || s.match(/^@?([A-Za-z0-9_-]{2,30})$/);
+    return m ? m[1].toLowerCase() : null;
+}
+
+// Canal de Kick -> { nombre, avatar, directo: { id, titulo, juego, miniatura, inicio } | null }, o null si no existe.
+async function canalKick(slug) {
+    const r = await pedir(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`, { headers: { 'User-Agent': NAVEGADOR, Accept: 'application/json' } });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`Kick respondió ${r.status}`);
+    const j = await r.json().catch(() => null);
+    if (!j || !j.slug) return null;
+    const ls = j.livestream && j.livestream.is_live ? j.livestream : null;
+    const fecha = (v) => (v ? new Date(`${String(v).replace(' ', 'T')}Z`) : null);
+    return {
+        nombre: (j.user && j.user.username) || j.slug,
+        avatar: (j.user && j.user.profile_pic) || null,
+        directo: ls ? {
+            id: String(ls.id),
+            titulo: ls.session_title || '',
+            juego: (ls.categories && ls.categories[0] && ls.categories[0].name) || null,
+            miniatura: (ls.thumbnail && (ls.thumbnail.url || ls.thumbnail.src)) || (j.banner_image && j.banner_image.url) || null,
+            inicio: fecha(ls.start_time || ls.created_at),
+        } : null,
+    };
+}
+
+async function resolverKick(entrada) {
+    const slug = slugKick(entrada);
+    if (!slug) throw new Error('Escribe el nombre del canal de Kick o su enlace (kick.com/…)');
+    const c = await canalKick(slug);
+    if (!c) throw new Error('Ese canal de Kick no existe');
+    return { externoId: slug, nombre: c.nombre, avatar: c.avatar, url: `https://kick.com/${slug}`, directo: c.directo };
+}
+
+// ----------------------------- REDDIT Y RSS ----------------------------------
+
+const sinCDATA = (s) => String(s || '').replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, '$1');
+const etiqueta = (bloque, nombre) => {
+    const m = bloque.match(new RegExp(`<${nombre}(?:\\s[^>]*)?>([\\s\\S]*?)</${nombre}>`, 'i'));
+    return m ? decodificar(sinCDATA(m[1])).trim() : '';
+};
+const atributo = (bloque, nombre, attr) => {
+    const m = bloque.match(new RegExp(`<${nombre}\\s[^>]*${attr}="([^"]+)"`, 'i'));
+    return m ? decodificar(m[1]) : '';
+};
+const sinHtml = (s) => decodificar(String(s || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+
+// RSS 2.0 o Atom -> { titulo, entradas: [{ id, titulo, url, fecha, imagen, resumen }] } (más nuevo primero).
+function analizarFeed(xml) {
+    const texto = String(xml || '');
+    const esAtom = /<feed[\s>]/i.test(texto);
+    if (!esAtom && !/<rss[\s>]|<rdf:RDF/i.test(texto)) return null;
+    const cabecera = texto.split(esAtom ? /<entry[\s>]/i : /<item[\s>]/i)[0];
+    const entradas = [];
+    const bloques = texto.match(esAtom ? /<entry[\s>][\s\S]*?<\/entry>/gi : /<item[\s>][\s\S]*?<\/item>/gi) || [];
+    for (const b of bloques.slice(0, 30)) {
+        const url = esAtom ? (atributo(b, 'link', 'href') || etiqueta(b, 'id')) : (etiqueta(b, 'link') || etiqueta(b, 'guid'));
+        const id = etiqueta(b, esAtom ? 'id' : 'guid') || url || etiqueta(b, 'title');
+        if (!id) continue;
+        const fechaTxt = etiqueta(b, 'published') || etiqueta(b, 'updated') || etiqueta(b, 'pubDate') || etiqueta(b, 'dc:date');
+        const fecha = fechaTxt ? new Date(fechaTxt) : null;
+        const html = etiqueta(b, 'content') || etiqueta(b, 'description') || etiqueta(b, 'summary') || '';
+        const imagen = atributo(b, 'media:thumbnail', 'url') || atributo(b, 'media:content', 'url')
+            || (/image\//i.test(atributo(b, 'enclosure', 'type')) ? atributo(b, 'enclosure', 'url') : '')
+            || ((html.match(/<img[^>]+src="([^"]+)"/i) || [])[1] ? decodificar(html.match(/<img[^>]+src="([^"]+)"/i)[1]) : '');
+        entradas.push({
+            id: id.slice(0, 300),
+            titulo: sinHtml(etiqueta(b, 'title')).slice(0, 256),
+            url: /^https?:\/\//i.test(url) ? url : null,
+            fecha: fecha && !isNaN(fecha) ? fecha : null,
+            imagen: /^https?:\/\//i.test(imagen) ? imagen : null,
+            resumen: sinHtml(html).slice(0, 300),
+        });
+    }
+    entradas.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
+    return { titulo: sinHtml(etiqueta(cabecera, 'title')).slice(0, 100), entradas };
+}
+
+async function leerFeed(url) {
+    const { pedirTextoSeguro } = require('./redSegura.js');
+    const r = await pedirTextoSeguro(url, { cabeceras: { 'User-Agent': `${NAVEGADOR} SokyoBot`, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5' } });
+    if (r.status === 404) return null;
+    if (r.status >= 400) throw new Error(`La web respondió ${r.status}`);
+    return analizarFeed(r.texto);
+}
+
+// "r/spain", "spain" o "https://www.reddit.com/r/spain" -> "spain".
+function subReddit(entrada) {
+    const s = String(entrada || '').trim();
+    const m = s.match(/reddit\.com\/r\/([A-Za-z0-9_]{2,21})(?:[/?#]|$)/i) || s.match(/^\/?r\/([A-Za-z0-9_]{2,21})$/i) || s.match(/^([A-Za-z0-9_]{2,21})$/);
+    return m ? m[1] : null;
+}
+const feedReddit = (sub) => `https://www.reddit.com/r/${sub}/new/.rss`;
+
+async function resolverReddit(entrada) {
+    const sub = subReddit(entrada);
+    if (!sub) throw new Error('Escribe el nombre de la comunidad de Reddit (r/…) o su enlace');
+    const feed = await leerFeed(feedReddit(sub)).catch(() => null);
+    if (!feed) throw new Error('No encuentro esa comunidad de Reddit (¿es privada?)');
+    return { externoId: sub.toLowerCase(), nombre: `r/${sub}`, avatar: null, url: `https://www.reddit.com/r/${sub}`, entradas: feed.entradas };
+}
+
+async function resolverRss(entrada) {
+    let url;
+    try { url = new URL(String(entrada || '').trim()); } catch { throw new Error('Pega la dirección completa del RSS (https://…)'); }
+    if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Pega la dirección completa del RSS (https://…)');
+    let feed;
+    try { feed = await leerFeed(url.toString()); } catch (e) { throw new Error(/permitida/.test(e.message) ? 'Esa dirección no está permitida' : 'No puedo leer esa dirección'); }
+    if (!feed) throw new Error('Esa dirección no es un RSS (busca el enlace «RSS» o «Feed» de la web)');
+    return { externoId: url.toString().slice(0, 500), nombre: feed.titulo || url.hostname, avatar: null, url: `${url.protocol}//${url.host}`, entradas: feed.entradas };
+}
+
 // ------------------------------- AVISOS -------------------------------------
 
 function rellenar(texto, datos) {
@@ -256,32 +381,36 @@ function rellenar(texto, datos) {
         .replace(/{platform}/g, datos.platform || '');
 }
 
-// Publica el aviso. `item` = { tipo: 'directo' | 'video', titulo, url, miniatura, juego, inicio }.
+// Publica el aviso. `item` = { tipo: 'directo' | 'video' | 'post', titulo, url, miniatura, juego, inicio, resumen }.
 async function anunciar(client, fuente, cfg, item) {
     const conf = cfg.crecimiento.directos;
     const guild = client.guilds.cache.get(fuente.guildId);
     const canal = guild && conf.canalId ? guild.channels.cache.get(conf.canalId) : null;
     if (!canal || !canal.isTextBased()) throw new Error(t(cfg, 'Elige un canal de texto para los avisos', 'Choose a text channel for the alerts'));
     const directo = item.tipo === 'directo';
-    const plataforma = fuente.tipo === 'twitch' ? 'Twitch' : 'YouTube';
+    const post = item.tipo === 'post';
+    const plataforma = PLATAFORMA[fuente.tipo] || 'RSS';
     const plantilla = directo
         ? (conf.mensaje || t(cfg, '🔴 ¡**{streamer}** está en directo!', '🔴 **{streamer}** is live!'))
-        : (conf.mensajeVideo || t(cfg, '📺 ¡**{streamer}** acaba de publicar en YouTube!', '📺 **{streamer}** just posted on YouTube!'));
+        : post
+            ? (conf.mensajePost || t(cfg, '📰 Nueva publicación de **{streamer}**', '📰 New post from **{streamer}**'))
+            : (conf.mensajeVideo || t(cfg, '📺 ¡**{streamer}** acaba de publicar en YouTube!', '📺 **{streamer}** just posted on YouTube!'));
     const texto = rellenar(plantilla, { streamer: fuente.nombre, title: item.titulo, url: item.url, platform: plataforma });
 
     const embed = new EmbedBuilder()
         .setColor(COLOR[fuente.tipo])
         .setAuthor({ name: fuente.nombre.slice(0, 256), iconURL: fuente.avatar || undefined, url: fuente.url || undefined })
-        .setTitle((item.titulo || (directo ? t(cfg, 'En directo', 'Live now') : t(cfg, 'Vídeo nuevo', 'New video'))).slice(0, 256))
+        .setTitle((item.titulo || (directo ? t(cfg, 'En directo', 'Live now') : post ? t(cfg, 'Publicación nueva', 'New post') : t(cfg, 'Vídeo nuevo', 'New video'))).slice(0, 256))
         .setURL(item.url)
         .setFooter({ text: plataforma })
         .setTimestamp(item.inicio ? new Date(item.inicio) : new Date());
     if (item.miniatura) embed.setImage(item.miniatura);
     if (item.juego) embed.addFields({ name: t(cfg, '🎮 Jugando a', '🎮 Playing'), value: item.juego.slice(0, 1024), inline: true });
+    if (post && item.resumen) embed.setDescription(item.resumen.slice(0, 300));
     const boton = new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
         .setURL(item.url)
-        .setLabel(directo ? t(cfg, 'Ver directo', 'Watch stream') : t(cfg, 'Ver vídeo', 'Watch video'));
+        .setLabel(directo ? t(cfg, 'Ver directo', 'Watch stream') : post ? t(cfg, 'Leer', 'Read') : t(cfg, 'Ver vídeo', 'Watch video'));
 
     const rol = conf.rolId && guild.roles.cache.get(conf.rolId);
     await canal.send({
@@ -417,35 +546,130 @@ async function revisarYoutube(client) {
     }
 }
 
-// Programador: Twitch cada pasada (2 min) y YouTube una de cada dos (4 min).
+// Kick: avisa cuando un canal pasa de desconectado a en directo (como Twitch).
+async function revisarKick(client) {
+    const lista = await fuentesActivas(client, 'kick');
+    const estados = new Map();
+    for (const slug of new Set(lista.map((x) => x.fuente.externoId))) {
+        try { estados.set(slug, await canalKick(slug)); } catch (e) { estados.set(slug, e); }
+        await esperar(500);
+    }
+    for (const { fuente, cfg } of lista) {
+        const c = estados.get(fuente.externoId);
+        if (c instanceof Error || c === undefined) { fuente.ultimoError = (c ? c.message : '').slice(0, 200); await fuente.save().catch(() => {}); continue; }
+        if (c === null) { fuente.ultimoError = 'El canal de Kick ya no existe'; await fuente.save().catch(() => {}); continue; }
+        const d = c.directo;
+        try {
+            if (d && !fuente.enDirecto && d.id !== fuente.ultimoId) {
+                await anunciar(client, fuente, cfg, { tipo: 'directo', titulo: d.titulo, url: fuente.url, miniatura: d.miniatura, juego: d.juego, inicio: d.inicio });
+                fuente.ultimoId = d.id;
+                fuente.ultimoAviso = new Date();
+            }
+            fuente.enDirecto = !!d;
+            fuente.ultimoError = '';
+        } catch (e) { fuente.ultimoError = e.message.slice(0, 200); }
+        await fuente.save().catch(() => {});
+    }
+}
+
+// Reddit y webs con RSS: avisa de las entradas que no había visto (como mucho 3 por pasada).
+async function revisarFeeds(client) {
+    const lista = [...await fuentesActivas(client, 'reddit'), ...await fuentesActivas(client, 'rss')];
+    const feeds = new Map();
+    for (const { fuente } of lista) {
+        const url = fuente.tipo === 'reddit' ? feedReddit(fuente.externoId) : fuente.externoId;
+        if (feeds.has(url)) continue;
+        try { feeds.set(url, await leerFeed(url)); } catch (e) { feeds.set(url, e); }
+        await esperar(fuente.tipo === 'reddit' ? 1500 : 300);
+    }
+    for (const { fuente, cfg } of lista) {
+        const feed = feeds.get(fuente.tipo === 'reddit' ? feedReddit(fuente.externoId) : fuente.externoId);
+        if (!feed || feed instanceof Error) {
+            fuente.ultimoError = (feed ? feed.message : 'Ya no se puede leer').slice(0, 200);
+            await fuente.save().catch(() => {});
+            continue;
+        }
+        const vistos = new Set(fuente.vistos || []);
+        const ids = feed.entradas.map((e) => e.id);
+        if (!fuente.ultimaFecha && !vistos.size) {
+            // Primera pasada: solo apunta lo que ya hay (sin avisar de lo antiguo).
+            fuente.vistos = ids.slice(0, 50);
+            fuente.ultimaFecha = (feed.entradas[0] && feed.entradas[0].fecha) || new Date();
+            fuente.ultimoError = '';
+            await fuente.save().catch(() => {});
+            continue;
+        }
+        const corte = fuente.ultimaFecha ? new Date(fuente.ultimaFecha) : null;
+        const sinVer = feed.entradas.filter((e) => !vistos.has(e.id) && e.url && (!e.fecha || !corte || e.fecha > new Date(corte.getTime() - 24 * 3600 * 1000)));
+        // Si en una pasada hay muchas nuevas (una comunidad muy activa), solo se avisa de
+        // las 3 más recientes para no llenar el canal: las demás se dan por vistas.
+        const nuevas = sinVer.slice(0, 3).reverse();
+        const pendientes = new Set(nuevas.map((e) => e.id));
+        try {
+            for (const e of nuevas) {
+                await anunciar(client, fuente, cfg, { tipo: 'post', titulo: e.titulo, url: e.url, miniatura: e.imagen, inicio: e.fecha, resumen: fuente.tipo === 'rss' ? e.resumen : '' });
+                pendientes.delete(e.id);
+                vistos.add(e.id);
+                fuente.ultimoAviso = new Date();
+                if (e.fecha && (!fuente.ultimaFecha || e.fecha > new Date(fuente.ultimaFecha))) fuente.ultimaFecha = e.fecha;
+            }
+            fuente.ultimoError = '';
+        } catch (e) { fuente.ultimoError = e.message.slice(0, 200); }
+        // Se recuerdan las del feed actual para no repetir, menos las que no se pudieron
+        // avisar por un fallo: esas se reintentan en la siguiente pasada.
+        fuente.vistos = [...new Set([...ids, ...vistos])].filter((id) => !pendientes.has(id)).slice(0, 80);
+        await fuente.save().catch(() => {});
+    }
+}
+
+// Programador: Twitch y Kick cada pasada (2 min); YouTube, Reddit y RSS una de cada dos (4 min).
 let pasada = 0;
 async function revisarDirectos(client) {
     pasada++;
     try { await revisarTwitch(client); } catch (e) { console.error('Directos (Twitch):', e.message); }
+    try { await revisarKick(client); } catch (e) { console.error('Directos (Kick):', e.message); }
     if (pasada % 2 === 1) {
         try { await revisarYoutube(client); } catch (e) { console.error('Directos (YouTube):', e.message); }
+        try { await revisarFeeds(client); } catch (e) { console.error('Directos (Reddit/RSS):', e.message); }
     }
 }
 
 // Alta de una fuente desde el panel.
+const RESOLVER = { twitch: resolverTwitch, youtube: resolverYoutube, kick: resolverKick, reddit: resolverReddit, rss: resolverRss };
 async function anadirFuente(guildId, tipo, entrada, creadoPor = '') {
-    if (!['twitch', 'youtube'].includes(tipo)) throw new Error('Elige Twitch o YouTube');
-    if (await FuenteDirecto.countDocuments({ guildId }) >= MAX_FUENTES) throw new Error(`Como mucho ${MAX_FUENTES} canales por servidor`);
-    const datos = tipo === 'twitch' ? await resolverTwitch(entrada) : await resolverYoutube(entrada);
-    if (await FuenteDirecto.exists({ guildId, tipo, externoId: datos.externoId })) throw new Error('Ese canal ya está en la lista');
+    if (!TIPOS.includes(tipo)) throw new Error('Elige Twitch, YouTube, Kick, Reddit o RSS');
+    if (await FuenteDirecto.countDocuments({ guildId }) >= MAX_FUENTES) throw new Error(`Como mucho ${MAX_FUENTES} fuentes por servidor`);
+    const datos = await RESOLVER[tipo](entrada);
+    if (await FuenteDirecto.exists({ guildId, tipo, externoId: datos.externoId })) throw new Error('Ya está en la lista');
+    // Lo que ya está publicado (o en directo) al añadirlo no se avisa.
+    let estado;
+    if (tipo === 'twitch' || tipo === 'kick') estado = { enDirecto: !!datos.directo, ultimoId: datos.directo ? datos.directo.id : null };
+    else if (tipo === 'youtube') estado = { ultimaFecha: datos.ultimo ? datos.ultimo.publicado : new Date(), ultimoId: datos.ultimo ? datos.ultimo.id : null };
+    else estado = { vistos: datos.entradas.map((e) => e.id).slice(0, 50), ultimaFecha: (datos.entradas[0] && datos.entradas[0].fecha) || new Date() };
     return FuenteDirecto.create({
         guildId, tipo, creadoPor,
         externoId: datos.externoId, nombre: datos.nombre, avatar: datos.avatar, url: datos.url,
-        // Lo que ya está publicado (o en directo) al añadirlo no se avisa.
-        ...(tipo === 'twitch'
-            ? { enDirecto: !!datos.directo, ultimoId: datos.directo ? datos.directo.id : null }
-            : { ultimaFecha: datos.ultimo ? datos.ultimo.publicado : new Date(), ultimoId: datos.ultimo ? datos.ultimo.id : null }),
+        ...estado,
     });
 }
 
 // Aviso de prueba con los datos reales más recientes del canal.
 async function probarFuente(client, fuente) {
     const cfg = await getConfigCached(fuente.guildId);
+    if (fuente.tipo === 'kick') {
+        const c = await canalKick(fuente.externoId);
+        const d = c && c.directo;
+        return anunciar(client, fuente, cfg, {
+            tipo: 'directo', titulo: d ? d.titulo : t(cfg, 'Aviso de prueba de Sokyo', 'Sokyo test alert'),
+            url: fuente.url, miniatura: d ? d.miniatura : null, juego: d ? d.juego : null, inicio: d ? d.inicio : null,
+        });
+    }
+    if (fuente.tipo === 'reddit' || fuente.tipo === 'rss') {
+        const feed = await leerFeed(fuente.tipo === 'reddit' ? feedReddit(fuente.externoId) : fuente.externoId);
+        const e = feed && feed.entradas.find((x) => x.url);
+        if (!e) throw new Error(t(cfg, 'Todavía no hay ninguna publicación', 'There are no posts yet'));
+        return anunciar(client, fuente, cfg, { tipo: 'post', titulo: e.titulo, url: e.url, miniatura: e.imagen, inicio: e.fecha, resumen: fuente.tipo === 'rss' ? e.resumen : '' });
+    }
     if (fuente.tipo === 'twitch') {
         const d = (await estadoTwitch([fuente.externoId])).get(fuente.externoId);
         return anunciar(client, fuente, cfg, {
@@ -461,6 +685,7 @@ async function probarFuente(client, fuente) {
 }
 
 module.exports = {
-    MAX_FUENTES, modoTwitch, loginTwitch, analizarPaginaTwitch, analizarFeedYoutube, entradaYoutube,
-    resolverTwitch, resolverYoutube, revisarDirectos, revisarTwitch, revisarYoutube, anadirFuente, probarFuente, rellenar,
+    MAX_FUENTES, TIPOS, PLATAFORMA, modoTwitch, loginTwitch, analizarPaginaTwitch, analizarFeedYoutube, entradaYoutube,
+    slugKick, subReddit, analizarFeed, resolverKick, resolverReddit, resolverRss,
+    resolverTwitch, resolverYoutube, revisarDirectos, revisarTwitch, revisarYoutube, revisarKick, revisarFeeds, anadirFuente, probarFuente, rellenar,
 };

@@ -16,12 +16,12 @@ import {
   PartyPopper, TrendingUp, Gift, CalendarDays, BarChart2, Lightbulb, ClipboardList, Gamepad2,
   Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
-  Stethoscope, FileClock,
+  Stethoscope, FileClock, Cake, ClipboardCheck, Star, Shield, MessageSquareHeart, Moon, Pin, Hash, Dices,
 } from 'lucide-react';
 
 export const navSections = [
   { id: 'diario', groups: ['tickets', 'moderacion'] },
-  { id: 'comunidad', groups: ['entrada', 'roles', 'comunidad', 'crecimiento', 'musica', 'mensajes'] },
+  { id: 'comunidad', groups: ['entrada', 'roles', 'comunidad', 'diversion', 'crecimiento', 'musica', 'mensajes'] },
   { id: 'admin', groups: ['datos', 'config', 'propietario'] },
 ];
 
@@ -80,7 +80,20 @@ export const navGroups = [
       { tab: 'com-encuestas', icon: BarChart2, kw: 'encuestas votaciones polls vote' },
       { tab: 'com-sugerencias', icon: Lightbulb, kw: 'sugerencias ideas votos suggestions' },
       { tab: 'com-presentaciones', icon: ClipboardList, kw: 'presentaciones formulario conocerse introductions' },
+      { tab: 'com-cumpleanos', icon: Cake, kw: 'cumpleanos cumple felicitar fecha nacimiento birthday birthdays' },
+      { tab: 'com-solicitudes', icon: ClipboardCheck, area: 'roles', kw: 'solicitudes postulaciones formulario entrar al staff moderador candidatos aplicar applications apply staff form' },
+    ],
+  },
+  {
+    id: 'diversion',
+    icon: Dices,
+    color: '#fb923c',
+    items: [
       { tab: 'com-dinamicas', icon: Gamepad2, kw: 'dinamicas juegos trivia reto diario racha minijuegos games' },
+      { tab: 'com-grupos', icon: Users, kw: 'buscar grupo jugar partida equipo gente lfg looking for group party' },
+      { tab: 'com-clanes', icon: Shield, kw: 'clanes clan equipos competicion semanal puntos ranking teams' },
+      { tab: 'com-salon', icon: Star, kw: 'salon de la fama estrellas destacados mejores mensajes starboard hall of fame' },
+      { tab: 'com-confesiones', icon: MessageSquareHeart, kw: 'confesiones anonimo anonimas secretos confess confessions anonymous' },
     ],
   },
   {
@@ -91,7 +104,8 @@ export const navGroups = [
       { tab: 'crec-invitaciones', icon: Send, area: 'crecimiento', kw: 'invitaciones invites quien invito recompensas invitar' },
       { tab: 'crec-bump', icon: ChevronsUp, area: 'crecimiento', kw: 'bump disboard recordatorio' },
       { tab: 'crec-pagina', icon: Globe2, area: 'crecimiento', kw: 'pagina publica web directorio servidores landing public page' },
-      { tab: 'crec-directos', icon: Radio, area: 'crecimiento', kw: 'directos twitch youtube streams videos alertas live' },
+      { tab: 'crec-directos', icon: Radio, area: 'crecimiento', kw: 'directos twitch youtube kick reddit rss noticias blog streams videos alertas live feed' },
+      { tab: 'crec-contadores', icon: Hash, area: 'crecimiento', kw: 'contadores estadisticas canal nombre miembros cuantos somos counter stats channel member count' },
     ],
   },
   {
@@ -111,6 +125,8 @@ export const navGroups = [
       { tab: 'prod-anuncios', icon: Megaphone, area: 'mensajes', kw: 'anuncios programados repetir publicar announcements schedule' },
       { tab: 'prod-embeds', icon: LayoutTemplate, kw: 'embeds creador de mensajes plantillas embed builder' },
       { tab: 'prod-autorespuestas', icon: MessagesSquare, area: 'mensajes', kw: 'auto respuestas faq respuestas automaticas palabras clave autoresponder' },
+      { tab: 'prod-fijos', icon: Pin, area: 'mensajes', kw: 'mensaje fijo abajo siempre visible normas pegado sticky pinned message' },
+      { tab: 'prod-ausente', icon: Moon, kw: 'ausente afk fuera no estoy mencion traducir traductor idioma translate away' },
     ],
   },
   {

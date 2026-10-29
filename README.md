@@ -26,6 +26,8 @@ sokyo-bot/
 - Cierre/reapertura, notas internas, logs por ticket y **auto-cierre por inactividad**.
 - Gestión completa desde el panel web (ver conversación, responder).
 - **Asistente IA opcional** en tickets (Claude) con cuota mensual por servidor.
+- **Ayuda antes de abrir**: el bot busca la respuesta en las respuestas automáticas (y, si se quiere, la IA responde solo con ellas) y pregunta «¿esto resuelve tu duda?».
+- **Tickets por privado**: escribir al bot por privado abre un ticket; las respuestas del staff llegan por privado.
 
 ### 🛡️ Moderación
 - Comandos: `!ban`, `!unban`, `!kick`, `!timeout`, `!warn`, `!sancion`, `!historial`.
@@ -52,8 +54,19 @@ sokyo-bot/
 - **Invitaciones**: el bot sabe con qué invitación entra cada miembro y premia a quien invita con oro, XP y roles por número de invitaciones. Antitrampas: solo cuenta si el invitado sigue dentro pasadas X horas y si su cuenta tiene cierta antigüedad; cada persona cuenta una vez. Comando `/invites` (o `!invites`).
 - **Bump de DISBOARD**: avisa cuando se puede volver a hacer `/bump`, menciona a un rol, premia con oro a quien lo hace y lleva un ranking. (Un bot no puede usar comandos de otro bot: el `/bump` lo hace una persona.)
 - **Página pública** del servidor en `/s/<dirección>` con botón para unirse, y **directorio** de servidores con Sokyo en `/servidores`. Se generan en el servidor, así que al compartir el enlace sale la vista previa.
-- **Avisos de directos** de Twitch y de vídeos de YouTube. Funcionan sin claves; con `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` y `YOUTUBE_API_KEY` (opcionales, ver `.env.example`) son más precisos.
+- **Avisos de directos** de Twitch y Kick, de vídeos de YouTube y de lo nuevo en comunidades de Reddit o en cualquier web con RSS. Funcionan sin claves; con `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` y `YOUTUBE_API_KEY` (opcionales, ver `.env.example`) son más precisos.
+- **Contadores en canales**: canales con una cifra en el nombre («👥 Miembros: 1.234») que se pone al día cada 10 minutos.
 - **Sorteos** con un mínimo de invitaciones para participar y papeletas extra por invitar.
+
+### 🎉 Comunidad y diversión
+- **Cumpleaños** (`/cumple` o en «Mi cuenta»): felicitación, rol del día y regalo.
+- **Buscar grupo** (`/grupo`): busca gente para jugar; al llenarse, sala de voz solo para el grupo.
+- **Clanes** (`/clan`): equipos que compiten cada semana por XP, con premio para el ganador.
+- **Salón de la fama**: los mensajes que llegan a X ⭐ se guardan en un canal.
+- **Confesiones anónimas** (`/confesar`), con revisión del staff opcional.
+- **Solicitudes al staff**: formularios con botón, aceptar/rechazar desde Discord o el panel y rol automático.
+- **Ausente** (`/ausente`) y **Traducir** (clic derecho en un mensaje → Apps → Traducir).
+- **Mensajes fijos**: un mensaje que siempre queda al final de un canal.
 
 ### 🚨 Reportes
 - Comando `!reportar` + gestión de reportes/incidencias desde el panel.

@@ -4,11 +4,13 @@ const { toggleRol, emojiDeReaccion } = require('../utils/rolePanelManager.js');
 
 module.exports = {
     name: Events.MessageReactionAdd,
-    async execute(reaction, user) {
+    async execute(reaction, user, _detalles, client) {
         if (user.bot) return;
         try {
             // El mensaje puede no estar en caché (partial): lo traemos.
             if (reaction.partial) await reaction.fetch();
+            // Salón de la fama: cuenta las estrellas del mensaje.
+            await require('../utils/salonFama.js').alReaccionar(reaction, user, client).catch((e) => console.error('Salón de la fama:', e.message));
             const panel = await RolePanel.findOne({ messageId: reaction.message.id, tipo: 'reaccion' });
             if (!panel) return;
 

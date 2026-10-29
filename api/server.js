@@ -6,8 +6,6 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const dns = require('dns').promises;
-const net = require('net');
 const { ChannelType, PermissionsBitField, AttachmentBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
@@ -485,6 +483,9 @@ module.exports = (client) => {
     app.use('/api', require('./routes/canales.js')({ client, exigeArea }));
     // Diagnóstico «¿Algo no funciona?» e historial de cambios con «Deshacer».
     app.use('/api', require('./routes/panelExtra.js')({ client, exigeArea, tieneAreaAcceso, idiomaPanel }));
+    // Cumpleaños, salón de la fama, grupos, clanes, confesiones, solicitudes, ausente,
+    // mensajes fijos y canales con contadores (1.9.0).
+    app.use('/api', require('./routes/modulos.js')({ client, exigeArea, tieneAreaAcceso }));
 
     // Middleware: exige ser Administrator de Discord en el guild (o dueño/API key).
     // Reservado para operaciones que OTORGAN permisos a otros (quién modera, quién
@@ -536,28 +537,8 @@ module.exports = (client) => {
         return { tipo, nonce };
     }
 
-    // --- Utilidad anti-SSRF para URLs de webhooks salientes proporcionadas por el staff ---
-    // Resuelve el host y rechaza IPs privadas/loopback/link-local, para que un webhook
-    // "de prueba" (o guardado) no pueda usarse para sondear la red interna del servidor.
-    function ipEnRangoPrivado(ip) {
-        if (net.isIP(ip) === 4) {
-            const [a, b] = ip.split('.').map(Number);
-            return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
-        }
-        if (net.isIP(ip) === 6) {
-            const low = ip.toLowerCase();
-            return low === '::1' || low.startsWith('fe80:') || low.startsWith('fc') || low.startsWith('fd') || low.includes('::ffff:127.') || low.includes('::ffff:10.');
-        }
-        return true; // no es una IP reconocible: por precaución, la tratamos como no segura
-    }
-    async function urlEsSegura(urlStr) {
-        let host;
-        try { host = new URL(urlStr).hostname; } catch { return false; }
-        try {
-            const { address } = await dns.lookup(host);
-            return !ipEnRangoPrivado(address);
-        } catch { return false; }
-    }
+    // --- Anti-SSRF: las URLs de webhooks del staff solo pueden apuntar a internet ---
+    const { urlEsSegura } = require('../utils/redSegura.js');
 
     // ===================== PORTAL DEL CLIENTE (OAuth Discord) =====================
 
@@ -1494,6 +1475,15 @@ app.get('/api/stats/uso', async (req, res) => {
                 ['entradas', 'salidas', 'mensajesBorrados', 'mensajesEditados', 'tickets'].forEach((k) => {
                     if (logsActivos[k] !== undefined) cambios[`logsActivos.${k}`] = !!logsActivos[k];
                 });
+            }
+            // 1.9.0: ayuda antes de abrir un ticket y tickets por privado.
+            const { ayudaPrevia, ticketsPrivado } = req.body;
+            if (ayudaPrevia && typeof ayudaPrevia === 'object') {
+                if (ayudaPrevia.activo !== undefined) cambios['ayudaPrevia.activo'] = !!ayudaPrevia.activo;
+                if (ayudaPrevia.usarIA !== undefined) cambios['ayudaPrevia.usarIA'] = !!ayudaPrevia.usarIA;
+            }
+            if (ticketsPrivado && typeof ticketsPrivado === 'object' && ticketsPrivado.activo !== undefined) {
+                cambios['ticketsPrivado.activo'] = !!ticketsPrivado.activo;
             }
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(

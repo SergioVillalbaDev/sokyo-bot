@@ -271,6 +271,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             if (rol !== undefined) set['crecimiento.directos.rolId'] = rol;
             if (b.mensaje !== undefined) set['crecimiento.directos.mensaje'] = texto(b.mensaje, 500).trim() || actual.mensaje;
             if (b.mensajeVideo !== undefined) set['crecimiento.directos.mensajeVideo'] = texto(b.mensajeVideo, 500).trim() || actual.mensajeVideo;
+            if (b.mensajePost !== undefined) set['crecimiento.directos.mensajePost'] = texto(b.mensajePost, 500).trim() || actual.mensajePost;
             const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after' });
             if (nueva.crecimiento.directos.activo && !nueva.crecimiento.directos.canalId) {
                 return res.json({ success: true, config: nueva.crecimiento.directos, aviso: 'Elige el canal donde publicar los avisos: sin él no se avisa de nada.' });
@@ -283,10 +284,10 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
         try {
             const guild = guildDe(req, res); if (!guild) return;
             const b = req.body || {};
-            const f = await directos.anadirFuente(guild.id, b.tipo, texto(b.entrada, 300), (req.staff && req.staff.username) || 'Panel Web');
+            const f = await directos.anadirFuente(guild.id, b.tipo, texto(b.entrada, 500), (req.staff && req.staff.username) || 'Panel Web');
             res.json({ success: true, fuente: fuenteJson(f) });
         } catch (e) {
-            if (e && e.code === 11000) return res.status(409).json({ error: 'Ese canal ya está en la lista' });
+            if (e && e.code === 11000) return res.status(409).json({ error: 'Ya está en la lista' });
             res.status(400).json({ error: e.message || 'No se pudo añadir' });
         }
     });

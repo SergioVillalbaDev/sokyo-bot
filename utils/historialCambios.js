@@ -38,6 +38,9 @@ const SECCION = {
     presentaciones: 'com-presentaciones', dinamicas: 'com-dinamicas', vozTemporal: 'voz-temporal',
     rolesPanelAcceso: 'config-acceso', rolesModeracion: 'config-acceso', accesoAreas: 'config-acceso',
     resumenDiario: 'datos-resumen', crecimiento: 'crec-invitaciones',
+    ayudaPrevia: 'tickets-config', ticketsPrivado: 'tickets-config',
+    cumpleanos: 'com-cumpleanos', salonFama: 'com-salon', grupos: 'com-grupos', clanes: 'com-clanes',
+    confesiones: 'com-confesiones', solicitudes: 'com-solicitudes', ausente: 'prod-ausente', contadoresCanal: 'crec-contadores',
 };
 // La sección se mira por la raíz de la ruta ('bienvenida.canalId' -> bienvenida).
 const raiz = (ruta) => String(ruta).split('.')[0];

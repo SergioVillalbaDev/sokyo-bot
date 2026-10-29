@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Save, Pencil, Eye, ShieldCheck, FolderTree, Hash, Clock, UserCheck, Info,
   Star, FileText, MessageSquareWarning, BellRing, Gauge, Tags, Zap, X, Plus,
-  Hourglass,
+  Hourglass, Lightbulb, Sparkles, Mail,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { OpcionCrear } from '../CrearAlVuelo';
@@ -199,6 +199,22 @@ export default function TicketsAjustesView({ dash }) {
           </div>
         </div>
         {roles.length === 0 && <p className="mt-2 text-xs italic text-muted">{t('dashboard.rules_v.noRoles')}</p>}
+      </Card>
+
+      {/* ───────── AYUDA ANTES DEL TICKET Y TICKETS POR PRIVADO (1.9.0) ───────── */}
+      <Card data-help="tickets-ayuda" className="p-6 shadow-soft">
+        <div className="divide-y divide-line">
+          <Row icon={Lightbulb} accent="text-amber-400" title={t('dashboard.tickets_set.ayudaTitle')} desc={t('dashboard.tickets_set.ayudaDesc')} checked={!!c.ayudaPrevia?.activo} onChange={(v) => guardarComportamiento({ ayudaPrevia: { activo: v } })} />
+          {c.ayudaPrevia?.activo && (
+            <>
+              <Row icon={Sparkles} title={t('dashboard.tickets_set.ayudaIA')} desc={t('dashboard.tickets_set.ayudaIADesc')} checked={c.ayudaPrevia?.usarIA !== false} onChange={(v) => guardarComportamiento({ ayudaPrevia: { usarIA: v } })} />
+              {!(c.autoRespuestas || []).some((a) => a && a.activo !== false && a.patron && a.respuesta)
+                ? <p className="py-3 text-xs font-semibold text-warning">{t('dashboard.tickets_set.ayudaSinFaq')}</p>
+                : (c.ayudaPrevia?.resueltas > 0 && <p className="py-3 text-xs font-semibold text-success">✅ {t('dashboard.tickets_set.ayudaResueltas', { count: c.ayudaPrevia.resueltas })}</p>)}
+            </>
+          )}
+          <Row icon={Mail} title={t('dashboard.tickets_set.privadoTitle')} desc={t('dashboard.tickets_set.privadoDesc')} checked={!!c.ticketsPrivado?.activo} onChange={(v) => guardarComportamiento({ ticketsPrivado: { activo: v } })} />
+        </div>
       </Card>
 
       {/* ───────── AL CERRAR ───────── */}

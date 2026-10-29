@@ -11,6 +11,8 @@ module.exports = {
         try {
             // CANALES DE VOZ TEMPORALES: crear al entrar a un generador / borrar al vaciarse.
             await manejarVoz(oldState, newState, client).catch((e) => console.error('voz-temporal:', e.message));
+            // BUSCAR GRUPO: la sala de un grupo que se vacía se borra pasados unos minutos.
+            await require('../utils/grupos.js').alCambiarVoz(oldState, newState).catch((e) => console.error('Grupos (voz):', e.message));
 
             // Solo cuando ENTRA a un canal de voz (o cambia de uno a otro).
             if (newState.channelId && newState.channelId !== oldState.channelId) {

@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.8.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -182,6 +182,28 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   cuentan como el lado del usuario), aviso a las X horas (`avisoSinRespuestaHoras`,
   `utils/avisosTicket.js`), privado al responder desde el panel y «está escribiendo»
   (`utils/escribiendo.js`, intent `GuildMessageTyping`).
+- **Funciones 1.9.0** (cada una con su `utils/*.js`, sección del panel y textos `dashboard.<x>_v`):
+  cumpleaños (`utils/cumpleanos.js`, `/cumple`, modelo `Cumpleanos` global por persona, también en
+  «Mi cuenta»; rol del día con `RolTemporal`), solicitudes al staff (`utils/solicitudes.js`, formularios
+  de hasta 5 preguntas en `solicitudes.formularios`), salón de la fama (`utils/salonFama.js`, desde
+  `messageReactionAdd/Remove`: ojo, discord.js manda `(reaction, user, detalles)` y el `client` va 4.º),
+  buscar grupo (`utils/grupos.js`, `/grupo`, sala de voz al llenarse que se borra a los 5 min vacía),
+  clanes (`utils/clanes.js`, `/clan`; suma la XP de `otorgarXp`/`otorgarXpVoz`, cierre de semana el
+  lunes), confesiones (`utils/confesiones.js`, `/confesar`; «Ver quién fue» en el panel exige el área
+  moderación y deja un log), ausente (`utils/ausente.js`, `/ausente`, en memoria + BD), traducir (clic
+  derecho, `utils/traducir.js`: MyMemory gratis y, si falla, la IA del servidor), mensajes fijos
+  (`utils/mensajesFijos.js`, modelo `MensajeFijo`), contadores en canales (`utils/contadoresCanal.js`,
+  `contadoresCanal`, cada 10 min por el límite de nombres de Discord), ayuda antes del ticket
+  (`utils/ayudaPrevia.js`: busca en las respuestas automáticas y, si se quiere, la IA responde solo con
+  ellas) y tickets por privado (`utils/ticketsPrivado.js`, intent `DirectMessages`, `Ticket.porPrivado`).
+  Los botones nuevos pasan por `utils/interaccionesComunidad.js`; la creación del ticket del formulario
+  está en `abrirTicketFormulario` (`events/interactionCreate.js`). API del panel: `api/routes/modulos.js`
+  (`/api/config/:guildId/modulos/<x>`), en el panel `cargarModulo`/`guardarModulo`/`accionModulo` y el
+  hook `hooks/useModulo.js`. Menú: grupo nuevo «Diversión» (`diversion`).
+- **Avisos de directos** (`utils/directos.js`): Twitch, YouTube, Kick (`kick.com/api/v2/channels`),
+  Reddit (su RSS) y cualquier web con RSS. Las direcciones que escribe el staff pasan por
+  `utils/redSegura.js` (nada de IPs privadas, también tras redirecciones). TikTok no tiene forma
+  pública de saber cuándo alguien publica: no se ofrece.
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -275,5 +297,9 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   crear canal/rol al vuelo, asistente de inicio, copiar ajustes a otro servidor,
   ventana de novedades, letra grande/compacto/tema automático, avisos del navegador,
   «Mi cuenta» con avisos y sanciones, y páginas públicas `/estado` y `/novedades`.
+- 1.9.0 Más vida en el servidor: cumpleaños, solicitudes al staff, salón de la fama,
+  /grupo, clanes, confesiones, /ausente, traducir con clic derecho, mensajes fijos,
+  contadores en canales, ayuda antes de abrir un ticket, tickets por privado y avisos
+  de Kick, Reddit y RSS. Grupo «Diversión» en el menú del panel.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

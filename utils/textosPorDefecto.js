@@ -32,6 +32,10 @@ const TEXTOS = [
     ['crecimiento.bump.mensajeGracias', '🙌 Thanks for the bump, {mention}! Next bump {next}.', '🙌 ¡Gracias por el bump, {mention}! Próximo bump {next}.'],
     ['crecimiento.directos.mensaje', '🔴 **{streamer}** is live!', '🔴 ¡**{streamer}** está en directo!'],
     ['crecimiento.directos.mensajeVideo', '📺 **{streamer}** just posted on YouTube!', '📺 ¡**{streamer}** acaba de publicar en YouTube!'],
+    ['crecimiento.directos.mensajePost', '📰 New post from **{streamer}**', '📰 Nueva publicación de **{streamer}**'],
+    ['cumpleanos.mensaje', '🎂 Happy birthday {mention}! The whole **{server}** wishes you an amazing day 🎉', '🎂 ¡Feliz cumpleaños, {mention}! Todo **{server}** te desea un día genial 🎉'],
+    ['solicitudes.titulo', '📝 Applications', '📝 Solicitudes'],
+    ['solicitudes.descripcion', 'Want to join the team? Pick a form below and answer a few questions.', '¿Quieres formar parte del equipo? Elige un formulario y responde a unas preguntas.'],
 ];
 
 // Motivos de ticket de fábrica (se comparan por nombre; la urgencia se conserva).

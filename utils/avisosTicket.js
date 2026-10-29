@@ -1,6 +1,7 @@
 // Avisos de los tickets:
 //  - a quien abrió el ticket, por privado, cuando el staff le responde desde el
-//    panel (si no lo ha apagado en /preferencias; como mucho uno cada 10 min);
+//    panel (si no lo ha apagado en /preferencias; como mucho uno cada 10 min). Si
+//    abrió el ticket por privado, le llega la respuesta entera cada vez;
 //  - al staff, en el propio ticket, si lleva demasiadas horas sin respuesta
 //    (Ajustes de tickets → «Avisar si un ticket lleva … sin respuesta»).
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -13,6 +14,8 @@ const ENTRE_DMS = 10 * 60 * 1000;
 
 async function avisarRespuesta(client, ticket, quien, contenido) {
     if (!ticket?.creadorId || ticket.estado === 'Cerrado') return;
+    // Abierto por privado: la respuesta entera le llega por privado, siempre.
+    if (ticket.porPrivado) return require('./ticketsPrivado.js').alUsuario(client, ticket, { autor: quien, texto: contenido });
     if (Date.now() - (ultimoDM.get(ticket.canalId) || 0) < ENTRE_DMS) return;
     const { quiereDM, idiomaMiembro } = require('./preferencias.js');
     if (!(await quiereDM(ticket.creadorId, 'tickets'))) return;

@@ -325,8 +325,43 @@ async function responderPreguntasOferta(perfilCV, oferta, preguntasDetectadas, i
     }
 }
 
+// --- Traducir (clic derecho → Traducir) ---
+// Traduce `texto` al idioma `destino` (código: 'es', 'fr', 'pt-BR'…). Devuelve null
+// si ya está en ese idioma.
+async function traducirTexto(texto, destino) {
+    let nombre = destino;
+    try { nombre = new Intl.DisplayNames(['en'], { type: 'language' }).of(destino) || destino; } catch { /* código raro: se usa tal cual */ }
+    const system = [
+        `You are a translator. Translate the user's message into ${nombre}.`,
+        'Keep the tone, emojis, Discord mentions (<@…>, <#…>) and markdown exactly as they are.',
+        'Reply ONLY with the translation, nothing else.',
+        `If the message is already entirely in ${nombre}, reply exactly: SAME_LANGUAGE`,
+    ].join('\n');
+    const r = await pedir(system, String(texto).slice(0, 3500), 1500);
+    return r.trim() === 'SAME_LANGUAGE' ? null : r;
+}
+
+// --- Ayuda antes de abrir un ticket ---
+// Responde a la duda del usuario SOLO con las respuestas automáticas del servidor
+// (su FAQ). Devuelve null si la FAQ no la resuelve: así nunca se inventa nada.
+async function responderConFAQ(faq, asunto, descripcion, idioma) {
+    if (!faq.length) return null;
+    const system = [
+        'You help users of a Discord server before they open a support ticket.',
+        'Answer the user\'s question using ONLY the FAQ below. Never invent information that is not in the FAQ.',
+        'If the FAQ does not clearly answer the question, reply exactly: NO_ANSWER',
+        `Write ${nombreIdioma(idioma)}, friendly and short (max 120 words), with no greeting and no sign-off.`,
+        '',
+        'FAQ:',
+        ...faq.map((f, i) => `${i + 1}. When users mention "${f.patron}": ${f.respuesta}`),
+    ].join('\n');
+    const r = await pedir(system, `Subject: ${asunto}\n\n${descripcion}`.slice(0, 2500), 400);
+    return /NO_ANSWER/.test(r) ? null : r.trim();
+}
+
 module.exports = {
     getIA, iaDisponible, resumirTicket, sugerirRespuesta, informeServidor, resumenDiario, moderarTexto,
+    traducirTexto, responderConFAQ,
     estructurarPerfilCV, evaluarOfertasEmpleo, adaptarCVParaOferta,
     generarCartaPresentacion, responderPreguntasOferta,
 };
