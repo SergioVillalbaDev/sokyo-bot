@@ -1,6 +1,6 @@
 // Contenedor del Dashboard — une el layout (Sidebar + Header) con las vistas.
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
-import { useState, useEffect, useRef, useSyncExternalStore, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, LogIn, ArrowUp } from 'lucide-react';
@@ -14,6 +14,12 @@ import BuscadorPanel from './BuscadorPanel';
 import '../../dashboard.css';
 import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
+import AvisoDeshacer from './AvisoDeshacer';
+import CrearAlVuelo from './CrearAlVuelo';
+import VentanaNovedades from './VentanaNovedades';
+import { itemVisible, ubicacion as ubicacionTab } from './navConfig';
+import { apiFetch } from '../../lib/api';
+import { avisar } from '../../lib/avisosNavegador';
 import { AtajosTeclado } from './Preferencias';
 import { ligeroActivo, suscribirLigero } from '../../lib/ligero';
 import { anotarReciente } from '../../lib/recientes';
@@ -65,6 +71,8 @@ const CARGAR_VISTA = {
   CrecDirectosView: () => import('./views/CrecDirectosView'),
   AppMovilView: () => import('./views/AppMovilView'),
   MiCuentaView: () => import('./views/MiCuentaView'),
+  DiagnosticoView: () => import('./views/DiagnosticoView'),
+  CambiosView: () => import('./views/CambiosView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
 
@@ -124,6 +132,67 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
   }, []);
+
+  // «Novedades»: la primera vez que se entra tras actualizar el bot. Quien entra
+  // por primera vez no la ve (ya tiene el tour); solo se apunta la versión.
+  const [novedades, setNovedades] = useState(false);
+  const versionPanel = useRef(null);
+  useEffect(() => {
+    apiFetch('/api/estado').then((r) => r.json()).then((d) => {
+      if (!d?.version) return;
+      versionPanel.current = d.version;
+      let vista = null;
+      try { vista = localStorage.getItem('sokyoVersionVista'); } catch { /* sin almacenamiento */ }
+      if (!vista) { try { localStorage.setItem('sokyoVersionVista', d.version); } catch { /* idem */ } }
+      else if (vista !== d.version) setNovedades(true);
+    }).catch(() => {});
+  }, []);
+  const cerrarNovedades = useCallback(() => {
+    setNovedades(false);
+    if (versionPanel.current) { try { localStorage.setItem('sokyoVersionVista', versionPanel.current); } catch { /* sin almacenamiento */ } }
+  }, []);
+
+  // Avisos del navegador: ticket nuevo, respuesta en un ticket o reporte nuevo
+  // (con la lista que el panel ya refresca cada 30 s). Nada más abrir el panel o
+  // cambiar de servidor, unos segundos sin avisar: lo que llega entonces es lo que
+  // ya había (si no, salían todos los tickets abiertos de golpe).
+  const vistos = useRef({ guild: null, desde: 0, tickets: null, reportes: null });
+  const CALMA_MS = 12000;
+  const navigateRef = useRef(null);
+  useEffect(() => {
+    const v = vistos.current;
+    if (v.guild !== guildId) { v.guild = guildId; v.desde = Date.now(); v.tickets = null; v.reportes = null; }
+    const tks = dash.ticketsReales || [];
+    const ahora = new Map(tks.filter((tk) => tk.estado !== 'Cerrado').map((tk) => [tk.canalId, tk.ultimoMensajeUsuario || tk.fechaCreacion || '']));
+    if (v.tickets && Date.now() - v.desde > CALMA_MS) {
+      const enOtraCosa = document.visibilityState === 'hidden' || activeTab !== 'tickets-gestion';
+      for (const tk of tks) {
+        if (tk.estado === 'Cerrado') continue;
+        const antes = v.tickets.get(tk.canalId);
+        const abrir = () => { navigateRef.current?.('tickets-gestion'); dash.verMensajes(tk); };
+        if (antes === undefined) avisar(t('dashboard.avisos.ticketNuevo'), `${tk.creadorNombre || ''}: ${tk.titulo || tk.motivo || ''}`, { tag: `tk-${tk.canalId}`, alPulsar: abrir });
+        else if (tk.esperaRespuesta && tk.ultimoMensajeUsuario && antes && new Date(tk.ultimoMensajeUsuario) > new Date(antes)
+          && (enOtraCosa || dash.ticketSeleccionado?.canalId !== tk.canalId)) {
+          avisar(t('dashboard.avisos.respuesta', { nombre: tk.creadorNombre || '' }), tk.titulo || tk.motivo || '', { tag: `tk-${tk.canalId}`, alPulsar: abrir });
+        }
+      }
+    }
+    v.tickets = ahora;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega la lista nueva
+  }, [dash.ticketsReales, guildId]);
+  useEffect(() => {
+    const v = vistos.current;
+    const ids = new Set((dash.reportes || []).map((r) => r._id));
+    if (v.reportes && Date.now() - v.desde > CALMA_MS) {
+      for (const r of dash.reportes || []) {
+        if (!v.reportes.has(r._id) && r.estado !== 'resuelto' && r.estado !== 'descartado') {
+          avisar(t('dashboard.avisos.reporte'), `${r.reportadoTag || ''}${r.motivo ? `: ${r.motivo}` : ''}`, { tag: `rep-${r._id}`, alPulsar: () => navigateRef.current?.('mod-reportes') });
+        }
+      }
+    }
+    v.reportes = ids;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega la lista nueva
+  }, [dash.reportes]);
 
   // Upsell contextual: qué función de pago intentó abrir un servidor Free.
   // null = modal cerrado. Lo dispara el Sidebar al pulsar un ítem con candado.
@@ -217,6 +286,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     setActiveTab(tab);
     setMobileOpen(false);
   };
+  useEffect(() => { navigateRef.current = navigate; });
   // Cada sección empieza arriba del todo, se llegue desde donde se llegue
   // (menú, buscador, migas de pan, avisos o el mapa del inicio). Y se apunta en
   // «Recientes» del buscador.
@@ -278,13 +348,15 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'datos-analitica') return <V.AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <V.ResumenView dash={dash} />;
     if (activeTab === 'config-app') return <V.AppMovilView />;
+    if (activeTab === 'config-diagnostico') return <V.DiagnosticoView dash={dash} />;
+    if (activeTab === 'config-cambios') return <V.CambiosView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };
 
   // Con el servidor en la clave, cada vista se monta de cero al cambiar de servidor
   // y no arrastra formularios a medio editar del anterior.
-  const viewKey = `${guildId}:${activeTab === 'tickets-gestion' && ticketSeleccionado ? 'chat' : activeTab}`;
+  const viewKey = `${guildId}:${activeTab === 'tickets-gestion' && ticketSeleccionado ? 'chat' : activeTab}:${dash.recarga}`;
 
   // h-dvh y no h-screen: en el móvil 100vh es más alto que la parte visible
   // (por la barra del navegador) y lo de abajo quedaba fuera de la pantalla.
@@ -313,7 +385,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} onBuscar={() => setBuscador(true)} puedeVolver={pasosAtras > 0 || activeTab !== 'inicio'} onAtras={irAtras} onAtajos={() => setAtajos(true)} />
+        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} onBuscar={() => setBuscador(true)} puedeVolver={pasosAtras > 0 || activeTab !== 'inicio'} onAtras={irAtras} onAtajos={() => setAtajos(true)} onNovedades={() => setNovedades(true)} />
 
         <main ref={mainRef} onScroll={alDesplazar} className="flex-1 overflow-y-auto px-3 pb-10 pt-4 sm:px-4 sm:pt-5 lg:pl-4 lg:pr-5">
           <div className="mx-auto w-full max-w-[1500px]">
@@ -379,6 +451,18 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       />
 
       {atajos && <AtajosTeclado onCerrar={() => setAtajos(false)} />}
+
+      {novedades && (
+        <VentanaNovedades onCerrar={cerrarNovedades} irA={navigate} puedeVer={(tab) => { const u = ubicacionTab(tab); return !!u && itemVisible(u.item, misPermisos); }} />
+      )}
+
+      {/* «➕ Crear canal/rol nuevo…» de los desplegables. */}
+      <CrearAlVuelo dash={dash} />
+
+      {/* «Guardado · Deshacer» tras cada cambio (solo quien puede deshacerlo). */}
+      {misPermisos?.config !== false && (
+        <AvisoDeshacer guildId={guildId} onDeshecho={() => dash.recargarSeccion()} onHistorial={() => navigate('config-cambios')} />
+      )}
 
       {lejos && (
         <button

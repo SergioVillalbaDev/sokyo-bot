@@ -2,6 +2,7 @@ const { aplicarComando } = require('../utils/modCommands.js');
 
 module.exports = {
     name: 'warn',
+    aliases: ['avisar', 'aviso'], // en español también
     description: 'Warns a user (logged + DM only). Usage: !warn @user [reason]',
 
     async execute(message, args, client) {

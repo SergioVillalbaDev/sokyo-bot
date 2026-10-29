@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch, API_URL, procesarRespuesta, getStaffSession } from '../lib/api';
 import { isValidTheme, isPremiumTheme } from '../lib/themes';
+import { temaEfectivo, suscribirAspecto } from '../lib/aspecto';
 
 export function useDashboard() {
   // Tema persistido. Si el guardado es premium pero el plan no lo es, cae a 'lima'.
@@ -158,6 +159,9 @@ export function useDashboard() {
 
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
+  // Sube al pedir «recargar la sección» (p. ej. tras deshacer un cambio): vuelve a
+  // traer sus datos y la vista se monta de nuevo con lo que hay guardado.
+  const [recarga, setRecarga] = useState(0);
   // La API rechaza la sesión de Discord: el banner ofrece volver a entrar.
   const [sesionCaducada, setSesionCaducada] = useState(false);
 
@@ -1332,7 +1336,7 @@ export function useDashboard() {
   };
 
   const cargarConfiguracion = () => {
-    apiFetch(`/api/servidores${gp()}`).then(procesarRespuesta).then((datos) => {
+    return apiFetch(`/api/servidores${gp()}`).then(procesarRespuesta).then((datos) => {
       setErrorConexion('');
       if (datos && datos.length > 0) {
         setConfigServidor(datos[0]); setMotivos(datos[0].motivos || []);
@@ -1397,8 +1401,11 @@ export function useDashboard() {
   };
 
   // --- Efectos (declarados tras las funciones que utilizan) ---
+  // Con «seguir al sistema», claro u oscuro según el equipo (y cambia solo al anochecer).
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const aplicar = () => document.documentElement.setAttribute('data-theme', temaEfectivo(theme));
+    aplicar();
+    return suscribirAspecto(aplicar);
   }, [theme]);
 
   // Carga la lista de servidores del bot una vez al montar.
@@ -1480,8 +1487,17 @@ export function useDashboard() {
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
     else if (activeTab === 'logs-todos') { cargarLogs(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab.startsWith('logs-')) cargarLogs();
+    else if (activeTab === 'config-cambios') { cargarCanales(); cargarRoles(); }
+    else if (activeTab === 'mod-miembros') cargarRoles(); // filtro por rol y «Dar rol» en grupo
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, guildId]);
+  }, [activeTab, guildId, recarga]);
+
+  // Vuelve a traer la configuración y monta de nuevo la sección abierta (con
+  // { soloDatos: true }, solo los datos: la vista que lo pide se queda como está).
+  const recargarSeccion = async ({ soloDatos = false } = {}) => {
+    await cargarConfiguracion(); // ya lleva su .catch
+    if (!soloDatos) setRecarga((n) => n + 1);
+  };
 
   // Notificaciones generales (campanita del header): mantiene tickets,
   // reportes y sugerencias frescos aunque no estés en su pestaña, para que
@@ -1537,7 +1553,9 @@ export function useDashboard() {
   })();
 
   return {
-    estadoModulos,
+    estadoModulos, recarga, recargarSeccion,
+    // listas de Discord (también para «Crear canal/rol nuevo» desde un desplegable)
+    cargarCanales, cargarRoles, cargarCategorias,
     // estado tema / navegación
     theme, setTheme, temasPremium, activeTab, setActiveTab,
     // multi-servidor

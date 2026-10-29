@@ -351,7 +351,24 @@ async function finalizarSorteo(client, s, { reroll = false } = {}) {
             : t(idioma, `😢 El sorteo **${s.nombre}** terminó sin participantes válidos.`, `😢 The giveaway **${s.nombre}** ended with no valid participants.`);
         await canal.send({ content: aviso, allowedMentions: { users: ganadores.map((g) => g.id) } }).catch(() => {});
     }
+    // Un privado a cada ganador (si no lo ha apagado en /preferencias).
+    if (ganadores.length) await avisarGanadores(client, s, ganadores, guild).catch((e) => console.error('Aviso a ganadores:', e.message));
     return ganadores;
+}
+
+async function avisarGanadores(client, s, ganadores, guild) {
+    const { quiereDM, idiomaMiembro } = require('./preferencias.js');
+    const cfg = await getConfigCached(s.guildId).catch(() => null);
+    const enlace = s.mensajeId ? `https://discord.com/channels/${s.guildId}/${s.canalId}/${s.mensajeId}` : null;
+    for (const g of ganadores) {
+        if (!(await quiereDM(g.id, 'sorteos'))) continue;
+        const idioma = await idiomaMiembro(g.id, { cfg });
+        const user = await client.users.fetch(g.id).catch(() => null);
+        if (!user) continue;
+        await user.send(t(idioma,
+            `🎉 ¡Has ganado el sorteo **${s.nombre}**${guild ? ` en **${guild.name}**` : ''}!\n🎁 Premio: **${s.premio}**\nHabla con el staff del servidor para recibirlo.${enlace ? `\n${enlace}` : ''}`,
+            `🎉 You won the giveaway **${s.nombre}**${guild ? ` on **${guild.name}**` : ''}!\n🎁 Prize: **${s.premio}**\nTalk to the server staff to claim it.${enlace ? `\n${enlace}` : ''}`)).catch(() => {});
+    }
 }
 
 // ============================ EVENTOS ============================
@@ -370,16 +387,67 @@ function construirEmbedEvento(e, color, idioma) {
     return embed;
 }
 
+// «🔔 Avisarme»: quien lo pulsa recibe un privado antes de que empiece.
+function filaEvento(e, idioma) {
+    const n = e.interesados?.length || 0;
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`evento_avisar:${e._id}`).setEmoji('🔔')
+            .setLabel(t(idioma, n ? `Avisarme (${n})` : 'Avisarme', n ? `Remind me (${n})` : 'Remind me'))
+            .setStyle(ButtonStyle.Secondary),
+    );
+}
+
 async function publicarEvento(client, e) {
     const canal = await client.channels.fetch(e.canalId).catch(() => null);
     if (!canal?.isTextBased()) return false;
     const color = await colorDe(e.guildId);
     const idioma = await getConfigCached(e.guildId).catch(() => null);
-    const msg = await canal.send({ embeds: [construirEmbedEvento(e, color, idioma)] }).catch(() => null);
+    const msg = await canal.send({ embeds: [construirEmbedEvento(e, color, idioma)], components: [filaEvento(e, idioma)] }).catch(() => null);
     if (!msg) return false;
     e.mensajeId = msg.id;
     await e.save().catch(() => {});
     return true;
+}
+
+// Privado a cada persona que pulsó «🔔 Avisarme» (despacio, sin parecer spam).
+async function avisarInteresados(client, e) {
+    const { idiomaMiembro } = require('./preferencias.js');
+    const cfg = await getConfigCached(e.guildId).catch(() => null);
+    const guild = client.guilds.cache.get(e.guildId);
+    const cuando = `<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:R>`;
+    const enlace = e.mensajeId ? `\nhttps://discord.com/channels/${e.guildId}/${e.canalId}/${e.mensajeId}` : '';
+    for (const uid of e.interesados.slice(0, 500)) {
+        const user = await client.users.fetch(uid).catch(() => null);
+        if (!user) continue;
+        const idioma = await idiomaMiembro(uid, { cfg });
+        await user.send(t(idioma,
+            `🔔 El evento **${e.titulo}**${guild ? ` de **${guild.name}**` : ''} empieza ${cuando}.${enlace}`,
+            `🔔 The event **${e.titulo}**${guild ? ` on **${guild.name}**` : ''} starts ${cuando}.${enlace}`)).catch(() => {});
+        await new Promise((r) => setTimeout(r, 300));
+    }
+}
+
+// Botón «🔔 Avisarme» del anuncio: apuntarse o borrarse del aviso.
+async function manejarAvisoEvento(interaction) {
+    const { idiomaInteraccion } = require('./preferencias.js');
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
+    const idioma = await idiomaInteraccion(interaction, cfg);
+    const e = await Evento.findById(interaction.customId.split(':')[1]).catch(() => null);
+    if (!e || new Date(e.fechaInicio) <= new Date()) {
+        return interaction.reply({ content: t(idioma, '⏹️ Este evento ya ha empezado o ya no existe.', '⏹️ This event has already started or no longer exists.'), flags: 64 });
+    }
+    const uid = interaction.user.id;
+    const estaba = e.interesados.includes(uid);
+    await Evento.updateOne({ _id: e._id }, estaba ? { $pull: { interesados: uid } } : { $addToSet: { interesados: uid } });
+    const act = await Evento.findById(e._id).lean();
+    const minutos = e.recordatorio > 0 ? e.recordatorio : 15;
+    await interaction.message.edit({ components: [filaEvento(act, cfg)] }).catch(() => {});
+    return interaction.reply({
+        content: estaba
+            ? t(idioma, '🔕 Vale, ya no te avisaré de este evento.', '🔕 OK, I won’t remind you about this event.')
+            : t(idioma, `🔔 Te mandaré un privado ${minutos} min antes de que empiece **${e.titulo}**. Pulsa otra vez para quitarlo.`, `🔔 I’ll DM you ${minutos} min before **${e.titulo}** starts. Press again to cancel.`),
+        flags: 64,
+    });
 }
 
 // ============================ SUGERENCIAS ============================
@@ -738,6 +806,36 @@ async function barrerComunidad(client) {
         try { await finalizarSorteo(client, s); } catch (e) { console.error('Fin sorteo:', e.message); }
     }
 
+    // Sorteos largos: «queda 1 hora» en su canal, para que nadie se lo pierda.
+    const pronto = await Sorteo.find({ activo: true, avisoFinalEnviado: { $ne: true }, fechaFin: { $gt: ahora, $lte: new Date(ahora.getTime() + 60 * 60000) } });
+    for (const s of pronto) {
+        s.avisoFinalEnviado = true;
+        await s.save().catch(() => {});
+        // Solo si duraba más de 3 horas (en uno corto sobra el aviso).
+        if (new Date(s.fechaFin) - new Date(s.creadoFecha) < 3 * 60 * 60000) continue;
+        try {
+            const canal = await client.channels.fetch(s.canalId).catch(() => null);
+            if (!canal?.isTextBased()) continue;
+            const idioma = await getConfigCached(s.guildId).catch(() => null);
+            const fin = `<t:${Math.floor(new Date(s.fechaFin).getTime() / 1000)}:R>`;
+            const enlace = s.mensajeId ? ` https://discord.com/channels/${s.guildId}/${s.canalId}/${s.mensajeId}` : '';
+            await canal.send(t(idioma,
+                `⏳ ¡Último aviso! El sorteo **${s.nombre}** termina ${fin}. Si aún no participas, pulsa 🎉 Participar.${enlace}`,
+                `⏳ Last call! The giveaway **${s.nombre}** ends ${fin}. If you haven’t joined yet, press 🎉 Join.${enlace}`)).catch(() => {});
+        } catch (err) { console.error('Aviso final sorteo:', err.message); }
+    }
+
+    // «🔔 Avisarme» de los eventos: un privado a cada interesado (X min antes, o 15).
+    const conInteresados = await Evento.find({ 'interesados.0': { $exists: true }, avisoInteresadosEnviado: { $ne: true }, fechaInicio: { $gt: ahora } });
+    for (const e of conInteresados) {
+        const avisoEn = new Date(new Date(e.fechaInicio).getTime() - (e.recordatorio > 0 ? e.recordatorio : 15) * 60000);
+        if (avisoEn > ahora) continue;
+        e.avisoInteresadosEnviado = true;
+        await e.save().catch(() => {});
+        // Aparte, sin esperar: con cientos de apuntados no debe frenar los demás avisos.
+        avisarInteresados(client, e).catch((err) => console.error('Avisos de evento:', err.message));
+    }
+
     // Recordatorios de eventos (X min antes del inicio).
     const eventos = await Evento.find({ recordatorio: { $gt: 0 }, recordatorioEnviado: false, fechaInicio: { $gt: ahora } });
     for (const e of eventos) {
@@ -763,7 +861,7 @@ module.exports = {
     // sorteos
     publicarSorteo, manejarEntradaSorteo, finalizarSorteo,
     // eventos
-    publicarEvento,
+    publicarEvento, manejarAvisoEvento,
     // sugerencias
     manejarMensajeSugerencia, manejarVotoSugerencia, refrescarSugerencia,
     publicarPanelSugerencias, abrirModalSugerencia, procesarModalSugerencia,

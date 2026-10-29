@@ -7,6 +7,7 @@ const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'unban',
+    aliases: ['desbanear'], // en español también
     description: 'Removes a user’s ban. Usage: !unban <id or @user>',
 
     async execute(message, args, client) {

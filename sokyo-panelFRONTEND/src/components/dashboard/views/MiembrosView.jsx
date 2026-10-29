@@ -5,11 +5,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Search, Users, VolumeX, LogOut, Hammer, Loader2, Crown, Bot, Copy, Check, IdCard, Undo2, RefreshCw } from 'lucide-react';
+import { Search, Users, VolumeX, LogOut, Hammer, Loader2, Crown, Bot, Copy, Check, IdCard, Undo2, RefreshCw, UserPlus, X } from 'lucide-react';
 import { Avatar, Badge } from '../../ui/primitives';
 import { apiFetch } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
 import { AplicarModal } from './CentroMandoView';
+import FichaRapida from '../FichaRapida';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const FILTROS = ['todos', 'personas', 'nuevos', 'aislados', 'bots'];
@@ -48,6 +50,8 @@ export default function MiembrosView({ dash }) {
   const [error, setError] = useState('');
   const [sancion, setSancion] = useState(null); // { tipo, usuario }
   const [copiado, setCopiado] = useState(null);
+  const [marcados, setMarcados] = useState(() => new Set()); // ids para las acciones en grupo
+  const [enGrupo, setEnGrupo] = useState(null); // acción en grupo abierta: 'timeout' | 'expulsion' | 'ban' | 'rol'
   const pedido = useRef(0);
 
   // Buscar mientras se escribe, sin pedir a cada tecla.
@@ -85,6 +89,10 @@ export default function MiembrosView({ dash }) {
   };
   const verFicha = (id) => { setObjetivoMod(id); setActiveTab('mod-centro'); };
   const hayMas = datos.miembros.length < datos.total;
+  const marcar = (id) => setMarcados((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const seleccion = datos.miembros.filter((m) => marcados.has(m.id));
+  const marcables = datos.miembros.filter((m) => !m.esDueno && !m.bot);
+  const todosMarcados = marcables.length > 0 && marcables.every((m) => marcados.has(m.id));
 
   return (
     <div className="space-y-5">
@@ -105,7 +113,7 @@ export default function MiembrosView({ dash }) {
       {pestana === 'baneados' ? <Baneados guildId={guildId} /> : (
         <>
           {/* Buscador y filtros (siempre a la vista al bajar por la lista) */}
-          <div className="sk-flotante sticky top-0 z-20 space-y-3 rounded-2xl border border-line p-3 shadow-lg">
+          <div data-help="miembros-filtros" className="sk-flotante sticky top-0 z-20 space-y-3 rounded-2xl border border-line p-3 shadow-lg">
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 flex-1">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -134,6 +142,24 @@ export default function MiembrosView({ dash }) {
               ))}
               <span className="ml-auto text-xs text-muted">{t('dashboard.miembros_v.count', { count: datos.total })}</span>
             </div>
+            {/* Acciones en grupo: con alguien marcado, aquí arriba (siempre a la vista). */}
+            {seleccion.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
+                <span className="mr-1 text-sm font-bold text-fg">{t('dashboard.miembros_v.grupo.marcados', { count: seleccion.length })}</span>
+                {ACCIONES.map((a) => (
+                  <button key={a.id} type="button" onClick={() => setEnGrupo(a.id)}
+                    className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-2.5 py-1.5 text-xs font-semibold transition-colors hover:border-current" style={{ color: a.color }}>
+                    <a.icon size={14} /> <span className="text-fg">{t(`dashboard.miembros_v.actions.${a.clave}`)}</span>
+                  </button>
+                ))}
+                <button type="button" onClick={() => setEnGrupo('rol')} className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-2.5 py-1.5 text-xs font-semibold text-fg transition-colors hover:border-brand">
+                  <UserPlus size={14} className="text-brand" /> {t('dashboard.miembros_v.grupo.darRol')}
+                </button>
+                <button type="button" onClick={() => setMarcados(new Set())} className="ml-auto flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-muted hover:text-fg">
+                  <X size={13} /> {t('dashboard.miembros_v.grupo.quitar')}
+                </button>
+              </div>
+            )}
           </div>
 
           {error && (
@@ -149,14 +175,23 @@ export default function MiembrosView({ dash }) {
               <p className="text-sm italic text-muted">{t('dashboard.miembros_v.empty')}</p>
             </div>
           ) : (
-            <div className={`${card} divide-y divide-line overflow-hidden`}>
+            <div data-help="miembros-lista" className={`${card} divide-y divide-line overflow-hidden`}>
+              {marcables.length > 1 && (
+                <label className="flex cursor-pointer items-center gap-3 px-3.5 py-2 text-xs font-semibold text-muted sm:px-4">
+                  <input type="checkbox" className="h-4 w-4 accent-[var(--accent-color)]" checked={todosMarcados}
+                    onChange={() => setMarcados(todosMarcados ? new Set() : new Set(marcables.map((m) => m.id)))} />
+                  {t('dashboard.miembros_v.grupo.todos', { count: marcables.length })}
+                </label>
+              )}
               {datos.miembros.map((m) => (
-                <div key={m.id} className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-4">
+                <div key={m.id} className={cn('flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-4', marcados.has(m.id) && 'bg-brand/5')}>
                   <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <input type="checkbox" className="h-4 w-4 shrink-0 accent-[var(--accent-color)] disabled:opacity-30" disabled={m.esDueno || m.bot}
+                      checked={marcados.has(m.id)} onChange={() => marcar(m.id)} aria-label={t('dashboard.miembros_v.grupo.marcar', { name: m.displayName })} />
                     <Avatar src={m.avatar} name={m.displayName} size={40} />
                     <div className="min-w-0">
                       <p className="flex min-w-0 items-center gap-1.5">
-                        <span className="truncate font-bold text-fg">{m.displayName}</span>
+                        <FichaRapida userId={m.id} guildId={guildId}><span tabIndex={0} className="sk-foco cursor-help truncate rounded font-bold text-fg">{m.displayName}</span></FichaRapida>
                         {m.esDueno && <Crown size={14} className="shrink-0 text-amber-400" aria-label={t('dashboard.mod_v.owner')} />}
                         {m.bot && <Bot size={14} className="shrink-0 text-brand" aria-label="Bot" />}
                       </p>
@@ -209,6 +244,14 @@ export default function MiembrosView({ dash }) {
         </>
       )}
 
+      {enGrupo && (
+        <AccionGrupo
+          accion={enGrupo} miembros={seleccion} dash={dash}
+          onCerrar={() => setEnGrupo(null)}
+          onHecho={() => { setEnGrupo(null); setMarcados(new Set()); cargar(0); }}
+        />
+      )}
+
       <AnimatePresence>
         {sancion && (
           <AplicarModal
@@ -218,6 +261,104 @@ export default function MiembrosView({ dash }) {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// --- Acción en grupo: la misma sanción (o el mismo rol) a varias personas ---
+const DURACIONES = [10, 60, 1440, 10080]; // aislar: 10 min, 1 h, 1 día, 1 semana
+function AccionGrupo({ accion, miembros, dash, onCerrar, onHecho }) {
+  const { t } = useTranslation();
+  const { aplicarSancionMasiva, roles = [], guildId } = dash;
+  const [motivo, setMotivo] = useState('');
+  const [minutos, setMinutos] = useState(60);
+  const [rolId, setRolId] = useState('');
+  const [haciendo, setHaciendo] = useState(false);
+  const [resultado, setResultado] = useState(null); // { ok, mal: [{ nombre, error }] }
+  const esRol = accion === 'rol';
+  const nombre = (id) => miembros.find((m) => m.id === id)?.displayName || id;
+
+  useEffect(() => {
+    const alTeclear = (e) => { if (e.key === 'Escape') onCerrar(); };
+    document.addEventListener('keydown', alTeclear);
+    return () => document.removeEventListener('keydown', alTeclear);
+  }, [onCerrar]);
+
+  const aplicar = async () => {
+    setHaciendo(true);
+    if (esRol) {
+      let ok = 0; const mal = [];
+      for (const m of miembros) {
+        try {
+          const res = await apiFetch(`/api/roles/${rolId}/miembros`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, userId: m.id }) });
+          const d = await res.json().catch(() => ({}));
+          if (res.ok && d.success) ok++; else mal.push({ nombre: m.displayName, error: d.error || '' });
+        } catch { mal.push({ nombre: m.displayName, error: '' }); }
+      }
+      setResultado({ ok, mal });
+    } else {
+      const r = await aplicarSancionMasiva({ usuarioIds: miembros.map((m) => m.id), accion, duracionMin: accion === 'timeout' ? minutos : 0, motivo });
+      if (r.error) setResultado({ ok: 0, mal: [{ nombre: '', error: r.error }] });
+      else setResultado({ ok: (r.aplicadas || []).length, mal: (r.fallidas || []).map((f) => ({ nombre: nombre(f.usuarioId), error: f.error })) });
+    }
+    setHaciendo(false);
+  };
+
+  const meta = ACCIONES.find((a) => a.id === accion);
+  return (
+    <div className="sk-velo flex items-center justify-center p-3" onMouseDown={(e) => { if (e.target === e.currentTarget && !haciendo) onCerrar(); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="grupo-titulo" className="sk-glass sk-aparece w-full max-w-md rounded-3xl border border-line bg-card p-5 shadow-xl">
+        <h2 id="grupo-titulo" className="flex items-center gap-2 text-lg font-extrabold text-fg">
+          {meta ? <meta.icon size={19} style={{ color: meta.color }} /> : <UserPlus size={19} className="text-brand" />}
+          {esRol ? t('dashboard.miembros_v.grupo.tituloRol', { count: miembros.length }) : t('dashboard.miembros_v.grupo.titulo', { accion: t(`dashboard.miembros_v.actions.${meta.clave}`), count: miembros.length })}
+        </h2>
+        <p className="mt-1 line-clamp-2 text-sm text-muted">{miembros.map((m) => m.displayName).join(', ')}</p>
+
+        {resultado ? (
+          <div className="mt-4 space-y-2">
+            <p className="flex items-center gap-2 font-semibold text-fg"><Check size={17} className="text-success" /> {t('dashboard.miembros_v.grupo.hecho', { count: resultado.ok })}</p>
+            {resultado.mal.length > 0 && (
+              <ul className="space-y-1 rounded-2xl bg-danger/10 p-3 text-sm text-danger">
+                {resultado.mal.map((x, i) => <li key={i}>• {x.nombre}{x.nombre && x.error ? ': ' : ''}{x.error || t('dashboard.miembros_v.grupo.falloGenerico')}</li>)}
+              </ul>
+            )}
+            <button onClick={onHecho} className="sk-foco mt-2 w-full rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-semibold text-on-brand">{t('dashboard.miembros_v.grupo.listo')}</button>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {esRol ? (
+              <select value={rolId} onChange={(e) => setRolId(e.target.value)} aria-label={t('dashboard.miembros_v.grupo.elegirRol')} className="w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-fg outline-none focus:border-brand">
+                <option value="">{t('dashboard.miembros_v.grupo.elegirRol')}</option>
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                <OpcionCrear tipo="rol" />
+              </select>
+            ) : (
+              <>
+                {accion === 'timeout' && (
+                  <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('dashboard.miembros_v.grupo.cuanto')}>
+                    {DURACIONES.map((d) => (
+                      <button key={d} type="button" role="radio" aria-checked={minutos === d} onClick={() => setMinutos(d)}
+                        className={cn('rounded-full border px-3 py-1 text-xs font-semibold', minutos === d ? 'border-brand bg-brand/15 text-fg' : 'border-line text-muted hover:text-fg')}>
+                        {t(`dashboard.miembros_v.grupo.duraciones.${d}`)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} maxLength={400} placeholder={t('dashboard.miembros_v.grupo.motivo')}
+                  className="w-full resize-none rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-fg outline-none focus:border-brand" />
+                {accion !== 'timeout' && <p className="rounded-xl bg-warning/10 px-3 py-2 text-xs text-warning">{t(`dashboard.miembros_v.grupo.aviso.${accion}`)}</p>}
+              </>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={onCerrar} disabled={haciendo} className="sk-foco rounded-xl px-4 py-2.5 text-sm font-semibold text-muted hover:text-fg">{t('dashboard.miembros_v.grupo.cancelar')}</button>
+              <button onClick={aplicar} disabled={haciendo || (esRol && !rolId)}
+                className="sk-foco flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: meta?.color || 'var(--accent-color)' }}>
+                {haciendo && <Loader2 size={15} className="animate-spin" />} {t('dashboard.miembros_v.grupo.aplicar', { count: miembros.length })}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

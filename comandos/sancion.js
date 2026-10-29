@@ -4,6 +4,7 @@ const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'sanction',
+    aliases: ['sancion', 'sancionar'], // en español también
     description: 'Applies a sanction type from the panel. Usage: !sanction @user <type> [reason]',
 
     async execute(message, args, client, cfg) {

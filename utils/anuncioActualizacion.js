@@ -2,13 +2,14 @@
 // (campo "version" de package.json) se lo dice a los miembros del servidor
 // configurado: por privado a cada uno y, si no llega a todos, también en el canal
 // general. Se anuncia una sola vez por versión y servidor (queda guardado en la BD).
-const { ChannelType, PermissionsBitField } = require('discord.js');
+const { ChannelType, PermissionsBitField, ActionRowBuilder } = require('discord.js');
 const { version } = require('../package.json');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Log = require('../models/Log.js');
 const { enviarLogADiscord } = require('./logsManager.js');
 const { esperarMongo } = require('./config.js');
 const { mensajeNovedades } = require('./novedades.js');
+const { quiereDM } = require('./preferencias.js');
 
 // Servidor al que avisar (nombre o ID). Vacío = aviso desactivado.
 const SERVIDOR = process.env.ANUNCIO_SERVIDOR ?? 'Tokyto';
@@ -97,11 +98,17 @@ async function anunciarEnServidor(client, guild, pausaMs) {
 
     let enviados = 0;
     let fallidos = 0;
+    let noQuieren = 0; // apagaron los anuncios en /preferencias: lo verán en el canal
     const omitidos = humanos.length > MAX_DMS ? humanos.length : 0;
     if (!omitidos) {
+        // Debajo del privado, el botón para dejar de recibirlos (o elegir cuáles).
+        const { botonPreferencias } = require('./preferenciasDiscord.js');
+        // En español, como el resto del aviso.
+        const fila = new ActionRowBuilder().addComponents(botonPreferencias('es'));
         for (const miembro of humanos) {
+            if (!(await quiereDM(miembro.id, 'anuncios'))) { noQuieren++; continue; }
             try {
-                await miembro.send(MENSAJE);
+                await miembro.send({ content: MENSAJE, components: [fila] });
                 enviados++;
             } catch {
                 fallidos++; // DMs cerrados o el usuario bloqueó al bot
@@ -112,7 +119,7 @@ async function anunciarEnServidor(client, guild, pausaMs) {
 
     // Si no ha llegado a todos por privado, se publica en el general para que nadie se quede sin saberlo.
     let publicadoEn = null;
-    if (fallidos || omitidos || humanos.length === 0) {
+    if (fallidos || omitidos || noQuieren || humanos.length === 0) {
         const canal = canalGeneral(guild);
         if (canal) {
             try {
@@ -128,7 +135,8 @@ async function anunciarEnServidor(client, guild, pausaMs) {
         `${enviados} por privado`,
         fallidos && `${fallidos} con los DMs cerrados`,
         omitidos && `${omitidos} sin DM (servidor grande)`,
-        publicadoEn ? `publicado en #${publicadoEn}` : (fallidos || omitidos || !humanos.length) && 'no se pudo publicar en ningún canal',
+        noQuieren && `${noQuieren} no quieren avisos por privado`,
+        publicadoEn ? `publicado en #${publicadoEn}` : (fallidos || omitidos || noQuieren || !humanos.length) && 'no se pudo publicar en ningún canal',
     ].filter(Boolean).join(', ');
     console.log(`📣 Aviso "Bot actualizado" (v${version}) en ${guild.name}: ${resumen}.`);
 

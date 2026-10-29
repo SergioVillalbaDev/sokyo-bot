@@ -35,7 +35,7 @@ const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../uti
 const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
 const cuenta = require('../utils/cuenta.js');
-const { errorRolesNuevos, errorJerarquiaStaff } = require('../utils/permisos.js');
+const { errorRolesNuevos, errorJerarquiaStaff, rolesQueDaElBot } = require('../utils/permisos.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
@@ -106,7 +106,7 @@ module.exports = (client) => {
             // (el navegador bloquea la respuesta) sin propagar una excepción con stack trace al cliente.
             callback(null, !origin || ORIGENES_PERMITIDOS.includes(origin));
         },
-        exposedHeaders: ['X-Sokyo-Token'], // sesión renovada (ver renovarSesion)
+        exposedHeaders: ['X-Sokyo-Token', 'X-Sokyo-Cambio'], // sesión renovada (ver renovarSesion) y cambio apuntado (historial)
     }));
 
     // --- CABECERAS DE SEGURIDAD (helmet) ---
@@ -325,6 +325,9 @@ module.exports = (client) => {
         next();
     });
 
+    // --- Historial de cambios del panel: apunta lo que cambia cada guardado ---
+    app.use('/api', require('../utils/historialCambios.js').middlewareHistorial());
+
     // --- Middleware de sesión del Portal: valida el token de Discord del usuario ---
     const portalAuth = (req, res, next) => {
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -480,6 +483,8 @@ module.exports = (client) => {
 
     // Categorías y canales del servidor (los cambios piden el área "config").
     app.use('/api', require('./routes/canales.js')({ client, exigeArea }));
+    // Diagnóstico «¿Algo no funciona?» e historial de cambios con «Deshacer».
+    app.use('/api', require('./routes/panelExtra.js')({ client, exigeArea, tieneAreaAcceso, idiomaPanel }));
 
     // Middleware: exige ser Administrator de Discord en el guild (o dueño/API key).
     // Reservado para operaciones que OTORGAN permisos a otros (quién modera, quién
@@ -874,6 +879,8 @@ module.exports = (client) => {
                 usuario: req.usuario.username,
                 contenido
             });
+            // Le toca al staff: empieza a contar el tiempo sin respuesta.
+            await Ticket.updateOne({ canalId: req.params.canalId }, { $set: { esperaRespuesta: true, ultimoMensajeUsuario: new Date(), avisoSinRespuesta: null } }).catch(() => {});
 
             // Sin menciones: desde la web nadie debe poder hacer que el bot haga @everyone.
             const canal = client.channels.cache.get(req.params.canalId);
@@ -1194,12 +1201,31 @@ app.get('/api/stats/uso', async (req, res) => {
                 usuario: usuario,
                 contenido: contenido
             });
+            // Ya está atendido (deja de contar como «sin responder»).
+            const atendido = await Ticket.findOneAndUpdate({ canalId: ticketId }, { $set: { esperaRespuesta: false, ultimaInteractStaff: new Date() } }, { returnDocument: 'after' }).catch(() => null);
+            // Quien abrió el ticket recibe un privado (si no lo ha apagado en /preferencias).
+            if (atendido) require('../utils/avisosTicket.js').avisarRespuesta(client, atendido, usuario, contenido).catch(() => {});
+            if (req.staff) require('../utils/escribiendo.js').dejarDeEscribir(ticketId, req.staff.id);
 
             res.json({ success: true, mensaje: nuevoMsg });
         } catch (error) {
             console.error('Error al enviar mensaje desde la web:', error);
             res.status(500).json({ error: 'Fallo interno al enviar' });
         }
+    });
+
+    // --- «Fulano está escribiendo…» en el chat del ticket ---
+    // POST: quien escribe en el panel (y en Discord sale «Sokyo está escribiendo…»).
+    // GET: quién más está escribiendo ahora (staff en el panel o la persona en Discord).
+    app.post('/api/tickets/:canalId/escribiendo', scopeTicket, (req, res) => {
+        const esc = require('../utils/escribiendo.js');
+        const id = req.staff?.id || 'api';
+        esc.marcarEscribiendo(req.params.canalId, { id, nombre: req.staff?.username || 'Staff', origen: 'panel' });
+        esc.avisarEnDiscord(client, req.params.canalId);
+        res.json({ ok: true });
+    });
+    app.get('/api/tickets/:canalId/escribiendo', scopeTicket, (req, res) => {
+        res.json({ escriben: require('../utils/escribiendo.js').quienEscribe(req.params.canalId, req.staff?.id || 'api') });
     });
 
     // --- NUEVA RUTA: Añadir Nota Interna a un Ticket ---
@@ -1487,7 +1513,7 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/reglas', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
-            const { rolStaffId, categoriaTicketsId, maxTicketsAbiertos, autoCierreDias, autoAsignar } = req.body;
+            const { rolStaffId, categoriaTicketsId, maxTicketsAbiertos, autoCierreDias, autoAsignar, avisoSinRespuestaHoras } = req.body;
 
             const cambios = {};
             if (rolStaffId !== undefined) cambios.rolStaffId = rolStaffId || null;
@@ -1495,6 +1521,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (maxTicketsAbiertos !== undefined) cambios.maxTicketsAbiertos = Math.max(0, parseInt(maxTicketsAbiertos, 10) || 0);
             if (autoCierreDias !== undefined) cambios.autoCierreDias = Math.max(0, parseInt(autoCierreDias, 10) || 0);
             if (autoAsignar !== undefined) cambios.autoAsignar = !!autoAsignar;
+            if (avisoSinRespuestaHoras !== undefined) cambios.avisoSinRespuestaHoras = Math.min(168, Math.max(0, parseInt(avisoSinRespuestaHoras, 10) || 0));
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId },
@@ -2044,55 +2071,86 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // Aplica una configuración (de un archivo o copiada de otro servidor) a un
+    // servidor, con las mismas reglas que al configurarlo a mano. Devuelve
+    // { status, cuerpo } para responder.
+    async function aplicarImportacion(req, guildId, entrante) {
+        if (!entrante || typeof entrante !== 'object' || Array.isArray(entrante)) return { status: 400, cuerpo: { error: 'Formato no válido' } };
+        const cambios = { ...entrante };
+        for (const k of CAMPOS_NO_BACKUP) delete cambios[k];
+        // Quién entra al panel y quién modera solo lo cambia un administrador (igual
+        // que en Acceso y permisos): importando tampoco se lo puede dar nadie más.
+        let esAdmin = !req.staff || req.staff.owner;
+        if (!esAdmin) {
+            const g = client.guilds.cache.get(guildId);
+            const m = g ? await g.members.fetch(req.staff.id).catch(() => null) : null;
+            esAdmin = !!(m && m.permissions.has(PermissionsBitField.Flags.Administrator));
+        }
+        if (!esAdmin) for (const k of ['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']) delete cambios[k];
+        // Los roles que reparte el bot (autorol, recompensas, verificación…) siguen la
+        // misma regla de jerarquía que al configurarlos uno a uno.
+        const actualCfg = (await ServidorConfig.findOne({ guildId }).lean()) || {};
+        const errRoles = await errorRolesNuevos(client, req.staff, guildId, rolesQueDaElBot(entrante), rolesQueDaElBot(actualCfg));
+        if (errRoles) return { status: 403, cuerpo: { error: errRoles } };
+        // mensajeId de la verificación no debe importarse (es de otro servidor).
+        if (cambios.verificacion) delete cambios.verificacion.mensajeId;
+        // Crecimiento campo a campo: así no se pisa la página ni el bump de este servidor.
+        if (cambios.crecimiento && typeof cambios.crecimiento === 'object') {
+            const c = limpiarCrecimiento(cambios.crecimiento);
+            delete cambios.crecimiento;
+            for (const [sec, valores] of Object.entries(c)) {
+                if (!valores || typeof valores !== 'object' || Array.isArray(valores)) continue;
+                for (const [k, v] of Object.entries(valores)) cambios[`crecimiento.${sec}.${k}`] = v;
+            }
+        }
+        // Ajuste a ajuste (con puntos): así no se pisa lo que el bot lleva por su cuenta
+        // en este servidor (el estado de los juegos, del bump, mensajes publicados…).
+        const { aplanar, esInterno, esObjeto } = require('../utils/camposInternos.js');
+        const planos = {};
+        for (const [k, v] of Object.entries(cambios)) {
+            if (esInterno(k)) continue;
+            if (!k.includes('.') && esObjeto(v)) Object.assign(planos, aplanar(v, k));
+            else planos[k] = v;
+        }
+        const config = await ServidorConfig.findOneAndUpdate(
+            { guildId },
+            { $set: planos },
+            { returnDocument: 'after', upsert: true },
+        );
+        return { status: 200, cuerpo: { success: true, config } };
+    }
+
     app.post('/api/config/:guildId/import', exigeArea('config'), async (req, res) => {
         try {
-            const entrante = (req.body && (req.body.config || req.body)) || {};
-            if (typeof entrante !== 'object' || Array.isArray(entrante)) return res.status(400).json({ error: 'Formato no válido' });
-            const cambios = { ...entrante };
-            for (const k of CAMPOS_NO_BACKUP) delete cambios[k];
-            const guildId = req.params.guildId;
-            // Quién entra al panel y quién modera solo lo cambia un administrador (igual
-            // que en Acceso y permisos): importando tampoco se lo puede dar nadie más.
-            let esAdmin = !req.staff || req.staff.owner;
-            if (!esAdmin) {
-                const g = client.guilds.cache.get(guildId);
-                const m = g ? await g.members.fetch(req.staff.id).catch(() => null) : null;
-                esAdmin = !!(m && m.permissions.has(PermissionsBitField.Flags.Administrator));
-            }
-            if (!esAdmin) for (const k of ['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']) delete cambios[k];
-            // Los roles que reparte el bot (autorol, recompensas, verificación…) siguen la
-            // misma regla de jerarquía que al configurarlos uno a uno.
-            const rolesQueDaElBot = (c) => [
-                ...(c.autoRoles || []), ...(c.autoRolesBots || []),
-                ...(c.recompensasNivel || []).map((r) => r && r.rolId),
-                c.verificacion && c.verificacion.rolVerificadoId,
-                c.embudoAB && c.embudoAB.rolVerificadoId,
-                c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
-                ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
-            ].filter((x) => typeof x === 'string' && x);
-            const actualCfg = (await ServidorConfig.findOne({ guildId }).lean()) || {};
-            const errRoles = await errorRolesNuevos(client, req.staff, guildId, rolesQueDaElBot(entrante), rolesQueDaElBot(actualCfg));
-            if (errRoles) return res.status(403).json({ error: errRoles });
-            // mensajeId de la verificación no debe importarse (es de otro servidor).
-            if (cambios.verificacion) delete cambios.verificacion.mensajeId;
-            // Crecimiento campo a campo: así no se pisa la página ni el bump de este servidor.
-            if (cambios.crecimiento && typeof cambios.crecimiento === 'object') {
-                const c = limpiarCrecimiento(cambios.crecimiento);
-                delete cambios.crecimiento;
-                for (const [sec, valores] of Object.entries(c)) {
-                    if (!valores || typeof valores !== 'object' || Array.isArray(valores)) continue;
-                    for (const [k, v] of Object.entries(valores)) cambios[`crecimiento.${sec}.${k}`] = v;
-                }
-            }
-            const config = await ServidorConfig.findOneAndUpdate(
-                { guildId: req.params.guildId },
-                { $set: cambios },
-                { returnDocument: 'after', upsert: true },
-            );
-            res.json({ success: true, config });
+            const r = await aplicarImportacion(req, req.params.guildId, (req.body && (req.body.config || req.body)) || {});
+            res.status(r.status).json(r.cuerpo);
         } catch (error) {
             console.error('Error al importar config:', error);
             res.status(500).json({ error: 'No se pudo importar (¿JSON válido?)' });
+        }
+    });
+
+    // Copiar la configuración de este servidor a otro de los suyos: los canales y
+    // roles se buscan por nombre allí; lo que no exista se deja vacío y se avisa.
+    app.post('/api/config/:guildId/copiar', exigeArea('config'), async (req, res) => {
+        try {
+            const origen = client.guilds.cache.get(req.params.guildId);
+            const destino = client.guilds.cache.get(String(req.body?.destino || ''));
+            if (!origen || !destino) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (origen.id === destino.id) return res.status(400).json({ error: 'Elige otro servidor' });
+            if (!(await tieneAreaAcceso(req, destino.id, 'config'))) return res.status(403).json({ error: 'No tienes acceso a los ajustes de ese servidor' });
+            const cfg = await ServidorConfig.findOne({ guildId: origen.id }).lean();
+            if (!cfg) return res.status(404).json({ error: 'Sin configuración' });
+            for (const k of CAMPOS_NO_BACKUP) delete cfg[k];
+            limpiarCrecimiento(cfg.crecimiento);
+            const { remapearIds } = require('../utils/copiarConfig.js');
+            const { cfg: copia, faltan } = remapearIds(cfg, origen, destino);
+            const r = await aplicarImportacion(req, destino.id, copia);
+            if (r.status !== 200) return res.status(r.status).json(r.cuerpo);
+            res.json({ success: true, destino: { id: destino.id, nombre: destino.name }, faltan });
+        } catch (error) {
+            console.error('Error al copiar la config:', error);
+            res.status(500).json({ error: 'No se pudo copiar la configuración' });
         }
     });
 
@@ -3331,6 +3389,20 @@ app.get('/api/stats/uso', async (req, res) => {
             });
         } catch (error) {
             console.error('Error al obtener miembro:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // --- Ficha rápida (al pasar el ratón por un usuario en el panel) ---
+    app.get('/api/servidor/miembro/:userId/ficha', exigeModerador, async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const f = await require('../utils/ficha.js').fichaMiembro(client, guild.id, req.params.userId);
+            if (!f) return res.status(404).json({ error: 'Usuario no encontrado' });
+            res.json(f);
+        } catch (error) {
+            console.error('Error en la ficha rápida:', error);
             res.status(500).json({ error: 'Error del servidor' });
         }
     });

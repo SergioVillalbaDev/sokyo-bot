@@ -97,6 +97,7 @@ export const sectionTours = {
     { id: 'categoria', sel: '[data-help="reglas-categoria"]', side: 'bottom', align: 'start' },
     { id: 'limite', sel: '[data-help="reglas-limite"]', side: 'top', align: 'start' },
     { id: 'autoasignar', sel: '[data-help="reglas-autoasignar"]', side: 'top', align: 'start' },
+    { id: 'sinrespuesta', sel: '[data-help="reglas-sinrespuesta"]', side: 'top', align: 'start' },
     { id: 'cierre', sel: '[data-help="comp-cierre"]', side: 'top', align: 'start' },
     { id: 'notif', sel: '[data-help="comp-notif"]', side: 'top', align: 'start' },
     { id: 'guardar', sel: '[data-help="incidents-guardar"]', side: 'bottom', align: 'start' },
@@ -196,6 +197,22 @@ export const sectionTours = {
   'seg-backup': [
     { id: 'exportar', sel: '[data-help="backup-exportar"]', side: 'bottom', align: 'start' },
     { id: 'importar', sel: '[data-help="backup-importar"]', side: 'bottom', align: 'start' },
+    { id: 'copiar', sel: '[data-help="backup-copiar"]', side: 'top', align: 'start' },
+  ],
+
+  'config-diagnostico': [
+    { id: 'resumen', sel: '[data-help="diag-resumen"]', side: 'bottom', align: 'start' },
+    { id: 'lista', sel: '[data-help="diag-lista"]', side: 'top', align: 'start' },
+  ],
+
+  'config-cambios': [
+    { id: 'intro', sel: '[data-help="cambios-intro"]', side: 'bottom', align: 'start' },
+    { id: 'lista', sel: '[data-help="cambios-lista"]', side: 'top', align: 'start' },
+  ],
+
+  'mod-miembros': [
+    { id: 'filtros', sel: '[data-help="miembros-filtros"]', side: 'bottom', align: 'start' },
+    { id: 'lista', sel: '[data-help="miembros-lista"]', side: 'top', align: 'start' },
   ],
 
   'crec-invitaciones': [

@@ -2,15 +2,17 @@
 // 1) Cifras de tickets · 2) Estado de los módulos (encendidos/apagados, con un
 // toque para ir a cada uno) · 3) Mapa de TODO el panel por grupos · 4) tickets
 // y actividad recientes · 5) equipo, memoria, registros, satisfacción y latencia.
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
-  Ticket, Inbox, Activity, Users2, HardDrive, ScrollText, Smile, ChevronRight, Wifi, Power, Search, Map as MapIcon, Crown,
+  Ticket, Inbox, Activity, Users2, HardDrive, ScrollText, Smile, ChevronRight, Wifi, Power, Search, Map as MapIcon, Crown, Stethoscope,
 } from 'lucide-react';
 import { Avatar, Badge } from '../../ui/primitives';
 import { CircularGauge } from '../../ui/CircularGauge';
-import { gruposVisibles, navSections, bloqueadoPorPlan } from '../navConfig';
-import { getStaffSession } from '../../../lib/api';
+import { gruposVisibles, navSections, bloqueadoPorPlan, ubicacion, itemVisible } from '../navConfig';
+import { getStaffSession, apiFetch, procesarRespuesta } from '../../../lib/api';
+import AsistenteInicio from '../AsistenteInicio';
 import { cn } from '../../../lib/cn';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -54,8 +56,20 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
   const { t } = useTranslation();
   const {
     ticketsReales, logsRegistrados, limiteLogs, usoStats, esPremium,
-    getColorUrgencia, verMensajes, setActiveTab, ping, estadoModulos = {}, misPermisos,
+    getColorUrgencia, verMensajes, setActiveTab, ping, estadoModulos = {}, misPermisos, guildId, configServidor,
   } = dash;
+
+  // ¿Algo no funciona? El diagnóstico se mira al abrir el Inicio y, si hay
+  // errores, sale un aviso arriba con el botón para verlos y arreglarlos.
+  const [fallos, setFallos] = useState(0);
+  useEffect(() => {
+    if (!guildId) return undefined;
+    let vivo = true;
+    apiFetch(`/api/diagnostico?guildId=${encodeURIComponent(guildId)}`).then(procesarRespuesta)
+      .then((d) => { if (vivo) setFallos((d?.problemas || []).filter((p) => p.nivel === 'error').length); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [guildId]);
 
   // --- Métricas de tickets ---
   const total = ticketsReales.length;
@@ -106,6 +120,22 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
 
   return (
     <div className="space-y-5">
+      {fallos > 0 && (
+        <button onClick={() => setActiveTab('config-diagnostico')} className="sk-foco flex w-full items-center gap-3 rounded-3xl border border-danger/40 bg-danger/10 p-4 text-left shadow-soft transition-colors hover:border-danger/70">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-danger/15 text-danger"><Stethoscope size={19} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-bold text-fg">{t('dashboard.diagnostico.avisoInicio', { count: fallos })}</span>
+            <span className="block text-sm text-muted">{t('dashboard.diagnostico.avisoInicioSub')}</span>
+          </span>
+          <ChevronRight size={18} className="shrink-0 text-muted" />
+        </button>
+      )}
+
+      <AsistenteInicio
+        guildId={guildId} estadoModulos={estadoModulos} configServidor={configServidor} setActiveTab={setActiveTab}
+        permitido={(tab) => { const u = ubicacion(tab); return !!u && itemVisible(u.item, misPermisos) && !bloqueadoPorPlan(u.item, esPremium, esOwner); }}
+      />
+
       {/* 1 · Cifras */}
       <div data-tour="stats" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {quickStats.map((s, i) => (

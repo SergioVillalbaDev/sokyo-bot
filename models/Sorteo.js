@@ -30,6 +30,7 @@ const SorteoSchema = new mongoose.Schema({
     participantes: { type: [String], default: [] },   // userIds que se han apuntado
     ganadoresSeleccionados: { type: [GanadorSchema], default: [] },
     activo: { type: Boolean, default: true },
+    avisoFinalEnviado: { type: Boolean, default: false }, // «queda 1 hora» en el canal
     fechaFin: { type: Date, required: true, index: true },
     creadoPor: { type: String, default: 'Panel Web' },
     creadoFecha: { type: Date, default: Date.now },

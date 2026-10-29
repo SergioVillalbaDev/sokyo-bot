@@ -4,19 +4,65 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings2, Keyboard, X } from 'lucide-react';
+import { Settings2, Keyboard, X, Sparkles, BellRing } from 'lucide-react';
 import { Toggle } from '../ui/primitives';
 import { cn } from '../../lib/cn';
 import { useAutoguardadoActivo, ponerAutoguardado } from '../../hooks/useAutoguardado';
 import { preferenciaLigero, ponerLigero, suscribirLigero, equipoModesto } from '../../lib/ligero';
+import { estadoAvisos, activarAvisos, desactivarAvisos, suscribirAvisos } from '../../lib/avisosNavegador';
+import { TAMANOS, tamanoLetra, vistaCompacta, temaAutomatico, ponerTamanoLetra, ponerVistaCompacta, ponerTemaAutomatico, suscribirAspecto } from '../../lib/aspecto';
 
-export function OpcionesComodidad({ onAtajos }) {
+export function OpcionesComodidad({ onAtajos, onNovedades }) {
   const { t } = useTranslation();
   const autoguardado = useAutoguardadoActivo();
   const ligero = useSyncExternalStore(suscribirLigero, preferenciaLigero, () => 'auto');
+  const letra = useSyncExternalStore(suscribirAspecto, tamanoLetra, () => 'normal');
+  const compacto = useSyncExternalStore(suscribirAspecto, vistaCompacta, () => false);
+  const temaAuto = useSyncExternalStore(suscribirAspecto, temaAutomatico, () => false);
+  const avisos = useSyncExternalStore(suscribirAvisos, estadoAvisos, () => 'apagado');
   const modesto = equipoModesto();
   return (
     <div className="space-y-4">
+      {avisos !== 'no-soportado' && (
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-fg"><BellRing size={14} className="text-brand" /> {t('dashboard.prefs.avisos')}</span>
+              <span className="block text-xs leading-snug text-muted">{t('dashboard.prefs.avisosDesc')}</span>
+            </span>
+            <Toggle checked={avisos === 'activo'} disabled={avisos === 'bloqueado'} onChange={(v) => (v ? activarAvisos() : desactivarAvisos())} />
+          </div>
+          {avisos === 'bloqueado' && <p className="mt-1.5 text-[11px] text-warning">{t('dashboard.prefs.avisosBloqueados')}</p>}
+        </div>
+      )}
+      <div>
+        <span className="block text-sm font-semibold text-fg">{t('dashboard.prefs.letra')}</span>
+        <div className="mt-2 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label={t('dashboard.prefs.letra')}>
+          {TAMANOS.map((op, i) => (
+            <button
+              key={op} type="button" role="radio" aria-checked={letra === op} onClick={() => ponerTamanoLetra(op)}
+              className={cn('rounded-xl border px-2 py-1.5 font-semibold transition-colors', ['text-xs', 'text-sm', 'text-base'][i],
+                letra === op ? 'border-brand bg-brand/15 text-fg' : 'border-line text-muted hover:text-fg')}
+            >
+              {t(`dashboard.prefs.letraOpts.${op}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-fg">{t('dashboard.prefs.compacto')}</span>
+          <span className="block text-xs leading-snug text-muted">{t('dashboard.prefs.compactoDesc')}</span>
+        </span>
+        <Toggle checked={compacto} onChange={(v) => ponerVistaCompacta(v)} />
+      </div>
+      <div className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-fg">{t('dashboard.prefs.temaAuto')}</span>
+          <span className="block text-xs leading-snug text-muted">{t('dashboard.prefs.temaAutoDesc')}</span>
+        </span>
+        <Toggle checked={temaAuto} onChange={(v) => ponerTemaAutomatico(v)} />
+      </div>
       <div className="flex items-start justify-between gap-3">
         <span className="min-w-0">
           <span className="block text-sm font-semibold text-fg">{t('dashboard.prefs.autosave')}</span>
@@ -45,12 +91,17 @@ export function OpcionesComodidad({ onAtajos }) {
           <Keyboard size={16} className="text-brand" /> {t('dashboard.prefs.shortcuts')} <span className="sk-tecla ml-auto">?</span>
         </button>
       )}
+      {onNovedades && (
+        <button type="button" onClick={onNovedades} className="flex w-full items-center gap-2.5 rounded-xl border border-line px-3 py-2 text-left text-sm font-semibold text-fg transition-colors hover:bg-elevated">
+          <Sparkles size={16} className="text-brand" /> {t('dashboard.prefs.novedades')}
+        </button>
+      )}
     </div>
   );
 }
 
 // Escritorio: botón ⚙ con las opciones en un desplegable.
-export default function BotonPreferencias({ onAtajos }) {
+export default function BotonPreferencias({ onAtajos, onNovedades }) {
   const { t } = useTranslation();
   const [abierto, setAbierto] = useState(false);
   const caja = useRef(null);
@@ -68,9 +119,12 @@ export default function BotonPreferencias({ onAtajos }) {
         <Settings2 size={17} />
       </button>
       {abierto && (
-        <div className="sk-aparece absolute right-0 top-[calc(100%+10px)] z-40 w-80 rounded-2xl border border-line bg-card p-4 shadow-xl">
+        <div className="sk-aparece absolute right-0 top-[calc(100%+10px)] z-40 max-h-[calc(100dvh-6rem)] w-80 overflow-y-auto rounded-2xl border border-line bg-card p-4 shadow-xl">
           <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-muted">{t('dashboard.prefs.title')}</p>
-          <OpcionesComodidad onAtajos={onAtajos ? () => { setAbierto(false); onAtajos(); } : undefined} />
+          <OpcionesComodidad
+            onAtajos={onAtajos ? () => { setAbierto(false); onAtajos(); } : undefined}
+            onNovedades={onNovedades ? () => { setAbierto(false); onNovedades(); } : undefined}
+          />
         </div>
       )}
     </div>

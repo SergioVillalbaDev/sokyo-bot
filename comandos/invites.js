@@ -4,6 +4,7 @@ const { t } = require('../utils/i18n.js');
 // Crecimiento · igual que /invites. Uso: !invites [@usuario]
 module.exports = {
     name: 'invites',
+    aliases: ['invitaciones'], // en español también
     description: 'See how many people you (or someone) have invited. Usage: !invites [@user]',
 
     async execute(message, args, client, cfg) {

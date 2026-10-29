@@ -6,6 +6,7 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const { gateMusica } = require('../utils/musica.js');
 const { esPro } = require('../utils/billing.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 function nombresFiltro(cfg) {
     return {
@@ -17,10 +18,14 @@ function nombresFiltro(cfg) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('filter')
+        .setNameLocalizations(ES('filtro'))
         .setDescription('Apply an audio filter (Pro): bassboost, nightcore, 8D…')
+        .setDescriptionLocalizations(ES('Efectos de sonido (Pro): bassboost, nightcore, 8D…'))
         .addStringOption((opt) =>
             opt.setName('type')
+                .setNameLocalizations(ES('efecto'))
                 .setDescription('Filter to apply')
+                .setDescriptionLocalizations(ES('Qué efecto poner'))
                 .setRequired(true)
                 .addChoices(
                     { name: '🔊 Bassboost', value: 'bassboost' },
@@ -29,7 +34,7 @@ module.exports = {
                     { name: '🎧 8D', value: '8d' },
                     { name: '🎤 Karaoke', value: 'karaoke' },
                     { name: '🎶 Tremolo', value: 'tremolo' },
-                    { name: '❌ Remove filters', value: 'off' },
+                    { name: '❌ Remove filters', name_localizations: ES('❌ Quitar efectos'), value: 'off' },
                 )),
 
     async execute(interaction, client, cfgArg) {

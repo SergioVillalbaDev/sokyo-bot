@@ -3,11 +3,14 @@ const Item = require('../models/Item.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const { botonWeb } = require('../utils/cuenta.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('shop')
-        .setDescription('Open the Sokyo shop and buy items with your gold'),
+        .setNameLocalizations(ES('tienda'))
+        .setDescription('Open the Sokyo shop and buy items with your gold')
+        .setDescriptionLocalizations(ES('Abrir la tienda y comprar objetos con tu oro')),
 
     async execute(interaction, client, cfg) {
         const items = await Item.find({ activo: true }).sort({ precio: 1 }).limit(25); // Discord: máx 25 opciones

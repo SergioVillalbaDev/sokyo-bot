@@ -4,7 +4,18 @@
 // Pantallas del portal, en el orden del menú inferior. El #hash de la URL
 // dice cuál está abierta (/cuenta#tienda): así funcionan el botón "atrás" del
 // móvil y los enlaces directos que manda el bot.
-export const VISTAS = ['inicio', 'tickets', 'tienda', 'musica', 'tarjeta'];
+export const VISTAS = ['inicio', 'tickets', 'tienda', 'musica', 'tarjeta', 'ajustes'];
+
+// Sorteos ganados que ya se han visto en la campana (por id).
+const CLAVE_SORTEOS = 'portalSorteosVistos';
+export function leerSorteosVistos() {
+  try { const l = JSON.parse(localStorage.getItem(CLAVE_SORTEOS) || '[]'); return Array.isArray(l) ? l : []; } catch { return []; }
+}
+export function marcarSorteosVistos(ids) {
+  const todos = [...new Set([...leerSorteosVistos(), ...ids])].slice(-50);
+  try { localStorage.setItem(CLAVE_SORTEOS, JSON.stringify(todos)); } catch { /* sin almacenamiento */ }
+  return todos;
+}
 
 // "#tickets/123" -> { vista: 'tickets', ticket: '123' }; "#tienda/mochila" -> sub 'mochila'.
 export function leerHash(hash = window.location.hash) {

@@ -181,6 +181,7 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
                 servidores,
                 // Abiertos con su último mensaje: la web avisa si es de otra persona.
                 tickets: { total, abiertos, recientes },
+                sorteos: await sorteosGanados(uid).catch(() => []),
             });
         } catch (e) {
             console.error('portal/resumen:', e);
@@ -188,14 +189,73 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
         }
     });
 
-    // Solo los avisos (respuestas en tickets abiertos): lo que la web consulta cada
-    // minuto, sin recalcular el resumen entero.
+    // Sorteos que ha ganado en las últimas 2 semanas (aviso en la campana).
+    async function sorteosGanados(uid) {
+        const Sorteo = require('../../models/Sorteo.js');
+        const desde = new Date(Date.now() - 14 * 86400000);
+        const lista = await Sorteo.find({ 'ganadoresSeleccionados.id': uid, activo: false, fechaFin: { $gte: desde } })
+            .select('guildId canalId mensajeId nombre premio fechaFin').sort({ fechaFin: -1 }).limit(10).lean();
+        return lista.map((s) => ({
+            id: String(s._id), nombre: s.nombre, premio: s.premio, fecha: s.fechaFin,
+            servidor: client.guilds.cache.get(s.guildId)?.name || '',
+            enlace: s.mensajeId ? `https://discord.com/channels/${s.guildId}/${s.canalId}/${s.mensajeId}` : null,
+        }));
+    }
+
+    // Solo los avisos (respuestas en tickets abiertos y sorteos ganados): lo que la
+    // web consulta cada minuto, sin recalcular el resumen entero.
     router.get('/portal/avisos', portalAuth, async (req, res) => {
         try {
-            res.json({ recientes: await ticketsAbiertos(req.usuario.id, client) });
+            const [recientes, sorteos] = await Promise.all([ticketsAbiertos(req.usuario.id, client), sorteosGanados(req.usuario.id).catch(() => [])]);
+            res.json({ recientes, sorteos });
         } catch (e) {
             console.error('portal/avisos:', e);
             res.status(500).json({ error: 'No se pudieron cargar los avisos.' });
+        }
+    });
+
+    // Mis sanciones: avisos, aislamientos, expulsiones y bans en los servidores donde
+    // está el bot (sin decir qué moderador fue: solo qué, cuándo y por qué).
+    router.get('/portal/sanciones', portalAuth, async (req, res) => {
+        try {
+            const Sancion = require('../../models/Sancion.js');
+            const lista = await Sancion.find({ usuarioId: req.usuario.id }).sort({ fecha: -1 }).limit(60).lean();
+            const ahora = Date.now();
+            res.json(lista.map((s) => {
+                const fin = s.duracionMin > 0 ? new Date(new Date(s.fecha).getTime() + s.duracionMin * 60000) : null;
+                // quitada (la deshizo el staff) · activa (ban o aislamiento en vigor) ·
+                // terminada (ya pasó) · registrada (un aviso o una expulsión: queda apuntado).
+                let estado = 'registrada';
+                if (s.revocada) estado = 'quitada';
+                else if (s.accion === 'ban') estado = s.activa ? 'activa' : 'terminada';
+                else if (s.accion === 'timeout') estado = fin && fin.getTime() > ahora ? 'activa' : 'terminada';
+                return {
+                    id: String(s._id), servidor: client.guilds.cache.get(s.guildId)?.name || '', accion: s.accion,
+                    motivo: s.motivo || '', fecha: s.fecha, duracionMin: s.duracionMin || 0, fin, estado,
+                };
+            }));
+        } catch (e) {
+            console.error('portal/sanciones:', e);
+            res.status(500).json({ error: 'No se pudieron cargar tus sanciones.' });
+        }
+    });
+
+    // Mis preferencias del bot (las mismas que /preferencias en Discord).
+    router.get('/portal/preferencias', portalAuth, async (req, res) => {
+        try {
+            res.json(await require('../../utils/preferencias.js').preferenciasDe(req.usuario.id));
+        } catch (e) {
+            console.error('portal/preferencias:', e);
+            res.status(500).json({ error: 'No se pudieron cargar tus preferencias.' });
+        }
+    });
+    router.put('/portal/preferencias', portalAuth, async (req, res) => {
+        try {
+            const { idioma, dms } = req.body || {};
+            res.json(await require('../../utils/preferencias.js').guardarPreferencias(req.usuario.id, { idioma, dms }));
+        } catch (e) {
+            console.error('portal/preferencias (guardar):', e);
+            res.status(500).json({ error: 'No se pudieron guardar tus preferencias.' });
         }
     });
 

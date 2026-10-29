@@ -206,3 +206,32 @@ html[data-theme='light'], html[data-theme='lavanda'], html[data-theme='cereza'] 
     -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   }
 }
+
+/* Ajuste encontrado con el buscador: un halo con el color del tema que se apaga solo. */
+@keyframes sk-resaltado {
+  0%, 60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 70%, transparent), 0 0 30px -4px var(--accent-color); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.sk-dash .sk-resaltado { animation: sk-resaltado 2.4s ease-out; border-radius: 1rem; }
+@media (prefers-reduced-motion: reduce) {
+  .sk-dash .sk-resaltado { animation: none; box-shadow: 0 0 0 3px var(--accent-color); }
+}
+
+/* Vista compacta (Preferencias): menos aire entre cosas para ver más de un vistazo. */
+html.sk-compacto .sk-dash main .p-5, html.sk-compacto .sk-dash main .sm\:p-5, html.sk-compacto .sk-dash main .sm\:p-6 { padding: .8rem; }
+html.sk-compacto .sk-dash main .p-4 { padding: .65rem; }
+html.sk-compacto .sk-dash main .space-y-5 > :not(:last-child) { margin-bottom: .8rem; }
+html.sk-compacto .sk-dash main .space-y-4 > :not(:last-child) { margin-bottom: .6rem; }
+html.sk-compacto .sk-dash main .gap-5 { gap: .8rem; }
+html.sk-compacto .sk-dash main .gap-4 { gap: .6rem; }
+html.sk-compacto .sk-dash main .py-2\.5 { padding-top: .4rem; padding-bottom: .4rem; }
+html.sk-compacto .sk-dash main .rounded-3xl { border-radius: 1.1rem; }
+html.sk-compacto .sk-dash nav .py-2 { padding-top: .3rem; padding-bottom: .3rem; }
+
+/* Los tres puntitos de «está escribiendo…». */
+.sk-dash .sk-escribiendo { display: inline-flex; gap: 3px; }
+.sk-dash .sk-escribiendo i { width: 5px; height: 5px; border-radius: 9999px; background: currentColor; opacity: .35; animation: sk-escribiendo 1.2s infinite ease-in-out; }
+.sk-dash .sk-escribiendo i:nth-child(2) { animation-delay: .15s; }
+.sk-dash .sk-escribiendo i:nth-child(3) { animation-delay: .3s; }
+@keyframes sk-escribiendo { 0%, 60%, 100% { opacity: .35; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .sk-dash .sk-escribiendo i { animation: none; } }

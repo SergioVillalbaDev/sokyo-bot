@@ -12,7 +12,8 @@ const client = new Client({
         GatewayIntentBits.GuildMessageReactions, // Necesario para los roles por reacción
         GatewayIntentBits.GuildVoiceStates,    // Necesario para registrar la actividad de voz
         GatewayIntentBits.GuildInvites,        // Crecimiento: saber con qué invitación entra cada miembro
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageTyping   // «Fulano está escribiendo…» en el chat de tickets del panel
     ],
     // Partials: permite reaccionar/editar/borrar también en mensajes que no están en caché,
     // y registrar la salida de miembros que no estaban en caché (GuildMember)

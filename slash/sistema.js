@@ -8,6 +8,7 @@ const { t } = require('../utils/i18n.js');
 
 // Mismo patrón de propietarios que api/server.js.
 const { OWNER_IDS } = require('../utils/propietarios.js'); // .env + fijos (utils/propietarios.js)
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 // Bytes -> unidad legible (MB/GB).
 const fmtBytes = (b) =>
@@ -56,7 +57,9 @@ function discoRaiz() {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('system')
-        .setDescription('📊 Status of the server running the bot (owners only)'),
+        .setNameLocalizations(ES('sistema'))
+        .setDescription('📊 Status of the server running the bot (owners only)')
+        .setDescriptionLocalizations(ES('📊 Estado del servidor donde corre el bot (solo propietarios)')),
 
     async execute(interaction, client, cfg) {
         // Control de acceso: solo propietarios.

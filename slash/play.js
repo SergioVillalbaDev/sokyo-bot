@@ -1,15 +1,29 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { gateMusica, formatDuration, COLOR_MUSICA, buscarMusica } = require('../utils/musica.js');
 const { t } = require('../utils/i18n.js');
+const { sugerenciasCanciones } = require('../utils/musicaExtra.js');
+const { idiomaInteraccion } = require('../utils/preferencias.js');
+
+const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play music (paste a YouTube/Spotify URL or search by name)')
+        .setDescription('Play music (type the song name and pick it from the list)')
+        .setDescriptionLocalizations(ES('Poner música (escribe el nombre de la canción y elígela de la lista)'))
         .addStringOption((opt) =>
             opt.setName('search')
-                .setDescription('YouTube/Spotify URL, or the song name')
-                .setRequired(true)),
+                .setNameLocalizations(ES('cancion'))
+                .setDescription('Song name, or a YouTube/Spotify link')
+                .setDescriptionLocalizations(ES('Nombre de la canción, o un enlace de YouTube/Spotify'))
+                .setRequired(true)
+                .setAutocomplete(true)),
+
+    // Mientras escribes, salen canciones de YouTube Music para elegir.
+    async autocomplete(interaction, client, cfg) {
+        const idioma = await idiomaInteraccion(interaction, cfg);
+        await interaction.respond(await sugerenciasCanciones(client, interaction.options.getFocused(), idioma));
+    },
 
     async execute(interaction, client, cfg) {
         // 1. Validar voz + música activa + rol DJ.
@@ -21,7 +35,7 @@ module.exports = {
             // Discord no debería permitir esto (la opción es obligatoria), pero si
             // el comando registrado en Discord está desactualizado respecto al
             // código (falta re-ejecutar deploy-commands.js), esta opción llega null.
-            return interaction.reply({ content: t(cfg, '❌ No he recibido nada que buscar. Si esto sigue pasando, pide al dueño del bot que resincronice los slash commands.', '❌ I didn’t receive anything to search for. If this keeps happening, ask the bot owner to re-sync the slash commands.'), flags: 64 });
+            return interaction.reply({ content: t(cfg, '❌ No he recibido nada que buscar. Escribe el nombre de la canción en **cancion** (o elige una de la lista que sale al escribir).', '❌ I didn’t receive anything to search for. Type the song name in **search** (or pick one from the list that appears as you type).'), flags: 64 });
         }
         await interaction.deferReply();
 

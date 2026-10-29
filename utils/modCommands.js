@@ -1,7 +1,7 @@
 // Helpers compartidos por los comandos de moderación (!ban, !kick, !timeout,
 // !warn, !sancion). Comprueban el permiso del autor, resuelven al usuario y
 // aplican la sanción por el motor común (moderationManager).
-const { PermissionsBitField } = require('discord.js');
+const { PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { aplicarSancion, duracionTexto, metaFor } = require('./moderationManager.js');
 const { getConfigCached } = require('./config.js');
 const { miembroPuedeModerar } = require('./permisos.js');
@@ -33,7 +33,25 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
     const target = message.mentions.users.first();
     if (!target) return message.reply(t(cfg, '❌ Menciona a un usuario. p. ej. `!ban @usuario motivo`', '❌ Mention a user. e.g. `!ban @user reason`'));
 
-    // 3. Aplicar por el motor común (mismo registro, mod-log, MD y protecciones).
+    // 3. Banear o expulsar se confirma antes con dos botones (solo quien lo pidió).
+    if (accion === 'ban' || accion === 'expulsion') {
+        const { guardarPendiente } = require('./confirmaciones.js');
+        const id = guardarPendiente(message.author.id, { guildId: message.guild.id, usuarioId: target.id, usuarioNombre: target.username, tipo: { nombre, accion, duracionMin, borrarMensajesHoras }, motivo });
+        const etiqueta = accion === 'ban' ? t(cfg, 'banear', 'ban') : t(cfg, 'expulsar', 'kick');
+        const extra = duracionMin > 0 ? t(cfg, ` durante ${duracionTexto(duracionMin, cfg)}`, ` for ${duracionTexto(duracionMin, cfg)}`) : '';
+        return message.reply({
+            content: t(cfg,
+                `⚠️ ¿Seguro que quieres **${etiqueta}** a **${target.username}**${extra}?${motivo ? `\nMotivo: ${motivo}` : ''}`,
+                `⚠️ Are you sure you want to **${etiqueta}** **${target.username}**${extra}?${motivo ? `\nReason: ${motivo}` : ''}`),
+            components: [new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`conf:${id}`).setStyle(ButtonStyle.Danger).setLabel(t(cfg, `Sí, ${etiqueta}`, `Yes, ${etiqueta}`)),
+                new ButtonBuilder().setCustomId(`conf_no:${id}`).setStyle(ButtonStyle.Secondary).setLabel(t(cfg, 'Cancelar', 'Cancel')),
+            )],
+            allowedMentions: { repliedUser: false },
+        });
+    }
+
+    // 4. Aplicar por el motor común (mismo registro, mod-log, MD y protecciones).
     try {
         await aplicarSancion(client, {
             guildId: message.guild.id,

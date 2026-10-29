@@ -2,6 +2,7 @@ const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'coin',
+    aliases: ['moneda'], // en español también
     description: 'Flip a coin (heads or tails)',
     async execute(message, args, client, cfg) {
         const opcionesEs = ['Cara 🪙', 'Cruz 🦅'];

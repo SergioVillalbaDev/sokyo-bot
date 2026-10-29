@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
+const Ticket = require('../models/Ticket.js');
 const { getConfigCached } = require('../utils/config.js');
 const { registrarMensaje } = require('../utils/actividad.js');
 const { otorgarXp } = require('../utils/niveles.js');
@@ -82,6 +83,22 @@ module.exports = {
                     imagenes: imagenesAdjuntas
                 });
 
+                // ¿A quién le toca? Si escribe quien abrió el ticket, al staff (y se
+                // empieza a contar el tiempo sin respuesta); si escribe otra persona, ya
+                // está atendido. Lo que manda el propio bot (avisos, el panel) no cuenta.
+                // Los invitados al ticket (rol «Invitado») son del lado de quien lo abrió.
+                if (!message.author.bot) {
+                    const ahora = new Date();
+                    const tk = await Ticket.findOne({ canalId: message.channel.id }).select('creadorId participantes').lean();
+                    if (tk) {
+                        const delUsuario = tk.creadorId === message.author.id
+                            || (tk.participantes || []).some((p) => p && p.id === message.author.id && p.rol === 'Invitado');
+                        await Ticket.updateOne({ canalId: message.channel.id }, delUsuario
+                            ? { $set: { esperaRespuesta: true, ultimoMensajeUsuario: ahora, avisoSinRespuesta: null } }
+                            : { $set: { esperaRespuesta: false, ultimaInteractStaff: ahora } });
+                    }
+                }
+
             } catch (error) {
                 console.error('❌ Error al guardar mensaje en la BD:', error);
             } 
@@ -121,7 +138,9 @@ module.exports = {
             await command.execute(message, args, client, cfg);
         } catch (error) {
             console.error(`Error en el comando ${commandName}:`, error);
-            message.reply(t(cfg, '❌ Hubo un error al ejecutar ese comando.', '❌ There was an error trying to run that command.')).catch(() => {});
+            // Qué ha pasado en palabras normales y, si se arregla en el panel, el botón.
+            const { respuestaError } = require('../utils/erroresDiscord.js');
+            message.reply(respuestaError(error, cfg, { privado: false })).catch(() => {});
         }
     },
 };

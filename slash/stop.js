@@ -1,11 +1,14 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { gateMusica } = require('../utils/musica.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stop')
-        .setDescription('Stop the music, clear the queue and leave the voice channel'),
+        .setNameLocalizations(ES('parar'))
+        .setDescription('Stop the music, clear the queue and leave the voice channel')
+        .setDescriptionLocalizations(ES('Parar la música, vaciar la cola y salir del canal de voz')),
 
     async execute(interaction, client, cfg) {
         const voz = await gateMusica(interaction);

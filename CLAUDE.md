@@ -23,7 +23,9 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
   `/servidores` (`utils/paginaPublica.js`).
 - **Web** (`sokyo-panelFRONTEND/`): React 19 + Vite + Tailwind v4 + i18next.
   - `/` landing · `#dashboard` o `/panel` → panel de admin · `/cuenta` → «Mi cuenta»
-    (portal de usuarios, `src/Portal.jsx`, `components/portal/`).
+    (portal de usuarios, `src/Portal.jsx`, `components/portal/`; `#ajustes` = avisos,
+    preferencias y sanciones).
+  - `/estado` y `/novedades`: páginas públicas del servidor (`utils/paginasEstado.js`).
   - `/descargas/sokyo-panel.apk` (app Android) y `/.well-known/assetlinks.json`.
 - **App Android** (`app-android/`): Trusted Web Activity `studio.sokyo.panel` que
   abre `/panel`. Ver *App Android*.
@@ -42,10 +44,13 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.7.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.8.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
-  `ANUNCIO_MENSAJE`).
+  `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
+  la ventana «Novedades» del panel (una vez tras actualizar) y en la web `/novedades`.
+  Un test exige que la versión de `package.json` tenga novedades. Quien apaga los
+  anuncios en `/preferencias` no recibe el privado (lo ve en el canal general).
 - **Música (Lavalink)**: desde marzo de 2026 Discord exige audio cifrado (DAVE) y
   solo lo hace Lavalink 4.2+. `scripts/lavalink.js` (pm2 `lavalink`) mira la versión
   del `lavalink/Lavalink.jar` y, si es vieja, descarga la 4.2.2 de GitHub (la
@@ -147,6 +152,36 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `roles_v.perms` / `roles_v.permsDesc`. Crear/editar canales comprueba antes
   Comunidad (anuncios/escenario), «Gestionar canales» y permisos que el bot no puede
   dar, y responde con `codigo` para que el panel lo explique.
+- **Historial de cambios** (`utils/historialCambios.js`, modelo `CambioPanel`, 90 días):
+  un middleware de `/api` compara `ServidorConfig` antes y después de cada guardado,
+  ajuste a ajuste (`'bienvenida.canalId'`), y la respuesta lleva `X-Sokyo-Cambio`
+  (lib/api.js → evento `sokyo-cambio` → aviso «Guardado · Deshacer», `AvisoDeshacer.jsx`).
+  Lo que lleva el bot por su cuenta (estado de juegos, bump, mensajes publicados…)
+  está en `utils/camposInternos.js`: no se apunta, no se deshace, no se copia a otro
+  servidor y no se pisa al importar. Deshacer comprueba áreas y la jerarquía de roles.
+- **Diagnóstico** (`utils/diagnostico.js`, sección `config-diagnostico`, aviso en el
+  Inicio si hay errores): permisos del bot, canales/roles borrados o que el bot no
+  puede usar, módulos a medio configurar y música; textos desde la API en el idioma
+  del panel. «Quitarlo» solo quita lo que de verdad ya no existe.
+- **Comodidades del panel 1.8.0**: buscar ajustes concretos y resaltarlos
+  (`lib/indiceAjustes.js`, saca los textos de cada vista de `dashboard.<espacio>`),
+  favoritos (`lib/favoritos.js`), ficha rápida al pasar el ratón (`FichaRapida.jsx`,
+  `GET /api/servidor/miembro/:id/ficha`), acciones en grupo en Miembros, «➕ Crear
+  canal/rol nuevo…» en los desplegables (`<OpcionCrear />` + `CrearAlVuelo.jsx`, que
+  escucha el `change` en captura), asistente por tipo de servidor en el Inicio
+  (`AsistenteInicio.jsx`), copiar ajustes a otro servidor (Backup), letra/compacto/
+  tema según el sistema (`lib/aspecto.js`) y avisos del navegador (`lib/avisosNavegador.js`).
+- **Discord 1.8.0**: clic derecho (`slash/ctx*.js`), `/ayuda` por categorías
+  (`utils/ayuda.js`: si añades un comando, apúntalo ahí), todos los slash con nombre en
+  español, errores explicados con botón al panel (`utils/erroresDiscord.js`),
+  `!ban`/`!kick` piden confirmación y ban/aislar tienen «Deshacer» 15 min, botones y
+  ventanas nuevos en `utils/interaccionesExtra.js`, `/recordar` y `/recordatorios`,
+  `/preferencias` (modelo `PreferenciasMiembro`: idioma y privados), música con
+  sugerencias, votos, `/letra` (LRCLIB) y ❤️ favoritas (`utils/musicaExtra.js`).
+- **Tickets 1.8.0**: `esperaRespuesta`/`ultimoMensajeUsuario` en `Ticket` (los invitados
+  cuentan como el lado del usuario), aviso a las X horas (`avisoSinRespuestaHoras`,
+  `utils/avisosTicket.js`), privado al responder desde el panel y «está escribiendo»
+  (`utils/escribiendo.js`, intent `GuildMessageTyping`).
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -231,5 +266,14 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   foto del menú, acceso al panel desde Mi cuenta, mover categorías con «Mover» /
   «Solo categorías» / «Al principio», modo ligero (Firefox y PCs modestos), atajos
   (?), «Volver arriba» y recientes en el buscador.
+- 1.8.0 Comodidad e intuitividad en todo: diagnóstico «¿Algo no funciona?»,
+  «Deshacer» e historial de cambios, clic derecho en Discord (sancionar, ficha,
+  reportar, ticket), `/ayuda` por categorías y comandos en español, errores con
+  solución, recordatorios y preferencias de cada miembro, música (sugerencias, votos,
+  letra, favoritas), avisos de eventos y sorteos, tickets sin respuesta y «está
+  escribiendo», buscador de ajustes, favoritos, ficha rápida, acciones en grupo,
+  crear canal/rol al vuelo, asistente de inicio, copiar ajustes a otro servidor,
+  ventana de novedades, letra grande/compacto/tema automático, avisos del navegador,
+  «Mi cuenta» con avisos y sanciones, y páginas públicas `/estado` y `/novedades`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

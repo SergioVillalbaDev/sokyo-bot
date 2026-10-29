@@ -3,11 +3,14 @@ const Usuario = require('../models/Usuario.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const { botonWeb } = require('../utils/cuenta.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('inventory')
-        .setDescription('Show your gold and the items you own'),
+        .setNameLocalizations(ES('inventario'))
+        .setDescription('Show your gold and the items you own')
+        .setDescriptionLocalizations(ES('Tu oro y los objetos que tienes')),
 
     async execute(interaction, client, cfg) {
         await economia.obtenerUsuario(interaction.user.id); // lo crea si es nuevo

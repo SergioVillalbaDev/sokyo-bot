@@ -1,11 +1,14 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { formatDuration, COLOR_MUSICA } = require('../utils/musica.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('nowplaying')
-        .setDescription('Show the song that’s playing right now'),
+        .setNameLocalizations(ES('sonando'))
+        .setDescription('Show the song that’s playing right now')
+        .setDescriptionLocalizations(ES('Lo que suena ahora, con sus botones')),
 
     async execute(interaction, client, cfg) {
         const player = client.lavalink.getPlayer(interaction.guildId);

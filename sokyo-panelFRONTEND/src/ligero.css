@@ -36,3 +36,7 @@ html.sk-ligero .sk-dash .sk-flotante { background-image: none; background-color:
 /* «Mi cuenta» */
 html.sk-ligero .gx-card { background: var(--gx-vidrio), rgba(17, 12, 38, .72); }
 html.sk-ligero .gx-velo { background: rgba(3, 2, 10, .86); }
+
+/* Tamaño de letra elegido en Preferencias (todo va en rem: crece todo a la vez). */
+html.sk-letra-grande { font-size: 112.5%; }
+html.sk-letra-muy-grande { font-size: 125%; }

@@ -16,6 +16,7 @@ import {
   PartyPopper, TrendingUp, Gift, CalendarDays, BarChart2, Lightbulb, ClipboardList, Gamepad2,
   Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
+  Stethoscope, FileClock,
 } from 'lucide-react';
 
 export const navSections = [
@@ -127,10 +128,12 @@ export const navGroups = [
     icon: Settings,
     color: '#94a3b8',
     items: [
+      { tab: 'config-diagnostico', icon: Stethoscope, kw: 'diagnostico por que no funciona no va error fallo problema permisos arreglar ayuda roto troubleshoot not working broken fix diagnose' },
       { tab: 'config-canales', icon: FolderTree, area: 'config', kw: 'canales categorias crear canal voz texto foro channels categories' },
       { tab: 'config-expresiones', icon: Smile, area: 'config', kw: 'emojis stickers expresiones' },
       { tab: 'config-acceso', icon: KeyRound, area: 'config', kw: 'acceso permisos staff quien entra al panel roles del panel access permissions' },
       { tab: 'config-textos', icon: Type, area: 'config', kw: 'comandos prefijo idioma textos marca blanca commands prefix language' },
+      { tab: 'config-cambios', icon: FileClock, area: 'config', kw: 'historial de cambios quien cambio deshacer volver atras restaurar como estaba auditoria change history undo revert who changed' },
       { tab: 'seg-backup', icon: DatabaseBackup, area: 'config', premium: true, kw: 'copia de seguridad backup exportar importar' },
       { tab: 'cuenta-plan', icon: Crown, area: 'cuenta', kw: 'plan premium pro suscripcion pagar factura precio billing subscription' },
       { tab: 'config-app', icon: Smartphone, kw: 'app movil android apk iphone ipad ios descargar instalar telefono celular mobile phone download install' },

@@ -485,4 +485,6 @@ module.exports = {
     SLUG_RE, MAX_ETIQUETAS, slugDe, slugValido, limpiarEtiquetas, esc, urlBase,
     asegurarInvitacion, canalParaInvitar, datosServidor, datosDirectorio, olvidarDirectorio, filtrarDirectorio, contarVisita,
     paginaServidor, paginaDirectorio, paginaNoEncontrada,
+    // para otras páginas públicas con el mismo aspecto (utils/paginasEstado.js)
+    documento, cabecera, pie, TEXTO,
 };

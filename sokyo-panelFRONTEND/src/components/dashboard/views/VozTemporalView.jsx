@@ -7,6 +7,7 @@ import {
   Mic2, Save, Check, Plus, Trash2, RefreshCw, Send, Lock, Eye, Users, X, Crown, Sparkles,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const inputCls = 'rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand/50';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -299,6 +300,7 @@ export default function VozTemporalView({ dash }) {
             <select value={f.panelCanalId} onChange={(e) => set('panelCanalId', e.target.value)} className={inputCls}>
               <option value="">{t('dashboard.voztemporal_v.pickText')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           </label>
         </div>

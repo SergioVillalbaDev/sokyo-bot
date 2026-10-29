@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck, Sparkles, Plus, X, Send, ArrowRight } from 'lucide-react';
 import { CierrePicker, SubirImagen } from './comunidadShared.jsx';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -259,6 +260,7 @@ export default function SorteosView({ dash }) {
             <select value={canalId} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={input}>
               <option value="">{t('dashboard.sorteos_v.channelPh')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           </label>
           <div className="block">
@@ -292,6 +294,7 @@ export default function SorteosView({ dash }) {
             <select value={rolRequerido} onChange={(e) => setRolRequerido(e.target.value)} className={input}>
               <option value="">{t('dashboard.sorteos_v.roleReqNone')}</option>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+              <OpcionCrear tipo="rol" />
             </select>
           </label>
 
@@ -311,6 +314,7 @@ export default function SorteosView({ dash }) {
                   <select value={m.rolId} onChange={(e) => setMulti(i, 'rolId', e.target.value)} className={`${input} flex-1`}>
                     <option value="">{t('dashboard.sorteos_v.pickRole')}</option>
                     {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                    <OpcionCrear tipo="rol" />
                   </select>
                   <div className="flex items-center gap-1">
                     <span className="text-sm text-muted">×</span>

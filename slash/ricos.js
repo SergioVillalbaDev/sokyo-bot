@@ -1,11 +1,14 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('rich')
-        .setDescription('Leaderboard of the adventurers with the most gold'),
+        .setNameLocalizations(ES('ricos'))
+        .setDescription('Leaderboard of the adventurers with the most gold')
+        .setDescriptionLocalizations(ES('Quién tiene más oro en el servidor')),
 
     async execute(interaction, client, cfg) {
         const top = await economia.topRicos(10);

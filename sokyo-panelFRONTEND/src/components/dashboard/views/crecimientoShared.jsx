@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Save, Check, Loader2, AlertTriangle, Info } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 export const tarjeta = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 export const campo = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 disabled:opacity-50';
@@ -44,6 +45,7 @@ export function SelectCanal({ canales = [], value, onChange, vacio }) {
     <select value={value || ''} onChange={(e) => onChange(e.target.value)} className={campo}>
       <option value="">{vacio || t('dashboard.crec_v.pickChannel')}</option>
       {canales.map((c) => <option key={c.id} value={c.id}># {c.nombre || c.name}</option>)}
+      <OpcionCrear tipo="canal" />
     </select>
   );
 }

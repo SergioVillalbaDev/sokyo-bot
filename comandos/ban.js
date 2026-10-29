@@ -2,6 +2,7 @@ const { aplicarComando, parseDuracion } = require('../utils/modCommands.js');
 
 module.exports = {
     name: 'ban',
+    aliases: ['banear'], // en español también
     description: 'Bans a user. Usage: !ban @user [time] [reason]',
 
     async execute(message, args, client) {

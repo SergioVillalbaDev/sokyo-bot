@@ -9,6 +9,7 @@ import {
 import { Toggle } from '../../ui/primitives';
 import { EmojiPicker } from '../../ui/EmojiPicker';
 import { API_URL } from '../../../lib/api';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -189,6 +190,7 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
             <select value={channelId} onChange={(e) => setChannelId(e.target.value)} className={inputCls}>
               <option value="">{t('dashboard.paneles_v.noChannel')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           </div>
           <div>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ThumbsUp, ThumbsDown, Trash2, Info, Check, X, Clock, Eye } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -78,6 +79,7 @@ export default function SugerenciasView({ dash }) {
         <select value={canalSugs} onChange={(e) => setCanalSugs(e.target.value)} className={`${input} mb-3`}>
           <option value="">{t('dashboard.sugerencias_v.channelPh')}</option>
           {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          <OpcionCrear tipo="canal" />
         </select>
 
         {/* Modo de envío */}

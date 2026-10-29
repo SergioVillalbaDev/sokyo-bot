@@ -1,37 +1,28 @@
-const Recordatorio = require('../models/Recordatorio.js');
-const { parseDuracion, formatoDuracion } = require('../utils/duracion.js');
-const { t } = require('../utils/i18n.js');
+const { crearRecordatorio, textoCreado } = require('../utils/recordatorios.js');
+const { idiomaMiembro } = require('../utils/preferencias.js');
 
 module.exports = {
     name: 'remind',
+    aliases: ['recordar', 'recordatorio'], // en español también
     description: 'Create a reminder. Usage: !remind 2h take out the trash (supports s, m, h, d).',
 
     async execute(message, args, client, cfg) {
+        const idioma = await idiomaMiembro(message.author.id, { cfg });
         try {
-            const ms = parseDuracion(args[0]);
-            if (!ms || ms < 5000) {
-                return message.reply(t(cfg, '❌ Indica un tiempo válido. Ej.: `!remind 2h mirar el correo` (usa s, m, h, d).', '❌ Provide a valid time. e.g. `!remind 2h check the mail` (use s, m, h, d).'));
-            }
-            if (ms > 365 * 24 * 60 * 60 * 1000) {
-                return message.reply(t(cfg, '❌ El máximo son 365 días.', '❌ The maximum is 365 days.'));
-            }
-
             const texto = args.slice(1).join(' ').slice(0, 1500);
-            const fechaAviso = new Date(Date.now() + ms);
-
-            await Recordatorio.create({
+            const r = await crearRecordatorio({
                 guildId: message.guild ? message.guild.id : null,
                 canalId: message.channel.id,
                 userId: message.author.id,
                 userTag: message.author.tag,
-                mensaje: texto,
-                fechaAviso,
-            });
-
-            await message.reply(t(cfg, `⏰ Te lo recordaré dentro de **${formatoDuracion(ms)}**${texto ? `: "${texto}"` : ''}.`, `⏰ I’ll remind you in **${formatoDuracion(ms)}**${texto ? `: "${texto}"` : ''}.`));
+                cuando: args[0], texto,
+            }, idioma);
+            if (!r.ok) return message.reply(r.error);
+            await message.reply(textoCreado(r, texto, false, idioma));
         } catch (e) {
             console.error('Error en !remind:', e);
-            await message.reply(t(cfg, '❌ No he podido crear el recordatorio.', '❌ I couldn’t create the reminder.')).catch(() => {});
+            const { t } = require('../utils/i18n.js');
+            await message.reply(t(idioma, '❌ No he podido crear el recordatorio.', '❌ I couldn’t create the reminder.')).catch(() => {});
         }
     },
 };

@@ -7,6 +7,7 @@ const { t } = require('../utils/i18n.js');
 
 module.exports = {
     name: 'activity',
+    aliases: ['actividad'], // en español también
     description: 'Show a user’s activity. Usage: !activity @user',
 
     async execute(message, args, client) {

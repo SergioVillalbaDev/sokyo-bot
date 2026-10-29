@@ -194,6 +194,7 @@ export default {
         'prod-anuncios': 'Scheduled announcements', 'prod-embeds': 'Message creator', 'prod-autorespuestas': 'Auto-replies',
         'datos-analitica': 'Analytics', 'datos-resumen': 'Daily report', 'logs-todos': 'Activity log',
         'config-canales': 'Categories & channels', 'config-expresiones': 'Emojis & stickers', 'config-acceso': 'Panel access', 'config-textos': 'Commands & prefix', 'seg-backup': 'Backup', 'cuenta-plan': 'Plan & billing', 'config-app': 'Mobile app',
+        'config-diagnostico': 'Something not working?', 'config-cambios': 'Change history',
       },
     },
     app: {
@@ -418,6 +419,8 @@ export default {
           { label: 'Server directory', href: '/servidores' },
         ] },
         { title: 'Legal & help', links: [
+          { label: 'Bot status', href: '/estado?lang=en' },
+          { label: 'What’s new', href: '/novedades?lang=en' },
           { label: 'Terms of service', href: '#legal/terminos' },
           { label: 'Privacy policy', href: '#legal/privacidad' },
           { label: 'Contact us', href: 'mailto:soporte@sokyo.studio' },
@@ -446,6 +449,7 @@ export default {
       fastPost: 'in any server with Sokyo and you’ll be in with a single click, no passwords.',
     },
     header: {
+      ganaste: '🎉 You won {{premio}}!', preferencias: 'My notices & sanctions',
       brand: 'My account', logout: 'Log out', home: 'Home', homeTitle: 'Back to the Sokyo website',
       panel: 'Control panel (admins)', panelShort: 'Panel',
       searchTitle: 'What do you want to do? (Ctrl + K)', notifications: 'Notifications', allCaughtUp: 'All caught up. We’ll let you know when someone replies.',
@@ -612,7 +616,21 @@ export default {
       offerTitle: 'Flash sale', offerDesc: 'Discount one of the items you created for a while.',
       offerNone: 'You haven’t created any items yet.', offerItem: 'Item', offerPct: 'Discount (%)', offerMin: 'Duration (min)', offerBtn: 'Launch offer',
     },
+    ajustes: {
+      title: 'My notices & sanctions', subtitle: 'What the bot sends you by DM, which language it speaks to you in and your history on the servers.',
+      guardado: 'Saved', dmsTitle: 'Direct message notices', dmsDesc: 'They apply on every server with Sokyo (same as /preferences in Discord).',
+      dms: { anuncios: 'Bot announcements', tickets: 'Replies in my tickets', niveles: 'Level ups', sorteos: 'Giveaways I win' },
+      dmsHint: { anuncios: 'Bot news and server notices.', tickets: 'When the staff replies to you from the panel.', niveles: 'If the server sends level ups by DM.', sorteos: 'A DM if you win a prize.' },
+      idioma: 'Bot language with you', idiomas: { auto: 'My Discord’s', es: 'Español', en: 'English' },
+      sorteosTitle: 'Giveaways you won', sorteoComo: 'Talk to that server’s staff to get the prize.', verEnDiscord: 'View in Discord',
+      sancionesTitle: 'My sanctions', sancionesDesc: 'Warnings, timeouts, kicks and bans you got on servers with Sokyo.',
+      sinSanciones: 'Nothing here', sinSancionesDesc: 'You have no sanctions. Keep it up!',
+      acciones: { aviso: 'Warning', timeout: 'Timeout', expulsion: 'Kick', ban: 'Ban' },
+      estados: { activa: 'In force', terminada: 'Over', quitada: 'Removed by the staff', registrada: 'Recorded' },
+      hasta: 'Until {{fecha}}', sancionesNota: 'Think it’s a mistake? Open a ticket on that server and tell the staff.',
+    },
     palette: {
+      ajustes: 'My notices, preferences and sanctions',
       placeholder: 'What do you want to do?',
       nothing: 'Nothing matches that.',
       home: 'Go home', tickets: 'See my tickets', shop: 'Open the shop', bag: 'See my bag',

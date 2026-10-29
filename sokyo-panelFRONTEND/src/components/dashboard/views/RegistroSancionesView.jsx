@@ -7,6 +7,8 @@ import { History, Hash, Save, Check, Search, Undo2, Clock, MessageSquare } from 
 import { Avatar, Badge, Toggle } from '../../ui/primitives';
 import { ACCIONES, accionMeta, textoDuracion } from '../../../lib/sanciones';
 import { API_URL } from '../../../lib/api';
+import FichaRapida from '../FichaRapida';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -85,6 +87,7 @@ export default function RegistroSancionesView({ dash }) {
         <select value={canalValor} onChange={(e) => { setCanalSel(e.target.value); setGuardado(false); }} className={inputCls}>
           <option value="">{t('dashboard.mod_v.modLogNone')}</option>
           {canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+          <OpcionCrear tipo="canal" />
         </select>
 
         {/* Aviso por MD al usuario sancionado */}
@@ -144,7 +147,7 @@ export default function RegistroSancionesView({ dash }) {
                     {s.revocada && <Badge>{t('dashboard.mod_v.revoked')}</Badge>}
                     <span className="ml-auto text-xs text-muted">{new Date(s.fecha).toLocaleString('es-ES')}</span>
                   </div>
-                  <p className="mt-1 text-sm text-fg">{s.usuarioTag} <span className="font-mono text-xs text-muted">({s.usuarioId})</span></p>
+                  <p className="mt-1 text-sm text-fg"><FichaRapida userId={s.usuarioId} guildId={dash.guildId}><span>{s.usuarioTag}</span></FichaRapida> <span className="font-mono text-xs text-muted">({s.usuarioId})</span></p>
                   {s.motivo && <p className="mt-1 text-sm text-muted">{s.motivo}</p>}
                   <p className="mt-1 text-[11px] text-muted">{t('dashboard.mod_v.by')} {s.moderadorTag}{s.revocada ? ` · ${t('dashboard.mod_v.revoked')} ${s.revocadaPor || ''}` : ''}</p>
                   {s.pruebas?.length > 0 && (

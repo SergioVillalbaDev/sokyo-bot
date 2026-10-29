@@ -180,7 +180,12 @@ async function anunciar(guild, member, cfg, nivel, canalFallback, tarjeta) {
     const payload = { content: texto };
     if (tarjeta) payload.files = [tarjeta];
 
-    if (tipo === 'dm') { await member.send(payload).catch(() => {}); return; }
+    if (tipo === 'dm') {
+        // Quien apagó las subidas de nivel en /preferencias no recibe el privado.
+        const { quiereDM } = require('./preferencias.js');
+        if (await quiereDM(member.id, 'niveles')) await member.send(payload).catch(() => {});
+        return;
+    }
     const canal = cfg.canalNivelesId ? guild.channels.cache.get(cfg.canalNivelesId) : canalFallback;
     if (canal) await canal.send(payload).catch(() => {});
 }

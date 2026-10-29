@@ -44,11 +44,30 @@ module.exports = function montarPaginaPublica(app, client) {
         }
     });
 
+    // ¿Funciona Sokyo ahora mismo? y las novedades de cada versión.
+    app.get('/estado', limitador, (req, res) => {
+        try {
+            res.status(200).set('Content-Type', 'text/html; charset=utf-8').set('Cache-Control', 'no-store')
+                .send(require('../utils/paginasEstado.js').paginaEstado(client, { lang: idiomaDe(req), base: pagina.urlBase(req) }));
+        } catch (e) {
+            console.error('Página de estado:', e.message);
+            enviar(res, 500, pagina.paginaNoEncontrada(idiomaDe(req)));
+        }
+    });
+    app.get('/novedades', limitador, (req, res) => {
+        try {
+            enviar(res, 200, require('../utils/paginasEstado.js').paginaNovedades({ lang: idiomaDe(req), base: pagina.urlBase(req) }), 300);
+        } catch (e) {
+            console.error('Página de novedades:', e.message);
+            enviar(res, 500, pagina.paginaNoEncontrada(idiomaDe(req)));
+        }
+    });
+
     app.get('/sitemap.xml', limitador, async (req, res) => {
         try {
             const base = pagina.urlBase(req);
             const lista = await pagina.datosDirectorio(client);
-            const urls = [`${base}/`, `${base}/servidores`, ...lista.map((s) => `${base}/s/${s.slug}`)];
+            const urls = [`${base}/`, `${base}/servidores`, `${base}/novedades`, `${base}/estado`, ...lista.map((s) => `${base}/s/${s.slug}`)];
             const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
                 .map((u) => `  <url><loc>${pagina.esc(u)}</loc></url>`).join('\n')}\n</urlset>\n`;
             res.set('Content-Type', 'application/xml; charset=utf-8').set('Cache-Control', 'public, max-age=3600').send(xml);

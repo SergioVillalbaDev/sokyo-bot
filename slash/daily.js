@@ -2,11 +2,14 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder } = require('discord
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const { botonWeb } = require('../utils/cuenta.js');
+const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('daily')
-        .setDescription('Claim your daily gold reward (with streak)'),
+        .setNameLocalizations(ES('diario'))
+        .setDescription('Claim your daily gold reward (with streak)')
+        .setDescriptionLocalizations(ES('Recoge tu oro de cada día (con racha)')),
 
     async execute(interaction, client, cfg) {
         const r = await economia.reclamarDaily(interaction.user.id);

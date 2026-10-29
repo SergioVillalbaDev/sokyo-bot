@@ -9,6 +9,7 @@ import { Card, Toggle } from '../../ui/primitives';
 import { apiFetch, getStaffSession } from '../../../lib/api';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const VERDE = '#1db954';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -533,6 +534,7 @@ export default function MusicaView({ dash }) {
               className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg">
               <option value="">{t('dashboard.music_v.auto')}</option>
               {(canales || []).map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           </Ajuste>
 
@@ -541,6 +543,7 @@ export default function MusicaView({ dash }) {
               className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg">
               <option value="">{t('dashboard.music_v.anyone')}</option>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+              <OpcionCrear tipo="rol" />
             </select>
           </Ajuste>
 

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic } from 'lucide-react';
 import { FechaPicker, SubirImagen } from './comunidadShared.jsx';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -173,6 +174,7 @@ export default function EventosView({ dash }) {
             <select value={canalId} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={input}>
               <option value="">{t('dashboard.eventos_v.channelPh')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           </label>
           <div className="block">

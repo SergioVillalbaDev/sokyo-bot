@@ -15,6 +15,9 @@ const EventoSchema = new mongoose.Schema({
     recordatorio: { type: Number, default: 0 },        // minutos antes para avisar (0 = sin recordatorio)
     recordatorioEnviado: { type: Boolean, default: false },
     asistentes: { type: Number, default: 0 },
+    // Quien pulsó «🔔 Avisarme» en el anuncio: recibe un privado antes de empezar.
+    interesados: { type: [String], default: [] },
+    avisoInteresadosEnviado: { type: Boolean, default: false },
     creadoPor: { type: String, default: 'Panel Web' },
     creadoFecha: { type: Date, default: Date.now },
 });
