@@ -409,6 +409,24 @@ async function publicarEvento(client, e) {
     return true;
 }
 
+// Privado a cada persona que pulsó «🔔 Avisarme» (despacio, sin parecer spam).
+async function avisarInteresados(client, e) {
+    const { idiomaMiembro } = require('./preferencias.js');
+    const cfg = await getConfigCached(e.guildId).catch(() => null);
+    const guild = client.guilds.cache.get(e.guildId);
+    const cuando = `<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:R>`;
+    const enlace = e.mensajeId ? `\nhttps://discord.com/channels/${e.guildId}/${e.canalId}/${e.mensajeId}` : '';
+    for (const uid of e.interesados.slice(0, 500)) {
+        const user = await client.users.fetch(uid).catch(() => null);
+        if (!user) continue;
+        const idioma = await idiomaMiembro(uid, { cfg });
+        await user.send(t(idioma,
+            `🔔 El evento **${e.titulo}**${guild ? ` de **${guild.name}**` : ''} empieza ${cuando}.${enlace}`,
+            `🔔 The event **${e.titulo}**${guild ? ` on **${guild.name}**` : ''} starts ${cuando}.${enlace}`)).catch(() => {});
+        await new Promise((r) => setTimeout(r, 300));
+    }
+}
+
 // Botón «🔔 Avisarme» del anuncio: apuntarse o borrarse del aviso.
 async function manejarAvisoEvento(interaction) {
     const { idiomaInteraccion } = require('./preferencias.js');
@@ -814,20 +832,8 @@ async function barrerComunidad(client) {
         if (avisoEn > ahora) continue;
         e.avisoInteresadosEnviado = true;
         await e.save().catch(() => {});
-        const { idiomaMiembro } = require('./preferencias.js');
-        const cfg = await getConfigCached(e.guildId).catch(() => null);
-        const guild = client.guilds.cache.get(e.guildId);
-        const cuando = `<t:${Math.floor(new Date(e.fechaInicio).getTime() / 1000)}:R>`;
-        const enlace = e.mensajeId ? `\nhttps://discord.com/channels/${e.guildId}/${e.canalId}/${e.mensajeId}` : '';
-        for (const uid of e.interesados.slice(0, 500)) {
-            const user = await client.users.fetch(uid).catch(() => null);
-            if (!user) continue;
-            const idioma = await idiomaMiembro(uid, { cfg });
-            await user.send(t(idioma,
-                `🔔 El evento **${e.titulo}**${guild ? ` de **${guild.name}**` : ''} empieza ${cuando}.${enlace}`,
-                `🔔 The event **${e.titulo}**${guild ? ` on **${guild.name}**` : ''} starts ${cuando}.${enlace}`)).catch(() => {});
-            await new Promise((r) => setTimeout(r, 300)); // sin parecer spam
-        }
+        // Aparte, sin esperar: con cientos de apuntados no debe frenar los demás avisos.
+        avisarInteresados(client, e).catch((err) => console.error('Avisos de evento:', err.message));
     }
 
     // Recordatorios de eventos (X min antes del inicio).

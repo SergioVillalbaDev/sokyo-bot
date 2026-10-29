@@ -24,8 +24,19 @@ describe('historial de cambios', () => {
         const despues = { prefijo: '?', bienvenida: { activo: false }, plan: 'pro', iaUsos: 2 };
         assert.deepStrictEqual(diferencias(antes, despues), ['prefijo']);
     });
+    it('mira cada ajuste por separado y nunca lo que el bot lleva por su cuenta', () => {
+        const antes = { bienvenida: { activo: false, canalId: '1' }, crecimiento: { pagina: { visitas: 3, slug: 'a' }, bump: { proximoBump: 1 } }, dinamicas: { qotd: { lastDia: 'x' } } };
+        const despues = { bienvenida: { activo: true, canalId: '1' }, crecimiento: { pagina: { visitas: 9, slug: 'a' }, bump: { proximoBump: 2 } }, dinamicas: { qotd: { lastDia: 'y' } } };
+        assert.deepStrictEqual(diferencias(antes, despues), ['bienvenida.activo']);
+    });
     it('un campo que aparece vacío no es un cambio', () => {
         assert.deepStrictEqual(diferencias({ a: 1 }, { a: 1, b: null }), []);
+    });
+    it('copiar no se lleva el estado de los juegos ni los hitos del otro servidor', () => {
+        const { remapearIds: r } = require('../utils/copiarConfig.js');
+        const vacio = (id) => ({ id, channels: { cache: new Collection() }, roles: { cache: new Collection() } });
+        const { cfg } = r({ dinamicas: { qotd: { activo: true, lastDia: '2026-01-01', idx: 3 }, logros: { anunciados: ['m100'] } } }, vacio('1'), vacio('2'));
+        assert.deepStrictEqual(cfg.dinamicas, { qotd: { activo: true }, logros: {} });
     });
     it('encuentra el servidor de la petición (ruta, query, cuerpo y copiar a otro)', () => {
         const id = '123456789012345678';
@@ -63,16 +74,16 @@ describe('copiar ajustes a otro servidor', () => {
     it('quita de las listas lo que se queda sin rol y no copia mensajes del otro servidor', () => {
         const { cfg } = remapearIds({ recompensasNivel: [{ nivel: 5, rolId: '300000000000000002' }, { nivel: 10, rolId: '300000000000000001' }], verificacion: { mensajeId: '555555555555555555' } }, origen, destino);
         assert.deepStrictEqual(cfg.recompensasNivel, [{ nivel: 10, rolId: '800000000000000001' }]);
-        assert.strictEqual(cfg.verificacion.mensajeId, null);
+        assert.strictEqual(cfg.verificacion.mensajeId, undefined, 'el mensaje publicado es del otro servidor');
     });
     it('los identificadores de la base de datos y las fechas se copian tal cual', () => {
         const { Types } = require('mongoose');
         const id = new Types.ObjectId();
         const fecha = new Date('2026-01-01');
-        const { cfg } = remapearIds({ urgencias: [{ _id: id, nombre: 'Urgent', nivel: 4 }], crecimiento: { bump: { proximoBump: fecha } } }, origen, destino);
+        const { cfg } = remapearIds({ urgencias: [{ _id: id, nombre: 'Urgent', nivel: 4 }], resumenDiario: { desde: fecha } }, origen, destino);
         assert.ok(cfg.urgencias[0]._id instanceof Types.ObjectId);
         assert.strictEqual(String(cfg.urgencias[0]._id), String(id));
-        assert.ok(cfg.crecimiento.bump.proximoBump instanceof Date);
+        assert.ok(cfg.resumenDiario.desde instanceof Date);
     });
     it('los usuarios se quedan como están', () => {
         const { cfg } = remapearIds({ resumenDiario: { destinatarioId: '777777777777777777' } }, origen, destino);

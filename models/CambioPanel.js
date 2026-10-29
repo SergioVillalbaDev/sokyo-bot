@@ -9,9 +9,9 @@ const CambioPanelSchema = new mongoose.Schema({
     usuarioNombre: { type: String, default: '' },
     fecha: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 90 },
     secciones: { type: [String], default: [] }, // pestañas del panel (navConfig.js) afectadas
-    claves: { type: [String], default: [] },    // campos de ServidorConfig que cambiaron
-    antes: { type: mongoose.Schema.Types.Mixed, default: {} },
-    despues: { type: mongoose.Schema.Types.Mixed, default: {} },
+    claves: { type: [String], default: [] },    // ajustes que cambiaron ('bienvenida.canalId', 'autoRoles'…)
+    antes: { type: [mongoose.Schema.Types.Mixed], default: [] },   // su valor antes, en el orden de `claves`
+    despues: { type: [mongoose.Schema.Types.Mixed], default: [] }, // y después
     // Si es un «deshacer», a qué cambio deshace. Si lo han deshecho, quién y cuándo.
     deshaceA: { type: mongoose.Schema.Types.ObjectId, default: null },
     deshechoPor: { type: String, default: null },

@@ -153,15 +153,18 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   }, []);
 
   // Avisos del navegador: ticket nuevo, respuesta en un ticket o reporte nuevo
-  // (con la lista que el panel ya refresca cada 30 s). La primera carga no avisa.
-  const vistos = useRef({ guild: null, tickets: null, reportes: null });
+  // (con la lista que el panel ya refresca cada 30 s). Nada más abrir el panel o
+  // cambiar de servidor, unos segundos sin avisar: lo que llega entonces es lo que
+  // ya había (si no, salían todos los tickets abiertos de golpe).
+  const vistos = useRef({ guild: null, desde: 0, tickets: null, reportes: null });
+  const CALMA_MS = 12000;
   const navigateRef = useRef(null);
   useEffect(() => {
     const v = vistos.current;
-    if (v.guild !== guildId) { v.guild = guildId; v.tickets = null; v.reportes = null; }
+    if (v.guild !== guildId) { v.guild = guildId; v.desde = Date.now(); v.tickets = null; v.reportes = null; }
     const tks = dash.ticketsReales || [];
     const ahora = new Map(tks.filter((tk) => tk.estado !== 'Cerrado').map((tk) => [tk.canalId, tk.ultimoMensajeUsuario || tk.fechaCreacion || '']));
-    if (v.tickets) {
+    if (v.tickets && Date.now() - v.desde > CALMA_MS) {
       const enOtraCosa = document.visibilityState === 'hidden' || activeTab !== 'tickets-gestion';
       for (const tk of tks) {
         if (tk.estado === 'Cerrado') continue;
@@ -180,7 +183,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
   useEffect(() => {
     const v = vistos.current;
     const ids = new Set((dash.reportes || []).map((r) => r._id));
-    if (v.reportes) {
+    if (v.reportes && Date.now() - v.desde > CALMA_MS) {
       for (const r of dash.reportes || []) {
         if (!v.reportes.has(r._id) && r.estado !== 'resuelto' && r.estado !== 'descartado') {
           avisar(t('dashboard.avisos.reporte'), `${r.reportadoTag || ''}${r.motivo ? `: ${r.motivo}` : ''}`, { tag: `rep-${r._id}`, alPulsar: () => navigateRef.current?.('mod-reportes') });

@@ -180,16 +180,23 @@ async function diagnosticar(client, guildId, cfg, idioma) {
     return { comprobados, problemas };
 }
 
-// Arreglos con un botón: quitar de la configuración algo que ya no existe.
-async function arreglar(guildId, arreglo) {
+// Arreglos con un botón: quitar de la configuración algo que ya no existe (solo
+// si de verdad ya no existe: lo que sigue en el servidor no se toca desde aquí).
+async function arreglar(client, guildId, arreglo) {
     const ServidorConfig = require('../models/ServidorConfig.js');
     const rutasValidas = new Set([...REFERENCIAS.map((r) => r[0]), ...LISTAS_ROLES.map((r) => r[0])]);
     if (!arreglo || !rutasValidas.has(arreglo.ruta)) return { ok: false };
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return { ok: false };
+    const existe = (id) => !!id && (guild.channels.cache.has(id) || guild.roles.cache.has(id));
     if (arreglo.accion === 'quitar') {
+        const cfg = await ServidorConfig.findOne({ guildId }).lean();
+        if (existe(leer(cfg, arreglo.ruta))) return { ok: false };
         await ServidorConfig.updateOne({ guildId }, { $set: { [arreglo.ruta]: null } });
         return { ok: true };
     }
     if (arreglo.accion === 'quitarDeLista' && typeof arreglo.valor === 'string') {
+        if (existe(arreglo.valor)) return { ok: false };
         const lista = LISTAS_ROLES.find((r) => r[0] === arreglo.ruta);
         const pull = lista[1] ? { [arreglo.ruta]: { [lista[1]]: arreglo.valor } } : { [arreglo.ruta]: arreglo.valor };
         await ServidorConfig.updateOne({ guildId }, { $pull: pull });

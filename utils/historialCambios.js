@@ -9,12 +9,7 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const CambioPanel = require('../models/CambioPanel.js');
 const { invalidateConfig } = require('./config.js');
 
-// Campos que no son ajustes de nadie (contadores, facturación, marcas internas).
-const IGNORADAS = new Set([
-    '_id', '__v', 'guildId', 'createdAt', 'updatedAt', 'ultimaVersionAnunciada', 'autoAsignarIndex',
-    'iaUsos', 'iaMesRef', 'esPremium', 'plan', 'premiumHasta', 'premiumCancelaAlFinal',
-    'stripeCustomerId', 'stripeSubscriptionId', 'soporteCompradorId', 'trialUsado', 'panelCuenta',
-]);
+const { esInterno, aplanar, leerRuta } = require('./camposInternos.js');
 
 // Sección del panel (tab de navConfig.js) donde se cambia cada campo.
 const SECCION = {
@@ -44,23 +39,27 @@ const SECCION = {
     rolesPanelAcceso: 'config-acceso', rolesModeracion: 'config-acceso', accesoAreas: 'config-acceso',
     resumenDiario: 'datos-resumen', crecimiento: 'crec-invitaciones',
 };
-const seccionDe = (clave) => SECCION[clave] || 'inicio';
+// La sección se mira por la raíz de la ruta ('bienvenida.canalId' -> bienvenida).
+const raiz = (ruta) => String(ruta).split('.')[0];
+const seccionDe = (ruta) => SECCION[raiz(ruta)] || 'inicio';
 
-// Campos que no se pueden deshacer desde aquí (dar o quitar acceso al panel lo
+// Ajustes que no se pueden deshacer desde aquí (dar o quitar acceso al panel lo
 // decide solo un administrador, en su sección).
 const NO_DESHACER = new Set(['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']);
 
 const firma = (v) => JSON.stringify(v === undefined ? null : v);
+const valor = (obj, ruta) => { const v = leerRuta(obj, ruta); return v === undefined ? null : v; };
+// Lo guardado en el cambio para cada ruta (antes era un objeto por clave; ahora, una lista).
+const guardado = (lista, claves, k) => (Array.isArray(lista) ? lista[claves.indexOf(k)] : lista?.[k]) ?? null;
 
-// Campos que cambian entre dos versiones de la configuración.
+// Ajustes que cambian entre dos versiones de la configuración, uno a uno
+// ('bienvenida.canalId', 'autoRoles'…): así deshacer uno no toca lo demás de
+// su bloque (ni lo que el bot va apuntando por su cuenta, que no se mira).
 function diferencias(antes = {}, despues = {}) {
-    const claves = new Set([...Object.keys(antes || {}), ...Object.keys(despues || {})]);
-    const out = [];
-    for (const k of claves) {
-        if (IGNORADAS.has(k)) continue;
-        if (firma(antes?.[k]) !== firma(despues?.[k])) out.push(k);
-    }
-    return out;
+    const a = aplanar(antes || {});
+    const d = aplanar(despues || {});
+    const rutas = new Set([...Object.keys(a), ...Object.keys(d)]);
+    return [...rutas].filter((r) => !esInterno(r) && firma(a[r]) !== firma(d[r]));
 }
 
 // Servidor al que apunta una petición del panel (la misma regla que el acceso).
@@ -99,8 +98,8 @@ function middlewareHistorial() {
                     usuarioNombre: req.staff?.username || (req.staff ? '' : 'API'),
                     secciones: [...new Set(claves.map(seccionDe))],
                     claves,
-                    antes: Object.fromEntries(claves.map((k) => [k, antes[k] === undefined ? null : antes[k]])),
-                    despues: Object.fromEntries(claves.map((k) => [k, despues?.[k] === undefined ? null : despues[k]])),
+                    antes: claves.map((k) => valor(antes, k)),
+                    despues: claves.map((k) => valor(despues, k)),
                 });
                 return String(doc._id);
             })().catch((e) => { console.warn('Historial de cambios:', e.message); return null; });
@@ -132,23 +131,28 @@ async function listarCambios(guildId, { limite = 50, antesDe = null } = {}) {
 
 // Vuelve a dejar los campos de un cambio como estaban. Si alguno ha vuelto a
 // cambiar después, no se toca nada salvo que se pida `forzar` (se avisa antes).
-async function deshacerCambio(id, quien, { forzar = false } = {}) {
+async function deshacerCambio(id, quien, { forzar = false, comprobar = null } = {}) {
     const c = await CambioPanel.findById(id);
     if (!c) return { ok: false, codigo: 'no_existe' };
     if (c.deshechoEn) return { ok: false, codigo: 'ya_deshecho' };
-    const claves = c.claves.filter((k) => !NO_DESHACER.has(k));
+    const claves = c.claves.filter((k) => !NO_DESHACER.has(raiz(k)) && !esInterno(k));
     if (!claves.length) return { ok: false, codigo: 'no_se_puede' };
     const actual = await ServidorConfig.findOne({ guildId: c.guildId }).lean();
     if (!actual) return { ok: false, codigo: 'no_existe' };
-    const cambiadosDespues = claves.filter((k) => firma(actual[k]) !== firma(c.despues?.[k]));
+    const cambiadosDespues = claves.filter((k) => firma(valor(actual, k)) !== firma(guardado(c.despues, c.claves, k)));
     if (cambiadosDespues.length && !forzar) return { ok: false, codigo: 'cambiado_despues', claves: cambiadosDespues };
 
     const set = {};
     const unset = {};
     for (const k of claves) {
-        const v = c.antes?.[k];
+        const v = guardado(c.antes, c.claves, k);
         if (v === null || v === undefined) unset[k] = '';
         else set[k] = v;
+    }
+    // Quien llama puede negarse antes de escribir (p. ej. roles que no puede dar).
+    if (comprobar) {
+        const motivo = await comprobar({ actual, set, unset });
+        if (motivo) return { ok: false, codigo: 'sin_permiso', error: motivo };
     }
     const op = {};
     if (Object.keys(set).length) op.$set = set;
@@ -160,16 +164,19 @@ async function deshacerCambio(id, quien, { forzar = false } = {}) {
         guildId: c.guildId,
         usuarioId: quien?.id || null,
         usuarioNombre: quien?.username || '',
-        secciones: c.secciones,
+        secciones: [...new Set(claves.map(seccionDe))],
         claves,
-        antes: Object.fromEntries(claves.map((k) => [k, actual[k] === undefined ? null : actual[k]])),
-        despues: Object.fromEntries(claves.map((k) => [k, c.antes?.[k] ?? null])),
+        antes: claves.map((k) => valor(actual, k)),
+        despues: claves.map((k) => guardado(c.antes, c.claves, k)),
         deshaceA: c._id,
     });
     c.deshechoPor = quien?.username || quien?.id || '';
     c.deshechoEn = new Date();
     await c.save();
-    return { ok: true, id: String(nuevo._id), guildId: c.guildId, claves, omitidas: c.claves.filter((k) => NO_DESHACER.has(k)) };
+    return { ok: true, id: String(nuevo._id), guildId: c.guildId, claves, omitidas: c.claves.filter((k) => NO_DESHACER.has(raiz(k))) };
 }
 
-module.exports = { middlewareHistorial, listarCambios, deshacerCambio, diferencias, guildDeLaPeticion, seccionDe, IGNORADAS, NO_DESHACER };
+// Para enseñar un cambio: { ruta: valor } de antes y de después.
+const comoMapa = (c, lista) => Object.fromEntries(c.claves.map((k) => [k, guardado(lista, c.claves, k)]));
+
+module.exports = { middlewareHistorial, listarCambios, deshacerCambio, diferencias, guildDeLaPeticion, seccionDe, comoMapa, NO_DESHACER };

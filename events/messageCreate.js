@@ -86,14 +86,16 @@ module.exports = {
                 // ¿A quién le toca? Si escribe quien abrió el ticket, al staff (y se
                 // empieza a contar el tiempo sin respuesta); si escribe otra persona, ya
                 // está atendido. Lo que manda el propio bot (avisos, el panel) no cuenta.
+                // Los invitados al ticket (rol «Invitado») son del lado de quien lo abrió.
                 if (!message.author.bot) {
                     const ahora = new Date();
-                    const delCreador = await Ticket.updateOne(
-                        { canalId: message.channel.id, creadorId: message.author.id },
-                        { $set: { esperaRespuesta: true, ultimoMensajeUsuario: ahora, avisoSinRespuesta: null } },
-                    );
-                    if (!delCreador.matchedCount) {
-                        await Ticket.updateOne({ canalId: message.channel.id }, { $set: { esperaRespuesta: false, ultimaInteractStaff: ahora } });
+                    const tk = await Ticket.findOne({ canalId: message.channel.id }).select('creadorId participantes').lean();
+                    if (tk) {
+                        const delUsuario = tk.creadorId === message.author.id
+                            || (tk.participantes || []).some((p) => p && p.id === message.author.id && p.rol === 'Invitado');
+                        await Ticket.updateOne({ canalId: message.channel.id }, delUsuario
+                            ? { $set: { esperaRespuesta: true, ultimoMensajeUsuario: ahora, avisoSinRespuesta: null } }
+                            : { $set: { esperaRespuesta: false, ultimaInteractStaff: ahora } });
                     }
                 }
 

@@ -734,7 +734,7 @@ export default {
       vacio: '(nada)', si: 'Sí', no: 'No', algoBorrado: '(ya no existe)',
       elementos_one: '{{count}} elemento', elementos_other: '{{count}} elementos',
       ajustes_one: '{{count}} ajuste', ajustes_other: '{{count}} ajustes',
-      errores: { no_existe: 'Ese cambio ya no existe.', ya_deshecho: 'Ese cambio ya estaba deshecho.', no_se_puede: 'Este cambio no se puede deshacer desde aquí.', otro: 'No se ha podido deshacer. Prueba otra vez.' },
+      errores: { sin_permiso: 'No puedes deshacerlo: volvería a dar un rol que tú no puedes dar.', no_existe: 'Ese cambio ya no existe.', ya_deshecho: 'Ese cambio ya estaba deshecho.', no_se_puede: 'Este cambio no se puede deshacer desde aquí.', otro: 'No se ha podido deshacer. Prueba otra vez.' },
       campos: {
         activo: 'Encendido', canalId: 'Canal', rolId: 'Rol', mensaje: 'Mensaje', texto: 'Texto', titulo: 'Título', descripcion: 'Descripción', color: 'Color', imagen: 'Imagen',
         bienvenida: 'Bienvenida', despedida: 'Despedida', verificacion: 'Verificación', automod: 'Automoderador', musica: 'Música', reportes: 'Reportes', crecimiento: 'Crecimiento',

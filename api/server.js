@@ -35,7 +35,7 @@ const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../uti
 const { construirBuffer } = require('../utils/niveles.js');
 const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
 const cuenta = require('../utils/cuenta.js');
-const { errorRolesNuevos, errorJerarquiaStaff } = require('../utils/permisos.js');
+const { errorRolesNuevos, errorJerarquiaStaff, rolesQueDaElBot } = require('../utils/permisos.js');
 const billing = require('../utils/billing.js');
 const { limite } = require('../utils/limites.js');
 const { construirAnalitica } = require('../utils/analitica.js');
@@ -2089,14 +2089,6 @@ app.get('/api/stats/uso', async (req, res) => {
         if (!esAdmin) for (const k of ['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']) delete cambios[k];
         // Los roles que reparte el bot (autorol, recompensas, verificación…) siguen la
         // misma regla de jerarquía que al configurarlos uno a uno.
-        const rolesQueDaElBot = (c) => [
-            ...(c.autoRoles || []), ...(c.autoRolesBots || []),
-            ...(c.recompensasNivel || []).map((r) => r && r.rolId),
-            c.verificacion && c.verificacion.rolVerificadoId,
-            c.embudoAB && c.embudoAB.rolVerificadoId,
-            c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
-            ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
-        ].filter((x) => typeof x === 'string' && x);
         const actualCfg = (await ServidorConfig.findOne({ guildId }).lean()) || {};
         const errRoles = await errorRolesNuevos(client, req.staff, guildId, rolesQueDaElBot(entrante), rolesQueDaElBot(actualCfg));
         if (errRoles) return { status: 403, cuerpo: { error: errRoles } };
@@ -2111,9 +2103,18 @@ app.get('/api/stats/uso', async (req, res) => {
                 for (const [k, v] of Object.entries(valores)) cambios[`crecimiento.${sec}.${k}`] = v;
             }
         }
+        // Ajuste a ajuste (con puntos): así no se pisa lo que el bot lleva por su cuenta
+        // en este servidor (el estado de los juegos, del bump, mensajes publicados…).
+        const { aplanar, esInterno, esObjeto } = require('../utils/camposInternos.js');
+        const planos = {};
+        for (const [k, v] of Object.entries(cambios)) {
+            if (esInterno(k)) continue;
+            if (!k.includes('.') && esObjeto(v)) Object.assign(planos, aplanar(v, k));
+            else planos[k] = v;
+        }
         const config = await ServidorConfig.findOneAndUpdate(
             { guildId },
-            { $set: cambios },
+            { $set: planos },
             { returnDocument: 'after', upsert: true },
         );
         return { status: 200, cuerpo: { success: true, config } };

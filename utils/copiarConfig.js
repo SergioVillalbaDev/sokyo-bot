@@ -1,6 +1,8 @@
 // Copiar la configuración de un servidor a otro: los canales y roles se buscan
 // por su nombre en el servidor de destino (y, en los canales, también por tipo).
 // Lo que allí no existe se deja vacío y se cuenta, para avisar de qué falta.
+const { HOJAS_INTERNAS } = require('./camposInternos.js');
+
 const ES_ID = /^\d{15,22}$/;
 // Mensajes publicados en el servidor de origen: en el destino no existen.
 const ES_MENSAJE = /mensajeId$|MensajeId$|^ultimoAvisoId$|^invitacionCodigo$/;
@@ -43,7 +45,8 @@ function remapearIds(cfg, origen, destino) {
         // Solo se entra en los objetos normales: un ObjectId o una fecha van tal cual.
         if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
             const out = {};
-            for (const [k, x] of Object.entries(v)) out[k] = recorrer(x, k);
+            // Lo que lleva el bot por su cuenta (juegos, bump, hitos…) es del otro servidor: no se copia.
+            for (const [k, x] of Object.entries(v)) if (!HOJAS_INTERNAS.has(k)) out[k] = recorrer(x, k);
             return out;
         }
         return mapear(v);

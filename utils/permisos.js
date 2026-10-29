@@ -55,4 +55,18 @@ async function errorRolesNuevos(client, staff, guildId, pedidos, actuales) {
     return errorJerarquiaStaff(guild, staff, { roles, repartir: true });
 }
 
-module.exports = { miembroPuedeModerar, errorJerarquiaStaff, errorRolesNuevos };
+// Roles que reparte el bot según una configuración (autorol, recompensas de nivel
+// y de invitaciones, verificación, miembro de la semana): los que cuida la regla
+// de jerarquía al importar, copiar o deshacer.
+function rolesQueDaElBot(c = {}) {
+    return [
+        ...(c.autoRoles || []), ...(c.autoRolesBots || []),
+        ...(c.recompensasNivel || []).map((r) => r && r.rolId),
+        c.verificacion && c.verificacion.rolVerificadoId,
+        c.embudoAB && c.embudoAB.rolVerificadoId,
+        c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
+        ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
+    ].filter((x) => typeof x === 'string' && x);
+}
+
+module.exports = { miembroPuedeModerar, errorJerarquiaStaff, errorRolesNuevos, rolesQueDaElBot };

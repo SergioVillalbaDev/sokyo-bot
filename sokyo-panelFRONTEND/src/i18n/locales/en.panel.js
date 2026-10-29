@@ -734,7 +734,7 @@ export default {
       vacio: '(nothing)', si: 'Yes', no: 'No', algoBorrado: '(no longer exists)',
       elementos_one: '{{count}} item', elementos_other: '{{count}} items',
       ajustes_one: '{{count}} setting', ajustes_other: '{{count}} settings',
-      errores: { no_existe: 'That change no longer exists.', ya_deshecho: 'That change was already undone.', no_se_puede: 'This change can’t be undone from here.', otro: 'It couldn’t be undone. Try again.' },
+      errores: { sin_permiso: 'You can’t undo it: it would give back a role you can’t give.', no_existe: 'That change no longer exists.', ya_deshecho: 'That change was already undone.', no_se_puede: 'This change can’t be undone from here.', otro: 'It couldn’t be undone. Try again.' },
       campos: {
         activo: 'On', canalId: 'Channel', rolId: 'Role', mensaje: 'Message', texto: 'Text', titulo: 'Title', descripcion: 'Description', color: 'Color', imagen: 'Image',
         bienvenida: 'Welcome', despedida: 'Goodbye', verificacion: 'Verification', automod: 'Automod', musica: 'Music', reportes: 'Reports', crecimiento: 'Growth',

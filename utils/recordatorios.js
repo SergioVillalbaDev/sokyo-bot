@@ -7,7 +7,7 @@ const { t } = require('./i18n.js');
 
 const MAX_PENDIENTES = 25; // por persona, para que nadie llene la base de datos
 const MAX_MS = 365 * 24 * 60 * 60 * 1000;
-const MIN_MS = 60 * 1000;
+const MIN_MS = 10 * 1000; // 10 segundos
 const MOSTRAR = 10; // en /recordatorios
 
 // Sugerencias del autocompletado de «cuándo»: [valor, es, en].
@@ -48,7 +48,7 @@ function opcionesCuando(escrito, idioma) {
 async function crearRecordatorio({ guildId, canalId, userId, userTag, cuando, texto, porMD = false }, idioma) {
     const ms = parseDuracion(String(cuando || ''));
     if (!ms || ms < MIN_MS) {
-        return { ok: false, error: t(idioma, '❌ No entiendo ese tiempo. Escribe, por ejemplo, `10m`, `2h` o `1d` (m = minutos, h = horas, d = días).', '❌ I don’t understand that time. Type, for example, `10m`, `2h` or `1d` (m = minutes, h = hours, d = days).') };
+        return { ok: false, error: t(idioma, '❌ No entiendo ese tiempo. Escribe, por ejemplo, `30s`, `10m`, `2h` o `1d` (s = segundos, m = minutos, h = horas, d = días).', '❌ I don’t understand that time. Type, for example, `30s`, `10m`, `2h` or `1d` (s = seconds, m = minutes, h = hours, d = days).') };
     }
     if (ms > MAX_MS) return { ok: false, error: t(idioma, '❌ El máximo es un año.', '❌ The maximum is one year.') };
     const pendientes = await Recordatorio.countDocuments({ userId, avisado: false });
