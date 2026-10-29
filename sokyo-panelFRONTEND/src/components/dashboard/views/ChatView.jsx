@@ -1,9 +1,10 @@
 // Vista de conversación de un ticket — 3 columnas: Implicados | Chat | Notas.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Lock, Unlock, Send, Users, StickyNote, Plus, Zap, Tag, X, History, Sparkles, FileDown, Loader2 } from 'lucide-react';
 import { Avatar, Card } from '../../ui/primitives';
+import { apiFetch } from '../../../lib/api';
 
 export default function ChatView({ dash }) {
   const { t } = useTranslation();
@@ -32,6 +33,28 @@ export default function ChatView({ dash }) {
   const bajarTranscript = async (format) => {
     const r = await descargarTranscript(ticket.canalId, format);
     if (r.error) setIaError(r.error);
+  };
+
+  // «Fulano está escribiendo…»: se pregunta cada 3 s quién más escribe (staff en
+  // el panel o la persona en Discord), y al teclear aquí se avisa (como mucho cada 4 s).
+  const [escriben, setEscriben] = useState([]);
+  const ultimoAviso = useRef(0);
+  useEffect(() => {
+    if (ticket.estado === 'Cerrado') return undefined;
+    let vivo = true;
+    const mirar = () => apiFetch(`/api/tickets/${ticket.canalId}/escribiendo`).then((r) => r.json())
+      .then((d) => { if (vivo) setEscriben(Array.isArray(d?.escriben) ? d.escriben : []); }).catch(() => {});
+    mirar();
+    const id = setInterval(mirar, 3000);
+    return () => { vivo = false; clearInterval(id); };
+  }, [ticket.canalId, ticket.estado]);
+  const alTeclear = (valor) => {
+    setNuevoMensaje(valor);
+    const ahora = Date.now();
+    if (valor.trim() && ahora - ultimoAviso.current > 4000) {
+      ultimoAviso.current = ahora;
+      apiFetch(`/api/tickets/${ticket.canalId}/escribiendo`, { method: 'POST' }).catch(() => {});
+    }
   };
 
   // Historial: otros tickets del mismo usuario (derivado de los ya cargados).
@@ -282,6 +305,16 @@ export default function ChatView({ dash }) {
               )}
             </div>
 
+            {/* Quién está escribiendo ahora mismo */}
+            {escriben.length > 0 && (
+              <p className="flex items-center gap-2 px-4 pb-2 text-xs font-semibold text-muted" role="status" aria-live="polite">
+                <span className="sk-escribiendo" aria-hidden="true"><i /><i /><i /></span>
+                {escriben.length === 1
+                  ? t(escriben[0].origen === 'discord' ? 'dashboard.chat_v.escribeDiscord' : 'dashboard.chat_v.escribePanel', { nombre: escriben[0].nombre })
+                  : t('dashboard.chat_v.escribenVarios', { nombres: escriben.map((x) => x.nombre).join(', ') })}
+              </p>
+            )}
+
             {/* Caja de envío */}
             <div className="border-t border-line p-3">
               {errorEnvio && errorEnvio.canalId === ticket.canalId && (
@@ -330,7 +363,7 @@ export default function ChatView({ dash }) {
                   <input
                     type="text"
                     value={nuevoMensaje}
-                    onChange={(e) => setNuevoMensaje(e.target.value)}
+                    onChange={(e) => alTeclear(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && enviarMensaje()}
                     placeholder={t('dashboard.chat_v.reply')}
                     className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-fg outline-none transition-shadow focus:ring-2 focus:ring-brand/40"

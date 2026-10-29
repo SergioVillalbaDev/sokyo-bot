@@ -51,6 +51,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     rolStaffId: { type: String, default: null },              // rol que puede reclamar/cerrar (además de admins)
     categoriaTicketsId: { type: String, default: null },      // categoría de Discord donde se crean los tickets
     maxTicketsAbiertos: { type: Number, default: 0 },         // máx. tickets abiertos por usuario (0 = sin límite)
+    avisoSinRespuestaHoras: { type: Number, default: 0 },     // avisar al staff si un ticket lleva X h sin respuesta (0 = no)
     autoCierreDias: { type: Number, default: 0 },             // cierre automático por inactividad (0 = desactivado)
     autoAsignar: { type: Boolean, default: false },           // repartir tickets nuevos entre el rol de soporte (round-robin)
     autoAsignarIndex: { type: Number, default: 0 },           // puntero interno del round-robin

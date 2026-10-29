@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
+const Ticket = require('../models/Ticket.js');
 const { getConfigCached } = require('../utils/config.js');
 const { registrarMensaje } = require('../utils/actividad.js');
 const { otorgarXp } = require('../utils/niveles.js');
@@ -81,6 +82,20 @@ module.exports = {
                     contenido: message.content,
                     imagenes: imagenesAdjuntas
                 });
+
+                // ¿A quién le toca? Si escribe quien abrió el ticket, al staff (y se
+                // empieza a contar el tiempo sin respuesta); si escribe otra persona, ya
+                // está atendido. Lo que manda el propio bot (avisos, el panel) no cuenta.
+                if (!message.author.bot) {
+                    const ahora = new Date();
+                    const delCreador = await Ticket.updateOne(
+                        { canalId: message.channel.id, creadorId: message.author.id },
+                        { $set: { esperaRespuesta: true, ultimoMensajeUsuario: ahora, avisoSinRespuesta: null } },
+                    );
+                    if (!delCreador.matchedCount) {
+                        await Ticket.updateOne({ canalId: message.channel.id }, { $set: { esperaRespuesta: false, ultimaInteractStaff: ahora } });
+                    }
+                }
 
             } catch (error) {
                 console.error('❌ Error al guardar mensaje en la BD:', error);

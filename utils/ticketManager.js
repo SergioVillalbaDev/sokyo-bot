@@ -284,6 +284,7 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
         motivo, titulo, descripcion, prioridad, estado: 'Abierto',
         participantes: (creador && creador.id) ? [{ id: creador.id, username: creador.username, avatar: creador.avatar, rol: 'Creador' }] : [],
         visibleWeb: true,
+        esperaRespuesta: !!(creador && creador.id), ultimoMensajeUsuario: new Date(),
     });
 
     await registrarLogTicket(client, ticket, '🎫 Ticket opened', '#2ecc71', (creador && creador.username) || 'System');

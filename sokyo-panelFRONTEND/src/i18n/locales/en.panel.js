@@ -15,6 +15,7 @@ export default {
       lightAutoOn: 'It’s on right now: this device or browser (Firefox) runs better this way.',
       lightAutoOff: 'It’s off right now: this device has power to spare.',
       shortcuts: 'Keyboard shortcuts',
+      avisos: 'Notifications in this browser', avisosDesc: 'Tells you about new tickets, replies and reports even when the panel is in another tab.', avisosBloqueados: 'The browser is blocking them: allow them in the padlock 🔒 next to the web address.',
       letra: 'Text size', letraOpts: { normal: 'Normal', grande: 'Large', 'muy-grande': 'Extra large' },
       compacto: 'Compact view', compactoDesc: 'Less space between things: more fits on screen.',
       temaAuto: 'Match the system theme', temaAutoDesc: 'Light when your device is in light mode and dark when it’s in dark mode (switches by itself).',
@@ -799,6 +800,7 @@ export default {
       titulo: 'What’s new in Sokyo', version: 'Version {{version}}', ver: 'View', cerrar: 'Close', entendido: 'Got it!',
       anteriores: 'See earlier versions', ocultarAnteriores: 'Hide earlier versions', pagina: 'All updates',
     },
+    avisos: { ticketNuevo: '🎫 New ticket', respuesta: '💬 {{nombre}} replied in their ticket', reporte: '🚩 New report' },
     theme: {
       button: 'Theme',
       title: 'Appearance',
@@ -1534,12 +1536,14 @@ export default {
       dmTitle: 'Notify the user by DM', dmHint: 'They get a private message with the type, duration and reason of the sanction.',
     },
     tickets_v: {
+      sinResponder_one: '{{count}} ticket is waiting for a staff reply', sinResponder_other: '{{count}} tickets are waiting for a staff reply', verSolo: 'Show only those', verTodos: 'Show all', esperando: 'Waiting for a reply · {{cuando}}',
       empty: 'No active tickets', emptyDesc: 'When a user opens a ticket in Discord, it will appear here.',
       unclaimed: 'Unclaimed', attendedBy: 'Handled by:', rating: 'RATING',
       view: 'View conversation', close: 'Close', reopen: 'Reopen', hide: 'Hide',
       allTags: 'All',
     },
     chat_v: {
+      escribeDiscord: '{{nombre}} is typing in Discord…', escribePanel: '{{nombre}} is typing from the panel…', escribenVarios: '{{nombres}} are typing…',
       sendError: 'Couldn’t send it. Your message is still in the box: try again in a moment.',
       back: 'Back', close: 'Close ticket', reopen: 'Reopen ticket',
       involved: 'Participants', user: 'User', unknownUser: 'Unknown user',
@@ -1610,6 +1614,7 @@ export default {
       logsChannelNone: 'No channel (web panel only)',
     },
     rules_v: {
+      sinRespuesta: 'Alert when a ticket gets no reply', sinRespuestaDesc: 'After that long without a staff reply, the bot posts a reminder in the ticket (and pings the support role).', nunca: 'Don’t alert', horas_one: 'After {{count}} hour', horas_other: 'After {{count}} hours',
       autosave: 'Changes are saved automatically. Restart the bot if you just updated the code.',
       staff: 'Support role', staffDesc: 'Who can claim, add users and close tickets (admins always can).', onlyAdmins: 'Admins only',
       noRoles: 'Could not load roles (is the bot running?).',

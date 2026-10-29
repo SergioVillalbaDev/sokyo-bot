@@ -19,6 +19,7 @@ import CrearAlVuelo from './CrearAlVuelo';
 import VentanaNovedades from './VentanaNovedades';
 import { itemVisible, ubicacion as ubicacionTab } from './navConfig';
 import { apiFetch } from '../../lib/api';
+import { avisar } from '../../lib/avisosNavegador';
 import { AtajosTeclado } from './Preferencias';
 import { ligeroActivo, suscribirLigero } from '../../lib/ligero';
 import { anotarReciente } from '../../lib/recientes';
@@ -151,6 +152,45 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (versionPanel.current) { try { localStorage.setItem('sokyoVersionVista', versionPanel.current); } catch { /* sin almacenamiento */ } }
   }, []);
 
+  // Avisos del navegador: ticket nuevo, respuesta en un ticket o reporte nuevo
+  // (con la lista que el panel ya refresca cada 30 s). La primera carga no avisa.
+  const vistos = useRef({ guild: null, tickets: null, reportes: null });
+  const navigateRef = useRef(null);
+  useEffect(() => {
+    const v = vistos.current;
+    if (v.guild !== guildId) { v.guild = guildId; v.tickets = null; v.reportes = null; }
+    const tks = dash.ticketsReales || [];
+    const ahora = new Map(tks.filter((tk) => tk.estado !== 'Cerrado').map((tk) => [tk.canalId, tk.ultimoMensajeUsuario || tk.fechaCreacion || '']));
+    if (v.tickets) {
+      const enOtraCosa = document.visibilityState === 'hidden' || activeTab !== 'tickets-gestion';
+      for (const tk of tks) {
+        if (tk.estado === 'Cerrado') continue;
+        const antes = v.tickets.get(tk.canalId);
+        const abrir = () => { navigateRef.current?.('tickets-gestion'); dash.verMensajes(tk); };
+        if (antes === undefined) avisar(t('dashboard.avisos.ticketNuevo'), `${tk.creadorNombre || ''}: ${tk.titulo || tk.motivo || ''}`, { tag: `tk-${tk.canalId}`, alPulsar: abrir });
+        else if (tk.esperaRespuesta && tk.ultimoMensajeUsuario && antes && new Date(tk.ultimoMensajeUsuario) > new Date(antes)
+          && (enOtraCosa || dash.ticketSeleccionado?.canalId !== tk.canalId)) {
+          avisar(t('dashboard.avisos.respuesta', { nombre: tk.creadorNombre || '' }), tk.titulo || tk.motivo || '', { tag: `tk-${tk.canalId}`, alPulsar: abrir });
+        }
+      }
+    }
+    v.tickets = ahora;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega la lista nueva
+  }, [dash.ticketsReales, guildId]);
+  useEffect(() => {
+    const v = vistos.current;
+    const ids = new Set((dash.reportes || []).map((r) => r._id));
+    if (v.reportes) {
+      for (const r of dash.reportes || []) {
+        if (!v.reportes.has(r._id) && r.estado !== 'resuelto' && r.estado !== 'descartado') {
+          avisar(t('dashboard.avisos.reporte'), `${r.reportadoTag || ''}${r.motivo ? `: ${r.motivo}` : ''}`, { tag: `rep-${r._id}`, alPulsar: () => navigateRef.current?.('mod-reportes') });
+        }
+      }
+    }
+    v.reportes = ids;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega la lista nueva
+  }, [dash.reportes]);
+
   // Upsell contextual: qué función de pago intentó abrir un servidor Free.
   // null = modal cerrado. Lo dispara el Sidebar al pulsar un ítem con candado.
   const [upgradeFeature, setUpgradeFeature] = useState(null);
@@ -243,6 +283,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     setActiveTab(tab);
     setMobileOpen(false);
   };
+  useEffect(() => { navigateRef.current = navigate; });
   // Cada sección empieza arriba del todo, se llegue desde donde se llegue
   // (menú, buscador, migas de pan, avisos o el mapa del inicio). Y se apunta en
   // «Recientes» del buscador.

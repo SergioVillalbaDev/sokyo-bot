@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Save, Pencil, Eye, ShieldCheck, FolderTree, Hash, Clock, UserCheck, Info,
   Star, FileText, MessageSquareWarning, BellRing, Gauge, Tags, Zap, X, Plus,
+  Hourglass,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { OpcionCrear } from '../CrearAlVuelo';
@@ -187,6 +188,15 @@ export default function TicketsAjustesView({ dash }) {
             </div>
           </div>
           <Row icon={UserCheck} title={t('dashboard.rules_v.autoAssign')} desc={t('dashboard.rules_v.autoAssignDesc')} checked={!!c.autoAsignar} onChange={(v) => guardarReglas({ autoAsignar: v })} dataHelp="reglas-autoasignar" />
+          <div data-help="reglas-sinrespuesta" className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-warning"><Hourglass size={18} /></span>
+              <div><p className="text-sm font-semibold text-fg">{t('dashboard.rules_v.sinRespuesta')}</p><p className="text-xs text-muted">{t('dashboard.rules_v.sinRespuestaDesc')}</p></div>
+            </div>
+            <select value={String(c.avisoSinRespuestaHoras ?? 0)} onChange={(e) => guardarReglas({ avisoSinRespuestaHoras: Number(e.target.value) })} className={select} style={{ maxWidth: 260 }}>
+              {[0, 1, 2, 4, 8, 12, 24, 48].map((h) => <option key={h} value={h}>{h ? t('dashboard.rules_v.horas', { count: h }) : t('dashboard.rules_v.nunca')}</option>)}
+            </select>
+          </div>
         </div>
         {roles.length === 0 && <p className="mt-2 text-xs italic text-muted">{t('dashboard.rules_v.noRoles')}</p>}
       </Card>

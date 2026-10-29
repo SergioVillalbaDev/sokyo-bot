@@ -879,6 +879,8 @@ module.exports = (client) => {
                 usuario: req.usuario.username,
                 contenido
             });
+            // Le toca al staff: empieza a contar el tiempo sin respuesta.
+            await Ticket.updateOne({ canalId: req.params.canalId }, { $set: { esperaRespuesta: true, ultimoMensajeUsuario: new Date(), avisoSinRespuesta: null } }).catch(() => {});
 
             // Sin menciones: desde la web nadie debe poder hacer que el bot haga @everyone.
             const canal = client.channels.cache.get(req.params.canalId);
@@ -1199,12 +1201,31 @@ app.get('/api/stats/uso', async (req, res) => {
                 usuario: usuario,
                 contenido: contenido
             });
+            // Ya está atendido (deja de contar como «sin responder»).
+            const atendido = await Ticket.findOneAndUpdate({ canalId: ticketId }, { $set: { esperaRespuesta: false, ultimaInteractStaff: new Date() } }, { returnDocument: 'after' }).catch(() => null);
+            // Quien abrió el ticket recibe un privado (si no lo ha apagado en /preferencias).
+            if (atendido) require('../utils/avisosTicket.js').avisarRespuesta(client, atendido, usuario, contenido).catch(() => {});
+            if (req.staff) require('../utils/escribiendo.js').dejarDeEscribir(ticketId, req.staff.id);
 
             res.json({ success: true, mensaje: nuevoMsg });
         } catch (error) {
             console.error('Error al enviar mensaje desde la web:', error);
             res.status(500).json({ error: 'Fallo interno al enviar' });
         }
+    });
+
+    // --- «Fulano está escribiendo…» en el chat del ticket ---
+    // POST: quien escribe en el panel (y en Discord sale «Sokyo está escribiendo…»).
+    // GET: quién más está escribiendo ahora (staff en el panel o la persona en Discord).
+    app.post('/api/tickets/:canalId/escribiendo', scopeTicket, (req, res) => {
+        const esc = require('../utils/escribiendo.js');
+        const id = req.staff?.id || 'api';
+        esc.marcarEscribiendo(req.params.canalId, { id, nombre: req.staff?.username || 'Staff', origen: 'panel' });
+        esc.avisarEnDiscord(client, req.params.canalId);
+        res.json({ ok: true });
+    });
+    app.get('/api/tickets/:canalId/escribiendo', scopeTicket, (req, res) => {
+        res.json({ escriben: require('../utils/escribiendo.js').quienEscribe(req.params.canalId, req.staff?.id || 'api') });
     });
 
     // --- NUEVA RUTA: Añadir Nota Interna a un Ticket ---
@@ -1492,7 +1513,7 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/reglas', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
-            const { rolStaffId, categoriaTicketsId, maxTicketsAbiertos, autoCierreDias, autoAsignar } = req.body;
+            const { rolStaffId, categoriaTicketsId, maxTicketsAbiertos, autoCierreDias, autoAsignar, avisoSinRespuestaHoras } = req.body;
 
             const cambios = {};
             if (rolStaffId !== undefined) cambios.rolStaffId = rolStaffId || null;
@@ -1500,6 +1521,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (maxTicketsAbiertos !== undefined) cambios.maxTicketsAbiertos = Math.max(0, parseInt(maxTicketsAbiertos, 10) || 0);
             if (autoCierreDias !== undefined) cambios.autoCierreDias = Math.max(0, parseInt(autoCierreDias, 10) || 0);
             if (autoAsignar !== undefined) cambios.autoAsignar = !!autoAsignar;
+            if (avisoSinRespuestaHoras !== undefined) cambios.avisoSinRespuestaHoras = Math.min(168, Math.max(0, parseInt(avisoSinRespuestaHoras, 10) || 0));
 
             const configActualizada = await ServidorConfig.findOneAndUpdate(
                 { guildId },

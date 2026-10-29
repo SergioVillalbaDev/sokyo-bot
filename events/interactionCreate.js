@@ -612,6 +612,7 @@ module.exports = {
                     descripcion: descripcion,
                     prioridad: urgencia,
                     estado: 'Abierto',
+                    esperaRespuesta: true, ultimoMensajeUsuario: new Date(),
                     participantes: [{ id: interaction.user.id, username: interaction.user.username, avatar: creadorAvatar, rol: 'Creador' }],
                     visibleWeb: true
                 });

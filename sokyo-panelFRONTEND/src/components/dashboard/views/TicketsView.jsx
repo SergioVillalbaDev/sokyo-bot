@@ -2,20 +2,32 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox } from 'lucide-react';
+import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox, Hourglass } from 'lucide-react';
 import { Avatar, Badge, Stars, Card } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
 import { nombrePrioridad } from '../../../lib/prioridad';
 import FichaRapida from '../FichaRapida';
 
+// ¿Esperando respuesta del staff? Lo último lo escribió quien abrió el ticket.
+const sinResponder = (tk) => tk.estado !== 'Cerrado' && tk.esperaRespuesta && tk.ultimoMensajeUsuario;
+// «hace 3 h» en el idioma del panel.
+function hace(fecha, lng) {
+  const min = Math.round((new Date(fecha).getTime() - Date.now()) / 60000);
+  const rtf = new Intl.RelativeTimeFormat(lng, { numeric: 'auto' });
+  if (Math.abs(min) < 60) return rtf.format(min, 'minute');
+  if (Math.abs(min) < 60 * 24) return rtf.format(Math.round(min / 60), 'hour');
+  return rtf.format(Math.round(min / 1440), 'day');
+}
+
 export default function TicketsView({ dash }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const {
     getTicketsOrdenados, getColorUrgencia, verMensajes,
     handleCerrarTicket, handleReabrirTicket, handleOcultarTicket, query,
   } = dash;
 
   const [tagFiltro, setTagFiltro] = useState(null);
+  const [soloSinResponder, setSoloSinResponder] = useState(false);
 
   const q = (query || '').trim().toLowerCase();
   const ordenados = getTicketsOrdenados().filter((t) =>
@@ -27,10 +39,23 @@ export default function TicketsView({ dash }) {
 
   // Todas las etiquetas existentes (para la barra de filtro)
   const allTags = [...new Set(ordenados.flatMap((tk) => tk.etiquetas || []))];
-  const tickets = tagFiltro ? ordenados.filter((tk) => (tk.etiquetas || []).includes(tagFiltro)) : ordenados;
+  const porEtiqueta = tagFiltro ? ordenados.filter((tk) => (tk.etiquetas || []).includes(tagFiltro)) : ordenados;
+  const pendientes = porEtiqueta.filter(sinResponder);
+  const tickets = soloSinResponder ? pendientes : porEtiqueta;
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Los que esperan respuesta del staff: a la vista y con un clic para verlos solos */}
+      {(pendientes.length > 0 || soloSinResponder) && (
+        <button onClick={() => setSoloSinResponder((v) => !v)} aria-pressed={soloSinResponder}
+          className={cn('flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition-colors sm:w-auto',
+            soloSinResponder ? 'border-warning bg-warning/15 text-fg' : 'border-warning/40 bg-warning/10 text-fg hover:border-warning')}>
+          <Hourglass size={17} className="shrink-0 text-warning" />
+          <span className="min-w-0 flex-1 font-semibold">{t('dashboard.tickets_v.sinResponder', { count: pendientes.length })}</span>
+          <span className="shrink-0 text-xs font-semibold text-muted">{soloSinResponder ? t('dashboard.tickets_v.verTodos') : t('dashboard.tickets_v.verSolo')}</span>
+        </button>
+      )}
+
       {/* Barra de filtro por etiqueta */}
       {allTags.length > 0 && (
         <div data-help="tickets-filtro" className="flex flex-wrap items-center gap-2">
@@ -82,6 +107,11 @@ export default function TicketsView({ dash }) {
                 </h3>
                 <Badge color={color}>{nombrePrioridad(t, ticket.prioridad || 'Normal')}</Badge>
               </div>
+              {sinResponder(ticket) && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-warning">
+                  <Hourglass size={13} /> {t('dashboard.tickets_v.esperando', { cuando: hace(ticket.ultimoMensajeUsuario, i18n.language) })}
+                </p>
+              )}
 
               {/* Creador + motivo */}
               <div className="mt-3 flex items-center justify-between text-sm">

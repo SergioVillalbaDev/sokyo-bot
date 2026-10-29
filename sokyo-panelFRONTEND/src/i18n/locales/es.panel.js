@@ -15,6 +15,7 @@ export default {
       lightAutoOn: 'Ahora está activado: este equipo o este navegador (Firefox) van mejor así.',
       lightAutoOff: 'Ahora está desactivado: este equipo va sobrado.',
       shortcuts: 'Atajos de teclado',
+      avisos: 'Avisos en este navegador', avisosDesc: 'Te avisa de tickets nuevos, respuestas y reportes aunque tengas el panel en otra pestaña.', avisosBloqueados: 'El navegador los tiene bloqueados: permítelos en el candado 🔒 junto a la dirección de la web.',
       letra: 'Tamaño de la letra', letraOpts: { normal: 'Normal', grande: 'Grande', 'muy-grande': 'Muy grande' },
       compacto: 'Vista compacta', compactoDesc: 'Menos espacio entre las cosas: cabe más en la pantalla.',
       temaAuto: 'Tema según el sistema', temaAutoDesc: 'Claro cuando tu equipo está en claro y oscuro cuando está en oscuro (se cambia solo).',
@@ -799,6 +800,7 @@ export default {
       titulo: 'Novedades de Sokyo', version: 'Versión {{version}}', ver: 'Ver', cerrar: 'Cerrar', entendido: '¡Entendido!',
       anteriores: 'Ver las de versiones anteriores', ocultarAnteriores: 'Ocultar las anteriores', pagina: 'Todas las novedades',
     },
+    avisos: { ticketNuevo: '🎫 Ticket nuevo', respuesta: '💬 {{nombre}} ha respondido en su ticket', reporte: '🚩 Reporte nuevo' },
     theme: {
       button: 'Tema',
       title: 'Apariencia',
@@ -1539,12 +1541,14 @@ export default {
       dmTitle: 'Avisar por MD al usuario', dmHint: 'Le llega un mensaje privado con el tipo, la duración y el motivo de la sanción.',
     },
     tickets_v: {
+      sinResponder_one: '{{count}} ticket espera respuesta del staff', sinResponder_other: '{{count}} tickets esperan respuesta del staff', verSolo: 'Ver solo esos', verTodos: 'Ver todos', esperando: 'Esperando respuesta · {{cuando}}',
       empty: 'No hay tickets activos', emptyDesc: 'Cuando un usuario abra un ticket en Discord, aparecerá aquí.',
       unclaimed: 'Sin reclamar', attendedBy: 'Atendido por:', rating: 'VALORACIÓN',
       view: 'Ver Conversación', close: 'Cerrar', reopen: 'Reabrir', hide: 'Ocultar',
       allTags: 'Todas',
     },
     chat_v: {
+      escribeDiscord: '{{nombre}} está escribiendo en Discord…', escribePanel: '{{nombre}} está escribiendo desde el panel…', escribenVarios: '{{nombres}} están escribiendo…',
       sendError: 'No se ha podido enviar. Tu mensaje sigue en la caja: vuelve a intentarlo en un momento.',
       back: 'Volver', close: 'Cerrar Ticket', reopen: 'Reabrir Ticket',
       involved: 'Implicados', user: 'Usuario', unknownUser: 'Usuario Desconocido',
@@ -1615,6 +1619,7 @@ export default {
       logsChannelNone: 'Sin canal (solo panel web)',
     },
     rules_v: {
+      sinRespuesta: 'Avisar si un ticket no tiene respuesta', sinRespuestaDesc: 'Pasado ese tiempo sin que el staff conteste, el bot avisa en el ticket (y menciona al rol de soporte).', nunca: 'No avisar', horas_one: 'A la {{count}} hora', horas_other: 'A las {{count}} horas',
       autosave: 'Los cambios se guardan automáticamente. Reinicia el bot si acabas de actualizar el código.',
       staff: 'Rol de soporte', staffDesc: 'Quién puede reclamar, añadir usuarios y cerrar tickets (los administradores siempre pueden).', onlyAdmins: 'Solo administradores',
       noRoles: 'No se han podido cargar los roles (¿está el bot encendido?).',

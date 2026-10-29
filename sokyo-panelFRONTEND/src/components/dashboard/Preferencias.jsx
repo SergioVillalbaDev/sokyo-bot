@@ -4,11 +4,12 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings2, Keyboard, X, Sparkles } from 'lucide-react';
+import { Settings2, Keyboard, X, Sparkles, BellRing } from 'lucide-react';
 import { Toggle } from '../ui/primitives';
 import { cn } from '../../lib/cn';
 import { useAutoguardadoActivo, ponerAutoguardado } from '../../hooks/useAutoguardado';
 import { preferenciaLigero, ponerLigero, suscribirLigero, equipoModesto } from '../../lib/ligero';
+import { estadoAvisos, activarAvisos, desactivarAvisos, suscribirAvisos } from '../../lib/avisosNavegador';
 import { TAMANOS, tamanoLetra, vistaCompacta, temaAutomatico, ponerTamanoLetra, ponerVistaCompacta, ponerTemaAutomatico, suscribirAspecto } from '../../lib/aspecto';
 
 export function OpcionesComodidad({ onAtajos, onNovedades }) {
@@ -18,9 +19,22 @@ export function OpcionesComodidad({ onAtajos, onNovedades }) {
   const letra = useSyncExternalStore(suscribirAspecto, tamanoLetra, () => 'normal');
   const compacto = useSyncExternalStore(suscribirAspecto, vistaCompacta, () => false);
   const temaAuto = useSyncExternalStore(suscribirAspecto, temaAutomatico, () => false);
+  const avisos = useSyncExternalStore(suscribirAvisos, estadoAvisos, () => 'apagado');
   const modesto = equipoModesto();
   return (
     <div className="space-y-4">
+      {avisos !== 'no-soportado' && (
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-fg"><BellRing size={14} className="text-brand" /> {t('dashboard.prefs.avisos')}</span>
+              <span className="block text-xs leading-snug text-muted">{t('dashboard.prefs.avisosDesc')}</span>
+            </span>
+            <Toggle checked={avisos === 'activo'} disabled={avisos === 'bloqueado'} onChange={(v) => (v ? activarAvisos() : desactivarAvisos())} />
+          </div>
+          {avisos === 'bloqueado' && <p className="mt-1.5 text-[11px] text-warning">{t('dashboard.prefs.avisosBloqueados')}</p>}
+        </div>
+      )}
       <div>
         <span className="block text-sm font-semibold text-fg">{t('dashboard.prefs.letra')}</span>
         <div className="mt-2 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label={t('dashboard.prefs.letra')}>

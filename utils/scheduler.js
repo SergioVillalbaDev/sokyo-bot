@@ -144,6 +144,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await barrerDinamicas(client); } catch (e) { console.error('Programador (dinámicas):', e.message); }
         try { await barrerInvitaciones(client); } catch (e) { console.error('Programador (invitaciones):', e.message); }
         try { await barrerBumps(client); } catch (e) { console.error('Programador (bump):', e.message); }
+        try { await require('./avisosTicket.js').avisarSinRespuesta(client); } catch (e) { console.error('Programador (tickets sin respuesta):', e.message); }
     });
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
