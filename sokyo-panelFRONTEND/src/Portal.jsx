@@ -9,15 +9,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LogIn, AlertTriangle, ArrowLeft, Ticket as TicketIcon, Palette, Music as MusicIcon, Home, LogOut,
-  ShoppingBag, Bell, Settings, Search, Zap, Check, Gift, Globe, Backpack, CornerDownLeft, Sparkles, LayoutDashboard,
+  ShoppingBag, Bell, Settings, Search, Zap, Check, Gift, Globe, Backpack, CornerDownLeft, Sparkles, LayoutDashboard, BellRing,
 } from 'lucide-react';
 import InicioPortal from './components/portal/InicioPortal';
 import TicketsPortal from './components/portal/TicketsPortal';
 import TiendaPortal from './components/portal/TiendaPortal';
 import TarjetaPortal from './components/portal/TarjetaPortal';
 import MusicaPortal from './components/portal/MusicaPortal';
+import AjustesPortal from './components/portal/AjustesPortal';
 import { FondoEspacial, Tarjeta, TituloVista, Avisos } from './components/portal/glass';
-import { leerHash, respuestasNuevas, leerVistos } from './components/portal/portalUtils';
+import { leerHash, respuestasNuevas, leerVistos, leerSorteosVistos, marcarSorteosVistos } from './components/portal/portalUtils';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { IDIOMAS, cambiarIdioma } from './i18n';
 import './index.css';
@@ -58,6 +59,7 @@ function Portal() {
   const [avisos, setAvisos] = useState([]);
   const [paleta, setPaleta] = useState(false);
   const [vistos, setVistos] = useState(leerVistos);
+  const [sorteosVistos, setSorteosVistos] = useState(leerSorteosVistos);
 
   // Tema de cristal fijo para "Mi cuenta".
   useEffect(() => {
@@ -154,7 +156,7 @@ function Portal() {
       if (document.hidden) return;
       portalFetch('/api/portal/avisos')
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (d && Array.isArray(d.recientes)) setResumen((x) => (x ? { ...x, tickets: { ...x.tickets, recientes: d.recientes } } : x)); })
+        .then((d) => { if (d && Array.isArray(d.recientes)) setResumen((x) => (x ? { ...x, tickets: { ...x.tickets, recientes: d.recientes }, sorteos: d.sorteos || x.sorteos } : x)); })
         .catch(() => {});
     }, 60000);
     return () => clearInterval(id);
@@ -170,6 +172,9 @@ function Portal() {
   }, []);
 
   const nuevas = useMemo(() => respuestasNuevas(resumen, vistos), [resumen, vistos]);
+  // Sorteos ganados que aún no se han visto: también van en la campana.
+  const premios = useMemo(() => (resumen?.sorteos || []).filter((x) => !sorteosVistos.includes(x.id)), [resumen, sorteosVistos]);
+  const verPremios = useCallback(() => { setSorteosVistos(marcarSorteosVistos(premios.map((x) => x.id))); irA('ajustes'); }, [premios, irA]);
   const releerVistos = useCallback(() => setVistos(leerVistos()), []);
   const alCambiarOro = useCallback((balance) => setResumen((r) => (r ? { ...r, oro: balance } : r)), []);
 
@@ -202,6 +207,8 @@ function Portal() {
     contenido = <TiendaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} onOro={alCambiarOro} pestanaInicial={sub} />;
   } else if (vista === 'tarjeta') {
     contenido = <TarjetaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} />;
+  } else if (vista === 'ajustes') {
+    contenido = <AjustesPortal portalFetch={portalFetch} avisar={avisar} sorteos={resumen?.sorteos || []} />;
   } else if (vista === 'musica') {
     contenido = (
       <>
@@ -218,7 +225,7 @@ function Portal() {
       <FondoEspacial />
       <div className="relative z-10 mx-auto w-full max-w-[1240px] px-3 pb-36 pt-3 sm:px-6 sm:pt-6 lg:pt-8">
         <div className="gx-marco">
-          <Cabecera usuario={usuario} nuevas={nuevas} irA={irA} onLogout={logout} onBuscar={() => setPaleta(true)} />
+          <Cabecera usuario={usuario} nuevas={nuevas} premios={premios} onVerPremios={verPremios} irA={irA} onLogout={logout} onBuscar={() => setPaleta(true)} />
           <main className="mt-5 sm:mt-7" key={`${vista}-${ticket ? 'chat' : sub || 'lista'}`}>{contenido}</main>
         </div>
       </div>
@@ -286,7 +293,7 @@ function Entrada({ error }) {
 }
 
 // ---------- CABECERA ----------
-function Cabecera({ usuario, nuevas, irA, onLogout, onBuscar }) {
+function Cabecera({ usuario, nuevas, premios = [], onVerPremios, irA, onLogout, onBuscar }) {
   const { t } = useTranslation();
   const [abierto, setAbierto] = useState(null); // 'avisos' | 'ajustes' | null
   const ref = useRef(null);
@@ -323,12 +330,21 @@ function Cabecera({ usuario, nuevas, irA, onLogout, onBuscar }) {
         <div className="relative">
           <button onClick={() => alternar('avisos')} className="gx-icono" aria-expanded={abierto === 'avisos'} title={t('portal.header.notifications')} aria-label={t('portal.header.notifications')}>
             <Bell size={18} />
-            {nuevas.length > 0 && <span className="gx-punto">{nuevas.length > 9 ? '9+' : nuevas.length}</span>}
+            {nuevas.length + premios.length > 0 && <span className="gx-punto">{nuevas.length + premios.length > 9 ? '9+' : nuevas.length + premios.length}</span>}
           </button>
           {abierto === 'avisos' && (
             <Desplegable>
               <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-muted">{t('portal.header.notifications')}</p>
-              {nuevas.length === 0 ? (
+              {premios.map((p) => (
+                <button key={p.id} onClick={() => { setAbierto(null); onVerPremios?.(); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/[.07]">
+                  <span className="gx-orbe mt-0.5 h-8 w-8" style={{ '--orbe': '#ec4899' }}><Gift size={14} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-fg">{t('portal.header.ganaste', { premio: p.premio })}</span>
+                    <span className="block truncate text-xs text-muted">{p.nombre}{p.servidor ? ` · ${p.servidor}` : ''}</span>
+                  </span>
+                </button>
+              ))}
+              {nuevas.length === 0 && premios.length === 0 ? (
                 <p className="flex items-center gap-2 px-3 pb-3 text-sm text-muted"><Sparkles size={15} className="text-brand" /> {t('portal.header.allCaughtUp')}</p>
               ) : nuevas.map((n) => (
                 <button key={n.canalId} onClick={() => { setAbierto(null); irA('tickets', n.canalId); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/[.07]">
@@ -345,7 +361,7 @@ function Cabecera({ usuario, nuevas, irA, onLogout, onBuscar }) {
         </div>
         <div className="relative">
           <button onClick={() => alternar('ajustes')} className="gx-icono" aria-expanded={abierto === 'ajustes'} title={t('portal.header.settings')} aria-label={t('portal.header.settings')}><Settings size={18} /></button>
-          {abierto === 'ajustes' && <MenuAjustes usuario={usuario} onLogout={onLogout} />}
+          {abierto === 'ajustes' && <MenuAjustes usuario={usuario} onLogout={onLogout} onPreferencias={() => { setAbierto(null); irA('ajustes'); }} />}
         </div>
         {avatar && (
           <button onClick={() => irA('inicio')} className="hidden sm:block" title={usuario.username} aria-label={t('portal.nav.home')}>
@@ -365,11 +381,13 @@ function Desplegable({ children, ancho = 'w-80' }) {
   );
 }
 
-function MenuAjustes({ usuario, onLogout }) {
+function MenuAjustes({ usuario, onLogout, onPreferencias }) {
   const { t, i18n } = useTranslation();
   return (
     <Desplegable ancho="w-64">
       {usuario && <p className="truncate px-3 pb-2 pt-1.5 text-sm font-bold text-fg">{usuario.username}</p>}
+      <button onClick={onPreferencias} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-white/[.07]"><BellRing size={15} className="text-brand" /> {t('portal.header.preferencias')}</button>
+      <div className="my-1.5 h-px bg-white/10" />
       <p className="px-3 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-muted"><Globe size={11} className="mr-1 inline" /> {t('portal.header.language')}</p>
       {IDIOMAS.map((idioma) => (
         <button key={idioma.code} onClick={() => cambiarIdioma(idioma.code)} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]">
@@ -413,6 +431,7 @@ function Paleta({ irA, onCerrar, onDaily, onLogout }) {
     { id: 'mochila', icono: Backpack, texto: t('portal.palette.bag'), hacer: () => irA('tienda', 'mochila') },
     { id: 'musica', icono: MusicIcon, texto: t('portal.palette.music'), hacer: () => irA('musica') },
     { id: 'tarjeta', icono: Palette, texto: t('portal.palette.card'), hacer: () => irA('tarjeta') },
+    { id: 'ajustes', icono: BellRing, texto: t('portal.palette.ajustes'), hacer: () => irA('ajustes') },
     { id: 'daily', icono: Gift, texto: t('portal.palette.daily'), hacer: () => { onCerrar(); onDaily(); } },
     ...(esStaff ? [{ id: 'panel', icono: LayoutDashboard, texto: t('portal.palette.panel'), hacer: () => window.location.assign('/panel') }] : []),
     { id: 'web', icono: Globe, texto: t('portal.palette.web'), hacer: () => window.location.assign('/') },

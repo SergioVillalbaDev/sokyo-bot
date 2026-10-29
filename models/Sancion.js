@@ -31,6 +31,8 @@ const SancionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 SancionSchema.index({ guildId: 1, fecha: -1 });
+SancionSchema.index({ guildId: 1, usuarioId: 1, fecha: -1 }); // ficha de una persona en el panel y en Discord
+SancionSchema.index({ usuarioId: 1, fecha: -1 });              // «Mis sanciones» en Mi cuenta
 SancionSchema.index({ accion: 1, activa: 1, expiraEn: 1 }); // para el barredor de bans temporales
 
 module.exports = mongoose.model('Sancion', SancionSchema);

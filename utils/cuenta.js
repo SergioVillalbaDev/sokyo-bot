@@ -13,7 +13,7 @@ const { t, resolverIdioma } = require('./i18n.js');
 const DURACION_MS = 15 * 60 * 1000;
 const MAX_CODIGOS = 5000;
 // Pantallas de la web a las que puede llevar el enlace (#hash del portal).
-const VISTAS = ['inicio', 'tickets', 'tienda', 'musica', 'tarjeta'];
+const VISTAS = ['inicio', 'tickets', 'tienda', 'musica', 'tarjeta', 'ajustes'];
 const codigos = new Map(); // codigo -> { id, username, avatar, vista, expira }
 
 // Origen público de la API (donde vive /api/auth/magic). En producción es el
