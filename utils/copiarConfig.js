@@ -40,7 +40,8 @@ function remapearIds(cfg, origen, destino) {
     const recorrer = (v, clave = '') => {
         if (ES_MENSAJE.test(clave)) return null;
         if (Array.isArray(v)) return v.map((x) => recorrer(x)).filter((x) => !perdido(x));
-        if (v && typeof v === 'object' && !(v instanceof Date)) {
+        // Solo se entra en los objetos normales: un ObjectId o una fecha van tal cual.
+        if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
             const out = {};
             for (const [k, x] of Object.entries(v)) out[k] = recorrer(x, k);
             return out;

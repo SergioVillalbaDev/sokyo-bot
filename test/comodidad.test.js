@@ -65,6 +65,15 @@ describe('copiar ajustes a otro servidor', () => {
         assert.deepStrictEqual(cfg.recompensasNivel, [{ nivel: 10, rolId: '800000000000000001' }]);
         assert.strictEqual(cfg.verificacion.mensajeId, null);
     });
+    it('los identificadores de la base de datos y las fechas se copian tal cual', () => {
+        const { Types } = require('mongoose');
+        const id = new Types.ObjectId();
+        const fecha = new Date('2026-01-01');
+        const { cfg } = remapearIds({ urgencias: [{ _id: id, nombre: 'Urgent', nivel: 4 }], crecimiento: { bump: { proximoBump: fecha } } }, origen, destino);
+        assert.ok(cfg.urgencias[0]._id instanceof Types.ObjectId);
+        assert.strictEqual(String(cfg.urgencias[0]._id), String(id));
+        assert.ok(cfg.crecimiento.bump.proximoBump instanceof Date);
+    });
     it('los usuarios se quedan como están', () => {
         const { cfg } = remapearIds({ resumenDiario: { destinatarioId: '777777777777777777' } }, origen, destino);
         assert.strictEqual(cfg.resumenDiario.destinatarioId, '777777777777777777');

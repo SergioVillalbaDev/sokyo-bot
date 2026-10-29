@@ -53,7 +53,8 @@ export default function DiagnosticoView({ dash }) {
           <h2 className="text-lg font-extrabold tracking-tight text-fg">
             {!datos ? t('dashboard.diagnostico.comprobando')
               : !problemas.length ? t('dashboard.diagnostico.todoBien')
-                : t('dashboard.diagnostico.resumen', { errores, avisos })}
+                : errores ? `${t('dashboard.diagnostico.fallan', { count: errores })}${avisos ? t('dashboard.diagnostico.yAvisos', { count: avisos }) : ''}`
+                  : t('dashboard.diagnostico.soloAvisos', { count: avisos })}
           </h2>
           <p className="mt-0.5 text-sm text-muted">
             {datos ? t('dashboard.diagnostico.comprobados', { count: datos.comprobados }) : t('dashboard.diagnostico.queMira')}
@@ -84,7 +85,7 @@ export default function DiagnosticoView({ dash }) {
         {problemas.map((p) => {
           const esError = p.nivel === 'error';
           return (
-            <li key={p.id} className={cn(card, 'border-l-4', esError ? 'border-l-danger' : 'border-l-warning')}>
+            <li key={p.id} className={cn(card, esError ? 'border-danger/40' : 'border-warning/30')}>
               <div className="flex items-start gap-3">
                 {esError ? <XCircle size={20} className="mt-0.5 shrink-0 text-danger" /> : <AlertTriangle size={20} className="mt-0.5 shrink-0 text-warning" />}
                 <div className="min-w-0 flex-1">

@@ -39,9 +39,10 @@ export default function CrearAlVuelo({ dash }) {
       if (!(s instanceof HTMLSelectElement)) return;
       const tipo = s.value === VALOR.canal ? 'canal' : s.value === VALOR.rol ? 'rol' : null;
       if (!tipo) { s.dataset.skAntes = s.value; return; }
-      // La sección no se entera de esta elección: el valor vuelve a lo de antes.
+      // La sección no se entera de esta elección: el valor vuelve a lo de antes (lo
+      // apuntado al abrir el desplegable o, si no, lo que tenía al pintarse).
       e.stopPropagation();
-      s.value = s.dataset.skAntes ?? '';
+      s.value = s.dataset.skAntes ?? ([...s.options].find((o) => o.defaultSelected)?.value || '');
       setNombre(''); setError('');
       setPedido({ tipo, select: s, voz: s.dataset.crear === 'voz' });
     };

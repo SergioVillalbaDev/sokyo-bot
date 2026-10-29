@@ -9,7 +9,7 @@ const { version } = require('../package.json');
 const T = {
     es: {
         estadoTitulo: 'Estado de Sokyo', estadoDesc: 'Si el bot, el panel y la música funcionan ahora mismo.',
-        todoBien: 'Todo funciona', algoFalla: 'Hay algo que no va bien', comprobado: 'Comprobado', actualiza: 'Se actualiza sola cada minuto.',
+        todoBien: 'Todo funciona', casiTodo: 'Todo funciona salvo la música', algoFalla: 'Hay algo que no va bien', comprobado: 'Comprobado', actualiza: 'Se actualiza sola cada minuto.',
         bot: 'Bot de Discord', panel: 'Panel de control y Mi cuenta', datos: 'Base de datos', musica: 'Música',
         ok: 'Funciona', caido: 'No responde', lento: 'Lento', sinMusica: 'No conectado',
         latencia: (ms) => `${ms} ms de respuesta`, servidores: (n) => `En ${n.toLocaleString('es-ES')} servidores`,
@@ -20,7 +20,7 @@ const T = {
     },
     en: {
         estadoTitulo: 'Sokyo status', estadoDesc: 'Whether the bot, the panel and music are working right now.',
-        todoBien: 'All systems working', algoFalla: 'Something isn’t working', comprobado: 'Checked', actualiza: 'Refreshes by itself every minute.',
+        todoBien: 'All systems working', casiTodo: 'Everything works except music', algoFalla: 'Something isn’t working', comprobado: 'Checked', actualiza: 'Refreshes by itself every minute.',
         bot: 'Discord bot', panel: 'Control panel & My account', datos: 'Database', musica: 'Music',
         ok: 'Working', caido: 'Not responding', lento: 'Slow', sinMusica: 'Not connected',
         latencia: (ms) => `${ms} ms response time`, servidores: (n) => `On ${n.toLocaleString('en-US')} servers`,
@@ -62,7 +62,7 @@ function paginaEstado(client, { lang, base }) {
     const servidores = discordOk ? client.guilds.cache.size : 0;
     const cuerpo = `${cabecera(L)}
 <main>
-<div class="tarjeta estado"><span class="luz ${todo ? (musicaOk ? 'verde' : 'ambar') : 'rojo'}"></span><div><h1>${esc(todo ? L.todoBien : L.algoFalla)}</h1>
+<div class="tarjeta estado"><span class="luz ${todo ? (musicaOk ? 'verde' : 'ambar') : 'rojo'}"></span><div><h1>${esc(!todo ? L.algoFalla : musicaOk ? L.todoBien : L.casiTodo)}</h1>
 <span class="tenue">${esc(L.comprobado)} ${esc(new Date().toLocaleTimeString(lang === 'es' ? 'es-ES' : 'en-US', { hour: '2-digit', minute: '2-digit' }))} · ${esc(L.actualiza)}</span></div></div>
 <div class="lista seccion">
 ${servicioHtml(L.bot, discordOk ? (ping > 400 ? 'ambar' : 'verde') : 'rojo', discordOk ? (ping > 400 ? L.lento : L.ok) : L.caido, discordOk ? `${L.latencia(ping)} · ${L.servidores(servidores)}` : '')}
