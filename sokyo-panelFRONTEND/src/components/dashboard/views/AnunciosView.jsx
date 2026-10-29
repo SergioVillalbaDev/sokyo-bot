@@ -6,6 +6,7 @@ import { CalendarClock, Trash2, Info, Repeat } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
 import PresetsAnuncio from './PresetsAnuncio';
 import { EMBED_VACIO } from './embedDefaults';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -92,6 +93,7 @@ export default function AnunciosView({ dash }) {
             <select value={canalId} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={input}>
               <option value="">{t('dashboard.anuncios_v.channelPh')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           </label>
           <label className="block">

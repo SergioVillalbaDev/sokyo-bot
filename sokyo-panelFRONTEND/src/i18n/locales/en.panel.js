@@ -53,6 +53,7 @@ export default {
       groupDesc: { tickets: 'Help your members and set up support', moderacion: 'Sanctions, automatic filters and reports', entrada: 'What happens when someone joins the server', roles: 'Create roles and let people pick their own', comunidad: 'Members’ My account, levels, giveaways, events and games', crecimiento: 'Get more members for your server', musica: 'Music player and voice rooms', mensajes: 'What the bot posts and answers for you', datos: 'Server numbers and everything that happened', config: 'Channels, emojis, panel access, your plan and the mobile app', propietario: 'Only for the bot owners' },
       moduleOn: 'On', moduleOff: 'Off — turn it on inside to use it',
       moduleOnShort: 'On', moduleOffShort: 'Off',
+      favoritos: 'Favorites', anadirFavorito: 'Pin to the top (favorite)', quitarFavorito: 'Remove from favorites',
       items: {
         'cuenta-plan': 'Plan & billing',
         'config-app': 'Mobile app',
@@ -169,6 +170,7 @@ export default {
       title: 'Search the panel', placeholder: 'Type what you want to do: ban, levels, welcome, giveaway…',
       nothingTitle: 'Nothing matches that', nothingDesc: 'Try another word: "punish", "xp", "roles", "music"…',
       move: 'move', go: 'open', tip: 'Open this search from anywhere with Ctrl + K', recent: 'Recently opened',
+      ajustes: 'Settings', enSeccion: 'In {{seccion}}',
     },
     header: {
       breadcrumb: 'Where you are', prefs: 'Help, language and theme', language: 'Language',
@@ -775,6 +777,20 @@ export default {
         'mod-reportes': 'Anyone can tell the staff about something, privately.',
       },
     },
+    ficha: {
+      titulo: 'Quick profile', error: 'Their profile couldn’t be loaded.', fuera: 'No longer on the server', aislado: 'Timed out now',
+      desde: 'On the server since', nivel: 'Level', mensajes_one: '{{count}} message', mensajes_other: '{{count}} messages',
+      sanciones: 'Sanctions', activas_one: '{{count}} active', activas_other: '{{count}} active', tickets: 'Tickets',
+      abiertos_one: '{{count}} open', abiertos_other: '{{count}} open', cuenta: 'Discord account created on {{fecha}}', sancionar: 'Sanction',
+      accion: { aviso: 'Warning', timeout: 'Timeout', expulsion: 'Kick', ban: 'Ban' },
+    },
+    crear: {
+      opcion: { canal: '➕ Create new channel…', rol: '➕ Create new role…' },
+      titulo: { canal: 'Create a text channel', voz: 'Create a voice channel', rol: 'Create a role' },
+      sub: { canal: 'It’s created in Discord right now (at the very top) and stays selected here. You can move it later in “Categories & channels”.', rol: 'It’s created in Discord right now, with no special permissions, and stays selected here. You can adjust it later in “Roles & permissions”.' },
+      placeholder: { canal: 'Channel name (e.g. welcome)', rol: 'Role name (e.g. Member)' },
+      crear: 'Create', cancelar: 'Cancel', error: 'It couldn’t be created. Check that the bot can manage channels and roles.',
+    },
     theme: {
       button: 'Theme',
       title: 'Appearance',
@@ -1088,6 +1104,16 @@ export default {
       },
     },
     miembros_v: {
+      grupo: {
+        marcados_one: '{{count}} selected', marcados_other: '{{count}} selected',
+        todos: 'Select all {{count}} in this list', marcar: 'Select {{name}}', quitar: 'Clear selection',
+        darRol: 'Give a role', titulo: '{{accion}} {{count}} people', tituloRol: 'Give a role to {{count}} people',
+        cuanto: 'How long', duraciones: { 10: '10 minutes', 60: '1 hour', 1440: '1 day', 10080: '1 week' },
+        motivo: 'Reason (optional, shown in the log)', elegirRol: 'Pick the role…',
+        aviso: { expulsion: 'They’ll leave the server. They can come back with an invite.', ban: 'They can’t come back until you unban them (“Banned” tab).' },
+        aplicar_one: 'Apply to {{count}}', aplicar_other: 'Apply to all {{count}}', cancelar: 'Cancel', listo: 'Done',
+        hecho_one: 'Done with {{count}} person', hecho_other: 'Done with {{count}} people', falloGenerico: 'it failed',
+      },
       tabs: { miembros: 'Members', baneados: 'Banned' },
       search: 'Search by name, nickname or ID…', searchBans: 'Search a banned user by name or ID…',
       role: 'Filter by role', anyRole: 'Any role', sort: 'Sort',

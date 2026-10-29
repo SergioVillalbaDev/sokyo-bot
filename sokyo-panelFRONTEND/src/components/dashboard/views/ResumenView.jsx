@@ -7,6 +7,7 @@ import { Mail, Send, Save, Check, AlertTriangle, Loader2, Info } from 'lucide-re
 import { Toggle } from '../../ui/primitives';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
@@ -82,6 +83,7 @@ export default function ResumenView({ dash }) {
             <select value={canalId} onChange={(e) => setCanalId(e.target.value)} className={field}>
               <option value="">{t('dashboard.resumen_v.dmOnly')}</option>
               {canalesTexto.map((c) => <option key={c.id} value={c.id}># {c.nombre || c.name}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           </div>
         </div>

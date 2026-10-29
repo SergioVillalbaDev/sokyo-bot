@@ -7,6 +7,7 @@ import { Avatar, Toggle } from '../../ui/primitives';
 import { PRESETS_TARJETA } from '../../../presetsTarjeta';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -165,6 +166,7 @@ export default function NivelesView({ dash }) {
             <select value={f.canalNivelesId} onChange={(e) => set('canalNivelesId', e.target.value)} className={`${inputCls} mb-3`}>
               <option value="">{t('dashboard.niveles_v.sameChannel')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
             </select>
           )}
           {f.anuncioTipo !== 'off' && (

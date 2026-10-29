@@ -9,6 +9,7 @@ import {
   HelpCircle, Coins, Hash, Brain, Flame, Key, Crown, Trophy,
 } from 'lucide-react';
 import { SubirImagen } from './comunidadShared.jsx';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -72,6 +73,7 @@ function CanalSelect({ value, onChange, canales, placeholder, allowAny }) {
     <select value={value || ''} onChange={(e) => onChange(e.target.value)} className={input}>
       <option value="">{allowAny ? placeholder : `— ${placeholder} —`}</option>
       {canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+      <OpcionCrear tipo="canal" />
     </select>
   );
 }
@@ -133,6 +135,7 @@ export default function DinamicasView({ dash }) {
             <select value={f.mencionRolId || ''} onChange={(e) => set('qotd', 'mencionRolId', e.target.value)} className={input}>
               <option value="">{t('dashboard.dinamicas_v.roleNone')}</option>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+              <OpcionCrear tipo="rol" />
             </select>
           </div>
         </div>
@@ -217,6 +220,7 @@ export default function DinamicasView({ dash }) {
             <select value={f.rolId || ''} onChange={(e) => set('miembroSemana', 'rolId', e.target.value)} className={input}>
               <option value="">{t('dashboard.dinamicas_v.roleNone')}</option>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+              <OpcionCrear tipo="rol" />
             </select>
           </div>
         </div>

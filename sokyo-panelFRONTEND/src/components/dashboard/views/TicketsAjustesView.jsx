@@ -10,6 +10,7 @@ import {
   Star, FileText, MessageSquareWarning, BellRing, Gauge, Tags, Zap, X, Plus,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const field = 'w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-fg outline-none transition-shadow focus:ring-2 focus:ring-brand/40';
 const labelCls = 'text-xs font-bold uppercase tracking-wide text-muted';
@@ -211,6 +212,7 @@ export default function TicketsAjustesView({ dash }) {
               <select value={c.rolSoporteId || ''} onChange={(e) => guardarComportamiento({ rolSoporteId: e.target.value || null })} className="min-w-[180px] rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:ring-2 focus:ring-brand/40">
                 <option value="">{t('dashboard.behavior_v.selectRole')}</option>
                 {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                <OpcionCrear tipo="rol" />
               </select>
             </div>
           )}

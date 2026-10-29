@@ -53,6 +53,7 @@ export default {
       groupDesc: { tickets: 'Atiende a tus miembros y configura el soporte', moderacion: 'Sanciones, filtros automáticos y reportes', entrada: 'Lo que pasa cuando alguien entra al servidor', roles: 'Crea roles y deja que cada uno elija los suyos', comunidad: 'Mi cuenta de los miembros, niveles, sorteos, eventos y juegos', crecimiento: 'Consigue más miembros para tu servidor', musica: 'Reproductor de música y salas de voz', mensajes: 'Lo que el bot publica y responde por ti', datos: 'Cifras del servidor y todo lo que ha pasado', config: 'Canales, emojis, acceso al panel, tu plan y la app móvil', propietario: 'Solo para los propietarios del bot' },
       moduleOn: 'Activado', moduleOff: 'Apagado — actívalo dentro para usarlo',
       moduleOnShort: 'Activo', moduleOffShort: 'Apagado',
+      favoritos: 'Favoritos', anadirFavorito: 'Fijar arriba (favorito)', quitarFavorito: 'Quitar de favoritos',
       items: {
         'cuenta-plan': 'Plan y facturación',
         'config-app': 'App móvil',
@@ -169,6 +170,7 @@ export default {
       title: 'Buscar en el panel', placeholder: 'Escribe lo que quieres hacer: ban, niveles, bienvenida, sorteo…',
       nothingTitle: 'No encuentro nada con eso', nothingDesc: 'Prueba con otra palabra: "sancionar", "xp", "roles", "música"…',
       move: 'moverte', go: 'abrir', tip: 'Abre este buscador desde cualquier sitio con Ctrl + K', recent: 'Abierto hace poco',
+      ajustes: 'Ajustes', enSeccion: 'En {{seccion}}',
     },
     header: {
       breadcrumb: 'Dónde estás', prefs: 'Ayuda, idioma y tema', language: 'Idioma',
@@ -775,6 +777,20 @@ export default {
         'mod-reportes': 'Que cualquiera avise al staff de algo, en privado.',
       },
     },
+    ficha: {
+      titulo: 'Ficha rápida', error: 'No se ha podido cargar su ficha.', fuera: 'Ya no está en el servidor', aislado: 'Aislado ahora',
+      desde: 'En el servidor desde', nivel: 'Nivel', mensajes_one: '{{count}} mensaje', mensajes_other: '{{count}} mensajes',
+      sanciones: 'Sanciones', activas_one: '{{count}} activa', activas_other: '{{count}} activas', tickets: 'Tickets',
+      abiertos_one: '{{count}} abierto', abiertos_other: '{{count}} abiertos', cuenta: 'Cuenta de Discord creada el {{fecha}}', sancionar: 'Sancionar',
+      accion: { aviso: 'Aviso', timeout: 'Aislamiento', expulsion: 'Expulsión', ban: 'Ban' },
+    },
+    crear: {
+      opcion: { canal: '➕ Crear canal nuevo…', rol: '➕ Crear rol nuevo…' },
+      titulo: { canal: 'Crear un canal de texto', voz: 'Crear un canal de voz', rol: 'Crear un rol' },
+      sub: { canal: 'Se crea en Discord ahora mismo (arriba del todo) y se queda elegido aquí. Luego puedes moverlo en «Categorías y canales».', rol: 'Se crea en Discord ahora mismo, sin permisos especiales, y se queda elegido aquí. Luego puedes ajustarlo en «Roles y permisos».' },
+      placeholder: { canal: 'Nombre del canal (p. ej. bienvenidas)', rol: 'Nombre del rol (p. ej. Miembro)' },
+      crear: 'Crear', cancelar: 'Cancelar', error: 'No se ha podido crear. Comprueba que el bot puede gestionar canales y roles.',
+    },
     theme: {
       button: 'Tema',
       title: 'Apariencia',
@@ -1088,6 +1104,16 @@ export default {
       },
     },
     miembros_v: {
+      grupo: {
+        marcados_one: '{{count}} marcado', marcados_other: '{{count}} marcados',
+        todos: 'Marcar los {{count}} de esta lista', marcar: 'Marcar a {{name}}', quitar: 'Quitar la selección',
+        darRol: 'Dar un rol', titulo: '{{accion}} a {{count}} personas', tituloRol: 'Dar un rol a {{count}} personas',
+        cuanto: 'Cuánto tiempo', duraciones: { 10: '10 minutos', 60: '1 hora', 1440: '1 día', 10080: '1 semana' },
+        motivo: 'Motivo (opcional, lo verán en el registro)', elegirRol: 'Elige el rol…',
+        aviso: { expulsion: 'Saldrán del servidor. Pueden volver con una invitación.', ban: 'No podrán volver hasta que les quites el ban (pestaña «Baneados»).' },
+        aplicar_one: 'Aplicar a {{count}}', aplicar_other: 'Aplicar a los {{count}}', cancelar: 'Cancelar', listo: 'Listo',
+        hecho_one: 'Hecho con {{count}} persona', hecho_other: 'Hecho con {{count}} personas', falloGenerico: 'no se pudo',
+      },
       tabs: { miembros: 'Miembros', baneados: 'Baneados' },
       search: 'Busca por nombre, apodo o ID…', searchBans: 'Busca un baneado por nombre o ID…',
       role: 'Filtrar por rol', anyRole: 'Cualquier rol', sort: 'Ordenar',

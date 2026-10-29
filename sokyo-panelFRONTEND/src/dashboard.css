@@ -206,3 +206,13 @@ html[data-theme='light'], html[data-theme='lavanda'], html[data-theme='cereza'] 
     -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   }
 }
+
+/* Ajuste encontrado con el buscador: un halo con el color del tema que se apaga solo. */
+@keyframes sk-resaltado {
+  0%, 60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 70%, transparent), 0 0 30px -4px var(--accent-color); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.sk-dash .sk-resaltado { animation: sk-resaltado 2.4s ease-out; border-radius: 1rem; }
+@media (prefers-reduced-motion: reduce) {
+  .sk-dash .sk-resaltado { animation: none; box-shadow: 0 0 0 3px var(--accent-color); }
+}

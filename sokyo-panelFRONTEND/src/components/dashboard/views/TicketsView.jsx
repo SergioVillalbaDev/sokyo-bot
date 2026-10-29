@@ -6,6 +6,7 @@ import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox } from 'lu
 import { Avatar, Badge, Stars, Card } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
 import { nombrePrioridad } from '../../../lib/prioridad';
+import FichaRapida from '../FichaRapida';
 
 export default function TicketsView({ dash }) {
   const { t } = useTranslation();
@@ -86,7 +87,7 @@ export default function TicketsView({ dash }) {
               <div className="mt-3 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <Avatar src={ticket.creadorAvatar} name={ticket.creadorNombre} size={22} />
-                  <span className="font-semibold text-fg">{ticket.creadorNombre}</span>
+                  <FichaRapida userId={ticket.creadorId} guildId={dash.guildId}><span className="font-semibold text-fg">{ticket.creadorNombre}</span></FichaRapida>
                 </div>
                 <span className="flex items-center gap-1 text-xs italic text-muted">
                   <Tag size={12} /> {ticket.motivo}

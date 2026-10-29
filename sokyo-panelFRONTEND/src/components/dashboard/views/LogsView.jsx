@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Inbox, Crown, ScrollText, Hash, Save, Check } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const pills = [
   { tab: 'logs-todos', key: 'todos' },
@@ -73,6 +74,7 @@ function AjustesLogs({ dash }) {
         >
           <option value="">{b('logsChannelNone')}</option>
           {(canales || []).map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
+          <OpcionCrear tipo="canal" />
         </select>
         <div className="mt-3 flex items-center gap-3">
           <button onClick={guardarCanal} className="flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90">

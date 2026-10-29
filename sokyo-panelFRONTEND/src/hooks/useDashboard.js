@@ -1484,6 +1484,7 @@ export function useDashboard() {
     else if (activeTab === 'logs-todos') { cargarLogs(); cargarConfiguracion(); cargarCanales(); }
     else if (activeTab.startsWith('logs-')) cargarLogs();
     else if (activeTab === 'config-cambios') { cargarCanales(); cargarRoles(); }
+    else if (activeTab === 'mod-miembros') cargarRoles(); // filtro por rol y «Dar rol» en grupo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, guildId, recarga]);
 
@@ -1549,6 +1550,8 @@ export function useDashboard() {
 
   return {
     estadoModulos, recarga, recargarSeccion,
+    // listas de Discord (también para «Crear canal/rol nuevo» desde un desplegable)
+    cargarCanales, cargarRoles, cargarCategorias,
     // estado tema / navegación
     theme, setTheme, temasPremium, activeTab, setActiveTab,
     // multi-servidor

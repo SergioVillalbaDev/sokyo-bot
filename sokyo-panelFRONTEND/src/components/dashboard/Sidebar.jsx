@@ -5,8 +5,9 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Home, LayoutDashboard, LogOut, Crown, X, Search, Smartphone } from 'lucide-react';
-import { navSections, gruposVisibles, tabDeMenu, bloqueadoPorPlan } from './navConfig';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Home, LayoutDashboard, LogOut, Crown, X, Search, Smartphone, Star } from 'lucide-react';
+import { navSections, gruposVisibles, tabDeMenu, bloqueadoPorPlan, ubicacion } from './navConfig';
+import { useFavoritos, alternarFavorito } from '../../lib/favoritos';
 import { Avatar } from '../ui/primitives';
 import { cn } from '../../lib/cn';
 import MenuPerfil from './MenuPerfil';
@@ -61,6 +62,11 @@ export default function Sidebar({
 
   // Al elegir una sección en el móvil, el cajón se cierra solo.
   const irA = (tab) => { setActiveTab(tab); setMobileOpen(false); };
+
+  // Favoritas: arriba del todo (solo las que puede ver en este servidor).
+  const favoritos = useFavoritos();
+  const visibles = new Set(grupos.flatMap((g) => g.items.map((it) => it.tab)));
+  const misFavoritos = favoritos.filter((tab) => visibles.has(tab)).map((tab) => ({ tab, ...ubicacion(tab) })).filter((f) => f.item);
 
   return (
     <>
@@ -162,6 +168,33 @@ export default function Sidebar({
             {!plegado && <span>{t('dashboard.inicio')}</span>}
           </button>
 
+          {misFavoritos.length > 0 && (
+            <div className="mt-4">
+              {!plegado
+                ? <p className="mb-1.5 flex items-center gap-1.5 px-2.5 text-[10.5px] font-bold uppercase tracking-[.14em] text-muted/80"><Star size={11} className="fill-current text-amber-400" /> {t('dashboard.nav.favoritos')}</p>
+                : <div className="mx-auto mb-2 hidden h-px w-8 bg-line lg:block" />}
+              <div className="space-y-0.5">
+                {misFavoritos.map(({ tab, item, group }) => {
+                  const act = tabMenu === tab;
+                  const bloqueado = bloqueadoPorPlan(item, esPremium, esOwner);
+                  return (
+                    <button
+                      key={tab} style={{ '--grupo': group.color }}
+                      onClick={() => (bloqueado ? onRequestUpgrade?.(tab) : irA(tab))}
+                      aria-current={act ? 'page' : undefined}
+                      title={plegado ? t(`dashboard.nav.items.${tab}`) : undefined}
+                      className={cn('sk-foco flex w-full items-center gap-3 rounded-xl px-2.5 py-1.5 text-[13.5px] font-semibold transition-colors', act ? 'sk-nav-activo' : 'text-muted hover:bg-elevated hover:text-fg', plegado && 'lg:justify-center')}
+                    >
+                      <span className={cn('sk-icono-grupo h-7 w-7', act && '!bg-white/20 !text-on-brand !shadow-none')}><item.icon size={14} /></span>
+                      {!plegado && <span className="flex-1 truncate text-left">{t(`dashboard.nav.items.${tab}`)}</span>}
+                      {!plegado && bloqueado && <Crown size={13} className="shrink-0 text-amber-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {navSections.map((sec) => {
             const gs = sec.groups.map((id) => porId[id]).filter(Boolean);
             if (!gs.length) return null;
@@ -204,14 +237,15 @@ export default function Sidebar({
                                   const act = tabMenu === item.tab;
                                   const bloqueado = bloqueadoPorPlan(item, esPremium, esOwner);
                                   const estado = Object.prototype.hasOwnProperty.call(moduleStatus, item.tab) ? moduleStatus[item.tab] : undefined;
+                                  const favorito = favoritos.includes(item.tab);
                                   return (
+                                    <div key={item.tab} className="group relative flex">
                                     <button
-                                      key={item.tab}
                                       onClick={() => (bloqueado ? onRequestUpgrade?.(item.tab) : irA(item.tab))}
                                       aria-current={act ? 'page' : undefined}
                                       title={bloqueado ? t('dashboard.plan.upgrade') : (estado === false ? t('dashboard.nav.moduleOff') : (estado === true ? t('dashboard.nav.moduleOn') : undefined))}
                                       className={cn(
-                                        'sk-foco flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13.5px] transition-colors',
+                                        'sk-foco flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-[7px] pl-2.5 pr-8 text-[13.5px] transition-colors',
                                         act ? 'sk-nav-activo font-semibold' : 'text-muted hover:bg-elevated hover:text-fg',
                                       )}
                                     >
@@ -227,6 +261,19 @@ export default function Sidebar({
                                       )}
                                       {bloqueado && <Crown size={13} className="shrink-0 text-amber-400" />}
                                     </button>
+                                    {/* Estrella: fijar arriba del menú (se ve al pasar por encima o si ya es favorita). */}
+                                    <button
+                                      onClick={() => alternarFavorito(item.tab)}
+                                      aria-pressed={favorito}
+                                      aria-label={favorito ? t('dashboard.nav.quitarFavorito') : t('dashboard.nav.anadirFavorito')}
+                                      title={favorito ? t('dashboard.nav.quitarFavorito') : t('dashboard.nav.anadirFavorito')}
+                                      className={cn('sk-foco absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md transition-opacity hover:bg-elevated',
+                                        favorito ? 'text-amber-400 opacity-100' : 'text-muted opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-60',
+                                        act && !favorito && 'text-on-brand')}
+                                    >
+                                      <Star size={13} className={favorito ? 'fill-current' : ''} />
+                                    </button>
+                                    </div>
                                   );
                                 })}
                               </div>

@@ -15,6 +15,7 @@ import '../../dashboard.css';
 import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
 import AvisoDeshacer from './AvisoDeshacer';
+import CrearAlVuelo from './CrearAlVuelo';
 import { AtajosTeclado } from './Preferencias';
 import { ligeroActivo, suscribirLigero } from '../../lib/ligero';
 import { anotarReciente } from '../../lib/recientes';
@@ -384,6 +385,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       />
 
       {atajos && <AtajosTeclado onCerrar={() => setAtajos(false)} />}
+
+      {/* «➕ Crear canal/rol nuevo…» de los desplegables. */}
+      <CrearAlVuelo dash={dash} />
 
       {/* «Guardado · Deshacer» tras cada cambio (solo quien puede deshacerlo). */}
       {misPermisos?.config !== false && (

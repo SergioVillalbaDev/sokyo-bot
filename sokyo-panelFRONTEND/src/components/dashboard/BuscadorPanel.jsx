@@ -3,8 +3,9 @@
 // Sin escribir nada hace de índice: todas las secciones, agrupadas como el menú.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, CornerDownLeft, Crown, Ticket as TicketIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, CornerDownLeft, Crown, Ticket as TicketIcon, ArrowUp, ArrowDown, SlidersHorizontal } from 'lucide-react';
 import { gruposVisibles, normalizar, metaKey, bloqueadoPorPlan, itemVisible } from './navConfig';
+import { buscarAjustes, resaltarTexto } from '../../lib/indiceAjustes';
 import { getStaffSession } from '../../lib/api';
 import { cn } from '../../lib/cn';
 import { leerRecientes } from '../../lib/recientes';
@@ -51,7 +52,14 @@ export default function BuscadorPanel({ abierto, onCerrar, irA, permisos, esPrem
     const tks = (puedeTickets ? tickets || [] : []).filter((tk) => palabras.every((p) => normalizar(`${tk.titulo || ''} ${tk.motivo || ''} ${tk.creadorNombre || ''}`).includes(p)))
       .slice(0, 5)
       .map((tk) => ({ tipo: 'ticket', id: `tk-${tk.canalId}`, ticket: tk, titulo: tk.titulo || tk.motivo || 'Ticket', desc: `${tk.creadorNombre || ''} · ${tk.estado || ''}` }));
-    return [...secc, ...tks];
+    // Ajustes concretos de cada sección («prefijo», «canal de bienvenida»…).
+    const porTab = Object.fromEntries(secciones.map((x) => [x.tab, x]));
+    const ajustes = buscarAjustes(q, (tab) => !!porTab[tab]).map((a) => ({
+      tipo: 'ajuste', id: `aj-${a.tab}-${a.n}`, tab: a.tab, texto: a.texto, titulo: a.texto,
+      desc: t('dashboard.search.enSeccion', { seccion: porTab[a.tab].titulo }), icono: porTab[a.tab].icono, color: porTab[a.tab].color,
+      bloqueado: porTab[a.tab].bloqueado,
+    }));
+    return [...secc, ...ajustes, ...tks];
     // `abierto`: los recientes se vuelven a leer cada vez que se abre.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, secciones, tickets, permisos, abierto, t]);
@@ -69,6 +77,7 @@ export default function BuscadorPanel({ abierto, onCerrar, irA, permisos, esPrem
     if (r.tipo === 'ticket') return abrirTicket?.(r.ticket);
     if (r.bloqueado) return onRequestUpgrade?.(r.tab);
     irA(r.tab);
+    if (r.tipo === 'ajuste') resaltarTexto(r.texto);
   };
   const tecla = (e) => {
     if (e.key === 'Escape') { e.preventDefault(); onCerrar(); }
@@ -103,12 +112,14 @@ export default function BuscadorPanel({ abierto, onCerrar, irA, permisos, esPrem
             // Sin buscar, las secciones van agrupadas con su título de grupo.
             const cabecera = vacio && r.tipo === 'seccion' && r.grupoId !== resultados[i - 1]?.grupoId ? r.grupo : null;
             const ticketsInicio = !vacio && r.tipo === 'ticket' && resultados[i - 1]?.tipo !== 'ticket';
-            const Icono = r.tipo === 'ticket' ? TicketIcon : r.icono;
+            const ajustesInicio = !vacio && r.tipo === 'ajuste' && resultados[i - 1]?.tipo !== 'ajuste';
+            const Icono = r.tipo === 'ticket' ? TicketIcon : r.icono || SlidersHorizontal;
             const estado = r.tipo === 'seccion' && Object.prototype.hasOwnProperty.call(moduleStatus, r.tab) ? moduleStatus[r.tab] : undefined;
             return (
               <div key={r.id}>
                 {cabecera && <p className="px-3 pb-1 pt-3 text-[10.5px] font-bold uppercase tracking-[.14em] text-muted">{cabecera}</p>}
                 {ticketsInicio && <p className="px-3 pb-1 pt-3 text-[10.5px] font-bold uppercase tracking-[.14em] text-muted">{t('dashboard.header.searchTickets')}</p>}
+                {ajustesInicio && <p className="px-3 pb-1 pt-3 text-[10.5px] font-bold uppercase tracking-[.14em] text-muted">{t('dashboard.search.ajustes')}</p>}
                 <button
                   data-i={i} role="option" aria-selected={i === sel}
                   onClick={() => elegir(r)} onMouseMove={() => sel !== i && setSel(i)}

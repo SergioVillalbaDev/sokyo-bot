@@ -6,6 +6,7 @@ import { Toggle } from '../../ui/primitives';
 import { Flag, Save, Check, X, Info, Ticket } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { OpcionCrear } from '../CrearAlVuelo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -68,6 +69,7 @@ export default function ReportesView({ dash }) {
           >
             <option value="">{t('dashboard.reportes_v.channelPh')}</option>
             {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            <OpcionCrear tipo="canal" />
           </select>
         </label>
         <div className="mt-4 flex items-center gap-3">

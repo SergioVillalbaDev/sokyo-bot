@@ -3340,6 +3340,20 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- Ficha rápida (al pasar el ratón por un usuario en el panel) ---
+    app.get('/api/servidor/miembro/:userId/ficha', exigeModerador, async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const f = await require('../utils/ficha.js').fichaMiembro(client, guild.id, req.params.userId);
+            if (!f) return res.status(404).json({ error: 'Usuario no encontrado' });
+            res.json(f);
+        } catch (error) {
+            console.error('Error en la ficha rápida:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
     // --- Actividad de un usuario (resumen: último mensaje, voz, conteo) ---
     app.get('/api/servidor/actividad/:userId', exigeModerador, async (req, res) => {
         try {
