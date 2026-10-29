@@ -1,6 +1,6 @@
 // Contenedor del Dashboard — une el layout (Sidebar + Header) con las vistas.
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
-import { useState, useEffect, useRef, useSyncExternalStore, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, LogIn, ArrowUp } from 'lucide-react';
@@ -16,6 +16,9 @@ import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
 import AvisoDeshacer from './AvisoDeshacer';
 import CrearAlVuelo from './CrearAlVuelo';
+import VentanaNovedades from './VentanaNovedades';
+import { itemVisible, ubicacion as ubicacionTab } from './navConfig';
+import { apiFetch } from '../../lib/api';
 import { AtajosTeclado } from './Preferencias';
 import { ligeroActivo, suscribirLigero } from '../../lib/ligero';
 import { anotarReciente } from '../../lib/recientes';
@@ -127,6 +130,25 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     };
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
+  }, []);
+
+  // «Novedades»: la primera vez que se entra tras actualizar el bot. Quien entra
+  // por primera vez no la ve (ya tiene el tour); solo se apunta la versión.
+  const [novedades, setNovedades] = useState(false);
+  const versionPanel = useRef(null);
+  useEffect(() => {
+    apiFetch('/api/estado').then((r) => r.json()).then((d) => {
+      if (!d?.version) return;
+      versionPanel.current = d.version;
+      let vista = null;
+      try { vista = localStorage.getItem('sokyoVersionVista'); } catch { /* sin almacenamiento */ }
+      if (!vista) { try { localStorage.setItem('sokyoVersionVista', d.version); } catch { /* idem */ } }
+      else if (vista !== d.version) setNovedades(true);
+    }).catch(() => {});
+  }, []);
+  const cerrarNovedades = useCallback(() => {
+    setNovedades(false);
+    if (versionPanel.current) { try { localStorage.setItem('sokyoVersionVista', versionPanel.current); } catch { /* sin almacenamiento */ } }
   }, []);
 
   // Upsell contextual: qué función de pago intentó abrir un servidor Free.
@@ -319,7 +341,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} onBuscar={() => setBuscador(true)} puedeVolver={pasosAtras > 0 || activeTab !== 'inicio'} onAtras={irAtras} onAtajos={() => setAtajos(true)} />
+        <Header dash={dash} onOpenMenu={() => setMobileOpen(true)} onBuscar={() => setBuscador(true)} puedeVolver={pasosAtras > 0 || activeTab !== 'inicio'} onAtras={irAtras} onAtajos={() => setAtajos(true)} onNovedades={() => setNovedades(true)} />
 
         <main ref={mainRef} onScroll={alDesplazar} className="flex-1 overflow-y-auto px-3 pb-10 pt-4 sm:px-4 sm:pt-5 lg:pl-4 lg:pr-5">
           <div className="mx-auto w-full max-w-[1500px]">
@@ -385,6 +407,10 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       />
 
       {atajos && <AtajosTeclado onCerrar={() => setAtajos(false)} />}
+
+      {novedades && (
+        <VentanaNovedades onCerrar={cerrarNovedades} irA={navigate} puedeVer={(tab) => { const u = ubicacionTab(tab); return !!u && itemVisible(u.item, misPermisos); }} />
+      )}
 
       {/* «➕ Crear canal/rol nuevo…» de los desplegables. */}
       <CrearAlVuelo dash={dash} />

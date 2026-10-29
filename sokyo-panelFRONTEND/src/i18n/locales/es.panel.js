@@ -15,6 +15,10 @@ export default {
       lightAutoOn: 'Ahora está activado: este equipo o este navegador (Firefox) van mejor así.',
       lightAutoOff: 'Ahora está desactivado: este equipo va sobrado.',
       shortcuts: 'Atajos de teclado',
+      letra: 'Tamaño de la letra', letraOpts: { normal: 'Normal', grande: 'Grande', 'muy-grande': 'Muy grande' },
+      compacto: 'Vista compacta', compactoDesc: 'Menos espacio entre las cosas: cabe más en la pantalla.',
+      temaAuto: 'Tema según el sistema', temaAutoDesc: 'Claro cuando tu equipo está en claro y oscuro cuando está en oscuro (se cambia solo).',
+      novedades: 'Ver las novedades',
       keys: { search: 'Buscar en el panel', searchAlt: 'Buscar (si no estás escribiendo)', back: 'Volver a la sección anterior', save: 'Guardar la sección ahora', close: 'Cerrar ventanas y menús', help: 'Ver estos atajos' },
     },
     auth: {
@@ -791,6 +795,10 @@ export default {
       placeholder: { canal: 'Nombre del canal (p. ej. bienvenidas)', rol: 'Nombre del rol (p. ej. Miembro)' },
       crear: 'Crear', cancelar: 'Cancelar', error: 'No se ha podido crear. Comprueba que el bot puede gestionar canales y roles.',
     },
+    novedades: {
+      titulo: 'Novedades de Sokyo', version: 'Versión {{version}}', ver: 'Ver', cerrar: 'Cerrar', entendido: '¡Entendido!',
+      anteriores: 'Ver las de versiones anteriores', ocultarAnteriores: 'Ocultar las anteriores', pagina: 'Todas las novedades',
+    },
     theme: {
       button: 'Tema',
       title: 'Apariencia',
@@ -1391,6 +1399,9 @@ export default {
       importWarn: 'Sobrescribirá la configuración actual del servidor. Asegúrate de tener una copia.',
       confirm: '¿Seguro? Esto sobrescribirá la configuración actual del servidor.',
       error: 'No se pudo completar (revisa el archivo).',
+      copyTitle: 'Copiar a otro servidor', copyDesc: 'Pasa estos ajustes a otro de tus servidores en un clic. Los canales y roles se buscan allí por su nombre; lo que no exista se queda vacío y te lo decimos.',
+      copyPick: 'Elige el servidor de destino…', copyBtn: 'Copiar', copyConfirm: '¿Copiar estos ajustes a «{{server}}»? Se sobrescribirán los que tenga (podrás deshacerlo en su «Historial de cambios»).',
+      copied: 'Copiado a «{{server}}».', copyMissing: 'En ese servidor no hay {{lista}}: esos ajustes se han quedado vacíos. Créalos allí y elígelos en su sección.',
     },
     autoresp_v: {
       intro: 'Si alguien escribe un texto concreto, el bot responde automáticamente. Ideal para FAQs.',

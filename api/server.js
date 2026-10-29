@@ -2049,55 +2049,85 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // Aplica una configuración (de un archivo o copiada de otro servidor) a un
+    // servidor, con las mismas reglas que al configurarlo a mano. Devuelve
+    // { status, cuerpo } para responder.
+    async function aplicarImportacion(req, guildId, entrante) {
+        if (!entrante || typeof entrante !== 'object' || Array.isArray(entrante)) return { status: 400, cuerpo: { error: 'Formato no válido' } };
+        const cambios = { ...entrante };
+        for (const k of CAMPOS_NO_BACKUP) delete cambios[k];
+        // Quién entra al panel y quién modera solo lo cambia un administrador (igual
+        // que en Acceso y permisos): importando tampoco se lo puede dar nadie más.
+        let esAdmin = !req.staff || req.staff.owner;
+        if (!esAdmin) {
+            const g = client.guilds.cache.get(guildId);
+            const m = g ? await g.members.fetch(req.staff.id).catch(() => null) : null;
+            esAdmin = !!(m && m.permissions.has(PermissionsBitField.Flags.Administrator));
+        }
+        if (!esAdmin) for (const k of ['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']) delete cambios[k];
+        // Los roles que reparte el bot (autorol, recompensas, verificación…) siguen la
+        // misma regla de jerarquía que al configurarlos uno a uno.
+        const rolesQueDaElBot = (c) => [
+            ...(c.autoRoles || []), ...(c.autoRolesBots || []),
+            ...(c.recompensasNivel || []).map((r) => r && r.rolId),
+            c.verificacion && c.verificacion.rolVerificadoId,
+            c.embudoAB && c.embudoAB.rolVerificadoId,
+            c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
+            ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
+        ].filter((x) => typeof x === 'string' && x);
+        const actualCfg = (await ServidorConfig.findOne({ guildId }).lean()) || {};
+        const errRoles = await errorRolesNuevos(client, req.staff, guildId, rolesQueDaElBot(entrante), rolesQueDaElBot(actualCfg));
+        if (errRoles) return { status: 403, cuerpo: { error: errRoles } };
+        // mensajeId de la verificación no debe importarse (es de otro servidor).
+        if (cambios.verificacion) delete cambios.verificacion.mensajeId;
+        // Crecimiento campo a campo: así no se pisa la página ni el bump de este servidor.
+        if (cambios.crecimiento && typeof cambios.crecimiento === 'object') {
+            const c = limpiarCrecimiento(cambios.crecimiento);
+            delete cambios.crecimiento;
+            for (const [sec, valores] of Object.entries(c)) {
+                if (!valores || typeof valores !== 'object' || Array.isArray(valores)) continue;
+                for (const [k, v] of Object.entries(valores)) cambios[`crecimiento.${sec}.${k}`] = v;
+            }
+        }
+        const config = await ServidorConfig.findOneAndUpdate(
+            { guildId },
+            { $set: cambios },
+            { returnDocument: 'after', upsert: true },
+        );
+        return { status: 200, cuerpo: { success: true, config } };
+    }
+
     app.post('/api/config/:guildId/import', exigeArea('config'), async (req, res) => {
         try {
-            const entrante = (req.body && (req.body.config || req.body)) || {};
-            if (typeof entrante !== 'object' || Array.isArray(entrante)) return res.status(400).json({ error: 'Formato no válido' });
-            const cambios = { ...entrante };
-            for (const k of CAMPOS_NO_BACKUP) delete cambios[k];
-            const guildId = req.params.guildId;
-            // Quién entra al panel y quién modera solo lo cambia un administrador (igual
-            // que en Acceso y permisos): importando tampoco se lo puede dar nadie más.
-            let esAdmin = !req.staff || req.staff.owner;
-            if (!esAdmin) {
-                const g = client.guilds.cache.get(guildId);
-                const m = g ? await g.members.fetch(req.staff.id).catch(() => null) : null;
-                esAdmin = !!(m && m.permissions.has(PermissionsBitField.Flags.Administrator));
-            }
-            if (!esAdmin) for (const k of ['rolesPanelAcceso', 'rolesModeracion', 'accesoAreas']) delete cambios[k];
-            // Los roles que reparte el bot (autorol, recompensas, verificación…) siguen la
-            // misma regla de jerarquía que al configurarlos uno a uno.
-            const rolesQueDaElBot = (c) => [
-                ...(c.autoRoles || []), ...(c.autoRolesBots || []),
-                ...(c.recompensasNivel || []).map((r) => r && r.rolId),
-                c.verificacion && c.verificacion.rolVerificadoId,
-                c.embudoAB && c.embudoAB.rolVerificadoId,
-                c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
-                ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
-            ].filter((x) => typeof x === 'string' && x);
-            const actualCfg = (await ServidorConfig.findOne({ guildId }).lean()) || {};
-            const errRoles = await errorRolesNuevos(client, req.staff, guildId, rolesQueDaElBot(entrante), rolesQueDaElBot(actualCfg));
-            if (errRoles) return res.status(403).json({ error: errRoles });
-            // mensajeId de la verificación no debe importarse (es de otro servidor).
-            if (cambios.verificacion) delete cambios.verificacion.mensajeId;
-            // Crecimiento campo a campo: así no se pisa la página ni el bump de este servidor.
-            if (cambios.crecimiento && typeof cambios.crecimiento === 'object') {
-                const c = limpiarCrecimiento(cambios.crecimiento);
-                delete cambios.crecimiento;
-                for (const [sec, valores] of Object.entries(c)) {
-                    if (!valores || typeof valores !== 'object' || Array.isArray(valores)) continue;
-                    for (const [k, v] of Object.entries(valores)) cambios[`crecimiento.${sec}.${k}`] = v;
-                }
-            }
-            const config = await ServidorConfig.findOneAndUpdate(
-                { guildId: req.params.guildId },
-                { $set: cambios },
-                { returnDocument: 'after', upsert: true },
-            );
-            res.json({ success: true, config });
+            const r = await aplicarImportacion(req, req.params.guildId, (req.body && (req.body.config || req.body)) || {});
+            res.status(r.status).json(r.cuerpo);
         } catch (error) {
             console.error('Error al importar config:', error);
             res.status(500).json({ error: 'No se pudo importar (¿JSON válido?)' });
+        }
+    });
+
+    // Copiar la configuración de este servidor a otro de los suyos: los canales y
+    // roles se buscan por nombre allí; lo que no exista se deja vacío y se avisa.
+    app.post('/api/config/:guildId/copiar', exigeArea('config'), async (req, res) => {
+        try {
+            const origen = client.guilds.cache.get(req.params.guildId);
+            const destino = client.guilds.cache.get(String(req.body?.destino || ''));
+            if (!origen || !destino) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (origen.id === destino.id) return res.status(400).json({ error: 'Elige otro servidor' });
+            if (!(await tieneAreaAcceso(req, destino.id, 'config'))) return res.status(403).json({ error: 'No tienes acceso a los ajustes de ese servidor' });
+            const cfg = await ServidorConfig.findOne({ guildId: origen.id }).lean();
+            if (!cfg) return res.status(404).json({ error: 'Sin configuración' });
+            for (const k of CAMPOS_NO_BACKUP) delete cfg[k];
+            limpiarCrecimiento(cfg.crecimiento);
+            const { remapearIds } = require('../utils/copiarConfig.js');
+            const { cfg: copia, faltan } = remapearIds(cfg, origen, destino);
+            const r = await aplicarImportacion(req, destino.id, copia);
+            if (r.status !== 200) return res.status(r.status).json(r.cuerpo);
+            res.json({ success: true, destino: { id: destino.id, nombre: destino.name }, faltan });
+        } catch (error) {
+            console.error('Error al copiar la config:', error);
+            res.status(500).json({ error: 'No se pudo copiar la configuración' });
         }
     });
 

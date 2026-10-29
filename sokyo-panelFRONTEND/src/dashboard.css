@@ -216,3 +216,14 @@ html[data-theme='light'], html[data-theme='lavanda'], html[data-theme='cereza'] 
 @media (prefers-reduced-motion: reduce) {
   .sk-dash .sk-resaltado { animation: none; box-shadow: 0 0 0 3px var(--accent-color); }
 }
+
+/* Vista compacta (Preferencias): menos aire entre cosas para ver más de un vistazo. */
+html.sk-compacto .sk-dash main .p-5, html.sk-compacto .sk-dash main .sm\:p-5, html.sk-compacto .sk-dash main .sm\:p-6 { padding: .8rem; }
+html.sk-compacto .sk-dash main .p-4 { padding: .65rem; }
+html.sk-compacto .sk-dash main .space-y-5 > :not(:last-child) { margin-bottom: .8rem; }
+html.sk-compacto .sk-dash main .space-y-4 > :not(:last-child) { margin-bottom: .6rem; }
+html.sk-compacto .sk-dash main .gap-5 { gap: .8rem; }
+html.sk-compacto .sk-dash main .gap-4 { gap: .6rem; }
+html.sk-compacto .sk-dash main .py-2\.5 { padding-top: .4rem; padding-bottom: .4rem; }
+html.sk-compacto .sk-dash main .rounded-3xl { border-radius: 1.1rem; }
+html.sk-compacto .sk-dash nav .py-2 { padding-top: .3rem; padding-bottom: .3rem; }

@@ -15,6 +15,16 @@ const OCULTOS = new Set(['webhooksSalientes']);
 module.exports = ({ client, exigeArea, tieneAreaAcceso, idiomaPanel }) => {
     const router = express.Router();
 
+    // --- Novedades de la versión (ventana «Novedades» del panel) ---
+    router.get('/novedades', (req, res) => {
+        const { version } = require('../../package.json');
+        const { NOVEDADES, novedadesDe } = require('../../utils/novedades.js');
+        const idioma = idiomaPanel(req, null);
+        // Las últimas versiones con novedades, de la más nueva a la más vieja.
+        const versiones = Object.keys(NOVEDADES).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })).slice(0, 4);
+        res.json({ version, versiones: versiones.map((v) => ({ version: v, novedades: novedadesDe(v, idioma) })) });
+    });
+
     // --- Diagnóstico ---
     router.get('/diagnostico', async (req, res) => {
         try {
@@ -56,12 +66,14 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso, idiomaPanel }) => {
         }
     });
 
-    router.post('/cambios/:id/deshacer', exigeArea('config'), async (req, res) => {
+    // El cambio puede ser de otro servidor de los suyos (p. ej. al copiar la
+    // configuración a otro): se mira el acceso en el servidor del cambio.
+    router.post('/cambios/:id/deshacer', async (req, res) => {
         try {
             const CambioPanel = require('../../models/CambioPanel.js');
             const c = await CambioPanel.findById(req.params.id).select('guildId claves').lean().catch(() => null);
-            if (!c || c.guildId !== req.body.guildId) return res.status(404).json({ error: 'Ese cambio no existe', codigo: 'no_existe' });
-            for (const area of new Set(c.claves.map((k) => AREA_DE[k]).filter(Boolean))) {
+            if (!c) return res.status(404).json({ error: 'Ese cambio no existe', codigo: 'no_existe' });
+            for (const area of new Set(['config', ...c.claves.map((k) => AREA_DE[k]).filter(Boolean)])) {
                 if (!(await tieneAreaAcceso(req, c.guildId, area))) return res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
             }
             const r = await deshacerCambio(req.params.id, req.staff || null, { forzar: !!req.body.forzar });

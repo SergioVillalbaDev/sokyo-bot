@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch, API_URL, procesarRespuesta, getStaffSession } from '../lib/api';
 import { isValidTheme, isPremiumTheme } from '../lib/themes';
+import { temaEfectivo, suscribirAspecto } from '../lib/aspecto';
 
 export function useDashboard() {
   // Tema persistido. Si el guardado es premium pero el plan no lo es, cae a 'lima'.
@@ -1400,8 +1401,11 @@ export function useDashboard() {
   };
 
   // --- Efectos (declarados tras las funciones que utilizan) ---
+  // Con «seguir al sistema», claro u oscuro según el equipo (y cambia solo al anochecer).
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const aplicar = () => document.documentElement.setAttribute('data-theme', temaEfectivo(theme));
+    aplicar();
+    return suscribirAspecto(aplicar);
   }, [theme]);
 
   // Carga la lista de servidores del bot una vez al montar.

@@ -104,7 +104,7 @@ function NotifItem({ icon: Icon, color, titulo, meta, fecha, onClick, onDismiss 
   );
 }
 
-export default function Header({ dash, onOpenMenu, onBuscar, puedeVolver = false, onAtras, onAtajos }) {
+export default function Header({ dash, onOpenMenu, onBuscar, puedeVolver = false, onAtras, onAtajos, onNovedades }) {
   const { t, i18n } = useTranslation();
   const {
     activeTab, theme, setTheme, temasPremium, esPremium, servidorInfo,
@@ -431,7 +431,7 @@ export default function Header({ dash, onOpenMenu, onBuscar, puedeVolver = false
         <div data-tour="tools" className="hidden shrink-0 items-center gap-2 sm:flex">
           <LanguageSwitcher />
           <ThemePicker theme={theme} setTheme={setTheme} esPremium={esPremium} desbloqueados={temasPremium} />
-          <BotonPreferencias onAtajos={onAtajos} />
+          <BotonPreferencias onAtajos={onAtajos} onNovedades={onNovedades} />
         </div>
 
         {/* Móvil: un solo botón con ayuda, idioma y tema */}
@@ -473,7 +473,10 @@ export default function Header({ dash, onOpenMenu, onBuscar, puedeVolver = false
                 </div>
                 <div className="mt-4"><ThemeGrid theme={theme} setTheme={setTheme} desbloqueados={temasPremium} /></div>
                 <p className="mb-3 mt-5 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('dashboard.prefs.title')}</p>
-                <OpcionesComodidad />
+                <OpcionesComodidad
+                  onAtajos={onAtajos ? () => { setPrefsAbiertas(false); onAtajos(); } : undefined}
+                  onNovedades={onNovedades ? () => { setPrefsAbiertas(false); onNovedades(); } : undefined}
+                />
               </motion.div>
             )}
           </AnimatePresence>

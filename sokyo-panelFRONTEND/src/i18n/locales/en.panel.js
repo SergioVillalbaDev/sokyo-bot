@@ -15,6 +15,10 @@ export default {
       lightAutoOn: 'It’s on right now: this device or browser (Firefox) runs better this way.',
       lightAutoOff: 'It’s off right now: this device has power to spare.',
       shortcuts: 'Keyboard shortcuts',
+      letra: 'Text size', letraOpts: { normal: 'Normal', grande: 'Large', 'muy-grande': 'Extra large' },
+      compacto: 'Compact view', compactoDesc: 'Less space between things: more fits on screen.',
+      temaAuto: 'Match the system theme', temaAutoDesc: 'Light when your device is in light mode and dark when it’s in dark mode (switches by itself).',
+      novedades: 'See what’s new',
       keys: { search: 'Search the panel', searchAlt: 'Search (when you’re not typing)', back: 'Go back to the previous section', save: 'Save the section now', close: 'Close windows and menus', help: 'See these shortcuts' },
     },
     auth: {
@@ -791,6 +795,10 @@ export default {
       placeholder: { canal: 'Channel name (e.g. welcome)', rol: 'Role name (e.g. Member)' },
       crear: 'Create', cancelar: 'Cancel', error: 'It couldn’t be created. Check that the bot can manage channels and roles.',
     },
+    novedades: {
+      titulo: 'What’s new in Sokyo', version: 'Version {{version}}', ver: 'View', cerrar: 'Close', entendido: 'Got it!',
+      anteriores: 'See earlier versions', ocultarAnteriores: 'Hide earlier versions', pagina: 'All updates',
+    },
     theme: {
       button: 'Theme',
       title: 'Appearance',
@@ -1391,6 +1399,9 @@ export default {
       importWarn: 'It will overwrite the current server configuration. Make sure you have a backup.',
       confirm: 'Are you sure? This will overwrite the current server configuration.',
       error: 'Could not complete (check the file).',
+      copyTitle: 'Copy to another server', copyDesc: 'Move these settings to another of your servers in one click. Channels and roles are matched there by name; anything missing is left empty and we tell you.',
+      copyPick: 'Pick the target server…', copyBtn: 'Copy', copyConfirm: 'Copy these settings to “{{server}}”? Its current settings will be overwritten (you can undo it in its “Change history”).',
+      copied: 'Copied to “{{server}}”.', copyMissing: 'That server has no {{lista}}: those settings were left empty. Create them there and pick them in their section.',
     },
     autoresp_v: {
       intro: 'If someone types a specific text, the bot replies automatically. Great for FAQs.',

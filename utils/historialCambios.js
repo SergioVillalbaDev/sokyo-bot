@@ -65,6 +65,8 @@ function diferencias(antes = {}, despues = {}) {
 
 // Servidor al que apunta una petición del panel (la misma regla que el acceso).
 function guildDeLaPeticion(req) {
+    // «Copiar a otro servidor»: lo que cambia es el de destino.
+    if (/^\/config\/\d{15,22}\/copiar$/.test(req.path) && typeof req.body?.destino === 'string') return req.body.destino;
     return req.query?.guildId
         || (req.path.match(/^\/[a-z-]+\/(\d{15,22})(?:\/|$)/) || [])[1]
         || (req.body && typeof req.body.guildId === 'string' ? req.body.guildId : null);

@@ -5,6 +5,7 @@ import './i18n'
 import App from './App.jsx'
 import { marcarSiEsApp } from './lib/appMovil'
 import { aplicarLigero } from './lib/ligero'
+import { aplicarAspecto } from './lib/aspecto'
 import './ligero.css'
 
 // Cargado solo en "Mi cuenta": el resto de visitantes (landing pública,
@@ -20,8 +21,9 @@ const esPortal = /^\/(cuenta|account|mi-cuenta)\/?$/i.test(window.location.pathn
 // ¿Abierto desde la app de Android? (se mira antes de que el login cambie la URL)
 marcarSiEsApp()
 
-// Modo ligero (PCs con pocos recursos y Firefox): antes de pintar nada.
+// Modo ligero (PCs con pocos recursos y Firefox) y tamaño de letra: antes de pintar nada.
 aplicarLigero()
+aplicarAspecto()
 
 // Girar la rueda del ratón encima de un campo numérico con el cursor dentro le
 // cambia el valor sin querer (un 2 se volvía 1 al bajar por la página). Se quita
