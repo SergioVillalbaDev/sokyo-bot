@@ -1,9 +1,10 @@
 // «Mis avisos y sanciones» en Mi cuenta: qué privados quieres del bot y en qué
-// idioma te habla (lo mismo que /preferencias en Discord), los sorteos que has
-// ganado y tu historial de sanciones en los servidores, con su estado.
+// idioma te habla (lo mismo que /preferencias en Discord), tu cumpleaños (lo mismo
+// que /cumple), los sorteos que has ganado y tu historial de sanciones en los
+// servidores, con su estado.
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bell, Gavel, Gift, Loader2, ExternalLink, Globe, ShieldCheck } from 'lucide-react';
+import { Bell, Gavel, Gift, Loader2, ExternalLink, Globe, ShieldCheck, Cake } from 'lucide-react';
 import { Tarjeta, TituloVista, Vacio } from './glass';
 
 const TIPOS = ['anuncios', 'tickets', 'niveles', 'sorteos'];
@@ -19,6 +20,75 @@ function Interruptor({ activo, onCambiar, etiqueta }) {
 }
 
 const fecha = (f, lng) => (f ? new Date(f).toLocaleDateString(lng, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+const DIAS_MES = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+// Mi cumpleaños: día y mes (sin el año). Vale en todos los servidores con Sokyo.
+function Cumple({ portalFetch, avisar }) {
+  const { t, i18n } = useTranslation();
+  const [cumple, setCumple] = useState(null); // { dia, mes } (null = cargando)
+  const [form, setForm] = useState({ dia: '', mes: '' });
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    portalFetch('/api/portal/cumple').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!vivo) return;
+      const c = d && d.dia ? d : { dia: null, mes: null };
+      setCumple(c);
+      setForm({ dia: c.dia || '', mes: c.mes || '' });
+    }).catch(() => { if (vivo) setCumple({ dia: null, mes: null }); });
+    return () => { vivo = false; };
+  }, [portalFetch]);
+
+  const meses = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2024, i, 1)).toLocaleDateString(i18n.language, { month: 'long', timeZone: 'UTC' }));
+  const maxDia = form.mes ? DIAS_MES[form.mes - 1] : 31;
+  const guardar = async (datos) => {
+    setGuardando(true);
+    const r = await portalFetch('/api/portal/cumple', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) }).catch(() => null);
+    setGuardando(false);
+    if (r && r.ok) {
+      const c = await r.json();
+      setCumple(c);
+      setForm({ dia: c.dia || '', mes: c.mes || '' });
+      avisar?.(t('portal.ajustes.guardado'), 'ok');
+    } else avisar?.(t('portal.login.errConexion'), 'error');
+  };
+  const cambiado = cumple && (Number(form.dia) !== (cumple.dia || 0) || Number(form.mes) !== (cumple.mes || 0));
+
+  return (
+    <Tarjeta className="p-5 sm:p-6">
+      <h2 className="flex items-center gap-2 font-bold text-fg"><Cake size={18} className="text-pink-400" /> {t('portal.ajustes.cumpleTitle')}</h2>
+      <p className="mt-1 text-sm text-muted">{t('portal.ajustes.cumpleDesc')}</p>
+      {!cumple ? <div className="flex justify-center py-6"><Loader2 className="animate-spin text-muted" /></div> : (
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-muted">{t('portal.ajustes.cumpleDia')}</span>
+            <select value={form.dia} onChange={(e) => setForm((f) => ({ ...f, dia: Number(e.target.value) || '' }))} className="rounded-xl border border-white/10 bg-white/[.06] px-3 py-2 text-sm text-fg">
+              <option value="">—</option>
+              {Array.from({ length: maxDia }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-muted">{t('portal.ajustes.cumpleMes')}</span>
+            <select value={form.mes} onChange={(e) => setForm((f) => ({ ...f, mes: Number(e.target.value) || '', dia: f.dia && Number(e.target.value) && f.dia > DIAS_MES[Number(e.target.value) - 1] ? '' : f.dia }))} className="rounded-xl border border-white/10 bg-white/[.06] px-3 py-2 text-sm capitalize text-fg">
+              <option value="">—</option>
+              {meses.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+          </label>
+          <button type="button" disabled={guardando || !form.dia || !form.mes || !cambiado} onClick={() => guardar({ dia: form.dia, mes: form.mes })}
+            className="rounded-xl bg-[var(--accent-color)] px-4 py-2 text-sm font-bold text-white transition-opacity disabled:opacity-40">
+            {guardando ? <Loader2 size={16} className="animate-spin" /> : t('portal.ajustes.cumpleGuardar')}
+          </button>
+          {cumple.dia && (
+            <button type="button" disabled={guardando} onClick={() => guardar({ dia: null, mes: null })} className="rounded-xl px-3 py-2 text-sm text-muted hover:text-fg">
+              {t('portal.ajustes.cumpleBorrar')}
+            </button>
+          )}
+        </div>
+      )}
+    </Tarjeta>
+  );
+}
 
 export default function AjustesPortal({ portalFetch, avisar, sorteos = [] }) {
   const { t, i18n } = useTranslation();
@@ -74,6 +144,9 @@ export default function AjustesPortal({ portalFetch, avisar, sorteos = [] }) {
           </>
         )}
       </Tarjeta>
+
+      {/* Mi cumpleaños */}
+      <Cumple portalFetch={portalFetch} avisar={avisar} />
 
       {/* Sorteos ganados */}
       {sorteos.length > 0 && (

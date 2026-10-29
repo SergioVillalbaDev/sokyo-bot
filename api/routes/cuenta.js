@@ -259,6 +259,33 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
         }
     });
 
+    // Mi cumpleaños (el mismo que /cumple: vale en todos los servidores).
+    router.get('/portal/cumple', portalAuth, async (req, res) => {
+        try {
+            const c = await require('../../utils/cumpleanos.js').cumpleDe(req.usuario.id);
+            res.json(c ? { dia: c.dia, mes: c.mes } : { dia: null, mes: null });
+        } catch (e) {
+            console.error('portal/cumple:', e);
+            res.status(500).json({ error: 'No se pudo cargar tu cumpleaños.' });
+        }
+    });
+    router.put('/portal/cumple', portalAuth, async (req, res) => {
+        try {
+            const cumple = require('../../utils/cumpleanos.js');
+            const { dia, mes } = req.body || {};
+            if (dia === null || mes === null || dia === '' || mes === '') {
+                await cumple.borrarCumple(req.usuario.id);
+                return res.json({ dia: null, mes: null });
+            }
+            const r = await cumple.guardarCumple(req.usuario.id, dia, mes);
+            if (!r.ok) return res.status(400).json({ error: 'Esa fecha no existe.' });
+            res.json({ dia: r.dia, mes: r.mes });
+        } catch (e) {
+            console.error('portal/cumple (guardar):', e);
+            res.status(500).json({ error: 'No se pudo guardar tu cumpleaños.' });
+        }
+    });
+
     // Recompensa diaria desde la web (la misma que /daily: el oro es global).
     router.post('/portal/daily', portalAuth, async (req, res) => {
         try {

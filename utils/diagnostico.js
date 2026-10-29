@@ -58,13 +58,26 @@ const REFERENCIAS = [
     ['crecimiento.invitaciones.canalAvisosId', 'texto', 'crec-invitaciones', 'el canal de avisos de invitaciones', 'the invites notice channel', activo('crecimiento.invitaciones.activo')],
     ['crecimiento.bump.canalId', 'texto', 'crec-bump', 'el canal del aviso de bump', 'the bump reminder channel', activo('crecimiento.bump.activo')],
     ['crecimiento.directos.canalId', 'texto', 'crec-directos', 'el canal de avisos de directos', 'the live alerts channel', activo('crecimiento.directos.activo')],
+    ['cumpleanos.canalId', 'texto', 'com-cumpleanos', 'el canal de los cumpleaños', 'the birthdays channel', activo('cumpleanos.activo')],
+    ['cumpleanos.rolId', 'rolDar', 'com-cumpleanos', 'el rol de cumpleaños', 'the birthday role', activo('cumpleanos.activo')],
+    ['salonFama.canalId', 'texto', 'com-salon', 'el canal del salón de la fama', 'the hall of fame channel', activo('salonFama.activo')],
+    ['grupos.canalId', 'texto', 'com-grupos', 'el canal de buscar grupo', 'the looking-for-group channel', activo('grupos.activo')],
+    ['grupos.categoriaId', 'categoria', 'com-grupos', 'la categoría de las salas de los grupos', 'the group rooms category', activo('grupos.crearSala')],
+    ['clanes.canalId', 'texto', 'com-clanes', 'el canal del clan de la semana', 'the clan of the week channel', activo('clanes.activo')],
+    ['confesiones.canalId', 'texto', 'com-confesiones', 'el canal de las confesiones', 'the confessions channel', activo('confesiones.activo')],
+    ['confesiones.canalRevisionId', 'texto', 'com-confesiones', 'el canal donde el staff revisa las confesiones', 'the confessions review channel', activo('confesiones.activo')],
+    ['solicitudes.canalId', 'texto', 'com-solicitudes', 'el canal de las solicitudes', 'the applications channel', activo('solicitudes.activo')],
+    ['solicitudes.canalRevisionId', 'texto', 'com-solicitudes', 'el canal donde el staff revisa las solicitudes', 'the applications review channel', activo('solicitudes.activo')],
 ];
-// Listas de roles que el bot da: [ruta de la lista, campo del id (o null), pestaña, nombre es, nombre en].
+// Listas de roles que el bot da: [ruta de la lista, campo del id (o null), pestaña, nombre es, nombre en, ¿vaciar?].
+// Con «vaciar», arreglarlo deja el elemento sin rol en vez de quitarlo de la lista
+// (un formulario de solicitudes sigue sirviendo sin dar rol).
 const LISTAS_ROLES = [
     ['autoRoles', null, 'roles-autorol', 'un rol del autorol', 'an autorole role'],
     ['autoRolesBots', null, 'roles-autorol', 'un rol del autorol de bots', 'a bot autorole role'],
     ['recompensasNivel', 'rolId', 'config-niveles', 'un rol de recompensa por nivel', 'a level reward role'],
     ['crecimiento.invitaciones.recompensas', 'rolId', 'crec-invitaciones', 'un rol de recompensa por invitar', 'an invite reward role'],
+    ['solicitudes.formularios', 'rolId', 'com-solicitudes', 'un rol que se da al aceptar una solicitud', 'a role given when an application is accepted', true],
 ];
 
 function leer(obj, ruta) {
@@ -155,7 +168,19 @@ async function diagnosticar(client, guildId, cfg, idioma) {
     medio(cfg?.reportes?.activo && !cfg?.reportes?.canalId, 'medio:reportes', 'mod-reportes', 'Los reportes están encendidos pero no llegan a ningún canal', 'Reports are on but go to no channel', 'Elige el canal del staff donde llegan.', 'Choose the staff channel where they arrive.');
     medio(cfg?.presentaciones?.activo && !cfg?.presentaciones?.canalIntro, 'medio:presentaciones', 'com-presentaciones', 'Las presentaciones están encendidas pero sin canal', 'Intros are on but have no channel', 'Elige el canal donde se presenta la gente.', 'Choose the channel where people introduce themselves.');
     medio(cfg?.crecimiento?.directos?.activo && !cfg?.crecimiento?.directos?.canalId, 'medio:directos', 'crec-directos', 'Los avisos de directos están encendidos pero sin canal', 'Live alerts are on but have no channel', 'Elige dónde avisar de los directos.', 'Choose where to post live alerts.');
+    medio(cfg?.cumpleanos?.activo && !cfg?.cumpleanos?.canalId, 'medio:cumpleanos', 'com-cumpleanos', 'Los cumpleaños están encendidos pero sin canal', 'Birthdays are on but have no channel', 'Elige en qué canal se felicita.', 'Choose which channel the wishes go to.');
+    medio(cfg?.salonFama?.activo && !cfg?.salonFama?.canalId, 'medio:salon', 'com-salon', 'El salón de la fama está encendido pero sin canal', 'The hall of fame is on but has no channel', 'Elige el canal del salón de la fama.', 'Choose the hall of fame channel.');
+    medio(cfg?.confesiones?.activo && !cfg?.confesiones?.canalId, 'medio:confesiones', 'com-confesiones', 'Las confesiones están encendidas pero sin canal', 'Confessions are on but have no channel', 'Elige en qué canal se publican.', 'Choose which channel they’re posted in.');
+    medio(cfg?.clanes?.activo && !cfg?.nivelesActivo, 'medio:clanes', 'config-niveles', 'Los clanes están encendidos pero los niveles no', 'Clans are on but levels are off', 'Los clanes suman puntos con la XP: activa los niveles.', 'Clans earn points from XP: turn on levels.');
+    medio(cfg?.solicitudes?.activo && !(cfg?.solicitudes?.formularios || []).length, 'medio:solicitudes', 'com-solicitudes', 'Las solicitudes están encendidas pero no hay ningún formulario', 'Applications are on but there are no forms', 'Crea al menos un formulario con sus preguntas.', 'Create at least one form with its questions.');
     medio(!cfg?.rolStaffId, 'medio:staff', 'tickets-config', 'Los tickets no tienen rol de staff', 'Tickets have no staff role', 'Elige qué rol atiende los tickets (si no, solo los que pueden «Gestionar canales»).', 'Choose which role handles tickets (otherwise, only those who can “Manage channels”).');
+
+    // 3.b) Modo ausente con «[AFK]» delante del apodo: el bot tiene que poder cambiar apodos.
+    comprobados++;
+    if (cfg?.ausente?.cambiarApodo && cfg?.ausente?.activo !== false && !admin && perms && !perms.has(P.ManageNicknames)) {
+        const url = urlInvitar(guildId, TODOS | P.ManageNicknames);
+        add({ id: 'perm:apodos', nivel: 'aviso', titulo: t(idioma, 'El bot no puede poner «[AFK]» en los apodos', 'The bot can’t add “[AFK]” to nicknames'), detalle: t(idioma, 'Le falta el permiso «Gestionar apodos».', 'It’s missing the “Manage nicknames” permission.'), solucion: t(idioma, 'Pulsa «Dar los permisos» o apaga esa opción en «Ausente y traducir».', 'Press “Grant permissions” or turn that option off in “Away & translate”.'), tab: 'prod-ausente', arreglo: url ? { accion: 'invitar', url } : null });
+    }
 
     // 4) La música (el servidor de música lo pone en marcha el dueño del bot).
     comprobados++;
@@ -198,6 +223,10 @@ async function arreglar(client, guildId, arreglo) {
     if (arreglo.accion === 'quitarDeLista' && typeof arreglo.valor === 'string') {
         if (existe(arreglo.valor)) return { ok: false };
         const lista = LISTAS_ROLES.find((r) => r[0] === arreglo.ruta);
+        if (lista[5]) {
+            await ServidorConfig.updateOne({ guildId }, { $set: { [`${arreglo.ruta}.$[e].${lista[1]}`]: null } }, { arrayFilters: [{ [`e.${lista[1]}`]: arreglo.valor }] });
+            return { ok: true };
+        }
         const pull = lista[1] ? { [arreglo.ruta]: { [lista[1]]: arreglo.valor } } : { [arreglo.ruta]: arreglo.valor };
         await ServidorConfig.updateOne({ guildId }, { $pull: pull });
         return { ok: true };

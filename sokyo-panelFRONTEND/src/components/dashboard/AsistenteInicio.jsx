@@ -9,8 +9,8 @@ import { ubicacion } from './navConfig';
 import { cn } from '../../lib/cn';
 
 const TIPOS = {
-  gaming: { emoji: '🎮', items: ['seg-verificacion', 'prod-bienvenidas', 'roles-paneles', 'config-niveles', 'mod-automod', 'musica', 'voz-temporal', 'com-sorteos', 'tickets-config'] },
-  comunidad: { emoji: '💬', items: ['prod-bienvenidas', 'roles-paneles', 'config-niveles', 'com-dinamicas', 'com-eventos', 'mod-automod', 'musica', 'voz-temporal'] },
+  gaming: { emoji: '🎮', items: ['seg-verificacion', 'prod-bienvenidas', 'roles-paneles', 'config-niveles', 'mod-automod', 'com-grupos', 'com-clanes', 'musica', 'voz-temporal', 'com-sorteos', 'tickets-config'] },
+  comunidad: { emoji: '💬', items: ['prod-bienvenidas', 'roles-paneles', 'config-niveles', 'com-dinamicas', 'com-cumpleanos', 'com-salon', 'com-eventos', 'mod-automod', 'musica', 'voz-temporal'] },
   creador: { emoji: '📺', items: ['prod-bienvenidas', 'crec-directos', 'roles-paneles', 'config-niveles', 'com-sorteos', 'crec-invitaciones', 'com-sugerencias', 'mod-automod'] },
   estudio: { emoji: '📚', items: ['prod-bienvenidas', 'roles-paneles', 'prod-anuncios', 'com-eventos', 'voz-temporal', 'tickets-config', 'mod-automod'] },
   soporte: { emoji: '🛟', items: ['tickets-config', 'seg-verificacion', 'prod-bienvenidas', 'prod-autorespuestas', 'prod-anuncios', 'mod-reportes', 'com-sugerencias', 'mod-automod'] },

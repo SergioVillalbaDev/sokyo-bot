@@ -56,7 +56,8 @@ async function errorRolesNuevos(client, staff, guildId, pedidos, actuales) {
 }
 
 // Roles que reparte el bot según una configuración (autorol, recompensas de nivel
-// y de invitaciones, verificación, miembro de la semana): los que cuida la regla
+// y de invitaciones, verificación, miembro de la semana, cumpleaños, solicitudes):
+// los que cuida la regla
 // de jerarquía al importar, copiar o deshacer.
 function rolesQueDaElBot(c = {}) {
     return [
@@ -66,6 +67,8 @@ function rolesQueDaElBot(c = {}) {
         c.embudoAB && c.embudoAB.rolVerificadoId,
         c.dinamicas && c.dinamicas.miembroSemana && c.dinamicas.miembroSemana.rolId,
         ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
+        c.cumpleanos && c.cumpleanos.rolId,
+        ...((c.solicitudes && c.solicitudes.formularios) || []).map((f) => f && f.rolId),
     ].filter((x) => typeof x === 'string' && x);
 }
 

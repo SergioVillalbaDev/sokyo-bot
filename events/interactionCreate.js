@@ -69,6 +69,110 @@ function esStaff(interaction, config) {
     return tienePerm || tieneRol;
 }
 
+// Crea el ticket con lo que se ha escrito en el formulario (motivo, asunto y
+// descripción). La interacción ya está respondida con «Procesando…»: aquí solo se
+// edita esa respuesta. Lo usan el formulario y el «No, abrir el ticket» de la
+// ayuda previa (utils/interaccionesComunidad.js).
+async function abrirTicketFormulario(interaction, client, { motivo, asunto, descripcion }) {
+    const cfgCrear = await getConfigCached(interaction.guildId).catch(() => null);
+    try {
+        let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
+        const listaMotivos = (config && config.motivos && config.motivos.length > 0) ? config.motivos : [];
+        const listaUrgencias = (config && config.urgencias && config.urgencias.length > 0) ? config.urgencias : [];
+        const urgencia = listaMotivos.find(m => String(m.nombre || '').trim() === motivo)?.urgencia || 'Normal';
+        const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db';
+
+        // Límite de tickets abiertos por usuario (0 = sin límite).
+        const maxAbiertos = (config && config.maxTicketsAbiertos) || 0;
+        if (maxAbiertos > 0) {
+            const abiertos = await Ticket.countDocuments({ guildId: interaction.guild.id, creadorId: interaction.user.id, estado: 'Abierto' });
+            if (abiertos >= maxAbiertos) {
+                return await interaction.editReply({ content: t(config, `❌ Has llegado al límite de **${maxAbiertos}** ticket(s) abierto(s) a la vez. Cierra uno antes de abrir otro.`, `❌ You’ve reached the limit of **${maxAbiertos}** open ticket(s) at once. Close one before opening another.`) });
+            }
+        }
+
+        // Categoría de Discord donde se crea el ticket (si está configurada y existe).
+        const parentId = (config && config.categoriaTicketsId && interaction.guild.channels.cache.get(config.categoriaTicketsId))
+            ? config.categoriaTicketsId : null;
+
+        const canalTicket = await interaction.guild.channels.create({
+            name: `ticket-${interaction.user.username}`,
+            type: ChannelType.GuildText,
+            ...(parentId ? { parent: parentId } : {}),
+            permissionOverwrites: permisosCanalTicket(interaction.guild, config, interaction.user.id)
+        });
+
+        // AQUÍ ES DONDE DEBE IR LA FOTO:
+        const creadorAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
+
+        const nuevoTicket = await Ticket.create({
+            guildId: interaction.guild.id,
+            canalId: canalTicket.id,
+            creadorId: interaction.user.id,
+            creadorNombre: interaction.user.username,
+            creadorAvatar: creadorAvatar, // FOTO GUARDADA CORRECTAMENTE EN LA BASE DE DATOS
+            motivo: motivo,
+            titulo: asunto,
+            descripcion: descripcion,
+            prioridad: urgencia,
+            estado: 'Abierto',
+            esperaRespuesta: true, ultimoMensajeUsuario: new Date(),
+            participantes: [{ id: interaction.user.id, username: interaction.user.username, avatar: creadorAvatar, rol: 'Creador' }],
+            visibleWeb: true
+        });
+
+        await registrarLogTicket(client, nuevoTicket, '🎫 Ticket opened', '#2ecc71', interaction.user.username);
+
+        const notaBienvenida = (config && config.mensajeBienvenida) || t(config, 'Un miembro del equipo lo revisará en breve.', 'A team member will review it shortly.');
+        const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(t(config, `**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*${notaBienvenida}*`, `**Reason:** ${motivo}\n\n**User’s description:**\n${descripcion}\n\n*${notaBienvenida}*`)).setColor(colorHex).addFields({ name: t(config, '🚨 Prioridad', '🚨 Priority'), value: `**${nombreUrgencia(t(config, 'es', 'en'), urgencia)}**`, inline: true });
+        const rowBotones = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('reclamar_ticket').setLabel(t(config, '🙋‍♂️ Reclamar ticket', '🙋‍♂️ Claim ticket')).setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('add_user_prompt').setLabel(t(config, '➕ Añadir usuario', '➕ Add user')).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('close_ticket').setLabel(t(config, '🔒 Cerrar ticket', '🔒 Close ticket')).setStyle(ButtonStyle.Danger),
+            // Quien lo abre puede seguirlo también desde su cuenta en la web.
+            botonWeb(config, 'tickets', t(config, 'Seguir en la web', 'Follow on the web'), canalTicket.id),
+        );
+
+        await canalTicket.send({ content: t(config, `¡Hola <@${interaction.user.id}>! Aquí tienes tu ticket. 👇`, `Hi <@${interaction.user.id}>! Here’s your ticket. 👇`), embeds: [embedBienvenida], components: [rowBotones] });
+
+        // Aviso opcional al rol de soporte (configurable desde el panel).
+        if (config && config.pingSoporte && config.rolSoporteId) {
+            await canalTicket.send({
+                content: t(config, `🔔 <@&${config.rolSoporteId}> nuevo ticket de **${interaction.user.username}** (${motivo}).`, `🔔 <@&${config.rolSoporteId}> new ticket from **${interaction.user.username}** (${motivo}).`),
+                allowedMentions: { roles: [config.rolSoporteId] }
+            }).catch(() => {});
+        }
+
+        // Asignación automática (round-robin) entre los miembros del rol de soporte.
+        if (config && config.autoAsignar && config.rolStaffId) {
+            try {
+                const miembros = await interaction.guild.members.fetch();
+                const agentes = [...miembros.values()].filter(m => !m.user.bot && m.roles.cache.has(config.rolStaffId));
+                if (agentes.length > 0) {
+                    const idx = (config.autoAsignarIndex || 0) % agentes.length;
+                    const agente = agentes[idx];
+                    await ServidorConfig.updateOne({ guildId: interaction.guildId }, { $set: { autoAsignarIndex: idx + 1 } });
+
+                    const avatarAgente = agente.user.displayAvatarURL({ extension: 'png', size: 128 });
+                    nuevoTicket.asignadoA = agente.id;
+                    nuevoTicket.asignadoNombre = agente.user.username;
+                    nuevoTicket.ultimaInteractStaff = new Date();
+                    if (!nuevoTicket.participantes.some(p => p.id === agente.id)) {
+                        nuevoTicket.participantes.push({ id: agente.id, username: agente.user.username, avatar: avatarAgente, rol: 'Staff' });
+                    }
+                    await nuevoTicket.save();
+                    await registrarLogTicket(client, nuevoTicket, '🤖 Auto-assigned', '#3498db', agente.user.username);
+                    await canalTicket.send({ content: t(config, `🙋 Asignado automáticamente a <@${agente.id}>.`, `🙋 Automatically assigned to <@${agente.id}>.`), allowedMentions: { users: [agente.id] } }).catch(() => {});
+                }
+            } catch (e) { console.error('Error en auto-asignación:', e); }
+        }
+
+        await interaction.editReply({ content: t(config, `✅ Tu ticket se ha creado correctamente: <#${canalTicket.id}>`, `✅ Your ticket was created successfully: <#${canalTicket.id}>`) });
+        setTimeout(() => interaction.deleteReply().catch(console.error), 5000);
+
+    } catch (error) { console.error(error); await interaction.editReply({ content: t(cfgCrear, '❌ Algo ha ido mal.', '❌ Something went wrong.') }).catch(() => {}); }
+}
+
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
@@ -117,6 +221,8 @@ module.exports = {
         // --- Botones y ventanas de los comandos nuevos (clic derecho, ayuda, confirmar…) ---
         const extra = require('../utils/interaccionesExtra.js');
         if (await extra.manejar(interaction, client)) return;
+        // --- Grupos, confesiones, solicitudes, ayuda antes del ticket y tickets por privado ---
+        if (await require('../utils/interaccionesComunidad.js').manejar(interaction, client)) return;
 
         // --- TIENDA: compra al elegir en el menú (reutiliza la MISMA lógica que la web) ---
         if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_comprar') {
@@ -565,108 +671,30 @@ module.exports = {
 
             // El modal proviene del menú efímero de categorías; update() edita ese mensaje
             // y elimina el desplegable de "selecciona una categoría".
+            const procesando = t(cfgCrear, '⏳ Procesando tu solicitud y creando el canal...', '⏳ Processing your request and creating the channel...');
+            const ayudaActiva = !!(cfgCrear && cfgCrear.ayudaPrevia && cfgCrear.ayudaPrevia.activo);
+            const primero = ayudaActiva ? t(cfgCrear, '🔎 Buscando una respuesta rápida…', '🔎 Looking for a quick answer…') : procesando;
             if (interaction.isFromMessage()) {
-                await interaction.update({ content: t(cfgCrear, '⏳ Procesando tu solicitud y creando el canal...', '⏳ Processing your request and creating the channel...'), components: [], embeds: [] });
+                await interaction.update({ content: primero, components: [], embeds: [] });
             } else {
-                await interaction.reply({ content: t(cfgCrear, '⏳ Procesando tu solicitud y creando el canal...', '⏳ Processing your request and creating the channel...'), flags: 64 });
+                await interaction.reply({ content: primero, flags: 64 });
             }
 
-            try {
-                let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
-                const listaMotivos = (config && config.motivos && config.motivos.length > 0) ? config.motivos : [];
-                const listaUrgencias = (config && config.urgencias && config.urgencias.length > 0) ? config.urgencias : [];
-                const urgencia = listaMotivos.find(m => String(m.nombre || '').trim() === motivo)?.urgencia || 'Normal';
-                const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db';
-
-                // Límite de tickets abiertos por usuario (0 = sin límite).
-                const maxAbiertos = (config && config.maxTicketsAbiertos) || 0;
-                if (maxAbiertos > 0) {
-                    const abiertos = await Ticket.countDocuments({ guildId: interaction.guild.id, creadorId: interaction.user.id, estado: 'Abierto' });
-                    if (abiertos >= maxAbiertos) {
-                        return await interaction.editReply({ content: t(config, `❌ Has llegado al límite de **${maxAbiertos}** ticket(s) abierto(s) a la vez. Cierra uno antes de abrir otro.`, `❌ You’ve reached the limit of **${maxAbiertos}** open ticket(s) at once. Close one before opening another.`) });
-                    }
+            // Ayuda antes de abrir: si las respuestas del servidor lo resuelven, se pregunta
+            // «¿esto resuelve tu duda?» antes de crear el canal (utils/ayudaPrevia.js).
+            if (ayudaActiva) {
+                const ayuda = require('../utils/ayudaPrevia.js');
+                const idiomaAyuda = await idiomaInteraccion(interaction, cfgCrear);
+                const sug = await ayuda.sugerencia(cfgCrear, { asunto, descripcion }, idiomaAyuda).catch(() => null);
+                if (sug) {
+                    const clave = ayuda.guardarPendiente({ guildId: interaction.guildId, userId: interaction.user.id, motivo, asunto, descripcion });
+                    return interaction.editReply(ayuda.mensajeSugerencia(sug, clave, idiomaAyuda));
                 }
-
-                // Categoría de Discord donde se crea el ticket (si está configurada y existe).
-                const parentId = (config && config.categoriaTicketsId && interaction.guild.channels.cache.get(config.categoriaTicketsId))
-                    ? config.categoriaTicketsId : null;
-
-                const canalTicket = await interaction.guild.channels.create({
-                    name: `ticket-${interaction.user.username}`,
-                    type: ChannelType.GuildText,
-                    ...(parentId ? { parent: parentId } : {}),
-                    permissionOverwrites: permisosCanalTicket(interaction.guild, config, interaction.user.id)
-                });
-
-                // AQUÍ ES DONDE DEBE IR LA FOTO:
-                const creadorAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
-
-                const nuevoTicket = await Ticket.create({
-                    guildId: interaction.guild.id,
-                    canalId: canalTicket.id,
-                    creadorId: interaction.user.id,
-                    creadorNombre: interaction.user.username,
-                    creadorAvatar: creadorAvatar, // FOTO GUARDADA CORRECTAMENTE EN LA BASE DE DATOS
-                    motivo: motivo,
-                    titulo: asunto,
-                    descripcion: descripcion,
-                    prioridad: urgencia,
-                    estado: 'Abierto',
-                    esperaRespuesta: true, ultimoMensajeUsuario: new Date(),
-                    participantes: [{ id: interaction.user.id, username: interaction.user.username, avatar: creadorAvatar, rol: 'Creador' }],
-                    visibleWeb: true
-                });
-
-                await registrarLogTicket(client, nuevoTicket, '🎫 Ticket opened', '#2ecc71', interaction.user.username);
-
-                const notaBienvenida = (config && config.mensajeBienvenida) || t(config, 'Un miembro del equipo lo revisará en breve.', 'A team member will review it shortly.');
-                const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(t(config, `**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*${notaBienvenida}*`, `**Reason:** ${motivo}\n\n**User’s description:**\n${descripcion}\n\n*${notaBienvenida}*`)).setColor(colorHex).addFields({ name: t(config, '🚨 Prioridad', '🚨 Priority'), value: `**${nombreUrgencia(t(config, 'es', 'en'), urgencia)}**`, inline: true });
-                const rowBotones = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('reclamar_ticket').setLabel(t(config, '🙋‍♂️ Reclamar ticket', '🙋‍♂️ Claim ticket')).setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId('add_user_prompt').setLabel(t(config, '➕ Añadir usuario', '➕ Add user')).setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('close_ticket').setLabel(t(config, '🔒 Cerrar ticket', '🔒 Close ticket')).setStyle(ButtonStyle.Danger),
-                    // Quien lo abre puede seguirlo también desde su cuenta en la web.
-                    botonWeb(config, 'tickets', t(config, 'Seguir en la web', 'Follow on the web'), canalTicket.id),
-                );
-
-                await canalTicket.send({ content: t(config, `¡Hola <@${interaction.user.id}>! Aquí tienes tu ticket. 👇`, `Hi <@${interaction.user.id}>! Here’s your ticket. 👇`), embeds: [embedBienvenida], components: [rowBotones] });
-
-                // Aviso opcional al rol de soporte (configurable desde el panel).
-                if (config && config.pingSoporte && config.rolSoporteId) {
-                    await canalTicket.send({
-                        content: t(config, `🔔 <@&${config.rolSoporteId}> nuevo ticket de **${interaction.user.username}** (${motivo}).`, `🔔 <@&${config.rolSoporteId}> new ticket from **${interaction.user.username}** (${motivo}).`),
-                        allowedMentions: { roles: [config.rolSoporteId] }
-                    }).catch(() => {});
-                }
-
-                // Asignación automática (round-robin) entre los miembros del rol de soporte.
-                if (config && config.autoAsignar && config.rolStaffId) {
-                    try {
-                        const miembros = await interaction.guild.members.fetch();
-                        const agentes = [...miembros.values()].filter(m => !m.user.bot && m.roles.cache.has(config.rolStaffId));
-                        if (agentes.length > 0) {
-                            const idx = (config.autoAsignarIndex || 0) % agentes.length;
-                            const agente = agentes[idx];
-                            await ServidorConfig.updateOne({ guildId: interaction.guildId }, { $set: { autoAsignarIndex: idx + 1 } });
-
-                            const avatarAgente = agente.user.displayAvatarURL({ extension: 'png', size: 128 });
-                            nuevoTicket.asignadoA = agente.id;
-                            nuevoTicket.asignadoNombre = agente.user.username;
-                            nuevoTicket.ultimaInteractStaff = new Date();
-                            if (!nuevoTicket.participantes.some(p => p.id === agente.id)) {
-                                nuevoTicket.participantes.push({ id: agente.id, username: agente.user.username, avatar: avatarAgente, rol: 'Staff' });
-                            }
-                            await nuevoTicket.save();
-                            await registrarLogTicket(client, nuevoTicket, '🤖 Auto-assigned', '#3498db', agente.user.username);
-                            await canalTicket.send({ content: t(config, `🙋 Asignado automáticamente a <@${agente.id}>.`, `🙋 Automatically assigned to <@${agente.id}>.`), allowedMentions: { users: [agente.id] } }).catch(() => {});
-                        }
-                    } catch (e) { console.error('Error en auto-asignación:', e); }
-                }
-
-                await interaction.editReply({ content: t(config, `✅ Tu ticket se ha creado correctamente: <#${canalTicket.id}>`, `✅ Your ticket was created successfully: <#${canalTicket.id}>`) });
-                setTimeout(() => interaction.deleteReply().catch(console.error), 5000);
-
-            } catch (error) { console.error(error); await interaction.editReply({ content: t(cfgCrear, '❌ Algo ha ido mal.', '❌ Something went wrong.') }); }
+                await interaction.editReply({ content: procesando });
+            }
+            return abrirTicketFormulario(interaction, client, { motivo, asunto, descripcion });
         }
     }
 };
+
+module.exports.abrirTicketFormulario = abrirTicketFormulario;

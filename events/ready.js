@@ -40,6 +40,13 @@ module.exports = {
         // Textos de fábrica de cada servidor en su idioma (p. ej. "Abrir un ticket" en español).
         esperarMongo().then(adaptarTodos).catch((e) => console.error('Adaptar textos al idioma:', e.message));
 
+        // Memoria de los ausentes, los mensajes fijos y las salas de los grupos (se miran a menudo).
+        esperarMongo().then(() => Promise.all([
+            require('../utils/ausente.js').cargar(),
+            require('../utils/mensajesFijos.js').cargar(),
+            require('../utils/grupos.js').cargarSalas(),
+        ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
+
         // Crecimiento: usos actuales de las invitaciones (para saber quién invita a quién).
         esperarMongo().then(() => cargarInvitaciones(client)).catch((e) => console.error('Cargar invitaciones:', e.message));
 

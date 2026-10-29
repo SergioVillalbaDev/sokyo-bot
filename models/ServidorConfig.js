@@ -620,6 +620,112 @@ const ServidorConfigSchema = new mongoose.Schema({
         },
     },
 
+    // --- 1.9.0: más vida en el servidor ---
+    // Tickets: antes de abrir uno, el bot busca la respuesta en las respuestas
+    // automáticas (y, si se quiere, con la IA a partir de ellas) y pregunta
+    // «¿esto resuelve tu duda?». Lógica en utils/ayudaPrevia.js.
+    ayudaPrevia: {
+        activo: { type: Boolean, default: false },
+        usarIA: { type: Boolean, default: true },          // si no hay coincidencia exacta, que la IA responda con las respuestas automáticas
+        resueltas: { type: Number, default: 0 },           // (interno) tickets que no hizo falta abrir
+    },
+    // Tickets por privado: escribir al bot por privado abre un ticket, y las
+    // respuestas del staff le llegan por privado. Lógica en utils/ticketsPrivado.js.
+    ticketsPrivado: {
+        activo: { type: Boolean, default: false },
+    },
+    // Cumpleaños: felicitación el día del cumpleaños de cada miembro (el día y el
+    // mes los guarda cada uno con /cumple o en «Mi cuenta»). Lógica en utils/cumpleanos.js.
+    cumpleanos: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },
+        rolId: { type: String, default: null },             // rol que se lleva durante su día (opcional)
+        hora: { type: Number, default: 9 },                 // hora UTC (0-23) de la felicitación
+        mensaje: { type: String, default: '🎂 Happy birthday {mention}! The whole **{server}** wishes you an amazing day 🎉' },
+        oro: { type: Number, default: 0 },                  // regalo de oro (economía)
+        xp: { type: Number, default: 0 },                   // regalo de XP (niveles)
+        lastDia: { type: String, default: '' },             // (interno) 'YYYY-MM-DD' del último día felicitado
+    },
+    // Salón de la fama: los mensajes que llegan a X reacciones se copian a un canal.
+    // Lógica en utils/salonFama.js.
+    salonFama: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },
+        emoji: { type: String, default: '⭐' },
+        minimo: { type: Number, default: 3 },
+        propios: { type: Boolean, default: false },         // ¿cuenta la estrella del propio autor?
+        canalesExentos: { type: [String], default: [] },
+    },
+    // Buscar grupo (/grupo): busca gente para jugar; al llenarse, sala de voz para
+    // el grupo. Lógica en utils/grupos.js.
+    grupos: {
+        activo: { type: Boolean, default: true },
+        canalId: { type: String, default: null },           // si está, los grupos se publican ahí
+        crearSala: { type: Boolean, default: true },        // sala de voz al llenarse
+        categoriaId: { type: String, default: null },       // dónde crear las salas (vacío = junto al canal)
+        horasCaducidad: { type: Number, default: 6 },       // el grupo se cierra solo pasado este tiempo
+    },
+    // Clanes: equipos que compiten cada semana por XP. Lógica en utils/clanes.js.
+    clanes: {
+        activo: { type: Boolean, default: false },
+        maxMiembros: { type: Number, default: 10 },
+        costeCrear: { type: Number, default: 0 },           // oro que cuesta fundar un clan
+        canalId: { type: String, default: null },           // anuncio del ganador de la semana
+        premioOro: { type: Number, default: 100 },          // para cada miembro del clan ganador
+        premioXp: { type: Number, default: 0 },
+        lastSemana: { type: String, default: '' },          // (interno) semana ISO ya cerrada
+    },
+    // Confesiones anónimas (/confesar), con revisión del staff opcional.
+    // Lógica en utils/confesiones.js.
+    confesiones: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },
+        canalRevisionId: { type: String, default: null },   // si está, el staff aprueba cada una antes
+        ultimoNumero: { type: Number, default: 0 },         // (interno) numeración de las confesiones
+    },
+    // Solicitudes (p. ej. entrar al staff): formularios con preguntas y revisión.
+    // Lógica en utils/solicitudes.js.
+    solicitudes: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },           // donde se publica el mensaje con los botones
+        canalRevisionId: { type: String, default: null },   // donde le llegan al staff
+        titulo: { type: String, default: '📝 Applications' },
+        descripcion: { type: String, default: 'Want to join the team? Pick a form below and answer a few questions.' },
+        panelMensajeId: { type: String, default: null },    // (interno) el mensaje publicado
+        formularios: {
+            type: [{
+                id: String,
+                nombre: String,
+                emoji: { type: String, default: '📝' },
+                descripcion: { type: String, default: '' },
+                preguntas: { type: [String], default: [] },   // como mucho 5 (lo que cabe en una ventana de Discord)
+                rolId: { type: String, default: null },       // rol que se da al aceptar
+                abierto: { type: Boolean, default: true },
+                esperaDias: { type: Number, default: 7 },     // tras un rechazo, días hasta poder volver a pedirlo
+                mensajeAceptado: { type: String, default: '' },
+                _id: false,
+            }],
+            default: [],
+        },
+    },
+    // Modo ausente (/ausente). Lógica en utils/ausente.js.
+    ausente: {
+        activo: { type: Boolean, default: true },
+        cambiarApodo: { type: Boolean, default: false },    // poner «[Ausente]» delante del apodo
+    },
+    // Canales con contadores en el nombre («👥 Miembros: 1.234»). Discord solo deja
+    // renombrar un canal 2 veces cada 10 minutos: se actualizan cada 10 minutos.
+    // Lógica en utils/contadoresCanal.js.
+    contadoresCanal: {
+        type: [{
+            canalId: String,
+            tipo: { type: String, default: 'miembros' },
+            plantilla: { type: String, default: '👥 Members: {n}' },
+            _id: false,
+        }],
+        default: [],
+    },
+
     // --- CRECIMIENTO: herramientas para que el servidor gane miembros ---
     // Lógica en utils/invitaciones.js, utils/bump.js, utils/paginaPublica.js y
     // utils/directos.js. Los textos por defecto están en inglés (como el resto del
@@ -675,6 +781,7 @@ const ServidorConfigSchema = new mongoose.Schema({
             rolId: { type: String, default: null },
             mensaje: { type: String, default: '🔴 **{streamer}** is live!' },
             mensajeVideo: { type: String, default: '📺 **{streamer}** just posted on YouTube!' },
+            mensajePost: { type: String, default: '📰 New post from **{streamer}**' },   // Reddit y webs con RSS
             incluirShorts: { type: Boolean, default: false },
         },
     },

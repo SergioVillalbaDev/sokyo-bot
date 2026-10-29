@@ -145,16 +145,27 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await barrerInvitaciones(client); } catch (e) { console.error('Programador (invitaciones):', e.message); }
         try { await barrerBumps(client); } catch (e) { console.error('Programador (bump):', e.message); }
         try { await require('./avisosTicket.js').avisarSinRespuesta(client); } catch (e) { console.error('Programador (tickets sin respuesta):', e.message); }
+        try { await require('./cumpleanos.js').barrerCumpleanos(client); } catch (e) { console.error('Programador (cumpleaños):', e.message); }
+        try { await require('./clanes.js').barrerClanes(client); } catch (e) { console.error('Programador (clanes):', e.message); }
+        try { await require('./grupos.js').barrerGrupos(client); } catch (e) { console.error('Programador (grupos):', e.message); }
     });
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
 
-    // Crecimiento: avisos de directos de Twitch y vídeos de YouTube (cada 2 min).
+    // Crecimiento: avisos de directos (Twitch, Kick) y publicaciones (YouTube, Reddit, RSS), cada 2 min.
     const tickDirectos = conGuardiaDeReentrancia('directos', async () => {
         try { await revisarDirectos(client); } catch (e) { console.error('Programador (directos):', e.message); }
     });
     setTimeout(tickDirectos, 40 * 1000);
     setInterval(tickDirectos, 2 * 60 * 1000);
+
+    // Canales con contadores («👥 Miembros: 1.234»): cada 10 minutos, que es lo que
+    // deja Discord (2 cambios de nombre cada 10 minutos por canal).
+    const tickContadores = conGuardiaDeReentrancia('contadores', async () => {
+        try { await require('./contadoresCanal.js').barrerContadores(client); } catch (e) { console.error('Programador (contadores):', e.message); }
+    });
+    setTimeout(tickContadores, 50 * 1000);
+    setInterval(tickContadores, 10 * 60 * 1000 + 15 * 1000);
 
     // Red de seguridad: devuelve a Free los servidores con premium caducado (cada hora).
     const tickPremium = conGuardiaDeReentrancia('premium', async () => {

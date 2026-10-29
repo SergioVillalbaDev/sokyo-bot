@@ -561,4 +561,4 @@ async function comprobarLogroNivel(guild, member, nivelNuevo, cfg, canalFallback
     await canal.send({ embeds: [embed] }).catch(() => {});
 }
 
-module.exports = { darRecompensa, procesarMensaje, barrerDinamicas, comprobarLogroNivel };
+module.exports = { darRecompensa, procesarMensaje, barrerDinamicas, comprobarLogroNivel, semanaISO };

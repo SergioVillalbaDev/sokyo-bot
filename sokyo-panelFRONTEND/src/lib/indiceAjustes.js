@@ -18,6 +18,8 @@ const ESPACIOS = {
   analitica_v: 'datos-analitica', sorteos_v: 'com-sorteos', eventos_v: 'com-eventos', encuestas_v: 'com-encuestas',
   dinamicas_v: 'com-dinamicas', sugerencias_v: 'com-sugerencias', presentaciones_v: 'com-presentaciones',
   planes_v: 'cuenta-plan', diagnostico: 'config-diagnostico', cambios: 'config-cambios', crec_v: 'crec-invitaciones',
+  cumple_v: 'com-cumpleanos', solic_v: 'com-solicitudes', salon_v: 'com-salon', grupos_v: 'com-grupos', clanes_v: 'com-clanes',
+  confes_v: 'com-confesiones', ausente_v: 'prod-ausente', fijos_v: 'prod-fijos', contadores_v: 'crec-contadores',
 };
 // Dentro de Crecimiento, cada subapartado va a su pestaña.
 const CRECIMIENTO = { inv: 'crec-invitaciones', invitaciones: 'crec-invitaciones', bump: 'crec-bump', pagina: 'crec-pagina', directos: 'crec-directos' };

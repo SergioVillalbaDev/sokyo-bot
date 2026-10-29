@@ -154,6 +154,13 @@ async function otorgarXp(message, cfg) {
 
     await ActividadUsuario.updateOne({ guildId: message.guild.id, userId: member.id }, { $set: { ultimoXp: new Date() } }, { upsert: true });
     await aplicarXp(message.guild, member, ganada, cfg, message.channel);
+    sumarAlClan(member, ganada, cfg);
+}
+
+// Clanes: lo que se gana hablando (por escrito o en voz) suma para el clan de cada uno.
+function sumarAlClan(member, puntos, cfg) {
+    if (!cfg?.clanes?.activo) return;
+    require('./clanes.js').sumarPuntos(member.guild.id, member.id, puntos).catch(() => {});
 }
 
 // XP por estar en voz (la llama un intervalo cada minuto desde ready.js).
@@ -167,6 +174,7 @@ async function otorgarXpVoz(member, cfg) {
 
     const ganada = Math.round((cfg.xpVozPorMin ?? 5) * multiplicadorDe(member, cfg));
     await aplicarXp(member.guild, member, ganada, cfg, null);
+    sumarAlClan(member, ganada, cfg);
 }
 
 async function anunciar(guild, member, cfg, nivel, canalFallback, tarjeta) {

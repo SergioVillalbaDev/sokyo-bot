@@ -11,7 +11,7 @@ const { leerRuta } = require('../../utils/camposInternos.js');
 
 // Área de permisos que hace falta para tocar cada ajuste (la misma que su sección),
 // por la raíz de su ruta ('automod.palabras' -> automod). Además, siempre 'config'.
-const AREA_DE = { automod: 'moderacion', canalModLogId: 'moderacion', dmSancion: 'moderacion', autoRespuestas: 'mensajes', autoRoles: 'roles', autoRolesBots: 'roles' };
+const AREA_DE = { automod: 'moderacion', canalModLogId: 'moderacion', dmSancion: 'moderacion', autoRespuestas: 'mensajes', autoRoles: 'roles', autoRolesBots: 'roles', contadoresCanal: 'crecimiento', solicitudes: 'roles' };
 const areasDe = (rutas) => new Set(['config', ...rutas.map((r) => AREA_DE[String(r).split('.')[0]]).filter(Boolean)]);
 
 // Copia de la config con unos ajustes puestos o quitados (para mirar qué roles daría).

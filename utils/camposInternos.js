@@ -6,6 +6,7 @@ const HOJAS_INTERNAS = new Set([
     'idx', 'lastDia', 'mensajeId', 'ganadorHoy', 'proxima', 'encontrada', 'encontradaPor', 'lastSemana',
     'ultimoGanador', 'anunciados', 'panelMensajeId', 'proximoBump', 'recordado', 'ultimoCanalId',
     'ultimoAvisoId', 'ultimoBumpPor', 'ultimoBumpFecha', 'visitas', 'invitacionCodigo',
+    'resueltas', 'ultimoNumero',
 ]);
 const RAICES_INTERNAS = new Set([
     '_id', '__v', 'guildId', 'createdAt', 'updatedAt', 'ultimaVersionAnunciada', 'autoAsignarIndex',

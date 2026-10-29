@@ -958,6 +958,29 @@ export function useDashboard() {
     return r;
   };
   const anadirFuenteDirecto = (tipo, entrada) => crecimientoFetch('directos/fuentes', conJson('POST', { tipo, entrada }));
+
+  // --- 1.9.0: cumpleaños, salón de la fama, grupos, clanes, confesiones, solicitudes,
+  // ausente, mensajes fijos y contadores (api/routes/modulos.js). Igual que Crecimiento:
+  // cada vista guarda su estado; aquí solo las llamadas, que devuelven los datos o { error }.
+  const moduloFetch = async (ruta, opciones = {}) => {
+    if (!gidActivo()) return { error: 'Sin servidor' };
+    try {
+      const res = await apiFetch(`/api/config/${gidActivo()}/modulos/${ruta}`, opciones);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: data.error || `HTTP ${res.status}` };
+      return data;
+    } catch (error) {
+      console.error('Error en el módulo:', error);
+      return { error: 'Network error' };
+    }
+  };
+  const cargarModulo = (ruta) => moduloFetch(ruta);
+  const guardarModulo = async (ruta, datos) => {
+    const r = await moduloFetch(ruta, conJson('PUT', datos));
+    if (!r.error) cargarConfiguracion();
+    return r;
+  };
+  const accionModulo = (ruta, metodo = 'POST', datos) => moduloFetch(ruta, metodo === 'DELETE' ? { method: 'DELETE' } : conJson(metodo, datos));
   const eliminarFuenteDirecto = (id) => crecimientoFetch(`directos/fuentes/${id}`, { method: 'DELETE' });
   const probarFuenteDirecto = (id) => crecimientoFetch(`directos/fuentes/${id}/probar`, { method: 'POST' });
 
@@ -1476,7 +1499,12 @@ export function useDashboard() {
     else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarConfiguracion(); }
     else if (activeTab === 'com-dinamicas') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarTrivia(); }
     else if (activeTab === 'musica') { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
+    else if (activeTab === 'crec-contadores') { cargarConfiguracion(); cargarCategorias(); }
     else if (activeTab.startsWith('crec-')) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
+    // 1.9.0: las secciones nuevas eligen canales, roles o categorías del servidor.
+    else if (['com-cumpleanos', 'com-solicitudes', 'com-salon', 'com-clanes', 'com-confesiones'].includes(activeTab)) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
+    else if (activeTab === 'com-grupos') { cargarConfiguracion(); cargarCanales(); cargarCategorias(); }
+    else if (activeTab === 'prod-ausente' || activeTab === 'prod-fijos') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'voz-temporal') { cargarConfiguracion(); cargarCanales(); cargarCanalesVoz(); cargarCategorias(); cargarVozActivos(); }
     else if (activeTab === 'prod-autorespuestas') { cargarConfiguracion(); }
     else if (activeTab === 'prod-embeds') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); cargarBroadcast(); }
@@ -1549,6 +1577,14 @@ export function useDashboard() {
       'crec-pagina': b(c.crecimiento && c.crecimiento.pagina && c.crecimiento.pagina.activo),
       'crec-directos': b(c.crecimiento && c.crecimiento.directos && c.crecimiento.directos.activo),
       'com-micuenta': b(c.panelCuenta && c.panelCuenta.mensajeId),
+      'com-cumpleanos': b(c.cumpleanos && c.cumpleanos.activo),
+      'com-solicitudes': b(c.solicitudes && c.solicitudes.activo),
+      'com-salon': b(c.salonFama && c.salonFama.activo),
+      'com-grupos': b(!c.grupos || c.grupos.activo !== false),
+      'com-clanes': b(c.clanes && c.clanes.activo),
+      'com-confesiones': b(c.confesiones && c.confesiones.activo),
+      'prod-ausente': b(!c.ausente || c.ausente.activo !== false),
+      'crec-contadores': b(c.contadoresCanal && c.contadoresCanal.length),
     };
   })();
 
@@ -1598,6 +1634,7 @@ export function useDashboard() {
     guardarResumen, probarResumen,
     // crecimiento
     cargarCrecimiento, guardarCrecimiento, anadirFuenteDirecto, eliminarFuenteDirecto, probarFuenteDirecto,
+    cargarModulo, guardarModulo, accionModulo,
     // comunidad: sorteos, eventos, encuestas, sugerencias, presentaciones
     sorteos, crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, cargarSorteos, cargarParticipantesSorteo,
     eventos, crearEvento, eliminarEvento, cargarEventos,

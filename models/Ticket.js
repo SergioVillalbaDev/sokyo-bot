@@ -30,7 +30,10 @@ const ticketSchema = new mongoose.Schema({
     notasInternas: { type: Array, default: [] },
     etiquetas: { type: [String], default: [] },
     visibleWeb: { type: Boolean, default: true },
-    valoracionCSAT: { type: Number, default: null }
+    valoracionCSAT: { type: Number, default: null },
+    // Abierto escribiendo al bot por privado: lo que el staff escribe en el ticket le
+    // llega por privado, y lo que él escribe al bot llega al ticket (utils/ticketsPrivado.js).
+    porPrivado: { type: Boolean, default: false }
 });
 
 // El panel filtra tickets por servidor + estado y los ordena por fecha; las
@@ -40,5 +43,6 @@ ticketSchema.index({ guildId: 1, estado: 1, fechaCreacion: -1 });
 ticketSchema.index({ guildId: 1, creadorId: 1 });
 ticketSchema.index({ creadorId: 1, fechaCreacion: -1 }); // "Mi cuenta": mis tickets de todos los servidores
 ticketSchema.index({ esperaRespuesta: 1, avisoSinRespuesta: 1, ultimoMensajeUsuario: 1 }); // aviso de tickets sin responder
+ticketSchema.index({ creadorId: 1, porPrivado: 1, estado: 1 }); // el ticket por privado abierto de alguien
 
 module.exports = mongoose.model('Ticket', ticketSchema);

@@ -13,12 +13,22 @@ const bump = require('../utils/bump.js');
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
+        // Mensaje fijo abajo: cualquier mensaje (también de otros bots, no del nuestro)
+        // hace que el bot lo vuelva a publicar al final del canal.
+        if (message.guild) require('../utils/mensajesFijos.js').alMensaje(message, client);
+
         // Crecimiento: respuesta de DISBOARD a un /bump (es un bot, va antes del filtro).
         if (message.author.id === bump.DISBOARD_ID) {
             await bump.procesarMensaje(message).catch((e) => console.error('Bump (DISBOARD):', e.message));
             return;
         }
         if (message.author.bot) return;
+
+        // Por privado: lo que no es un comando va a los tickets por privado.
+        if (!message.guild && !message.content.startsWith('!')) {
+            await require('../utils/ticketsPrivado.js').alMensajePrivado(message, client).catch((e) => console.error('Tickets por privado:', e.message));
+            return;
+        }
 
         // 0. Registro de actividad del usuario (mensajes), solo en servidores.
         if (message.guild) {
@@ -38,6 +48,9 @@ module.exports = {
                 if (cfgAct && cfgAct.embudoAB && cfgAct.embudoAB.activo) {
                     await marcarParticipacion(message.guildId, message.author.id).catch(() => {});
                 }
+                // Modo ausente: quien vuelve a escribir deja de estar ausente, y se avisa
+                // de quién está ausente entre los mencionados.
+                await require('../utils/ausente.js').alMensaje(message, cfgAct).catch((e) => console.error('Ausente:', e.message));
             } catch (e) { console.error('Error registrando actividad de mensaje:', e.message); }
 
             // 0.5. Comunidad · Sugerencias: si el mensaje cae en el canal de
@@ -89,13 +102,19 @@ module.exports = {
                 // Los invitados al ticket (rol «Invitado») son del lado de quien lo abrió.
                 if (!message.author.bot) {
                     const ahora = new Date();
-                    const tk = await Ticket.findOne({ canalId: message.channel.id }).select('creadorId participantes').lean();
+                    const tk = await Ticket.findOne({ canalId: message.channel.id }).select('guildId canalId creadorId participantes porPrivado estado').lean();
                     if (tk) {
                         const delUsuario = tk.creadorId === message.author.id
                             || (tk.participantes || []).some((p) => p && p.id === message.author.id && p.rol === 'Invitado');
                         await Ticket.updateOne({ canalId: message.channel.id }, delUsuario
                             ? { $set: { esperaRespuesta: true, ultimoMensajeUsuario: ahora, avisoSinRespuesta: null } }
                             : { $set: { esperaRespuesta: false, ultimaInteractStaff: ahora } });
+                        // Ticket abierto por privado: lo que escribe el staff le llega por privado.
+                        if (tk.porPrivado && !delUsuario && tk.estado !== 'Cerrado') {
+                            await require('../utils/ticketsPrivado.js').alUsuario(client, tk, {
+                                autor: message.member?.displayName || message.author.username, texto: message.content, adjuntos: imagenesAdjuntas,
+                            }).catch(() => {});
+                        }
                     }
                 }
 
