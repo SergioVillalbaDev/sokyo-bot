@@ -1,6 +1,6 @@
 // Errores con solución: en vez de «Hubo un error», el bot dice qué ha pasado en
 // palabras normales y, si se arregla en el panel, pone el botón para ir allí
-// (normalmente a «¿Por qué no funciona?», el diagnóstico del servidor).
+// (normalmente a «¿Algo no funciona?», el diagnóstico del servidor).
 const { ActionRowBuilder } = require('discord.js');
 const { botonPanel } = require('./enlacesPanel.js');
 const { t } = require('./i18n.js');
@@ -32,13 +32,13 @@ function permisosQueFaltan(canal, requeridos, idioma) {
 function explicarError(error, idioma) {
     const code = error && error.code;
     const diag = 'config-diagnostico';
-    if (code === 50013) return { texto: t(idioma, '🔒 Me falta un permiso para hacer eso. En el panel, «¿Por qué no funciona?» te dice cuál y cómo dármelo.', '🔒 I’m missing a permission to do that. In the panel, “Why isn’t it working?” tells you which one and how to give it to me.'), tab: diag };
+    if (code === 50013) return { texto: t(idioma, '🔒 Me falta un permiso para hacer eso. En el panel, «¿Algo no funciona?» te dice cuál y cómo dármelo.', '🔒 I’m missing a permission to do that. In the panel, “Something not working?” tells you which one and how to give it to me.'), tab: diag };
     if (code === 50001) return { texto: t(idioma, '🙈 No puedo ver ese canal: me falta «Ver canal» ahí.', '🙈 I can’t see that channel: I’m missing “View Channel” there.'), tab: diag };
     if (code === 50007) return { texto: t(idioma, '✉️ No he podido mandarle un mensaje privado: los tiene cerrados.', '✉️ I couldn’t DM them: their DMs are closed.'), tab: null };
     if ([10003, 10008, 10011, 10013, 10007].includes(code)) return { texto: t(idioma, '🔎 Eso ya no existe (puede que lo hayan borrado hace un momento).', '🔎 That no longer exists (it may have just been deleted).'), tab: null };
     if (code === 30013 || code === 30005 || code === 30007) return { texto: t(idioma, '📦 Discord ha llegado a su máximo (canales, roles o webhooks). Borra alguno y vuelve a probar.', '📦 Discord reached its maximum (channels, roles or webhooks). Delete one and try again.'), tab: null };
     if (error && (error.status === 429 || error.name === 'RateLimitError')) return { texto: t(idioma, '⏳ Discord me está frenando por hacer muchas cosas seguidas. Prueba otra vez en un minuto.', '⏳ Discord is slowing me down for doing many things in a row. Try again in a minute.'), tab: null };
-    return { texto: t(idioma, '😵 Algo ha fallado al hacerlo. Prueba otra vez; si sigue, mira «¿Por qué no funciona?» en el panel.', '😵 Something went wrong. Try again; if it keeps happening, check “Why isn’t it working?” in the panel.'), tab: diag };
+    return { texto: t(idioma, '😵 Algo ha fallado al hacerlo. Prueba otra vez; si sigue, mira «¿Algo no funciona?» en el panel.', '😵 Something went wrong. Try again; if it keeps happening, check “Something not working?” in the panel.'), tab: diag };
 }
 
 // Mensaje listo para responder (privado si es una interacción).

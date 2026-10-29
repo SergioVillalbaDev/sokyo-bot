@@ -1,4 +1,4 @@
-// Diagnóstico «¿Por qué no funciona?» del panel: repasa lo que suele fallar sin
+// Diagnóstico «¿Algo no funciona?» del panel: repasa lo que suele fallar sin
 // que nadie lo note (permisos del bot, canales o roles borrados, roles que el bot
 // no puede dar, módulos a medio configurar, la música) y dice cómo arreglarlo.
 // Algunos problemas se arreglan con un botón (quitar un canal que ya no existe,

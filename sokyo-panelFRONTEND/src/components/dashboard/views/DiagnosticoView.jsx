@@ -45,7 +45,7 @@ export default function DiagnosticoView({ dash }) {
 
   return (
     <div className="space-y-5">
-      <div className={cn(card, 'flex flex-col gap-4 sm:flex-row sm:items-center')}>
+      <div data-help="diag-resumen" className={cn(card, 'flex flex-col gap-4 sm:flex-row sm:items-center')}>
         <span className={cn('grid h-14 w-14 shrink-0 place-items-center rounded-2xl', !datos ? 'bg-elevated text-muted' : errores ? 'bg-danger/15 text-danger' : avisos ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success')}>
           {cargando && !datos ? <Loader2 size={26} className="animate-spin" /> : errores ? <XCircle size={26} /> : avisos ? <AlertTriangle size={26} /> : <CheckCircle2 size={26} />}
         </span>
@@ -80,7 +80,7 @@ export default function DiagnosticoView({ dash }) {
         </div>
       )}
 
-      <ul className="space-y-3">
+      <ul data-help="diag-lista" className="space-y-3">
         {problemas.map((p) => {
           const esError = p.nivel === 'error';
           return (

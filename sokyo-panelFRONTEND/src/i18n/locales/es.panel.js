@@ -376,7 +376,7 @@ export default {
         desc: 'Filtra bots y cuentas falsas antes de que entren: un botón o un captcha que deben superar para conseguir acceso al servidor.',
       },
       'seg-embudo': {
-        title: '🧪 Embudo de bienvenida (Test A/B)',
+        title: '🧭 Bienvenida guiada (prueba dos versiones)',
         desc: 'Reparte a cada nuevo miembro al 50/50 entre dos onboardings distintos y mide cuál consigue que más gente se quede y participe.',
       },
       'seg-reportes': {
@@ -531,6 +531,7 @@ export default {
         categoria: { title: '📁 Categoría de creación', desc: 'La categoría de Discord donde se crearán los canales de ticket nuevos.' },
         limite: { title: '🔢 Límite por usuario', desc: 'Cuántos tickets abiertos puede tener una misma persona a la vez (0 = sin límite).' },
         autoasignar: { title: '🔁 Asignación automática', desc: 'Reparte los tickets nuevos entre tu staff por turnos (round-robin), para que nadie se quede sin atender.' },
+        sinrespuesta: { title: '⏳ Tickets olvidados', desc: 'Si un ticket lleva este tiempo sin que nadie del staff conteste, el bot avisa en el ticket. En la bandeja también verás «Esperando respuesta».' },
         cierre: { title: '🎫 Al cerrar un ticket', desc: 'Decide qué pasa al cerrar: pedir valoración (CSAT), enviar el transcript y avisar en el canal. Todo se guarda solo al cambiarlo.' },
         notif: { title: '🔔 Notificaciones', desc: 'Activa el aviso al equipo de soporte cuando se abre un ticket y elige qué rol se menciona.' },
         guardar: { title: '💾 Guardar cambios', desc: 'Aquí guardas toda la configuración de incidencias que ajustes debajo. No olvides pulsarlo al terminar.' },
@@ -614,9 +615,22 @@ export default {
         ios: { title: '📱 iPhone y iPad', desc: 'Sin instalar nada: abre el panel en Safari, pulsa Compartir y «Añadir a pantalla de inicio».' },
         faq: { title: '🛡️ Dudas frecuentes', desc: 'Seguridad, actualizaciones y por qué Android avisa al instalar, resuelto en un momento.' },
       } },
+      'config-diagnostico': { steps: {
+        resumen: { title: '🩺 El resultado', desc: 'Aquí ves si todo está bien o cuántas cosas fallan. «Volver a comprobar» lo mira otra vez al momento.' },
+        lista: { title: '🛠️ Qué falla y cómo se arregla', desc: 'Cada problema dice qué pasa y cómo arreglarlo. Muchos tienen botón: «Dar los permisos», «Quitarlo de la configuración» o ir a su sección.' },
+      } },
+      'config-cambios': { steps: {
+        intro: { title: '🕒 Todo lo que se cambia', desc: 'Cada vez que alguien del staff guarda algo, queda aquí: quién, cuándo y qué.' },
+        lista: { title: '↩️ Volver a como estaba', desc: 'Abre «Ver el cambio» para ver el antes y el después, y pulsa «Volver a como estaba» para deshacerlo.' },
+      } },
+      'mod-miembros': { steps: {
+        filtros: { title: '🔎 Buscar y filtrar', desc: 'Busca por nombre o ID, filtra por rol o por nuevos y aislados. Si marcas a varios, aquí arriba salen las acciones en grupo.' },
+        lista: { title: '👥 Cada persona', desc: 'Pasa el ratón por su nombre para ver su ficha rápida, usa los botones para aislar, expulsar o banear, o márcala para hacerlo con varias a la vez.' },
+      } },
       'seg-backup': { steps: {
         exportar: { title: '⬇️ Exportar', desc: 'Descarga toda la configuración del servidor en un archivo. Tu copia de seguridad o para clonarla en otro servidor.' },
         importar: { title: '⬆️ Importar', desc: 'Carga un archivo de backup para restaurar la configuración. Ojo: sobrescribe los ajustes actuales.' },
+        copiar: { title: '📋 Copiar a otro servidor', desc: 'Pasa estos ajustes a otro de tus servidores en un clic: los canales y roles se buscan allí por su nombre.' },
       } },
       'crec-invitaciones': { steps: {
         config: { title: '📨 Activar', desc: 'Enciende el seguimiento. El bot necesita el permiso «Gestionar servidor» para ver las invitaciones.' },
@@ -810,7 +824,7 @@ export default {
     },
     priority: { urgent: 'Urgente', high: 'Alta', normal: 'Normal', low: 'Baja' },
     error: {
-      detail: 'Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que las claves coincidan. (Abre la consola con F12 para más detalles.)',
+      detail: 'Puede que el bot se esté reiniciando (tarda menos de un minuto) o que falle tu conexión. Espera un momento y recarga la página.',
     },
     planes_v: {
       thisServer: 'este servidor',
@@ -1591,9 +1605,9 @@ export default {
       rulesTitle: 'Reglas y control',
     },
     incidents_v: {
-      title: 'Service Desk', subtitle: 'Configura las reglas de enrutamiento y prioridades.', save: 'Guardar y Sincronizar',
-      sla: 'Niveles de Urgencia (SLA)', level: 'Nivel {{n}}', categories: 'Categorías del Menú', add: 'Añadir',
-      urgPlaceholder: 'Ej: Mondongo', motivoPlaceholder: 'Ej: Fallo de Pago',
+      title: 'Urgencias y motivos', subtitle: 'Lo que se elige al abrir un ticket: qué tan urgente es y de qué trata.', save: 'Guardar urgencias y motivos',
+      sla: 'Niveles de urgencia', level: 'Nivel {{n}}', categories: 'Categorías del Menú', add: 'Añadir',
+      urgPlaceholder: 'Ej.: Muy urgente', motivoPlaceholder: 'Ej.: Problema con un pago',
     },
     logs_v: {
       title: 'Registro de Auditoría', subtitle: 'Monitorizando la actividad del servidor en tiempo real.',
@@ -1620,7 +1634,7 @@ export default {
     },
     rules_v: {
       sinRespuesta: 'Avisar si un ticket no tiene respuesta', sinRespuestaDesc: 'Pasado ese tiempo sin que el staff conteste, el bot avisa en el ticket (y menciona al rol de soporte).', nunca: 'No avisar', horas_one: 'A la {{count}} hora', horas_other: 'A las {{count}} horas',
-      autosave: 'Los cambios se guardan automáticamente. Reinicia el bot si acabas de actualizar el código.',
+      autosave: 'Los cambios se guardan solos al momento.',
       staff: 'Rol de soporte', staffDesc: 'Quién puede reclamar, añadir usuarios y cerrar tickets (los administradores siempre pueden).', onlyAdmins: 'Solo administradores',
       noRoles: 'No se han podido cargar los roles (¿está el bot encendido?).',
       category: 'Categoría de los tickets', categoryDesc: 'Dónde se crean los canales de ticket nuevos.', noCategory: 'Sin categoría (raíz)',
@@ -1672,7 +1686,7 @@ export default {
       secTeam: 'Rendimiento del equipo', agent: 'Agente', handled: 'Tickets', agentClose: 'Cierre', agentCsat: 'CSAT',
       noTeam: 'Aún no hay tickets asignados a agentes.',
       topSanctioned: 'Más sancionados',
-      secEmbudo: 'Doble bienvenida · Test A/B',
+      secEmbudo: 'Bienvenida guiada · prueba dos versiones',
       embudoOff: 'Activa la doble bienvenida (en Verificación) para repartir a los nuevos en dos versiones y descubrir cuál retiene mejor.',
       embudoConfig: 'Configurar doble bienvenida',
       embudoNuevos: 'Nuevos', embudoVerif: 'Verificación', embudoPart: 'Participación 1ª sem.', embudoRet: 'Retención 7d',
@@ -1687,7 +1701,7 @@ export default {
         intro: 'Sokyo sabe con qué invitación entra cada persona y premia a quien trae gente: oro, XP y roles. Las trampas no cuentan: la persona tiene que quedarse un tiempo y las cuentas recién creadas no valen.',
         noPermission: 'El bot necesita el permiso «Gestionar servidor» para ver las invitaciones. Sin él no puede saber quién invita a quién.',
         title: 'Seguimiento de invitaciones',
-        commandsNote: 'Los miembros ven sus invitaciones y el top del servidor con /invites (o !invites).',
+        commandsNote: 'Los miembros ven sus invitaciones y el top del servidor con /invitaciones (o !invitaciones).',
         rulesTitle: 'Antitrampas',
         hours: 'Horas para confirmar', hoursHint: 'Cuenta si el invitado sigue en el servidor pasado este tiempo (0 = al momento).',
         days: 'Antigüedad mínima de la cuenta (días)', daysHint: 'Las cuentas de Discord más nuevas no cuentan nunca. 0 = sin mínimo.',
@@ -1752,7 +1766,7 @@ export default {
         twitchApi: 'Twitch: API oficial activa (el aviso incluye el juego).',
         twitchBasic: 'Twitch: modo básico, sin el juego. Para el modo completo añade TWITCH_CLIENT_ID y TWITCH_CLIENT_SECRET al .env del bot.',
         ytApi: 'YouTube: con clave de la API (los directos se avisan como «en directo»).',
-        ytBasic: 'YouTube: sin clave de la API, los directos se avisan como publicaciones. Añade YOUTUBE_API_KEY al .env para distinguirlos.',
+        ytBasic: 'YouTube: los directos se avisan como vídeos nuevos (para distinguirlos hace falta una clave de YouTube que configura el dueño del bot).',
         frequency: 'Twitch se revisa cada 2 minutos y YouTube cada 4.',
       },
     },

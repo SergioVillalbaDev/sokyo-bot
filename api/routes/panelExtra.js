@@ -1,5 +1,5 @@
 // ============================================================================
-// Comodidades del panel: diagnóstico «¿Por qué no funciona?» (con arreglos de un
+// Comodidades del panel: diagnóstico «¿Algo no funciona?» (con arreglos de un
 // clic) e historial de cambios con «volver a como estaba».
 // ============================================================================
 const express = require('express');

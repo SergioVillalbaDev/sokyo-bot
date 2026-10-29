@@ -483,7 +483,7 @@ module.exports = (client) => {
 
     // Categorías y canales del servidor (los cambios piden el área "config").
     app.use('/api', require('./routes/canales.js')({ client, exigeArea }));
-    // Diagnóstico «¿Por qué no funciona?» e historial de cambios con «Deshacer».
+    // Diagnóstico «¿Algo no funciona?» e historial de cambios con «Deshacer».
     app.use('/api', require('./routes/panelExtra.js')({ client, exigeArea, tieneAreaAcceso, idiomaPanel }));
 
     // Middleware: exige ser Administrator de Discord en el guild (o dueño/API key).

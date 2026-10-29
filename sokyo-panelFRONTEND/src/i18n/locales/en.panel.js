@@ -376,7 +376,7 @@ export default {
         desc: 'Filter out bots and fake accounts before they get in: a button or captcha they must pass to gain access to the server.',
       },
       'seg-embudo': {
-        title: '🧪 Welcome funnel (A/B Test)',
+        title: '🧭 Guided welcome (try two versions)',
         desc: 'Split each new member 50/50 between two different onboardings and measure which one keeps more people around and engaged.',
       },
       'seg-reportes': {
@@ -531,6 +531,7 @@ export default {
         categoria: { title: '📁 Creation category', desc: 'The Discord category where new ticket channels will be created.' },
         limite: { title: '🔢 Per-user limit', desc: 'How many open tickets one person can have at a time (0 = no limit).' },
         autoasignar: { title: '🔁 Automatic assignment', desc: 'Distribute new tickets among your staff in turns (round-robin), so no one goes unattended.' },
+        sinrespuesta: { title: '⏳ Forgotten tickets', desc: 'If a ticket goes this long without a staff reply, the bot posts a reminder in it. The inbox also shows “Waiting for a reply”.' },
         cierre: { title: '🎫 On ticket close', desc: 'Decide what happens on close: ask for a rating (CSAT), send the transcript and notify the channel. Everything saves automatically on change.' },
         notif: { title: '🔔 Notifications', desc: 'Enable the alert to your support team when a ticket opens and choose which role gets mentioned.' },
         guardar: { title: '💾 Save changes', desc: 'This is where you save all the incident settings you adjust below. Don’t forget to click it when you’re done.' },
@@ -614,9 +615,22 @@ export default {
         ios: { title: '📱 iPhone & iPad', desc: 'Nothing to install: open the panel in Safari, tap Share and then “Add to Home Screen”.' },
         faq: { title: '🛡️ Common questions', desc: 'Security, updates and why Android warns you when installing, answered in a moment.' },
       } },
+      'config-diagnostico': { steps: {
+        resumen: { title: '🩺 The result', desc: 'See whether everything is fine or how many things are failing. “Check again” looks again right away.' },
+        lista: { title: '🛠️ What’s wrong and how to fix it', desc: 'Each problem says what’s happening and how to fix it. Many have a button: “Grant permissions”, “Remove it from the settings” or go to its section.' },
+      } },
+      'config-cambios': { steps: {
+        intro: { title: '🕒 Everything that changes', desc: 'Every time someone on the staff saves something, it shows up here: who, when and what.' },
+        lista: { title: '↩️ Put it back', desc: 'Open “See the change” to see before and after, and press “Put it back” to undo it.' },
+      } },
+      'mod-miembros': { steps: {
+        filtros: { title: '🔎 Search and filter', desc: 'Search by name or ID, filter by role or by new and timed-out members. If you select several, group actions appear up here.' },
+        lista: { title: '👥 Each person', desc: 'Hover over their name for a quick profile, use the buttons to time out, kick or ban, or select them to do it to several at once.' },
+      } },
       'seg-backup': { steps: {
         exportar: { title: '⬇️ Export', desc: 'Download the whole server configuration to a file. Your backup or to clone it onto another server.' },
         importar: { title: '⬆️ Import', desc: 'Load a backup file to restore the configuration. Careful: it overwrites the current settings.' },
+        copiar: { title: '📋 Copy to another server', desc: 'Move these settings to another of your servers in one click: channels and roles are matched there by name.' },
       } },
       'crec-invitaciones': { steps: {
         config: { title: '📨 Turn it on', desc: 'Enable tracking. The bot needs the “Manage Server” permission to see the invites.' },
@@ -810,7 +824,7 @@ export default {
     },
     priority: { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' },
     error: {
-      detail: 'Make sure the bot is running, that VITE_API_URL points to the right address and that the keys match. (Open the console with F12 for details.)',
+      detail: 'The bot may be restarting (it takes less than a minute) or your connection may be failing. Wait a moment and reload the page.',
     },
     planes_v: {
       thisServer: 'this server',
@@ -1586,8 +1600,8 @@ export default {
       rulesTitle: 'Rules & control',
     },
     incidents_v: {
-      title: 'Service Desk', subtitle: 'Configure routing rules and priorities.', save: 'Save & sync',
-      sla: 'Urgency levels (SLA)', level: 'Level {{n}}', categories: 'Menu categories', add: 'Add',
+      title: 'Priorities & reasons', subtitle: 'What people pick when opening a ticket: how urgent it is and what it’s about.', save: 'Save priorities & reasons',
+      sla: 'Urgency levels', level: 'Level {{n}}', categories: 'Menu categories', add: 'Add',
       urgPlaceholder: 'E.g. Critical', motivoPlaceholder: 'E.g. Payment issue',
     },
     logs_v: {
@@ -1615,7 +1629,7 @@ export default {
     },
     rules_v: {
       sinRespuesta: 'Alert when a ticket gets no reply', sinRespuestaDesc: 'After that long without a staff reply, the bot posts a reminder in the ticket (and pings the support role).', nunca: 'Don’t alert', horas_one: 'After {{count}} hour', horas_other: 'After {{count}} hours',
-      autosave: 'Changes are saved automatically. Restart the bot if you just updated the code.',
+      autosave: 'Changes are saved right away.',
       staff: 'Support role', staffDesc: 'Who can claim, add users and close tickets (admins always can).', onlyAdmins: 'Admins only',
       noRoles: 'Could not load roles (is the bot running?).',
       category: 'Tickets category', categoryDesc: 'Where new ticket channels are created.', noCategory: 'No category (root)',
@@ -1667,7 +1681,7 @@ export default {
       secTeam: 'Team performance', agent: 'Agent', handled: 'Tickets', agentClose: 'Close', agentCsat: 'CSAT',
       noTeam: 'No tickets assigned to agents yet.',
       topSanctioned: 'Most sanctioned',
-      secEmbudo: 'Dual welcome · A/B test',
+      secEmbudo: 'Guided welcome · try two versions',
       embudoOff: 'Enable the dual welcome (in Verification) to split new members into two versions and find out which one retains better.',
       embudoConfig: 'Configure dual welcome',
       embudoNuevos: 'New', embudoVerif: 'Verification', embudoPart: 'Participation 1st week', embudoRet: 'Retention 7d',
@@ -1747,7 +1761,7 @@ export default {
         twitchApi: 'Twitch: official API on (alerts include the game).',
         twitchBasic: 'Twitch: basic mode, without the game. For full mode add TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET to the bot’s .env.',
         ytApi: 'YouTube: API key set (streams are posted as “live”).',
-        ytBasic: 'YouTube: without an API key, streams are posted as uploads. Add YOUTUBE_API_KEY to the .env to tell them apart.',
+        ytBasic: 'YouTube: streams are posted as new videos (telling them apart needs a YouTube key set up by the bot owner).',
         frequency: 'Twitch is checked every 2 minutes and YouTube every 4.',
       },
     },

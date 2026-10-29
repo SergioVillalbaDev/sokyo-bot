@@ -35,7 +35,7 @@ module.exports = {
             // Discord no debería permitir esto (la opción es obligatoria), pero si
             // el comando registrado en Discord está desactualizado respecto al
             // código (falta re-ejecutar deploy-commands.js), esta opción llega null.
-            return interaction.reply({ content: t(cfg, '❌ No he recibido nada que buscar. Si esto sigue pasando, pide al dueño del bot que resincronice los slash commands.', '❌ I didn’t receive anything to search for. If this keeps happening, ask the bot owner to re-sync the slash commands.'), flags: 64 });
+            return interaction.reply({ content: t(cfg, '❌ No he recibido nada que buscar. Escribe el nombre de la canción en **cancion** (o elige una de la lista que sale al escribir).', '❌ I didn’t receive anything to search for. Type the song name in **search** (or pick one from the list that appears as you type).'), flags: 64 });
         }
         await interaction.deferReply();
 

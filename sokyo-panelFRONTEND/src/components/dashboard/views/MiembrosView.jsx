@@ -113,7 +113,7 @@ export default function MiembrosView({ dash }) {
       {pestana === 'baneados' ? <Baneados guildId={guildId} /> : (
         <>
           {/* Buscador y filtros (siempre a la vista al bajar por la lista) */}
-          <div className="sk-flotante sticky top-0 z-20 space-y-3 rounded-2xl border border-line p-3 shadow-lg">
+          <div data-help="miembros-filtros" className="sk-flotante sticky top-0 z-20 space-y-3 rounded-2xl border border-line p-3 shadow-lg">
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative min-w-0 flex-1">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -175,7 +175,7 @@ export default function MiembrosView({ dash }) {
               <p className="text-sm italic text-muted">{t('dashboard.miembros_v.empty')}</p>
             </div>
           ) : (
-            <div className={`${card} divide-y divide-line overflow-hidden`}>
+            <div data-help="miembros-lista" className={`${card} divide-y divide-line overflow-hidden`}>
               {marcables.length > 1 && (
                 <label className="flex cursor-pointer items-center gap-3 px-3.5 py-2 text-xs font-semibold text-muted sm:px-4">
                   <input type="checkbox" className="h-4 w-4 accent-[var(--accent-color)]" checked={todosMarcados}

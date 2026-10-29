@@ -90,7 +90,7 @@ export default function CambiosView({ dash }) {
 
   return (
     <div className="space-y-4">
-      <p className="flex items-start gap-2 text-sm text-muted"><History size={16} className="mt-0.5 shrink-0 text-brand" /> {t('dashboard.cambios.intro')}</p>
+      <p data-help="cambios-intro" className="flex items-start gap-2 text-sm text-muted"><History size={16} className="mt-0.5 shrink-0 text-brand" /> {t('dashboard.cambios.intro')}</p>
       {aviso && <p className="rounded-2xl border border-brand/40 bg-brand/10 p-3 text-sm text-fg" role="status">{aviso}</p>}
 
       {!lista.length && (
@@ -101,7 +101,7 @@ export default function CambiosView({ dash }) {
         </div>
       )}
 
-      <ul className="space-y-3">
+      <ul data-help="cambios-lista" className="space-y-3">
         {lista.map((c) => {
           const detalles = c.claves.flatMap((k) => hojas(c.antes?.[k], c.despues?.[k], k));
           const desplegado = abierto === c.id;
