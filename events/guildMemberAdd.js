@@ -3,7 +3,7 @@ const Log = require('../models/Log.js');
 const { getConfig, logActivo } = require('../utils/config.js');
 const { revisarEntrada } = require('../utils/antiRaid.js');
 const { asignarCohorte, enviarMD } = require('../utils/embudo.js');
-const { enviarBienvenida } = require('../utils/bienvenida.js');
+const { enviarBienvenida, enviarBienvenidasExtra, apuntarFallo } = require('../utils/bienvenida.js');
 const { enviarLogADiscord } = require('../utils/logsManager.js');
 const { manejarEntradaServidorSoporte } = require('../utils/soporte.js');
 const { registrarEntrada } = require('../utils/invitaciones.js');
@@ -71,17 +71,16 @@ module.exports = {
                 // Encendida pero no ha podido salir (sin permiso, canal borrado…):
                 // que el staff lo vea en el Registro y en el canal de logs.
                 if (r && r.error && cfg?.bienvenida?.activo) {
-                    const log = await Log.create({
-                        guildId: member.guild.id,
-                        categoria: 'Entradas',
-                        accion: t(cfg, '⚠️ No se pudo dar la bienvenida', '⚠️ The welcome message failed'),
-                        usuario: member.user.username,
-                        detalles: r.error,
-                        color: '#e67e22'
-                    });
-                    await enviarLogADiscord(client, log);
+                    await apuntarFallo(client, member, cfg, { categoria: 'Entradas', accion: t(cfg, '⚠️ No se pudo dar la bienvenida', '⚠️ The welcome message failed'), error: r.error });
                 }
             } catch (error) { console.error('Error en mensaje de bienvenida:', error.message); }
+
+            // Bienvenidas extra que se mandan al entrar (las de «al recibir un rol» van en guildMemberUpdate).
+            try {
+                for (const { conf, r } of await enviarBienvenidasExtra(member, cfg, { evento: 'entrar' })) {
+                    if (r && r.error) await apuntarFallo(client, member, cfg, { categoria: 'Entradas', accion: t(cfg, `⚠️ No se pudo mandar la bienvenida «${conf.nombre || '?'}»`, `⚠️ The “${conf.nombre || '?'}” welcome failed`), error: r.error });
+                }
+            } catch (error) { console.error('Error en bienvenidas extra:', error.message); }
         }
 
         // --- Log de entrada (comportamiento existente) ---

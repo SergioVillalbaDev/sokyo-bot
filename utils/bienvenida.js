@@ -119,4 +119,46 @@ async function enviarDespedida(member, cfg, opciones = {}) {
     catch (e) { console.error('Error enviando despedida:', e.message); return { error: textoError(e, opciones.idioma || cfg) }; }
 }
 
-module.exports = { enviarBienvenida, enviarDespedida };
+// Una bienvenida extra concreta (la del panel o la de un juego).
+async function enviarExtra(member, conf, cfg, opciones = {}) {
+    try { return await enviar(member, conf, cfg, opciones); }
+    catch (e) { console.error('Error enviando bienvenida extra:', e.message); return { error: textoError(e, opciones.idioma || cfg) }; }
+}
+
+// Bienvenidas extra que tocan ahora: al entrar (`evento: 'entrar'`) o al recibir
+// alguno de `rolesNuevos` (`evento: 'rol'`). Devuelve [{ conf, r }] para apuntar fallos.
+// Las de «al recibir un rol» se mandan una sola vez cada 12 h por persona: quitar y
+// volver a poner el rol (roles por reacción…) no repite la bienvenida.
+const YA_RECIBIDAS = new Map(); // `${guild}:${miembro}:${extra}` → hasta cuándo
+const ESPERA_ROL_MS = 12 * 60 * 60 * 1000;
+function yaRecibida(member, conf) {
+    const ahora = Date.now();
+    if (YA_RECIBIDAS.size > 5000) for (const [k, hasta] of YA_RECIBIDAS) if (hasta <= ahora) YA_RECIBIDAS.delete(k);
+    const clave = `${member.guild.id}:${member.id}:${conf.id}`;
+    if ((YA_RECIBIDAS.get(clave) || 0) > ahora) return true;
+    YA_RECIBIDAS.set(clave, ahora + ESPERA_ROL_MS);
+    return false;
+}
+
+async function enviarBienvenidasExtra(member, cfg, { evento = 'entrar', rolesNuevos = [] } = {}) {
+    const lista = Array.isArray(cfg && cfg.bienvenidasExtra) ? cfg.bienvenidasExtra : [];
+    const tocan = lista.filter((m) => m && m.activo && (evento === 'rol'
+        ? m.cuando === 'rol' && m.rolId && rolesNuevos.includes(m.rolId) && !yaRecibida(member, m)
+        : (m.cuando || 'entrar') === 'entrar'));
+    const resultados = [];
+    for (const conf of tocan) resultados.push({ conf, r: await enviarExtra(member, conf, cfg) });
+    return resultados;
+}
+
+// Si un mensaje encendido no ha podido salir, que el staff lo vea en el Registro y
+// en el canal de logs (con el motivo). `categoria`: 'Entradas' o 'Salidas'.
+async function apuntarFallo(client, member, cfg, { categoria, accion, error }) {
+    try {
+        const Log = require('../models/Log.js');
+        const { enviarLogADiscord } = require('./logsManager.js');
+        const log = await Log.create({ guildId: member.guild.id, categoria, accion, usuario: member.user.username, detalles: error, color: '#e67e22' });
+        await enviarLogADiscord(client, log);
+    } catch (e) { console.error('No se pudo apuntar el fallo de la bienvenida:', e.message); }
+}
+
+module.exports = { enviarBienvenida, enviarDespedida, enviarExtra, enviarBienvenidasExtra, apuntarFallo };

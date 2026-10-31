@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.4.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.5.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -329,5 +329,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   (lógica en `lib/canalesTexto.js`, con test), con ratón, toque o ↑ ↓ + Enter/Tab y
   Escape. Inserta «#nombre» y el bot lo convierte al enviar (1.9.3). `EmbedBuilder`
   solo lo activa si recibe `canales` (hoy, solo Bienvenidas: es donde se convierte).
+- 1.9.5 Varias bienvenidas (una por juego/categoría): `ServidorConfig.bienvenidasExtra`
+  (hasta 15, `{ id, nombre, activo, cuando: 'entrar'|'rol', rolId, canalId, contenido,
+  mencionar, embed }`). Salen al entrar (`events/guildMemberAdd.js`) o al recibir el rol
+  (`events/guildMemberUpdate.js`, se salta miembros parciales y bots) con
+  `enviarBienvenidasExtra` (`utils/bienvenida.js`); los fallos van al Registro con
+  `apuntarFallo`. API: `PUT …/bienvenidas` acepta `extras` y `POST …/probar` acepta
+  `extraId`. El panel las muestra como fichas encima del editor («Principal» + las
+  demás + «Añadir mensaje»), con estado propio (`estadoMensaje` mira también el rol) y
+  el Diagnóstico revisa su canal, permisos y rol. Las etiquetas de imagen/miniatura del
+  embed dicen que vale un GIF (y «GIF subido» si lo es).
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

@@ -153,6 +153,25 @@ async function diagnosticar(client, guildId, cfg, idioma) {
             add({ id: `permcanal:${ruta}`, nivel: 'error', titulo: t(idioma, `El bot no puede escribir en #${canal.name}`, `The bot can’t write in #${canal.name}`), detalle: t(idioma, `Es ${es}. Necesita «Ver canal», «Enviar mensajes» e «Insertar enlaces» ahí.`, `It’s ${en}. It needs “View channel”, “Send messages” and “Embed links” there.`), solucion: t(idioma, 'En Discord: clic derecho en el canal → Editar canal → Permisos, y dale esos permisos al rol de Sokyo.', 'In Discord: right-click the channel → Edit channel → Permissions, and give Sokyo’s role those permissions.'), tab, arreglo: null });
         }
     }
+    // Bienvenidas extra encendidas: su canal y, si se mandan al recibir un rol, ese rol.
+    for (const m of (cfg?.bienvenidasExtra || [])) {
+        if (!m || !m.activo) continue;
+        const nombre = m.nombre || '?';
+        const tab = 'prod-bienvenidas';
+        comprobados++;
+        const canal = m.canalId && guild.channels.cache.get(m.canalId);
+        if (!canal) {
+            add({ id: `extra:${m.id}:canal`, nivel: 'error', titulo: t(idioma, `La bienvenida «${nombre}» no tiene canal`, `The “${nombre}” welcome has no channel`), detalle: t(idioma, 'Está encendida, pero no tiene canal o el canal se borró.', 'It’s on, but it has no channel or the channel was deleted.'), solucion: t(idioma, 'Elige su canal en Bienvenidas.', 'Choose its channel in Welcomes.'), tab, arreglo: null });
+        } else if (!admin && !canal.permissionsFor(me)?.has([P.ViewChannel, P.SendMessages, P.EmbedLinks])) {
+            add({ id: `extra:${m.id}:permisos`, nivel: 'error', titulo: t(idioma, `El bot no puede escribir en #${canal.name}`, `The bot can’t write in #${canal.name}`), detalle: t(idioma, `Es el canal de la bienvenida «${nombre}». Necesita «Ver canal», «Enviar mensajes» e «Insertar enlaces» ahí.`, `It’s the channel of the “${nombre}” welcome. It needs “View channel”, “Send messages” and “Embed links” there.`), solucion: t(idioma, 'En Discord: clic derecho en el canal → Editar canal → Permisos, y dale esos permisos al rol de Sokyo.', 'In Discord: right-click the channel → Edit channel → Permissions, and give Sokyo’s role those permissions.'), tab, arreglo: null });
+        }
+        if (m.cuando === 'rol') {
+            comprobados++;
+            if (!m.rolId || !guild.roles.cache.get(m.rolId)) {
+                add({ id: `extra:${m.id}:rol`, nivel: 'error', titulo: t(idioma, `La bienvenida «${nombre}» no tiene rol`, `The “${nombre}” welcome has no role`), detalle: t(idioma, 'Se manda al recibir un rol, pero no hay rol elegido o se borró.', 'It’s sent when someone gets a role, but no role is chosen or it was deleted.'), solucion: t(idioma, 'Elige el rol en Bienvenidas.', 'Choose the role in Welcomes.'), tab, arreglo: null });
+            }
+        }
+    }
     for (const [ruta, campo, tab, es, en] of LISTAS_ROLES) {
         const lista = leer(cfg, ruta) || [];
         for (const item of lista) {
