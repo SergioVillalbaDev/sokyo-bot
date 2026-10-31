@@ -1,60 +1,49 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
+const Ticket = require('../models/Ticket.js');
+const ticketCache = require('../utils/ticketCache.js');
+const { obtenerConfig, buscarMotivo } = require('../utils/config.js');
+const { puedeAtender } = require('../utils/permisos.js');
+
+const COMANDOS_ANTIGUOS = { sokyo: '/setup', user: '/usuario', dado: '/dado', moneda: '/moneda' };
 
 module.exports = {
     name: Events.MessageCreate,
-    async execute(message, client) {
-        if (message.author.bot) return;
+    async execute(message) {
+        if (message.author.bot || !message.guildId) return;
 
-        // 1. Guardar mensajes de los tickets en la BD
-        if (message.channel.name && message.channel.name.startsWith('ticket-')) {
-            console.log(`\n--- 📩 NUEVO MENSAJE EN TICKET ---`);
-            console.log(`👤 Usuario: ${message.author.username}`);
-            console.log(`📝 Texto: "${message.content}"`);
-            console.log(`📎 Adjuntos: ${message.attachments.size}`);
-
+        // 1. Guardar los mensajes de los tickets (para el panel web, la IA y el transcript)
+        if (ticketCache.tiene(message.channelId)) {
             try {
-                let imagenesAdjuntas = [];
-                
-                if (message.attachments.size > 0) {
-                    // Extraemos las URLs de forma segura
-                    message.attachments.forEach(adjunto => {
-                        imagenesAdjuntas.push(adjunto.url);
-                    });
-                }
-
-                console.log(`🔗 URLs a guardar:`, imagenesAdjuntas);
-
-                // Guardamos en MongoDB
-                const msgGuardado = await Mensaje.create({
-                    ticketId: message.channel.id,
+                await Mensaje.create({
+                    ticketId: message.channelId,
                     usuario: message.author.username,
                     usuarioId: message.author.id,
                     contenido: message.content,
-                    imagenes: imagenesAdjuntas
+                    imagenes: [...message.attachments.values()].map(a => a.url)
                 });
-                
-                console.log(`✅ Guardado en BD exitosamente con ${msgGuardado.imagenes.length} imágenes.`);
 
+                // Si escribe alguien del staff, se registra para las métricas de respuesta
+                const ticket = await Ticket.findOne({ canalId: message.channelId }).select('creadorId motivo motivoId primeraRespuestaStaff').lean();
+                if (ticket && ticket.creadorId !== message.author.id && message.member) {
+                    const config = await obtenerConfig(message.guildId);
+                    if (puedeAtender(message.member, config, buscarMotivo(config, ticket.motivoId || ticket.motivo))) {
+                        const ahora = new Date();
+                        const cambios = { ultimaInteractStaff: ahora };
+                        if (!ticket.primeraRespuestaStaff) cambios.primeraRespuestaStaff = ahora;
+                        await Ticket.updateOne({ canalId: message.channelId }, { $set: cambios });
+                    }
+                }
             } catch (error) {
-                console.error('❌ Error al guardar mensaje en la BD:', error);
-            } 
+                console.error('❌ Error al guardar mensaje de ticket:', error);
+            }
+            return;
         }
 
-        // 2. Ejecutar comandos (Si empieza por !)
-        if (!message.content.startsWith('!')) return;
-
-        const args = message.content.slice(1).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-
-        const command = client.commands.get(commandName);
-        if (!command) return;
-
-        try {
-            await command.execute(message, args, client);
-        } catch (error) {
-            console.error(error);
-            message.reply('❌ Hubo un error al intentar ejecutar ese comando.');
+        // 2. Aviso para quien siga usando los comandos antiguos con "!"
+        const comando = message.content.startsWith('!') ? message.content.slice(1).split(/\s+/)[0].toLowerCase() : null;
+        if (comando && COMANDOS_ANTIGUOS[comando]) {
+            await message.reply(`ℹ️ Los comandos ahora se usan con barra: prueba **${COMANDOS_ANTIGUOS[comando]}**.`).catch(() => {});
         }
-    },
+    }
 };

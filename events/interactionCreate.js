@@ -1,226 +1,156 @@
-const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
-const ServidorConfig = require('../models/ServidorConfig.js');
+const { Events, ActionRowBuilder, EmbedBuilder, UserSelectMenuBuilder, MessageFlags } = require('discord.js');
 const Ticket = require('../models/Ticket.js');
 const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js');
+const { obtenerConfig, buscarMotivo } = require('../utils/config.js');
+const { puedeAtender } = require('../utils/permisos.js');
+const apertura = require('../utils/aperturaTickets.js');
+
+const EFIMERO = { flags: MessageFlags.Ephemeral };
+
+// ¿Es staff para ESTE ticket? (respeta los roles propios de cada tipo de ticket)
+async function staffDelTicket(interaction, ticket) {
+    const config = await obtenerConfig(interaction.guildId);
+    const motivo = buscarMotivo(config, ticket.motivoId || ticket.motivo);
+    return puedeAtender(interaction.member, config, motivo);
+}
+
+async function reclamar(interaction) {
+    const ticket = await Ticket.findOne({ canalId: interaction.channelId });
+    if (!ticket) return interaction.reply({ content: '❌ No se encontró este ticket en la base de datos.', ...EFIMERO });
+    if (!(await staffDelTicket(interaction, ticket))) {
+        return interaction.reply({ content: '❌ Solo el equipo de soporte puede reclamar este ticket.', ...EFIMERO });
+    }
+    if (ticket.asignadoA) return interaction.reply({ content: `⚠️ Este ticket ya está siendo atendido por **${ticket.asignadoNombre}**.`, ...EFIMERO });
+
+    const avatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
+    if (!ticket.participantes.some(p => p.id === interaction.user.id)) {
+        ticket.participantes.push({ id: interaction.user.id, username: interaction.user.username, avatar, rol: 'Staff' });
+    }
+    ticket.asignadoA = interaction.user.id;
+    ticket.asignadoNombre = interaction.user.username;
+    ticket.ultimaInteractStaff = new Date();
+    if (!ticket.primeraRespuestaStaff) ticket.primeraRespuestaStaff = new Date();
+    await ticket.save();
+
+    await registrarLogTicket(interaction.client, ticket, '🙋 Ticket Reclamado', '#3498db', interaction.user.username);
+
+    const embed = EmbedBuilder.from(interaction.message.embeds[0]).addFields({ name: '👀 Atendido por', value: `🙋‍♂️ ${interaction.user.username}`, inline: true });
+    const fila = ActionRowBuilder.from(interaction.message.components[0]);
+    fila.components[0].setDisabled(true);
+    await interaction.update({ embeds: [embed], components: [fila] });
+    await interaction.followUp({ content: `📢 El agente de soporte **${interaction.user.username}** se ha hecho cargo de este ticket.` });
+}
+
+async function pedirUsuario(interaction) {
+    const ticket = await Ticket.findOne({ canalId: interaction.channelId });
+    if (!ticket || !(await staffDelTicket(interaction, ticket))) {
+        return interaction.reply({ content: '❌ Solo el equipo de soporte puede invitar a otras personas.', ...EFIMERO });
+    }
+    const menu = new UserSelectMenuBuilder().setCustomId('add_user_select').setPlaceholder('🔍 Busca y selecciona a un usuario...').setMinValues(1).setMaxValues(1);
+    return interaction.reply({ content: 'Elige al usuario que quieres invitar a participar en este ticket:', components: [new ActionRowBuilder().addComponents(menu)], ...EFIMERO });
+}
+
+async function anadirUsuario(interaction, client) {
+    const userId = interaction.values[0];
+    const canal = interaction.channel;
+    try {
+        await canal.permissionOverwrites.edit(userId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true, AttachFiles: true });
+        await interaction.update({ content: '✅ Permisos concedidos.', components: [] });
+        await canal.send({ content: `👋 El usuario <@${userId}> ha sido añadido a la conversación por <@${interaction.user.id}>.` });
+
+        const usuario = await client.users.fetch(userId);
+        const ticket = await Ticket.findOne({ canalId: canal.id });
+        if (ticket && !ticket.participantes.some(p => p.id === userId)) {
+            ticket.participantes.push({ id: userId, username: usuario.username, avatar: usuario.displayAvatarURL({ extension: 'png', size: 128 }), rol: 'Invitado' });
+            await ticket.save();
+        }
+    } catch (error) {
+        console.error('Error añadiendo usuario al ticket:', error);
+        await interaction.followUp({ content: '❌ No se pudo añadir al usuario (¿faltan permisos?).', ...EFIMERO }).catch(() => {});
+    }
+}
+
+async function cerrar(interaction, client) {
+    const ticket = await Ticket.findOne({ canalId: interaction.channelId });
+    if (!ticket) return interaction.reply({ content: '❌ No se encontró este ticket en la base de datos.', ...EFIMERO });
+    const esCreador = ticket.creadorId === interaction.user.id;
+    if (!esCreador && !(await staffDelTicket(interaction, ticket))) {
+        return interaction.reply({ content: '❌ Solo quien abrió el ticket o el equipo de soporte pueden cerrarlo.', ...EFIMERO });
+    }
+    if (ticket.estado === 'Cerrado') return interaction.reply({ content: 'ℹ️ Este ticket ya está cerrado.', ...EFIMERO });
+
+    await interaction.reply({ content: '🔒 Generando copia de seguridad y cerrando el ticket...', ...EFIMERO });
+    try {
+        const res = await cerrarTicket(client, interaction.channelId, { autor: interaction.user.username });
+        await interaction.editReply({ content: res.ok ? '✅ Ticket cerrado y archivado correctamente.' : '❌ No se encontró este ticket en la base de datos.' });
+    } catch (error) {
+        console.error('Error al cerrar:', error);
+        await interaction.editReply({ content: '❌ Hubo un error al cerrar el ticket.' }).catch(() => {});
+    }
+}
+
+async function valorar(interaction, client) {
+    const [, nota, canalId] = interaction.customId.split('_');
+    const valoracion = parseInt(nota, 10);
+    try {
+        const ticket = await Ticket.findOneAndUpdate({ canalId, creadorId: interaction.user.id }, { valoracionCSAT: valoracion }, { returnDocument: 'after' });
+        if (ticket) await registrarLogTicket(client, ticket, `⭐ Ticket Valorado (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
+        const gracias = new EmbedBuilder().setColor('#2ecc71').setTitle('💖 ¡Gracias por tu valoración!').setDescription(`Has valorado la atención recibida con **${valoracion} estrellas**.`);
+        // Se conserva la fila del botón "Añadir Sokyo" si la había (la última fila no es de estrellas)
+        const filas = interaction.message.components.filter(f => !f.components.some(c => c.customId?.startsWith('csat_')));
+        await interaction.update({ embeds: [gracias], components: filas });
+    } catch (e) {
+        await interaction.reply({ content: 'Error al guardar.', ...EFIMERO }).catch(() => {});
+    }
+}
 
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
-        
-        // --- LÓGICA DE BOTONES ---
-        if (interaction.isButton()) {
-            
-            // ABRIR TICKET (Muestra el menú de motivos)
-            if (interaction.customId === 'create_ticket') {
-                try {
-                    let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
-                    
-                    const listaMotivos = (config && config.motivos && config.motivos.length > 0) 
-                        ? config.motivos 
-                        : [
-                            { nombre: 'Fallo Técnico', urgencia: 'Normal' },
-                            { nombre: 'Reportar Usuario', urgencia: 'Alta' },
-                            { nombre: 'Duda de Pago', urgencia: 'Baja' }
-                          ];
-
-                    const menuMotivos = new StringSelectMenuBuilder()
-                        .setCustomId('seleccionar_motivo_ticket')
-                        .setPlaceholder('👉 Selecciona el motivo de tu consulta...')
-                        .addOptions(
-                            listaMotivos.map((motivo) => ({
-                                label: motivo.nombre, 
-                                description: `Prioridad asignada: ${motivo.urgencia}`,
-                                value: motivo.nombre,
-                            }))
-                        );
-
-                    const filaComponentes = new ActionRowBuilder().addComponents(menuMotivos);
-
-                    await interaction.reply({
-                        content: 'Por favor, selecciona una categoría para poder ayudarte mejor:',
-                        components: [filaComponentes],
-                        ephemeral: true 
-                    });
-
-                } catch (error) {
-                    console.error('Error al mostrar menú de motivos:', error);
-                    await interaction.reply({ content: '❌ Hubo un error al procesar tu solicitud.', ephemeral: true });
-                }
+        try {
+            // --- COMANDOS / ---
+            if (interaction.isChatInputCommand()) {
+                const comando = client.commands.get(interaction.commandName);
+                if (comando) await comando.execute(interaction, client);
+                return;
+            }
+            if (interaction.isAutocomplete()) {
+                const comando = client.commands.get(interaction.commandName);
+                if (comando?.autocomplete) await comando.autocomplete(interaction, client);
+                return;
             }
 
-            // RECLAMAR TICKET (Guarda al staff en los implicados)
-            if (interaction.customId === 'reclamar_ticket') {
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-                    return await interaction.reply({ content: '❌ Solo el equipo de soporte puede reclamar este ticket.', ephemeral: true });
-                }
-
-                const canalId = interaction.channel.id;
-                const ticket = await Ticket.findOne({ canalId: canalId });
-
-                if (!ticket) return await interaction.reply({ content: '❌ No se encontró este ticket en la base de datos.', ephemeral: true });
-                if (ticket.asignadoA) return await interaction.reply({ content: `⚠️ Este ticket ya está siendo atendido por **${ticket.asignadoNombre}**.`, ephemeral: true });
-
-                const staffAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
-                
-                if (!ticket.participantes) ticket.participantes = [];
-                if (!ticket.participantes.some(p => p.id === interaction.user.id)) {
-                    ticket.participantes.push({ id: interaction.user.id, username: interaction.user.username, avatar: staffAvatar, rol: 'Staff' });
-                }
-
-                ticket.asignadoA = interaction.user.id;
-                ticket.asignadoNombre = interaction.user.username;
-                ticket.ultimaInteractStaff = new Date();
-                await ticket.save();
-
-                await registrarLogTicket(ticket, '🙋 Ticket Reclamado', '#3498db', interaction.user.username);
-
-                const embedOriginal = interaction.message.embeds[0];
-                const embedModificado = EmbedBuilder.from(embedOriginal).addFields({ name: '👀 Atendido por', value: `🙋‍♂️ ${interaction.user.username}`, inline: true });
-
-                const filaOriginal = interaction.message.components[0];
-                const filaModificada = ActionRowBuilder.from(filaOriginal);
-                filaModificada.components[0].setDisabled(true); 
-
-                await interaction.update({ embeds: [embedModificado], components: [filaModificada] });
-                await interaction.followUp({ content: `📢 El agente de soporte **${interaction.user.username}** se ha hecho cargo de este ticket.` });
+            // --- BOTONES ---
+            if (interaction.isButton()) {
+                const id = interaction.customId;
+                if (id === 'create_ticket' || id.startsWith('abrir_panel:')) return apertura.alPulsarPanel(interaction);
+                if (id.startsWith('deflex_')) return apertura.alResponderDeflexion(interaction, client);
+                if (id === 'reclamar_ticket') return reclamar(interaction);
+                if (id === 'add_user_prompt') return pedirUsuario(interaction);
+                if (id === 'close_ticket') return cerrar(interaction, client);
+                if (id.startsWith('csat_')) return valorar(interaction, client);
+                return;
             }
 
-            // AÑADIR USUARIO AL TICKET
-            if (interaction.customId === 'add_user_prompt') {
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-                    return await interaction.reply({ content: '❌ Solo el equipo de soporte puede invitar a otras personas.', ephemeral: true });
-                }
-
-                const userSelect = new UserSelectMenuBuilder().setCustomId('add_user_select').setPlaceholder('🔍 Busca y selecciona a un usuario...').setMinValues(1).setMaxValues(1);
-                const row = new ActionRowBuilder().addComponents(userSelect);
-                await interaction.reply({ content: 'Elige al usuario que quieres invitar a participar en este ticket:', components: [row], ephemeral: true });
+            // --- MENÚS ---
+            if (interaction.isStringSelectMenu() && (interaction.customId === 'sel_motivo' || interaction.customId === 'seleccionar_motivo_ticket')) {
+                return apertura.alElegirMotivo(interaction);
+            }
+            if (interaction.isUserSelectMenu() && interaction.customId === 'add_user_select') {
+                return anadirUsuario(interaction, client);
             }
 
-            // CERRAR TICKET (transcript + CSAT + archivado, vía módulo compartido)
-            if (interaction.customId === 'close_ticket') {
-                const canal = interaction.channel;
-                if (!canal) return await interaction.reply({ content: '❌ No se ha podido encontrar el canal.', ephemeral: true });
-
-                await interaction.reply({ content: '🔒 Generando copia de seguridad y cerrando el ticket...', ephemeral: true });
-
-                try {
-                    const res = await cerrarTicket(client, canal.id, { autor: interaction.user.username });
-                    if (!res.ok) return await interaction.editReply({ content: '❌ No se encontró este ticket en la base de datos.' });
-                    await interaction.editReply({ content: '✅ Ticket cerrado y archivado correctamente.' });
-                } catch (error) {
-                    console.error('Error al cerrar:', error);
-                    await interaction.editReply({ content: '❌ Hubo un error al cerrar el ticket.' }).catch(() => {});
-                }
+            // --- FORMULARIOS ---
+            if (interaction.isModalSubmit() && interaction.customId.startsWith('abrir:')) {
+                return apertura.alEnviarFormulario(interaction, client);
             }
-
-            if (interaction.customId.startsWith('csat_')) {
-                const partes = interaction.customId.split('_');
-                const valoracion = parseInt(partes[1]);
-                try {
-                    const ticket = await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion }, { new: true });
-                    if (ticket) await registrarLogTicket(ticket, `⭐ Ticket Valorado (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
-                    const embedGracias = new EmbedBuilder().setColor('#2ecc71').setTitle('💖 ¡Gracias por tu valoración!').setDescription(`Has valorado la atención recibida con **${valoracion} estrellas**.`);
-                    await interaction.update({ embeds: [embedGracias], components: [] });
-                } catch (e) { await interaction.reply({ content: 'Error al guardar.', ephemeral: true }); }
+        } catch (error) {
+            console.error('Error procesando interacción:', error);
+            const respuesta = { content: '❌ Hubo un error al procesar tu solicitud.', ...EFIMERO };
+            if (interaction.isRepliable()) {
+                if (interaction.deferred || interaction.replied) await interaction.followUp(respuesta).catch(() => {});
+                else await interaction.reply(respuesta).catch(() => {});
             }
-        }
-
-        // --- LÓGICA DE SELECCIÓN DE USUARIO (Guardar en DB) ---
-        if (interaction.isUserSelectMenu() && interaction.customId === 'add_user_select') {
-            const userIdToAdd = interaction.values[0];
-            const canal = interaction.channel;
-
-            try {
-                await canal.permissionOverwrites.edit(userIdToAdd, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
-                await interaction.update({ content: `✅ Permisos concedidos.`, components: [] });
-                await canal.send({ content: `👋 El usuario <@${userIdToAdd}> ha sido añadido a la conversación por <@${interaction.user.id}>.` });
-
-                const addedUser = await client.users.fetch(userIdToAdd);
-                const addedAvatar = addedUser.displayAvatarURL({ extension: 'png', size: 128 });
-                const ticket = await Ticket.findOne({ canalId: canal.id });
-                
-                if (ticket) {
-                    if (!ticket.participantes) ticket.participantes = [];
-                    if (!ticket.participantes.some(p => p.id === userIdToAdd)) {
-                        ticket.participantes.push({ id: userIdToAdd, username: addedUser.username, avatar: addedAvatar, rol: 'Invitado' });
-                        await ticket.save();
-                    }
-                }
-            } catch (error) { console.error(error); }
-        }
-
-        // --- MENÚ DESPLEGABLE A MODAL ---
-        if (interaction.isStringSelectMenu() && interaction.customId === 'seleccionar_motivo_ticket') {
-            const modal = new ModalBuilder().setCustomId(`modal_abrir_ticket_${interaction.values[0]}`).setTitle(`Ticket: ${interaction.values[0]}`);
-            const asuntoInput = new TextInputBuilder().setCustomId('asuntoInput').setLabel("Asunto del Ticket").setPlaceholder("Ej: Problema con la base de datos").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100);
-            const descripcionInput = new TextInputBuilder().setCustomId('descripcionInput').setLabel("Describe tu problema detalladamente").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000);
-            modal.addComponents(new ActionRowBuilder().addComponents(asuntoInput), new ActionRowBuilder().addComponents(descripcionInput));
-            await interaction.showModal(modal);
-            // El menú efímero se limpia al enviar el modal (interaction.update en el handler del modal).
-        }
-
-        // --- CREACIÓN DEL TICKET DESDE EL MODAL ---
-        if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_abrir_ticket_')) {
-            const motivo = interaction.customId.replace('modal_abrir_ticket_', '');
-            const asunto = interaction.fields.getTextInputValue('asuntoInput');
-            const descripcion = interaction.fields.getTextInputValue('descripcionInput');
-
-            // El modal proviene del menú efímero de categorías; update() edita ese mensaje
-            // y elimina el desplegable de "selecciona una categoría".
-            if (interaction.isFromMessage()) {
-                await interaction.update({ content: '⏳ Procesando tu solicitud y creando el canal...', components: [], embeds: [] });
-            } else {
-                await interaction.reply({ content: '⏳ Procesando tu solicitud y creando el canal...', ephemeral: true });
-            }
-
-            try {
-                let config = await ServidorConfig.findOne({ guildId: interaction.guildId });
-                const listaMotivos = (config && config.motivos && config.motivos.length > 0) ? config.motivos : [];
-                const listaUrgencias = (config && config.urgencias && config.urgencias.length > 0) ? config.urgencias : [];
-                const urgencia = listaMotivos.find(m => m.nombre === motivo)?.urgencia || 'Normal';
-                const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db'; 
-
-                const canalTicket = await interaction.guild.channels.create({
-                    name: `ticket-${interaction.user.username}`,
-                    type: ChannelType.GuildText,
-                    permissionOverwrites: [
-                        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
-                    ]
-                });
-
-                // AQUÍ ES DONDE DEBE IR LA FOTO:
-                const creadorAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
-
-                const nuevoTicket = await Ticket.create({
-                    guildId: interaction.guild.id,
-                    canalId: canalTicket.id,
-                    creadorId: interaction.user.id,
-                    creadorNombre: interaction.user.username,
-                    creadorAvatar: creadorAvatar, // FOTO GUARDADA CORRECTAMENTE EN LA BASE DE DATOS
-                    motivo: motivo,
-                    titulo: asunto,
-                    descripcion: descripcion,
-                    prioridad: urgencia,
-                    estado: 'Abierto',
-                    participantes: [{ id: interaction.user.id, username: interaction.user.username, avatar: creadorAvatar, rol: 'Creador' }],
-                    visibleWeb: true
-                });
-
-                await registrarLogTicket(nuevoTicket, '🎫 Ticket Abierto', '#2ecc71', interaction.user.username);
-
-                const embedBienvenida = new EmbedBuilder().setTitle(`🎫 ${asunto}`).setDescription(`**Motivo:** ${motivo}\n\n**Descripción del usuario:**\n${descripcion}\n\n*Un miembro del equipo lo revisará en breve.*`).setColor(colorHex).addFields({ name: '🚨 Urgencia', value: `**${urgencia}**`, inline: true });
-                const rowBotones = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Reclamar Ticket').setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId('add_user_prompt').setLabel('➕ Añadir Usuario').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Cerrar Ticket').setStyle(ButtonStyle.Danger)
-                );
-                
-                await canalTicket.send({ content: `¡Hola <@${interaction.user.id}>! Aquí tienes tu ticket. 👇`, embeds: [embedBienvenida], components: [rowBotones] });
-                await interaction.editReply({ content: `✅ Tu ticket ha sido creado exitosamente: <#${canalTicket.id}>` });
-                setTimeout(() => interaction.deleteReply().catch(console.error), 5000);
-
-            } catch (error) { console.error(error); await interaction.editReply({ content: '❌ Hubo un error.' }); }
         }
     }
 };

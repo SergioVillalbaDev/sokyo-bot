@@ -1,47 +1,45 @@
+// API REST del bot: login con Discord (panel de staff y portal de clientes),
+// rutas por servidor (/api/g/:guildId/...) y, si existe la build, el panel web.
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
-const Log = require('../models/Log.js');
-const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
+const SesionPanel = require('../models/SesionPanel.js');
 const { firmarToken, verificarToken } = require('../utils/auth.js');
+const { urlInvitacion } = require('../utils/marca.js');
+const { conImagenesVigentes } = require('../utils/adjuntos.js');
+const rutasServidor = require('./rutasServidor.js');
+
+const DISCORD_API = 'https://discord.com/api/v10';
+const PERMISO_ADMIN = 0x8n;
+const PERMISO_GESTIONAR_SERVIDOR = 0x20n;
 
 module.exports = (client) => {
     const app = express();
     const port = process.env.PORT || 3000;
-    const API_KEY = process.env.API_KEY;
 
-    // --- Configuración del Portal del Cliente (login con Discord) ---
     const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
     const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
     const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || `http://localhost:${port}/api/auth/discord/callback`;
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const JWT_SECRET = process.env.JWT_SECRET || API_KEY || 'cambia-este-secreto-de-sesion';
-
-    app.use(cors());
-    app.use(express.json());
-
-    if (!API_KEY) {
-        console.warn('⚠️  API_KEY no está definida en el .env: la API queda SIN protección. Define API_KEY para protegerla.');
+    const FRONTEND_URL = (process.env.FRONTEND_URL || `http://localhost:${port}`).replace(/\/$/, '');
+    let JWT_SECRET = process.env.JWT_SECRET || process.env.API_KEY;
+    if (!JWT_SECRET) {
+        JWT_SECRET = crypto.randomBytes(32).toString('hex');
+        console.warn('⚠️  JWT_SECRET no está definido: las sesiones del panel se cerrarán cada vez que reinicies el bot.');
     }
     if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
-        console.warn('⚠️  DISCORD_CLIENT_ID/SECRET no definidos: el Portal del Cliente (login con Discord) estará desactivado.');
+        console.warn('⚠️  DISCORD_CLIENT_ID/SECRET no definidos: el login con Discord (panel y portal) estará desactivado.');
     }
 
-    // --- AUTENTICACIÓN del panel de staff: exige x-api-key (o "Authorization: Bearer <key>") ---
-    app.use('/api', (req, res, next) => {
-        if (req.path === '/estado') return next();          // health check público
-        if (req.path.startsWith('/auth')) return next();    // flujo OAuth del portal (público)
-        if (req.path.startsWith('/portal')) return next();  // portal: protegido por sesión JWT, no por API key
-        if (!API_KEY) return next();                        // sin key configurada: no se aplica (ver aviso de arranque)
-        const enviada = req.headers['x-api-key'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-        if (enviada !== API_KEY) return res.status(401).json({ error: 'No autorizado' });
-        next();
-    });
+    app.use(cors());
+    app.use(express.json({ limit: '200kb' }));
 
-    // --- Middleware de sesión del Portal: valida el token de Discord del usuario ---
-    const portalAuth = (req, res, next) => {
+    // --- Sesión: token firmado que se emite tras el login con Discord ---
+    const sesion = (req, res, next) => {
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
         const usuario = verificarToken(token, JWT_SECRET);
         if (!usuario) return res.status(401).json({ error: 'Sesión no válida o caducada' });
@@ -49,350 +47,202 @@ module.exports = (client) => {
         next();
     };
 
-    // ===================== PORTAL DEL CLIENTE (OAuth Discord) =====================
+    // ===================== PÚBLICO =====================
 
-    // 1. Inicio del login: redirige a Discord
+    app.get('/api/estado', (req, res) => res.json({ message: 'Sokyo Bot está operativo' }));
+
+    // Datos para la web pública (landing)
+    app.get('/api/publico/info', async (req, res) => {
+        const ticketsGestionados = await Ticket.estimatedDocumentCount().catch(() => 0);
+        res.json({
+            nombre: client.user?.username || 'Sokyo',
+            avatar: client.user?.displayAvatarURL({ extension: 'png', size: 256 }) || null,
+            invitarUrl: urlInvitacion(client.application?.id || DISCORD_CLIENT_ID),
+            servidores: client.guilds.cache.size,
+            ticketsGestionados,
+            loginDisponible: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET)
+        });
+    });
+
+    // ===================== LOGIN CON DISCORD =====================
+    // modo=panel → staff (pide también la lista de servidores) · modo=portal → clientes
+
     app.get('/api/auth/discord', (req, res) => {
         if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
             return res.status(500).send('El login con Discord no está configurado en el servidor.');
         }
+        const modo = req.query.modo === 'portal' ? 'portal' : 'panel';
+        const state = firmarToken({ modo, n: crypto.randomBytes(8).toString('hex') }, JWT_SECRET, 600);
         const params = new URLSearchParams({
             client_id: DISCORD_CLIENT_ID,
             redirect_uri: OAUTH_REDIRECT_URI,
             response_type: 'code',
-            scope: 'identify'
+            scope: modo === 'panel' ? 'identify guilds' : 'identify',
+            state
         });
-        res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+        res.redirect(`https://discord.com/oauth2/authorize?${params.toString().replace(/\+/g, '%20')}`);
     });
 
-    // 2. Callback: intercambia el code, obtiene el usuario y emite la sesión
     app.get('/api/auth/discord/callback', async (req, res) => {
-        const { code } = req.query;
-        if (!code) return res.redirect(`${FRONTEND_URL}/?portal=1&error=denegado`);
+        const estado = verificarToken(req.query.state, JWT_SECRET);
+        const modo = estado?.modo === 'portal' ? 'portal' : 'panel';
+        const destino = (extra) => `${FRONTEND_URL}/?${modo === 'portal' ? 'portal=1&' : ''}${extra}`;
+        if (!estado) return res.redirect(destino('error=estado'));
+        if (!req.query.code) return res.redirect(destino('error=denegado'));
+
         try {
-            const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+            const tokenRes = await fetch(`${DISCORD_API}/oauth2/token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
                     client_id: DISCORD_CLIENT_ID,
                     client_secret: DISCORD_CLIENT_SECRET,
                     grant_type: 'authorization_code',
-                    code,
+                    code: String(req.query.code),
                     redirect_uri: OAUTH_REDIRECT_URI
                 })
             });
             const tokenData = await tokenRes.json();
             if (!tokenData.access_token) throw new Error('No se recibió access_token de Discord');
 
-            const userRes = await fetch('https://discord.com/api/users/@me', {
-                headers: { Authorization: `Bearer ${tokenData.access_token}` }
-            });
-            const user = await userRes.json();
-            const avatar = user.avatar
-                ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
-                : null;
+            const auth = { headers: { Authorization: `Bearer ${tokenData.access_token}` } };
+            const user = await (await fetch(`${DISCORD_API}/users/@me`, auth)).json();
+            if (!user.id) throw new Error('No se pudo leer el usuario de Discord');
+            const avatar = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128` : null;
 
-            const sesion = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
-            res.redirect(`${FRONTEND_URL}/?portal=1&token=${sesion}`);
+            if (modo === 'panel') {
+                const guilds = await (await fetch(`${DISCORD_API}/users/@me/guilds`, auth)).json();
+                await SesionPanel.findOneAndUpdate(
+                    { userId: user.id },
+                    {
+                        accessToken: tokenData.access_token,
+                        tokenExpira: new Date(Date.now() + (tokenData.expires_in || 604800) * 1000),
+                        guilds: Array.isArray(guilds) ? guilds.map(simplificarGuild) : [],
+                        guildsActualizado: new Date()
+                    },
+                    { upsert: true }
+                );
+            }
+
+            const token = firmarToken({ id: user.id, username: user.username, avatar }, JWT_SECRET);
+            res.redirect(destino(`token=${token}`));
         } catch (error) {
             console.error('Error en el callback de OAuth:', error);
-            res.redirect(`${FRONTEND_URL}/?portal=1&error=oauth`);
+            res.redirect(destino('error=oauth'));
         }
     });
 
-    // 3. Datos de la sesión actual
-    app.get('/api/portal/yo', portalAuth, (req, res) => {
+    const simplificarGuild = (g) => ({ id: g.id, name: g.name, icon: g.icon, owner: Boolean(g.owner), permissions: String(g.permissions || '0') });
+
+    // Lista de servidores del usuario (se refresca con Discord cada 5 minutos como mucho).
+    async function guildsDeSesion(userId) {
+        const s = await SesionPanel.findOne({ userId });
+        if (!s) return null;
+        const antiguo = !s.guildsActualizado || Date.now() - s.guildsActualizado.getTime() > 5 * 60 * 1000;
+        if (antiguo && s.accessToken && (!s.tokenExpira || s.tokenExpira > new Date())) {
+            try {
+                const r = await fetch(`${DISCORD_API}/users/@me/guilds`, { headers: { Authorization: `Bearer ${s.accessToken}` } });
+                if (r.ok) {
+                    s.guilds = (await r.json()).map(simplificarGuild);
+                    s.guildsActualizado = new Date();
+                    await s.save();
+                }
+            } catch { /* se usa la lista guardada */ }
+        }
+        return s.guilds;
+    }
+
+    // ===================== PANEL: SELECTOR DE SERVIDORES =====================
+
+    app.get('/api/panel/yo', sesion, async (req, res) => {
+        const guilds = await guildsDeSesion(req.usuario.id);
+        if (!guilds) return res.status(401).json({ error: 'Vuelve a iniciar sesión en el panel', relogin: true });
+
+        const servidores = [];
+        for (const g of guilds) {
+            const permisos = BigInt(g.permissions || '0');
+            const gestiona = g.owner || (permisos & (PERMISO_ADMIN | PERMISO_GESTIONAR_SERVIDOR)) !== 0n;
+            const icono = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96` : null;
+            const guild = client.guilds.cache.get(g.id);
+
+            if (guild) {
+                let acceso = gestiona ? 'admin' : null;
+                if (!acceso) {
+                    const config = await ServidorConfig.findOne({ guildId: g.id }).select('rolesStaff motivos.rolesStaff').lean();
+                    const roles = new Set([...(config?.rolesStaff || []), ...(config?.motivos || []).flatMap(m => m.rolesStaff || [])]);
+                    if (roles.size > 0) {
+                        const member = await guild.members.fetch(req.usuario.id).catch(() => null);
+                        if (member && member.roles.cache.some(r => roles.has(r.id))) acceso = 'staff';
+                    }
+                }
+                if (acceso) servidores.push({ id: g.id, nombre: g.name, icono, botPresente: true, acceso, miembros: guild.memberCount });
+            } else if (gestiona) {
+                servidores.push({ id: g.id, nombre: g.name, icono, botPresente: false, acceso: null, invitarUrl: urlInvitacion(client.application?.id || DISCORD_CLIENT_ID, g.id) });
+            }
+        }
+        servidores.sort((a, b) => (b.botPresente - a.botPresente) || a.nombre.localeCompare(b.nombre));
+        res.json({ usuario: { id: req.usuario.id, username: req.usuario.username, avatar: req.usuario.avatar }, servidores });
+    });
+
+    // Todo lo de un servidor concreto (tickets, configuración, IA, FAQ, logs...)
+    app.use('/api/g/:guildId', sesion, rutasServidor(client));
+
+    // ===================== PORTAL DEL CLIENTE =====================
+
+    app.get('/api/portal/yo', sesion, (req, res) => {
         res.json({ id: req.usuario.id, username: req.usuario.username, avatar: req.usuario.avatar });
     });
 
-    // 4. MIS tickets
-    app.get('/api/portal/tickets', portalAuth, async (req, res) => {
-        try {
-            const tickets = await Ticket.find({ creadorId: req.usuario.id }).sort({ fechaCreacion: -1 });
-            res.json(tickets);
-        } catch (error) {
-            console.error('Error al obtener tickets del portal:', error);
-            res.status(500).json({ error: 'Fallo interno' });
-        }
+    app.get('/api/portal/tickets', sesion, async (req, res) => {
+        const tickets = await Ticket.find({ creadorId: req.usuario.id }).sort({ fechaCreacion: -1 }).limit(200)
+            .select('-notasInternas -ia').lean();
+        res.json(tickets.map(t => ({ ...t, servidorNombre: client.guilds.cache.get(t.guildId)?.name || null })));
     });
 
-    // 5. Mensajes de UN ticket mío (verifica propiedad)
-    app.get('/api/portal/tickets/:canalId/mensajes', portalAuth, async (req, res) => {
-        try {
-            const ticket = await Ticket.findOne({ canalId: req.params.canalId });
-            if (!ticket || ticket.creadorId !== req.usuario.id) return res.status(403).json({ error: 'No autorizado' });
-            const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 });
-            res.json(mensajes);
-        } catch (error) {
-            console.error('Error al obtener mensajes del portal:', error);
-            res.status(500).json({ error: 'Fallo interno' });
-        }
+    app.get('/api/portal/tickets/:canalId/mensajes', sesion, async (req, res) => {
+        const ticket = await Ticket.findOne({ canalId: req.params.canalId });
+        if (!ticket || ticket.creadorId !== req.usuario.id) return res.status(403).json({ error: 'No autorizado' });
+        const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 });
+        res.json(await conImagenesVigentes(client, mensajes));
     });
 
-    // 6. Responder a MI ticket desde el portal (verifica propiedad y que esté abierto)
-    app.post('/api/portal/tickets/:canalId/mensajes', portalAuth, async (req, res) => {
-        try {
-            const ticket = await Ticket.findOne({ canalId: req.params.canalId });
-            if (!ticket || ticket.creadorId !== req.usuario.id) return res.status(403).json({ error: 'No autorizado' });
-            if (ticket.estado === 'Cerrado') return res.status(400).json({ error: 'Este ticket está cerrado' });
+    app.post('/api/portal/tickets/:canalId/mensajes', sesion, async (req, res) => {
+        const ticket = await Ticket.findOne({ canalId: req.params.canalId });
+        if (!ticket || ticket.creadorId !== req.usuario.id) return res.status(403).json({ error: 'No autorizado' });
+        if (ticket.estado === 'Cerrado') return res.status(400).json({ error: 'Este ticket está cerrado' });
 
-            const { contenido } = req.body;
-            if (!contenido || !contenido.trim()) return res.status(400).json({ error: 'Mensaje vacío' });
+        const contenido = String(req.body?.contenido || '').trim().slice(0, 1900);
+        if (!contenido) return res.status(400).json({ error: 'Mensaje vacío' });
 
-            const nuevoMsg = await Mensaje.create({
-                ticketId: req.params.canalId,
-                usuarioId: req.usuario.id,
-                usuario: req.usuario.username,
-                contenido
-            });
+        const canal = client.channels.cache.get(req.params.canalId);
+        if (!canal) return res.status(410).json({ error: 'El canal de este ticket ya no existe' });
+        await canal.send({ content: `**[${req.usuario.username} · web]** ${contenido}`, allowedMentions: { parse: [] } });
 
-            const canal = client.channels.cache.get(req.params.canalId);
-            if (canal) await canal.send(`**[${req.usuario.username}]** ${contenido}`).catch(() => {});
-
-            res.json({ success: true, mensaje: nuevoMsg });
-        } catch (error) {
-            console.error('Error al enviar mensaje desde el portal:', error);
-            res.status(500).json({ error: 'Fallo interno al enviar' });
-        }
+        const nuevoMsg = await Mensaje.create({
+            ticketId: req.params.canalId, usuarioId: req.usuario.id, usuario: req.usuario.username, contenido, desdeWeb: true
+        });
+        res.json({ success: true, mensaje: nuevoMsg });
     });
 
-    // =============================================================================
+    app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 
-    // --- RUTAS API ---
-    app.get('/api/estado', (req, res) => res.json({ message: 'Sokyo Bot está operativo' }));
-    
-    app.get('/api/servidores', async (req, res) => res.json(await ServidorConfig.find()));
-    
-    // Todos los tickets
-    app.get('/api/tickets', async (req, res) => {
-        res.json(await Ticket.find({ visibleWeb: true }).sort({ fechaCreacion: -1 }));
-    });
-
-    // --- NUEVA RUTA: Tickets asignados a un miembro del Staff concreto ---
-    app.get('/api/tickets/asignados/:staffId', async (req, res) => {
-        try {
-            const ticketsStaff = await Ticket.find({ asignadoA: req.params.staffId, visibleWeb: true }).sort({ fechaCreacion: -1 });
-            res.json(ticketsStaff);
-        } catch (error) {
-            console.error('Error al obtener tickets asignados:', error);
-            res.status(500).json({ error: 'Fallo interno' });
-        }
-    });
-    
-    app.get('/api/mensajes/:ticketId', async (req, res) => {
-        res.json(await Mensaje.find({ ticketId: req.params.ticketId }).sort({ fecha: 1 }));
-    });
-
-
-// --- RUTA PARA ESTADÍSTICAS DE USUARIOS ---
-app.get('/api/usuarios/stats', async (req, res) => {
-    try {
-        const stats = await Ticket.aggregate([
-            // 1. PRIMERO ordenamos los tickets del más nuevo al más viejo
-            { $sort: { fechaCreacion: -1 } },
-            // 2. LUEGO agrupamos por usuario
-            {
-                $group: {
-                    _id: "$creadorId",
-                    nombre: { $first: "$creadorNombre" },
-                    // Como está ordenado, $first coge la foto de tu ticket MÁS RECIENTE
-                    avatar: { $first: "$creadorAvatar" }, 
-                    totalTickets: { $sum: 1 },
-                    ticketsAbiertos: {
-                        $sum: { $cond: [{ $eq: ["$estado", "Abierto"] }, 1, 0] }
-                    },
-                    ratingTotal: { $sum: "$valoracionCSAT" },
-                    ratingCount: {
-                        $sum: { $cond: [{ $gt: ["$valoracionCSAT", 0] }, 1, 0] }
-                    },
-                    ultimoTicket: { $first: "$fechaCreacion" } 
-                }
-            },
-            {
-                $project: {
-                    nombre: 1,
-                    avatar: 1, 
-                    totalTickets: 1,
-                    ticketsAbiertos: 1,
-                    ratingMedio: {
-                        $cond: [{ $eq: ["$ratingCount", 0] }, null, { $divide: ["$ratingTotal", "$ratingCount"] }]
-                    },
-                    ultimoTicket: 1
-                }
-            },
-            { $sort: { totalTickets: -1 } }
-        ]);
-        res.json(stats);
-    } catch (error) {
-        console.error('Error en stats:', error);
-        res.status(500).json({ error: 'Error del servidor' });
+    // ===================== PANEL WEB (build de Vite) =====================
+    // Si existe sokyo-panelFRONTEND/dist, la API también sirve la web: un solo proceso y un solo puerto.
+    const dist = path.join(__dirname, '..', 'sokyo-panelFRONTEND', 'dist');
+    if (fs.existsSync(path.join(dist, 'index.html'))) {
+        app.use(express.static(dist));
+        app.get(/^\/(?!api\/).*/, (req, res) => res.sendFile(path.join(dist, 'index.html')));
+        console.log('🖥️  Panel web servido desde sokyo-panelFRONTEND/dist');
     }
-});
-// --- RUTA PARA OBTENER LOS LOGS (CON LÍMITES FREE/PREMIUM) ---
-app.get('/api/logs', async (req, res) => {
-    try {
-        // Buscamos la configuración del servidor
-        const config = await ServidorConfig.findOne();
 
-        // El campo del modelo es 'esPremium' (ServidorConfig.js)
-        const esPremium = config && config.esPremium === true;
-        const limiteLogs = esPremium ? 150 : 50;
-
-        // Devuelve los logs respetando el límite
-        const logs = await Log.find().sort({ fecha: -1 }).limit(limiteLogs);
-        
-        // Enviamos los logs y también los datos del límite para pintarlos en la web
-        res.json({ logs: logs, limite: limiteLogs, esPremium: esPremium });
-    } catch (error) {
-        console.error('Error al obtener logs:', error);
-        res.status(500).json({ error: 'Error del servidor' });
-    }
-});
-
-    app.post('/api/mensajes/:ticketId', async (req, res) => {
-        try {
-            const { ticketId } = req.params;
-            const { usuario, contenido } = req.body; 
-
-            const nuevoMsg = await Mensaje.create({
-                ticketId: ticketId,
-                usuarioId: 'sokyo-web', 
-                usuario: usuario,
-                contenido: contenido
-            });
-
-            const canal = client.channels.cache.get(ticketId);
-            if (canal) {
-                await canal.send(`**[${usuario}]** ${contenido}`);
-            }
-
-            res.json({ success: true, mensaje: nuevoMsg });
-        } catch (error) {
-            console.error('Error al enviar mensaje desde la web:', error);
-            res.status(500).json({ error: 'Fallo interno al enviar' });
-        }
-    });
-
-    // --- NUEVA RUTA: Añadir Nota Interna a un Ticket ---
-    app.post('/api/tickets/:canalId/notas', async (req, res) => {
-        try {
-            const { canalId } = req.params;
-            const { contenido, autor } = req.body;
-
-            const ticketActualizado = await Ticket.findOneAndUpdate(
-                { canalId: canalId },
-                { $push: { notasInternas: { contenido: contenido, autor: autor } } },
-                { returnDocument: 'after' }
-            );
-
-            res.json({ success: true, ticket: ticketActualizado });
-        } catch (error) {
-            console.error('Error al añadir nota interna:', error);
-            res.status(500).json({ error: 'Fallo interno al guardar la nota' });
-        }
-    });
-
-    app.put('/api/tickets/:canalId/cerrar', async (req, res) => {
-        try {
-            // Mismo comportamiento que el botón de Discord: transcript + CSAT + log + archivado.
-            const resultado = await cerrarTicket(client, req.params.canalId, {
-                autor: req.body?.autor || 'Panel Web',
-                avisarCanal: true
-            });
-            if (!resultado.ok) return res.status(404).json({ error: resultado.error });
-            res.json({ success: true, ticket: resultado.ticket });
-        } catch (error) {
-            console.error('Error al cerrar ticket desde la API:', error);
-            res.status(500).json({ error: 'Fallo interno al cerrar el ticket' });
-        }
-    });
-
-    app.put('/api/tickets/:canalId/reabrir', async (req, res) => {
-        try {
-            const resultado = await reabrirTicket(client, req.params.canalId, {
-                autor: req.body?.autor || 'Panel Web'
-            });
-            if (!resultado.ok) return res.status(404).json({ error: resultado.error });
-            res.json({ success: true, ticket: resultado.ticket });
-        } catch (error) {
-            console.error('Error al reabrir ticket desde la API:', error);
-            res.status(500).json({ error: 'Fallo interno al reabrir el ticket' });
-        }
-    });
-
-    app.put('/api/tickets/:canalId/ocultar', async (req, res) => {
-        try {
-            const { canalId } = req.params;
-        const ticketOcultado = await Ticket.findOneAndUpdate(
-        { canalId: canalId },
-        { visibleWeb: false },
-        { returnDocument: 'after' }
-        );
-            res.json({ success: true, ticket: ticketOcultado });
-        } catch (error) {
-            console.error('Error al ocultar ticket desde la API:', error);
-            res.status(500).json({ error: 'Fallo interno al ocultar el ticket' });
-        }
-    });
-
-    app.put('/api/config/:guildId/motivos', async (req, res) => {
-        try {
-            const { guildId } = req.params;
-            const { motivos } = req.body; 
-
-            const configActualizada = await ServidorConfig.findOneAndUpdate(
-                { guildId: guildId },
-                { motivos: motivos },
-                { returnDocument: 'after' } 
-            );
-
-            res.json({ success: true, config: configActualizada });
-        } catch (error) {
-            console.error('Error al actualizar los motivos:', error);
-            res.status(500).json({ error: 'Fallo interno al actualizar la configuración' });
-        }
-    });
-
-    app.put('/api/config/:guildId/urgencias', async (req, res) => {
-        try {
-            const { guildId } = req.params;
-            const { urgencias } = req.body; 
-
-            const configActualizada = await ServidorConfig.findOneAndUpdate(
-                { guildId: guildId },
-                { urgencias: urgencias },
-                { new: true } 
-            );
-
-            res.json({ success: true, config: configActualizada });
-        } catch (error) {
-            console.error('Error al actualizar las urgencias:', error);
-            res.status(500).json({ error: 'Fallo interno al actualizar' });
-        }
-    });
-
-    // --- NUEVA RUTA: Actualizar textos de Marca Blanca ---
-    app.put('/api/config/:guildId/textos', async (req, res) => {
-        try {
-            const { guildId } = req.params;
-            const { titulo, descripcion, footer } = req.body; 
-
-            const configActualizada = await ServidorConfig.findOneAndUpdate(
-                { guildId: guildId },
-                { 
-                    mensajeSoporteTitulo: titulo,
-                    mensajeSoporteDescripcion: descripcion,
-                    footerPersonalizado: footer
-                },
-                { returnDocument: 'after' } 
-            );
-
-            res.json({ success: true, config: configActualizada });
-        } catch (error) {
-            console.error('Error al actualizar textos personalizados:', error);
-            res.status(500).json({ error: 'Fallo interno al actualizar los textos' });
-        }
+    // Errores: validaciones (status propio) o fallo interno
+    // eslint-disable-next-line no-unused-vars
+    app.use((err, req, res, next) => {
+        if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message });
+        console.error('Error en la API:', err);
+        res.status(500).json({ error: 'Fallo interno' });
     });
 
     app.listen(port, () => console.log(`🌐 API corriendo en puerto ${port}`));
+    return app;
 };

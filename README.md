@@ -1,139 +1,143 @@
 # 🤖 Sokyo Bot
 
-Bot de Discord de **sistema de tickets de soporte** con un **panel web** de administración
-(React + Vite). El bot expone una API (Express) que el panel consume para gestionar
-tickets, ver logs de auditoría, estadísticas de usuarios y configurar el sistema.
+Bot de **tickets para Discord** con formularios por tipo de consulta, **panel web** para el staff,
+**portal** para los usuarios e **IA** que responde sola las dudas repetidas.
+
+- **`/setup` en 1 minuto:** crea la categoría de tickets, el canal de logs y publica el panel.
+- **Formularios por tipo:** cada tipo de ticket hace sus propias preguntas (hasta 5) y puede tener
+  su propio equipo (roles) y su propia categoría.
+- **IA (API de Claude):** antes de abrir un ticket intenta resolverlo con las preguntas frecuentes;
+  al abrirlo detecta idioma, ánimo y urgencia; en el panel resume, sugiere respuestas, traduce y
+  convierte tickets resueltos en artículos de FAQ.
+- **Multi-servidor:** cada servidor tiene su configuración y sus datos. El staff entra al panel con
+  su cuenta de Discord y solo ve los servidores donde es admin o staff.
+- **Plan gratis con marca / Premium sin marca:** el plan gratis muestra “⚡ Sokyo” y un botón para
+  añadir el bot; Premium la quita y amplía la IA y los logs.
 
 ```
 sokyo-bot/
-├── index.js              # Arranque del bot (carga comandos, eventos y API)
-├── api/server.js         # API REST que consume el panel web
-├── comandos/             # Comandos por prefijo "!"
-├── events/               # Eventos de Discord (tickets, logs, entradas/salidas...)
-├── models/               # Esquemas de MongoDB (Ticket, Mensaje, Log, ServidorConfig)
-├── utils/                # Lógica compartida (cerrar/reabrir tickets, etc.)
-└── sokyo-panelFRONTEND/  # Panel web de administración (React + Vite)
+├── index.js              # Arranque: carga comandos y eventos, API y MongoDB
+├── api/                  # API REST (login con Discord, rutas por servidor) + sirve el panel
+├── comandos/             # Comandos / (setup, panel, ticket, usuario, ayuda, dado, moneda)
+├── events/               # Eventos de Discord (interacciones, mensajes, logs, entradas...)
+├── models/               # Esquemas de MongoDB
+├── utils/                # Tickets, IA, permisos, logs, marca...
+├── scripts/              # Premium y actualización de la Raspberry
+└── sokyo-panelFRONTEND/  # Web pública + panel de staff + portal (React + Vite)
 ```
 
 ---
 
-## ✅ Requisitos previos
+## ✅ Requisitos
 
-Antes de empezar necesitas tener instalado/creado:
-
-- **[Node.js](https://nodejs.org/)** 18 o superior (incluye `npm`).
-- **Una base de datos MongoDB.** Lo más fácil es una gratuita en
-  [MongoDB Atlas](https://www.mongodb.com/atlas) (obtienes una cadena `mongodb+srv://...`).
-- **Una aplicación de bot de Discord** creada en el
-  [Discord Developer Portal](https://discord.com/developers/applications) (de ahí sacas el *token*).
+- **[Node.js](https://nodejs.org/) 18 o superior.**
+- **MongoDB** (local o gratis en [MongoDB Atlas](https://www.mongodb.com/atlas)).
+- **Una aplicación de Discord** en el [Developer Portal](https://discord.com/developers/applications).
+- *(Opcional)* **Clave de la API de Anthropic** para la IA: <https://console.anthropic.com>.
 
 ---
 
-## 🚀 Puesta en marcha (paso a paso)
+## 🚀 Puesta en marcha
 
-### 1. Clonar el repositorio
+### 1. Instalar
 ```bash
 git clone https://github.com/SergioVillalbaDev/sokyo-bot.git
 cd sokyo-bot
-```
-
-### 2. Instalar dependencias
-Hay que instalar las del **bot** y las del **panel** por separado:
-```bash
-# Dependencias del bot (en la raíz)
 npm install
-
-# Dependencias del panel web
-cd sokyo-panelFRONTEND
-npm install
-cd ..
+npm run build:panel     # instala y compila el panel web (carpeta sokyo-panelFRONTEND/dist)
 ```
 
-### 3. Configurar las variables de entorno
-
-Hay dos archivos `.env` (NO se suben a git). Cópialos desde las plantillas `.env.example`:
-
+### 2. Configurar el `.env`
 ```bash
-# Bot
-copy .env.example .env                                  # Windows
-# cp .env.example .env                                  # macOS/Linux
-
-# Panel
-copy sokyo-panelFRONTEND\.env.example sokyo-panelFRONTEND\.env   # Windows
-# cp sokyo-panelFRONTEND/.env.example sokyo-panelFRONTEND/.env   # macOS/Linux
+cp .env.example .env    # en Windows: copy .env.example .env
 ```
+Rellena como mínimo `MONGO_URI`, `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`,
+`JWT_SECRET`, `OAUTH_REDIRECT_URI` y `FRONTEND_URL`. Cada variable está explicada en el propio archivo.
 
-**`.env` del bot** — rellena tus valores:
-```env
-MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/SokyoDB
-DISCORD_TOKEN=tu_token_de_discord
-PORT=3000
-API_KEY=una-clave-larga-y-aleatoria
-```
+> El panel ya **no usa `API_KEY`**: cada persona entra con su cuenta de Discord. Si tu `.env` antiguo
+> la tiene, no molesta (se usa como `JWT_SECRET` si no defines uno).
 
-**`sokyo-panelFRONTEND/.env`** — la clave debe ser **la misma** que `API_KEY`:
-```env
-VITE_API_URL=http://localhost:3000
-VITE_API_KEY=una-clave-larga-y-aleatoria
-```
+### 3. Developer Portal de Discord
+En tu aplicación:
+1. **Bot → Privileged Gateway Intents:** activa **Message Content Intent** y **Server Members Intent**.
+2. **OAuth2 → Redirects:** añade exactamente el valor de `OAUTH_REDIRECT_URI`
+   (p. ej. `http://192.168.1.50:3000/api/auth/discord/callback`).
 
-> 🔑 `API_KEY` (bot) y `VITE_API_KEY` (panel) **deben coincidir exactamente**. Es la que
-> protege la API. Puedes generar una con:
-> ```bash
-> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-> ```
-> Si el panel se abre desde **otro dispositivo** de la red, pon en `VITE_API_URL` la IP del
-> PC donde corre el bot (p. ej. `http://192.168.1.50:3000`). Si es el **mismo PC**, deja `localhost`.
-
-### 4. Activar los *Intents* del bot en Discord
-
-En el [Developer Portal](https://discord.com/developers/applications) → tu aplicación → pestaña **Bot**,
-activa estos dos *Privileged Gateway Intents* (si no, el bot **no arranca**):
-
-- ✅ **Message Content Intent**
-- ✅ **Server Members Intent**
-
-### 5. Arrancar
-
-Necesitas **dos terminales abiertas a la vez**:
-
+### 4. Arrancar
 ```bash
-# Terminal 1 — el bot (déjala abierta)
 npm start
 ```
-Deberías ver:
-```
-🌐 API corriendo en puerto 3000
-🟢 Conectado a MongoDB
-🚀 Logged in as TuBot#0000!
-```
+Con la build hecha, **el bot sirve también la web** en el mismo puerto: abre `http://IP-DEL-BOT:3000`.
+Verás la web pública, “Entrar al panel” (staff) y “Mis tickets” (usuarios).
 
+En la consola aparece el **enlace para invitar el bot** a un servidor.
+
+> **Desarrollo del panel:** `cd sokyo-panelFRONTEND && npm run dev` abre Vite en
+> <http://localhost:5173> y reenvía `/api` al bot (puerto 3000). En ese caso pon
+> `FRONTEND_URL=http://localhost:5173` en el `.env` del bot.
+
+---
+
+## 🍓 Actualizar en la Raspberry
+
+Dentro de la carpeta del repositorio en la Raspberry:
 ```bash
-# Terminal 2 — el panel web
-cd sokyo-panelFRONTEND
-npm run dev
+bash scripts/actualizar-raspberry.sh            # actualiza la rama actual
+bash scripts/actualizar-raspberry.sh main       # o una rama concreta
 ```
-Abre la URL que indica Vite (normalmente <http://localhost:5173>).
-
-> ⚠️ El bot debe estar **encendido** para que el panel cargue datos. Si cierras su terminal,
-> el panel mostrará un error de conexión.
-
----
-
-## 🎫 Uso básico
-
-- En tu servidor de Discord, ejecuta **`!sokyo`** (como administrador) en el canal donde
-  quieras el panel de soporte. Aparecerá un botón **📩 Abrir Ticket**.
-- Los usuarios abren tickets eligiendo categoría y rellenando un formulario.
-- Desde el panel web puedes ver conversaciones, responder, añadir notas internas,
-  cerrar/reabrir tickets, ver logs y estadísticas, y personalizar textos y categorías.
-
-Otros comandos: `!user [@usuario]` (estadísticas de tickets), `!dado`, `!moneda`.
+Descarga los cambios, instala dependencias, compila el panel y reinicia el bot con
+[pm2](https://pm2.keymetrics.io/) (si no lo tienes: `sudo npm install -g pm2`; para que arranque
+con la Raspberry, `pm2 startup` una vez).
 
 ---
 
-## 🛠️ Notas
+## 🎫 Uso en Discord
 
-- **Build de producción del panel:** `cd sokyo-panelFRONTEND && npm run build` (genera `dist/`).
-- Los archivos `.env` están en `.gitignore`: cada persona crea el suyo a partir de `.env.example`.
-- Si cambias un `.env`, **reinicia** el proceso correspondiente (Vite no recarga variables en caliente).
+| Comando | Qué hace |
+|---|---|
+| `/setup rol_staff:@Rol` | Configura todo: equipo, categoría de tickets, canal de logs y publica el panel |
+| `/panel [panel] [canal]` | Publica un panel (se diseñan en el panel web) |
+| `/ticket agregar · quitar · renombrar · cerrar` | Gestión dentro de un ticket |
+| `/ticket resumen` | Resumen del ticket con IA (solo lo ve quien lo pide) |
+| `/usuario [miembro]` | Historial de tickets |
+| `/ayuda`, `/dado`, `/moneda` | Ayuda y juegos |
+
+Los comandos `/` se registran solos al arrancar (globales: la primera vez pueden tardar hasta 1 hora
+en aparecer; con `DEV_GUILD_ID` aparecen al instante en ese servidor).
+
+**Desde la versión anterior:** los paneles ya publicados con `!sokyo` siguen funcionando. Los comandos
+con `!` responden indicando el comando `/` nuevo.
+
+---
+
+## 🤖 IA
+
+Con `ANTHROPIC_API_KEY` en el `.env`, cada servidor puede activarla en **Panel → Inteligencia artificial**:
+
+- **Responder antes de abrir el ticket:** usa las **Preguntas frecuentes** del panel (y, en Premium,
+  los resúmenes de tickets cerrados). Si la IA no está segura, se abre el ticket normal.
+- **Triaje:** idioma, ánimo y urgencia; si es más grave de lo marcado, sube la prioridad.
+- **En el panel:** sugerir respuesta, resumen, traducir y convertir en FAQ.
+
+Cada servidor tiene un cupo mensual (`IA_LIMITE_GRATIS`, `IA_LIMITE_PREMIUM`). Una llamada que falla
+no gasta cupo.
+
+---
+
+## ⭐ Premium
+
+Lo activa quien aloja el bot, con el ID del servidor:
+```bash
+npm run premium -- 123456789012345678 30      # 30 días (0 = sin caducidad)
+npm run premium -- 123456789012345678 quitar
+npm run premium -- lista
+```
+
+---
+
+## 📈 Antes de llegar a 100 servidores
+
+Discord exige **verificar el bot** a partir de 75 servidores y no deja pasar de 100 sin verificar.
+En la verificación hay que justificar los intents privilegiados: **Message Content** (guardar la
+conversación de los tickets para el panel, el transcript y la IA) y **Server Members** (logs de
+entradas/salidas y permisos del panel).
