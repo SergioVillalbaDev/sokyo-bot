@@ -5,10 +5,11 @@
 // attachment://). Lo usan EmbedsView y AnunciosView.
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Upload, X, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading1, Heading2, Heading3, List, Link2, Minus, LayoutTemplate, Save, Check } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Crop, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading1, Heading2, Heading3, List, Link2, Minus, LayoutTemplate, Save, Check } from 'lucide-react';
 import { API_URL } from '../../../lib/api';
 import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
 import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
+import RecortarImagen from '../RecortarImagen';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
@@ -72,32 +73,84 @@ function BarraFormato({ onWrap, onInsert, t }) {
 }
 
 // Campo de imagen/icono: input de URL + botón "Subir del PC" + estado del archivo.
-function CampoImagen({ titulo, url, archivo, onChange, subirImagen, t }) {
+// Al elegir una imagen (o con «Ajustar» sobre la que ya hay) se abre RecortarImagen
+// para dejarla bien en la forma en que la enseña Discord: `forma` = 'circulo'
+// (iconos del autor y del pie), 'cuadrado' (miniatura) o 'ancho' (imagen grande).
+const MAX_SUBIDA = 8 * 1024 * 1024;
+const MINIATURA_FORMA = { circulo: 'h-8 w-8 rounded-full', cuadrado: 'h-8 w-8 rounded-md', ancho: 'h-8 w-14 rounded-md' };
+
+function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirImagen, t }) {
   const [estado, setEstado] = useState('');
-  const onFile = async (ev) => {
+  const [recortando, setRecortando] = useState(null); // File que se está ajustando
+  const [yaPuesta, setYaPuesta] = useState(false);     // ¿viene de «Ajustar» (ya está subida/enlazada)?
+  const actual = urlImagen(archivo, url);
+
+  const onFile = (ev) => {
     const file = ev.target.files?.[0];
     ev.target.value = '';
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { setEstado(`error:${t('dashboard.embed_b.tooBig')}`); return; }
+    if (file.size > MAX_SUBIDA) { setEstado(`error:${t('dashboard.embed_b.tooBig')}`); return; }
+    setEstado('');
+    setYaPuesta(false);
+    setRecortando(file);
+  };
+
+  // dataUrl = recorte hecho; null = subir el archivo tal cual.
+  const subir = async (dataUrl) => {
+    const file = recortando;
+    setRecortando(null);
+    if (!dataUrl && yaPuesta) return; // sin recortar la que ya estaba: nada que subir
     setEstado('subiendo');
     try {
-      const dataUrl = await leerComoDataURL(file);
-      const r = await subirImagen(dataUrl);
+      const datos = dataUrl || await leerComoDataURL(file);
+      if (datos.length > MAX_SUBIDA * 1.37) { setEstado(`error:${t('dashboard.embed_b.tooBig')}`); return; }
+      const r = await subirImagen(datos);
       if (r.error) setEstado(`error:${r.error}`);
       else { onChange({ archivo: r.archivo, url: '' }); setEstado(''); }
     } catch { setEstado(`error:${t('dashboard.embed_b.uploadFail')}`); }
   };
+
+  // Abre en el recortador la imagen que ya está puesta (subida o por enlace).
+  const ajustar = async () => {
+    setEstado('abriendo');
+    try {
+      const res = await fetch(actual);
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('tipo');
+      setYaPuesta(true);
+      setRecortando(new File([blob], 'imagen', { type: blob.type }));
+      setEstado('');
+    } catch { setEstado(`error:${t('dashboard.recorte.noAjustable')}`); }
+  };
+
+  const botonAjustar = actual && (
+    <button type="button" onClick={ajustar} disabled={estado === 'abriendo' || estado === 'subiendo'}
+      className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand disabled:opacity-50"
+      title={t('dashboard.recorte.ajustarAyuda')}>
+      <Crop size={14} /> {estado === 'abriendo' ? t('dashboard.recorte.cargando') : t('dashboard.recorte.ajustar')}
+    </button>
+  );
+  const miniatura = actual && (
+    <img src={actual} alt="" className={`${MINIATURA_FORMA[forma] || MINIATURA_FORMA.ancho} shrink-0 border border-line object-cover`}
+      onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
+  );
+
   return (
     <div>
       <span className={label}>{titulo}</span>
       {archivo ? (
-        <div className="flex items-center gap-2 rounded-xl border border-line bg-bg px-3 py-2">
-          <span className="flex-1 truncate text-sm text-success">✓ {t('dashboard.embed_b.uploaded')}</span>
-          <button type="button" onClick={() => onChange({ archivo: '', url: '' })} className="text-muted transition-colors hover:text-danger"><X size={15} /></button>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bg px-3 py-2">
+          {miniatura}
+          <span className="min-w-0 flex-1 truncate text-sm text-success">✓ {t('dashboard.embed_b.uploaded')}</span>
+          {botonAjustar}
+          <button type="button" onClick={() => onChange({ archivo: '', url: '' })} className="text-muted transition-colors hover:text-danger" aria-label={t('dashboard.recorte.quitar')}><X size={15} /></button>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <input value={url} onChange={(e) => onChange({ archivo: '', url: e.target.value })} className={input + ' flex-1'} placeholder="https://…" maxLength={500} />
+          {miniatura}
+          <input value={url} onChange={(e) => onChange({ archivo: '', url: e.target.value })} className={input + ' min-w-0 flex-1'} placeholder="https://…" maxLength={500} />
+          {botonAjustar}
           <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand">
             <Upload size={14} /> {estado === 'subiendo' ? t('dashboard.embed_b.uploading') : t('dashboard.embed_b.uploadPc')}
             <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onFile} className="hidden" disabled={estado === 'subiendo'} />
@@ -105,6 +158,7 @@ function CampoImagen({ titulo, url, archivo, onChange, subirImagen, t }) {
         </div>
       )}
       {estado.startsWith('error:') && <p className="mt-1 text-xs text-danger">{estado.slice(6)}</p>}
+      {recortando && <RecortarImagen archivo={recortando} forma={forma} onCancelar={() => setRecortando(null)} onListo={subir} />}
     </div>
   );
 }
@@ -350,7 +404,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen, presets, on
           <span className={label}>{t('dashboard.embed_b.authorUrl')}</span>
           <input value={e.autorUrl} onChange={(ev) => set('autorUrl', ev.target.value)} className={input} placeholder="https://…" maxLength={500} />
         </label>
-        <CampoImagen titulo={t('dashboard.embed_b.authorIcon')} url={e.autorIconoUrl} archivo={e.autorIconoArchivo}
+        <CampoImagen titulo={t('dashboard.embed_b.authorIcon')} forma="circulo" url={e.autorIconoUrl} archivo={e.autorIconoArchivo}
           onChange={({ archivo, url }) => onChange({ ...e, autorIconoArchivo: archivo, autorIconoUrl: url })} subirImagen={subirImagen} t={t} />
 
         {/* Título */}
@@ -394,9 +448,9 @@ export default function EmbedBuilder({ value, onChange, subirImagen, presets, on
           </div>
         </div>
 
-        <CampoImagen titulo={t('dashboard.embed_b.image')} url={e.imagenUrl} archivo={e.imagenArchivo}
+        <CampoImagen titulo={t('dashboard.embed_b.image')} forma="ancho" url={e.imagenUrl} archivo={e.imagenArchivo}
           onChange={({ archivo, url }) => onChange({ ...e, imagenArchivo: archivo, imagenUrl: url })} subirImagen={subirImagen} t={t} />
-        <CampoImagen titulo={t('dashboard.embed_b.thumb')} url={e.miniaturaUrl} archivo={e.miniaturaArchivo}
+        <CampoImagen titulo={t('dashboard.embed_b.thumb')} forma="cuadrado" url={e.miniaturaUrl} archivo={e.miniaturaArchivo}
           onChange={({ archivo, url }) => onChange({ ...e, miniaturaArchivo: archivo, miniaturaUrl: url })} subirImagen={subirImagen} t={t} />
 
         {/* Pie + icono */}
@@ -404,7 +458,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen, presets, on
           <span className={label}>{t('dashboard.embed_b.footer')}</span>
           <input value={e.footer} onChange={(ev) => set('footer', ev.target.value)} className={input} maxLength={2048} />
         </label>
-        <CampoImagen titulo={t('dashboard.embed_b.footerIcon')} url={e.footerIconoUrl} archivo={e.footerIconoArchivo}
+        <CampoImagen titulo={t('dashboard.embed_b.footerIcon')} forma="circulo" url={e.footerIconoUrl} archivo={e.footerIconoArchivo}
           onChange={({ archivo, url }) => onChange({ ...e, footerIconoArchivo: archivo, footerIconoUrl: url })} subirImagen={subirImagen} t={t} />
 
         {/* Campos */}

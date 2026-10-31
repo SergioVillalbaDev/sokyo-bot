@@ -25,7 +25,7 @@ const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificac
 const { publicarPanel: publicarPanelEmbudo } = require('../utils/embudo.js');
 const { enviarBienvenida, enviarDespedida } = require('../utils/bienvenida.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
-const { construirMensaje, sanearEmbed, embedTieneContenido } = require('../utils/embeds.js');
+const { construirMensaje, sanearEmbed, embedTieneContenido, embedTieneAlgo } = require('../utils/embeds.js');
 const { cerrarTicket, reabrirTicket, construirTranscriptHTML, generarTranscriptPDF } = require('../utils/ticketManager.js');
 const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
@@ -1923,7 +1923,9 @@ app.get('/api/stats/uso', async (req, res) => {
                     canalId: b.canalId ? String(b.canalId) : null,
                     contenido: String(b.contenido || '').slice(0, 2000),
                     mencionar: !!b.mencionar,
-                    embed: embedTieneContenido(embed) ? embed : null,
+                    // Se guarda aunque solo tenga campos a medias: si no, el autoguardado
+                    // borraba el campo recién añadido antes de poder escribirlo.
+                    embed: embedTieneAlgo(embed) ? embed : null,
                 };
             };
             const set = {};
@@ -1956,7 +1958,9 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!probadorId) return res.status(401).json({ error: 'Sesión no válida.' });
             const member = await guild.members.fetch(probadorId).catch(() => null);
             if (!member) return res.status(400).json({ error: 'No estás en ese servidor para la prueba.' });
-            const r = await (tipo === 'despedida' ? enviarDespedida : enviarBienvenida)(member, cfg);
+            // prueba: se manda aunque aún no esté activado (para verlo antes de activarlo),
+            // y los errores salen en el idioma del panel de quien prueba.
+            const r = await (tipo === 'despedida' ? enviarDespedida : enviarBienvenida)(member, cfg, { prueba: true, idioma: idiomaPanel(req, cfg) });
             if (r && r.error) return res.status(400).json({ error: r.error });
             res.json({ success: true });
         } catch (error) {

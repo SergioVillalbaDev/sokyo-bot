@@ -37,7 +37,7 @@ function sanearEmbed(e) {
             nombre: String((c && c.nombre) || '').slice(0, 256),
             valor: String((c && c.valor) || '').slice(0, 1024),
             inline: !!(c && c.inline),
-        })).filter((c) => c.nombre && c.valor)
+        }))
         : [];
     return {
         titulo: String(e.titulo || '').slice(0, 256),
@@ -60,12 +60,24 @@ function sanearEmbed(e) {
     };
 }
 
-// ¿El embed tiene algo que mostrar?
+// Campos que Discord acepta: con nombre y valor. Los que están a medias se
+// guardan igual (para que el panel no los borre mientras se escriben con el
+// autoguardado), pero no se mandan.
+function camposCompletos(e) {
+    return Array.isArray(e && e.campos) ? e.campos.filter((c) => c && c.nombre && c.valor) : [];
+}
+
+// ¿El embed tiene algo que mostrar en Discord?
 function embedTieneContenido(e) {
     if (!e) return false;
     return !!(e.titulo || e.descripcion || e.imagenUrl || e.imagenArchivo
         || e.miniaturaUrl || e.miniaturaArchivo || e.autorNombre || e.footer
-        || (Array.isArray(e.campos) && e.campos.length));
+        || camposCompletos(e).length);
+}
+
+// ¿Hay algo que guardar? Como lo anterior, pero cuenta también los campos a medias.
+function embedTieneAlgo(e) {
+    return embedTieneContenido(e) || !!(e && Array.isArray(e.campos) && e.campos.length);
 }
 
 // Resuelve una imagen/icono a una referencia usable (attachment:// o URL http),
@@ -95,11 +107,8 @@ function construirEmbed(e) {
     const color = normalizarColor(e.color);
     if (color !== null) embed.setColor(color);
     if (e.fecha) embed.setTimestamp(new Date());
-    if (Array.isArray(e.campos)) {
-        for (const c of e.campos.slice(0, 25)) {
-            if (!c || !c.nombre || !c.valor) continue;
-            embed.addFields({ name: String(c.nombre).slice(0, 256), value: String(c.valor).slice(0, 1024), inline: !!c.inline });
-        }
+    for (const c of camposCompletos(e).slice(0, 25)) {
+        embed.addFields({ name: String(c.nombre).slice(0, 256), value: String(c.valor).slice(0, 1024), inline: !!c.inline });
     }
     return embed;
 }
@@ -146,4 +155,4 @@ function construirMensaje(contenido, e, uploadsDir, cfg) {
     return payload;
 }
 
-module.exports = { construirEmbed, construirMensaje, sanearEmbed, embedTieneContenido, normalizarColor };
+module.exports = { construirEmbed, construirMensaje, sanearEmbed, embedTieneContenido, embedTieneAlgo, camposCompletos, normalizarColor };

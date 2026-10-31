@@ -66,10 +66,14 @@ export default function BienvenidaView({ dash }) {
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
   const autoguardado = useAutoguardado([b, d], guardar, { listo: !!configServidor });
+  // La prueba usa lo que se ve en pantalla: primero se guarda (aunque el
+  // autoguardado aún no haya saltado) y luego se envía, esté activado o no.
   const probar = async () => {
-    setPrueba('...');
+    setPrueba('enviando');
+    const ok = await guardar();
+    if (!ok) { setPrueba(`error:${t('dashboard.bienvenida_v.testSaveFail')}`); return; }
     const r = await probarBienvenida(tab);
-    setPrueba(r.error ? `error:${r.error}` : 'ok');
+    setPrueba(r.error ? `error:${r.error}` : (actual.activo ? 'ok' : 'okInactivo'));
   };
 
   return (
@@ -141,12 +145,14 @@ export default function BienvenidaView({ dash }) {
           <Save size={16} /> {guardando ? t('dashboard.bienvenida_v.saving') : t('dashboard.bienvenida_v.save')}
         </button>
         <EstadoAutoguardado estado={autoguardado} />
-        <button type="button" onClick={probar} disabled={!configServidor || !actual.canalId}
+        <button type="button" onClick={probar} disabled={!configServidor || !actual.canalId || prueba === 'enviando'}
+          title={!actual.canalId ? t('dashboard.bienvenida_v.testNeedsChannel') : undefined}
           className="flex items-center gap-2 rounded-2xl border border-line bg-bg px-5 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">
-          <Send size={16} /> {t('dashboard.bienvenida_v.test')}
+          <Send size={16} /> {prueba === 'enviando' ? t('dashboard.bienvenida_v.testing') : t('dashboard.bienvenida_v.test')}
         </button>
         {guardado && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.bienvenida_v.saved')}</span>}
         {prueba === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.bienvenida_v.tested')}</span>}
+        {prueba === 'okInactivo' && <span className="text-sm font-semibold text-success">{t('dashboard.bienvenida_v.testedOff')}</span>}
         {prueba.startsWith('error:') && <span className="text-sm font-semibold text-danger">{prueba.slice(6)}</span>}
       </div>
 
