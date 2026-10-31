@@ -66,8 +66,22 @@ module.exports = {
 
         // --- Mensaje de bienvenida en el canal (editable, con embed/GIFs) ---
         if (!member.user.bot) {
-            try { await enviarBienvenida(member, cfg); }
-            catch (error) { console.error('Error en mensaje de bienvenida:', error.message); }
+            try {
+                const r = await enviarBienvenida(member, cfg);
+                // Encendida pero no ha podido salir (sin permiso, canal borrado…):
+                // que el staff lo vea en el Registro y en el canal de logs.
+                if (r && r.error && cfg?.bienvenida?.activo) {
+                    const log = await Log.create({
+                        guildId: member.guild.id,
+                        categoria: 'Entradas',
+                        accion: t(cfg, '⚠️ No se pudo dar la bienvenida', '⚠️ The welcome message failed'),
+                        usuario: member.user.username,
+                        detalles: r.error,
+                        color: '#e67e22'
+                    });
+                    await enviarLogADiscord(client, log);
+                }
+            } catch (error) { console.error('Error en mensaje de bienvenida:', error.message); }
         }
 
         // --- Log de entrada (comportamiento existente) ---

@@ -134,3 +134,30 @@ describe('recorte de imágenes (lib/recorte.js del panel)', () => {
         assert.strictEqual(r.tipoSalida('image/png', '#000000'), 'image/png');
     });
 });
+
+describe('estado de la bienvenida en el panel (lib/estadoBienvenida.js)', () => {
+    let e;
+    before(async () => {
+        e = await import(pathToFileURL(path.join(__dirname, '..', 'sokyo-panelFRONTEND', 'src', 'lib', 'estadoBienvenida.js')).href);
+    });
+    const canales = [{ id: 'C1', nombre: '#bienvenidas' }];
+    const base = { activo: true, canalId: 'C1', contenido: 'Hola {mention}', mencionar: true, embed: null };
+
+    it('avisa de que NO se manda si «Mensaje activo» está apagado', () => {
+        assert.deepStrictEqual(e.estadoMensaje({ ...base, activo: false }, { canales }), { tipo: 'error', clave: 'apagado' });
+    });
+    it('sin canal, con el canal borrado o vacío tampoco se manda', () => {
+        assert.strictEqual(e.estadoMensaje({ ...base, canalId: null }, { canales }).clave, 'sinCanal');
+        assert.strictEqual(e.estadoMensaje({ ...base, canalId: 'BORRADO' }, { canales }).clave, 'canalBorrado');
+        assert.strictEqual(e.estadoMensaje({ ...base, contenido: ' ', embed: { campos: [{ nombre: 'A', valor: '' }] } }, { canales }).clave, 'vacio');
+    });
+    it('dice cuándo sale sin notificación', () => {
+        assert.strictEqual(e.estadoMensaje({ ...base, mencionar: false }, { canales }).clave, 'sinPing');
+        assert.strictEqual(e.estadoMensaje({ ...base, contenido: 'Hola' }, { canales }).clave, 'sinMencion');
+        assert.strictEqual(e.estadoMensaje({ ...base, contenido: '', embed: { descripcion: 'Hola {mention}' } }, { canales }).clave, 'mencionEnEmbed');
+    });
+    it('bien configurada: se manda con notificación; la despedida no necesita mención', () => {
+        assert.deepStrictEqual(e.estadoMensaje(base, { canales }), { tipo: 'ok', clave: 'okConAviso' });
+        assert.deepStrictEqual(e.estadoMensaje({ ...base, contenido: 'Adiós' }, { tipo: 'despedida', canales }), { tipo: 'ok', clave: 'ok' });
+    });
+});
