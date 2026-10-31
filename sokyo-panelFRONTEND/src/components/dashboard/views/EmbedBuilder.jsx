@@ -11,6 +11,7 @@ import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
 import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
 import RecortarImagen from '../RecortarImagen';
 import TextareaCanales from '../TextareaCanales';
+import { fondoBoton } from '../../../lib/estilosBoton';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
@@ -225,7 +226,9 @@ function Markdown({ text }) {
 }
 
 // --- Vista previa estilo Discord ---
-function Preview({ e, t }) {
+// `texto` (opcional): el mensaje que va encima del embed. `botones` (opcional):
+// [{ texto, estilo }] que van debajo, como en Discord (paneles con botón).
+function Preview({ e, t, texto, botones }) {
   const imgSrc = urlImagen(e.imagenArchivo, e.imagenUrl);
   const thumbSrc = urlImagen(e.miniaturaArchivo, e.miniaturaUrl);
   const autorIcono = urlImagen(e.autorIconoArchivo, e.autorIconoUrl);
@@ -234,6 +237,7 @@ function Preview({ e, t }) {
   return (
     <div className="rounded-xl bg-[#313338] p-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/40">{t('dashboard.embed_b.preview')}</p>
+      {texto && <div className="mb-2 break-words text-sm text-[#dbdee1]"><Markdown text={texto} /></div>}
       {vacio ? (
         <p className="py-6 text-center text-sm italic text-white/40">{t('dashboard.embed_b.previewEmpty')}</p>
       ) : (
@@ -269,13 +273,24 @@ function Preview({ e, t }) {
           {thumbSrc && <img src={thumbSrc} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
         </div>
       )}
+      {Array.isArray(botones) && botones.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {botones.map((b, i) => (
+            <span key={i} className="inline-flex max-w-full items-center rounded-[4px] px-4 py-1.5 text-sm font-medium text-white" style={{ background: fondoBoton(b.estilo) }}>
+              <span className="truncate">{b.texto}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 // `canales` (opcional): al escribir «#» en la descripción o en el valor de un campo sale
-// la lista de canales (solo donde el bot convierte «#nombre» en enlace: bienvenidas).
-export default function EmbedBuilder({ value, onChange, subirImagen, presets, onGuardarPreset, canales }) {
+// la lista de canales (solo donde el bot convierte «#nombre» en enlace: bienvenidas y
+// paneles de verificación/doble bienvenida). `texto` y `botones` (opcionales) salen en
+// la vista previa encima y debajo del embed.
+export default function EmbedBuilder({ value, onChange, subirImagen, presets, onGuardarPreset, canales, texto, botones }) {
   const { t } = useTranslation();
   const e = { ...EMBED_VACIO, ...value, campos: value?.campos || [] };
   const set = (k, v) => onChange({ ...e, [k]: v });
@@ -493,7 +508,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen, presets, on
 
       {/* Vista previa */}
       <div className="lg:sticky lg:top-4 lg:self-start">
-        <Preview e={e} t={t} />
+        <Preview e={e} t={t} texto={texto} botones={botones} />
       </div>
     </div>
     </div>

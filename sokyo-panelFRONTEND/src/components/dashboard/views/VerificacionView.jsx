@@ -3,13 +3,16 @@
 //  - Captcha: el usuario resuelve un código de imagen.
 //  - Doble bienvenida (Pro): reparte a cada nuevo entre dos versiones de
 //    bienvenida y mide cuál retiene mejor (motor embudoAB del backend).
-// El mensaje del panel (modos Un clic/Captcha) es un embed totalmente
-// personalizable (color, imagen, GIF, campos…), como el resto del panel.
+// El mensaje del panel es totalmente personalizable en los tres modos: embed
+// (color, imagen, GIF, campos…) y el botón (texto y color); en la doble
+// bienvenida, además, un texto encima (`embudoAB.panel`). «#canal» sale como enlace.
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
-import { ShieldCheck, Save, Check, Info, Send, MousePointerClick, Puzzle, Users, Crown, Lock, FileText, LayoutTemplate, BarChart3 } from 'lucide-react';
+import { ShieldCheck, Save, Check, Info, Send, MousePointerClick, Puzzle, Users, Crown, Lock, FileText, LayoutTemplate, BarChart3, AlertTriangle } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
+import EditorBoton from '../EditorBoton';
+import TextareaCanales from '../TextareaCanales';
 import { EMBED_VACIO } from './embedDefaults';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
@@ -20,12 +23,14 @@ const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text
 const VERIF_DEF = {
   activo: false, canalId: null, rolVerificadoId: null, modo: 'boton',
   titulo: '🔒 Verification', descripcion: 'Click the button to verify and access the server.',
-  textoBoton: '✅ Verify me', embed: null,
+  textoBoton: '✅ Verify me', estiloBoton: 'verde', embed: null,
 };
 const AB_DEF = {
   activo: false, entrega: 'panel', canalId: null, rolVerificadoId: null,
   varianteA: { titulo: '📋 Welcome — Read the rules', reglas: '', captcha: true, textoBoton: '✅ Accept and enter' },
   varianteB: { titulo: '👋 Welcome!', descripcion: '', color: '#5865F2', reglas: '', textoBoton: '🎉 Join' },
+  // Mensaje del panel público (texto, embed y botón «Empezar»). Embed vacío = el de siempre.
+  panel: { contenido: '', embed: null, textoBoton: '', estiloBoton: 'verde' },
 };
 
 function Select({ items, value, onChange, placeholder }) {
@@ -74,6 +79,9 @@ export default function VerificacionView({ dash }) {
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [pub, setPub] = useState('');
+  // ¿Se ha tocado el mensaje del panel desde la última vez que se publicó? Los
+  // cambios no se ven en Discord hasta pulsar «Publicar panel».
+  const [sinPublicar, setSinPublicar] = useState(false);
   const modoInit = useRef(false); // el modo se elige una vez; guardar no debe cambiarlo
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -86,6 +94,7 @@ export default function VerificacionView({ dash }) {
       ...AB_DEF, ...ab,
       varianteA: { ...AB_DEF.varianteA, ...(ab.varianteA || {}) },
       varianteB: { ...AB_DEF.varianteB, ...(ab.varianteB || {}) },
+      panel: { ...AB_DEF.panel, ...(ab.panel || {}), textoBoton: (ab.panel && ab.panel.textoBoton) || '' },
     });
     // Modo inicial SOLO la primera vez: si la Doble bienvenida está activa,
     // arrancamos ahí. Después lo controla el usuario (guardar no lo cambia).
@@ -100,10 +109,13 @@ export default function VerificacionView({ dash }) {
   const setAB = (k, val) => { setGuardado(false); setE((prev) => ({ ...prev, [k]: val })); };
   const setA = (k, val) => { setGuardado(false); setE((prev) => ({ ...prev, varianteA: { ...prev.varianteA, [k]: val } })); };
   const setB = (k, val) => { setGuardado(false); setE((prev) => ({ ...prev, varianteB: { ...prev.varianteB, [k]: val } })); };
+  // Lo que se ve en el mensaje publicado (hay que volver a publicarlo).
+  const setVerifPanel = (k, val) => { setSinPublicar(true); setVerif(k, val); };
+  const setPanel = (k, val) => { setGuardado(false); setSinPublicar(true); setE((prev) => ({ ...prev, panel: { ...prev.panel, [k]: val } })); };
 
   // Elegir modo. Un clic / Captcha guardan también el `modo` de verificación.
   const elegirModo = (m) => {
-    setGuardado(false); setPub(''); setModo(m);
+    setGuardado(false); setPub(''); setSinPublicar(false); setModo(m);
     if (m === 'boton' || m === 'captcha') setV((prev) => ({ ...prev, modo: m }));
   };
 
@@ -118,14 +130,19 @@ export default function VerificacionView({ dash }) {
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
   const autoguardado = useAutoguardado([v, e], guardar, { listo: !!configServidor });
+  // Antes de publicar se guarda lo que se ve (si no, saldría la versión anterior).
   const publicar = async () => {
     setPub('...');
+    if (!(await guardar())) { setPub(`error:${t('dashboard.verif_v.saveFail')}`); return; }
     const r = esAB ? await publicarEmbudo() : await publicarVerificacion();
     setPub(r.error ? `error:${r.error}` : 'ok');
+    if (!r.error) setSinPublicar(false);
   };
 
   const entregaConPanel = e.entrega === 'panel' || e.entrega === 'ambos';
   const abBloqueado = esAB && !esPremium;
+  // El panel de la doble bienvenida sin embed propio: se enseña el de siempre para editarlo.
+  const embedPanel = e.panel.embed || { ...EMBED_VACIO, titulo: t('dashboard.dobleBienv.panelDefTitle'), descripcion: t('dashboard.dobleBienv.panelDefDesc'), color: e.varianteB.color || '#5865F2' };
 
   return (
     <div className="space-y-5">
@@ -187,10 +204,6 @@ export default function VerificacionView({ dash }) {
                 <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.verif_v.channel')}</span>
                 <Select items={canales} value={v.canalId} onChange={(val) => setVerif('canalId', val)} placeholder={t('dashboard.verif_v.channelPh')} />
               </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.verif_v.buttonText')}</span>
-                <input value={v.textoBoton} onChange={(ev) => setVerif('textoBoton', ev.target.value)} className={input + ' max-w-xs'} maxLength={80} />
-              </label>
             </div>
           </div>
 
@@ -199,7 +212,11 @@ export default function VerificacionView({ dash }) {
             <h3 className="flex items-center gap-2 font-bold text-fg"><LayoutTemplate size={18} className="text-brand" /> {t('dashboard.verif_v.embedTitle')}</h3>
             <p className="mt-1 text-xs text-muted">{t('dashboard.verif_v.embedDesc')}</p>
             <div className="mt-4 border-t border-line pt-4">
-              <EmbedBuilder value={v.embed || EMBED_VACIO} onChange={(emb) => setVerif('embed', emb)} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })} />
+              <EmbedBuilder value={v.embed || EMBED_VACIO} onChange={(emb) => setVerifPanel('embed', emb)} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })}
+                canales={canales} botones={[{ texto: v.textoBoton || t('dashboard.verif_v.defButton'), estilo: v.estiloBoton }]} />
+            </div>
+            <div className="mt-4 border-t border-line pt-4">
+              <EditorBoton texto={v.textoBoton} estilo={v.estiloBoton} onTexto={(val) => setVerifPanel('textoBoton', val)} onEstilo={(val) => setVerifPanel('estiloBoton', val)} placeholder={t('dashboard.verif_v.defButton')} />
             </div>
           </div>
         </>
@@ -235,6 +252,26 @@ export default function VerificacionView({ dash }) {
               )}
             </div>
           </div>
+
+          {/* Mensaje del panel público (texto, embed con imágenes/GIF y botón) */}
+          {entregaConPanel && (
+            <div data-help="ab-panel" className={card}>
+              <h3 className="flex items-center gap-2 font-bold text-fg"><LayoutTemplate size={18} className="text-brand" /> {t('dashboard.dobleBienv.panelTitle')}</h3>
+              <p className="mt-1 text-xs text-muted">{t('dashboard.dobleBienv.panelDesc')}</p>
+              <div className="mt-4 space-y-4 border-t border-line pt-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.dobleBienv.panelText')}</span>
+                  <TextareaCanales canales={canales} value={e.panel.contenido} onChange={(ev) => setPanel('contenido', ev.target.value)} onValor={(val) => setPanel('contenido', val)}
+                    rows={2} className={input} maxLength={2000} placeholder={t('dashboard.dobleBienv.panelTextPh')} />
+                </label>
+                <EmbedBuilder value={embedPanel} onChange={(emb) => setPanel('embed', emb)} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })}
+                  canales={canales} texto={e.panel.contenido} botones={[{ texto: e.panel.textoBoton || t('dashboard.dobleBienv.panelDefButton'), estilo: e.panel.estiloBoton }]} />
+                <div className="border-t border-line pt-4">
+                  <EditorBoton texto={e.panel.textoBoton} estilo={e.panel.estiloBoton} onTexto={(val) => setPanel('textoBoton', val)} onEstilo={(val) => setPanel('estiloBoton', val)} placeholder={t('dashboard.dobleBienv.panelDefButton')} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Las dos versiones */}
           <div className="grid gap-4 lg:grid-cols-2">
@@ -300,6 +337,14 @@ export default function VerificacionView({ dash }) {
             </div>
           </div>
         </>
+      )}
+
+      {/* Cambios en el mensaje del panel que aún no están en Discord */}
+      {!abBloqueado && sinPublicar && (!esAB || entregaConPanel) && (
+        <div role="status" className="flex items-start gap-2.5 rounded-2xl border border-warn/40 bg-warn/10 px-4 py-3">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
+          <p className="text-sm text-fg">{t('dashboard.verif_v.unpublished')}</p>
+        </div>
       )}
 
       {/* ─────────── ACCIONES ─────────── */}

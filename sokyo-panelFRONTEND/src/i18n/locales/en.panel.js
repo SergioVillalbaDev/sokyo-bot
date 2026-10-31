@@ -1519,6 +1519,9 @@ export default {
       title: 'Panel title', desc: 'Description', buttonText: 'Button text',
       embedTitle: 'Panel message', embedDesc: 'Customize the embed members will see: color, image, GIF, fields… Leave it empty for a basic panel with title and description.',
       publish: 'Publish panel', published: '✅ Panel published', save: 'Save', saving: 'Saving…', saved: 'Saved',
+      defButton: '✅ Verify me',
+      saveFail: 'Couldn’t save before publishing. Please try again.',
+      unpublished: 'You changed the panel message. Click “Publish panel” so it looks like this in Discord.',
     },
     dobleBienv: {
       note: 'On join, each newcomer is shown one of the two versions (50/50). Analytics shows which retains better. The chosen role grants real access; the bot role must be above it.',
@@ -1537,6 +1540,17 @@ export default {
       lockTitle: 'Dual welcome is a Pro feature',
       lockDesc: 'Upgrade to Pro to split newcomers between two welcome versions and discover with data which one retains better.',
       lockCta: 'Upgrade to Pro',
+      panelTitle: 'Panel message',
+      panelDesc: 'This is what everyone who reaches the channel sees. Make it your own: text, an embed with images or GIFs, and the button. When they click the button, each person gets their version (A or B).',
+      panelText: 'Text above the embed (optional)',
+      panelTextPh: 'For example: Hi! Read #rules and click the button 👇',
+      panelDefTitle: '👋 Welcome to the server!',
+      panelDefDesc: 'Click the button to get started and access all channels.',
+      panelDefButton: '🚀 Get started',
+    },
+    botonDiscord: {
+      texto: 'Button text', textoAyuda: 'You can start it with an emoji, for example “🚀 Get started”.',
+      color: 'Button color', verde: 'Green', azul: 'Blue', gris: 'Grey', rojo: 'Red',
     },
     bienvenida_v: {
       intro: 'Greet joiners and bid farewell to leavers with a fully editable message (text, embed, images and GIFs).',

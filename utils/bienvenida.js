@@ -14,7 +14,7 @@ const path = require('path');
 const { construirMensaje } = require('./embeds.js');
 const { t } = require('./i18n.js');
 const { explicarError, permisosQueFaltan } = require('./erroresDiscord.js');
-const { mencionarCanales } = require('./mencionesCanal.js');
+const { mencionarEnMensaje } = require('./mencionesCanal.js');
 
 // Carpeta de imágenes subidas (misma que usa la API para los embeds).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -73,12 +73,7 @@ async function enviar(member, conf, cfg, { prueba = false, idioma } = {}) {
 
     const datos = datosDe(member);
     // «#reglas» → enlace al canal (solo funciona en el texto, la descripción y el valor de los campos).
-    const contenido = mencionarCanales(reemplazar(conf.contenido, datos), member.guild);
-    const embed = reemplazarEmbed(conf.embed, datos);
-    if (embed) {
-        embed.descripcion = mencionarCanales(embed.descripcion, member.guild);
-        if (Array.isArray(embed.campos)) embed.campos = embed.campos.map((c) => ({ ...c, valor: mencionarCanales(c.valor, member.guild) }));
-    }
+    const { contenido, embed } = mencionarEnMensaje(reemplazar(conf.contenido, datos), reemplazarEmbed(conf.embed, datos), member.guild);
     const payload = construirMensaje(contenido, embed, UPLOADS_DIR);
     if (!payload.content && !(payload.embeds && payload.embeds.length)) return { error: t(lang, 'El mensaje está vacío.', 'The message is empty.') };
 

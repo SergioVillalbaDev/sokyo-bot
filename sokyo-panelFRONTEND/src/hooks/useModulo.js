@@ -1,8 +1,11 @@
 // Secciones de la 1.9.0 (cumpleaños, salón de la fama, grupos, clanes, confesiones,
 // solicitudes, ausente): cargar la sección y su formulario con autoguardado.
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAutoguardado } from './useAutoguardado';
+
+// Cada cuánto se ponen al día las listas de la sección abierta.
+const REFRESCO_MS = 5000;
 
 // Carga /modulos/<ruta> y deja `form` con su config, que se guarda sola al dejar de tocarla.
 export function useModulo(dash, ruta) {
@@ -20,6 +23,36 @@ export function useModulo(dash, ruta) {
   }, [ruta]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { recargar(); }, [recargar]);
+
+  // Las listas (ausentes, grupos, solicitudes, confesiones…) cambian desde Discord:
+  // se ponen al día solas cada REFRESCO_MS mientras la sección está a la vista y en
+  // cuanto se vuelve a la pestaña. Solo los datos: `form` (lo que se está editando)
+  // no se toca. Se usa siempre el `cargarModulo` último (el del servidor elegido ahora).
+  const cargarUltimo = useRef(cargarModulo);
+  useEffect(() => { cargarUltimo.current = cargarModulo; });
+  useEffect(() => {
+    let activo = true;
+    let enCurso = false;
+    const refrescar = async () => {
+      if (document.hidden || enCurso) return;
+      enCurso = true;
+      const r = await cargarUltimo.current(ruta).catch(() => ({ error: true }));
+      enCurso = false;
+      if (!activo || r.error) return;
+      setDatos(r);
+      setForm((f) => f ?? (r.config || null));
+    };
+    const id = setInterval(refrescar, REFRESCO_MS);
+    const alVolver = () => { if (!document.hidden) refrescar(); };
+    document.addEventListener('visibilitychange', alVolver);
+    window.addEventListener('focus', alVolver);
+    return () => {
+      activo = false;
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', alVolver);
+      window.removeEventListener('focus', alVolver);
+    };
+  }, [ruta]);
 
   const guardar = async () => {
     setEstado('guardando');

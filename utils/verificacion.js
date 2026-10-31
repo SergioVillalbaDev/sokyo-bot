@@ -7,7 +7,8 @@ const path = require('path');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { generarCaptcha } = require('./captcha.js');
-const { construirMensaje, embedTieneContenido } = require('./embeds.js');
+const { construirMensaje, embedTieneContenido, estiloBoton } = require('./embeds.js');
+const { mencionarEnMensaje } = require('./mencionesCanal.js');
 const { t } = require('./i18n.js');
 
 // Carpeta de imágenes subidas (para los embeds personalizados con imagen/GIF).
@@ -34,13 +35,15 @@ async function conceder(interaction, v, cfg) {
 // Construye el contenido del panel (embed + botón). Si hay un embed personalizado
 // con contenido, se usa ese (color, imagen, GIF, campos…); si no, se cae al
 // título/descripción básicos. El botón siempre se añade al final.
-function contenidoPanel(v, cfg) {
+function contenidoPanel(v, cfg, guild) {
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('verif_inicio').setLabel(v.textoBoton || t(cfg, '✅ Verificarme', '✅ Verify me')).setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('verif_inicio').setLabel(v.textoBoton || t(cfg, '✅ Verificarme', '✅ Verify me')).setStyle(estiloBoton(v.estiloBoton)),
     );
 
     if (v.embed && embedTieneContenido(v.embed)) {
-        const payload = construirMensaje('', v.embed, UPLOADS_DIR);
+        // «#reglas» → enlace al canal (descripción y campos).
+        const { embed } = mencionarEnMensaje('', v.embed, guild);
+        const payload = construirMensaje('', embed, UPLOADS_DIR);
         payload.components = [row];
         return payload;
     }
@@ -62,10 +65,11 @@ async function publicarPanel(client, guildId) {
     const canal = guild.channels.cache.get(v.canalId);
     if (!canal) throw new Error(t(cfg, 'El canal de verificación no existe.', 'The verification channel doesn’t exist.'));
 
-    const contenido = contenidoPanel(v, cfg);
+    const contenido = contenidoPanel(v, cfg, guild);
     let mensaje = null;
     if (v.mensajeId) mensaje = await canal.messages.fetch(v.mensajeId).catch(() => null);
-    if (mensaje) await mensaje.edit(contenido);
+    // attachments: [] quita la imagen subida de antes (si no, se quedaba debajo al cambiarla).
+    if (mensaje) await mensaje.edit({ ...contenido, attachments: [] });
     else mensaje = await canal.send(contenido);
 
     await ServidorConfig.updateOne({ guildId }, { $set: { 'verificacion.mensajeId': mensaje.id } });
@@ -141,4 +145,4 @@ async function manejarModal(interaction) {
     return interaction.reply({ content: err || t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), flags: 64 });
 }
 
-module.exports = { publicarPanel, manejarInicio, manejarIntroducir, manejarModal };
+module.exports = { publicarPanel, contenidoPanel, manejarInicio, manejarIntroducir, manejarModal };
