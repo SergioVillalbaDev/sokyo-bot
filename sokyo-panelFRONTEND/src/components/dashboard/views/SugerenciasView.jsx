@@ -1,10 +1,11 @@
 // Comunidad · Sugerencias — buzón de ideas de los miembros con votos y gestión de estado.
-import { useState, useEffect } from 'react';
+import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ThumbsUp, ThumbsDown, Trash2, Info, Check, X, Clock, Eye } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -30,14 +31,12 @@ export default function SugerenciasView({ dash }) {
   const [guardando, setGuardando] = useState(false);
   const [guardadoOk, setGuardadoOk] = useState(false);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (configServidor?.canalSugerencias) setCanalSugs(configServidor.canalSugerencias);
     if (configServidor?.sugerenciasModo) setModo(configServidor.sugerenciasModo);
     if (configServidor?.sugerenciasPlantilla) setPlantilla(configServidor.sugerenciasPlantilla);
     if (configServidor?.sugerenciasMinLong != null) setMinLong(configServidor.sugerenciasMinLong);
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   const sugsOrdenadas = [...sugerencias].sort(
     (a, b) => (b.votos_pos - b.votos_neg) - (a.votos_pos - a.votos_neg),

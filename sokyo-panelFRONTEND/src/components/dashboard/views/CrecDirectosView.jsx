@@ -46,7 +46,8 @@ export default function CrecDirectosView({ dash }) {
     if (r.error) { setEstado(r.error); return false; }
     setEstado('ok');
     if (r.aviso) setAviso(r.aviso);
-    setForm(r.config);
+    // `form` no se pisa con la respuesta: tiene lo que se está escribiendo y las filas a
+    // medias que aún no se guardan (ver hooks/useDesdeServidor.js).
     return true;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).

@@ -4,7 +4,7 @@
 // dinámicos. Dos pestañas: bienvenida y despedida. En la bienvenida puede haber
 // varios mensajes (la principal + extras, p. ej. uno por juego), cada uno con su
 // canal y su embed, que se mandan al entrar o al recibir un rol (bienvenidasExtra).
-import { useState, useEffect } from 'react';
+import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { LogIn, LogOut, Save, Check, Info, Send, Hash, CheckCircle2, AlertTriangle, XCircle, Plus, Trash2, Star } from 'lucide-react';
@@ -14,6 +14,7 @@ import { EMBED_VACIO } from './embedDefaults';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { estadoMensaje } from '../../../lib/estadoBienvenida';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -52,15 +53,13 @@ export default function BienvenidaView({ dash }) {
   const [guardado, setGuardado] = useState(false);
   const [prueba, setPrueba] = useState('');
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (configServidor) {
       setB({ ...DEF.bienvenida, ...(configServidor.bienvenida || {}) });
       setD({ ...DEF.despedida, ...(configServidor.despedida || {}) });
       setExtras((configServidor.bienvenidasExtra || []).filter(Boolean).map(extraDe));
     }
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   const extra = tab === 'bienvenida' && sel !== 'principal' ? extras.find((m) => m.id === sel) : null;
   const actual = tab === 'despedida' ? d : (extra || b);

@@ -1,6 +1,6 @@
 {
   "name": "sokyo-bot",
-  "version": "1.9.6",
+  "version": "1.9.7",
   "description": "",
   "main": "index.js",
   "engines": {
@@ -28,6 +28,7 @@
     "lavalink-client": "^2.10.3",
     "mammoth": "^1.8.0",
     "mongoose": "^9.6.3",
+    "omggif": "^1.0.10",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.19.1",
     "puppeteer-core": "^23.11.1",

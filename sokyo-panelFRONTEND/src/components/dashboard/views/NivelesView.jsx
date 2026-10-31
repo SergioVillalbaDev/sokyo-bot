@@ -8,6 +8,9 @@ import { PRESETS_TARJETA } from '../../../presetsTarjeta';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
+import FondoDiseno from '../FondoDiseno';
+import { getStaffSession } from '../../../lib/api';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -34,7 +37,9 @@ function Chips({ items, seleccion, onToggle, prefijo = '' }) {
 
 export default function NivelesView({ dash }) {
   const { t } = useTranslation();
-  const { configServidor, canales, roles, ranking, guardarNiveles, catalogoPresets, guardarCatalogoPresets } = dash;
+  const { configServidor, canales, roles, ranking, guardarNiveles, catalogoPresets, guardarCatalogoPresets, subirImagen } = dash;
+  // El catálogo de diseños es global (todos los servidores): solo lo tocan los propietarios del bot.
+  const esPropietario = !!getStaffSession()?.owner;
 
   const [f, setF] = useState(null); // formulario
   const [recompensas, setRecompensas] = useState([]);
@@ -53,8 +58,9 @@ export default function NivelesView({ dash }) {
     setOcultos(catalogoPresets?.ocultos || []);
     setCustom((catalogoPresets?.personalizados || []).map((p) => ({ ...p })));
   }, [catalogoPresets]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (configServidor) {
       const c = configServidor;
       setF({
@@ -71,8 +77,7 @@ export default function NivelesView({ dash }) {
       setRecompensas((c.recompensasNivel || []).map((r) => ({ ...r })));
       setMultiplicadores((c.multiplicadoresRol || []).map((m) => ({ ...m })));
     }
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   const guardar = async () => {
     setGuardando(true);
@@ -103,7 +108,8 @@ export default function NivelesView({ dash }) {
   // --- Catálogo de presets ---
   const toggleOculto = (id) => { setGuardadoCat(false); setOcultos((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id])); };
   const setCustomCampo = (i, c, v) => { setGuardadoCat(false); setCustom(custom.map((p, j) => (j === i ? { ...p, [c]: v } : p))); };
-  const addCustom = () => { setGuardadoCat(false); setCustom([...custom, { id: `custom-${Date.now()}`, nombre: t('dashboard.niveles_v.catNewName'), colorAcento: '#5865F2', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoTipo: 'degradado', premium: false, animado: false }]); };
+  const setCustomVarios = (i, cambios) => { setGuardadoCat(false); setCustom((lista) => lista.map((p, j) => (j === i ? { ...p, ...cambios } : p))); };
+  const addCustom = () => { setGuardadoCat(false); setCustom([...custom, { id: `custom-${Date.now()}`, nombre: t('dashboard.niveles_v.catNewName'), colorAcento: '#5865F2', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoTipo: 'degradado', fondoImagen: null, encuadre: null, premium: false, animado: false }]); };
   const removeCustom = (i) => { setGuardadoCat(false); setCustom(custom.filter((_, j) => j !== i)); };
   const guardarCatalogo = async () => {
     setGuardandoCat(true);
@@ -189,8 +195,8 @@ export default function NivelesView({ dash }) {
           </div>
         </div>
 
-        {/* Catálogo de diseños (presets) — gestión de admin */}
-        <div className={card}>
+        {/* Catálogo de diseños (presets): global, solo para los propietarios del bot */}
+        {esPropietario && <div className={card}>
           <div className="mb-1 flex items-center justify-between">
             <h3 className="flex items-center gap-2 font-bold text-fg"><Palette size={18} className="text-brand" /> {t('dashboard.niveles_v.catTitle')}</h3>
             <button onClick={addCustom} className="flex items-center gap-1 text-xs font-semibold text-brand hover:opacity-80"><Plus size={13} /> {t('dashboard.niveles_v.catAdd')}</button>
@@ -223,7 +229,7 @@ export default function NivelesView({ dash }) {
           ) : (
             <div className="space-y-3">
               {custom.map((p, i) => (
-                <div key={i} className="rounded-2xl border border-line bg-bg p-3">
+                <div key={p.id || i} className="rounded-2xl border border-line bg-bg p-3">
                   <div className="mb-2 flex items-center gap-2">
                     <input value={p.nombre} onChange={(e) => setCustomCampo(i, 'nombre', e.target.value)} placeholder={t('dashboard.niveles_v.catName')} className={`${inputCls} flex-1`} />
                     <button onClick={() => removeCustom(i)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-muted hover:border-danger/40 hover:text-danger"><X size={14} /></button>
@@ -232,9 +238,10 @@ export default function NivelesView({ dash }) {
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-muted">{t('dashboard.niveles_v.catAccent')} <input type="color" value={p.colorAcento} onChange={(e) => setCustomCampo(i, 'colorAcento', e.target.value)} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent" /></label>
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-muted">{t('dashboard.niveles_v.catBg')} <input type="color" value={p.fondoColor} onChange={(e) => setCustomCampo(i, 'fondoColor', e.target.value)} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent" /></label>
                     {p.fondoTipo === 'degradado' && <label className="flex items-center gap-1.5 text-xs font-semibold text-muted">{t('dashboard.niveles_v.catSecondary')} <input type="color" value={p.colorSecundario} onChange={(e) => setCustomCampo(i, 'colorSecundario', e.target.value)} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent" /></label>}
-                    <select value={p.fondoTipo} onChange={(e) => setCustomCampo(i, 'fondoTipo', e.target.value)} className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-brand" style={{ width: '120px' }}>
+                    <select value={p.fondoTipo} onChange={(e) => setCustomCampo(i, 'fondoTipo', e.target.value)} className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-brand" style={{ width: '150px' }}>
                       <option value="degradado">{t('dashboard.niveles_v.catGradient')}</option>
                       <option value="color">{t('dashboard.niveles_v.catSolid')}</option>
+                      <option value="imagen">{t('dashboard.niveles_v.catImage')}</option>
                     </select>
                     <label className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-muted" title={t('dashboard.niveles_v.catAnimatedHelp')}>
                       <Sparkles size={13} className="text-brand" /> {t('dashboard.niveles_v.catAnimated')} <Toggle checked={!!p.animado} onChange={(v) => setCustomCampo(i, 'animado', v)} />
@@ -243,7 +250,7 @@ export default function NivelesView({ dash }) {
                       <Info size={13} className="text-brand" /> {t('dashboard.niveles_v.catPremium')} <Toggle checked={!!p.premium} onChange={(v) => setCustomCampo(i, 'premium', v)} />
                     </label>
                   </div>
-                  <div className="mt-2 h-8 rounded-lg" style={{ background: p.fondoTipo === 'color' ? p.fondoColor : `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})`, border: `2px solid ${p.colorAcento}` }} />
+                  <FondoDiseno p={p} onCambiar={(cambios) => setCustomVarios(i, cambios)} subirImagen={subirImagen} />
                 </div>
               ))}
             </div>
@@ -255,7 +262,7 @@ export default function NivelesView({ dash }) {
             </button>
             {guardadoCat && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.niveles_v.catSaved')}</span>}
           </div>
-        </div>
+        </div>}
 
         {/* Multiplicadores por rol */}
         <div className={card}>

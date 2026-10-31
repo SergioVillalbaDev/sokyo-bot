@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch, API_URL, procesarRespuesta, getStaffSession } from '../lib/api';
 import { isValidTheme, isPremiumTheme } from '../lib/themes';
 import { temaEfectivo, suscribirAspecto } from '../lib/aspecto';
+import { marcarEco } from './useDesdeServidor';
 
 export function useDashboard() {
   // Tema persistido. Si el guardado es premium pero el plan no lo es, cae a 'lima'.
@@ -396,7 +397,7 @@ export function useDashboard() {
         body: JSON.stringify({ autoRoles, autoRolesBots }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando autoroles:', error); }
     return false;
   };
@@ -456,7 +457,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando niveles:', error); }
     return false;
   };
@@ -469,7 +470,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando música:', error); }
     return false;
   };
@@ -486,7 +487,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando voz temporal:', error); }
     return false;
   };
@@ -521,7 +522,7 @@ export function useDashboard() {
         body: JSON.stringify({ guildId: gidActivo(), plan }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error cambiando plan (owner):', error); }
     return false;
   };
@@ -699,7 +700,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando ajustes de moderación:', error); }
     return false;
   };
@@ -712,7 +713,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ automod }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando automod:', error); }
     return false;
   };
@@ -725,7 +726,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ verificacion }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando verificación:', error); }
     return false;
   };
@@ -746,7 +747,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embudoAB }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando doble bienvenida:', error); }
     return false;
   };
@@ -768,7 +769,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bienvenida, despedida, ...(Array.isArray(extras) ? { extras } : {}) }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando bienvenidas:', error); }
     return false;
   };
@@ -792,7 +793,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reportes: reportesCfg }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando reportes:', error); }
     return false;
   };
@@ -841,7 +842,7 @@ export function useDashboard() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(objeto),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error importando config:', error); }
     return false;
   };
@@ -922,7 +923,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return { ok: true }; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return { ok: true }; }
       return { error: data.error || 'No se pudo guardar' };
     } catch (error) { console.error('Error guardando resumen:', error); return { error: 'Network error' }; }
   };
@@ -1003,7 +1004,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoRespuestas }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando auto-respuestas:', error); }
     return false;
   };
@@ -1101,7 +1102,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando dinámicas:', error); }
     return false;
   };
@@ -1136,7 +1137,7 @@ export function useDashboard() {
     try {
       const res = await apiFetch(`/api/config/${gidActivo()}/sugerencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando config sugerencias:', error); }
     return false;
   };
@@ -1152,7 +1153,7 @@ export function useDashboard() {
     try {
       const res = await apiFetch(`/api/config/${gidActivo()}/presentaciones`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando config presentaciones:', error); }
     return false;
   };
@@ -1200,7 +1201,7 @@ export function useDashboard() {
         body: JSON.stringify({ rolesPanelAcceso, rolesModeracion, accesoAreas }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); cargarMisPermisos(); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); cargarMisPermisos(); return true; }
     } catch (error) { console.error('Error guardando acceso:', error); }
     return false;
   };
@@ -1237,7 +1238,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ respuestasRapidas }),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando macros:', error); }
     return false;
   };
@@ -1250,7 +1251,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando reglas:', error); }
     return false;
   };
@@ -1263,7 +1264,7 @@ export function useDashboard() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambios),
       });
       const data = await res.json();
-      if (data.success && data.config) { setConfigServidor(data.config); return true; }
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando comportamiento:', error); }
     return false;
   };
@@ -1399,7 +1400,7 @@ export function useDashboard() {
         colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados, idioma,
       }),
     });
-    if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(data.config); alert('✅ Customization updated!'); }
+    if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(marcarEco(data.config)); alert('✅ Customization updated!'); }
   };
 
   const getTicketsOrdenados = () => [...ticketsReales].sort((a, b) => (urgencias.find((u) => u.nombre === b.prioridad)?.nivel || 0) - (urgencias.find((u) => u.nombre === a.prioridad)?.nivel || 0));

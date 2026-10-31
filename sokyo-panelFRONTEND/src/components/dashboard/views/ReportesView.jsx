@@ -1,12 +1,13 @@
 // Seguridad · Reportes — ajustes del sistema de reportes + bandeja de reportes
 // recibidos con gestión (resolver / descartar).
-import { useState, useEffect } from 'react';
+import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { Flag, Save, Check, X, Info, Ticket } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -26,11 +27,9 @@ export default function ReportesView({ dash }) {
   const [guardado, setGuardado] = useState(false);
   const [filtro, setFiltro] = useState('pendiente');
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (configServidor) setCfg({ activo: !!(configServidor.reportes && configServidor.reportes.activo), canalId: (configServidor.reportes && configServidor.reportes.canalId) || null });
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   const guardar = async () => {
     setGuardando(true);

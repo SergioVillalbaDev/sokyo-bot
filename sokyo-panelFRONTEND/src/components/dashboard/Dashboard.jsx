@@ -16,6 +16,7 @@ import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
 import AvisoDeshacer from './AvisoDeshacer';
 import CrearAlVuelo from './CrearAlVuelo';
+import BuscadorSelects from './BuscadorSelects';
 import VentanaNovedades from './VentanaNovedades';
 import { itemVisible, ubicacion as ubicacionTab } from './navConfig';
 import { apiFetch } from '../../lib/api';
@@ -476,6 +477,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
 
       {/* «➕ Crear canal/rol nuevo…» de los desplegables. */}
       <CrearAlVuelo dash={dash} />
+      <BuscadorSelects />
 
       {/* «Guardado · Deshacer» tras cada cambio (solo quien puede deshacerlo). */}
       {misPermisos?.config !== false && (

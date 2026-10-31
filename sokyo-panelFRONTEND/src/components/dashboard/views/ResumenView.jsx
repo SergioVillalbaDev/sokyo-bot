@@ -1,13 +1,14 @@
 // Parte diario del servidor (Pro) — estadísticas (crecimiento, actividad,
 // tickets, moderación, niveles e ideas de crecimiento) por MD al dueño o al
 // destinatario configurado (+ canal opcional) a la hora elegida.
-import { useState, useEffect } from 'react';
+import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mail, Send, Save, Check, AlertTriangle, Loader2, Info } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
@@ -24,15 +25,13 @@ export default function ResumenView({ dash }) {
   const [aviso, setAviso] = useState('');
 
   // Carga inicial desde la config del servidor.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     const rd = (configServidor && configServidor.resumenDiario) || {};
     setActivo(!!rd.activo);
     setHora(typeof rd.hora === 'number' ? rd.hora : 9);
     setCanalId(rd.canalId || '');
     setDestinatario(rd.destinatarioId || '');
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   const guardar = async () => {
     setEstado(''); setAviso('');

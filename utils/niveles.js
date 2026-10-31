@@ -5,7 +5,8 @@
 const { AttachmentBuilder } = require('discord.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const TarjetaPersonal = require('../models/TarjetaPersonal.js');
-const { generarTarjeta, generarTarjetaAnimada, ESTILOS } = require('./rankCard.js');
+const { generarTarjeta, generarTarjetaAnimada, ESTILOS, fondoEsGif } = require('./rankCard.js');
+const { disenoDe, opcionesDeDiseno } = require('./catalogoTarjetas.js');
 const economia = require('./economia.js'); // para el boost de XP comprado en la tienda
 const { t, resolverIdioma } = require('./i18n.js');
 
@@ -15,6 +16,10 @@ const { t, resolverIdioma } = require('./i18n.js');
 async function opcionesTarjeta(userId, cfg) {
     const tp = await TarjetaPersonal.findOne({ userId });
     if (!tp) return {};
+    // Un diseño del catálogo (los que crean los propietarios): se usa como está ahora,
+    // con su imagen o GIF aunque el servidor no sea Pro (lo eligen ellos, no el miembro).
+    const diseno = tp.preset && !ESTILOS[tp.preset] ? await disenoDe(tp.preset) : null;
+    if (diseno) return opcionesDeDiseno(diseno);
     const opc = {
         color: tp.colorAcento || '#5865F2',
         fondoTipo: tp.fondoTipo || 'color',
@@ -42,7 +47,8 @@ async function construirBuffer(opc, esPremium, render) {
     const estiloId = (esPremium && opc.preset && ESTILOS[opc.preset]) ? opc.preset : null;
     // Animado si: es un estilo de fábrica animado, O un diseño personalizado
     // marcado como animado (ambos casos requieren premium).
-    const animado = estiloId ? ESTILOS[estiloId].animado : (esPremium && !!opc.animado);
+    // Un fondo que es un GIF también se mueve (con premium; si no, su primer fotograma).
+    const animado = estiloId ? ESTILOS[estiloId].animado : (esPremium && (!!opc.animado || fondoEsGif(opc)));
     let buffer = null;
     let ext = 'png';
     if (animado) {

@@ -7,6 +7,9 @@ export const FORMAS = {
   circulo: { proporciones: [1], salidaMax: 512, circular: true },      // icono del autor y del pie
   cuadrado: { proporciones: [1], salidaMax: 512, circular: false },    // miniatura
   ancho: { proporciones: ['original', 16 / 9, 3, 1], salidaMax: 1600, circular: false }, // imagen grande
+  // Fondo de la tarjeta de nivel (900 × 270). `encuadre`: no se recorta la imagen; se
+  // guarda cómo se ha movido/ampliado/girado y el bot la dibuja así (también un GIF).
+  tarjeta: { proporciones: [900 / 270], salidaMax: 1800, circular: false, encuadre: true },
 };
 
 export const ZOOM_MIN = 0.5;

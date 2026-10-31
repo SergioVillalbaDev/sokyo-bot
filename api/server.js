@@ -31,6 +31,7 @@ const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
 const { aplicarSancion, aplicarSancionMasiva, revocarSancion } = require('../utils/moderationManager.js');
 const { construirBuffer } = require('../utils/niveles.js');
+const { disenoDe, invalidarCatalogo, sanearDiseno, opcionesDeDiseno } = require('../utils/catalogoTarjetas.js');
 const { firmarToken, verificarToken, secretoGuardado } = require('../utils/auth.js');
 const cuenta = require('../utils/cuenta.js');
 const { errorRolesNuevos, errorJerarquiaStaff, rolesQueDaElBot } = require('../utils/permisos.js');
@@ -752,6 +753,9 @@ module.exports = (client) => {
                 if (esPremium) opc.fondoImagen = b.fondoImagen;
                 else opc.fondoTipo = b.colorSecundario ? 'degradado' : 'color';
             }
+            // Un diseño del catálogo se ve como está ahora (con su imagen o GIF), igual que en el bot.
+            const diseno = b.preset ? await disenoDe(String(b.preset)) : null;
+            if (diseno) Object.assign(opc, opcionesDeDiseno(diseno));
             const r = await construirBuffer(opc, esPremium, {
                 avatarURL: req.usuario.avatar, nombre: req.usuario.username,
                 nivel: 12, rank: 1, xpActual: 600, xpNecesaria: 1000,
@@ -789,28 +793,49 @@ module.exports = (client) => {
         }
     });
 
+    // Es GLOBAL (lo ven todos los servidores): solo los propietarios del bot lo cambian.
+    const soloPropietario = (req, res) => {
+        if (req.staff && req.staff.owner) return true;
+        res.status(403).json({ error: 'Solo el propietario del bot puede cambiar el catálogo de diseños.' });
+        return false;
+    };
     app.put('/api/presets-tarjeta', async (req, res) => {
         try {
+            if (!soloPropietario(req, res)) return;
             const b = req.body || {};
             const ocultos = Array.isArray(b.ocultos) ? b.ocultos.map(String).slice(0, 50) : [];
-            const personalizados = (Array.isArray(b.personalizados) ? b.personalizados : []).slice(0, 50).map((p) => ({
-                id: (String(p.id || '').trim() || `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`).slice(0, 40),
-                nombre: String(p.nombre || 'Diseño').slice(0, 40),
-                colorAcento: p.colorAcento || '#5865F2',
-                fondoColor: p.fondoColor || '#1e2030',
-                colorSecundario: p.colorSecundario || '#9b59b6',
-                fondoTipo: ['color', 'degradado'].includes(p.fondoTipo) ? p.fondoTipo : 'degradado',
-                premium: !!p.premium,
-                animado: !!p.animado,
-            }));
+            const personalizados = (Array.isArray(b.personalizados) ? b.personalizados : []).slice(0, 50).map(sanearDiseno);
             const cat = await CatalogoPresets.findOneAndUpdate(
                 { clave: 'global' }, { $set: { ocultos, personalizados } },
                 { upsert: true, returnDocument: 'after' },
             );
+            invalidarCatalogo();
             res.json({ success: true, ocultos: cat.ocultos, personalizados: cat.personalizados });
         } catch (error) {
             console.error('Error guardando catálogo de presets:', error);
             res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+
+    // Vista previa REAL de un diseño del catálogo (sin guardar): la misma imagen que el bot,
+    // animada si el diseño lo es (o si el fondo es un GIF).
+    app.post('/api/presets-tarjeta/preview', async (req, res) => {
+        try {
+            if (!soloPropietario(req, res)) return;
+            const opc = opcionesDeDiseno(sanearDiseno(req.body || {}));
+            const r = await construirBuffer(opc, true, {
+                avatarURL: client.user ? client.user.displayAvatarURL({ extension: 'png', size: 256 }) : null,
+                nombre: (req.staff && req.staff.username) || 'Sokyo',
+                nivel: 12, rank: 1, xpActual: 600, xpNecesaria: 1000,
+                idioma: idiomaPanel(req, null),
+            });
+            if (!r) return res.status(500).json({ error: 'No se pudo generar' });
+            res.set('Content-Type', r.ext === 'gif' ? 'image/gif' : 'image/png');
+            res.set('Cache-Control', 'no-store');
+            res.send(r.buffer);
+        } catch (error) {
+            console.error('Error en la vista previa del diseño:', error);
+            res.status(500).json({ error: 'No se pudo generar la vista previa' });
         }
     });
 
