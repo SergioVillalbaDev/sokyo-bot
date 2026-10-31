@@ -1,6 +1,7 @@
 // src/App.jsx
 import { useState, useEffect } from 'react';
 import './index.css';
+import ImagenAdjunta from './ImagenAdjunta.jsx';
 
 // URL base de la API del bot. Cambia este valor (o define VITE_API_URL en el .env)
 // para apuntar al servidor donde corre el bot, p. ej. 'http://192.168.1.168:3000'.
@@ -360,7 +361,7 @@ function App() {
                      <div className="chat-box" style={{ flex: 1, marginBottom: '15px', minHeight: '400px' }}>
                         {mensajes.length === 0 ? <p className="chat-vacio" style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '50px' }}>No hay mensajes registrados en este ticket.</p> : (
                             mensajes.map((msg, index) => (
-                                <div key={index} className={`mensaje ${msg.usuario === 'Admin' || msg.usuario === 'Sokyo' ? 'mod' : ''}`}><span className="mensaje-autor" style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{msg.usuario || 'Usuario Desconocido'}</span>{msg.contenido && <span className="mensaje-contenido">{msg.contenido}</span>}</div>
+                                <div key={index} className={`mensaje ${msg.usuario === 'Admin' || msg.usuario === 'Sokyo' ? 'mod' : ''}`}><span className="mensaje-autor" style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{msg.usuario || 'Usuario Desconocido'}</span>{msg.contenido && <span className="mensaje-contenido">{msg.contenido}</span>}{msg.imagenes && msg.imagenes.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>{msg.imagenes.map((url, j) => <ImagenAdjunta key={j} src={url} fetcher={apiFetch} style={{ display: 'block', maxWidth: '100%', maxHeight: '250px', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }} />)}</div>}</div>
                             ))
                         )}
                      </div>
