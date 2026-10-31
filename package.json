@@ -1,11 +1,13 @@
 {
   "name": "sokyo-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Bot de tickets para Discord con formularios, panel web e IA",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "start": "node index.js",
+    "build:panel": "cd sokyo-panelFRONTEND && npm install && npm run build",
+    "premium": "node scripts/premium.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +20,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.6.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
