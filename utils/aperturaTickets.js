@@ -173,8 +173,7 @@ async function alEnviarFormulario(interaction, client) {
         if (articulos.length + resueltos.length > 0) {
             try {
                 await interaction.editReply({ content: '🤖 Buscando una respuesta rápida a tu consulta...' });
-                await ia.prepararIA(config);
-                const r = await ia.responderConFaq({ motivo: motivo.nombre, respuestas, articulos, resueltos });
+                const r = await ia.conIA(config, () => ia.responderConFaq({ motivo: motivo.nombre, respuestas, articulos, resueltos }));
                 if (r.puede_resolver && r.respuesta.trim()) {
                     const id = crypto.randomBytes(6).toString('hex');
                     const idsValidos = new Set(articulos.map(a => String(a._id)));

@@ -72,9 +72,8 @@ module.exports = {
         if (sub === 'resumen') {
             await interaction.deferReply(EFIMERO);
             try {
-                await ia.prepararIA(config);
                 const mensajes = await Mensaje.find({ ticketId: ticket.canalId }).sort({ fecha: 1 }).lean();
-                const r = await ia.resumirTicket({ ticket, mensajes });
+                const r = await ia.conIA(config, () => ia.resumirTicket({ ticket, mensajes }));
                 const embed = new EmbedBuilder()
                     .setColor(COLORES_SENTIMIENTO[r.sentimiento] || '#9b59b6')
                     .setTitle(`🤖 Resumen del ticket${ticket.numero ? ` #${ticket.numero}` : ''}`)

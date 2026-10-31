@@ -147,8 +147,7 @@ async function crearTicket(client, { guild, user, motivoId, respuestas }) {
 async function triarEnSegundoPlano(client, config, ticket, canal) {
     if (!ia.iaConfigurada() || config.ia?.activada === false || config.ia?.triaje === false) return;
     try {
-        await ia.prepararIA(config);
-        const r = await ia.triarTicket({ motivo: ticket.motivo, respuestas: ticket.respuestas, urgencias: config.urgencias });
+        const r = await ia.conIA(config, () => ia.triarTicket({ motivo: ticket.motivo, respuestas: ticket.respuestas, urgencias: config.urgencias }));
         const cambios = {
             'ia.idioma': r.idioma, 'ia.sentimiento': r.sentimiento, 'ia.resumen': r.resumen,
             'ia.urgenciaSugerida': r.urgencia_sugerida, 'ia.motivoUrgencia': r.motivo_urgencia
@@ -256,8 +255,7 @@ async function resumirAlCerrar(config, ticket) {
     const mensajes = await Mensaje.find({ ticketId: ticket.canalId }).sort({ fecha: 1 }).lean();
     if (mensajes.length < 2) return;
     try {
-        await ia.prepararIA(config);
-        const r = await ia.resumirTicket({ ticket, mensajes });
+        const r = await ia.conIA(config, () => ia.resumirTicket({ ticket, mensajes }));
         await Ticket.updateOne({ _id: ticket._id }, { $set: { 'ia.resumenCierre': `${r.resumen} ${r.estado}`.trim() } });
     } catch (e) {
         if (!(e instanceof ia.IAError)) console.error('Error resumiendo ticket cerrado:', e);

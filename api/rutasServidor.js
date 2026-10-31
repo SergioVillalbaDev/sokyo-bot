@@ -157,17 +157,16 @@ module.exports = (client) => {
         const acciones = ['resumen', 'sugerencia', 'traduccion', 'articulo'];
         if (!acciones.includes(req.params.accion)) throw new HttpError(404, 'Acción de IA desconocida');
         try {
-            await ia.prepararIA(req.config);
             const mensajes = await Mensaje.find({ ticketId: req.ticket.canalId }).sort({ fecha: 1 }).lean();
+            const articulos = req.params.accion === 'sugerencia'
+                ? await Articulo.find({ guildId: req.guild.id }).sort({ usos: -1 }).limit(40).lean() : [];
             const ticket = req.ticket;
-            let resultado;
-            if (req.params.accion === 'resumen') resultado = await ia.resumirTicket({ ticket, mensajes });
-            if (req.params.accion === 'sugerencia') {
-                const articulos = await Articulo.find({ guildId: req.guild.id }).sort({ usos: -1 }).limit(40).lean();
-                resultado = await ia.sugerirRespuesta({ ticket, mensajes, articulos, staffNombre: quien(req) });
-            }
-            if (req.params.accion === 'traduccion') resultado = await ia.traducirConversacion({ ticket, mensajes });
-            if (req.params.accion === 'articulo') resultado = await ia.generarArticulo({ ticket, mensajes });
+            const resultado = await ia.conIA(req.config, () => {
+                if (req.params.accion === 'resumen') return ia.resumirTicket({ ticket, mensajes });
+                if (req.params.accion === 'sugerencia') return ia.sugerirRespuesta({ ticket, mensajes, articulos, staffNombre: quien(req) });
+                if (req.params.accion === 'traduccion') return ia.traducirConversacion({ ticket, mensajes });
+                return ia.generarArticulo({ ticket, mensajes });
+            });
             res.json({ ...resultado, uso: ia.usoIA(await ServidorConfig.findOne({ guildId: req.guild.id }).lean()) });
         } catch (e) {
             if (e instanceof ia.IAError) {

@@ -54,6 +54,25 @@ async function prepararIA(config) {
     if (!(await consumirCupo(config))) throw new IAError('sin_cupo', 'Se ha agotado el cupo mensual de IA de este servidor. Pásate a Premium para ampliarlo.');
 }
 
+// Devuelve el uso si la llamada a la IA falla (no se cobra un uso que no ha servido).
+async function devolverCupo(config) {
+    await ServidorConfig.updateOne(
+        { guildId: config.guildId, 'ia.mes': mesActual(), 'ia.usos': { $gt: 0 } },
+        { $inc: { 'ia.usos': -1 } }
+    ).catch(() => {});
+}
+
+// Comprueba, consume 1 uso, ejecuta la llamada y devuelve el uso si falla.
+async function conIA(config, llamada) {
+    await prepararIA(config);
+    try {
+        return await llamada();
+    } catch (e) {
+        await devolverCupo(config);
+        throw e;
+    }
+}
+
 // Llamada base: devuelve el JSON que cumple `schema`.
 async function pedirJSON({ system, contenido, schema, effort = 'low', maxTokens = 4000 }) {
     const params = {
@@ -256,6 +275,6 @@ async function generarArticulo({ ticket, mensajes }) {
 }
 
 module.exports = {
-    MODELO, IAError, iaConfigurada, usoIA, prepararIA,
+    MODELO, IAError, iaConfigurada, usoIA, prepararIA, conIA,
     triarTicket, responderConFaq, resumirTicket, sugerirRespuesta, traducirConversacion, generarArticulo
 };
