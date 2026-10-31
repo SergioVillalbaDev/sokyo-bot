@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { LogIn, LogOut, Save, Check, Info, Send, Hash, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
+import TextareaCanales from '../TextareaCanales';
 import { EMBED_VACIO } from './embedDefaults';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
@@ -136,7 +137,7 @@ export default function BienvenidaView({ dash }) {
 
           <div>
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.bienvenida_v.content')}</span>
-            <textarea value={actual.contenido} onChange={(ev) => set('contenido', ev.target.value)} rows={3} className={input} maxLength={2000} placeholder={t('dashboard.bienvenida_v.contentPh')} />
+            <TextareaCanales canales={canales} value={actual.contenido} onChange={(ev) => set('contenido', ev.target.value)} onValor={(v) => set('contenido', v)} rows={3} className={input} maxLength={2000} placeholder={t('dashboard.bienvenida_v.contentPh')} />
             {/* Variables insertables */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted">{t('dashboard.bienvenida_v.variables')}:</span>
@@ -174,7 +175,7 @@ export default function BienvenidaView({ dash }) {
         <h3 className="flex items-center gap-2 font-bold text-fg"><Hash size={18} className="text-brand" /> {t('dashboard.bienvenida_v.embedTitle')}</h3>
         <p className="mt-1 text-xs text-muted">{t('dashboard.bienvenida_v.embedDesc')}</p>
         <div className="mt-4 border-t border-line pt-4">
-          <EmbedBuilder value={actual.embed || EMBED_VACIO} onChange={(emb) => set('embed', emb)} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })} />
+          <EmbedBuilder value={actual.embed || EMBED_VACIO} onChange={(emb) => set('embed', emb)} canales={canales} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })} />
         </div>
       </div>
 

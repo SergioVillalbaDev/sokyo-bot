@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.4': [
+        { tab: 'prod-bienvenidas', es: '#️⃣ Enlazar canales en la bienvenida, como en Discord: escribe # y sale la lista de canales. Elige uno (con el ratón o con ↑ ↓ y Enter) y en el mensaje saldrá como enlace azul que se puede pulsar. Vale en el texto y en la descripción y los campos del embed.', en: '#️⃣ Link channels in welcomes, just like in Discord: type # and the list of channels appears. Pick one (with the mouse or ↑ ↓ and Enter) and it shows up in the message as a blue link people can click. Works in the text and in the embed description and fields.' },
+    ],
     '1.9.3': [
         { tab: 'prod-bienvenidas', es: '📢 Enlazar canales en la bienvenida y la despedida: escribe # y el nombre del canal (por ejemplo #reglas) o elígelo en «Mencionar un canal», y saldrá como enlace azul que se puede pulsar. Vale en el texto y en la descripción y los campos del embed.', en: '📢 Link channels in welcomes and goodbyes: type # and the channel name (for example #rules) or pick it in “Mention a channel”, and it shows up as a blue link people can click. Works in the text and in the embed description and fields.' },
     ],

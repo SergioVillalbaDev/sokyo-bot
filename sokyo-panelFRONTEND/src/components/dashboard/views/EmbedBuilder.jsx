@@ -10,6 +10,7 @@ import { API_URL } from '../../../lib/api';
 import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
 import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
 import RecortarImagen from '../RecortarImagen';
+import TextareaCanales from '../TextareaCanales';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
@@ -271,7 +272,9 @@ function Preview({ e, t }) {
   );
 }
 
-export default function EmbedBuilder({ value, onChange, subirImagen, presets, onGuardarPreset }) {
+// `canales` (opcional): al escribir «#» en la descripción o en el valor de un campo sale
+// la lista de canales (solo donde el bot convierte «#nombre» en enlace: bienvenidas).
+export default function EmbedBuilder({ value, onChange, subirImagen, presets, onGuardarPreset, canales }) {
   const { t } = useTranslation();
   const e = { ...EMBED_VACIO, ...value, campos: value?.campos || [] };
   const set = (k, v) => onChange({ ...e, [k]: v });
@@ -427,7 +430,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen, presets, on
             <SelectorFuente value={fuenteActiva} onPick={elegirFuenteDesc} t={t} />
           </div>
           <BarraFormato onWrap={envolver} onInsert={insertar} t={t} />
-          <textarea ref={descRef} value={e.descripcion} onChange={(ev) => onDescChange(ev.target.value)} rows={5} className={input} maxLength={4096} />
+          <TextareaCanales ref={descRef} canales={canales} value={e.descripcion} onChange={(ev) => onDescChange(ev.target.value)} onValor={(v) => set('descripcion', v)} rows={5} className={input} maxLength={4096} />
           <p className="mt-1 text-xs text-muted">{t('dashboard.embed_b.descHint')}</p>
         </div>
 
@@ -476,7 +479,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen, presets, on
                   <input value={c.nombre} onChange={(ev) => setCampo(i, 'nombre', ev.target.value)} className={input} placeholder={t('dashboard.embed_b.fieldName')} maxLength={256} />
                   <button type="button" onClick={() => delCampo(i)} className="shrink-0 rounded-xl border border-line px-2 text-muted transition-colors hover:text-danger"><Trash2 size={15} /></button>
                 </div>
-                <textarea value={c.valor} onChange={(ev) => setCampo(i, 'valor', ev.target.value)} rows={2} className={input + ' mt-2'} placeholder={t('dashboard.embed_b.fieldValue')} maxLength={1024} />
+                <div className="mt-2"><TextareaCanales canales={canales} value={c.valor} onChange={(ev) => setCampo(i, 'valor', ev.target.value)} onValor={(v) => setCampo(i, 'valor', v)} rows={2} className={input} placeholder={t('dashboard.embed_b.fieldValue')} maxLength={1024} /></div>
                 <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted">
                   <input type="checkbox" checked={!!c.inline} onChange={(ev) => setCampo(i, 'inline', ev.target.checked)} className="h-3.5 w-3.5 cursor-pointer" />
                   {t('dashboard.embed_b.inline')}
