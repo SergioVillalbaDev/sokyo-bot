@@ -5,11 +5,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
-import { LogIn, LogOut, Save, Check, Info, Send, Hash } from 'lucide-react';
+import { LogIn, LogOut, Save, Check, Info, Send, Hash, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
 import { EMBED_VACIO } from './embedDefaults';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { estadoMensaje } from '../../../lib/estadoBienvenida';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -57,6 +58,21 @@ export default function BienvenidaView({ dash }) {
   const set = (k, val) => { setGuardado(false); setActual((prev) => ({ ...prev, [k]: val })); };
   const insertarVar = (v) => set('contenido', `${actual.contenido || ''}${v}`);
 
+  // ¿Se va a mandar de verdad? Aviso arriba con el motivo y, si se puede, el arreglo en un clic.
+  const estado = estadoMensaje(actual, { tipo: tab, canales });
+  const arreglo = {
+    apagado: { texto: 'activar', hacer: () => set('activo', true) },
+    sinPing: { texto: 'activarMencion', hacer: () => set('mencionar', true) },
+    sinMencion: { texto: 'anadirMencion', hacer: () => { set('mencionar', true); set('contenido', `{mention} ${actual.contenido || ''}`.trim()); } },
+    mencionEnEmbed: { texto: 'anadirMencion', hacer: () => { set('mencionar', true); set('contenido', `{mention} ${actual.contenido || ''}`.trim()); } },
+  }[estado.clave];
+  const ESTILO_ESTADO = {
+    ok: ['border-success/40 bg-success/10', CheckCircle2, 'text-success'],
+    aviso: ['border-warn/50 bg-warn/10', AlertTriangle, 'text-warn'],
+    error: ['border-danger/50 bg-danger/10', XCircle, 'text-danger'],
+  };
+  const [claseEstado, IconoEstado, colorEstado] = ESTILO_ESTADO[estado.tipo];
+
   const guardar = async () => {
     setGuardando(true);
     const ok = await guardarBienvenidas(b, d);
@@ -88,6 +104,19 @@ export default function BienvenidaView({ dash }) {
             <Icon size={16} /> {t(`dashboard.bienvenida_v.${id === 'bienvenida' ? 'tabWelcome' : 'tabFarewell'}`)}
           </button>
         ))}
+      </div>
+
+      <div role="status" className={`flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 ${claseEstado}`}>
+        <IconoEstado size={18} className={`shrink-0 ${colorEstado}`} />
+        <p className="min-w-0 flex-1 text-sm font-semibold text-fg">
+          {t(`dashboard.bienvenida_v.estado.${estado.clave}`, { cuando: t(`dashboard.bienvenida_v.estado.${tab === 'bienvenida' ? 'cuandoEntra' : 'cuandoSale'}`) })}
+        </p>
+        {arreglo && (
+          <button type="button" onClick={arreglo.hacer}
+            className="shrink-0 rounded-xl border border-line bg-bg px-3 py-1.5 text-xs font-bold text-fg transition-colors hover:border-brand">
+            {t(`dashboard.bienvenida_v.estado.${arreglo.texto}`)}
+          </button>
+        )}
       </div>
 
       <div data-help="bienvenida-mensaje" className={card}>

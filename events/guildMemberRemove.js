@@ -25,8 +25,21 @@ module.exports = {
 
         // --- Mensaje de despedida en el canal (editable, con embed/GIFs) ---
         if (!member.user.bot) {
-            try { await enviarDespedida(member, cfg); }
-            catch (error) { console.error('Error en mensaje de despedida:', error.message); }
+            try {
+                const r = await enviarDespedida(member, cfg);
+                // Encendida pero no ha podido salir: que el staff lo vea en el Registro.
+                if (r && r.error && cfg?.despedida?.activo) {
+                    const log = await Log.create({
+                        guildId: member.guild.id,
+                        categoria: 'Salidas',
+                        accion: t(cfg, '⚠️ No se pudo mandar la despedida', '⚠️ The goodbye message failed'),
+                        usuario: member.user.username,
+                        detalles: r.error,
+                        color: '#e67e22'
+                    });
+                    await enviarLogADiscord(client, log);
+                }
+            } catch (error) { console.error('Error en mensaje de despedida:', error.message); }
         }
 
         try {

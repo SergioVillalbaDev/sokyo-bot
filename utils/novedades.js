@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.2': [
+        { tab: 'prod-bienvenidas', es: '👋 Bienvenidas y despedidas: arriba del todo te dice si de verdad se mandan solas y, si no, por qué (apagada, sin canal, vacía…) o si salen sin notificación, con un botón para arreglarlo.', en: '👋 Welcomes and goodbyes: at the top it tells you whether they’re really sent automatically and, if not, why (off, no channel, empty…) or whether they go out without a notification, with a button to fix it.' },
+        { tab: 'logs-todos', es: '⚠️ Si la bienvenida está encendida pero no puede salir al entrar alguien (falta un permiso, el canal se borró…), queda apuntado en el registro y en el canal de logs.', en: '⚠️ If the welcome is on but can’t be sent when someone joins (a missing permission, a deleted channel…), it’s noted in the log and the logs channel.' },
+    ],
     '1.9.1': [
         { tab: 'prod-bienvenidas', es: '🖼️ Al subir una imagen o un logo a un embed (bienvenidas, anuncios…) puedes recortarla, moverla, ampliarla y ver cómo quedará en Discord. Con «Que se vea entera», el logo ya no se corta en el icono redondo.', en: '🖼️ When you upload an image or logo to an embed (welcomes, announcements…) you can crop, move and zoom it and see how it will look in Discord. With “Show it whole”, logos no longer get cut off in the round icon.' },
         { tab: 'prod-bienvenidas', es: '📨 «Enviar prueba» en bienvenidas y despedidas funciona aunque el mensaje aún no esté activado, guarda antes lo que ves y, si algo falla, te dice qué permiso le falta al bot.', en: '📨 “Send test” in welcomes and goodbyes works even if the message isn’t turned on yet, saves what you see first and, if something fails, tells you which permission the bot is missing.' },
