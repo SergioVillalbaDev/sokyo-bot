@@ -47,6 +47,12 @@ function App() {
   const [nuevaUrgColor, setNuevaUrgColor] = useState('#e74c3c');
   const [nuevaUrgNivel, setNuevaUrgNivel] = useState(1);
 
+  // Equipo de staff y categoría de los tickets (+ roles/categorías reales del servidor de Discord)
+  const [rolesStaff, setRolesStaff] = useState([]);
+  const [categoriaTicketsId, setCategoriaTicketsId] = useState('');
+  const [discordInfo, setDiscordInfo] = useState({ roles: [], categorias: [] });
+  const [errorDiscord, setErrorDiscord] = useState('');
+
   const [usuariosStats, setUsuariosStats] = useState([]);
   
   // Estados de Logs y Plan
@@ -162,9 +168,23 @@ function App() {
           setConfigServidor(datos[0]); setMotivos(datos[0].motivos || []);
           setUrgencias(datos[0].urgencias || [{ nombre: 'Urgente', color: '#e74c3c', nivel: 4 }, { nombre: 'Alta', color: '#e67e22', nivel: 3 }, { nombre: 'Normal', color: '#3498db', nivel: 2 }, { nombre: 'Baja', color: '#95a5a6', nivel: 1 }]);
           setTituloMensaje(datos[0].mensajeSoporteTitulo || '🎫 Soporte Técnico Activo'); setDescripcionMensaje(datos[0].mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.'); setFooterMensaje(datos[0].footerPersonalizado || 'Sistema de Gestión Sokyo');
+          setRolesStaff(datos[0].rolesStaff || []); setCategoriaTicketsId(datos[0].categoriaTicketsId || '');
+          cargarDatosDiscord(datos[0].guildId);
         }
     }).catch(reportarError('cargando configuración'));
   };
+
+  // Roles y categorías del servidor de Discord para los selectores de "Equipo de Staff"
+  const cargarDatosDiscord = (guildId) => {
+    apiFetch(`/api/config/${guildId}/discord`).then(procesarRespuesta).then(datos => {
+        setDiscordInfo({ roles: datos.roles || [], categorias: datos.categorias || [] }); setErrorDiscord('');
+    }).catch(err => {
+        console.error('Error cargando roles/categorías de Discord:', err);
+        setErrorDiscord(`No se pudieron cargar los roles y categorías de Discord (${err.message}). ¿Está el bot encendido y dentro del servidor?`);
+    });
+  };
+
+  const toggleRolStaff = (rolId) => setRolesStaff(rolesStaff.includes(rolId) ? rolesStaff.filter(id => id !== rolId) : [...rolesStaff, rolId]);
 
   const agregarUrgencia = () => { if (nuevaUrgNombre.trim() !== '' && !urgencias.some(u => u.nombre.toLowerCase() === nuevaUrgNombre.trim().toLowerCase())) { setUrgencias([...urgencias, { nombre: nuevaUrgNombre.trim(), color: nuevaUrgColor, nivel: Number(nuevaUrgNivel) }]); setNuevaUrgNombre(''); setNuevaUrgNivel(1); } };
   const eliminarUrgencia = (nombreUrg) => setUrgencias(urgencias.filter(u => u.nombre !== nombreUrg));
@@ -174,8 +194,12 @@ function App() {
   const guardarCambiosConfig = async () => {
     if (!configServidor) return;
     const motivosFormateados = motivos.map(m => typeof m === 'string' ? { nombre: m, urgencia: 'Normal' } : m);
-    await apiFetch(`/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
-    await apiFetch(`/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
+    const respuestas = [
+      await apiFetch(`/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) }),
+      await apiFetch(`/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) }),
+      await apiFetch(`/api/config/${configServidor.guildId}/staff`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rolesStaff: rolesStaff, categoriaTicketsId: categoriaTicketsId || null }) })
+    ];
+    if (respuestas.some(r => !r.ok)) return alert('❌ No se pudo guardar toda la configuración. Revisa la consola del bot.');
     alert('✅ ¡Sistema de Tickets actualizado en Discord exitosamente!'); setMotivos(motivosFormateados);
   };
 
@@ -484,6 +508,46 @@ function App() {
                     {urgencias.map((u, i) => (<option key={i} value={u.nombre} style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>{u.nombre}</option>))}
                   </select>
                   <button onClick={agregarMotivo} style={{ backgroundColor: '#2ecc71', color: 'white', padding: '10px 15px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Añadir</button>
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '25px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>🛡️ Equipo de Staff y Categoría</h3>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9em' }}>Los roles marcados ven todos los tickets y pueden reclamarlos y añadir usuarios, aunque no sean administradores.</p>
+              </div>
+              {errorDiscord && <div style={{ backgroundColor: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(231, 76, 60, 0.4)', fontSize: '0.9em' }}>⚠️ {errorDiscord}</div>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '0.85em', fontWeight: 'bold' }}>Roles de Staff ({rolesStaff.length} seleccionados)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '220px', overflowY: 'auto', padding: '12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    {discordInfo.roles.length === 0 && rolesStaff.length === 0 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.9em' }}>No hay roles disponibles.</span>}
+                    {discordInfo.roles.map(rol => {
+                      const activo = rolesStaff.includes(rol.id);
+                      return (
+                        <label key={rol.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '16px', cursor: 'pointer', fontSize: '0.9em', border: `1px solid ${activo ? 'var(--accent-color)' : 'var(--border-color)'}`, backgroundColor: activo ? 'rgba(41, 128, 185, 0.15)' : 'var(--bg-secondary)' }}>
+                          <input type="checkbox" checked={activo} onChange={() => toggleRolStaff(rol.id)} style={{ cursor: 'pointer' }} />
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: rol.color === '#000000' ? 'var(--text-secondary)' : rol.color }}></span>
+                          {rol.nombre}
+                        </label>
+                      );
+                    })}
+                    {rolesStaff.filter(id => !discordInfo.roles.some(r => r.id === id)).map(id => (
+                      <label key={id} title="Este rol ya no existe en Discord (o no se pudo cargar). Desmárcalo para quitarlo." style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '16px', cursor: 'pointer', fontSize: '0.9em', border: '1px dashed #e67e22', color: 'var(--text-secondary)' }}>
+                        <input type="checkbox" checked onChange={() => toggleRolStaff(id)} style={{ cursor: 'pointer' }} />
+                        Rol no encontrado ({id})
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '0.85em', fontWeight: 'bold' }}>Categoría de los tickets</label>
+                  <select value={categoriaTicketsId} onChange={(e) => setCategoriaTicketsId(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }}>
+                    <option value="" style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>— Sin categoría (raíz del servidor) —</option>
+                    {discordInfo.categorias.map(c => (<option key={c.id} value={c.id} style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>{c.nombre}</option>))}
+                    {categoriaTicketsId && !discordInfo.categorias.some(c => c.id === categoriaTicketsId) && (<option value={categoriaTicketsId} style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>Categoría no encontrada ({categoriaTicketsId})</option>)}
+                  </select>
+                  <span style={{ fontSize: '0.8em', color: 'var(--text-secondary)' }}>Los tickets nuevos se crean dentro de esta categoría y vuelven a ella al reabrirse. Si no existe, se crean en la raíz del servidor.</span>
                 </div>
               </div>
             </div>

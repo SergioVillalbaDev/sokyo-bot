@@ -1,7 +1,7 @@
-const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
+const { Events, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
-const { cerrarTicket, registrarLogTicket } = require('../utils/ticketManager.js');
+const { cerrarTicket, registrarLogTicket, esStaff, obtenerCategoriaTickets, permisosCanalTicket } = require('../utils/ticketManager.js');
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -50,7 +50,8 @@ module.exports = {
 
             // RECLAMAR TICKET (Guarda al staff en los implicados)
             if (interaction.customId === 'reclamar_ticket') {
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+                const config = await ServidorConfig.findOne({ guildId: interaction.guildId });
+                if (!esStaff(interaction.member, config)) {
                     return await interaction.reply({ content: '❌ Solo el equipo de soporte puede reclamar este ticket.', ephemeral: true });
                 }
 
@@ -87,7 +88,8 @@ module.exports = {
 
             // AÑADIR USUARIO AL TICKET
             if (interaction.customId === 'add_user_prompt') {
-                if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+                const config = await ServidorConfig.findOne({ guildId: interaction.guildId });
+                if (!esStaff(interaction.member, config)) {
                     return await interaction.reply({ content: '❌ Solo el equipo de soporte puede invitar a otras personas.', ephemeral: true });
                 }
 
@@ -180,13 +182,14 @@ module.exports = {
                 const urgencia = listaMotivos.find(m => m.nombre === motivo)?.urgencia || 'Normal';
                 const colorHex = listaUrgencias.find(u => u.nombre === urgencia)?.color || '#3498db'; 
 
+                // Oculto para @everyone; visible para el creador y los roles de staff configurados.
+                // Si hay categoría de tickets configurada (y existe), el canal se crea dentro de ella.
+                const categoria = obtenerCategoriaTickets(interaction.guild, config);
                 const canalTicket = await interaction.guild.channels.create({
                     name: `ticket-${interaction.user.username}`,
                     type: ChannelType.GuildText,
-                    permissionOverwrites: [
-                        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
-                    ]
+                    parent: categoria?.id,
+                    permissionOverwrites: permisosCanalTicket(interaction.guild, config, interaction.user.id)
                 });
 
                 // AQUÍ ES DONDE DEBE IR LA FOTO:

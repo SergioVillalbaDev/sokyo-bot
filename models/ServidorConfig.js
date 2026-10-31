@@ -22,6 +22,13 @@ const ServidorConfigSchema = new mongoose.Schema({
         ]
     },
 
+    // --- EQUIPO DE STAFF Y CATEGORÍA DE LOS TICKETS ---
+    // IDs de los roles de Discord que forman el equipo de soporte: ven todos los tickets
+    // y pueden usar los botones de staff (Reclamar, Añadir Usuario) sin ser Administrador.
+    rolesStaff: { type: [String], default: [] },
+    // ID de la categoría de Discord donde se crean (y a la que vuelven al reabrirse) los tickets.
+    categoriaTicketsId: { type: String, default: null },
+
     mensajeSoporteTitulo: { type: String, default: '🎫 Soporte Técnico Activo' },
     mensajeSoporteDescripcion: { type: String, default: 'Haz clic en el botón de abajo para abrir un ticket de soporte.' },
     footerPersonalizado: { type: String, default: 'Sistema de Gestión Sokyo' },

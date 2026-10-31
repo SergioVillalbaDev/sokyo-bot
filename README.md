@@ -125,6 +125,9 @@ Abre la URL que indica Vite (normalmente <http://localhost:5173>).
 - En tu servidor de Discord, ejecuta **`!sokyo`** (como administrador) en el canal donde
   quieras el panel de soporte. Aparecerá un botón **📩 Abrir Ticket**.
 - Los usuarios abren tickets eligiendo categoría y rellenando un formulario.
+- En el panel web → **Ajustes de Incidencias** → **Equipo de Staff y Categoría** elige qué
+  roles forman el equipo de soporte (ven todos los tickets y pueden reclamarlos y añadir
+  usuarios sin ser administradores) y en qué categoría de Discord se crean los tickets.
 - Desde el panel web puedes ver conversaciones, responder, añadir notas internas,
   cerrar/reabrir tickets, ver logs y estadísticas, y personalizar textos y categorías.
 
