@@ -146,8 +146,18 @@ export default function BienvenidaView({ dash }) {
                   {v}
                 </button>
               ))}
+              {/* Mencionar un canal: inserta «#nombre» y el bot lo convierte en enlace al canal */}
+              {canales.length > 0 && (
+                <select value="" onChange={(ev) => { if (ev.target.value) insertarVar(`${(actual.contenido || '').match(/\s$|^$/) ? '' : ' '}#${ev.target.value}`); }}
+                  aria-label={t('dashboard.bienvenida_v.mentionChannel')}
+                  className="rounded-lg border border-line bg-bg px-2 py-1 text-xs font-semibold text-brand transition-colors hover:border-brand focus:outline-none">
+                  <option value="">＃ {t('dashboard.bienvenida_v.mentionChannel')}…</option>
+                  {canales.map((c) => <option key={c.id} value={c.nombre}>#{c.nombre}</option>)}
+                </select>
+              )}
             </div>
             <p className="mt-1.5 text-xs text-muted">{t('dashboard.bienvenida_v.varsHelp')}</p>
+            <p className="mt-1 text-xs text-muted">{t('dashboard.bienvenida_v.channelsHelp')}</p>
           </div>
 
           {tab === 'bienvenida' && (
