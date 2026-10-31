@@ -206,3 +206,29 @@ describe('mencionar canales con #nombre (utils/mencionesCanal.js)', () => {
         assert.strictEqual(e.fields[0].value, 'En <#R1>');
     });
 });
+
+describe('autocompletar canales al escribir # (lib/canalesTexto.js del panel)', () => {
+    let c;
+    before(async () => {
+        c = await import(pathToFileURL(path.join(__dirname, '..', 'sokyo-panelFRONTEND', 'src', 'lib', 'canalesTexto.js')).href);
+    });
+    const canales = [{ id: '1', nombre: 'general' }, { id: '2', nombre: '📜・reglas' }, { id: '3', nombre: 'roles-y-reglas' }, { id: '4', nombre: 'anuncios' }];
+
+    it('detecta «#» al escribir (al principio, tras un espacio o un formato) y no en medio de una palabra', () => {
+        assert.deepStrictEqual(c.buscarConsultaCanal('Lee #reg', 8), { inicio: 4, consulta: 'reg' });
+        assert.deepStrictEqual(c.buscarConsultaCanal('#', 1), { inicio: 0, consulta: '' });
+        assert.deepStrictEqual(c.buscarConsultaCanal('**#re', 5), { inicio: 2, consulta: 're' });
+        assert.strictEqual(c.buscarConsultaCanal('C#', 2), null);
+        assert.strictEqual(c.buscarConsultaCanal('Lee #reglas ya', 14), null); // ya se cerró con un espacio
+    });
+    it('filtra: primero los que empiezan así, luego los que lo contienen; sin texto, todos', () => {
+        assert.deepStrictEqual(c.filtrarCanales(canales, 'reg').map((x) => x.id), ['2', '3']);
+        assert.deepStrictEqual(c.filtrarCanales(canales, 'rol').map((x) => x.id), ['3']);
+        assert.strictEqual(c.filtrarCanales(canales, '').length, 4);
+        assert.deepStrictEqual(c.filtrarCanales(canales, 'zzz'), []);
+    });
+    it('al elegir, deja «#nombre » y el cursor detrás', () => {
+        assert.deepStrictEqual(c.insertarCanal('Lee #reg', 8, 4, '📜・reglas'), { texto: 'Lee #📜・reglas ', cursor: 4 + 1 + '📜・reglas'.length + 1 });
+        assert.strictEqual(c.insertarCanal('Lee #re y ya', 7, 4, 'reglas').texto, 'Lee #reglas y ya');
+    });
+});

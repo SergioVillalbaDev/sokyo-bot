@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.3.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.4.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -324,5 +324,10 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `# Título`, enlaces con `#`, `C#` ni `<#id>`. Se aplica al texto, la descripción y el
   valor de los campos (donde Discord enseña enlaces). En el panel, desplegable
   «Mencionar un canal» junto a las variables.
+- 1.9.4 Al escribir «#» en la bienvenida/despedida (texto, descripción y valor de los
+  campos del embed) sale la lista de canales, como en Discord: `TextareaCanales.jsx`
+  (lógica en `lib/canalesTexto.js`, con test), con ratón, toque o ↑ ↓ + Enter/Tab y
+  Escape. Inserta «#nombre» y el bot lo convierte al enviar (1.9.3). `EmbedBuilder`
+  solo lo activa si recibe `canales` (hoy, solo Bienvenidas: es donde se convierte).
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).
