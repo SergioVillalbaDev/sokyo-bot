@@ -311,6 +311,10 @@ const ServidorConfigSchema = new mongoose.Schema({
         mencionar: { type: Boolean, default: true },        // pingear al usuario que entra
         embed: { type: mongoose.Schema.Types.Mixed, default: null }, // embed opcional (null = solo texto)
     },
+    // Bienvenidas extra (además de la principal): p. ej. una por juego. Cada una:
+    // { id, nombre, activo, cuando: 'entrar' | 'rol', rolId, canalId, contenido, mencionar, embed }.
+    // 'rol' = se manda cuando alguien recibe ese rol (events/guildMemberUpdate.js).
+    bienvenidasExtra: { type: [mongoose.Schema.Types.Mixed], default: [] },
     despedida: {
         activo: { type: Boolean, default: false },
         canalId: { type: String, default: null },

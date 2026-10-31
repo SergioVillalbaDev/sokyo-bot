@@ -23,7 +23,7 @@ const AnuncioProgramado = require('../models/AnuncioProgramado.js');
 const AnuncioPreset = require('../models/AnuncioPreset.js');
 const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificacion.js');
 const { publicarPanel: publicarPanelEmbudo } = require('../utils/embudo.js');
-const { enviarBienvenida, enviarDespedida } = require('../utils/bienvenida.js');
+const { enviarBienvenida, enviarDespedida, enviarExtra } = require('../utils/bienvenida.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
 const { construirMensaje, sanearEmbed, embedTieneContenido, embedTieneAlgo } = require('../utils/embeds.js');
 const { cerrarTicket, reabrirTicket, construirTranscriptHTML, generarTranscriptPDF } = require('../utils/ticketManager.js');
@@ -1931,6 +1931,24 @@ app.get('/api/stats/uso', async (req, res) => {
             const set = {};
             for (const [k, v] of Object.entries(norm(req.body.bienvenida))) set[`bienvenida.${k}`] = v;
             for (const [k, v] of Object.entries(norm(req.body.despedida))) set[`despedida.${k}`] = v;
+            // Bienvenidas extra (p. ej. una por juego): hasta 15, cada una con su nombre,
+            // cuándo se manda (al entrar o al recibir un rol) y su mensaje.
+            if (Array.isArray(req.body.extras)) {
+                const usados = new Set();
+                set.bienvenidasExtra = req.body.extras.slice(0, 15).map((x, i) => {
+                    let id = /^[a-z0-9]{4,24}$/i.test(String(x?.id || '')) ? String(x.id) : crypto.randomBytes(5).toString('hex');
+                    if (usados.has(id)) id = crypto.randomBytes(5).toString('hex');
+                    usados.add(id);
+                    const cuando = x?.cuando === 'rol' ? 'rol' : 'entrar';
+                    return {
+                        id,
+                        nombre: String(x?.nombre || '').trim().slice(0, 50) || `Bienvenida ${i + 2}`,
+                        cuando,
+                        rolId: cuando === 'rol' && x?.rolId ? String(x.rolId) : null,
+                        ...norm(x),
+                    };
+                });
+            }
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: set },
@@ -1960,7 +1978,16 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!member) return res.status(400).json({ error: 'No estás en ese servidor para la prueba.' });
             // prueba: se manda aunque aún no esté activado (para verlo antes de activarlo),
             // y los errores salen en el idioma del panel de quien prueba.
-            const r = await (tipo === 'despedida' ? enviarDespedida : enviarBienvenida)(member, cfg, { prueba: true, idioma: idiomaPanel(req, cfg) });
+            const opciones = { prueba: true, idioma: idiomaPanel(req, cfg) };
+            let r;
+            if (req.body.extraId) {
+                // Una bienvenida extra concreta (la que está abierta en el panel).
+                const extra = (cfg.bienvenidasExtra || []).find((m) => m && m.id === String(req.body.extraId));
+                if (!extra) return res.status(404).json({ error: 'Ese mensaje ya no existe. Recarga la página.' });
+                r = await enviarExtra(member, extra, cfg, opciones);
+            } else {
+                r = await (tipo === 'despedida' ? enviarDespedida : enviarBienvenida)(member, cfg, opciones);
+            }
             if (r && r.error) return res.status(400).json({ error: r.error });
             res.json({ success: true });
         } catch (error) {

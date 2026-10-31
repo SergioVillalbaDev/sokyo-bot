@@ -143,7 +143,7 @@ function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirIma
       {archivo ? (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bg px-3 py-2">
           {miniatura}
-          <span className="min-w-0 flex-1 truncate text-sm text-success">✓ {t('dashboard.embed_b.uploaded')}</span>
+          <span className="min-w-0 flex-1 truncate text-sm text-success">✓ {/\.gif$/i.test(archivo) ? t('dashboard.embed_b.uploadedGif') : t('dashboard.embed_b.uploaded')}</span>
           {botonAjustar}
           <button type="button" onClick={() => onChange({ archivo: '', url: '' })} className="text-muted transition-colors hover:text-danger" aria-label={t('dashboard.recorte.quitar')}><X size={15} /></button>
         </div>
@@ -158,6 +158,7 @@ function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirIma
           </label>
         </div>
       )}
+      {forma === 'ancho' && !archivo && !url && <p className="mt-1 text-xs text-muted">{t('dashboard.embed_b.gifHint')}</p>}
       {estado.startsWith('error:') && <p className="mt-1 text-xs text-danger">{estado.slice(6)}</p>}
       {recortando && <RecortarImagen archivo={recortando} forma={forma} onCancelar={() => setRecortando(null)} onListo={subir} />}
     </div>

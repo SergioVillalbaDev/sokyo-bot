@@ -156,6 +156,12 @@ describe('estado de la bienvenida en el panel (lib/estadoBienvenida.js)', () => 
         assert.strictEqual(e.estadoMensaje({ ...base, contenido: 'Hola' }, { canales }).clave, 'sinMencion');
         assert.strictEqual(e.estadoMensaje({ ...base, contenido: '', embed: { descripcion: 'Hola {mention}' } }, { canales }).clave, 'mencionEnEmbed');
     });
+    it('las que se mandan al recibir un rol avisan si falta el rol o se borró', () => {
+        const roles = [{ id: 'RV', nombre: 'Valorant' }];
+        assert.strictEqual(e.estadoMensaje({ ...base, cuando: 'rol', rolId: null }, { canales, roles }).clave, 'sinRol');
+        assert.strictEqual(e.estadoMensaje({ ...base, cuando: 'rol', rolId: 'BORRADO' }, { canales, roles }).clave, 'rolBorrado');
+        assert.strictEqual(e.estadoMensaje({ ...base, cuando: 'rol', rolId: 'RV' }, { canales, roles }).clave, 'okConAviso');
+    });
     it('bien configurada: se manda con notificación; la despedida no necesita mención', () => {
         assert.deepStrictEqual(e.estadoMensaje(base, { canales }), { tipo: 'ok', clave: 'okConAviso' });
         assert.deepStrictEqual(e.estadoMensaje({ ...base, contenido: 'Adiós' }, { tipo: 'despedida', canales }), { tipo: 'ok', clave: 'ok' });
@@ -230,5 +236,55 @@ describe('autocompletar canales al escribir # (lib/canalesTexto.js del panel)', 
     it('al elegir, deja «#nombre » y el cursor detrás', () => {
         assert.deepStrictEqual(c.insertarCanal('Lee #reg', 8, 4, '📜・reglas'), { texto: 'Lee #📜・reglas ', cursor: 4 + 1 + '📜・reglas'.length + 1 });
         assert.strictEqual(c.insertarCanal('Lee #re y ya', 7, 4, 'reglas').texto, 'Lee #reglas y ya');
+    });
+});
+
+describe('varias bienvenidas (una por juego)', () => {
+    const { enviarBienvenidasExtra } = require('../utils/bienvenida.js');
+    function servidor(uid = 'U1') {
+        const enviados = [];
+        const canal = (id, name) => ({ id, name, send: async (m) => { enviados.push({ canal: id, ...m }); }, permissionsFor: () => new PermissionsBitField(PermissionsBitField.All) });
+        const chans = new Collection([['CV', canal('CV', 'valorant')], ['CM', canal('CM', 'minecraft')], ['CG', canal('CG', 'general')]]);
+        const g = { id: 'G1', name: 'Servidor', memberCount: 5, members: { me: { id: 'BOT' } }, channels: { cache: chans } };
+        chans.forEach((c) => { c.guild = g; });
+        const member = { id: uid, guild: g, user: { username: 'alex' }, displayAvatarURL: () => 'https://cdn.discordapp.com/a.png' };
+        return { member, enviados };
+    }
+    const cfg = { bienvenidasExtra: [
+        { id: 'v', nombre: 'Valorant', activo: true, cuando: 'rol', rolId: 'RV', canalId: 'CV', contenido: '¡{mention} se une a Valorant!', mencionar: true },
+        { id: 'm', nombre: 'Minecraft', activo: true, cuando: 'rol', rolId: 'RM', canalId: 'CM', contenido: 'Minecraft: hola {user}', mencionar: false },
+        { id: 'g', nombre: 'General', activo: true, cuando: 'entrar', canalId: 'CG', contenido: 'Hola {mention}', mencionar: true },
+        { id: 'x', nombre: 'Apagada', activo: false, cuando: 'entrar', canalId: 'CG', contenido: 'No debería salir' },
+    ] };
+
+    it('al entrar al servidor solo salen las de «al entrar» que están encendidas', async () => {
+        const { member, enviados } = servidor();
+        const r = await enviarBienvenidasExtra(member, cfg, { evento: 'entrar' });
+        assert.deepStrictEqual(r.map((x) => x.conf.id), ['g']);
+        assert.deepStrictEqual(enviados.map((e) => [e.canal, e.content]), [['CG', 'Hola <@U1>']]);
+    });
+    it('al recibir el rol de un juego sale la bienvenida de ese juego, en su canal', async () => {
+        const { member, enviados } = servidor();
+        await enviarBienvenidasExtra(member, cfg, { evento: 'rol', rolesNuevos: ['RV'] });
+        assert.deepStrictEqual(enviados.map((e) => [e.canal, e.content]), [['CV', '¡<@U1> se une a Valorant!']]);
+        assert.deepStrictEqual(enviados[0].allowedMentions, { users: ['U1'] });
+    });
+    it('con varios roles nuevos a la vez, una por cada uno; con un rol sin bienvenida, ninguna', async () => {
+        const a = servidor('U2');
+        await enviarBienvenidasExtra(a.member, cfg, { evento: 'rol', rolesNuevos: ['RM', 'RV'] });
+        assert.deepStrictEqual(a.enviados.map((e) => e.canal).sort(), ['CM', 'CV']);
+        const b = servidor();
+        await enviarBienvenidasExtra(b.member, cfg, { evento: 'rol', rolesNuevos: ['OTRO'] });
+        assert.strictEqual(b.enviados.length, 0);
+    });
+    it('quitar y volver a poner el rol no repite la bienvenida de ese juego', async () => {
+        const a = servidor('U3');
+        await enviarBienvenidasExtra(a.member, cfg, { evento: 'rol', rolesNuevos: ['RV'] });
+        await enviarBienvenidasExtra(a.member, cfg, { evento: 'rol', rolesNuevos: ['RV'] });
+        assert.strictEqual(a.enviados.length, 1);
+        // Otra persona con el mismo rol sí la recibe.
+        const b = servidor('U4');
+        await enviarBienvenidasExtra(b.member, cfg, { evento: 'rol', rolesNuevos: ['RV'] });
+        assert.strictEqual(b.enviados.length, 1);
     });
 });

@@ -16,11 +16,16 @@ export function embedTieneContenido(e) {
 // Textos del embed donde se puede escribir {mention}.
 const textosEmbed = (e) => (e ? [e.titulo, e.descripcion, e.autorNombre, e.footer, ...camposCompletos(e).flatMap((c) => [c.nombre, c.valor])] : []);
 
-// `conf`: { activo, canalId, contenido, mencionar, embed } · `canales`: los de texto del servidor.
+// `conf`: { activo, canalId, contenido, mencionar, embed, cuando?, rolId? } · `canales`: los
+// de texto del servidor · `roles`: los del servidor (para las que se mandan al recibir un rol).
 // Devuelve { tipo: 'ok' | 'aviso' | 'error', clave } — `clave` es el texto en dashboard.bienvenida_v.estado.
-export function estadoMensaje(conf, { tipo = 'bienvenida', canales = [] } = {}) {
+export function estadoMensaje(conf, { tipo = 'bienvenida', canales = [], roles = [] } = {}) {
   const c = conf || {};
   if (!c.activo) return { tipo: 'error', clave: 'apagado' };
+  if (c.cuando === 'rol') {
+    if (!c.rolId) return { tipo: 'error', clave: 'sinRol' };
+    if (roles.length && !roles.some((r) => r.id === c.rolId)) return { tipo: 'error', clave: 'rolBorrado' };
+  }
   if (!c.canalId) return { tipo: 'error', clave: 'sinCanal' };
   if (canales.length && !canales.some((x) => x.id === c.canalId)) return { tipo: 'error', clave: 'canalBorrado' };
   const texto = String(c.contenido || '');

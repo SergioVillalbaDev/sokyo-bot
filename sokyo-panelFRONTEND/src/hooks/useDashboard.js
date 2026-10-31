@@ -760,22 +760,24 @@ export function useDashboard() {
   };
 
   // --- COMUNIDAD: mensajes de bienvenida / despedida ---
-  const guardarBienvenidas = async (bienvenida, despedida) => {
+  // `extras`: bienvenidas extra (una por juego…); si no se pasa, se dejan como están.
+  const guardarBienvenidas = async (bienvenida, despedida, extras) => {
     if (!gidActivo()) return false;
     try {
       const res = await apiFetch(`/api/config/${gidActivo()}/bienvenidas`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bienvenida, despedida }),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bienvenida, despedida, ...(Array.isArray(extras) ? { extras } : {}) }),
       });
       const data = await res.json();
       if (data.success && data.config) { setConfigServidor(data.config); return true; }
     } catch (error) { console.error('Error guardando bienvenidas:', error); }
     return false;
   };
-  const probarBienvenida = async (tipo) => {
+  // `extraId`: probar una bienvenida extra concreta.
+  const probarBienvenida = async (tipo, extraId) => {
     if (!gidActivo()) return { error: 'Sin servidor' };
     try {
       const res = await apiFetch(`/api/bienvenidas/${gidActivo()}/probar`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo, ...(extraId ? { extraId } : {}) }),
       });
       const data = await res.json();
       return data.success ? data : { error: data.error || 'No se pudo enviar la prueba' };
@@ -1485,7 +1487,7 @@ export function useDashboard() {
     else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
     else if (activeTab === 'mod-automod') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
     else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); cargarPresetsAnuncio(); }
-    else if (activeTab === 'prod-bienvenidas') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); }
+    else if (activeTab === 'prod-bienvenidas') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarPresetsAnuncio(); }
     else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
@@ -1564,7 +1566,7 @@ export function useDashboard() {
     const b = (v) => !!v;
     return {
       'seg-verificacion': b((c.verificacion && c.verificacion.activo) || (c.embudoAB && c.embudoAB.activo)),
-      'prod-bienvenidas': b((c.bienvenida && c.bienvenida.activo) || (c.despedida && c.despedida.activo)),
+      'prod-bienvenidas': b((c.bienvenida && c.bienvenida.activo) || (c.despedida && c.despedida.activo) || (c.bienvenidasExtra || []).some((m) => m && m.activo)),
       'config-niveles': b(c.nivelesActivo),
       'mod-automod': b(c.automod && c.automod.activo),
       'mod-reportes': b(c.reportes && c.reportes.activo),
