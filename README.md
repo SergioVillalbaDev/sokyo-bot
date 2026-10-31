@@ -11,7 +11,8 @@ sokyo-bot/
 ├── comandos/             # Comandos por prefijo "!"
 ├── events/               # Eventos de Discord (tickets, logs, entradas/salidas...)
 ├── models/               # Esquemas de MongoDB (Ticket, Mensaje, Log, ServidorConfig)
-├── utils/                # Lógica compartida (cerrar/reabrir tickets, etc.)
+├── utils/                # Lógica compartida (cerrar/reabrir tickets, adjuntos, etc.)
+├── scripts/              # Scripts de mantenimiento (migración de adjuntos)
 └── sokyo-panelFRONTEND/  # Panel web de administración (React + Vite)
 ```
 
@@ -137,3 +138,19 @@ Otros comandos: `!user [@usuario]` (estadísticas de tickets), `!dado`, `!moneda
 - **Build de producción del panel:** `cd sokyo-panelFRONTEND && npm run build` (genera `dist/`).
 - Los archivos `.env` están en `.gitignore`: cada persona crea el suyo a partir de `.env.example`.
 - Si cambias un `.env`, **reinicia** el proceso correspondiente (Vite no recarga variables en caliente).
+
+### 🖼️ Imágenes de los tickets
+
+Las URLs de los adjuntos de Discord **caducan a las ~24 h**, así que el bot copia cada imagen
+enviada en un ticket (PNG, JPG, GIF, WebP o AVIF, hasta 8 MB) a la carpeta `uploads/` y la API
+la sirve con la misma protección que el resto: el panel con su `API_KEY` y el portal solo al
+dueño del ticket. Si la descarga falla, se guarda la URL de Discord como respaldo y se registra el error.
+
+- `uploads/` no se sube a git: **inclúyela en tus copias de seguridad**. Puedes cambiar la carpeta
+  con `UPLOADS_DIR` y el tamaño máximo con `ADJUNTOS_MAX_MB` (ver `.env.example`).
+- Para copiar las imágenes de **tickets anteriores** a este cambio (renueva antes las URLs
+  caducadas con la API de Discord):
+  ```bash
+  npm run migrar-adjuntos -- --dry-run   # muestra cuántas se migrarían
+  npm run migrar-adjuntos                # las descarga y actualiza la BD
+  ```

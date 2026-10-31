@@ -1,6 +1,7 @@
 // Portal del Cliente: los usuarios entran con Discord y gestionan SUS tickets.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './index.css';
+import ImagenAdjunta from './ImagenAdjunta.jsx';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -30,10 +31,11 @@ function Portal() {
     }
   }, []);
 
-  const portalFetch = (path, options = {}) => fetch(`${API_URL}${path}`, {
+  // Memorizado por token: ImagenAdjunta lo usa como dependencia para descargar las imágenes protegidas.
+  const portalFetch = useCallback((path, options = {}) => fetch(`${API_URL}${path}`, {
     ...options,
     headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` }
-  });
+  }), [token]);
 
   const logout = () => { localStorage.removeItem('portalToken'); setToken(''); setUsuario(null); setTickets([]); setTicketSel(null); };
 
@@ -118,7 +120,7 @@ function Portal() {
                         <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: '12px', backgroundColor: mio ? 'var(--accent-color)' : 'var(--bg-main)', color: mio ? '#fff' : 'var(--text-primary)' }}>
                           <div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: '3px' }}>{m.usuario}</div>
                           <div>{m.contenido}</div>
-                          {m.imagenes && m.imagenes.map((url, j) => <img key={j} src={url} alt="adjunto" style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '6px' }} />)}
+                          {m.imagenes && m.imagenes.map((url, j) => <ImagenAdjunta key={j} src={url} fetcher={portalFetch} style={{ display: 'block', maxWidth: '100%', borderRadius: '8px', marginTop: '6px' }} />)}
                         </div>
                       </div>
                     );

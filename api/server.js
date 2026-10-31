@@ -6,6 +6,7 @@ const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
 const { cerrarTicket, reabrirTicket } = require('../utils/ticketManager.js');
 const { firmarToken, verificarToken } = require('../utils/auth.js');
+const { rutaAdjunto, urlParaPortal } = require('../utils/adjuntos.js');
 
 module.exports = (client) => {
     const app = express();
@@ -47,6 +48,24 @@ module.exports = (client) => {
         if (!usuario) return res.status(401).json({ error: 'Sesión no válida o caducada' });
         req.usuario = usuario;
         next();
+    };
+
+    // --- Envía una imagen adjunta guardada en uploads/ (la autorización la hace cada ruta) ---
+    const enviarAdjunto = (ticketId, archivo, res) => {
+        const ruta = rutaAdjunto(ticketId, archivo);
+        if (!ruta) return res.status(404).json({ error: 'Adjunto no encontrado' });
+        res.sendFile(ruta, {
+            headers: {
+                'Cache-Control': 'private, max-age=86400',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Security-Policy': "default-src 'none'; sandbox"
+            }
+        }, (err) => {
+            if (!err || res.headersSent) return;
+            if (err.code === 'ENOENT' || err.status === 404) return res.status(404).json({ error: 'Adjunto no encontrado' });
+            console.error('Error al enviar un adjunto:', err);
+            res.status(500).json({ error: 'Fallo interno' });
+        });
     };
 
     // ===================== PORTAL DEL CLIENTE (OAuth Discord) =====================
@@ -121,10 +140,23 @@ module.exports = (client) => {
         try {
             const ticket = await Ticket.findOne({ canalId: req.params.canalId });
             if (!ticket || ticket.creadorId !== req.usuario.id) return res.status(403).json({ error: 'No autorizado' });
-            const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 });
-            res.json(mensajes);
+            const mensajes = await Mensaje.find({ ticketId: req.params.canalId }).sort({ fecha: 1 }).lean();
+            // Las imágenes propias se sirven al portal por su ruta protegida (ver 5b).
+            res.json(mensajes.map(m => ({ ...m, imagenes: (m.imagenes || []).map(urlParaPortal) })));
         } catch (error) {
             console.error('Error al obtener mensajes del portal:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+
+    // 5b. Imagen adjunta de UN ticket mío (verifica propiedad, igual que los mensajes)
+    app.get('/api/portal/tickets/:canalId/adjuntos/:archivo', portalAuth, async (req, res) => {
+        try {
+            const ticket = await Ticket.findOne({ canalId: req.params.canalId });
+            if (!ticket || ticket.creadorId !== req.usuario.id) return res.status(403).json({ error: 'No autorizado' });
+            enviarAdjunto(req.params.canalId, req.params.archivo, res);
+        } catch (error) {
+            console.error('Error al obtener adjunto del portal:', error);
             res.status(500).json({ error: 'Fallo interno' });
         }
     });
@@ -181,6 +213,11 @@ module.exports = (client) => {
     
     app.get('/api/mensajes/:ticketId', async (req, res) => {
         res.json(await Mensaje.find({ ticketId: req.params.ticketId }).sort({ fecha: 1 }));
+    });
+
+    // Imágenes adjuntas de los tickets (protegidas por la API key del staff, como el resto de /api)
+    app.get('/api/adjuntos/:ticketId/:archivo', (req, res) => {
+        enviarAdjunto(req.params.ticketId, req.params.archivo, res);
     });
 
 

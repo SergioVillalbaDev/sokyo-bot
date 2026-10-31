@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
+const { persistirAdjuntos } = require('../utils/adjuntos.js');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -14,24 +15,21 @@ module.exports = {
             console.log(`📎 Adjuntos: ${message.attachments.size}`);
 
             try {
-                let imagenesAdjuntas = [];
-                
-                if (message.attachments.size > 0) {
-                    // Extraemos las URLs de forma segura
-                    message.attachments.forEach(adjunto => {
-                        imagenesAdjuntas.push(adjunto.url);
-                    });
-                }
+                // Las URLs del CDN de Discord caducan a las ~24 h: copiamos las imágenes a
+                // almacenamiento propio y guardamos nuestra URL (o la de Discord si falla).
+                const imagenesAdjuntas = message.attachments.size > 0 ? await persistirAdjuntos(message) : [];
 
                 console.log(`🔗 URLs a guardar:`, imagenesAdjuntas);
 
-                // Guardamos en MongoDB
+                // Guardamos en MongoDB. La fecha es la del mensaje en Discord para que el
+                // tiempo de descarga de los adjuntos no altere el orden de la conversación.
                 const msgGuardado = await Mensaje.create({
                     ticketId: message.channel.id,
                     usuario: message.author.username,
                     usuarioId: message.author.id,
                     contenido: message.content,
-                    imagenes: imagenesAdjuntas
+                    imagenes: imagenesAdjuntas,
+                    fecha: message.createdAt
                 });
                 
                 console.log(`✅ Guardado en BD exitosamente con ${msgGuardado.imagenes.length} imágenes.`);
