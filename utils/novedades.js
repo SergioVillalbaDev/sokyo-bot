@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.6': [
+        { tab: 'seg-verificacion', es: '🎨 El panel de entrada de la Doble bienvenida («¡Bienvenido al servidor!» con el botón «Empezar») ya se personaliza entero: texto, embed con imágenes o GIF, y el texto y el color del botón. En la verificación también puedes elegir el color del botón.', en: '🎨 The Dual welcome entry panel (“Welcome to the server!” with the “Get started” button) is now fully customizable: text, an embed with images or GIFs, and the button’s text and color. In verification you can also pick the button color.' },
+        { tab: 'prod-ausente', es: '🔄 Las listas del panel (ausentes, grupos, solicitudes, confesiones, clanes, cumpleaños y salón de la fama) se actualizan solas en unos segundos, sin recargar la página.', en: '🔄 Panel lists (away members, groups, requests, confessions, clans, birthdays and hall of fame) update by themselves within seconds, without reloading the page.' },
+    ],
     '1.9.5': [
         { tab: 'prod-bienvenidas', es: '🎮 Varias bienvenidas a la vez: añade un mensaje (con su embed) para cada juego o categoría. Cada uno puede salir al entrar alguien o cuando recibe un rol (por ejemplo, el rol de un juego), en su propio canal.', en: '🎮 Several welcomes at once: add a message (with its embed) for each game or category. Each one can be sent when someone joins or when they get a role (for example, a game role), in its own channel.' },
         { tab: 'prod-bienvenidas', es: '🎞️ La imagen y la miniatura de los embeds también pueden ser un GIF animado (desde un enlace o subido desde el PC).', en: '🎞️ Embed images and thumbnails can also be an animated GIF (from a link or uploaded from your PC).' },

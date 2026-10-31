@@ -10,7 +10,7 @@
 // la API esté en localhost (mismo truco que utils/rolePanelManager.js).
 const fs = require('fs');
 const path = require('path');
-const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, ButtonStyle } = require('discord.js');
 const { garantizarMarca, lineaMarcaTexto } = require('./marca.js');
 
 // Pasa "#5865F2" (o un número) a un entero de color válido, o null si no lo es.
@@ -155,4 +155,10 @@ function construirMensaje(contenido, e, uploadsDir, cfg) {
     return payload;
 }
 
-module.exports = { construirEmbed, construirMensaje, sanearEmbed, embedTieneContenido, embedTieneAlgo, camposCompletos, normalizarColor };
+// Color de los botones de los paneles que se pueden personalizar (verificación,
+// doble bienvenida…). En el panel se eligen por nombre: verde, azul, gris o rojo.
+const ESTILOS_BOTON = { verde: ButtonStyle.Success, azul: ButtonStyle.Primary, gris: ButtonStyle.Secondary, rojo: ButtonStyle.Danger };
+const sanearEstiloBoton = (nombre) => (Object.prototype.hasOwnProperty.call(ESTILOS_BOTON, nombre) ? nombre : 'verde');
+const estiloBoton = (nombre) => ESTILOS_BOTON[sanearEstiloBoton(nombre)];
+
+module.exports = { construirEmbed, construirMensaje, sanearEmbed, embedTieneContenido, embedTieneAlgo, camposCompletos, normalizarColor, estiloBoton, sanearEstiloBoton };

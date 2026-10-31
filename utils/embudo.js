@@ -18,9 +18,15 @@ const {
 } = require('discord.js');
 const EmbudoCohorte = require('../models/EmbudoCohorte.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
+const path = require('path');
 const { generarCaptcha } = require('./captcha.js');
 const { esPro } = require('./billing.js');
 const { t } = require('./i18n.js');
+const { construirMensaje, embedTieneContenido, estiloBoton } = require('./embeds.js');
+const { mencionarEnMensaje } = require('./mencionesCanal.js');
+
+// Carpeta de imágenes subidas (para el embed personalizado del panel con imagen/GIF).
+const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 
 // ----------------------------------------------------------------------------
 // 1) CAPTURA DE DATOS
@@ -190,15 +196,30 @@ function contenidoVariante(gid, userId, e, variante, cfg) {
 }
 
 // Construye el panel público (entrega = panel): un único botón "Empezar".
-function contenidoPanel(gid, e, cfg) {
-    const embed = new EmbedBuilder()
-        .setColor((e.varianteB && e.varianteB.color) || '#5865F2')
-        .setTitle(t(cfg, '👋 ¡Bienvenido al servidor!', '👋 Welcome to the server!'))
-        .setDescription(t(cfg, 'Pulsa el botón para empezar y acceder a todos los canales.', 'Click the button to get started and access all channels.'));
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`embudo_inicio:${gid}`).setLabel(t(cfg, '🚀 Empezar', '🚀 Get started')).setStyle(ButtonStyle.Success),
-    );
-    return { embeds: [embed], components: [row] };
+// Todo se personaliza en el panel (`embudoAB.panel`): texto de encima, embed con
+// imágenes/GIF y el botón (texto y color). Sin embed propio, sale el de siempre.
+// «#reglas» se convierte en el enlace al canal si se pasa `guild`.
+function contenidoPanel(gid, e, cfg, guild) {
+    const p = (e && e.panel) || {};
+    const { contenido, embed: propio } = mencionarEnMensaje(p.contenido, p.embed, guild);
+    let payload;
+    if (propio && embedTieneContenido(propio)) {
+        payload = construirMensaje(contenido, propio, UPLOADS_DIR);
+    } else {
+        const embed = new EmbedBuilder()
+            .setColor((e.varianteB && e.varianteB.color) || '#5865F2')
+            .setTitle(t(cfg, '👋 ¡Bienvenido al servidor!', '👋 Welcome to the server!'))
+            .setDescription(t(cfg, 'Pulsa el botón para empezar y acceder a todos los canales.', 'Click the button to get started and access all channels.'));
+        payload = { embeds: [embed] };
+        if (contenido) payload.content = String(contenido).slice(0, 2000);
+    }
+    const etiqueta = String(p.textoBoton || '').trim().slice(0, 80) || t(cfg, '🚀 Empezar', '🚀 Get started');
+    payload.components = [new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`embudo_inicio:${gid}`).setLabel(etiqueta).setStyle(estiloBoton(p.estiloBoton)),
+    )];
+    // Un panel fijo no debe avisar a nadie aunque lleve @menciones.
+    payload.allowedMentions = { parse: [] };
+    return payload;
 }
 
 // Publica (o reedita) el panel del embudo en el canal configurado.
@@ -211,10 +232,11 @@ async function publicarPanel(client, guildId) {
     const canal = guild.channels.cache.get(e.canalId);
     if (!canal) throw new Error('El canal del embudo no existe.');
 
-    const contenido = contenidoPanel(guildId, e, cfg);
+    const contenido = contenidoPanel(guildId, e, cfg, guild);
     let mensaje = null;
     if (e.mensajeId) mensaje = await canal.messages.fetch(e.mensajeId).catch(() => null);
-    if (mensaje) await mensaje.edit(contenido);
+    // attachments: [] quita la imagen subida de antes (si no, se quedaba debajo al cambiarla).
+    if (mensaje) await mensaje.edit({ ...contenido, attachments: [] });
     else mensaje = await canal.send(contenido);
 
     await ServidorConfig.updateOne({ guildId }, { $set: { 'embudoAB.mensajeId': mensaje.id } });
@@ -316,6 +338,6 @@ module.exports = {
     // Captura de datos
     asignarCohorte, marcarParticipacion, marcarVerificado, marcarSalida,
     // Flujo en Discord
-    publicarPanel, enviarMD,
+    publicarPanel, contenidoPanel, enviarMD,
     manejarInicio, manejarReglas, manejarAceptar, manejarCaptcha, manejarModal,
 };

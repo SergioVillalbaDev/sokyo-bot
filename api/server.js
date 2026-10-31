@@ -25,7 +25,7 @@ const { publicarPanel: publicarPanelVerificacion } = require('../utils/verificac
 const { publicarPanel: publicarPanelEmbudo } = require('../utils/embudo.js');
 const { enviarBienvenida, enviarDespedida, enviarExtra } = require('../utils/bienvenida.js');
 const { abrirTicketDesdeReporte } = require('../utils/reportes.js');
-const { construirMensaje, sanearEmbed, embedTieneContenido, embedTieneAlgo } = require('../utils/embeds.js');
+const { construirMensaje, sanearEmbed, embedTieneContenido, embedTieneAlgo, sanearEstiloBoton } = require('../utils/embeds.js');
 const { cerrarTicket, reabrirTicket, construirTranscriptHTML, generarTranscriptPDF } = require('../utils/ticketManager.js');
 const ia = require('../utils/ia.js');
 const { publicarPanel } = require('../utils/rolePanelManager.js');
@@ -1810,6 +1810,8 @@ app.get('/api/stats/uso', async (req, res) => {
             const errRolV = await errorRolesNuevos(client, req.staff, req.params.guildId, [v.rolVerificadoId], [cfgVer && cfgVer.verificacion && cfgVer.verificacion.rolVerificadoId]);
             if (errRolV) return res.status(403).json({ error: errRolV });
             const set = Object.fromEntries(Object.entries(v).map(([k, val]) => [`verificacion.${k}`, val]));
+            // Color del botón (verde, azul, gris o rojo); si no llega, se deja como estaba.
+            if (b.estiloBoton !== undefined) set['verificacion.estiloBoton'] = sanearEstiloBoton(b.estiloBoton);
             // Puertas de entrada excluyentes: al activar la verificación normal se
             // apaga la doble bienvenida (solo el flag, sin tocar sus versiones).
             if (v.activo) set['embudoAB.activo'] = false;
@@ -1882,6 +1884,18 @@ app.get('/api/stats/uso', async (req, res) => {
                 'embudoAB.varianteB.reglas': String(bb.reglas || '').slice(0, 2000),
                 'embudoAB.varianteB.textoBoton': String(bb.textoBoton || fab('embudoAB.varianteB.textoBoton')).slice(0, 80),
             };
+            // Mensaje del panel público (texto, embed con imágenes/GIF y botón). Si no
+            // llega (panel antiguo en caché), se deja como estaba.
+            if (b.panel && typeof b.panel === 'object') {
+                const p = b.panel;
+                const embed = sanearEmbed(p.embed);
+                set['embudoAB.panel'] = {
+                    contenido: String(p.contenido || '').slice(0, 2000),
+                    embed: embedTieneAlgo(embed) ? embed : null,
+                    textoBoton: String(p.textoBoton || '').trim().slice(0, 80) || null,
+                    estiloBoton: sanearEstiloBoton(p.estiloBoton),
+                };
+            }
             // Puertas de entrada excluyentes: al activar la doble bienvenida se
             // apaga la verificación normal (solo el flag, sin tocar su config).
             if (b.activo) set['verificacion.activo'] = false;

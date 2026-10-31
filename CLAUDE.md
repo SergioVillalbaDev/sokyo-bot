@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.5.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.6.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -339,5 +339,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   demás + «Añadir mensaje»), con estado propio (`estadoMensaje` mira también el rol) y
   el Diagnóstico revisa su canal, permisos y rol. Las etiquetas de imagen/miniatura del
   embed dicen que vale un GIF (y «GIF subido» si lo es).
+- 1.9.6 Panel de entrada de la Doble bienvenida personalizable (`embudoAB.panel`: `contenido`,
+  `embed`, `textoBoton`, `estiloBoton`; `contenidoPanel` en `utils/embudo.js`, sin embed sale el
+  de siempre) y color del botón en la verificación (`verificacion.estiloBoton`). Colores por
+  nombre (verde/azul/gris/rojo): `estiloBoton`/`sanearEstiloBoton` en `utils/embeds.js`, en el
+  panel `lib/estilosBoton.js` + `EditorBoton.jsx`; `EmbedBuilder` acepta `texto` y `botones`
+  para la vista previa. «#canal» se enlaza también en estos paneles (`mencionarEnMensaje`).
+  Publicar guarda antes y reedita con `attachments: []` (si no, la imagen vieja se quedaba).
+  Aviso «Has cambiado el mensaje del panel…» hasta publicar. `useModulo` refresca los datos de
+  las secciones 1.9.0 cada 5 s y al volver a la pestaña (sin tocar `form`). Test en
+  `test/paneles.test.js`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

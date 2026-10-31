@@ -1519,6 +1519,9 @@ export default {
       title: 'Título del panel', desc: 'Descripción', buttonText: 'Texto del botón',
       embedTitle: 'Mensaje del panel', embedDesc: 'Personaliza el embed que verán los miembros: color, imagen, GIF, campos… Déjalo vacío para un panel básico con título y descripción.',
       publish: 'Publicar panel', published: '✅ Panel publicado', save: 'Guardar', saving: 'Guardando…', saved: 'Guardado',
+      defButton: '✅ Verificarme',
+      saveFail: 'No se pudo guardar antes de publicar. Inténtalo de nuevo.',
+      unpublished: 'Has cambiado el mensaje del panel. Pulsa «Publicar panel» para que se vea así en Discord.',
     },
     dobleBienv: {
       note: 'Al entrar, a cada nuevo se le muestra una de las dos versiones (50/50). En Analítica ves cuál retiene mejor. El rol elegido da el acceso real; el bot debe tener su rol por encima.',
@@ -1537,6 +1540,17 @@ export default {
       lockTitle: 'La doble bienvenida es una función Pro',
       lockDesc: 'Sube a Pro para repartir a los nuevos entre dos versiones de bienvenida y descubrir con datos cuál retiene mejor.',
       lockCta: 'Subir a Pro',
+      panelTitle: 'Mensaje del panel',
+      panelDesc: 'Es lo que ve todo el que llega al canal. Cámbialo a tu gusto: texto, embed con imágenes o GIF y el botón. Al pulsar el botón, a cada uno le sale su versión (A o B).',
+      panelText: 'Texto encima del embed (opcional)',
+      panelTextPh: 'Por ejemplo: ¡Hola! Lee #normas y pulsa el botón 👇',
+      panelDefTitle: '👋 ¡Bienvenido al servidor!',
+      panelDefDesc: 'Pulsa el botón para empezar y acceder a todos los canales.',
+      panelDefButton: '🚀 Empezar',
+    },
+    botonDiscord: {
+      texto: 'Texto del botón', textoAyuda: 'Puedes empezar con un emoji, por ejemplo «🚀 Empezar».',
+      color: 'Color del botón', verde: 'Verde', azul: 'Azul', gris: 'Gris', rojo: 'Rojo',
     },
     bienvenida_v: {
       intro: 'Saluda a quien entra y despide a quien sale con un mensaje totalmente editable (texto, embed, imágenes y GIFs).',

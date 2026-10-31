@@ -268,6 +268,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         titulo: { type: String, default: '🔒 Verification' },
         descripcion: { type: String, default: 'Click the button to verify and access the server.' },
         textoBoton: { type: String, default: '✅ Verify me' },
+        estiloBoton: { type: String, default: 'verde' },     // color del botón: verde, azul, gris o rojo
         embed: { type: mongoose.Schema.Types.Mixed, default: null }, // embed personalizable del panel (null = usa titulo/descripcion)
         mensajeId: { type: String, default: null },         // id del mensaje publicado (para republicar/editar)
     },
@@ -282,6 +283,15 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalId: { type: String, default: null },           // canal donde se publica el panel (entrega panel/ambos)
         rolVerificadoId: { type: String, default: null },   // rol que se concede al completar el onboarding
         mensajeId: { type: String, default: null },         // id del panel publicado (para republicar/editar)
+        // Mensaje del panel público (entrega panel/ambos), todo personalizable: texto,
+        // embed (imágenes/GIF, campos…) y el botón «Empezar» (texto y color).
+        // Sin embed, sale el de siempre («¡Bienvenido al servidor!»).
+        panel: {
+            contenido: { type: String, default: '' },
+            embed: { type: mongoose.Schema.Types.Mixed, default: null },
+            textoBoton: { type: String, default: null },      // null = «🚀 Empezar» en el idioma del servidor
+            estiloBoton: { type: String, default: 'verde' },
+        },
 
         // Variante A — reglas en texto plano + captcha
         varianteA: {

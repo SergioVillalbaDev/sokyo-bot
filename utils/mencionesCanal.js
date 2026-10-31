@@ -47,4 +47,14 @@ function mencionarCanales(texto, guild) {
     });
 }
 
-module.exports = { mencionarCanales, normalizar };
+// Lo mismo para un mensaje entero: el texto, la descripción del embed y el valor
+// de sus campos (donde Discord enseña los enlaces). Devuelve copias.
+function mencionarEnMensaje(contenido, embed, guild) {
+    const texto = mencionarCanales(contenido, guild);
+    if (!embed) return { contenido: texto, embed };
+    const copia = { ...embed, descripcion: mencionarCanales(embed.descripcion, guild) };
+    if (Array.isArray(embed.campos)) copia.campos = embed.campos.map((c) => ({ ...c, valor: mencionarCanales(c && c.valor, guild) }));
+    return { contenido: texto, embed: copia };
+}
+
+module.exports = { mencionarCanales, mencionarEnMensaje, normalizar };
