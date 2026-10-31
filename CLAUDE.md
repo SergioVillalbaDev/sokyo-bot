@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.1.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -301,5 +301,16 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   /grupo, clanes, confesiones, /ausente, traducir con clic derecho, mensajes fijos,
   contadores en canales, ayuda antes de abrir un ticket, tickets por privado y avisos
   de Kick, Reddit y RSS. Grupo «Diversión» en el menú del panel.
+- 1.9.1 Bienvenidas: «Enviar prueba» funciona aunque el mensaje esté desactivado
+  (`enviarBienvenida(member, cfg, { prueba: true, idioma })`), guarda antes lo que se
+  ve y dice qué permiso falta; los errores salen en el idioma del panel. Recortar
+  imágenes de los embeds (`RecortarImagen.jsx` + `lib/recorte.js`): al subir (o con
+  «Ajustar») se mueve, amplía y gira con vista previa de Discord; forma `circulo`
+  (iconos del autor y del pie: «Que se vea entera» mete el logo completo en el
+  círculo), `cuadrado` (miniatura) y `ancho` (imagen grande). Va en un portal a
+  `.sk-dash`: dentro de una tarjeta con cristal, un `fixed` salía cortado. Los GIF se
+  suben tal cual. «Añadir campo» ya no se borra: `sanearEmbed` guarda los campos a
+  medias (si no, el autoguardado los quitaba) y solo se mandan los completos
+  (`camposCompletos`; `embedTieneAlgo` para guardar, `embedTieneContenido` para enviar).
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

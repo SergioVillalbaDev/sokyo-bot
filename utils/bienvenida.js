@@ -13,6 +13,7 @@
 const path = require('path');
 const { construirMensaje } = require('./embeds.js');
 const { t } = require('./i18n.js');
+const { explicarError, permisosQueFaltan } = require('./erroresDiscord.js');
 
 // Carpeta de imágenes subidas (misma que usa la API para los embeds).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -58,19 +59,31 @@ function datosDe(member) {
 }
 
 // Envía el mensaje (bienvenida o despedida) según su config. Devuelve true si se
-// envió, o un objeto { error } si algo falló (lo usa el botón "Probar").
-// `cfg` solo da el idioma de los errores (los ve el staff al pulsar "Probar").
-async function enviar(member, conf, cfg) {
-    if (!conf || !conf.activo) return { error: t(cfg, 'Está desactivado.', 'Disabled.') };
-    if (!conf.canalId) return { error: t(cfg, 'No hay ningún canal configurado.', 'No channel configured.') };
+// envió, o un objeto { error } si algo falló (lo usa el botón "Enviar prueba").
+// Opciones (solo las usa la prueba del panel):
+//  - prueba: se manda aunque el mensaje esté desactivado, para verlo antes de activarlo.
+//  - idioma: idioma de los errores (el del panel de quien prueba; si no, el del bot).
+async function enviar(member, conf, cfg, { prueba = false, idioma } = {}) {
+    const lang = idioma || cfg;
+    if (!conf || (!conf.activo && !prueba)) return { error: t(lang, 'Está desactivado.', 'Disabled.') };
+    if (!conf.canalId) return { error: t(lang, 'No hay ningún canal configurado.', 'No channel configured.') };
     const canal = member.guild.channels.cache.get(conf.canalId);
-    if (!canal || typeof canal.send !== 'function') return { error: t(cfg, 'El canal no existe o no es de texto.', 'The channel doesn’t exist or isn’t a text channel.') };
+    if (!canal || typeof canal.send !== 'function') return { error: t(lang, 'El canal no existe o no es de texto.', 'The channel doesn’t exist or isn’t a text channel.') };
 
     const datos = datosDe(member);
     const contenido = reemplazar(conf.contenido, datos);
     const embed = reemplazarEmbed(conf.embed, datos);
     const payload = construirMensaje(contenido, embed, UPLOADS_DIR);
-    if (!payload.content && !(payload.embeds && payload.embeds.length)) return { error: t(cfg, 'El mensaje está vacío.', 'The message is empty.') };
+    if (!payload.content && !(payload.embeds && payload.embeds.length)) return { error: t(lang, 'El mensaje está vacío.', 'The message is empty.') };
+
+    // Antes de mandar, ¿puede el bot escribir ahí? Así la prueba dice qué permiso falta.
+    const necesarios = ['ViewChannel', 'SendMessages'];
+    if (payload.embeds && payload.embeds.length) necesarios.push('EmbedLinks');
+    if (payload.files && payload.files.length) necesarios.push('AttachFiles');
+    const faltan = permisosQueFaltan(canal, necesarios, idioma || cfg);
+    if (faltan.length) {
+        return { error: t(lang, `Al bot le faltan permisos en #${canal.name}: ${faltan.join(', ')}.`, `The bot is missing permissions in #${canal.name}: ${faltan.join(', ')}.`) };
+    }
 
     // Solo se pingea al usuario si está activado; nunca @everyone/roles por accidente.
     payload.allowedMentions = conf.mencionar ? { users: [member.id] } : { parse: [] };
@@ -79,14 +92,25 @@ async function enviar(member, conf, cfg) {
     return true;
 }
 
-async function enviarBienvenida(member, cfg) {
-    try { return await enviar(member, cfg && cfg.bienvenida, cfg); }
-    catch (e) { console.error('Error enviando bienvenida:', e.message); return { error: e.message }; }
+// Error de Discord al mandar -> texto que entiende quien está en el panel.
+function textoError(e, idioma) {
+    // 50035: Discord rechaza el contenido, casi siempre por una dirección de imagen
+    // que no es válida (no empieza por https://, una variable mal escrita…).
+    if (e && e.code === 50035) {
+        return t(idioma, 'Discord no acepta alguna imagen o enlace del mensaje. Revisa que las direcciones empiecen por https:// o sube la imagen desde el PC.',
+            'Discord rejected an image or link in the message. Check that the addresses start with https:// or upload the image from your PC.');
+    }
+    return explicarError(e, idioma).texto;
 }
 
-async function enviarDespedida(member, cfg) {
-    try { return await enviar(member, cfg && cfg.despedida, cfg); }
-    catch (e) { console.error('Error enviando despedida:', e.message); return { error: e.message }; }
+async function enviarBienvenida(member, cfg, opciones = {}) {
+    try { return await enviar(member, cfg && cfg.bienvenida, cfg, opciones); }
+    catch (e) { console.error('Error enviando bienvenida:', e.message); return { error: textoError(e, opciones.idioma || cfg) }; }
+}
+
+async function enviarDespedida(member, cfg, opciones = {}) {
+    try { return await enviar(member, cfg && cfg.despedida, cfg, opciones); }
+    catch (e) { console.error('Error enviando despedida:', e.message); return { error: textoError(e, opciones.idioma || cfg) }; }
 }
 
 module.exports = { enviarBienvenida, enviarDespedida };

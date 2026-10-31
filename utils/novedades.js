@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.1': [
+        { tab: 'prod-bienvenidas', es: '🖼️ Al subir una imagen o un logo a un embed (bienvenidas, anuncios…) puedes recortarla, moverla, ampliarla y ver cómo quedará en Discord. Con «Que se vea entera», el logo ya no se corta en el icono redondo.', en: '🖼️ When you upload an image or logo to an embed (welcomes, announcements…) you can crop, move and zoom it and see how it will look in Discord. With “Show it whole”, logos no longer get cut off in the round icon.' },
+        { tab: 'prod-bienvenidas', es: '📨 «Enviar prueba» en bienvenidas y despedidas funciona aunque el mensaje aún no esté activado, guarda antes lo que ves y, si algo falla, te dice qué permiso le falta al bot.', en: '📨 “Send test” in welcomes and goodbyes works even if the message isn’t turned on yet, saves what you see first and, if something fails, tells you which permission the bot is missing.' },
+        { tab: 'prod-bienvenidas', es: '➕ «Añadir campo» en los embeds ya no se borra solo mientras lo escribes.', en: '➕ “Add field” in embeds no longer disappears by itself while you’re typing it.' },
+    ],
     '1.9.0': [
         { tab: 'com-cumpleanos', es: '🎂 Cumpleaños: guarda el tuyo con /cumple (o en Mi cuenta) y el servidor te felicita ese día, con rol especial y regalo si el staff quiere.', en: '🎂 Birthdays: save yours with /birthday (or in My account) and the server congratulates you on the day, with a special role and a gift if the staff likes.' },
         { tab: 'com-grupos', es: '🎮 /grupo: busca gente para jugar y los demás se apuntan con un botón. Al llenarse, sala de voz solo para el grupo.', en: '🎮 /group: look for people to play with and others join with a button. When it’s full, a voice room just for the group.' },
