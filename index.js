@@ -9,13 +9,13 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,   // Necesario para logs de entradas/salidas (intent privilegiado)
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent  // Necesario para guardar los mensajes de los tickets (intent privilegiado)
     ],
     // Permite que los eventos de editar/borrar se disparen también con mensajes que no están en caché
     partials: [Partials.Message, Partials.Channel]
 });
 
-// 1. Cargador de Comandos
+// 1. Cargador de Comandos / (se registran en Discord al arrancar, ver events/ready.js)
 client.commands = new Collection();
 const comandosPath = path.join(__dirname, 'comandos');
 const commandFiles = fs.readdirSync(comandosPath).filter(file => file.endsWith('.js'));
@@ -23,11 +23,11 @@ const commandFiles = fs.readdirSync(comandosPath).filter(file => file.endsWith('
 for (const file of commandFiles) {
     const filePath = path.join(comandosPath, file);
     const command = require(filePath);
-    if ('name' in command && 'execute' in command) {
-        client.commands.set(command.name, command);
-        console.log(`✅ Comando cargado: ${command.name}`);
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+        console.log(`✅ Comando cargado: /${command.data.name}`);
     } else {
-        console.log(`⚠️ Falta el 'name' o 'execute' en el comando ${file}`);
+        console.log(`⚠️ Falta 'data' o 'execute' en el comando ${file}`);
     }
 }
 
