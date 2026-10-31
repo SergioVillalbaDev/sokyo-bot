@@ -10,6 +10,7 @@ import { apiFetch, getStaffSession } from '../../../lib/api';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const VERDE = '#1db954';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -110,8 +111,7 @@ export default function MusicaView({ dash }) {
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   // Inicializar formulario de configuración
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     const m = configServidor?.musica || {};
     setF({
       activo: m.activo ?? true,
@@ -132,8 +132,7 @@ export default function MusicaView({ dash }) {
         soundcloud: m.fuentes?.soundcloud ?? true,
       },
     });
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   // Sondeo del reproductor en vivo (cada 3 s)
   const cargarEstado = useCallback(() => {

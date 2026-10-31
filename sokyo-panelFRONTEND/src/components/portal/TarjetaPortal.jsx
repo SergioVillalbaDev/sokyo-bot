@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { Palette, Upload, X, Check, Loader2, Lock, Crown } from 'lucide-react';
 import { PRESETS_TARJETA } from '../../presetsTarjeta';
 import { Tarjeta, TituloVista } from './glass';
+import { API_URL } from '../../lib/api';
+import { estiloFondoTarjeta } from '../../lib/encuadreTarjeta';
 
 const INICIAL = { colorAcento: '#5865F2', fondoTipo: 'color', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoImagen: '', preset: null, animado: false };
 // La tarjeta se genera a 900×270 px: con menos, el fondo saldría borroso.
@@ -66,7 +68,8 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
   const aplicar = (p) => {
     if (p.premium !== false && !premium) return;
     setCambios(true);
-    setTarjeta((x) => ({ ...x, colorAcento: p.colorAcento, fondoColor: p.fondoColor, colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo, preset: p.id, animado: !!p.animado }));
+    // Un diseño con imagen o GIF: el bot la toma del catálogo (como esté ahora, ajustada).
+    setTarjeta((x) => ({ ...x, colorAcento: p.colorAcento, fondoColor: p.fondoColor, colorSecundario: p.colorSecundario, fondoTipo: p.fondoTipo, preset: p.id, animado: !!p.animado, ...(p.fondoTipo === 'imagen' && p.fondoImagen ? { fondoImagen: p.fondoImagen } : {}) }));
   };
 
   const guardar = async () => {
@@ -103,6 +106,7 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
     ...catalogo.personalizados.map((p) => ({
       id: p.id, nombre: p.nombre, colorAcento: p.colorAcento, fondoColor: p.fondoColor, colorSecundario: p.colorSecundario,
       fondoTipo: p.fondoTipo || 'degradado', animado: !!p.animado, premium: !!p.premium,
+      fondoImagen: p.fondoTipo === 'imagen' ? p.fondoImagen || null : null, encuadre: p.encuadre || null,
       swatch: p.fondoTipo === 'color' ? p.fondoColor : `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})`,
     })),
   ];
@@ -156,7 +160,8 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
               <input type="color" value={tarjeta.colorSecundario} onChange={(e) => manual('colorSecundario', e.target.value)} className={color} />
             </label>
           )}
-          {tarjeta.fondoTipo === 'imagen' && (
+          {/* Con un diseño elegido, la imagen es la suya: aquí solo la propia. */}
+          {tarjeta.fondoTipo === 'imagen' && !tarjeta.preset && (
             <div className="flex flex-col gap-2 border-t border-line pt-4">
               <span className={etiqueta}>{t('portal.card.bgImageLabel')} <span className="text-amber-300">{t('portal.card.bgImagePremium')}</span></span>
               <div className="flex gap-2">
@@ -185,9 +190,10 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
                     key={p.id} onClick={() => aplicar(p)} disabled={bloqueado} aria-pressed={activo}
                     className={`overflow-hidden rounded-2xl border-2 text-left transition-all ${activo ? 'border-fuchsia-400 shadow-[0_0_22px_-6px_rgba(217,70,239,.9)]' : 'border-white/10'} ${bloqueado ? 'cursor-not-allowed' : 'hover:border-white/30'}`}
                   >
-                    <div className="relative h-14" style={{ background: p.swatch || `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})` }}>
+                    <div className="relative overflow-hidden" style={{ aspectRatio: '900 / 270', background: p.fondoImagen ? p.fondoColor : (p.swatch || `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})`) }}>
+                      {p.fondoImagen && <img src={p.fondoImagen.startsWith('/uploads/') ? `${API_URL}${p.fondoImagen}` : p.fondoImagen} alt="" loading="lazy" style={estiloFondoTarjeta(p.encuadre)} />}
                       <span className="absolute bottom-1.5 left-2 h-4 w-4 rounded-full border-2" style={{ borderColor: p.colorAcento }} />
-                      {p.animado && <span className="absolute right-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">✨ GIF</span>}
+                      {(p.animado || /\.gif$/i.test(p.fondoImagen || '')) && <span className="absolute right-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">✨ GIF</span>}
                       {bloqueado && <span className="absolute inset-0 grid place-items-center bg-black/50 text-white"><Lock size={16} /></span>}
                     </div>
                     <div className="bg-white/[.04] px-2 py-1.5 text-xs font-semibold text-fg">{p.nombre}</div>

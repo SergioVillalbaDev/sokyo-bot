@@ -34,7 +34,10 @@ export default function CrecBumpView({ dash }) {
     const r = await guardarCrecimiento('bump', form);
     if (r.error) { setEstado(r.error); return false; }
     setEstado('ok');
-    cargar();
+    // Solo los datos (próximo bump…): `form` no se pisa con lo guardado; tiene lo que se
+    // está escribiendo (ver hooks/useDesdeServidor.js).
+    const d = await cargarCrecimiento('bump');
+    if (!d.error) setDatos(d);
     return true;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).

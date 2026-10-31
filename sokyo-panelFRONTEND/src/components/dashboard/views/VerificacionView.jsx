@@ -6,7 +6,7 @@
 // El mensaje del panel es totalmente personalizable en los tres modos: embed
 // (color, imagen, GIF, campos…) y el botón (texto y color); en la doble
 // bienvenida, además, un texto encima (`embudoAB.panel`). «#canal» sale como enlace.
-import { useState, useEffect, useRef } from 'react';
+import {useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { ShieldCheck, Save, Check, Info, Send, MousePointerClick, Puzzle, Users, Crown, Lock, FileText, LayoutTemplate, BarChart3, AlertTriangle } from 'lucide-react';
@@ -16,6 +16,7 @@ import TextareaCanales from '../TextareaCanales';
 import { EMBED_VACIO } from './embedDefaults';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -84,8 +85,7 @@ export default function VerificacionView({ dash }) {
   const [sinPublicar, setSinPublicar] = useState(false);
   const modoInit = useRef(false); // el modo se elige una vez; guardar no debe cambiarlo
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (!configServidor) return;
     const vv = { ...VERIF_DEF, ...(configServidor.verificacion || {}) };
     setV(vv);
@@ -102,9 +102,10 @@ export default function VerificacionView({ dash }) {
       modoInit.current = true;
       setModo(ab.activo ? 'ab' : (vv.modo === 'captcha' ? 'captcha' : 'boton'));
     }
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
+  // Solo un modo encendido a la vez (el servidor apaga el otro al guardar): aquí también,
+  // al momento, porque la respuesta del guardado no se copia (hooks/useDesdeServidor.js).
   const setVerif = (k, val) => { setGuardado(false); setV((prev) => ({ ...prev, [k]: val })); };
   const setAB = (k, val) => { setGuardado(false); setE((prev) => ({ ...prev, [k]: val })); };
   const setA = (k, val) => { setGuardado(false); setE((prev) => ({ ...prev, varianteA: { ...prev.varianteA, [k]: val } })); };
@@ -192,7 +193,7 @@ export default function VerificacionView({ dash }) {
           <div className={card}>
             <div data-help="verif-enable" className="flex items-center justify-between gap-3">
               <h3 className="flex items-center gap-2 font-bold text-fg"><ShieldCheck size={18} className="text-brand" /> {t('dashboard.verif_v.enable')}</h3>
-              <Toggle checked={v.activo} onChange={(val) => setVerif('activo', val)} />
+              <Toggle checked={v.activo} onChange={(val) => { setVerif('activo', val); if (val) setE((prev) => ({ ...prev, activo: false })); }} />
             </div>
 
             <div data-help="verif-campos" className="mt-4 space-y-4 border-t border-line pt-4">
@@ -228,7 +229,7 @@ export default function VerificacionView({ dash }) {
           <div className={card}>
             <div className="flex items-center justify-between gap-3">
               <h3 className="flex items-center gap-2 font-bold text-fg"><Users size={18} className="text-brand" /> {t('dashboard.dobleBienv.enable')}</h3>
-              <Toggle checked={e.activo} onChange={(val) => setAB('activo', val)} />
+              <Toggle checked={e.activo} onChange={(val) => { setAB('activo', val); if (val) setV((prev) => ({ ...prev, activo: false })); }} />
             </div>
 
             <div className="mt-4 space-y-4 border-t border-line pt-4">

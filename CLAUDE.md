@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.6.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.7.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -135,6 +135,17 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `{ ok: false }` si falla (entonces reintenta, cada vez más espaciado). Solo cuenta
   como cambio lo que pasa tras tocar algo. No va en secciones que publican en
   Discord o tienen límites (canales, paneles). Se apaga en Preferencias (⚙).
+  **Copiar del servidor al formulario**: con `useDesdeServidor(configServidor, () => …)`
+  (`hooks/useDesdeServidor.js`), NO con un `useEffect([configServidor])`: la respuesta de su
+  propio guardado (marcada con `marcarEco` en `useDashboard`) no se copia, porque borraba las
+  filas a medias (multiplicador sin rol, pregunta vacía), lo escrito mientras se guardaba y
+  los campos vaciados (volvía el texto de fábrica). Lo mismo en `useModulo` y las vistas de
+  Crecimiento: tras guardar, `form` no se pisa con `r.config`. Si el servidor cambia otro
+  ajuste al guardar (p. ej. verificación ↔ doble bienvenida), la vista lo hace también.
+- **Buscador en los desplegables** (`BuscadorSelects.jsx`, montado en `Dashboard.jsx`): todo
+  `<select>` del panel con 8 opciones o más abre una lista con buscador (ratón, toque, teclado)
+  y cambia el valor como a mano (`change`), así que vale para cualquier sección sin tocarla.
+  `data-sin-buscador` lo quita en uno concreto.
 - **Modo ligero** (`lib/ligero.js`, `src/ligero.css`, clase `sk-ligero` en `<html>`):
   sin cristal difuminado ni fondo animado. Automático en Firefox, con ≤4 núcleos o
   ≤4 GB; se elige en Preferencias (vale para web, panel y Mi cuenta). En el panel,
@@ -349,5 +360,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Aviso «Has cambiado el mensaje del panel…» hasta publicar. `useModulo` refresca los datos de
   las secciones 1.9.0 cada 5 s y al volver a la pestaña (sin tocar `form`). Test en
   `test/paneles.test.js`.
+- 1.9.7 Diseños de tarjeta con imagen o GIF de fondo (catálogo global de Niveles, solo para
+  propietarios: `PUT /api/presets-tarjeta` exige `req.staff.owner` y el panel solo lo enseña a
+  ellos). `CatalogoPresets.fondoTipo: 'imagen'` + `fondoImagen` + `encuadre` ({ escala, x, y,
+  giro, ancho, alto }): se ajusta con `RecortarImagen` forma `tarjeta` (no recorta: devuelve el
+  encuadre, así que también vale para GIF) y lo aplica `utils/rankCard.js` (`dibujarFondo`;
+  GIF con `omggif`, fotogramas a ≤ 900 px, animado solo en Pro). `utils/catalogoTarjetas.js`
+  sanea los diseños y el bot usa el diseño del catálogo como esté ahora (`opcionesTarjeta`).
+  Vista previa en la web: `lib/encuadreTarjeta.js`; la real, `POST /api/presets-tarjeta/preview`.
+  Arreglo del autoguardado (`useDesdeServidor`, ver Autoguardado) y buscador en los desplegables.
+  Test en `test/tarjetas.test.js`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

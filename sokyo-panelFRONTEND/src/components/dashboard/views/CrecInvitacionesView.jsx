@@ -37,7 +37,8 @@ export default function CrecInvitacionesView({ dash }) {
     if (r.error) { setEstado(r.error); return false; }
     setEstado('ok');
     setDatos((d) => ({ ...d, config: r.config, permiso: r.permiso }));
-    setForm({ ...r.config, recompensas: (r.config.recompensas || []).map((x) => ({ invitaciones: x.invitaciones, rolId: x.rolId })) });
+    // `form` no se pisa con la respuesta: tiene lo que se está escribiendo y las recompensas a
+    // medias (sin rol aún) que aún no se guardan (ver hooks/useDesdeServidor.js).
     return true;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).

@@ -59,7 +59,9 @@ export function useModulo(dash, ruta) {
     const r = await guardarModulo(ruta, form);
     if (r.error) { setEstado(r.error); return false; }
     setEstado('ok');
-    setForm(r.config);
+    // `form` no se pisa con la respuesta: tiene lo que se está escribiendo y lo que está a
+    // medias (la pregunta vacía recién añadida, el nombre que se está cambiando…), que el
+    // servidor no guarda todavía. Ver hooks/useDesdeServidor.js.
     return true;
   };
   const autoguardado = useAutoguardado(form, guardar, { listo: !!form });

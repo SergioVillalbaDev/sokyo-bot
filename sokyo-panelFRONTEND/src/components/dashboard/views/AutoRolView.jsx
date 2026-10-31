@@ -1,10 +1,11 @@
 // Vista de Autorol al entrar — elige qué roles se asignan automáticamente
 // cuando alguien (o un bot) entra al servidor.
-import { useState, useEffect } from 'react';
+import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserPlus, Bot, Save, Lock, Check, Info } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
@@ -46,14 +47,12 @@ export default function AutoRolView({ dash }) {
   const [guardado, setGuardado] = useState(false);
 
   // Inicializa los selectores con lo que ya hay guardado en la config.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (configServidor) {
       setAutoRoles(configServidor.autoRoles || []);
       setAutoRolesBots(configServidor.autoRolesBots || []);
     }
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   const toggle = (lista, setLista) => (id) => {
     setGuardado(false);

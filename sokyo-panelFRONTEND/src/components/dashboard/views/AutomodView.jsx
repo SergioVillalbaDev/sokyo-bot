@@ -1,6 +1,6 @@
 // Vista del Automoderador — filtros automáticos de mensajes + defensa de
 // entradas (anti-raid, cuentas nuevas) + anti-estafas, todo con presets.
-import { useState, useEffect } from 'react';
+import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Save, Check, Info, Power, MessageSquareWarning, Link2, Link,
@@ -10,6 +10,7 @@ import {
 import { PRESETS } from '../../../automodPresets';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
@@ -226,11 +227,9 @@ export default function AutomodView({ dash }) {
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (configServidor) setAm(fusionar(configServidor.automod));
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   // Edita una clave de primer nivel. Al editar a mano se deselecciona el preset.
   const set = (clave, valor) => {

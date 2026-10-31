@@ -1,11 +1,12 @@
 // Comunidad · Presentaciones — formulario de presentación para nuevos miembros
 // con preguntas configurables y filtros automáticos de descarte.
-import { useState, useEffect } from 'react';
+import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Info, Filter, Check, AlertTriangle, Bell, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -46,8 +47,7 @@ export default function PresentacionesView({ dash }) {
   const [guardadoOk, setGuardadoOk] = useState(false);
   const [seccionAbierta, setSeccionAbierta] = useState('preguntas'); // 'preguntas' | 'filtros'
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  useDesdeServidor(configServidor, () => {
     if (configServidor?.presentaciones) {
       const p = configServidor.presentaciones;
       if (p.canalIntro) setCanalIntro(p.canalIntro);
@@ -57,8 +57,7 @@ export default function PresentacionesView({ dash }) {
       if (Array.isArray(p.preguntas) && p.preguntas.length) setPreguntas(p.preguntas);
       if (Array.isArray(p.filtros)) setFiltros(p.filtros);
     }
-  }, [configServidor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  });
 
   // --- Preguntas ---
   const addPregunta = () => setPreguntas((prev) => [

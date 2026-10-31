@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.7': [
+        { tab: 'config-niveles', es: '🖼️ Los diseños de tarjeta de nivel pueden llevar una imagen o un GIF de fondo. Se sube, se mueve y se amplía como un logo, y en la tarjeta el GIF se mueve.', en: '🖼️ Level card designs can now have an image or GIF background. Upload it, move and zoom it like a logo, and on the card the GIF moves.' },
+        { tab: 'config-niveles', es: '🛠️ El guardado automático ya no borra lo que estás a medias: «Añadir multiplicador», «Añadir recompensa» o «Añadir pregunta» ya no desaparecen solos, y no se pierde lo que escribes mientras se guarda.', en: '🛠️ Autosave no longer wipes what you’re in the middle of: “Add multiplier”, “Add reward” or “Add question” no longer vanish on their own, and nothing you type while it saves gets lost.' },
+        { tab: 'inicio', es: '🔎 Los desplegables largos del panel (canales, roles…) tienen buscador: escribe parte del nombre y elige con el ratón, el dedo o Enter.', en: '🔎 Long dropdowns in the panel (channels, roles…) now have a search box: type part of the name and pick with the mouse, your finger or Enter.' },
+    ],
     '1.9.6': [
         { tab: 'seg-verificacion', es: '🎨 El panel de entrada de la Doble bienvenida («¡Bienvenido al servidor!» con el botón «Empezar») ya se personaliza entero: texto, embed con imágenes o GIF, y el texto y el color del botón. En la verificación también puedes elegir el color del botón.', en: '🎨 The Dual welcome entry panel (“Welcome to the server!” with the “Get started” button) is now fully customizable: text, an embed with images or GIFs, and the button’s text and color. In verification you can also pick the button color.' },
         { tab: 'prod-ausente', es: '🔄 Las listas del panel (ausentes, grupos, solicitudes, confesiones, clanes, cumpleaños y salón de la fama) se actualizan solas en unos segundos, sin recargar la página.', en: '🔄 Panel lists (away members, groups, requests, confessions, clans, birthdays and hall of fame) update by themselves within seconds, without reloading the page.' },

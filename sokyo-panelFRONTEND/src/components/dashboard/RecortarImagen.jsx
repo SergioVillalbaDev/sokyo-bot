@@ -4,6 +4,10 @@
 // en el círculo de Discord en vez de cortarlo. Abajo, cómo quedará en Discord.
 // La geometría está en lib/recorte.js. Los GIF se suben tal cual (recortados
 // dejarían de moverse). Textos: dashboard.recorte.
+// Forma «tarjeta» (fondo de la tarjeta de nivel): no recorta, devuelve el encuadre
+// ({ encuadre: { escala, x, y, giro, ancho, alto } }) y el bot dibuja la imagen así;
+// por eso ahí también se ajustan los GIF. `inicial` = el encuadre de antes (para
+// retocarlo) y `fondoBase` = el color que se ve donde la imagen no llega.
 // Se pinta en la raíz del panel (portal): dentro de una tarjeta con cristal o
 // animación, una ventana `fixed` se coloca respecto a la tarjeta y sale cortada.
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -23,7 +27,7 @@ const NOMBRE_PROPORCION = { original: 'original', [16 / 9]: '16:9', 3: '3:1', 1:
 // Modo con el que se abre: si la imagen es mucho más ancha o alta que el marco
 // (un logo, un banner), se muestra entera; si no, rellenando.
 function modoInicial(img, forma) {
-  if (forma === 'ancho') return 'rellenar';
+  if (forma === 'ancho' || forma === 'tarjeta') return 'rellenar';
   const r = img.naturalWidth / img.naturalHeight;
   return r > 1.25 || r < 0.8 ? 'entera' : 'rellenar';
 }
@@ -57,10 +61,13 @@ function exportar(img, estado, proporcion, ancho, fondo, tipo) {
   return lienzo.toDataURL(tipo, 0.92);
 }
 
-export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar, onListo }) {
+export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar, onListo, inicial = null, fondoBase = null }) {
   const { t } = useTranslation();
   const conf = FORMAS[forma] || FORMAS.circulo;
   const esGif = archivo.type === 'image/gif';
+  // Un GIF solo se puede ajustar si no se recorta (forma con encuadre).
+  const ajustable = !esGif || !!conf.encuadre;
+  const fondoInicial = conf.encuadre ? (fondoBase || '#1e2030') : null;
 
   const [img, setImg] = useState(null);
   const [fallo, setFallo] = useState(false);
@@ -69,7 +76,7 @@ export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar,
   const [modo, setModo] = useState('rellenar');
   const [zoom, setZoom] = useState(1);
   const [desp, setDesp] = useState({ x: 0, y: 0 });
-  const [fondo, setFondo] = useState(null);
+  const [fondo, setFondo] = useState(fondoInicial);
   const lienzo = useRef(null);
   const arrastre = useRef(null);
   const cerrar = useRef(null);
@@ -79,10 +86,25 @@ export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar,
     let vivo = true;
     const url = URL.createObjectURL(archivo);
     const im = new Image();
-    im.onload = () => { if (vivo) { setImg(im); setModo(modoInicial(im, forma)); } };
+    im.onload = () => {
+      if (!vivo) return;
+      setImg(im);
+      setModo(modoInicial(im, forma));
+      // Retocar un encuadre guardado: se vuelve a poner como estaba.
+      if (inicial && inicial.escala > 0 && conf.proporciones.length === 1 && typeof conf.proporciones[0] === 'number') {
+        const giroAntes = [0, 90, 180, 270].includes(inicial.giro) ? inicial.giro : 0;
+        const base = escalaBase(tamanoGirado(im.naturalWidth, im.naturalHeight, giroAntes), conf.proporciones[0], 'rellenar', false);
+        setModo('rellenar');
+        setGiro(giroAntes);
+        setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, inicial.escala / base)));
+        setDesp({ x: Number(inicial.x) || 0, y: Number(inicial.y) || 0 });
+      }
+    };
     im.onerror = () => { if (vivo) setFallo(true); };
     im.src = url;
     return () => { vivo = false; URL.revokeObjectURL(url); };
+    // `inicial` solo cuenta al abrir la imagen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [archivo, forma]);
 
   // Escape cierra; el foco va a la ventana al abrirla.
@@ -180,9 +202,13 @@ export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar,
 
   const cambiarModo = (m) => { setModo(m); setZoom(1); setDesp({ x: 0, y: 0 }); };
   const girar = () => { setGiro((g) => (g + 90) % 360); setDesp({ x: 0, y: 0 }); };
-  const restablecer = () => { setGiro(0); setZoom(1); setDesp({ x: 0, y: 0 }); setFondo(null); if (img) setModo(modoInicial(img, forma)); };
+  const restablecer = () => { setGiro(0); setZoom(1); setDesp({ x: 0, y: 0 }); setFondo(fondoInicial); if (img) setModo(modoInicial(img, forma)); };
   const aplicar = () => {
     if (!img) return;
+    if (conf.encuadre) {
+      onListo({ encuadre: { escala, x: despOk.x, y: despOk.y, giro, ancho: img.naturalWidth, alto: img.naturalHeight } });
+      return;
+    }
     onListo(exportar(img, estado, proporcion, anchoSalida(escala, conf.salidaMax), fondo, tipoSalida(archivo.type, fondo)));
   };
 
@@ -212,18 +238,19 @@ export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar,
               {/* Editor */}
               <div className="min-w-0">
                 <canvas ref={lienzo} tabIndex={0} aria-label={t('dashboard.recorte.arrastra')}
-                  onPointerDown={esGif ? undefined : empezarArrastre} onPointerMove={esGif ? undefined : moverArrastre}
-                  onPointerUp={soltarArrastre} onPointerCancel={soltarArrastre} onKeyDown={esGif ? undefined : conTeclado}
-                  className={`sk-foco mx-auto block w-full max-w-[360px] touch-none rounded-2xl border border-line ${esGif ? '' : 'cursor-grab active:cursor-grabbing'}`}
+                  onPointerDown={ajustable ? empezarArrastre : undefined} onPointerMove={ajustable ? moverArrastre : undefined}
+                  onPointerUp={soltarArrastre} onPointerCancel={soltarArrastre} onKeyDown={ajustable ? conTeclado : undefined}
+                  className={`sk-foco mx-auto block w-full max-w-[360px] touch-none rounded-2xl border border-line ${ajustable ? 'cursor-grab active:cursor-grabbing' : ''}`}
                   style={{ aspectRatio: `${ANCHO_LIENZO} / ${altoLienzoCss}` }} />
-                {esGif
+                {!ajustable
                   ? <p className="mt-3 rounded-2xl border border-line bg-elevated px-3 py-2 text-xs text-muted">{t('dashboard.recorte.gif')}</p>
                   : <p className="mt-2 text-center text-xs text-muted">{t('dashboard.recorte.arrastra')}</p>}
+                {esGif && ajustable && <p className="mt-2 rounded-2xl border border-line bg-elevated px-3 py-2 text-xs text-muted">{t('dashboard.recorte.gifTarjeta')}</p>}
               </div>
 
               {/* Controles y vista previa */}
               <div className="min-w-0 space-y-4">
-                {!esGif && (
+                {ajustable && (
                   <>
                     <p className="text-sm text-muted">{t(`dashboard.recorte.ayuda.${forma}`)}</p>
                     {forma !== 'ancho' && (
@@ -254,7 +281,7 @@ export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar,
                         <ZoomIn size={16} className="shrink-0 text-muted" />
                       </span>
                     </label>
-                    <div>
+                    {!conf.encuadre && <div>
                       <span className="mb-1.5 block text-xs font-semibold text-fg">{t('dashboard.recorte.fondo')}</span>
                       <div className="flex flex-wrap items-center gap-2">
                         {FONDOS.map((f) => (
@@ -267,7 +294,7 @@ export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar,
                           {t('dashboard.recorte.fondos.color')}
                         </label>
                       </div>
-                    </div>
+                    </div>}
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={girar} className={chip(false) + ' flex items-center gap-1.5'}><RotateCw size={14} /> {t('dashboard.recorte.girar')}</button>
                       <button type="button" onClick={restablecer} className={chip(false) + ' flex items-center gap-1.5'}><RotateCcw size={14} /> {t('dashboard.recorte.restablecer')}</button>
@@ -285,16 +312,16 @@ export default function RecortarImagen({ archivo, forma = 'circulo', onCancelar,
           <button type="button" onClick={onCancelar} className="sk-foco rounded-xl border border-line bg-bg px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:border-brand">
             {t('dashboard.recorte.cancelar')}
           </button>
-          {!fallo && (
+          {!fallo && !conf.encuadre && (
             <button type="button" onClick={() => onListo(null)} disabled={!img && !fallo}
               className="sk-foco flex items-center justify-center gap-1.5 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:border-brand disabled:opacity-50">
               <Upload size={15} /> {esGif ? t('dashboard.recorte.subirGif') : t('dashboard.recorte.usarOriginal')}
             </button>
           )}
-          {!esGif && !fallo && (
+          {ajustable && !fallo && (
             <button type="button" onClick={aplicar} disabled={!img}
               className="sk-foco flex items-center justify-center gap-1.5 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-on-brand transition-transform hover:scale-[1.02] disabled:opacity-50">
-              <Crop size={15} /> {t('dashboard.recorte.aplicar')}
+              <Crop size={15} /> {conf.encuadre ? t('dashboard.recorte.usar') : t('dashboard.recorte.aplicar')}
             </button>
           )}
         </div>
@@ -324,6 +351,16 @@ function VistaDiscord({ forma, src, t }) {
                 <span className="text-xs text-[#949ba4]">{t('dashboard.recorte.ampliado')}</span>
               </div>
             </>
+          ) : forma === 'tarjeta' ? (
+            <div className="relative overflow-hidden rounded-xl" style={{ aspectRatio: '900 / 270' }}>
+              <img src={src} alt="" className="absolute inset-0 h-full w-full" />
+              <div className="absolute inset-0 bg-[rgba(18,20,32,0.38)]" />
+              <span className="absolute left-[5.5%] top-[20%] h-[59%] rounded-full border-2 border-white/80 bg-white/25" style={{ aspectRatio: '1' }} />
+              <span className="absolute left-[28%] top-[24%] h-[9%] w-[30%] rounded bg-white/85" />
+              <span className="absolute right-[5.5%] top-[24%] h-[9%] w-[14%] rounded bg-white/60" />
+              <span className="absolute left-[28%] right-[5.5%] top-[56%] h-[14%] rounded-full bg-black/45" />
+              <span className="absolute left-[28%] top-[56%] h-[14%] w-[40%] rounded-full bg-[#5865f2]" />
+            </div>
           ) : forma === 'cuadrado' ? (
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
