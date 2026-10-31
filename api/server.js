@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { ChannelType } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
@@ -350,6 +351,55 @@ app.get('/api/logs', async (req, res) => {
         } catch (error) {
             console.error('Error al actualizar los motivos:', error);
             res.status(500).json({ error: 'Fallo interno al actualizar la configuración' });
+        }
+    });
+
+    // --- Equipo de staff (roles que ven y gestionan los tickets) y categoría de los tickets ---
+    app.put('/api/config/:guildId/staff', async (req, res) => {
+        try {
+            const { guildId } = req.params;
+            const { rolesStaff, categoriaTicketsId } = req.body;
+
+            if (!Array.isArray(rolesStaff) || !rolesStaff.every(id => typeof id === 'string')) {
+                return res.status(400).json({ error: 'rolesStaff debe ser una lista de IDs de rol' });
+            }
+            if (categoriaTicketsId != null && typeof categoriaTicketsId !== 'string') {
+                return res.status(400).json({ error: 'categoriaTicketsId debe ser un ID de categoría' });
+            }
+
+            const configActualizada = await ServidorConfig.findOneAndUpdate(
+                { guildId: guildId },
+                { rolesStaff: rolesStaff, categoriaTicketsId: categoriaTicketsId || null },
+                { returnDocument: 'after' }
+            );
+
+            res.json({ success: true, config: configActualizada });
+        } catch (error) {
+            console.error('Error al actualizar el staff:', error);
+            res.status(500).json({ error: 'Fallo interno al actualizar la configuración' });
+        }
+    });
+
+    // --- Roles y categorías del servidor de Discord (para los selectores del panel) ---
+    app.get('/api/config/:guildId/discord', (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'El bot no está en ese servidor' });
+
+            const colorHex = (r) => `#${(r.colors?.primaryColor ?? r.color ?? 0).toString(16).padStart(6, '0')}`;
+            const roles = [...guild.roles.cache.values()]
+                .filter(r => r.id !== guild.id && !r.managed)   // sin @everyone ni roles de bots/integraciones
+                .sort((a, b) => b.position - a.position)
+                .map(r => ({ id: r.id, nombre: r.name, color: colorHex(r) }));
+            const categorias = [...guild.channels.cache.values()]
+                .filter(c => c.type === ChannelType.GuildCategory)
+                .sort((a, b) => a.position - b.position)
+                .map(c => ({ id: c.id, nombre: c.name }));
+
+            res.json({ roles, categorias });
+        } catch (error) {
+            console.error('Error al obtener roles/categorías de Discord:', error);
+            res.status(500).json({ error: 'Fallo interno al leer el servidor de Discord' });
         }
     });
 

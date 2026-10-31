@@ -1,12 +1,53 @@
 // Lógica compartida de ciclo de vida de los tickets.
 // La usan tanto los botones de Discord (events/interactionCreate.js) como la API web
 // (api/server.js), de modo que cerrar/reabrir se comporta igual desde ambos sitios.
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ChannelType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ChannelType, PermissionsBitField, OverwriteType } = require('discord.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
+const ServidorConfig = require('../models/ServidorConfig.js');
 
 const CATEGORIA_ARCHIVO = '🗄️ Tickets Archivados';
+
+// Permisos que tienen dentro de un ticket abierto su creador y el equipo de staff.
+const PERMISOS_TICKET = [
+    PermissionsBitField.Flags.ViewChannel,
+    PermissionsBitField.Flags.SendMessages,
+    PermissionsBitField.Flags.ReadMessageHistory,
+    PermissionsBitField.Flags.AttachFiles
+];
+
+// Roles de staff configurados que siguen existiendo en el servidor
+// (un rol borrado en Discord haría fallar la creación del canal).
+function rolesStaffValidos(guild, config) {
+    return (config?.rolesStaff || []).filter(id => guild.roles.cache.has(id));
+}
+
+// Categoría configurada para los tickets, solo si existe y es realmente una categoría.
+function obtenerCategoriaTickets(guild, config) {
+    const id = config?.categoriaTicketsId;
+    if (!id) return null;
+    const canal = guild.channels.cache.get(id);
+    return canal?.type === ChannelType.GuildCategory ? canal : null;
+}
+
+// Es staff quien tiene alguno de los roles de staff configurados O el permiso Gestionar Canales.
+function esStaff(member, config) {
+    if (!member) return false;
+    if (member.permissions.has(PermissionsBitField.Flags.ManageChannels)) return true;
+    const roles = config?.rolesStaff || [];
+    return roles.length > 0 && member.roles.cache.hasAny(...roles);
+}
+
+// permissionOverwrites de un canal de ticket nuevo: oculto para @everyone,
+// visible para el creador y para cada rol de staff.
+function permisosCanalTicket(guild, config, creadorId) {
+    return [
+        { id: guild.id, type: OverwriteType.Role, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: creadorId, type: OverwriteType.Member, allow: PERMISOS_TICKET },
+        ...rolesStaffValidos(guild, config).map(id => ({ id, type: OverwriteType.Role, allow: PERMISOS_TICKET }))
+    ];
+}
 
 // Registra un evento del ciclo de vida del ticket en la auditoría (pestaña "Tickets").
 async function registrarLogTicket(ticket, accion, color, autor) {
@@ -50,7 +91,7 @@ async function archivarCanal(canal, ticket) {
             categoria = await guild.channels.create({ name: CATEGORIA_ARCHIVO, type: ChannelType.GuildCategory });
         }
         await canal.setParent(categoria.id, { lockPermissions: false }).catch(() => {});
-        await canal.permissionOverwrites.edit(ticket.creadorId, { SendMessages: false }).catch(() => {});
+        await canal.permissionOverwrites.edit(ticket.creadorId, { SendMessages: false }, { type: OverwriteType.Member }).catch(() => {});
         if (!canal.name.startsWith('cerrado-')) {
             await canal.setName(`cerrado-${ticket.creadorNombre}`).catch(() => {});
         }
@@ -97,7 +138,8 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
     return { ok: true, ticket };
 }
 
-// Reabre un ticket archivado: restaura permisos y lo saca de la categoría de archivo.
+// Reabre un ticket archivado: restaura permisos y lo devuelve a la categoría de tickets
+// configurada (o a la raíz del servidor si no hay ninguna).
 async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     const ticket = await Ticket.findOneAndUpdate(
         { canalId },
@@ -108,8 +150,17 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
 
     const canal = client.channels.cache.get(canalId);
     if (canal) {
-        await canal.permissionOverwrites.edit(ticket.creadorId, { ViewChannel: true, SendMessages: true }).catch(() => {});
-        await canal.setParent(null).catch(() => {});
+        const config = await ServidorConfig.findOne({ guildId: ticket.guildId }).catch(() => null);
+        const categoria = obtenerCategoriaTickets(canal.guild, config);
+
+        const permisosAbierto = { ViewChannel: true, SendMessages: true, ReadMessageHistory: true, AttachFiles: true };
+        await canal.permissionOverwrites.edit(ticket.creadorId, permisosAbierto, { type: OverwriteType.Member }).catch(() => {});
+        // Por si el ticket se creó antes de configurar el staff (o con otros roles).
+        for (const rolId of rolesStaffValidos(canal.guild, config)) {
+            await canal.permissionOverwrites.edit(rolId, permisosAbierto, { type: OverwriteType.Role }).catch(() => {});
+        }
+        // lockPermissions: false para no sustituir los permisos del ticket por los de la categoría.
+        await canal.setParent(categoria ? categoria.id : null, { lockPermissions: false }).catch(() => {});
         await canal.setName(`ticket-${ticket.creadorNombre}`).catch(() => {});
         await canal.send('🔓 **Este ticket ha sido reabierto.** Ya puedes volver a escribir.').catch(() => {});
     }
@@ -117,4 +168,7 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     return { ok: true, ticket };
 }
 
-module.exports = { cerrarTicket, reabrirTicket, generarTranscript, registrarLogTicket };
+module.exports = {
+    cerrarTicket, reabrirTicket, generarTranscript, registrarLogTicket,
+    esStaff, obtenerCategoriaTickets, permisosCanalTicket
+};
