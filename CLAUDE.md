@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.2.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.3.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -318,5 +318,11 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Discord no avisa por las menciones de los embeds), con botón para arreglarlo. Si está
   encendida y falla al entrar/salir alguien, se apunta en el Registro (Entradas/Salidas)
   y en el canal de logs (`events/guildMemberAdd.js` y `guildMemberRemove.js`).
+- 1.9.3 Enlazar canales en bienvenidas/despedidas: «#reglas» se convierte en `<#id>` al
+  enviar (`utils/mencionesCanal.js`, con test): busca el canal por nombre exacto y, si
+  no, sin mayúsculas, tildes ni adornos («📜・reglas»); nunca categorías; no toca
+  `# Título`, enlaces con `#`, `C#` ni `<#id>`. Se aplica al texto, la descripción y el
+  valor de los campos (donde Discord enseña enlaces). En el panel, desplegable
+  «Mencionar un canal» junto a las variables.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

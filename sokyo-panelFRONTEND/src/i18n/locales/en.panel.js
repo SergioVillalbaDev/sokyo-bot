@@ -1546,6 +1546,8 @@ export default {
       content: 'Message text', contentPh: 'Write the message… you can use variables like {mention}',
       variables: 'Variables',
       varsHelp: '{mention} pings the user · {user} their name · {server} the server · {members} member count · {avatar} their avatar URL (use it in the embed image/thumbnail).',
+      mentionChannel: 'Mention a channel',
+      channelsHelp: 'To link a channel, type # and its name (for example #rules) or pick it in “Mention a channel”: the bot turns it into a blue link people can click. It works in the text and, in the embed, in the description and the field values.',
       mention: 'Mention the user', mentionDesc: 'Pings them when welcoming.',
       embedTitle: 'Embed (optional)', embedDesc: 'Add an embed with color, images and GIFs. Leave it empty to send text only.',
       save: 'Save', saving: 'Saving…', saved: 'Saved',

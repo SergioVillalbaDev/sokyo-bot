@@ -161,3 +161,48 @@ describe('estado de la bienvenida en el panel (lib/estadoBienvenida.js)', () => 
         assert.deepStrictEqual(e.estadoMensaje({ ...base, contenido: 'Adiós' }, { tipo: 'despedida', canales }), { tipo: 'ok', clave: 'ok' });
     });
 });
+
+describe('mencionar canales con #nombre (utils/mencionesCanal.js)', () => {
+    const { ChannelType } = require('discord.js');
+    const { mencionarCanales } = require('../utils/mencionesCanal.js');
+    const canal = (id, name, type = ChannelType.GuildText, rawPosition = 0) => ({ id, name, type, rawPosition });
+    const guild = { channels: { cache: new Collection([
+        ['R1', canal('R1', '📜・reglas')],
+        ['R2', canal('R2', 'roles-y-colores', ChannelType.GuildText, 3)],
+        ['V1', canal('V1', 'Charla', ChannelType.GuildVoice, 5)],
+        ['K1', canal('K1', 'info', ChannelType.GuildCategory)],
+        ['I1', canal('I1', 'info', ChannelType.GuildText, 1)],
+    ]) } };
+
+    it('«#reglas» enlaza el canal aunque su nombre lleve adornos', () => {
+        assert.strictEqual(mencionarCanales('Lee #reglas antes de nada.', guild), 'Lee <#R1> antes de nada.');
+        assert.strictEqual(mencionarCanales('Mira #Reglas, #roles-y-colores y #charla!', guild), 'Mira <#R1>, <#R2> y <#V1>!');
+    });
+    it('vale con el nombre tal cual (como lo inserta el panel)', () => {
+        assert.strictEqual(mencionarCanales('#📜・reglas', guild), '<#R1>');
+    });
+    it('respeta la cursiva de Discord: _#reglas_', () => {
+        assert.strictEqual(mencionarCanales('Lee _#reglas_ y **#reglas**', guild), 'Lee _<#R1>_ y **<#R1>**');
+    });
+    it('nunca enlaza una categoría', () => {
+        assert.strictEqual(mencionarCanales('#info', guild), '<#I1>');
+    });
+    it('no toca lo que no es un canal, ni títulos, ni enlaces, ni menciones ya hechas', () => {
+        const texto = '# Bienvenido\n#noexiste C#reglas https://web.com/#reglas <#R2> {mention}';
+        assert.strictEqual(mencionarCanales(texto, guild), texto);
+    });
+    it('la bienvenida sale con el canal enlazado en el texto y en el embed', async () => {
+        const enviados = [];
+        const canalB = { id: 'C1', name: 'bienvenidas', send: async (m) => { enviados.push(m); }, permissionsFor: () => new PermissionsBitField(PermissionsBitField.All) };
+        const g = { id: 'G1', name: 'Servidor', memberCount: 5, members: { me: { id: 'BOT' } }, channels: { cache: new Collection([['C1', canalB], ...guild.channels.cache]) } };
+        canalB.guild = g;
+        const member = { id: 'U1', guild: g, user: { username: 'alex' }, displayAvatarURL: () => 'https://cdn.discordapp.com/a.png' };
+        const conf = { activo: true, canalId: 'C1', contenido: 'Hola {mention}, lee #reglas', mencionar: true,
+            embed: sanearEmbed({ descripcion: 'Elige color en #roles-y-colores', campos: [{ nombre: 'Normas', valor: 'En #reglas' }] }) };
+        assert.strictEqual(await enviarBienvenida(member, { bienvenida: conf }), true);
+        assert.strictEqual(enviados[0].content, 'Hola <@U1>, lee <#R1>');
+        const e = enviados[0].embeds[0].data;
+        assert.strictEqual(e.description, 'Elige color en <#R2>');
+        assert.strictEqual(e.fields[0].value, 'En <#R1>');
+    });
+});

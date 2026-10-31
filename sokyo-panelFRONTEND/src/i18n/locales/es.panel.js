@@ -1546,6 +1546,8 @@ export default {
       content: 'Texto del mensaje', contentPh: 'Escribe el mensaje… puedes usar variables como {mention}',
       variables: 'Variables',
       varsHelp: '{mention} menciona al usuario · {user} su nombre · {server} el servidor · {members} total de miembros · {avatar} URL de su avatar (úsala en imagen/miniatura del embed).',
+      mentionChannel: 'Mencionar un canal',
+      channelsHelp: 'Para enlazar un canal, escribe # y su nombre (por ejemplo #reglas) o elígelo en «Mencionar un canal»: el bot lo convierte en un enlace azul que se puede pulsar. Funciona en el texto y, en el embed, en la descripción y en el valor de los campos.',
       mention: 'Mencionar al usuario', mentionDesc: 'Le notifica con un ping al darle la bienvenida.',
       embedTitle: 'Embed (opcional)', embedDesc: 'Añade un embed con color, imágenes y GIFs. Déjalo vacío para enviar solo texto.',
       save: 'Guardar', saving: 'Guardando…', saved: 'Guardado',

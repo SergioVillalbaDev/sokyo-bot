@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.3': [
+        { tab: 'prod-bienvenidas', es: '📢 Enlazar canales en la bienvenida y la despedida: escribe # y el nombre del canal (por ejemplo #reglas) o elígelo en «Mencionar un canal», y saldrá como enlace azul que se puede pulsar. Vale en el texto y en la descripción y los campos del embed.', en: '📢 Link channels in welcomes and goodbyes: type # and the channel name (for example #rules) or pick it in “Mention a channel”, and it shows up as a blue link people can click. Works in the text and in the embed description and fields.' },
+    ],
     '1.9.2': [
         { tab: 'prod-bienvenidas', es: '👋 Bienvenidas y despedidas: arriba del todo te dice si de verdad se mandan solas y, si no, por qué (apagada, sin canal, vacía…) o si salen sin notificación, con un botón para arreglarlo.', en: '👋 Welcomes and goodbyes: at the top it tells you whether they’re really sent automatically and, if not, why (off, no channel, empty…) or whether they go out without a notification, with a button to fix it.' },
         { tab: 'logs-todos', es: '⚠️ Si la bienvenida está encendida pero no puede salir al entrar alguien (falta un permiso, el canal se borró…), queda apuntado en el registro y en el canal de logs.', en: '⚠️ If the welcome is on but can’t be sent when someone joins (a missing permission, a deleted channel…), it’s noted in the log and the logs channel.' },
