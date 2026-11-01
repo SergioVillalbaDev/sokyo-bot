@@ -7,6 +7,7 @@ import { Avatar } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { relativo } from './crecimientoUtils';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import VistaDiscord from '../VistaDiscord';
 
 const COLOR_ESTADO = { valida: 'text-success', pendiente: 'text-warning', salio: 'text-muted', falsa: 'text-danger' };
 
@@ -75,6 +76,12 @@ export default function CrecInvitacionesView({ dash }) {
           <Campo etiqueta={t('dashboard.crec_v.inv.message')} ayuda={t('dashboard.crec_v.inv.messageHint')} className="sm:col-span-2">
             <textarea rows={2} maxLength={500} value={form.mensaje || ''} onChange={(e) => set('mensaje')(e.target.value)} className={campo} disabled={!form.canalAvisosId} />
           </Campo>
+          {form.canalAvisosId && (
+            <div className="sm:col-span-2">
+              <VistaDiscord texto={form.mensaje || t('dashboard.crec_v.inv.defaultMessage')}
+                variables={{ mention: '@Alex', user: 'Alex', inviter: '@Sara', inviterName: 'Sara', invitesText: t('dashboard.crec_v.inv.sampleInvites'), invites: 3, server: 'Nébula Gaming' }} />
+            </div>
+          )}
         </div>
       </div>
 

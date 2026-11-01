@@ -11,7 +11,9 @@ import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
 import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
 import RecortarImagen from '../RecortarImagen';
 import TextareaCanales from '../TextareaCanales';
-import { fondoBoton } from '../../../lib/estilosBoton';
+import MarkdownDiscord from '../MarkdownDiscord';
+import { CabeceraBot, BotonesDiscord } from '../VistaDiscord';
+import { rellenarEjemplo } from '../../../lib/rellenarEjemplo';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
@@ -166,63 +168,14 @@ function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirIma
   );
 }
 
-// --- Mini-renderizador de Markdown para la vista previa (imita a Discord) ---
-// Reglas en línea: el orden importa (los marcadores largos antes que los cortos).
-const REGLAS_MD = [
-  { re: /\*\*\*([\s\S]+?)\*\*\*/, wrap: (n, k) => <strong key={k} className="font-bold text-white"><em>{n}</em></strong> },
-  { re: /\*\*([\s\S]+?)\*\*/, wrap: (n, k) => <strong key={k} className="font-bold text-white">{n}</strong> },
-  { re: /__([\s\S]+?)__/, wrap: (n, k) => <span key={k} className="underline">{n}</span> },
-  { re: /~~([\s\S]+?)~~/, wrap: (n, k) => <span key={k} className="line-through">{n}</span> },
-  { re: /\*([\s\S]+?)\*/, wrap: (n, k) => <em key={k}>{n}</em> },
-  { re: /_([\s\S]+?)_/, wrap: (n, k) => <em key={k}>{n}</em> },
-  { re: /`([^`]+?)`/, code: true },
-  { re: /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/, link: true },
-];
-
-// Procesa el texto en línea y devuelve nodos React (negrita, cursiva, código…).
-function parseInline(text, kp = 'i') {
-  if (!text) return [];
-  let best = null;
-  REGLAS_MD.forEach((rule, r) => {
-    const m = new RegExp(rule.re.source).exec(text);
-    if (m && (best === null || m.index < best.m.index)) best = { r, m, rule };
-  });
-  if (!best) return [text];
-  const { m, rule } = best;
-  const key = `${kp}-${m.index}`;
-  const before = text.slice(0, m.index);
-  const after = text.slice(m.index + m[0].length);
-  let node;
-  if (rule.code) node = <code key={key} className="rounded bg-black/40 px-1 py-0.5 text-[0.85em]">{m[1]}</code>;
-  else if (rule.link) node = <span key={key} className="text-[#00a8fc]">{m[1]}</span>;
-  else node = rule.wrap(parseInline(m[1], `${key}.`), key);
-  return [before, node, ...parseInline(after, `${kp}x`)];
-}
-
-// Renderiza el texto completo (bloques: encabezados, citas, listas, código).
-function Markdown({ text }) {
-  const lineas = String(text || '').split('\n');
-  const out = [];
-  for (let i = 0; i < lineas.length; i++) {
-    const l = lineas[i];
-    if (l.trim().startsWith('```')) {                       // bloque de código
-      const buf = [];
-      i++;
-      while (i < lineas.length && !lineas[i].trim().startsWith('```')) { buf.push(lineas[i]); i++; }
-      out.push(<pre key={`c${i}`} className="my-1 overflow-x-auto whitespace-pre-wrap rounded bg-black/40 p-2 text-xs">{buf.join('\n')}</pre>);
-    } else if (/^>\s?/.test(l)) {                           // cita (agrupa líneas seguidas)
-      const buf = [];
-      while (i < lineas.length && /^>\s?/.test(lineas[i])) { buf.push(lineas[i].replace(/^>\s?/, '')); i++; }
-      i--;
-      out.push(<div key={`q${i}`} className="my-1 border-l-4 border-white/30 pl-2">{buf.map((b, j) => <p key={j}>{parseInline(b)}</p>)}</div>);
-    } else if (/^###\s/.test(l)) out.push(<p key={i} className="mt-1 text-base font-bold text-white">{parseInline(l.replace(/^###\s/, ''))}</p>);
-    else if (/^##\s/.test(l)) out.push(<p key={i} className="mt-1 text-lg font-bold text-white">{parseInline(l.replace(/^##\s/, ''))}</p>);
-    else if (/^#\s/.test(l)) out.push(<p key={i} className="mt-1 text-xl font-bold text-white">{parseInline(l.replace(/^#\s/, ''))}</p>);
-    else if (/^[-*]\s/.test(l)) out.push(<p key={i} className="flex gap-1.5"><span>•</span><span>{parseInline(l.replace(/^[-*]\s/, ''))}</span></p>);
-    else if (l.trim() === '') out.push(<div key={i} className="h-2" />);
-    else out.push(<p key={i}>{parseInline(l)}</p>);
-  }
-  return <>{out}</>;
+// Cambia los {marcadores} de todos los textos del embed por su ejemplo (solo para verlo).
+function conEjemplos(e, variables) {
+  if (!variables) return e;
+  const r = (v) => rellenarEjemplo(v, variables);
+  // También las direcciones de imagen: {avatar} es la foto de quien entra (como en el bot).
+  return { ...e, titulo: r(e.titulo), descripcion: r(e.descripcion), autorNombre: r(e.autorNombre), footer: r(e.footer),
+    imagenUrl: r(e.imagenUrl), miniaturaUrl: r(e.miniaturaUrl), autorIconoUrl: r(e.autorIconoUrl), footerIconoUrl: r(e.footerIconoUrl),
+    campos: e.campos.map((c) => ({ ...c, nombre: r(c.nombre), valor: r(c.valor) })) };
 }
 
 // --- Vista previa estilo Discord ---
@@ -234,54 +187,49 @@ function Preview({ e, t, texto, botones }) {
   const autorIcono = urlImagen(e.autorIconoArchivo, e.autorIconoUrl);
   const footerIcono = urlImagen(e.footerIconoArchivo, e.footerIconoUrl);
   const vacio = !e.titulo && !e.descripcion && !e.autorNombre && !imgSrc && !thumbSrc && !e.footer && e.campos.length === 0;
+  const hayTexto = !!(texto && texto.trim());
   return (
     <div className="rounded-xl bg-[#313338] p-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/40">{t('dashboard.embed_b.preview')}</p>
-      {texto && <div className="mb-2 break-words text-sm text-[#dbdee1]"><Markdown text={texto} /></div>}
-      {vacio ? (
-        <p className="py-6 text-center text-sm italic text-white/40">{t('dashboard.embed_b.previewEmpty')}</p>
-      ) : (
-        <div className="flex gap-3 rounded-md bg-[#2b2d31] p-3" style={{ borderLeft: `4px solid ${/^#[0-9a-fA-F]{6}$/.test(e.color) ? e.color : '#5865F2'}` }}>
-          <div className="min-w-0 flex-1">
-            {e.autorNombre && (
-              <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-white">
-                {autorIcono && <img src={autorIcono} alt="" className="h-5 w-5 rounded-full object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
-                {e.autorNombre}
-              </p>
-            )}
-            {e.titulo && <p className={`mb-1 font-bold ${e.tituloUrl ? 'text-[#00a8fc]' : 'text-white'}`}>{e.titulo}</p>}
-            {e.descripcion && <div className="text-sm text-[#dbdee1]"><Markdown text={e.descripcion} /></div>}
-            {e.campos.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-                {/* "En línea" = comparten fila (hasta 3); si no, ocupa la fila entera. */}
-                {e.campos.map((c, i) => (
-                  <div key={i} className={c.inline ? 'min-w-[30%] flex-1' : 'w-full'}>
-                    <p className="text-xs font-bold text-white">{c.nombre || '—'}</p>
-                    <div className="text-xs text-[#dbdee1]">{c.valor ? <Markdown text={c.valor} /> : '—'}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {imgSrc && <img src={imgSrc} alt="" className="mt-2 max-h-48 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
-            {(e.footer || footerIcono) && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-white/50">
-                {footerIcono && <img src={footerIcono} alt="" className="h-4 w-4 rounded-full object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
-                {e.footer}{e.fecha ? ' • hoy' : ''}
-              </p>
-            )}
+      <CabeceraBot>
+        {hayTexto && <div className="mb-1.5 break-words text-sm text-[#dbdee1]"><MarkdownDiscord text={texto} /></div>}
+        {vacio ? (
+          !hayTexto && <p className="py-3 text-sm italic text-white/40">{t('dashboard.embed_b.previewEmpty')}</p>
+        ) : (
+          <div className="flex gap-3 rounded-md bg-[#2b2d31] p-3" style={{ borderLeft: `4px solid ${/^#[0-9a-fA-F]{6}$/.test(e.color) ? e.color : '#5865F2'}` }}>
+            <div className="min-w-0 flex-1">
+              {e.autorNombre && (
+                <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-white">
+                  {autorIcono && <img src={autorIcono} alt="" className="h-5 w-5 rounded-full object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
+                  {e.autorNombre}
+                </p>
+              )}
+              {e.titulo && <p className={`mb-1 font-bold ${e.tituloUrl ? 'text-[#00a8fc]' : 'text-white'}`}>{e.titulo}</p>}
+              {e.descripcion && <div className="text-sm text-[#dbdee1]"><MarkdownDiscord text={e.descripcion} /></div>}
+              {e.campos.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                  {/* "En línea" = comparten fila (hasta 3); si no, ocupa la fila entera. */}
+                  {e.campos.map((c, i) => (
+                    <div key={i} className={c.inline ? 'min-w-[30%] flex-1' : 'w-full'}>
+                      <p className="text-xs font-bold text-white">{c.nombre || '—'}</p>
+                      <div className="text-xs text-[#dbdee1]">{c.valor ? <MarkdownDiscord text={c.valor} /> : '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {imgSrc && <img src={imgSrc} alt="" className="mt-2 max-h-48 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
+              {(e.footer || footerIcono) && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-white/50">
+                  {footerIcono && <img src={footerIcono} alt="" className="h-4 w-4 rounded-full object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
+                  {e.footer}{e.fecha ? ' • hoy' : ''}
+                </p>
+              )}
+            </div>
+            {thumbSrc && <img src={thumbSrc} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
           </div>
-          {thumbSrc && <img src={thumbSrc} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />}
-        </div>
-      )}
-      {Array.isArray(botones) && botones.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {botones.map((b, i) => (
-            <span key={i} className="inline-flex max-w-full items-center rounded-[4px] px-4 py-1.5 text-sm font-medium text-white" style={{ background: fondoBoton(b.estilo) }}>
-              <span className="truncate">{b.texto}</span>
-            </span>
-          ))}
-        </div>
-      )}
+        )}
+        <BotonesDiscord botones={botones} />
+      </CabeceraBot>
     </div>
   );
 }
@@ -289,8 +237,9 @@ function Preview({ e, t, texto, botones }) {
 // `canales` (opcional): al escribir «#» en la descripción o en el valor de un campo sale
 // la lista de canales (solo donde el bot convierte «#nombre» en enlace: bienvenidas y
 // paneles de verificación/doble bienvenida). `texto` y `botones` (opcionales) salen en
-// la vista previa encima y debajo del embed.
-export default function EmbedBuilder({ value, onChange, subirImagen, presets, onGuardarPreset, canales, texto, botones }) {
+// la vista previa encima y debajo del embed; `variables` ({ mention: '@Alex', … }) cambia
+// los {marcadores} por ejemplos en la vista previa (lo que rellena el bot al enviar).
+export default function EmbedBuilder({ value, onChange, subirImagen, presets, onGuardarPreset, canales, texto, botones, variables }) {
   const { t } = useTranslation();
   const e = { ...EMBED_VACIO, ...value, campos: value?.campos || [] };
   const set = (k, v) => onChange({ ...e, [k]: v });
@@ -508,7 +457,7 @@ export default function EmbedBuilder({ value, onChange, subirImagen, presets, on
 
       {/* Vista previa */}
       <div className="lg:sticky lg:top-4 lg:self-start">
-        <Preview e={e} t={t} texto={texto} botones={botones} />
+        <Preview e={conEjemplos(e, variables)} t={t} texto={variables ? rellenarEjemplo(texto, variables) : texto} botones={botones} />
       </div>
     </div>
     </div>

@@ -7,6 +7,7 @@ import { Avatar } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { relativo } from './crecimientoUtils';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import VistaDiscord from '../VistaDiscord';
 
 export default function CrecBumpView({ dash }) {
   const { t, i18n } = useTranslation();
@@ -80,9 +81,12 @@ export default function CrecBumpView({ dash }) {
           </Campo>
           <Campo etiqueta={t('dashboard.crec_v.bump.reminder')} className="sm:col-span-2">
             <textarea rows={2} maxLength={500} value={form.mensajeRecordatorio || ''} onChange={(ev) => set('mensajeRecordatorio')(ev.target.value)} className={campo} />
+            <VistaDiscord className="mt-2" texto={`${form.rolId ? `@${(roles.find((x) => x.id === form.rolId) || {}).nombre || '…'} ` : ''}${form.mensajeRecordatorio || t('dashboard.crec_v.bump.defaultReminder')}`} />
           </Campo>
           <Campo etiqueta={t('dashboard.crec_v.bump.thanks')} ayuda={t('dashboard.crec_v.bump.thanksHint')} className="sm:col-span-2">
             <textarea rows={2} maxLength={500} value={form.mensajeGracias || ''} onChange={(ev) => set('mensajeGracias')(ev.target.value)} className={campo} />
+            <VistaDiscord className="mt-2" texto={`${form.mensajeGracias || t('dashboard.crec_v.bump.defaultThanks')}${Number(form.oroPorBump) > 0 ? ` · +${Number(form.oroPorBump)} 🪙` : ''}`}
+              variables={{ mention: '@Alex', user: 'Alex', next: t('dashboard.crec_v.bump.sampleNext'), server: 'Nébula Gaming' }} />
           </Campo>
         </div>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>

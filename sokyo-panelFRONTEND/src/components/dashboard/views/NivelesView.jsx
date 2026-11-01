@@ -11,6 +11,7 @@ import { OpcionCrear } from '../CrearAlVuelo';
 import FondoDiseno from '../FondoDiseno';
 import { getStaffSession } from '../../../lib/api';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
+import VistaDiscord from '../VistaDiscord';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -180,6 +181,7 @@ export default function NivelesView({ dash }) {
               <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.niveles_v.message')}</label>
               <input value={f.mensajeSubida} onChange={(e) => set('mensajeSubida', e.target.value)} className={inputCls} />
               <p className="mt-1.5 text-xs text-muted">{t('dashboard.niveles_v.placeholders')}</p>
+              <VistaDiscord className="mt-3" texto={f.mensajeSubida || t('dashboard.niveles_v.defaultMessage')} variables={{ mention: '@Alex', user: 'Alex', level: 5 }} />
             </>
           )}
         </div>

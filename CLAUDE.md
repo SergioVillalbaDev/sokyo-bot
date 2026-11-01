@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.7.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.8.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -370,5 +370,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Vista previa en la web: `lib/encuadreTarjeta.js`; la real, `POST /api/presets-tarjeta/preview`.
   Arreglo del autoguardado (`useDesdeServidor`, ver Autoguardado) y buscador en los desplegables.
   Test en `test/tarjetas.test.js`.
+- 1.9.8 Vistas previas de Discord en todo lo que manda un mensaje: `VistaDiscord.jsx` (avatar y
+  nombre del bot con APP, texto, embed y botones) con `MarkdownDiscord.jsx` (negrita, cursiva,
+  citas, menciones y emojis) y `lib/rellenarEjemplo.js` (cambia `{mention}`, `{level}`… por
+  ejemplos; los que no existen se dejan). Lleva `variables` con los mismos nombres que rellena el
+  bot (`utils/niveles.js`, `cumpleanos.js`, `invitaciones.js`, `bump.js`, `directos.js`…). En
+  Niveles, Cumpleaños, Invitaciones, Bump, Directos, Solicitudes (panel con botones y mensaje al
+  aceptar), Mensajes fijos y Auto-respuestas. `EmbedBuilder` acepta `texto`, `botones` y
+  `variables` (Bienvenidas: texto de encima y `{avatar}`). **Si añades una sección que manda un
+  mensaje, ponle `VistaDiscord` con las variables del bot y copia los textos por defecto.**
+  Test en `test/vistaprevia.test.js`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

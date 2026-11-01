@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.8': [
+        { tab: 'prod-bienvenidas', es: '👀 Vista previa como en Discord en las secciones con mensajes: bienvenidas (con el texto de encima y {mention}, {server}… cambiados por ejemplos), niveles, cumpleaños, invitaciones, bump, directos, solicitudes (con sus botones) y mensajes fijos. Así ves cómo queda sin probarlo en Discord.', en: '👀 Discord-style preview in the sections that send messages: welcomes (with the text above and {mention}, {server}… replaced by examples), levels, birthdays, invites, bump, live alerts, applications (with their buttons) and pinned messages. See how it will look without testing it in Discord.' },
+    ],
     '1.9.7': [
         { tab: 'config-niveles', es: '🖼️ Los diseños de tarjeta de nivel pueden llevar una imagen o un GIF de fondo. Se sube, se mueve y se amplía como un logo, y en la tarjeta el GIF se mueve.', en: '🖼️ Level card designs can now have an image or GIF background. Upload it, move and zoom it like a logo, and on the card the GIF moves.' },
         { tab: 'config-niveles', es: '🛠️ El guardado automático ya no borra lo que estás a medias: «Añadir multiplicador», «Añadir recompensa» o «Añadir pregunta» ya no desaparecen solos, y no se pierde lo que escribes mientras se guarda.', en: '🛠️ Autosave no longer wipes what you’re in the middle of: “Add multiplier”, “Add reward” or “Add question” no longer vanish on their own, and nothing you type while it saves gets lost.' },

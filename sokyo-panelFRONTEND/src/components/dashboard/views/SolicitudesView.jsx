@@ -8,6 +8,7 @@ import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
+import VistaDiscord from '../VistaDiscord';
 
 const MAX_FORMULARIOS = 10;
 const MAX_PREGUNTAS = 5;
@@ -78,6 +79,16 @@ export default function SolicitudesView({ dash }) {
           <Campo etiqueta={t('dashboard.solic_v.panelDesc')} className="sm:col-span-2">
             <textarea rows={2} maxLength={2000} value={form.descripcion || ''} onChange={(e) => set('descripcion')(e.target.value)} className={`${campo} resize-y`} />
           </Campo>
+          {/* El mensaje del panel, como lo arma el bot (utils/solicitudes.js: mensajePanel). */}
+          <div className="sm:col-span-2">
+            <VistaDiscord
+              embed={{
+                titulo: form.titulo || t('dashboard.solic_v.defaultTitle'), color: '#8b5cf6',
+                descripcion: [form.descripcion || '', '', ...forms.filter((f) => f.abierto !== false && f.nombre).map((f) => `${f.emoji || '📝'} **${f.nombre}**${f.descripcion ? ` — ${f.descripcion}` : ''}`)].join('\n').trim(),
+                pie: forms.some((f) => f.abierto !== false && f.nombre) ? '' : t('dashboard.solic_v.noOpen'),
+              }}
+              botones={forms.filter((f) => f.abierto !== false && f.nombre).slice(0, 25).map((f) => ({ texto: `${f.emoji || '📝'} ${f.nombre}`, estilo: 'azul' }))} />
+          </div>
         </div>
 
         <div className="mt-6 flex items-center justify-between gap-3">
@@ -131,6 +142,7 @@ export default function SolicitudesView({ dash }) {
                   <Campo etiqueta={t('dashboard.solic_v.accepted')} ayuda={t('dashboard.solic_v.acceptedHint')}>
                     <textarea rows={2} maxLength={1000} value={f.mensajeAceptado || ''} onChange={(e) => cambiarForm(i, 'mensajeAceptado', e.target.value)} className={`${campo} resize-y`} />
                   </Campo>
+                  <VistaDiscord texto={f.mensajeAceptado || t('dashboard.solic_v.defaultAccepted', { nombre: f.nombre || '…', servidor: 'Nébula Gaming' })} />
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <FilaInterruptor titulo={t('dashboard.solic_v.open')} desc={t('dashboard.solic_v.openHint')}>
                       <Toggle checked={f.abierto !== false} onChange={(v) => cambiarForm(i, 'abierto', v)} />
