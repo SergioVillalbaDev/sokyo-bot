@@ -4,15 +4,21 @@ import { useTranslation } from 'react-i18next';
 import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic } from 'lucide-react';
 import { FechaPicker, SubirImagen } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
+import { API_URL } from '../../../lib/api';
+import { useRelativo } from '../../../hooks/useModulo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 
 const TIPO_ICONO = { voz: Mic, escenario: Radio, externo: MapPin };
+// El emoji del título del evento en Discord (utils/comunidad.js: construirEmbedEvento).
+const EMOJI_TIPO = { voz: '🔊', escenario: '🎤', externo: '📍' };
 
 export default function EventosView({ dash }) {
-  const { t } = useTranslation();
-  const { canales, eventos = [], crearEvento, eliminarEvento, subirImagen } = dash;
+  const { t, i18n } = useTranslation();
+  const relativo = useRelativo();
+  const { canales, configServidor, eventos = [], crearEvento, eliminarEvento, subirImagen } = dash;
 
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -201,6 +207,19 @@ export default function EventosView({ dash }) {
           <div className="block sm:col-span-2">
             <SubirImagen value={portada} onChange={setPortada} subirImagen={subirImagen} titulo={t('dashboard.eventos_v.coverUrl')} />
           </div>
+        </div>
+
+        {/* Cómo se publica en el canal (utils/comunidad.js: construirEmbedEvento y filaEvento) */}
+        <div data-help="eventos-previa" className="mt-4">
+          <p className="mb-1.5 text-sm font-semibold text-fg">{t('dashboard.eventos_v.prevTitle')}</p>
+          <VistaDiscord
+            embed={{
+              titulo: `${EMOJI_TIPO[tipo] || '📅'} ${titulo || t('dashboard.eventos_v.prevTitleSample')}`,
+              descripcion, color: configServidor?.colorEmbed || '#5865F2',
+              campos: [{ nombre: t('dashboard.eventos_v.prevWhen'), valor: fechaInicio && !Number.isNaN(new Date(fechaInicio).getTime()) ? `${new Date(fechaInicio).toLocaleString(i18n.language, { dateStyle: 'full', timeStyle: 'short' })} (${relativo(fechaInicio)})` : '—' }],
+              imagen: portada ? (portada.startsWith('/uploads/') ? `${API_URL}${portada}` : portada) : '',
+            }}
+            botones={[{ texto: `🔔 ${t('dashboard.eventos_v.prevRemind')}`, estilo: 'gris' }]} />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Hammer, Plus, Pencil, Trash2, X } from 'lucide-react';
 import { EmojiPicker } from '../../ui/EmojiPicker';
 import { ACCIONES, accionMeta, aUnidad, aMinutos, textoDuracion } from '../../../lib/sanciones';
+import VistaDiscord from '../VistaDiscord';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -168,6 +169,29 @@ function TipoModal({ tipo, onClose, onGuardar }) {
 
         <label className="mb-1.5 mt-3 block text-xs font-semibold text-muted">{t('dashboard.mod_v.descriptionOpt')}</label>
         <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder={t('dashboard.mod_v.descriptionPh')} className={inputCls} />
+
+        {/* El privado que recibe el miembro (utils/moderationManager.js: enviarDM): usa el color y el emoji de la acción */}
+        {(() => {
+          const EMOJI_ACCION = { aviso: '⚠️', timeout: '🔇', expulsion: '👢', ban: '🔨' };
+          const etiqueta = t(`dashboard.mod_v.prevActionNames.${accion}`);
+          const min = usaDuracion ? aMinutos(Number(valor) || 0, unidad) : 0;
+          const duracion = min < 60 ? `${min} min` : min < 1440 ? t('dashboard.mod_v.prevHours', { n: Math.round(min / 60) }) : t('dashboard.mod_v.prevDays', { n: Math.round(min / 1440) });
+          return (
+            <div className="mt-5">
+              <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.mod_v.prevTitle')}</p>
+              <VistaDiscord embed={{
+                titulo: t('dashboard.mod_v.prevName', { emoji: EMOJI_ACCION[accion], server: 'Nébula Gaming' }), color: accionMeta(accion).color,
+                campos: [
+                  { nombre: t('dashboard.mod_v.prevType'), valor: nombre.trim() || etiqueta, inline: true },
+                  ...(nombre.trim() && nombre.trim() !== etiqueta ? [{ nombre: t('dashboard.mod_v.prevAction'), valor: etiqueta, inline: true }] : []),
+                  ...(min > 0 ? [{ nombre: t('dashboard.mod_v.prevDuration'), valor: duracion, inline: true }] : []),
+                  { nombre: t('dashboard.mod_v.prevReason'), valor: t('dashboard.mod_v.prevReasonVal') },
+                ],
+              }} />
+              <p className="mt-1.5 text-xs text-muted">{t('dashboard.mod_v.prevNote')}</p>
+            </div>
+          );
+        })()}
 
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} className="rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">{t('dashboard.mod_v.cancel')}</button>

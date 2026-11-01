@@ -7,6 +7,7 @@ import { Flag, Save, Check, X, Info, Ticket } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -83,6 +84,23 @@ export default function ReportesView({ dash }) {
           <EstadoAutoguardado estado={autoguardado} />
           {guardado && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.reportes_v.saved')}</span>}
         </div>
+      </div>
+
+      {/* Cómo le llega al staff (utils/reportes.js: avisar) */}
+      <div data-help="reportes-previa" className={card}>
+        <h3 className="mb-3 font-bold text-fg">{t('dashboard.reportes_v.prevTitle')}</h3>
+        <VistaDiscord
+          embed={{
+            titulo: t('dashboard.reportes_v.prevName'), color: '#e67e22', pie: 'ID: 6720a1f3',
+            campos: [
+              { nombre: t('dashboard.reportes_v.prevReported'), valor: '@Marc', inline: true },
+              { nombre: t('dashboard.reportes_v.prevBy'), valor: '@Alex', inline: true },
+              { nombre: t('dashboard.reportes_v.prevChannel'), valor: '#general', inline: true },
+              { nombre: t('dashboard.reportes_v.prevReason'), valor: t('dashboard.reportes_v.prevReasonVal') },
+              { nombre: t('dashboard.reportes_v.prevMessage'), valor: t('dashboard.reportes_v.prevMessageVal') },
+            ],
+          }}
+          botones={[{ texto: t('dashboard.reportes_v.prevResolve'), estilo: 'verde' }, { texto: t('dashboard.reportes_v.prevTicket'), estilo: 'azul' }, { texto: t('dashboard.reportes_v.prevDismiss'), estilo: 'gris' }]} />
       </div>
 
       {/* Bandeja */}

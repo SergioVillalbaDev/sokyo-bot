@@ -7,6 +7,9 @@ import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
+import VistaDiscord from '../VistaDiscord';
+import VentanaDiscord from '../VentanaDiscord';
+import { pieMarca } from '../../../lib/pieMarca';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -35,7 +38,7 @@ const PLANTILLA_FABRICA = {
 
 export default function PresentacionesView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, presentaciones = [], guardarConfigPresentaciones, eliminarPresentacion } = dash;
+  const { canales, configServidor, esPremium, presentaciones = [], guardarConfigPresentaciones, eliminarPresentacion } = dash;
 
   const [canalIntro, setCanalIntro] = useState('');
   const [canalStaff, setCanalStaff] = useState('');
@@ -380,6 +383,36 @@ export default function PresentacionesView({ dash }) {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Cómo lo ve la gente en Discord (utils/comunidad.js: publicarPanelPresentacion, abrirModalPresentacion, procesarPresentacion) */}
+      <div data-help="presentaciones-previa" className={card}>
+        <h3 className="font-bold text-fg">{t('dashboard.presentaciones_v.prevTitle')}</h3>
+        <p className="mb-3 mt-0.5 text-xs text-muted">{t('dashboard.presentaciones_v.prevHint')}</p>
+        <div className="space-y-4">
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.presentaciones_v.prevStepPanel')}</p>
+            <VistaDiscord embed={{ titulo: t('dashboard.presentaciones_v.prevPanelTitle'), descripcion: t('dashboard.presentaciones_v.prevPanelDesc'), color: configServidor?.colorEmbed || '#5865F2', pie: pieMarca(esPremium) }}
+              botones={[{ texto: t('dashboard.presentaciones_v.prevStartBtn'), estilo: 'azul' }]} />
+          </div>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.presentaciones_v.prevStepWindow')}</p>
+            <VentanaDiscord titulo={t('dashboard.presentaciones_v.prevModalTitle')}
+              campos={modo === 'plantilla'
+                ? [{ etiqueta: t('dashboard.presentaciones_v.prevTemplateField'), valor: plantilla.slice(0, 1500), parrafo: true, obligatorio: true }]
+                : preguntas.slice(0, 5).map((p) => ({ etiqueta: p.texto || t('dashboard.presentaciones_v.prevQuestion'), parrafo: p.tipo === 'texto', obligatorio: !!p.requerida }))} />
+            {modo !== 'plantilla' && preguntas.length > 5 && <p className="mt-1.5 text-xs text-warn">{t('dashboard.presentaciones_v.prevOnlyFive')}</p>}
+          </div>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.presentaciones_v.prevStepPost')}</p>
+            <VistaDiscord embed={{
+              autor: t('dashboard.presentaciones_v.prevAuthor'), titulo: t('dashboard.presentaciones_v.prevPostTitle'), color: configServidor?.colorEmbed || '#5865F2',
+              campos: modo === 'plantilla'
+                ? [{ nombre: t('dashboard.presentaciones_v.prevIntro'), valor: plantilla || t('dashboard.presentaciones_v.prevAnswer') }]
+                : preguntas.slice(0, 5).map((p) => ({ nombre: p.texto || p.id, valor: p.tipo === 'numero' ? '21' : t('dashboard.presentaciones_v.prevAnswer') })),
+            }} />
+          </div>
+        </div>
       </div>
 
       {/* Botón guardar */}

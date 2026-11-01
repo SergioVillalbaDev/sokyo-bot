@@ -6,6 +6,7 @@ import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
+import VistaDiscord from '../VistaDiscord';
 
 export default function SalonFamaView({ dash }) {
   const { t } = useTranslation();
@@ -42,6 +43,14 @@ export default function SalonFamaView({ dash }) {
               <Toggle checked={!!form.propios} onChange={set('propios')} />
             </FilaInterruptor>
           </div>
+        </div>
+        {/* Cómo queda el mensaje copiado (utils/salonFama.js: construir) */}
+        <div className="mt-5">
+          <span className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.salon_v.prevTitle')}</span>
+          <VistaDiscord
+            texto={`${form.emoji || '⭐'} **${form.minimo ?? 3}** · #${t('dashboard.salon_v.prevChannel')}`}
+            embed={{ autor: t('dashboard.salon_v.prevAuthor'), descripcion: t('dashboard.salon_v.prevText'), color: '#fbbf24', pie: `#${t('dashboard.salon_v.prevChannel')}` }}
+            botones={[{ texto: t('dashboard.salon_v.prevGo'), estilo: 'gris' }]} />
         </div>
         <div className="mt-5">
           <span className="text-xs font-semibold text-muted">{t('dashboard.salon_v.exempt')}</span>

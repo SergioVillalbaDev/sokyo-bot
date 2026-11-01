@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { SubirImagen } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
+import { API_URL } from '../../../lib/api';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -321,6 +323,43 @@ function parseNums(str) {
   return String(str).split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n) && n > 0);
 }
 
+// Cómo sale cada mensaje en Discord (utils/dinamicas.js): unos van en un embed con su título
+// y otros como texto suelto (o con la imagen dentro de un embed: payloadMensaje).
+function PreviaSlot({ dyn, slot, msg, f, t }) {
+  const d = (k, o) => t(`dashboard.dinamicas_v.${k}`, o);
+  const xp = f.xp ?? 50;
+  const emoji = f.emoji || '🪙';
+  const variables = {
+    user: '@Alex', xp, emoji, numero: 42, number: 42, racha: 3, streak: 3, palabra: f.palabra || d('prevWord'), word: f.palabra || d('prevWord'),
+    mensajes: 412, messages: 412, miembros: 1000, members: 1000, servidor: 'Nébula Gaming', server: 'Nébula Gaming', nivel: 25, level: 25,
+  };
+  const texto = msg.texto || '';
+  const imagen = msg.imagen ? (msg.imagen.startsWith('/uploads/') ? `${API_URL}${msg.imagen}` : msg.imagen) : '';
+  const color = '#5865F2';
+  const clave = `${dyn}.${slot}`;
+  const embeds = {
+    'qotd.pregunta': { titulo: d('prevQotdTitle'), descripcion: `${texto ? `${texto}\n\n` : ''}${d('prevQotdSample')}`, pie: d('prevQotdFooter', { xp }) },
+    'gota.anuncio': { titulo: `${emoji} ${d('prevGoldTitle')}`, descripcion: texto },
+    'gota.fallo': { titulo: `${emoji} ${d('prevGoldTitle')}`, descripcion: texto, color: '#95a5a6' },
+    'trivia.pregunta': { titulo: d('prevTriviaTitle'), descripcion: `${texto ? `${texto}\n\n` : ''}${d('prevTriviaSample')}`, pie: d('prevTriviaFooter', { seg: f.segundos ?? 30, xp }) },
+    'miembroSemana.anuncio': { titulo: d('prevWeekTitle'), descripcion: texto },
+    'logros.miembros': { titulo: d('prevMilestoneTitle'), descripcion: texto },
+    'logros.nivel': { titulo: d('prevLevelTitle'), descripcion: texto },
+  }[clave];
+  const sinNada = !texto && !imagen && !embeds?.titulo;
+  const vacio = clave === 'contador.acierto' ? d('prevNothing') : d('prevEmpty');
+  let props;
+  if (embeds) {
+    props = { embed: { color, imagen, ...embeds }, texto: clave === 'miembroSemana.anuncio' ? '@Alex' : '',
+      botones: clave === 'trivia.pregunta' ? [].concat(d('prevTriviaOptions', { returnObjects: true })).filter((o) => typeof o === 'string').map((o) => ({ texto: o, estilo: 'gris' })) : [] };
+  } else if (imagen) {
+    props = { embed: { descripcion: texto, color, imagen } };
+  } else {
+    props = { texto };
+  }
+  return <VistaDiscord className="mt-2" variables={variables} vacio={sinNada || (!texto && !imagen) ? vacio : ''} {...props} />;
+}
+
 // Sección "Mensajes": un editor (texto + imagen/GIF por link o PC) por cada slot
 // que tiene la dinámica (acierto, fallo, anuncio…).
 function MensajesSection({ dyn, f, setMsg, subirImagen, t }) {
@@ -352,6 +391,7 @@ function MensajesSection({ dyn, f, setMsg, subirImagen, t }) {
               <div className="mt-2">
                 <SubirImagen value={msg.imagen || ''} onChange={(v) => setMsg(dyn, slot, 'imagen', v)} subirImagen={subirImagen} titulo={t('dashboard.dinamicas_v.msgImage')} />
               </div>
+              <PreviaSlot dyn={dyn} slot={slot} msg={msg} f={f} t={t} />
             </div>
           );
         })}

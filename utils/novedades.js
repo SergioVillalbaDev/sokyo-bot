@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.9': [
+        { tab: 'com-sugerencias', es: '👀 Vista previa de cómo lo ve la gente en Discord en muchas más secciones: sugerencias, presentaciones (con la ventana que se abre), eventos, sorteos, encuestas, confesiones, salón de la fama, grupos, clanes, parte diario, ausente, dinámicas, reportes, paneles de roles, voz temporal, música, registros y el privado de las sanciones.', en: '👀 Preview of how people see it in Discord in many more sections: suggestions, introductions (with the window that opens), events, giveaways, polls, confessions, hall of fame, groups, clans, daily report, away mode, dynamics, reports, role panels, temporary voice, music, logs and the sanction DM.' },
+        { tab: 'mod-tipos', es: '🛡️ En «Tipos de sanción» ves cómo le llega el aviso al miembro por privado.', en: '🛡️ In “Sanction types” you see how the member receives the notice by DM.' },
+    ],
     '1.9.8': [
         { tab: 'prod-bienvenidas', es: '👀 Vista previa como en Discord en las secciones con mensajes: bienvenidas (con el texto de encima y {mention}, {server}… cambiados por ejemplos), niveles, cumpleaños, invitaciones, bump, directos, solicitudes (con sus botones) y mensajes fijos. Así ves cómo queda sin probarlo en Discord.', en: '👀 Discord-style preview in the sections that send messages: welcomes (with the text above and {mention}, {server}… replaced by examples), levels, birthdays, invites, bump, live alerts, applications (with their buttons) and pinned messages. See how it will look without testing it in Discord.' },
     ],

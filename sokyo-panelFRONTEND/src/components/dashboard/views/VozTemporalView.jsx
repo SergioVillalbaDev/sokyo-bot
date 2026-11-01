@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
+import { pieMarca } from '../../../lib/pieMarca';
 
 const inputCls = 'rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand/50';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -387,6 +389,28 @@ export default function VozTemporalView({ dash }) {
             <Toggle checked={f.controles[k]} onChange={(v) => setCtrl(k, v)} />
           </Ajuste>
         ))}
+      </Card>
+
+      {/* Cómo queda el panel (utils/vozTemporal.js: construirPanel). Personalizarlo es Pro: en Free, textos de fábrica y la marca. */}
+      <Card data-help="voztemporal-previa" className={card}>
+        <div className="mb-3 font-bold text-fg">{t('dashboard.voztemporal_v.prevTitle')}</div>
+        {(() => {
+          const ORDEN = ['renombrar', 'limite', 'bloquear', 'ocultar', 'bitrate', 'invitar', 'expulsar', 'reclamar', 'transferir', 'eliminar'];
+          const ESTILO = { invitar: 'verde', expulsar: 'rojo', eliminar: 'rojo', reclamar: 'azul', transferir: 'azul' };
+          const EMOJI = { renombrar: '✏️', limite: '👥', bloquear: '🔒', ocultar: '👁️', bitrate: '🎚️', invitar: '➕', expulsar: '🚫', reclamar: '👑', transferir: '🔄', eliminar: '🗑️' };
+          const pro = esPremium !== false;
+          return (
+            <VistaDiscord
+              embed={{
+                titulo: (pro && f.panelTitulo) || t('dashboard.voztemporal_v.prevDefTitle'),
+                descripcion: (pro && f.panelDescripcion) || t('dashboard.voztemporal_v.prevDefDesc'),
+                color: pro ? (f.panelColor || '#5865F2') : '#5865F2',
+                imagen: pro ? f.panelImagen : '',
+                pie: pieMarca(esPremium),
+              }}
+              botones={ORDEN.filter((k) => f.controles[k] !== false).map((k) => ({ texto: `${EMOJI[k]} ${t(`dashboard.voztemporal_v.prevBtn.${k}`)}`, estilo: ESTILO[k] || 'gris' }))} />
+          );
+        })()}
       </Card>
 
       {/* Guardar */}

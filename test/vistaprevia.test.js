@@ -8,8 +8,11 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 let rellenarEjemplo;
+let pieMarca;
 before(async () => {
-    ({ rellenarEjemplo } = await import(pathToFileURL(path.join(__dirname, '..', 'sokyo-panelFRONTEND', 'src', 'lib', 'rellenarEjemplo.js')).href));
+    const lib = (f) => import(pathToFileURL(path.join(__dirname, '..', 'sokyo-panelFRONTEND', 'src', 'lib', f)).href);
+    ({ rellenarEjemplo } = await lib('rellenarEjemplo.js'));
+    ({ pieMarca } = await lib('pieMarca.js'));
 });
 
 describe('rellenarEjemplo (vistas previas del panel)', () => {
@@ -28,5 +31,18 @@ describe('rellenarEjemplo (vistas previas del panel)', () => {
     it('texto vacío o que no es texto', () => {
         assert.strictEqual(rellenarEjemplo(undefined, { a: 1 }), '');
         assert.strictEqual(rellenarEjemplo(null), '');
+    });
+});
+
+describe('pieMarca (marca «Powered by Sokyo» en las vistas previas)', () => {
+    it('solo en los servidores Free; mientras carga el plan (null) no se trata como Free', () => {
+        assert.strictEqual(pieMarca(false), 'Powered by Sokyo');
+        assert.strictEqual(pieMarca(true), '');
+        assert.strictEqual(pieMarca(null), '');
+        assert.strictEqual(pieMarca(undefined), '');
+    });
+    it('es el mismo texto que pone el bot en un servidor Free (utils/marca.js)', () => {
+        const { MARCA } = require('../utils/marca.js');
+        assert.strictEqual(MARCA, pieMarca(false));
     });
 });

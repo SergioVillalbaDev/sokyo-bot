@@ -8,6 +8,7 @@ import { Avatar } from '../../ui/primitives';
 import { tarjeta, CabeceraTarjeta, Campo, SelectCanal, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio } from './modulosShared';
 import { useModulo } from '../../../hooks/useModulo';
+import VistaDiscord from '../VistaDiscord';
 
 const MEDALLAS = ['🥇', '🥈', '🥉'];
 
@@ -51,6 +52,17 @@ export default function ClanesView({ dash }) {
         </div>
         <p className="mt-3 text-xs text-muted">{t('dashboard.clanes_v.prizeHint')}</p>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
+      </div>
+
+      {/* Cómo sale el ranking semanal (utils/clanes.js: embedRanking) */}
+      <div data-help="clanes-previa" className={tarjeta}>
+        <CabeceraTarjeta icono={Shield} titulo={t('dashboard.clanes_v.prevTitle')} />
+        <div className="mt-3">
+          <VistaDiscord embed={{
+            titulo: t('dashboard.clanes_v.prevName'), color: '#f59e0b', pie: t('dashboard.clanes_v.prevFooter'),
+            descripcion: [`🥇 🔥 **Phoenix** — ${n(5420)} ${t('dashboard.clanes_v.prevPts')} · 8 👥 · 🏆 2`, `🥈 🌊 **Tsunami** — ${n(4180)} ${t('dashboard.clanes_v.prevPts')} · 6 👥`, `🥉 ⚡ **Rayo** — ${n(2950)} ${t('dashboard.clanes_v.prevPts')} · 5 👥`].join('\n'),
+          }} />
+        </div>
       </div>
 
       <div data-help="clanes-lista" className={tarjeta}>
