@@ -42,7 +42,10 @@ export default function ResumenView({ dash }) {
     return r.ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([activo, hora, canalId, destinatario], guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado([activo, hora, canalId, destinatario], guardar, {
+    listo: !!configServidor, borrador: 'resumen',
+    restaurar: ([a, h, c, dst]) => { setActivo(a); setHora(h); setCanalId(c); setDestinatario(dst); },
+  });
 
   if (!configServidor) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
 

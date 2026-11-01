@@ -130,7 +130,7 @@ export default function VerificacionView({ dash }) {
     return ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([v, e], guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado([v, e], guardar, { listo: !!configServidor, borrador: 'verificacion', restaurar: ([v2, e2]) => { setV(v2); setE(e2); } });
   // Antes de publicar se guarda lo que se ve (si no, saldría la versión anterior).
   const publicar = async () => {
     setPub('...');

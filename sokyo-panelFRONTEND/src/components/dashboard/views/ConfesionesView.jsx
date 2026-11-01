@@ -1,12 +1,13 @@
 // Diversión · Confesiones — /confesar publica una confesión anónima. Con canal de
 // revisión, el staff la aprueba antes. «Ver quién fue» es solo para casos de acoso
-// y queda en el registro. Lógica del bot en utils/confesiones.js.
+// y queda en el registro. Opcional: escribir en un canal también cuenta como
+// confesión (`escribirEnCanal`). Lógica del bot en utils/confesiones.js.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageSquareHeart, Inbox, Check, Trash2, Eye, Loader2 } from 'lucide-react';
-import { Avatar } from '../../ui/primitives';
+import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, CabeceraTarjeta, Campo, SelectCanal, Aviso, BotonGuardar } from './crecimientoShared';
-import { Vacio } from './modulosShared';
+import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
 import VistaDiscord from '../VistaDiscord';
 
@@ -44,6 +45,12 @@ export default function ConfesionesView({ dash }) {
     if (r.error) setError(r.error); else setAutores((a) => ({ ...a, [c.id]: r.autor }));
   };
   const lista = datos.confesiones.filter((c) => filtro === 'todas' || c.estado === filtro);
+  // Pie de la confesión publicada, como lo pone el bot (utils/confesiones.js: pieConfesion).
+  const escritura = form.escribirEnCanal && form.canalId ? (form.canalEscrituraId || form.canalId) : null;
+  const canalEscritura = escritura && escritura !== form.canalId ? (canales || []).find((c) => c.id === escritura) : null;
+  const piePublicada = !escritura ? t('dashboard.confes_v.prevPostedFooter')
+    : canalEscritura ? t('dashboard.confes_v.prevPostedFooterCanal', { canal: canalEscritura.nombre || canalEscritura.name })
+      : t('dashboard.confes_v.prevPostedFooterAqui');
 
   return (
     <div className="space-y-5">
@@ -60,6 +67,19 @@ export default function ConfesionesView({ dash }) {
             <SelectCanal canales={canales} value={form.canalRevisionId} onChange={set('canalRevisionId')} vacio={t('dashboard.confes_v.noReview')} />
           </Campo>
         </div>
+        <div className="mt-4 border-t border-line/60 pt-1">
+          <FilaInterruptor titulo={t('dashboard.confes_v.write')} desc={t('dashboard.confes_v.writeHint')}>
+            <Toggle checked={!!form.escribirEnCanal} onChange={set('escribirEnCanal')} />
+          </FilaInterruptor>
+          {form.escribirEnCanal && (
+            <div className="mt-2 space-y-3">
+              <Campo etiqueta={t('dashboard.confes_v.writeChannel')} ayuda={t('dashboard.confes_v.writeChannelHint')}>
+                <SelectCanal canales={canales} value={form.canalEscrituraId} onChange={set('canalEscrituraId')} vacio={t('dashboard.confes_v.writeSame')} />
+              </Campo>
+              <Aviso>{t('dashboard.confes_v.writeHow')}</Aviso>
+            </div>
+          )}
+        </div>
         <div className="mt-4"><Aviso>{t('dashboard.confes_v.safety')}</Aviso></div>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
       </div>
@@ -71,7 +91,7 @@ export default function ConfesionesView({ dash }) {
         <div className="space-y-4">
           <div>
             <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.confes_v.prevStepPosted')}</p>
-            <VistaDiscord embed={{ titulo: t('dashboard.confes_v.prevPosted'), descripcion: t('dashboard.confes_v.prevPostedText'), color: '#c084fc', pie: t('dashboard.confes_v.prevPostedFooter') }} />
+            <VistaDiscord embed={{ titulo: t('dashboard.confes_v.prevPosted'), descripcion: t('dashboard.confes_v.prevPostedText'), color: '#c084fc', pie: piePublicada }} />
           </div>
           {form.canalRevisionId && (
             <div>

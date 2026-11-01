@@ -12,9 +12,10 @@ export default function EstadoAutoguardado({ estado }) {
     guardando: t('dashboard.autoguardado.guardando'),
     guardado: t('dashboard.autoguardado.guardado'),
     error: t('dashboard.autoguardado.error'),
+    'sin-guardar': t('dashboard.autoguardado.sinGuardar'),
   };
   const Icono = estado === 'guardando' ? Loader2 : estado === 'guardado' ? CheckCircle2 : estado === 'error' ? AlertTriangle : CloudUpload;
-  const color = estado === 'guardado' ? 'text-success' : estado === 'error' ? 'text-danger' : 'text-muted';
+  const color = estado === 'guardado' ? 'text-success' : estado === 'error' ? 'text-danger' : estado === 'sin-guardar' ? 'text-warning' : 'text-muted';
   return (
     <span role="status" className={`inline-flex items-center gap-1.5 text-xs font-medium ${color}`}>
       <Icono size={14} className={estado === 'guardando' ? 'animate-spin' : ''} /> {textos[estado]}

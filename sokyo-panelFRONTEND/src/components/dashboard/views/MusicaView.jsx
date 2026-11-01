@@ -12,6 +12,7 @@ import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 import VistaDiscord from '../VistaDiscord';
+import CuentaYoutube from '../CuentaYoutube';
 
 const VERDE = '#1db954';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -161,7 +162,7 @@ export default function MusicaView({ dash }) {
     return ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado(f, guardar, { listo: !!f });
+  const autoguardado = useAutoguardado(f, guardar, { listo: !!f, borrador: 'musica', restaurar: setF });
 
   const control = async (accion, valor) => {
     if (!gid) return;
@@ -415,19 +416,28 @@ export default function MusicaView({ dash }) {
   if (!f) return <p className="text-muted">{t('dashboard.music_v.loading')}</p>;
 
   const actual = estado?.actual;
-  // ¿Puede sonar? (servidor de música apagado, desactualizado o voz rechazada por Discord)
+  // ¿Puede sonar? (servidor de música apagado, desactualizado, voz rechazada por
+  // Discord o YouTube pidiendo iniciar sesión sin cuenta conectada)
   const servidor = estado?.servidor;
+  const youtubePide = !!servidor?.youtubeBloqueado && servidor?.cuentaYoutube !== 'conectada';
   const avisoServidor = !servidor ? null
     : !servidor.conectado ? t('dashboard.music_v.serverOff')
       : servidor.desactualizado ? t('dashboard.music_v.serverOld', { v: servidor.version || '?' })
         : servidor.vozRechazada ? t('dashboard.music_v.voiceRejected')
-          : null;
+          : youtubePide ? t(esOwner ? 'dashboard.music_v.youtubeBlockedOwner' : 'dashboard.music_v.youtubeBlocked')
+            : null;
+  const irACuenta = () => document.getElementById('cuenta-youtube')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   return (
     <div className="space-y-6">
       {avisoServidor && (
-        <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-fg">
-          <span aria-hidden="true">🔇</span><p>{avisoServidor}</p>
+        <div role="alert" className="flex flex-wrap items-start gap-2.5 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-fg">
+          <span aria-hidden="true">🔇</span><p className="min-w-0 flex-1">{avisoServidor}</p>
+          {youtubePide && esOwner && servidor.conectado && (
+            <button type="button" onClick={irACuenta} className="sk-foco shrink-0 rounded-xl bg-elevated px-3 py-1.5 text-sm font-semibold text-fg ring-1 ring-line hover:text-brand">
+              {t('dashboard.music_v.youtubeBlockedBtn')}
+            </button>
+          )}
         </div>
       )}
 
@@ -503,6 +513,9 @@ export default function MusicaView({ dash }) {
           <p className="py-6 text-center text-muted">{t('dashboard.music_v.nothingPlaying')}</p>
         )}
       </Card>
+
+      {/* ── CUENTA DE YOUTUBE (solo el propietario del bot) ── */}
+      {esOwner && <CuentaYoutube destacar={youtubePide} />}
 
       {/* ── TABS ── */}
       <div data-help="musica-tabs" className="flex border-b border-line">

@@ -11,6 +11,10 @@
 // Si el Lavalink.jar es viejo (o no está), descarga el bueno él solo.
 // LAVALINK_AUTO_UPDATE=0 lo desactiva y LAVALINK_VERSION elige otra versión.
 //
+// También lee lo que escribe Lavalink para la cuenta de YouTube (panel → Música):
+// apunta el código de inicio de sesión de Google y el token que da al aceptar
+// (utils/cuentaYoutube.js). Con cuenta, el cliente TV de YouTube va el primero.
+//
 // Uso:  npm run lavalink   (déjalo en una terminal aparte, igual que el bot)
 
 require('dotenv').config();
@@ -20,6 +24,8 @@ const fs = require('fs');
 const zlib = require('zlib');
 const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
+const { StringDecoder } = require('string_decoder');
+const cuentaYoutube = require('../utils/cuentaYoutube.js');
 
 const VERSION_LAVALINK = process.env.LAVALINK_VERSION || '4.2.2';
 const VERSION_MINIMA = '4.2.0'; // la primera con DAVE (audio cifrado de Discord)
@@ -140,6 +146,36 @@ function avisarSistema() {
     }
 }
 
+// Pasa la salida de Lavalink tal cual (pm2 la sigue guardando) y, línea a línea,
+// apunta lo del inicio de sesión de YouTube.
+function vigilarSalida(flujo, destino) {
+    const decoder = new StringDecoder('utf8');
+    let resto = '';
+    flujo.on('data', (trozo) => {
+        destino.write(trozo);
+        resto += decoder.write(trozo);
+        const lineas = resto.split('\n');
+        resto = lineas.pop();
+        if (resto.length > 20000) resto = ''; // una «línea» sin fin no es de las que buscamos
+        for (const linea of lineas) {
+            const ev = cuentaYoutube.interpretarLinea(linea);
+            if (!ev) continue;
+            try {
+                cuentaYoutube.apuntarEvento(ev);
+                if (ev.tipo === 'token') console.log('🎵 Cuenta de YouTube conectada y guardada (lavalink/.youtube-cuenta.json).');
+            } catch (err) { console.error('🎵 No se pudo guardar el estado de la cuenta de YouTube:', err.message); }
+        }
+    });
+}
+
+// Variables para Lavalink: con cuenta de YouTube, el cliente TV (el que la usa) va
+// el primero. Si YOUTUBE_CLIENTS ya está en el .env, manda esa.
+function entornoLavalink() {
+    const env = { ...process.env };
+    if (!env.YOUTUBE_CLIENTS && cuentaYoutube.hayCuenta()) env.YOUTUBE_CLIENTS = cuentaYoutube.CLIENTES_CON_CUENTA;
+    return env;
+}
+
 async function main() {
     // 1. Servidor de tokens de Spotify (opcional: solo si existe la carpeta).
     const tokenerDir = path.join(__dirname, '..', 'spotify-tokener');
@@ -154,8 +190,12 @@ async function main() {
     avisarSistema();
     await asegurarLavalink();
     console.log('🎵 Arrancando Lavalink... (la primera vez descarga los plugins, espera un poco)');
-    const java = spawn('java', ['-jar', 'Lavalink.jar'], { cwd: DIR, stdio: 'inherit', env: process.env });
+    try { cuentaYoutube.marcarLanzador(); } catch (err) { console.error('🎵 No se pudo preparar la cuenta de YouTube:', err.message); }
+    if (cuentaYoutube.hayCuenta()) console.log('🎵 Hay una cuenta de YouTube conectada: el bot se la pasará a Lavalink al conectarse.');
+    const java = spawn('java', ['-jar', 'Lavalink.jar'], { cwd: DIR, stdio: ['inherit', 'pipe', 'pipe'], env: entornoLavalink() });
     procesos.push(java);
+    vigilarSalida(java.stdout, process.stdout);
+    vigilarSalida(java.stderr, process.stderr);
 
     java.on('error', (err) => {
         if (err.code === 'ENOENT') {
@@ -171,4 +211,4 @@ async function main() {
 }
 
 if (require.main === module) main();
-module.exports = { versionDelJar, comparar, asegurarLavalink };
+module.exports = { versionDelJar, comparar, asegurarLavalink, vigilarSalida, entornoLavalink };

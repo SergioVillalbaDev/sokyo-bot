@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.9.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.10.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -57,6 +57,24 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
   anterior queda en `Lavalink.jar.anterior`). DAVE necesita glibc 2.35+ (Raspberry
   Pi OS Bookworm). `/api/health` dice en `musica` si está conectado y su versión, y
   el panel (Música) avisa si no puede sonar.
+- **YouTube (1.9.10)**: en agosto de 2026 la 1.18.2 del plugin dejó de sonar («All
+  clients failed… This video requires login»). `lavalink/application.yml` usa la versión
+  de desarrollo `2be8e54` (repositorio `snapshots`; volver a una normal cuando salga la
+  1.18.3+), el servidor de cifrado `remoteCipher` (`YOUTUBE_CIPHER_URL`, por defecto el
+  público `cipher.kikkia.dev`) y clientes por `YOUTUBE_CLIENTS`. Lo que de verdad quita el
+  «requires login» es una **cuenta de YouTube** (Google secundaria): panel → Música →
+  «Cuenta de YouTube», solo propietarios (`utils/cuentaYoutube.js`, `CuentaYoutube.jsx`,
+  `/api/musica/youtube*`). El bot pide a Lavalink el inicio de sesión de TV (`POST
+  /youtube`), el lanzador lee de su salida el código y el token y los guarda en
+  `lavalink/.youtube-cuenta.json` (0600, fuera de git); el bot pasa el token en cada
+  conexión. **El token NO va en application.yml**: uno caducado tumba el arranque de
+  Lavalink (probado). Si cambia `utils/cuentaYoutube.js`, reiniciar también Lavalink.
+  Una canción que falla (`trackError` en `utils/musica.js`) se prueba una vez con otra
+  subida de la misma canción y, si no, se explica sin el error de Java; `queueEnd` espera a
+  ese reintento. Desde una IP de la nube YouTube lo bloquea todo: no se puede probar el
+  sonido aquí, solo con la Pi (SoundCloud y JioSaavn tampoco sirven de repuesto). Al
+  aplicar la cuenta, solo «oauth2 token fetch: 400/401» (Google la rechaza) la borra; otro
+  fallo la deja y reintenta al minuto. Los tests no escriben por stdout (rompe el ejecutor).
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -135,6 +153,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `{ ok: false }` si falla (entonces reintenta, cada vez más espaciado). Solo cuenta
   como cambio lo que pasa tras tocar algo. No va en secciones que publican en
   Discord o tienen límites (canales, paneles). Se apaga en Preferencias (⚙).
+  **Borradores (1.9.10)**: con `{ borrador: 'nombre', restaurar }` (lo contrario de armar
+  el valor; `useModulo` ya lo pasa) lo no guardado se copia al momento en localStorage
+  (`sokyoBorrador:<servidor>:<sección>`) y se recupera al volver tras recargar o cerrar,
+  con aviso y «Descartar» (`AvisoBorrador.jsx`); si lo guardado cambió desde entonces,
+  solo si es de hace menos de 10 min. Al ocultar o cerrar la página se intenta guardar ya
+  (al recargar el navegador puede cortarlo: para eso está el borrador); con el autoguardado
+  apagado avisa antes de salir y el estado es `sin-guardar`.
+  Cerrar sesión borra los borradores. **Toda sección nueva con autoguardado: pásale
+  `borrador` y `restaurar`.**
   **Copiar del servidor al formulario**: con `useDesdeServidor(configServidor, () => …)`
   (`hooks/useDesdeServidor.js`), NO con un `useEffect([configServidor])`: la respuesta de su
   propio guardado (marcada con `marcarEco` en `useDashboard`) no se copia, porque borraba las
@@ -390,5 +417,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Contadores: `PreviaCanal` (nombre del canal de voz con una cifra de ejemplo). Ojo (descubierto
   al hacer la de sanciones): el privado de una sanción usa el color y el emoji de la ACCIÓN, no los
   del tipo (`utils/moderationManager.js`: `enviarDM`); el color/emoji del tipo solo se ven en el panel.
+- 1.9.10 La música vuelve a sonar (YouTube, ver *Desplegar → YouTube*): plugin de desarrollo,
+  servidor de cifrado, «Cuenta de YouTube» en Música, otra versión de la canción si un vídeo
+  falla y errores con palabras normales. Autoguardado que no pierde nada al recargar
+  (borradores, ver *Autoguardado*). Confesiones escribiendo en un canal (opcional:
+  `confesiones.escribirEnCanal` + `canalEscrituraId`, vacío = el de las confesiones): en
+  `events/messageCreate.js` va lo primero (antes del automod, la actividad y la XP), el bot
+  borra el mensaje, lo pasa por `enviar` como /confesar y contesta por privado (si falla, le
+  devuelve su texto). Si no puede borrarlo no la publica; su borrado no va al registro
+  (`esBorradoPorConfesion`); el Diagnóstico mira «Gestionar mensajes» ahí. Tests en
+  `test/musica.test.js` y `test/confesiones.test.js`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

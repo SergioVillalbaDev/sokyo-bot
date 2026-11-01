@@ -40,7 +40,7 @@ export default function SolicitudesView({ dash }) {
 
   const publicarPanel = async () => {
     setPublicar('enviando');
-    if (autoguardado === 'pendiente' || autoguardado === 'guardando') await guardar();
+    if (['pendiente', 'guardando', 'error', 'sin-guardar'].includes(autoguardado)) await guardar();
     const r = await accionModulo('solicitudes/publicar');
     setPublicar(r.error ? r.error : r.url || 'ok');
   };

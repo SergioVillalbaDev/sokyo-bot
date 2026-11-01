@@ -61,7 +61,10 @@ export default function SugerenciasView({ dash }) {
     setTimeout(() => setGuardadoOk(false), 2500);
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([canalSugs, modo, plantilla, minLong], guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado([canalSugs, modo, plantilla, minLong], guardar, {
+    listo: !!configServidor, borrador: 'sugerencias',
+    restaurar: ([c, m, p, n]) => { setCanalSugs(c); setModo(m); setPlantilla(p); setMinLong(n); },
+  });
 
   const cambiarEstado = (id, nuevoEstado) => actualizarSugerencia(id, { estado: nuevoEstado });
 

@@ -66,6 +66,7 @@ const REFERENCIAS = [
     ['clanes.canalId', 'texto', 'com-clanes', 'el canal del clan de la semana', 'the clan of the week channel', activo('clanes.activo')],
     ['confesiones.canalId', 'texto', 'com-confesiones', 'el canal de las confesiones', 'the confessions channel', activo('confesiones.activo')],
     ['confesiones.canalRevisionId', 'texto', 'com-confesiones', 'el canal donde el staff revisa las confesiones', 'the confessions review channel', activo('confesiones.activo')],
+    ['confesiones.canalEscrituraId', 'texto', 'com-confesiones', 'el canal donde se escriben las confesiones', 'the channel where confessions are written', (cfg) => !!(cfg?.confesiones?.activo && cfg.confesiones.escribirEnCanal)],
     ['solicitudes.canalId', 'texto', 'com-solicitudes', 'el canal de las solicitudes', 'the applications channel', activo('solicitudes.activo')],
     ['solicitudes.canalRevisionId', 'texto', 'com-solicitudes', 'el canal donde el staff revisa las solicitudes', 'the applications review channel', activo('solicitudes.activo')],
 ];
@@ -194,6 +195,20 @@ async function diagnosticar(client, guildId, cfg, idioma) {
     medio(cfg?.solicitudes?.activo && !(cfg?.solicitudes?.formularios || []).length, 'medio:solicitudes', 'com-solicitudes', 'Las solicitudes están encendidas pero no hay ningún formulario', 'Applications are on but there are no forms', 'Crea al menos un formulario con sus preguntas.', 'Create at least one form with its questions.');
     medio(!cfg?.rolStaffId, 'medio:staff', 'tickets-config', 'Los tickets no tienen rol de staff', 'Tickets have no staff role', 'Elige qué rol atiende los tickets (si no, solo los que pueden «Gestionar canales»).', 'Choose which role handles tickets (otherwise, only those who can “Manage channels”).');
 
+    // 3.a) Confesar escribiendo en el canal: el bot tiene que poder borrar el mensaje
+    // (si no, se vería quién lo ha escrito y no se publica).
+    {
+        const cc = cfg?.confesiones;
+        const idCanal = cc?.activo && cc.escribirEnCanal ? (cc.canalEscrituraId || cc.canalId) : null;
+        const canal = idCanal && guild.channels.cache.get(idCanal);
+        if (canal) {
+            comprobados++;
+            if (!admin && !canal.permissionsFor(me)?.has([P.ViewChannel, P.ManageMessages])) {
+                add({ id: 'permcanal:confesiones.escritura', nivel: 'error', titulo: t(idioma, `El bot no puede borrar los mensajes de #${canal.name}`, `The bot can’t delete messages in #${canal.name}`), detalle: t(idioma, 'Ahí, escribir cuenta como confesión: el bot borra el mensaje y la publica anónima. Sin «Gestionar mensajes» no puede borrarlo, así que no la publica (se vería quién es).', 'Writing there counts as a confession: the bot deletes the message and posts it anonymously. Without “Manage messages” it can’t delete it, so it doesn’t post it (it would show who wrote it).'), solucion: t(idioma, 'En Discord: clic derecho en el canal → Editar canal → Permisos, y dale «Ver canal» y «Gestionar mensajes» al rol de Sokyo.', 'In Discord: right-click the channel → Edit channel → Permissions, and give Sokyo’s role “View channel” and “Manage messages”.'), tab: 'com-confesiones', arreglo: null });
+            }
+        }
+    }
+
     // 3.b) Modo ausente con «[AFK]» delante del apodo: el bot tiene que poder cambiar apodos.
     comprobados++;
     if (cfg?.ausente?.cambiarApodo && cfg?.ausente?.activo !== false && !admin && perms && !perms.has(P.ManageNicknames)) {
@@ -209,6 +224,7 @@ async function diagnosticar(client, guildId, cfg, idioma) {
         if (cfg?.musica?.activo !== false && client.lavalink) {
             if (!m.conectado) add({ id: 'musica:apagada', nivel: 'aviso', titulo: t(idioma, 'El servidor de música no está conectado', 'The music server isn’t connected'), detalle: t(idioma, 'La música no sonará hasta que vuelva.', 'Music won’t play until it’s back.'), solucion: t(idioma, 'No depende de ti: avisa al dueño del bot (suele volver solo en unos minutos).', 'Not up to you: tell the bot owner (it usually comes back on its own in a few minutes).'), tab: 'musica', arreglo: null });
             else if (m.desactualizado || m.vozRechazada) add({ id: 'musica:vieja', nivel: 'aviso', titulo: t(idioma, 'Discord está rechazando el audio', 'Discord is rejecting the audio'), detalle: t(idioma, 'El servidor de música necesita actualizarse (audio cifrado de Discord).', 'The music server needs an update (Discord’s encrypted audio).'), solucion: t(idioma, 'Avisa al dueño del bot.', 'Tell the bot owner.'), tab: 'musica', arreglo: null });
+            else if (m.youtubeBloqueado && m.cuentaYoutube !== 'conectada') add({ id: 'musica:youtube', nivel: 'aviso', titulo: t(idioma, 'YouTube pide iniciar sesión para dejar sonar canciones', 'YouTube is asking to sign in before it plays songs'), detalle: t(idioma, 'Algunas canciones no suenan: YouTube bloquea al servidor de música si no tiene una cuenta conectada.', 'Some songs won’t play: YouTube blocks the music server unless it has an account connected.'), solucion: t(idioma, 'El dueño del bot lo arregla en Música → «Cuenta de YouTube» (con una cuenta de Google secundaria).', 'The bot owner fixes it in Music → “YouTube account” (with a secondary Google account).'), tab: 'musica', arreglo: null });
         }
     } catch { /* sin música en este proceso */ }
 

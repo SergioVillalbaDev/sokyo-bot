@@ -69,18 +69,78 @@ const panelMsgs = new Map(); // guildId -> { channelId, messageId }
 // el bot entra al canal y «reproduce», pero Discord cierra la voz (código 4017)
 // y no se oye nada. Se guarda para avisar en el panel y en el canal.
 const LAVALINK_MINIMO = [4, 2, 0];
-const estadoServidor = { conectado: false, version: null, desactualizado: false, vozRechazada: null };
+// youtubeBloqueado: última vez que YouTube pidió iniciar sesión para dejar sonar una
+// canción. youtubeSinSalida: última vez que ni otra versión de la canción sirvió.
+const estadoServidor = { conectado: false, version: null, desactualizado: false, vozRechazada: null, youtubeBloqueado: null, youtubeSinSalida: null };
 const versionVieja = (v) => {
     if (!v) return false;
     const x = [v.major, v.minor, v.patch].map((n) => Number(n) || 0);
     for (let i = 0; i < 3; i++) if (x[i] !== LAVALINK_MINIMO[i]) return x[i] < LAVALINK_MINIMO[i];
     return false;
 };
-// vozRechazada: si Discord ha rechazado la voz en la última media hora.
-const estadoServidorMusica = () => ({
-    ...estadoServidor,
-    vozRechazada: !!estadoServidor.vozRechazada && Date.now() - estadoServidor.vozRechazada < 30 * 60 * 1000,
-});
+// vozRechazada / youtubeBloqueado: si ha pasado en la última media hora.
+const MEDIA_HORA = 30 * 60 * 1000;
+const reciente = (momento, ms = MEDIA_HORA) => !!momento && Date.now() - momento < ms;
+const estadoServidorMusica = () => {
+    let cuenta = 'sin-cuenta';
+    try { cuenta = require('./cuentaYoutube.js').estadoCuenta().estado; } catch { /* sin archivo */ }
+    return {
+        conectado: estadoServidor.conectado,
+        version: estadoServidor.version,
+        desactualizado: estadoServidor.desactualizado,
+        vozRechazada: reciente(estadoServidor.vozRechazada),
+        youtubeBloqueado: reciente(estadoServidor.youtubeBloqueado),
+        cuentaYoutube: cuenta,
+    };
+};
+
+// Por qué no ha sonado una canción, a partir del error de Lavalink (que junta el
+// de cada cliente de YouTube: «Client [ANDROID_VR] failed: This video requires login…»).
+//   'edad'          → restricción de edad (YouTube pide iniciar sesión para confirmarla)
+//   'login'         → YouTube pide iniciar sesión / cree que somos un bot
+//   'no-disponible' → vídeo privado, borrado o bloqueado en este país
+//   'otro'          → cualquier otra cosa
+function motivoFallo(mensaje) {
+    const m = String(mensaje || '');
+    if (/confirm your age|age[- ]restricted|inappropriate for some users/i.test(m)) return 'edad';
+    if (/requires? (login|sign[- ]?in)|sign in to confirm|not a bot|login_required|please sign in/i.test(m)) return 'login';
+    if (/not available|unavailable|private video|has been removed|blocked it|copyright|no longer available|terminated/i.test(m)) return 'no-disponible';
+    return 'otro';
+}
+
+// Quita del título lo que estorba para buscar la misma canción en otro vídeo:
+// «(Official Video)», «[Lyrics]», «(Audio)», «| 4K»…
+function tituloParaBuscar(info = {}) {
+    let titulo = String(info.title || '')
+        .replace(/[([{][^)\]}]*(official|oficial|video|vídeo|lyric|letra|audio|visuali[sz]er|clip|mv|hd|4k|remaster)[^)\]}]*[)\]}]/gi, ' ')
+        .replace(/\s+[|•·]\s+.*$/, '')
+        .replace(/\s+/g, ' ').trim();
+    const autor = String(info.author || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+    if (autor && !titulo.toLowerCase().includes(autor.toLowerCase())) titulo = `${autor} ${titulo}`;
+    return titulo;
+}
+
+// Otra subida de la misma canción (otro vídeo de YouTube con una duración parecida).
+// Primero en YouTube Music (suele ser el audio oficial), luego en YouTube normal.
+async function otraVersion(player, track) {
+    const info = track?.info || {};
+    const q = tituloParaBuscar(info);
+    if (!q) return null;
+    const dur = Number(info.duration) || 0;
+    const parecida = (p) => p?.info?.identifier && p.info.identifier !== info.identifier && !p.info.isStream
+        && (!dur || Math.abs((Number(p.info.duration) || 0) - dur) <= Math.max(15000, dur * 0.15));
+    for (const source of ['ytmsearch', 'ytsearch']) {
+        try {
+            const r = await player.search({ query: q, source }, track.requester);
+            const alt = (r?.tracks || []).find(parecida);
+            if (alt) return alt;
+        } catch { /* se prueba la siguiente búsqueda */ }
+    }
+    return null;
+}
+
+// Fuentes que en realidad suenan desde YouTube (Spotify, Apple Music… van en modo espejo).
+const DESDE_YOUTUBE = new Set(['youtube', 'spotify', 'applemusic', 'deezer', 'youtubemusic']);
 
 // Lee la configuración de música de un servidor, con los defaults aplicados.
 async function getMusicaConfig(guildId) {
@@ -433,6 +493,9 @@ function initMusica(client) {
             if (estadoServidor.desactualizado) {
                 console.error(`🎵 Lavalink ${estadoServidor.version} es demasiado viejo: Discord exige audio cifrado (DAVE) y eso necesita Lavalink 4.2 o más nuevo. Reinicia el servidor de música (pm2 restart lavalink) y se actualizará solo.`);
             }
+            // Cuenta de YouTube guardada (panel → Música): se le pasa a Lavalink cada vez
+            // que se conecta, también tras reiniciarse él.
+            require('./cuentaYoutube.js').aplicarAlConectar().catch(() => {});
         })
         .on('disconnect', (node) => { estadoServidor.conectado = false; console.warn(`🎵 Lavalink desconectado (nodo: ${node.id})`); })
         .on('error', (node, error) =>
@@ -456,17 +519,79 @@ function initMusica(client) {
     });
 
     // Una canción que no se puede reproducir (YouTube la bloquea, se cae el
-    // directo…): se dice en el canal en vez de saltarla en silencio.
-    client.lavalink.on('trackError', async (player, track, payload) => {
-        const motivo = String(payload?.exception?.message || '').slice(0, 160);
-        console.warn(`🎵 No se pudo reproducir «${track?.info?.title || '?'}» en ${player.guildId}: ${motivo || 'sin detalle'}`);
-        const idioma = await getConfigCached(player.guildId).catch(() => null);
-        const canal = client.channels.cache.get(player.textChannelId);
-        if (!canal?.isTextBased()) return;
-        const titulo = track?.info?.title || t(idioma, 'esta canción', 'this song');
-        canal.send(t(idioma,
-            `⚠️ No he podido reproducir **${titulo}**${motivo ? ` (${motivo})` : ''}. Paso a la siguiente.`,
-            `⚠️ I couldn’t play **${titulo}**${motivo ? ` (${motivo})` : ''}. Skipping to the next one.`)).catch(() => {});
+    // directo…): se prueba UNA vez con otra versión de la misma canción y, si no
+    // hay, se dice en el canal con palabras normales (antes salía el error de Java).
+    // La librería ya ha pasado a la siguiente (o ha acabado la cola) mientras se busca:
+    // por eso la otra versión va justo detrás de lo que suene, o suena ya si no hay nada.
+    // `sokyoReintento` (la búsqueda en curso) lo mira queueEnd para no decir «cola vacía».
+    client.lavalink.on('trackError', (player, track, payload) => {
+        const mensaje = String(payload?.exception?.message || payload?.error || '');
+        const motivo = motivoFallo(mensaje);
+        console.warn(`🎵 No se pudo reproducir «${track?.info?.title || '?'}» en ${player.guildId}: ${mensaje.replace(/\s+at\s+[\w.$]+\([^)]*\)/g, '').replace(/\s+/g, ' ').slice(0, 500) || 'sin detalle'}`);
+        // Solo «pide iniciar sesión» avisa de bloqueo en el panel: una canción con
+        // restricción de edad no dice nada del resto.
+        if (motivo === 'login') estadoServidor.youtubeBloqueado = Date.now();
+
+        const esReintento = !!track?.userData?.sokyoReintentoDe;
+        // Si hace poco ni otra versión sirvió porque YouTube pide iniciar sesión, buscar
+        // otra vez solo retrasa el siguiente aviso.
+        const youtubeCerrado = motivo === 'login' && reciente(estadoServidor.youtubeSinSalida, 10 * 60 * 1000);
+        const probarOtra = !!track && !esReintento && !youtubeCerrado && !track.info?.isStream
+            && DESDE_YOUTUBE.has(String(track.info?.sourceName || '').toLowerCase());
+
+        const tarea = (async () => {
+            const idioma = await getConfigCached(player.guildId).catch(() => null);
+            const enviar = (texto) => {
+                const canal = client.channels.cache.get(player.textChannelId);
+                if (canal?.isTextBased()) canal.send({ content: texto, allowedMentions: { parse: [] } }).catch(() => {});
+            };
+            const titulo = track?.userData?.sokyoTituloOriginal || track?.info?.title || t(idioma, 'esta canción', 'this song');
+            const sigue = () => client.lavalink.getPlayer(player.guildId) === player;
+
+            if (probarOtra) {
+                const alt = await otraVersion(player, track).catch(() => null);
+                if (alt && sigue()) {
+                    alt.userData = { ...(alt.userData || {}), sokyoReintentoDe: track.info.identifier, sokyoTituloOriginal: track.info.title };
+                    const actual = player.queue.current;
+                    // Lavalink solo da por acabada la que falla cuando la voz le pide audio:
+                    // si aún no lo ha hecho (p. ej. falla antes de entrar al canal), se cambia ya.
+                    const sigueLaFallida = !!actual && (actual === track || (!!actual.encoded && actual.encoded === track.encoded));
+                    if (sigueLaFallida) await player.play({ clientTrack: alt, noReplace: false });
+                    else if (actual) await player.queue.add(alt, 0);              // ya suena otra: va justo después
+                    else { await player.queue.add(alt); await player.play(); }   // la cola se había acabado
+                    enviar(t(idioma,
+                        `🔁 **${titulo}** no se podía reproducir en ese vídeo de YouTube; pongo otra versión de la misma canción.`,
+                        `🔁 **${titulo}** couldn’t play from that YouTube video; playing another version of the same song.`));
+                    return true;
+                }
+            }
+
+            if (esReintento && motivo === 'login') estadoServidor.youtubeSinSalida = Date.now();
+            const tambien = esReintento ? t(idioma, ' (tampoco otra versión)', ' (nor another version)') : '';
+            const causa = {
+                login: t(idioma, 'YouTube pide iniciar sesión para dejarla sonar', 'YouTube is asking to sign in before it lets it play'),
+                edad: t(idioma, 'tiene restricción de edad en YouTube', 'it’s age-restricted on YouTube'),
+                'no-disponible': t(idioma, 'el vídeo no está disponible (privado, borrado o bloqueado en este país)', 'the video isn’t available (private, removed or blocked in this country)'),
+            }[motivo];
+            // «Paso a la siguiente» solo si hay otra: suena una distinta o queda cola.
+            const actual = player.queue.current;
+            const otraSuena = !!actual && actual !== track && !(actual.encoded && actual.encoded === track?.encoded);
+            const siguiente = sigue() && (otraSuena || player.queue.tracks.length > 0) ? t(idioma, ' Paso a la siguiente.', ' Skipping to the next one.') : '';
+            let texto = causa
+                ? t(idioma, `⚠️ No he podido reproducir **${titulo}**${tambien}: ${causa}.${siguiente}`, `⚠️ I couldn’t play **${titulo}**${tambien}: ${causa}.${siguiente}`)
+                : t(idioma, `⚠️ No he podido reproducir **${titulo}**${tambien}.${siguiente}`, `⚠️ I couldn’t play **${titulo}**${tambien}.${siguiente}`);
+            // Cuando YouTube pide iniciar sesión, la solución es conectar una cuenta (la hace el dueño).
+            if ((motivo === 'login' || motivo === 'edad') && require('./cuentaYoutube.js').estadoCuenta().estado !== 'conectada') {
+                texto += '\n' + t(idioma,
+                    '-# Si pasa con todas las canciones, el dueño del bot puede arreglarlo en el panel: Música → «Cuenta de YouTube».',
+                    '-# If it happens with every song, the bot owner can fix it in the panel: Music → “YouTube account”.');
+            }
+            enviar(texto);
+            return false;
+        })().catch((e) => { console.error('🎵 Error al tratar una canción fallida:', e.message); return false; });
+
+        player.setData('sokyoReintento', tarea);
+        tarea.finally(() => { if (player.getData('sokyoReintento') === tarea) player.setData('sokyoReintento', undefined); });
     });
 
     // Panel visual "Reproduciendo ahora" (embed + botones) en cada canción.
@@ -499,6 +624,10 @@ function initMusica(client) {
 
     // Al acabarse la cola: quitar el panel y avisar.
     client.lavalink.on('queueEnd', async (player) => {
+        // La última canción ha fallado y se está buscando otra versión: si la hay, la
+        // música sigue y no toca decir «la cola está vacía».
+        const reintento = player.getData('sokyoReintento');
+        if (reintento && await reintento) return;
         const prev = panelMsgs.get(player.guildId);
         if (prev) {
             const c = client.channels.cache.get(prev.channelId);
@@ -556,4 +685,5 @@ module.exports = {
     initMusica, formatDuration, ensureVoice, gateMusica, COLOR_MUSICA,
     getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON,
     manejarBotonMusica, MUSICA_DEFAULTS, buscarMusica, es247, estadoServidorMusica,
+    motivoFallo, tituloParaBuscar,
 };

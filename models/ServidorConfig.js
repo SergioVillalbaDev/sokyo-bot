@@ -695,6 +695,10 @@ const ServidorConfigSchema = new mongoose.Schema({
         activo: { type: Boolean, default: false },
         canalId: { type: String, default: null },
         canalRevisionId: { type: String, default: null },   // si está, el staff aprueba cada una antes
+        // Opcional: escribir en un canal cuenta como confesión (el bot borra el mensaje y
+        // la publica anónima). /confesar sigue valiendo igual.
+        escribirEnCanal: { type: Boolean, default: false },
+        canalEscrituraId: { type: String, default: null },  // dónde se escribe (vacío = el de las confesiones)
         ultimoNumero: { type: Number, default: 0 },         // (interno) numeración de las confesiones
     },
     // Solicitudes (p. ej. entrar al staff): formularios con preguntas y revisión.
