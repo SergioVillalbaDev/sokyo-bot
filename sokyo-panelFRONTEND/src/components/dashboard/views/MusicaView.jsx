@@ -11,6 +11,7 @@ import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
+import VistaDiscord from '../VistaDiscord';
 
 const VERDE = '#1db954';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -557,6 +558,25 @@ export default function MusicaView({ dash }) {
           <Ajuste titulo={t('dashboard.music_v.announce')} desc={t('dashboard.music_v.announceDesc')}>
             <Toggle checked={f.anunciarAhora} onChange={(v) => set('anunciarAhora', v)} />
           </Ajuste>
+          {/* Cómo sale el panel de la canción (utils/musica.js: construirPanel) */}
+          {f.anunciarAhora && (
+            <div className="py-3">
+              <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.music_v.prevTitle')}</p>
+              <VistaDiscord
+                embed={{
+                  autor: t('dashboard.music_v.prevPlaying'), titulo: t('dashboard.music_v.prevSong'), color: '#1db954',
+                  descripcion: `**Lofi Girl**\n\n\`1:12\`  ${'▬'.repeat(4)}🔘${'▬'.repeat(12)}  \`3:45\``,
+                  campos: [
+                    { nombre: t('dashboard.music_v.prevVolume'), valor: `${f.volumenDefecto ?? 60}%`, inline: true },
+                    { nombre: t('dashboard.music_v.prevQueue'), valor: t('dashboard.music_v.prevQueueVal'), inline: true },
+                    { nombre: t('dashboard.music_v.prevSource'), valor: '▶️ YouTube', inline: true },
+                  ],
+                  pie: t('dashboard.music_v.prevBy'),
+                }}
+                botones={[{ texto: '⏸️', estilo: 'verde' }, { texto: '⏭️', estilo: 'gris' }, { texto: '⏹️', estilo: 'rojo' }, { texto: '🔀', estilo: 'gris' },
+                  { texto: '🔉', estilo: 'gris' }, { texto: '🔊', estilo: 'gris' }, { texto: '🎲 Autoplay', estilo: 'gris' }, { texto: t('dashboard.music_v.prevLyrics'), estilo: 'gris' }, { texto: t('dashboard.music_v.prevSave'), estilo: 'gris' }]} />
+            </div>
+          )}
 
           <Ajuste titulo={t('dashboard.music_v.autoLeave')} desc={t('dashboard.music_v.autoLeaveDesc')}>
             <Toggle checked={f.autoSalir} onChange={(v) => set('autoSalir', v)} />

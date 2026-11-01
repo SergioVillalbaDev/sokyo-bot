@@ -7,11 +7,12 @@
 //
 // - `texto`: el mensaje (con formato de Discord y {variables}); los {marcadores} se cambian
 //   por `variables` (los que no estén ahí se dejan tal cual, para que se vea que no existen).
-// - `embed`: { titulo, descripcion, color, campos: [{ nombre, valor, inline }], pie, imagen }.
+// - `embed`: { autor, titulo, descripcion, color, campos: [{ nombre, valor, inline }], pie, imagen }.
 // - `botones`: [{ texto, estilo }] (verde, azul, gris o rojo; lib/estilosBoton.js).
+// - `menu`: { placeholder } un desplegable de Discord (cerrado) debajo del mensaje.
 // - `vacio`: lo que se enseña si no hay nada escrito.
 import { useTranslation } from 'react-i18next';
-import { Eye } from 'lucide-react';
+import { Eye, ChevronDown } from 'lucide-react';
 import MarkdownDiscord from './MarkdownDiscord';
 import { fondoBoton } from '../../lib/estilosBoton';
 import { rellenarEjemplo } from '../../lib/rellenarEjemplo';
@@ -49,11 +50,11 @@ export function BotonesDiscord({ botones }) {
   );
 }
 
-export default function VistaDiscord({ texto = '', variables = {}, embed = null, botones = [], vacio = '', className = '' }) {
+export default function VistaDiscord({ texto = '', variables = {}, embed = null, botones = [], menu = null, vacio = '', className = '' }) {
   const { t } = useTranslation();
   const cuerpo = rellenarEjemplo(texto, variables);
   const campos = embed && Array.isArray(embed.campos) ? embed.campos.filter((c) => c && c.nombre && c.valor) : [];
-  const hayEmbed = !!(embed && (embed.titulo || embed.descripcion || campos.length || embed.imagen || embed.pie));
+  const hayEmbed = !!(embed && (embed.titulo || embed.descripcion || campos.length || embed.imagen || embed.pie || embed.autor || embed.miniatura));
   const hayTexto = cuerpo.trim() !== '';
   return (
     <div className={`rounded-2xl border border-line bg-[#313338] p-3.5 text-left ${className}`} aria-label={t('dashboard.vistaDiscord.titulo')}>
@@ -64,6 +65,12 @@ export default function VistaDiscord({ texto = '', variables = {}, embed = null,
         {hayTexto && <div className="mt-0.5 break-words text-sm leading-[1.4] text-[#dbdee1]"><MarkdownDiscord text={cuerpo} /></div>}
         {hayEmbed && (
           <div className="mt-1.5 max-w-[432px] rounded-md border-l-4 bg-[#2b2d31] p-3" style={{ borderLeftColor: /^#[0-9a-fA-F]{6}$/.test(embed.color || '') ? embed.color : '#5865F2' }}>
+            {embed.autor && (
+              <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-white">
+                {embed.autorIcono && <img src={embed.autorIcono} alt="" className="h-5 w-5 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
+                {rellenarEjemplo(embed.autor, variables)}
+              </p>
+            )}
             {embed.titulo && <p className="mb-1 text-sm font-bold text-white">{rellenarEjemplo(embed.titulo, variables)}</p>}
             {embed.descripcion && <div className="break-words text-sm text-[#dbdee1]"><MarkdownDiscord text={rellenarEjemplo(embed.descripcion, variables)} /></div>}
             {campos.length > 0 && (
@@ -82,6 +89,12 @@ export default function VistaDiscord({ texto = '', variables = {}, embed = null,
         )}
         {!hayTexto && !hayEmbed && <p className="mt-0.5 text-sm italic text-white/40">{vacio || t('dashboard.vistaDiscord.vacio')}</p>}
         <BotonesDiscord botones={botones} />
+        {menu && (
+          <div className="mt-2 flex max-w-[432px] items-center justify-between gap-2 rounded-[4px] border border-black/30 bg-[#1e1f22] px-3 py-2 text-sm text-[#949ba4]">
+            <span className="min-w-0 truncate">{menu.placeholder}</span>
+            <ChevronDown size={16} className="shrink-0" aria-hidden="true" />
+          </div>
+        )}
       </CabeceraBot>
     </div>
   );

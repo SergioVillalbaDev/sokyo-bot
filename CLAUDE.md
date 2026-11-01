@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.8.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.9.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -380,5 +380,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `variables` (Bienvenidas: texto de encima y `{avatar}`). **Si añades una sección que manda un
   mensaje, ponle `VistaDiscord` con las variables del bot y copia los textos por defecto.**
   Test en `test/vistaprevia.test.js`.
+- 1.9.9 Vistas previas en las demás secciones que mandan algo a Discord: sugerencias, presentaciones,
+  eventos, sorteos, encuestas, confesiones, salón de la fama, grupos, clanes, parte diario, ausente,
+  dinámicas (una por mensaje), reportes, paneles de roles, voz temporal, música, registros y el
+  privado de las sanciones. Nuevo `VentanaDiscord.jsx` (la ventana/formulario que abre un botón del
+  bot: sugerencia, presentación) y `VistaDiscord` acepta `embed.autor` y `menu` (desplegable). Cada
+  vista previa copia el formato de su `utils/*.js` (se cita en un comentario encima) y los textos por
+  defecto en es/en; `lib/pieMarca.js` pone «Powered by Sokyo» solo si `esPremium === false`.
+  Contadores: `PreviaCanal` (nombre del canal de voz con una cifra de ejemplo). Ojo (descubierto
+  al hacer la de sanciones): el privado de una sanción usa el color y el emoji de la ACCIÓN, no los
+  del tipo (`utils/moderationManager.js`: `enviarDM`); el color/emoji del tipo solo se ven en el panel.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

@@ -291,6 +291,7 @@ export default {
         },
       },
     },
+    ventanaDiscord: { titulo: 'Así será la ventana en Discord', vacio: 'Añade preguntas y verás aquí la ventana.', cancelar: 'Cancelar', enviar: 'Enviar' },
     vistaDiscord: { titulo: 'Así se verá en Discord', hoy: 'Hoy', vacio: 'Escribe el mensaje y verás aquí cómo queda.' },
     buscadorSelect: { buscar: 'Buscar…', nada: 'Nada coincide con «{{texto}}»' },
     recorte: {
@@ -1046,6 +1047,8 @@ export default {
       presets: { m30: '30 minutos', h1: '1 hora', h6: '6 horas', h12: '12 horas', d1: '1 día', d3: '3 días', w1: '1 semana' },
     },
     music_v: {
+      prevTitle: 'Así sale la canción que suena', prevPlaying: '▶️ Sonando ahora', prevSong: 'Lofi hip hop radio - beats to relax/study to', prevVolume: '🔊 Volumen', prevQueue: '📋 En cola', prevQueueVal: '3 canciones',
+      prevSource: '🎚️ Fuente', prevBy: 'Pedido por Alex', prevLyrics: '📝 Letra', prevSave: '❤️ Guardar',
       nowPlaying: 'Sonando ahora', repeat: 'Repetir', live: 'EN DIRECTO', queue: 'En cola',
       serverOff: 'El servidor de música está apagado: no sonará nada hasta que vuelva a arrancar (se reinicia solo en unos segundos).',
       serverOld: 'El servidor de música (Lavalink {{v}}) está desactualizado y Discord no deja sonar el audio (exige audio cifrado desde 2026). Se actualiza solo al reiniciarse; si sigue así, reinícialo en la Pi con «pm2 restart lavalink».',
@@ -1101,6 +1104,8 @@ export default {
       confirmDisconnect: '¿Desconectar tu cuenta de Spotify?',
     },
     voztemporal_v: {
+      prevTitle: 'Así se verá el panel en Discord', prevDefTitle: '🔊 Tu canal de voz', prevDefDesc: 'Entra al canal generador para crear tu sala. Luego usa estos botones para gestionarla.',
+      prevBtn: { renombrar: 'Renombrar', limite: 'Límite', bloquear: 'Bloquear/Desbloquear', ocultar: 'Ocultar/Mostrar', bitrate: 'Calidad', invitar: 'Invitar', expulsar: 'Expulsar', reclamar: 'Reclamar', transferir: 'Transferir', eliminar: 'Eliminar' },
       controls: { renombrar: 'Renombrar', limite: 'Límite de usuarios', bloquear: 'Bloquear / Abrir', ocultar: 'Ocultar / Mostrar', bitrate: 'Calidad (bitrate)', invitar: 'Invitar a alguien', expulsar: 'Expulsar y vetar', reclamar: 'Reclamar el canal', transferir: 'Transferir el canal', eliminar: 'Eliminar el canal' },
       templates: { gaming: '🎮 Gaming', estudio: '📚 Estudio', musica: '🎵 Música', privada: '🔒 Privada', chill: '🛋️ Chill' },
       enableTitle: 'Activar canales de voz temporales',
@@ -1608,6 +1613,8 @@ export default {
       },
     },
     reportes_v: {
+      prevTitle: 'Así le llega el aviso al staff', prevName: '🚩 Nuevo reporte', prevReported: 'Reportado', prevBy: 'Reportado por', prevChannel: 'Canal', prevReason: 'Motivo',
+      prevReasonVal: 'Está insultando en el chat', prevMessage: 'Mensaje reportado', prevMessageVal: 'Mensaje de ejemplo', prevResolve: '✅ Resolver', prevTicket: '🎫 Abrir ticket', prevDismiss: '🗑️ Descartar',
       intro: 'Deja que los usuarios reporten a otros con !reportar y gestiónalos aquí.',
       note: 'Uso: !reportar @usuario [motivo], o responde a un mensaje con !reportar [motivo]. El staff recibe el aviso en el canal elegido.',
       enable: 'Reportes activos', channel: 'Canal de staff', channelPh: 'Elige un canal…',
@@ -1694,6 +1701,7 @@ export default {
       save: 'Guardar autorol', saving: 'Guardando…', saved: 'Guardado',
     },
     paneles_v: {
+      prevTitle: 'Así se verá en Discord', prevMenuPh: 'Selecciona tus roles...', prevRole: 'Rol', prevVerify: '✅ Verificarme',
       intro: 'Crea mensajes donde los usuarios se asignan roles ellos solos.',
       create: 'Crear panel', createTitle: 'Crear panel', editTitle: 'Editar panel',
       empty: 'Aún no has creado ningún panel.',
@@ -1720,6 +1728,9 @@ export default {
       cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…',
     },
     mod_v: {
+      prevTitle: 'Así le llega al miembro por privado', prevName: '{{emoji}} Has recibido una sanción en {{server}}', prevType: 'Tipo', prevAction: 'Acción', prevDuration: 'Duración', prevReason: 'Motivo', prevReasonVal: 'Spam en el chat',
+      prevActionNames: { aviso: 'Aviso', timeout: 'Timeout', expulsion: 'Expulsión', ban: 'Ban' }, prevHours: '{{n}} h', prevDays: '{{n}} días',
+      prevNote: 'Ojo: en Discord el aviso sale con el color y el emoji de la acción; el color y el emoji de este tipo solo se ven aquí, en el panel.',
       uploadError: 'Error al subir',
       tiposIntro: 'Diseña las sanciones que tu equipo podrá aplicar con un clic.',
       newType: 'Nuevo tipo', editType: 'Editar tipo', noTypes: 'Aún no has creado ningún tipo de sanción.',
@@ -1830,6 +1841,7 @@ export default {
       urgPlaceholder: 'Ej.: Muy urgente', motivoPlaceholder: 'Ej.: Problema con un pago',
     },
     logs_v: {
+      prevTitle: 'Así sale un registro en ese canal', prevAction: 'Mensaje borrado', prevCategory: 'Mensajes', prevDetails: 'Hola, ¿alguien sabe a qué hora es el evento?',
       title: 'Registro de Auditoría', subtitle: 'Monitorizando la actividad del servidor en tiempo real.',
       capacity: 'Capacidad:', empty: 'No hay eventos registrados en esta categoría.', involvedUser: 'Usuario implicado:',
       pills: { todos: 'Todos', tickets: 'Tickets', borrados: 'Borrados', editados: 'Editados', entradas: 'Entradas', salidas: 'Salidas' },
@@ -1871,6 +1883,12 @@ export default {
     },
     chat_macros: { button: 'Respuestas rápidas', empty: 'No hay respuestas rápidas. Créalas en Configuración.' },
     resumen_v: {
+      prevTitle: 'Así será el parte', prevHint: 'Con cifras de ejemplo: el parte real lleva las de tu servidor.',
+      prevName: 'Informe del servidor · Nébula Gaming', prevDesc: 'Estadísticas de los últimos **7 días**.',
+      prevMembers: '👥 Miembros', prevMembersVal: '1280 · 🚀 14 boosts', prevGrowth: '📈 Crecimiento', prevGrowthVal: '+42 neto\n↗ 58 entraron · ↘ 16 se fueron',
+      prevActivity: '💬 Actividad', prevActivityVal: '9340 mensajes\n312 activos (24%) · pico 21:00', prevVoice: '🔊 Voz', prevVoiceVal: '45 activos',
+      prevTickets: '🎫 Tickets', prevTicketsVal: '23 totales\n🟢 4 abiertos · 🔒 19 cerrados\n⭐ CSAT 4.6', prevMod: '🛡️ Moderación', prevModVal: '17 sanciones · 6 automod\n⚠ 2 reportes pendientes',
+      prevLevels: '🏆 Niveles', prevLevelsVal: '890/1280 con XP · nivel medio 7', prevTips: '🌱 Ideas de crecimiento', prevTipsVal: '💡 **Los martes hay poca actividad** — Prueba a programar un evento ese día.',
       intro: 'Cada día recibes por mensaje directo el parte de tu servidor: crecimiento, actividad, tickets, moderación, niveles e ideas para crecer.',
       note: 'Función Pro. Se envía por MD al dueño (o al destinatario que elijas) y, si quieres, también a un canal. La hora es en UTC.',
       title: 'Parte diario del servidor',
@@ -2002,6 +2020,11 @@ export default {
       },
     },
     sorteos_v: {
+      prevTitle: 'Así se publicará', prevHint: 'El mensaje que verán en el canal, con lo que llevas escrito.',
+      prevNameSample: 'Nombre del sorteo', prevPrizeSample: 'Premio', prevPrize: '**Premio:** {{premio}}', prevWinners: '🏆 Ganadores', prevParticipants: '👥 Participantes',
+      prevReqs: '📋 Requisitos', prevLevelReq: 'Nivel {{n}}+', prevRoleReq: 'Rol @{{rol}}', prevInvitesReq: 'Haber invitado a {{n}}+ personas',
+      prevMult: '✨ Multiplicadores', prevExtra: '🎟️ Papeletas extra', prevExtraText: '+{{n}} por cada persona que invites mientras dure el sorteo (máx. +{{max}}). Mira las tuyas con `/invites`.',
+      prevEnds: '⏰ Termina', prevJoin: '🎉 Participar (0)',
       loading: 'Cargando…', noParticipants: 'Aún no se ha apuntado nadie.',
       imageTitle: 'Imagen del sorteo', multipliers: 'Multiplicadores de probabilidad',
       multipliersDesc: 'Da más papeletas a ciertos roles (p. ej. boosters ×2). Se aplica el multiplicador más alto que tenga el participante.',
@@ -2036,6 +2059,8 @@ export default {
       addMultiplier: 'Añadir multiplicador', levelShort: 'Nv.', invitesBadge: '{{n}}+ invitaciones', perInviteBadge: '+{{n}} por invitación',
     },
     eventos_v: {
+      prevTitle: 'Así se publicará', prevHint: 'El mensaje que verán en el canal, con lo que llevas escrito.',
+      prevTitleSample: 'Título del evento', prevWhen: '🗓️ Cuándo', prevRemind: 'Avisarme',
       intro: 'Programa eventos de Discord desde el panel: el bot los crea y avisa a tu comunidad con el recordatorio que elijas.',
       note: 'Los eventos aparecen en el calendario de Discord. Elige el tipo según el canal: Canal de voz para reuniones, Escenario para presentaciones o Externo para quedadas fuera.',
       upcoming: 'Próximos eventos',
@@ -2062,6 +2087,8 @@ export default {
       createOk: '¡Evento creado con éxito!',
     },
     encuestas_v: {
+      prevTitle: 'Así se publicará', prevQuestionSample: 'Tu pregunta', prevOptionSample: 'Opción', prevVotes_other: '0 votos',
+      prevMultiple: ' · Opción múltiple', prevAnonymous: ' · Anónima',
       intro: 'Crea votaciones en tu servidor. El bot publica la encuesta con botones en el canal elegido y tú ves los resultados aquí en tiempo real.',
       note: 'Cada miembro puede votar una vez (o varias si activas opción múltiple). Cuando acaba el tiempo la encuesta se cierra y los resultados quedan registrados.',
       active: 'Encuestas activas',
@@ -2084,6 +2111,10 @@ export default {
       createOk: '¡Encuesta publicada con éxito!',
     },
     dinamicas_v: {
+      prevLabel: 'Así se verá', prevEmpty: 'Vacío: el bot manda su mensaje por defecto.', prevNothing: 'Vacío: no se manda nada.',
+      prevQotdTitle: '❓ Pregunta del día', prevQotdSample: '¿Cuál es tu videojuego favorito de todos los tiempos?', prevQotdFooter: 'El primero en responder gana {{xp}} XP',
+      prevGoldTitle: '¡Gota de oro!', prevTriviaTitle: '🧠 Trivia', prevTriviaSample: '¿Cuál es la capital de Francia?', prevTriviaFooter: 'Tienes {{seg}}s · +{{xp}} XP por acertar',
+      prevTriviaOptions: ['París', 'Roma', 'Madrid', 'Lisboa'], prevWeekTitle: '👑 Miembro de la semana', prevMilestoneTitle: '🎉 ¡Nuevo hito!', prevLevelTitle: '🏅 ¡Logro de nivel!', prevWord: 'secreto',
       intro: 'Mini-juegos automáticos para mantener tu servidor activo. Cada dinámica reparte XP a quien participa, reusando tu sistema de niveles. Activa las que quieras y ajústalas a tu gusto.',
       note: 'Pulsa cada tarjeta para desplegarla. Acuérdate de pulsar “Guardar” en cada dinámica que cambies. Las horas se indican en hora UTC.',
       active: 'Activar esta dinámica',
@@ -2156,6 +2187,11 @@ export default {
       },
     },
     sugerencias_v: {
+      prevTitle: 'Cómo lo verá la gente', prevHint: 'Lo que ve cada miembro en Discord con lo que has elegido arriba.',
+      prevPanelTitle: '💡 Sugerencias', prevPanelDesc: 'Pulsa el botón para enviar tu sugerencia. La comunidad puede votarla con 👍/👎.', prevNewBtn: '💡 Nueva sugerencia',
+      prevModalTitle: 'Nueva sugerencia', prevField: 'Tu sugerencia', prevAuthor: 'Alex', prevSample: 'Añadir un canal de memes 🙏',
+      prevVotes: 'Votos', prevVotesVal: '👍 12  ·  👎 2  ·  Neto: **+10**', prevStatus: 'Estado', prevPending: '⏳ Pendiente',
+      prevStepPanel: 'El mensaje con el botón', prevStepWindow: 'La ventana que se abre', prevStepPost: 'Cómo queda cada sugerencia en el canal',
       intro: 'Recibe ideas de tu comunidad directamente en Discord. Los miembros votan con 👍/👎 y tú gestionas el estado de cada sugerencia desde aquí.',
       note: 'El bot publica cada sugerencia en el canal elegido con botones de voto. El staff puede aprobar, rechazar o marcar en revisión desde el panel.',
       config: 'Canal de sugerencias',
@@ -2179,6 +2215,11 @@ export default {
       },
     },
     presentaciones_v: {
+      prevTitle: 'Cómo lo verá la gente', prevHint: 'Lo que ve cada miembro (y el staff) en Discord con lo que has elegido arriba.',
+      prevPanelTitle: '👋 ¡Preséntate a la comunidad!', prevPanelDesc: 'Pulsa el botón para rellenar una breve presentación y que todos te conozcan.', prevStartBtn: '📝 Presentarme',
+      prevModalTitle: 'Tu presentación', prevTemplateField: 'Rellena tu presentación', prevQuestion: 'Pregunta', prevAnswer: 'Respuesta de ejemplo', prevIntro: 'Presentación',
+      prevPostTitle: '📝 Nueva presentación', prevAuthor: 'Alex',
+      prevStepPanel: 'El mensaje con el botón (en el canal de presentaciones)', prevStepWindow: 'La ventana que se abre', prevStepPost: 'Lo que le llega al staff', prevOnlyFive: 'Discord solo deja 5 preguntas por ventana: las demás no salen.',
       defaultQName: '¿Cómo te llamas o qué apodo usas?',
       defaultQAge: '¿Cuántos años tienes?',
       defaultQInterests: '¿Qué te gusta o por qué te unes al servidor?',
@@ -2264,6 +2305,7 @@ export default {
       emptyTitle: 'Aún no ha llegado ninguna solicitud', emptySub: 'Cuando alguien rellene un formulario, aparecerá aquí y en el canal del staff.',
     },
     salon_v: {
+      prevTitle: 'Así se verá en el salón', prevAuthor: 'Alex', prevText: '¡Por fin conseguí el logro! 🎉', prevChannel: 'general', prevGo: 'Ir al mensaje',
       intro: 'Cuando un mensaje llega a las reacciones que elijas, el bot lo copia al canal del salón de la fama con un botón para ir al original.',
       needChannel: 'Elige el canal del salón de la fama: sin él no se guarda nada.',
       title: 'Salón de la fama', channel: 'Canal del salón de la fama',
@@ -2275,6 +2317,8 @@ export default {
       emptySub: 'Cuando un mensaje llegue a {{n}} {{emoji}}, aparecerá aquí y en el canal del salón.', open: 'Ver en Discord',
     },
     grupos_v: {
+      prevTitle: 'Así sale un grupo en el canal', prevAuthor: '🎮 Busco grupo', prevSlots: '👥 Plazas', prevWhen: '🕒 Cuándo', prevWhenVal: 'Hoy a las 21:00', prevRoom: '🔊 Sala', prevJoined: 'Apuntados',
+      prevFooter: 'Pulsa «Me apunto» para unirte', prevJoin: '✋ Me apunto', prevLeave: '🚪 Salir', prevClose: '🔒 Cerrar', prevDesc: 'Buscamos gente tranquila para jugar partidas competitivas.',
       intro: 'Con /grupo, alguien busca gente para jugar (a qué, cuántos y cuándo). Los demás se apuntan con un botón; al llenarse, el bot avisa a todos y les crea una sala de voz que se borra sola al quedarse vacía.',
       title: 'Buscar grupo', channel: 'Canal de los grupos', channelHint: 'Si eliges uno, todos los grupos se publican ahí.', anyChannel: 'Donde se use /grupo',
       expire: 'Horas hasta cerrarse', expireHint: 'Los grupos se cierran solos pasado este tiempo.',
@@ -2284,6 +2328,7 @@ export default {
       estados: { abierto: 'Abierto', lleno: 'Completo', cerrado: 'Cerrado' }, open: 'Ver en Discord', close: 'Cerrar',
     },
     clanes_v: {
+      prevTitle: 'Así se ve el ranking en el canal', prevName: '🛡️ Clanes · esta semana', prevFooter: 'Cada XP que ganáis suma un punto · la semana se cierra el lunes', prevPts: 'pts',
       intro: 'Los miembros fundan clanes con /clan crear y se unen con /clan unirme. Cada XP que ganan hablando (por escrito o en voz) suma un punto para su clan. Cada lunes gana el clan con más puntos: sus miembros se llevan el premio y los puntos vuelven a cero.',
       needLevels: 'Los clanes suman puntos con la XP: activa los niveles en «Niveles y XP» o no sumarán nada.',
       title: 'Clanes', channel: 'Canal del clan de la semana', channelHint: 'Donde se anuncia el ganador cada lunes.', noChannel: 'Sin anuncio',
@@ -2294,6 +2339,9 @@ export default {
       delete: 'Borrar el clan', confirmDelete: '¿Borrar el clan «{{n}}»? Sus miembros quedarán sin clan.',
     },
     confes_v: {
+      prevTitle: 'Así se verá', prevHint: 'La confesión publicada y, si has elegido canal de revisión, el aviso que recibe el staff. Es anónima.',
+      prevPosted: '💬 Confesión #12', prevPostedText: 'A veces me quedo despierto escuchando música hasta las 5 de la mañana…', prevPostedFooter: 'Anónima · escribe /confesar para enviar la tuya',
+      prevReview: '💬 Confesión para revisar', prevReviewFooter: 'Es anónima: nadie ve quién la ha escrito', prevPublish: '✅ Publicar', prevReject: '🗑️ Rechazar', prevStepPosted: 'La confesión en el canal', prevStepReview: 'El aviso para el staff',
       intro: 'Con /confesar, cualquiera publica algo sin que se sepa quién es. Si eliges un canal de revisión, el staff aprueba cada confesión antes de que salga.',
       needChannel: 'Elige el canal de las confesiones: sin él no se puede confesar.',
       title: 'Confesiones', channel: 'Canal de las confesiones',
@@ -2305,6 +2353,9 @@ export default {
       revealConfirm: 'Esto es solo para casos de acoso o amenazas. Quedará apuntado en el registro que lo has mirado. ¿Seguir?',
     },
     ausente_v: {
+      prevTitle: 'Así lo verá la gente', prevHint: 'Cuando alguien menciona a una persona ausente y cuando esta vuelve.',
+      prevMention: '💤 **Alex** está ausente desde hace 2 horas: Cenando, vuelvo en un rato', prevBack: '👋 ¡Bienvenido de vuelta, **Alex**! Te he quitado el modo ausente (estabas fuera desde hace 2 horas). Te han mencionado **2** veces mientras no estabas.',
+      prevNick: 'Y su apodo en el servidor:', prevStepMention: 'Al mencionarle', prevStepBack: 'Al volver (se borra a los 15 segundos)',
       intro: 'Dos comodidades para los miembros que no necesitan configuración: el modo ausente y traducir mensajes.',
       title: 'Modo ausente', step1: 'Alguien escribe /ausente (con un motivo si quiere: «cenando», «vuelvo mañana»).',
       step2: 'Si otra persona le menciona, el bot le contesta que no está, por qué y desde cuándo.',
@@ -2329,6 +2380,7 @@ export default {
       save: 'Guardar', create: 'Crear y publicar', cancel: 'Cancelar', saved: 'Guardado y publicado',
     },
     contadores_v: {
+      prevLabel: 'Así se verá el nombre del canal (con un ejemplo)',
       intro: 'Canales de voz cerrados (se ven, pero no se entra) arriba del todo, con una cifra en el nombre que el bot pone al día: «👥 Miembros: 1.234».',
       limit: 'Discord solo deja cambiar el nombre de un canal 2 veces cada 10 minutos, así que las cifras se actualizan cada 10 minutos.',
       title: 'Contadores ({{n}}/{{max}})', emptyTitle: 'Aún no hay contadores', emptySub: 'Crea el primero abajo: el bot hace el canal por ti.',

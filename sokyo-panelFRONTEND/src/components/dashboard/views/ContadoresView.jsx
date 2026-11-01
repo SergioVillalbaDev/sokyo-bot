@@ -3,13 +3,32 @@
 // minutos (Discord no deja renombrar más a menudo). Lógica del bot en utils/contadoresCanal.js.
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Hash, Plus, Trash2, Loader2, Save, AlertTriangle } from 'lucide-react';
+import { Hash, Plus, Trash2, Loader2, Save, AlertTriangle, Volume2 } from 'lucide-react';
 import { tarjeta, campo, CabeceraTarjeta, Campo, Aviso } from './crecimientoShared';
 import { Vacio } from './modulosShared';
 
+// Cifras de ejemplo para la vista previa de cada tipo de contador.
+const MUESTRA = { miembros: 1280, personas: 1243, bots: 37, enVoz: 12, boosts: 14, canales: 48, roles: 23, tickets: 5 };
+
+// El canal de voz cerrado con su nombre, como se verá en la lista de canales de Discord
+// (utils/contadoresCanal.js: nombreCanal; la cifra se escribe con el formato del idioma).
+function PreviaCanal({ t, plantilla, tipo, idioma }) {
+  const n = (MUESTRA[tipo] ?? 1280).toLocaleString(idioma?.startsWith('es') ? 'es-ES' : 'en-US');
+  const nombre = String(plantilla || '{n}').replace(/\{n\}/g, n).slice(0, 100);
+  return (
+    <div className="mt-2" aria-label={t('dashboard.contadores_v.prevLabel')}>
+      <div className="flex items-center gap-2 rounded-lg bg-[#2b2d31] px-3 py-1.5 text-sm text-[#949ba4]" title={t('dashboard.contadores_v.prevLabel')}>
+        <Volume2 size={16} className="shrink-0" /> <span className="min-w-0 truncate">{nombre}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function ContadoresView({ dash }) {
   const { t, i18n } = useTranslation();
-  const { categorias = [], cargarModulo, accionModulo } = dash;
+  const { categorias = [], configServidor, cargarModulo, accionModulo } = dash;
+  // La cifra lleva el formato del idioma del servidor (como la escribe el bot), no el del panel.
+  const idiomaServidor = configServidor?.idioma || i18n.language;
   const [datos, setDatos] = useState(null);
   const [nuevo, setNuevo] = useState({ tipo: 'miembros', plantilla: '', categoriaId: '' });
   const [ocupado, setOcupado] = useState('');
@@ -81,6 +100,7 @@ export default function ContadoresView({ dash }) {
                     </button>
                   )}
                 </div>
+                <PreviaCanal t={t} plantilla={plantillas[c.canalId] ?? c.plantilla} tipo={c.tipo} idioma={idiomaServidor} />
               </li>
             ))}
           </ul>
@@ -106,6 +126,7 @@ export default function ContadoresView({ dash }) {
               </select>
             </Campo>
           </div>
+          <PreviaCanal t={t} plantilla={nuevo.plantilla || plantillaDe(nuevo.tipo)} tipo={nuevo.tipo} idioma={idiomaServidor} />
           <button type="button" onClick={crear} disabled={ocupado === 'nuevo'}
             className="mt-5 flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand shadow-soft hover:opacity-90 disabled:opacity-50">
             {ocupado === 'nuevo' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} {t('dashboard.contadores_v.create')}

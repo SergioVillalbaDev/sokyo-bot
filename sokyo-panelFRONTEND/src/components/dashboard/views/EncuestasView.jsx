@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { BarChart2, Trash2, Info, Plus, X, CheckSquare, EyeOff, Clock, Users, RefreshCw } from 'lucide-react';
 import { CierrePicker } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -20,7 +21,7 @@ function tiempoRestante(fechaFin) {
 
 export default function EncuestasView({ dash }) {
   const { t } = useTranslation();
-  const { canales, encuestas = [], crearEncuesta, eliminarEncuesta, cargarEncuestas } = dash;
+  const { canales, configServidor, encuestas = [], crearEncuesta, eliminarEncuesta, cargarEncuestas } = dash;
 
   const [pregunta, setPregunta] = useState('');
   const [opciones, setOpciones] = useState(['', '']);
@@ -271,6 +272,26 @@ export default function EncuestasView({ dash }) {
               </span>
             </label>
           </div>
+        </div>
+
+        {/* Cómo se publica en el canal (utils/comunidad.js: construirEmbedEncuesta y filasEncuesta) */}
+        <div data-help="encuestas-previa" className="mt-4">
+          <p className="mb-1.5 text-sm font-semibold text-fg">{t('dashboard.encuestas_v.prevTitle')}</p>
+          {(() => {
+            const NUMEROS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+            const reales = opciones.map((o) => o.trim()).filter(Boolean).slice(0, 10);
+            const mostradas = reales.length ? reales : [`${t('dashboard.encuestas_v.prevOptionSample')} 1`, `${t('dashboard.encuestas_v.prevOptionSample')} 2`];
+            return (
+              <VistaDiscord
+                embed={{
+                  titulo: `📊 ${pregunta || t('dashboard.encuestas_v.prevQuestionSample')}`,
+                  color: configServidor?.colorEmbed || '#5865F2',
+                  descripcion: mostradas.map((o, i) => `${NUMEROS[i]} **${o}**\n\`${'░'.repeat(12)}\` 0% · ${t('dashboard.encuestas_v.prevVotes', { count: 0 })}`).join('\n\n'),
+                  pie: `${t('dashboard.encuestas_v.prevVotes', { count: 0 })}${multiple ? t('dashboard.encuestas_v.prevMultiple') : ''}${anonima ? t('dashboard.encuestas_v.prevAnonymous') : ''}`,
+                }}
+                botones={mostradas.map((_, i) => ({ texto: NUMEROS[i], estilo: 'gris' }))} />
+            );
+          })()}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

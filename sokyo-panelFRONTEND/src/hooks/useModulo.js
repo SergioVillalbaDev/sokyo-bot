@@ -74,7 +74,9 @@ export function useRelativo() {
   const { i18n } = useTranslation();
   return (fecha) => {
     if (!fecha) return '';
-    const seg = Math.round((new Date(fecha).getTime() - Date.now()) / 1000);
+    const ms = new Date(fecha).getTime();
+    if (Number.isNaN(ms)) return ''; // fecha a medias: nada, en vez de romper
+    const seg = Math.round((ms - Date.now()) / 1000);
     const rtf = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' });
     const abs = Math.abs(seg);
     if (abs < 60) return rtf.format(seg, 'second');

@@ -8,6 +8,7 @@ import { Avatar } from '../../ui/primitives';
 import { tarjeta, CabeceraTarjeta, Campo, SelectCanal, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
+import VistaDiscord from '../VistaDiscord';
 
 const COLOR = { pendiente: 'bg-warning/15 text-warning', publicada: 'bg-success/15 text-success', rechazada: 'bg-elevated text-muted' };
 const FILTROS = ['todas', 'pendiente', 'publicada', 'rechazada'];
@@ -61,6 +62,25 @@ export default function ConfesionesView({ dash }) {
         </div>
         <div className="mt-4"><Aviso>{t('dashboard.confes_v.safety')}</Aviso></div>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
+      </div>
+
+      {/* Cómo se ve en Discord (utils/confesiones.js: embedConfesion y el aviso de revisión) */}
+      <div data-help="confes-previa" className={tarjeta}>
+        <CabeceraTarjeta icono={MessageSquareHeart} titulo={t('dashboard.confes_v.prevTitle')} />
+        <p className="mb-3 mt-1 text-xs text-muted">{t('dashboard.confes_v.prevHint')}</p>
+        <div className="space-y-4">
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.confes_v.prevStepPosted')}</p>
+            <VistaDiscord embed={{ titulo: t('dashboard.confes_v.prevPosted'), descripcion: t('dashboard.confes_v.prevPostedText'), color: '#c084fc', pie: t('dashboard.confes_v.prevPostedFooter') }} />
+          </div>
+          {form.canalRevisionId && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.confes_v.prevStepReview')}</p>
+              <VistaDiscord embed={{ titulo: t('dashboard.confes_v.prevReview'), descripcion: t('dashboard.confes_v.prevPostedText'), color: '#fbbf24', pie: t('dashboard.confes_v.prevReviewFooter') }}
+                botones={[{ texto: t('dashboard.confes_v.prevPublish'), estilo: 'verde' }, { texto: t('dashboard.confes_v.prevReject'), estilo: 'rojo' }]} />
+            </div>
+          )}
+        </div>
       </div>
 
       <div data-help="confes-lista" className={tarjeta}>

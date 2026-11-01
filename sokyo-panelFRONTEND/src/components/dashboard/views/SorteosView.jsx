@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck, Sparkles, Plus, X, Send, ArrowRight } from 'lucide-react';
 import { CierrePicker, SubirImagen } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
+import { API_URL } from '../../../lib/api';
+import { useRelativo } from '../../../hooks/useModulo';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -20,6 +23,7 @@ function tiempoRestante(fechaFin) {
 
 export default function SorteosView({ dash }) {
   const { t } = useTranslation();
+  const relativo = useRelativo();
   const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen, cargarParticipantesSorteo, configServidor, setActiveTab } = dash;
   const invitacionesActivas = !!(configServidor && configServidor.crecimiento && configServidor.crecimiento.invitaciones && configServidor.crecimiento.invitaciones.activo);
 
@@ -362,6 +366,35 @@ export default function SorteosView({ dash }) {
               </label>
             </div>
           </div>
+        </div>
+
+        {/* Cómo se publica en el canal (utils/comunidad.js: construirEmbedSorteo y filaSorteo) */}
+        <div data-help="sorteos-previa" className="mt-4">
+          <p className="mb-1.5 text-sm font-semibold text-fg">{t('dashboard.sorteos_v.prevTitle')}</p>
+          <VistaDiscord
+            embed={(() => {
+              const reqs = [];
+              if (Number(nivelMin) > 0) reqs.push(t('dashboard.sorteos_v.prevLevelReq', { n: Number(nivelMin) }));
+              if (rolRequerido) reqs.push(t('dashboard.sorteos_v.prevRoleReq', { rol: nombreRol(rolRequerido) }));
+              if (Number(invitacionesMin) > 0) reqs.push(t('dashboard.sorteos_v.prevInvitesReq', { n: Number(invitacionesMin) }));
+              const mult = multiplicadores.filter((m) => m.rolId);
+              const extra = Number(entradasPorInvitacion) > 0;
+              return {
+                titulo: `🎉 ${nombre || t('dashboard.sorteos_v.prevNameSample')}`,
+                descripcion: t('dashboard.sorteos_v.prevPrize', { premio: premio || t('dashboard.sorteos_v.prevPrizeSample') }),
+                color: configServidor?.colorEmbed || '#5865F2',
+                campos: [
+                  { nombre: t('dashboard.sorteos_v.prevWinners'), valor: String(Number(ganadores) || 1), inline: true },
+                  { nombre: t('dashboard.sorteos_v.prevParticipants'), valor: '0', inline: true },
+                  ...(reqs.length ? [{ nombre: t('dashboard.sorteos_v.prevReqs'), valor: reqs.join(' · ') }] : []),
+                  ...(mult.length ? [{ nombre: t('dashboard.sorteos_v.prevMult'), valor: mult.map((m) => `@${nombreRol(m.rolId)} ×${Number(m.multiplicador) || 2}`).join(' · ') }] : []),
+                  ...(extra ? [{ nombre: t('dashboard.sorteos_v.prevExtra'), valor: t('dashboard.sorteos_v.prevExtraText', { n: Number(entradasPorInvitacion), max: Number(maxEntradasExtra) || 10 }) }] : []),
+                  { nombre: t('dashboard.sorteos_v.prevEnds'), valor: relativo(fechaFin) || '—' },
+                ],
+                imagen: imagen ? (imagen.startsWith('/uploads/') ? `${API_URL}${imagen}` : imagen) : '',
+              };
+            })()}
+            botones={[{ texto: t('dashboard.sorteos_v.prevJoin'), estilo: 'azul' }]} />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

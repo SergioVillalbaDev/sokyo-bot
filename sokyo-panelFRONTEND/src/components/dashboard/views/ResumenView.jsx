@@ -9,6 +9,7 @@ import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
+import VistaDiscord from '../VistaDiscord';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
@@ -107,6 +108,17 @@ export default function ResumenView({ dash }) {
         </div>
 
         {aviso && <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-fg"><AlertTriangle size={15} className="text-warning" /> {aviso}</p>}
+      </div>
+
+      {/* Cómo es el parte (utils/resumenDiario.js: construirEmbed), con cifras de ejemplo */}
+      <div data-help="resumen-previa" className={card}>
+        <h3 className="font-bold text-fg">{t('dashboard.resumen_v.prevTitle')}</h3>
+        <p className="mb-3 mt-0.5 text-xs text-muted">{t('dashboard.resumen_v.prevHint')}</p>
+        <VistaDiscord embed={{
+          titulo: `📊 ${t('dashboard.resumen_v.prevName')}`, descripcion: t('dashboard.resumen_v.prevDesc'), color: configServidor?.colorEmbed || '#5865F2',
+          campos: ['Members', 'Growth', 'Activity', 'Voice', 'Tickets', 'Mod', 'Levels'].map((k) => ({ nombre: t(`dashboard.resumen_v.prev${k}`), valor: t(`dashboard.resumen_v.prev${k}Val`), inline: true }))
+            .concat([{ nombre: t('dashboard.resumen_v.prevTips'), valor: t('dashboard.resumen_v.prevTipsVal') }]),
+        }} />
       </div>
     </div>
   );

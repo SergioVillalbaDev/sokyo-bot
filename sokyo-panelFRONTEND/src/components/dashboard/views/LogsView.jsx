@@ -6,6 +6,7 @@ import { Inbox, Crown, ScrollText, Hash, Save, Check } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
 
 const pills = [
   { tab: 'logs-todos', key: 'todos' },
@@ -76,6 +77,11 @@ function AjustesLogs({ dash }) {
           {(canales || []).map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}
           <OpcionCrear tipo="canal" />
         </select>
+        {/* Cómo sale cada registro (utils/logsManager.js: enviarLogADiscord) */}
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.logs_v.prevTitle')}</p>
+          <VistaDiscord embed={{ autor: `${t('dashboard.logs_v.prevAction')} · ${t('dashboard.logs_v.prevCategory')}`, descripcion: t('dashboard.logs_v.prevDetails'), color: '#3498db', campos: [{ nombre: 'User', valor: 'alex' }] }} />
+        </div>
         <div className="mt-3 flex items-center gap-3">
           <button onClick={guardarCanal} className="flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90">
             <Save size={15} /> {t('dashboard.mod_v.save')}

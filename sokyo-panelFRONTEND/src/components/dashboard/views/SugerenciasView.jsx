@@ -6,6 +6,9 @@ import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
+import VistaDiscord from '../VistaDiscord';
+import VentanaDiscord from '../VentanaDiscord';
+import { pieMarca } from '../../../lib/pieMarca';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -21,7 +24,7 @@ const ESTADOS = Object.keys(ESTADO_CONFIG);
 
 export default function SugerenciasView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, sugerencias = [], actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias } = dash;
+  const { canales, configServidor, esPremium, sugerencias = [], actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias } = dash;
 
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [canalSugs, setCanalSugs] = useState('');
@@ -120,6 +123,37 @@ export default function SugerenciasView({ dash }) {
         </button>
         <EstadoAutoguardado estado={autoguardado} />
         {guardadoOk && <p className="mt-2 text-xs font-semibold text-success">{t('dashboard.sugerencias_v.savedOk')}</p>}
+      </div>
+
+      {/* Cómo lo ve la gente en Discord (utils/comunidad.js: publicarPanelSugerencias, abrirModalSugerencia, construirEmbedSugerencia) */}
+      <div data-help="sugerencias-previa" className={card}>
+        <h3 className="font-bold text-fg">{t('dashboard.sugerencias_v.prevTitle')}</h3>
+        <p className="mb-3 mt-0.5 text-xs text-muted">{t('dashboard.sugerencias_v.prevHint')}</p>
+        <div className="space-y-4">
+          {modo === 'formulario' && (
+            <>
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.sugerencias_v.prevStepPanel')}</p>
+                <VistaDiscord embed={{ titulo: t('dashboard.sugerencias_v.prevPanelTitle'), descripcion: t('dashboard.sugerencias_v.prevPanelDesc'), color: configServidor?.colorEmbed || '#5865F2', pie: pieMarca(esPremium) }}
+                  botones={[{ texto: t('dashboard.sugerencias_v.prevNewBtn'), estilo: 'azul' }]} />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.sugerencias_v.prevStepWindow')}</p>
+                <VentanaDiscord titulo={t('dashboard.sugerencias_v.prevModalTitle')} campos={[{ etiqueta: t('dashboard.sugerencias_v.prevField'), valor: plantilla.slice(0, 1000), parrafo: true, obligatorio: true }]} />
+              </div>
+            </>
+          )}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.sugerencias_v.prevStepPost')}</p>
+            <VistaDiscord
+              embed={{
+                autor: t('dashboard.sugerencias_v.prevAuthor'), color: configServidor?.colorEmbed || '#5865F2',
+                descripcion: modo === 'formulario' && plantilla ? plantilla.slice(0, 1000) : t('dashboard.sugerencias_v.prevSample'),
+                campos: [{ nombre: t('dashboard.sugerencias_v.prevVotes'), valor: t('dashboard.sugerencias_v.prevVotesVal'), inline: true }, { nombre: t('dashboard.sugerencias_v.prevStatus'), valor: t('dashboard.sugerencias_v.prevPending'), inline: true }],
+              }}
+              botones={[{ texto: '👍', estilo: 'verde' }, { texto: '👎', estilo: 'rojo' }]} />
+          </div>
+        </div>
       </div>
 
       {/* Filtros de estado */}

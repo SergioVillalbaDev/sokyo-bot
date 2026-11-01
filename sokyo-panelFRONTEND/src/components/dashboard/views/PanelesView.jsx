@@ -10,6 +10,7 @@ import { Toggle } from '../../ui/primitives';
 import { EmojiPicker } from '../../ui/EmojiPicker';
 import { API_URL } from '../../../lib/api';
 import { OpcionCrear } from '../CrearAlVuelo';
+import VistaDiscord from '../VistaDiscord';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -303,6 +304,25 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
             </div>
           ))}
         </div>
+
+        {/* Cómo queda el panel (utils/rolePanelManager.js: construirMensaje) */}
+        {(() => {
+          const nombreRol = (id) => (roles.find((x) => x.id === id) || {}).nombre;
+          const BOTON = { primary: 'azul', secondary: 'gris', success: 'verde', danger: 'rojo' };
+          const etiqueta = (it) => it.label || nombreRol(it.roleId) || t('dashboard.paneles_v.prevRole');
+          const lineas = tipo === 'reaccion' ? items.map((it) => `${it.emoji || '•'} — ${etiqueta(it)}`).join('\n') : '';
+          return (
+            <div className="mt-5">
+              <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.paneles_v.prevTitle')}</p>
+              <VistaDiscord
+                embed={{ titulo: titulo || '🎭 Roles', descripcion: `${descripcion || ''}${lineas ? `${descripcion ? '\n\n' : ''}${lineas}` : ''}`, color: color || COLOR_DEFECTO, imagen: preview }}
+                botones={tipo === 'boton'
+                  ? items.map((it) => ({ texto: `${it.emoji ? `${it.emoji} ` : ''}${etiqueta(it)}`, estilo: BOTON[it.estilo] || 'gris' }))
+                  : esVerif ? [{ texto: `${items[0]?.emoji ? `${items[0].emoji} ` : ''}${items[0]?.label || t('dashboard.paneles_v.prevVerify')}`, estilo: 'verde' }] : []}
+                menu={tipo === 'menu' ? { placeholder: t('dashboard.paneles_v.prevMenuPh') } : null} />
+            </div>
+          );
+        })()}
 
         {/* Acciones */}
         <div className="mt-6 flex justify-end gap-3">

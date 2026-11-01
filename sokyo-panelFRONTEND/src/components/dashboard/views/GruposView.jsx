@@ -8,6 +8,7 @@ import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
+import VistaDiscord from '../VistaDiscord';
 
 const COLOR = { abierto: 'bg-success/15 text-success', lleno: 'bg-brand/15 text-brand', cerrado: 'bg-elevated text-muted' };
 
@@ -57,6 +58,24 @@ export default function GruposView({ dash }) {
           )}
         </div>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
+      </div>
+
+      {/* Cómo sale un grupo (utils/grupos.js: embedGrupo y filaGrupo) */}
+      <div data-help="grupos-previa" className={tarjeta}>
+        <CabeceraTarjeta icono={Gamepad2} titulo={t('dashboard.grupos_v.prevTitle')} />
+        <div className="mt-3">
+          <VistaDiscord
+            embed={{
+              autor: t('dashboard.grupos_v.prevAuthor'), titulo: 'Valorant', descripcion: t('dashboard.grupos_v.prevDesc'), color: '#22c55e', pie: t('dashboard.grupos_v.prevFooter'),
+              campos: [
+                { nombre: t('dashboard.grupos_v.prevSlots'), valor: '**2/5**', inline: true },
+                { nombre: t('dashboard.grupos_v.prevWhen'), valor: t('dashboard.grupos_v.prevWhenVal'), inline: true },
+                ...(form.crearSala !== false ? [{ nombre: t('dashboard.grupos_v.prevRoom'), valor: '#valorant', inline: true }] : []),
+                { nombre: t('dashboard.grupos_v.prevJoined'), valor: '👑 @Alex\n• @Sara' },
+              ],
+            }}
+            botones={[{ texto: t('dashboard.grupos_v.prevJoin'), estilo: 'verde' }, { texto: t('dashboard.grupos_v.prevLeave'), estilo: 'gris' }, { texto: t('dashboard.grupos_v.prevClose'), estilo: 'rojo' }]} />
+        </div>
       </div>
 
       <div data-help="grupos-lista" className={tarjeta}>

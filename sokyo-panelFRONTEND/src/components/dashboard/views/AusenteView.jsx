@@ -7,6 +7,7 @@ import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, CabeceraTarjeta, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
+import VistaDiscord from '../VistaDiscord';
 
 export default function AusenteView({ dash }) {
   const { t } = useTranslation();
@@ -40,6 +41,25 @@ export default function AusenteView({ dash }) {
           </FilaInterruptor>
         </div>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
+      </div>
+
+      {/* Cómo responde el bot (utils/ausente.js: alMensaje) */}
+      <div data-help="ausente-previa" className={tarjeta}>
+        <CabeceraTarjeta icono={Moon} titulo={t('dashboard.ausente_v.prevTitle')} />
+        <p className="mb-3 mt-1 text-xs text-muted">{t('dashboard.ausente_v.prevHint')}</p>
+        <div className="space-y-3">
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.ausente_v.prevStepMention')}</p>
+            <VistaDiscord texto={t('dashboard.ausente_v.prevMention')} />
+          </div>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.ausente_v.prevStepBack')}</p>
+            <VistaDiscord texto={t('dashboard.ausente_v.prevBack')} />
+          </div>
+          {form.cambiarApodo && (
+            <p className="text-sm text-muted">{t('dashboard.ausente_v.prevNick')} <span className="rounded-md bg-[#2b2d31] px-2 py-0.5 font-semibold text-[#dbdee1]">[AFK] Alex</span></p>
+          )}
+        </div>
       </div>
 
       <div data-help="ausente-lista" className={tarjeta}>
