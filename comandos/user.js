@@ -1,50 +1,39 @@
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Ticket = require('../models/Ticket.js');
+const { EPH } = require('../utils/accesos.js');
 
 module.exports = {
-    name: 'user',
-    description: 'Muestra las estadísticas de tickets de un usuario',
-    async execute(message, args, client) {
-        // 1. ¿De quién buscamos la info? (El mencionado, o si no hay mención, el que escribe)
-        const targetUser = message.mentions.users.first() || message.author;
+    data: new SlashCommandBuilder()
+        .setName('user')
+        .setDescription('Muestra las estadísticas de tickets de un usuario')
+        .addUserOption(o => o.setName('usuario').setDescription('Usuario a consultar (por defecto, tú)')),
+    async execute(interaction) {
+        const objetivo = interaction.options.getUser('usuario') || interaction.user;
+        // Solo cuentan los tickets de ESTE servidor.
+        const tickets = await Ticket.find({ creadorId: objetivo.id, guildId: interaction.guildId }).sort({ fechaCreacion: -1 });
 
-        try {
-            // 2. Buscamos todos los tickets de ese usuario en la BD
-            const userTickets = await Ticket.find({ creadorId: targetUser.id });
-
-            // Si no tiene tickets, le avisamos rápido
-            if (userTickets.length === 0) {
-                return message.reply(`📊 **${targetUser.username}** no ha abierto ningún ticket en este servidor.`);
-            }
-
-            // 3. Calculamos las estadísticas (Total, Abiertos, Cerrados)
-            const totalTickets = userTickets.length;
-            const ticketsAbiertos = userTickets.filter(t => t.estado === 'Abierto').length;
-            const ticketsCerrados = totalTickets - ticketsAbiertos;
-
-            // 4. Buscamos detalles del último ticket que abrió
-            // Ordenamos el array para que el más reciente quede el primero
-            const ultimoTicket = userTickets.reverse()[0]; 
-            
-            // 5. Construimos el panel visual (Embed)
-            const embedUser = new EmbedBuilder()
-                .setColor(ticketsAbiertos > 0 ? '#e67e22' : '#2ecc71') // Naranja si tiene abiertos, Verde si está todo cerrado
-                .setTitle(`📊 Registro de Soporte: ${targetUser.username}`)
-                .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-                .addFields(
-                    { name: '🎫 Total Histórico', value: `${totalTickets} tickets`, inline: true },
-                    { name: '🟢 Abiertos Ahora', value: `${ticketsAbiertos}`, inline: true },
-                    { name: '🔒 Cerrados', value: `${ticketsCerrados}`, inline: true },
-                    { name: '🕒 Último Ticket Abierto', value: `**Motivo:** ${ultimoTicket.motivo || 'No especificado'}\n**Estado:** ${ultimoTicket.estado}`, inline: false }
-                )
-                .setFooter({ text: 'Sistema de Gestión Sokyo' });
-
-            // 6. Lo enviamos al canal
-            await message.reply({ embeds: [embedUser] });
-
-        } catch (error) {
-            console.error('Error al ejecutar !user:', error);
-            message.reply('❌ Hubo un error al consultar la base de datos.');
+        if (tickets.length === 0) {
+            return interaction.reply({ content: `📊 **${objetivo.username}** no ha abierto ningún ticket en este servidor.`, flags: EPH });
         }
+
+        const abiertos = tickets.filter(t => t.estado === 'Abierto').length;
+        const valorados = tickets.filter(t => t.valoracionCSAT > 0);
+        const media = valorados.length ? (valorados.reduce((a, t) => a + t.valoracionCSAT, 0) / valorados.length).toFixed(1) : '—';
+        const ultimo = tickets[0];
+
+        const embed = new EmbedBuilder()
+            .setColor(abiertos > 0 ? '#e67e22' : '#2ecc71')
+            .setTitle(`📊 Registro de Soporte: ${objetivo.username}`)
+            .setThumbnail(objetivo.displayAvatarURL())
+            .addFields(
+                { name: '🎫 Total Histórico', value: `${tickets.length} tickets`, inline: true },
+                { name: '🟢 Abiertos Ahora', value: `${abiertos}`, inline: true },
+                { name: '🔒 Cerrados', value: `${tickets.length - abiertos}`, inline: true },
+                { name: '⭐ Valoración media', value: media === '—' ? 'Sin valorar' : `${media}/5`, inline: true },
+                { name: '🕒 Último Ticket', value: `**Motivo:** ${ultimo.motivo || 'No especificado'}\n**Estado:** ${ultimo.estado}`, inline: false }
+            )
+            .setFooter({ text: 'Sistema de Gestión Sokyo' });
+
+        await interaction.reply({ embeds: [embed], flags: EPH });
     }
 };

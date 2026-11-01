@@ -5,6 +5,9 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBu
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
+const ServidorConfig = require('../models/ServidorConfig.js');
+const { escaparHtml, formatDuracion } = require('./helpers.js');
+const { emitir } = require('./eventos.js');
 
 const CATEGORIA_ARCHIVO = '🗄️ Tickets Archivados';
 
@@ -22,23 +25,53 @@ async function registrarLogTicket(ticket, accion, color, autor) {
     } catch (e) { console.error('Error guardando log de ticket:', e); }
 }
 
-// Genera el archivo .txt con la conversación completa del ticket.
-async function generarTranscript(canalId, ticket) {
+// Construye la transcripción como página HTML autocontenida (se ve bien en cualquier navegador
+// y se puede imprimir / guardar como PDF desde ahí).
+function construirTranscriptHtml(ticket, historial) {
+    const urlSegura = (u) => /^https?:\/\//i.test(u) ? escaparHtml(u) : '';
+    const filas = historial.length === 0
+        ? '<p class="vacio">(No se registraron mensajes)</p>'
+        : historial.map(m => {
+            const esCreador = m.usuarioId === ticket.creadorId;
+            const fecha = m.fecha ? new Date(m.fecha).toLocaleString('es-ES') : '';
+            const imgs = (m.imagenes || []).map(urlSegura).filter(Boolean)
+                .map(u => `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="adjunto"></a>`).join('');
+            return `<div class="msg ${esCreador ? 'user' : 'staff'}"><div class="meta"><b>${escaparHtml(m.usuario)}</b><span>${escaparHtml(fecha)}</span></div>` +
+                `<div class="txt">${escaparHtml(m.contenido).replace(/\n/g, '<br>')}</div>${imgs}</div>`;
+        }).join('\n');
+
+    const duracion = ticket.fechaCierre && ticket.fechaCreacion ? formatDuracion(new Date(ticket.fechaCierre) - new Date(ticket.fechaCreacion)) : '—';
+    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transcripción — ${escaparHtml(ticket.titulo || ticket.motivo)}</title>
+<style>
+body{font-family:system-ui,Segoe UI,sans-serif;background:#1e1f22;color:#f2f3f5;margin:0;padding:24px}
+.wrap{max-width:820px;margin:auto}
+header{background:#2b2d31;border-radius:12px;padding:20px 24px;border-left:5px solid #5865F2;margin-bottom:20px}
+h1{margin:0 0 8px;font-size:1.3rem}.info{display:flex;flex-wrap:wrap;gap:6px 20px;color:#b5bac1;font-size:.88rem}
+.msg{background:#313338;border-radius:10px;padding:12px 16px;margin-bottom:10px;border-left:4px solid #3ba55d}
+.msg.user{border-left-color:#5865F2}.meta{display:flex;justify-content:space-between;gap:12px;font-size:.82rem;color:#b5bac1;margin-bottom:4px}
+.meta b{color:#fff}.txt{line-height:1.5;word-break:break-word}.msg img{max-width:100%;max-height:320px;border-radius:8px;margin-top:8px}
+.vacio{color:#b5bac1;text-align:center}footer{text-align:center;color:#6d6f78;font-size:.78rem;margin-top:24px}
+@media print{body{background:#fff;color:#000}header,.msg{background:#f4f4f5}.meta,.info{color:#444}.meta b{color:#000}}
+</style></head><body><div class="wrap">
+<header><h1>🎫 ${escaparHtml(ticket.titulo || 'Ticket de soporte')}</h1><div class="info">
+<span>👤 ${escaparHtml(ticket.creadorNombre)}</span><span>🏷️ ${escaparHtml(ticket.motivo)}</span><span>🚨 ${escaparHtml(ticket.prioridad)}</span>
+<span>🛡️ ${escaparHtml(ticket.asignadoNombre || 'Sin reclamar')}</span><span>⏱️ Duración: ${escaparHtml(duracion)}</span>
+<span>📅 ${escaparHtml(new Date(ticket.fechaCreacion).toLocaleString('es-ES'))}</span></div></header>
+${filas}
+<footer>Generado por Sokyo Bot · ${escaparHtml(new Date().toLocaleString('es-ES'))}</footer></div></body></html>`;
+}
+
+async function generarTranscriptHtml(canalId, ticket) {
     const historial = await Mensaje.find({ ticketId: canalId }).sort({ fecha: 1 });
-    let txt = `=== TRANSCRIPCIÓN DEL TICKET ===\n` +
-        `Usuario: ${ticket.creadorNombre}\n` +
-        `Motivo: ${ticket.motivo}\n` +
-        `Asunto: ${ticket.titulo || '-'}\n` +
-        `Fecha de cierre: ${new Date().toLocaleString('es-ES')}\n` +
-        `=================================\n\n`;
+    return construirTranscriptHtml(ticket, historial);
+}
 
-    if (historial.length === 0) txt += '(No se registraron mensajes)\n';
-    else historial.forEach(m => {
-        const fecha = m.fecha ? new Date(m.fecha).toLocaleTimeString('es-ES') : '';
-        txt += `[${fecha}] ${m.usuario}: ${m.contenido}\n`;
-    });
-
-    return new AttachmentBuilder(Buffer.from(txt, 'utf-8'), { name: `transcript-${ticket.creadorNombre}.txt` });
+// Adjunto de Discord con la transcripción.
+async function generarTranscript(canalId, ticket) {
+    const html = await generarTranscriptHtml(canalId, ticket);
+    const nombre = String(ticket.creadorNombre).replace(/[^a-z0-9_-]/gi, '_');
+    return new AttachmentBuilder(Buffer.from(html, 'utf-8'), { name: `transcript-${nombre}.html` });
 }
 
 // Mueve el canal a la categoría de archivados y lo deja en modo solo lectura.
@@ -63,7 +96,7 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
     const ticket = await Ticket.findOneAndUpdate(
         { canalId },
         { estado: 'Cerrado', fechaCierre: new Date() },
-        { new: true }
+        { returnDocument: 'after' }
     );
     if (!ticket) return { ok: false, error: 'Ticket no encontrado' };
 
@@ -85,6 +118,22 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
         await usuario.send({ embeds: [embedCSAT], components: [filaEstrellas], files: [attachment] });
     } catch (e) { /* DMs cerrados u otro fallo: no debe bloquear el cierre */ }
 
+    // Copia de la transcripción en el canal de archivo del servidor (si está configurado).
+    try {
+        const config = await ServidorConfig.findOne({ guildId: ticket.guildId });
+        const canalArchivo = config?.tickets?.canalTranscriptsId && client.channels.cache.get(config.tickets.canalTranscriptsId);
+        if (canalArchivo) {
+            const archivo = await generarTranscript(canalId, ticket);
+            const resumen = new EmbedBuilder().setColor('#e74c3c').setTitle(`🗄️ Ticket cerrado: ${ticket.titulo || ticket.motivo}`)
+                .addFields(
+                    { name: 'Usuario', value: ticket.creadorNombre, inline: true },
+                    { name: 'Atendido por', value: ticket.asignadoNombre || 'Sin reclamar', inline: true },
+                    { name: 'Cerrado por', value: autor, inline: true }
+                );
+            await canalArchivo.send({ embeds: [resumen], files: [archivo] });
+        }
+    } catch (e) { console.error('Error enviando transcripción al canal de archivo:', e); }
+
     await registrarLogTicket(ticket, '🔒 Ticket Cerrado', '#e74c3c', autor);
 
     const canal = client.channels.cache.get(canalId);
@@ -94,6 +143,7 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
         }
         await archivarCanal(canal, ticket);
     }
+    emitir(ticket.guildId, 'ticket:actualizado', { canalId });
     return { ok: true, ticket };
 }
 
@@ -101,8 +151,8 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
 async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     const ticket = await Ticket.findOneAndUpdate(
         { canalId },
-        { estado: 'Abierto', fechaCierre: null },
-        { new: true }
+        { estado: 'Abierto', fechaCierre: null, slaAvisado: false, inactividadAvisadaEn: null, ultimoMensajeFecha: new Date() },
+        { returnDocument: 'after' }
     );
     if (!ticket) return { ok: false, error: 'Ticket no encontrado' };
 
@@ -114,7 +164,71 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
         await canal.send('🔓 **Este ticket ha sido reabierto.** Ya puedes volver a escribir.').catch(() => {});
     }
     await registrarLogTicket(ticket, '🔓 Ticket Reabierto', '#2ecc71', autor);
+    emitir(ticket.guildId, 'ticket:actualizado', { canalId });
     return { ok: true, ticket };
 }
 
-module.exports = { cerrarTicket, reabrirTicket, generarTranscript, registrarLogTicket };
+// Anota actividad en el ticket: alimenta las métricas (1ª respuesta del staff), el SLA y el
+// cierre por inactividad. `autorId` es quien escribe el mensaje.
+async function registrarActividad(canalId, autorId) {
+    const ticket = await Ticket.findOne({ canalId });
+    if (!ticket || ticket.estado === 'Cerrado') return null;
+    const invitado = (ticket.participantes || []).some(p => p.id === autorId && p.rol === 'Invitado');
+    const esStaff = autorId !== ticket.creadorId && !invitado;
+    const ahora = new Date();
+    const set = { ultimoMensajeFecha: ahora, ultimoMensajePor: esStaff ? 'staff' : 'usuario', slaAvisado: false, inactividadAvisadaEn: null };
+    if (esStaff) {
+        set.ultimaInteractStaff = ahora;
+        if (!ticket.primeraRespuestaStaff) set.primeraRespuestaStaff = ahora;
+    }
+    const actualizado = await Ticket.findOneAndUpdate({ canalId }, { $set: set }, { returnDocument: 'after' });
+    emitir(ticket.guildId, 'mensaje:nuevo', { canalId });
+    return actualizado;
+}
+
+// Reclamar un ticket (atómico: si dos staff pulsan a la vez, solo uno gana).
+// `staff` = { id, username, avatar }
+async function reclamarTicket(client, canalId, staff) {
+    const ticket = await Ticket.findOneAndUpdate(
+        { canalId, estado: 'Abierto', asignadoA: null },
+        { $set: { asignadoA: staff.id, asignadoNombre: staff.username, ultimaInteractStaff: new Date() } },
+        { returnDocument: 'after' }
+    );
+    if (!ticket) {
+        const existente = await Ticket.findOne({ canalId });
+        if (!existente) return { ok: false, error: 'Ticket no encontrado' };
+        if (existente.estado === 'Cerrado') return { ok: false, error: 'El ticket está cerrado' };
+        return { ok: false, error: `Este ticket ya está siendo atendido por ${existente.asignadoNombre}.` };
+    }
+    if (!(ticket.participantes || []).some(p => p.id === staff.id)) {
+        await Ticket.updateOne({ canalId }, { $push: { participantes: { id: staff.id, username: staff.username, avatar: staff.avatar, rol: 'Staff' } } });
+    }
+    await registrarLogTicket(ticket, '🙋 Ticket Reclamado', '#3498db', staff.username);
+    emitir(ticket.guildId, 'ticket:actualizado', { canalId });
+    return { ok: true, ticket };
+}
+
+// Soltar un ticket para que otro staff pueda reclamarlo. Deja un botón para reclamarlo de nuevo en el canal.
+async function soltarTicket(client, canalId, { autor = 'Sistema' } = {}) {
+    const ticket = await Ticket.findOneAndUpdate(
+        { canalId, estado: 'Abierto', asignadoA: { $ne: null } },
+        { $set: { asignadoA: null, asignadoNombre: null } },
+        { returnDocument: 'after' }
+    );
+    if (!ticket) return { ok: false, error: 'El ticket no está asignado o está cerrado' };
+    await registrarLogTicket(ticket, '🆓 Ticket Liberado', '#95a5a6', autor);
+    const canal = client.channels.cache.get(canalId);
+    if (canal) {
+        const fila = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('reclamar_ticket').setLabel('🙋‍♂️ Reclamar Ticket').setStyle(ButtonStyle.Primary)
+        );
+        await canal.send({ content: `🆓 **${autor}** ha liberado este ticket. Cualquier agente puede reclamarlo.`, components: [fila] }).catch(() => {});
+    }
+    emitir(ticket.guildId, 'ticket:actualizado', { canalId });
+    return { ok: true, ticket };
+}
+
+module.exports = {
+    cerrarTicket, reabrirTicket, reclamarTicket, soltarTicket, registrarActividad,
+    generarTranscript, generarTranscriptHtml, construirTranscriptHtml, registrarLogTicket
+};

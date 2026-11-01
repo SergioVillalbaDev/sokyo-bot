@@ -11,6 +11,10 @@
   --border-color: #e5e7eb;
   --success-bg: #d1fae5;
   --success-text: #065f46;
+  --bg-secondary: var(--bg-card);
+  --danger: #ed4245;
+  --ok: #3ba55d;
+  --warn: #faa61a;
 }
 
 [data-theme='dark'] {
@@ -22,6 +26,7 @@
   --border-color: #1e1f22;
   --success-bg: #1e4620;
   --success-text: #4ade80;
+  --bg-secondary: var(--bg-card);
 }
 
 * {
