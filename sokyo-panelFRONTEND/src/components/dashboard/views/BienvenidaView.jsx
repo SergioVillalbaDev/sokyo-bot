@@ -117,7 +117,7 @@ export default function BienvenidaView({ dash }) {
     return ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([b, d, extras], guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado([b, d, extras], guardar, { listo: !!configServidor, borrador: 'bienvenidas', restaurar: ([b2, d2, x2]) => { setB(b2); setD(d2); setExtras(x2); } });
   // La prueba usa lo que se ve en pantalla: primero se guarda (aunque el
   // autoguardado aún no haya saltado) y luego se envía, esté activado o no.
   const probar = async () => {

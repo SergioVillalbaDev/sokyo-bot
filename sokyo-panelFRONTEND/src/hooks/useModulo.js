@@ -64,7 +64,7 @@ export function useModulo(dash, ruta) {
     // servidor no guarda todavía. Ver hooks/useDesdeServidor.js.
     return true;
   };
-  const autoguardado = useAutoguardado(form, guardar, { listo: !!form });
+  const autoguardado = useAutoguardado(form, guardar, { listo: !!form, borrador: `modulo:${ruta}`, restaurar: setForm });
   const set = (k) => (v) => { setForm((f) => ({ ...f, [k]: v })); setEstado(''); };
   return { datos, setDatos, form, set, guardar, estado, autoguardado, recargar };
 }

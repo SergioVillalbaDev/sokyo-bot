@@ -15,6 +15,7 @@ import '../../dashboard.css';
 import ServerPicker from './ServerPicker';
 import UpgradeModal from './UpgradeModal';
 import AvisoDeshacer from './AvisoDeshacer';
+import AvisoBorrador from './AvisoBorrador';
 import CrearAlVuelo from './CrearAlVuelo';
 import BuscadorSelects from './BuscadorSelects';
 import VentanaNovedades from './VentanaNovedades';
@@ -478,6 +479,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
       {/* «➕ Crear canal/rol nuevo…» de los desplegables. */}
       <CrearAlVuelo dash={dash} />
       <BuscadorSelects />
+
+      {/* «Hemos recuperado lo que no se había guardado» al volver a una sección. */}
+      <AvisoBorrador />
 
       {/* «Guardado · Deshacer» tras cada cambio (solo quien puede deshacerlo). */}
       {misPermisos?.config !== false && (

@@ -92,7 +92,10 @@ export default function NivelesView({ dash }) {
     return ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([f, recompensas, multiplicadores], guardar, { listo: !!f });
+  const autoguardado = useAutoguardado([f, recompensas, multiplicadores], guardar, {
+    listo: !!f, borrador: 'niveles',
+    restaurar: ([f2, r, m]) => { setF(f2); setRecompensas(r); setMultiplicadores(m); },
+  });
 
   if (!f) return null;
   const set = (campo, valor) => { setGuardado(false); setF((p) => ({ ...p, [campo]: valor })); };

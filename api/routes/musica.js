@@ -273,6 +273,41 @@ module.exports = ({ portalAuth, client }) => {
         }
     });
 
+    // =========================================================================
+    // CUENTA DE YOUTUBE (solo el propietario del bot): YouTube pide iniciar sesión
+    // para dejar sonar muchas canciones. Ver utils/cuentaYoutube.js.
+    // =========================================================================
+    const cuentaYoutube = require('../../utils/cuentaYoutube.js');
+    const soloPropietario = (req, res, next) => {
+        if (req.staff && req.staff.owner) return next();
+        return res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' });
+    };
+    const ERRORES_CUENTA = {
+        remoto: 'El servidor de música está en otra máquina: conecta la cuenta desde allí.',
+        lanzador: 'Reinicia el servidor de música (pm2 restart lavalink) para activar esta opción.',
+        apagado: 'El servidor de música no responde.',
+        'sin-plugin': 'El servidor de música no tiene el plugin de YouTube.',
+        'sin-codigo': 'El servidor de música no ha dado el código. Prueba otra vez en un momento.',
+        fallo: 'El servidor de música no ha podido empezar el inicio de sesión.',
+    };
+    router.get('/musica/youtube', soloPropietario, (req, res) => res.json(cuentaYoutube.estadoCuenta()));
+    router.post('/musica/youtube/conectar', soloPropietario, async (req, res) => {
+        try {
+            const r = await cuentaYoutube.empezarConexion();
+            if (r.error) return res.status(409).json({ error: ERRORES_CUENTA[r.error] || ERRORES_CUENTA.fallo, codigo: r.error });
+            res.json(r);
+        } catch (e) {
+            console.error('musica/youtube/conectar:', e.message);
+            res.status(500).json({ error: ERRORES_CUENTA.fallo, codigo: 'fallo' });
+        }
+    });
+    router.post('/musica/youtube/desconectar', soloPropietario, async (req, res) => {
+        try { res.json(await cuentaYoutube.desconectar()); } catch (e) {
+            console.error('musica/youtube/desconectar:', e.message);
+            res.status(500).json({ error: 'No se pudo desconectar la cuenta.' });
+        }
+    });
+
     // --- Lógica de control compartida (usuario y admin) ---------------------
     async function aplicarControl(player, accion, valor, cfg) {
         switch (accion) {

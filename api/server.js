@@ -150,7 +150,7 @@ module.exports = (client) => {
     const musicaSalud = () => {
         try {
             const e = require('../utils/musica.js').estadoServidorMusica();
-            return { conectado: e.conectado, version: e.version, desactualizado: e.desactualizado, vozRechazada: e.vozRechazada };
+            return { conectado: e.conectado, version: e.version, desactualizado: e.desactualizado, vozRechazada: e.vozRechazada, youtubeBloqueado: e.youtubeBloqueado, cuentaYoutube: e.cuentaYoutube };
         } catch { return null; }
     };
     app.get('/api/health', (req, res) => {

@@ -263,6 +263,8 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (b.activo !== undefined) set['confesiones.activo'] = !!b.activo;
             if (!ponerCanal(set, 'confesiones.canalId', guild, b.canalId, res)) return;
             if (!ponerCanal(set, 'confesiones.canalRevisionId', guild, b.canalRevisionId, res)) return;
+            if (b.escribirEnCanal !== undefined) set['confesiones.escribirEnCanal'] = !!b.escribirEnCanal;
+            if (!ponerCanal(set, 'confesiones.canalEscrituraId', guild, b.canalEscrituraId, res)) return;
             const nueva = await guardar(guild.id, set);
             res.json({ success: true, config: nueva.confesiones });
         } catch (e) { console.error('PUT confesiones:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
