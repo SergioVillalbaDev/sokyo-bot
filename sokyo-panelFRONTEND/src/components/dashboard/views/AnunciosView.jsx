@@ -116,7 +116,7 @@ export default function AnunciosView({ dash }) {
         </div>
 
         <div className="mt-4 border-t border-line pt-4">
-          <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} />
+          <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} texto={contenido} />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -252,7 +252,8 @@ export default function BienvenidaView({ dash }) {
         <h3 className="flex items-center gap-2 font-bold text-fg"><Hash size={18} className="text-brand" /> {t('dashboard.bienvenida_v.embedTitle')}</h3>
         <p className="mt-1 text-xs text-muted">{t('dashboard.bienvenida_v.embedDesc')}</p>
         <div className="mt-4 border-t border-line pt-4">
-          <EmbedBuilder value={actual.embed || EMBED_VACIO} onChange={(emb) => set('embed', emb)} canales={canales} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })} />
+          <EmbedBuilder value={actual.embed || EMBED_VACIO} onChange={(emb) => set('embed', emb)} canales={canales} subirImagen={subirImagen} presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })}
+            texto={actual.contenido} variables={{ mention: '@Alex', user: 'Alex', server: 'Nébula Gaming', members: 1280, avatar: 'https://cdn.discordapp.com/embed/avatars/0.png' }} />
         </div>
       </div>
 

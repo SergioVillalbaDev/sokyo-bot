@@ -7,22 +7,15 @@ import { Pin, Plus, Trash2, Save, Loader2, Check, Pencil } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, Aviso } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
+import VistaDiscord from '../VistaDiscord';
 
 const NUEVO = { canalId: '', titulo: '', texto: '', color: '#a855f7', comoEmbed: true, activo: true };
 
 // Vista previa con el aspecto de Discord.
+// Cómo sale en Discord (utils/mensajesFijos.js): con embed o como texto, con el 📌 delante.
 function Previa({ f }) {
-  if (!f.comoEmbed) {
-    return <div className="whitespace-pre-wrap rounded-lg bg-[#313338] p-3 text-sm text-[#dbdee1]">📌 {f.titulo ? <b>{f.titulo}</b> : null}{f.titulo ? '\n' : ''}{f.texto}</div>;
-  }
-  return (
-    <div className="rounded-lg bg-[#313338] p-3">
-      <div className="rounded bg-[#2b2d31] p-3" style={{ borderLeft: `4px solid ${f.color || '#a855f7'}` }}>
-        {f.titulo && <div className="mb-1 text-sm font-bold text-white">📌 {f.titulo}</div>}
-        <div className="whitespace-pre-wrap text-sm text-[#dbdee1]">{f.texto}</div>
-      </div>
-    </div>
-  );
+  if (!f.comoEmbed) return <VistaDiscord texto={[f.titulo ? `📌 **${f.titulo}**` : '📌', f.texto || ''].filter(Boolean).join('\n')} />;
+  return <VistaDiscord embed={{ titulo: f.titulo ? `📌 ${f.titulo}` : '', descripcion: f.texto, color: f.color || '#a855f7' }} />;
 }
 
 export default function MensajesFijosView({ dash }) {

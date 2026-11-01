@@ -9,12 +9,33 @@ import { getStaffSession } from '../../../lib/api';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Aviso, BotonGuardar } from './crecimientoShared';
 import { relativo } from './crecimientoUtils';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import VistaDiscord from '../VistaDiscord';
 
 const COLOR = { twitch: '#9146FF', youtube: '#FF0000', kick: '#53FC18', reddit: '#FF4500', rss: '#F59E0B' };
 const NOMBRE = { twitch: 'Twitch', youtube: 'YouTube', kick: 'Kick', reddit: 'Reddit', rss: 'RSS' };
 const TIPOS = Object.keys(NOMBRE);
 const EN_DIRECTO = new Set(['twitch', 'kick']); // los que tienen «en directo / desconectado»
 const PLACEHOLDER = { twitch: 'placeholderTwitch', youtube: 'placeholderYoutube', kick: 'placeholderKick', reddit: 'placeholderReddit', rss: 'placeholderRss' };
+
+// Cómo sale el aviso en Discord (utils/directos.js: anunciar): el mensaje, la ficha con el
+// autor, el título y la plataforma, y el botón de enlace (gris, como todos los de enlace).
+// La plataforma (y su color) es la de la primera fuente de ese tipo que haya añadido.
+const TIPOS_AVISO = {
+  directo: { defecto: 'twitch', entre: ['twitch', 'kick'], mensaje: 'defaultLive', titulo: 'sampleLiveTitle', boton: 'watchStream' },
+  video: { defecto: 'youtube', entre: ['youtube'], mensaje: 'defaultVideo', titulo: 'sampleVideoTitle', boton: 'watchVideo' },
+  post: { defecto: 'reddit', entre: ['reddit', 'rss'], mensaje: 'defaultPost', titulo: 'samplePostTitle', boton: 'readPost' },
+};
+function PreviaAviso({ t, tipo, plantilla, rol, fuentes = [] }) {
+  const c = TIPOS_AVISO[tipo];
+  const plataforma = (fuentes.find((f) => c.entre.includes(f.tipo)) || {}).tipo || c.defecto;
+  const d = (k) => t(`dashboard.crec_v.directos.${k}`);
+  return (
+    <VistaDiscord className="mt-2" texto={`${rol ? `@${rol.nombre} ` : ''}${plantilla || d(c.mensaje)}`}
+      variables={{ streamer: d('sampleStreamer'), title: d(c.titulo), url: 'https://…', platform: NOMBRE[plataforma] }}
+      embed={{ titulo: d(c.titulo), color: COLOR[plataforma], pie: NOMBRE[plataforma], campos: tipo === 'directo' ? [{ nombre: d('livePlaying'), valor: 'Valorant', inline: true }] : [] }}
+      botones={[{ texto: d(c.boton), estilo: 'gris' }]} />
+  );
+}
 
 export default function CrecDirectosView({ dash }) {
   const { t, i18n } = useTranslation();
@@ -99,12 +120,15 @@ export default function CrecDirectosView({ dash }) {
           </Campo>
           <Campo etiqueta={t('dashboard.crec_v.directos.message')} className="sm:col-span-2">
             <input maxLength={500} value={form.mensaje || ''} onChange={(e) => set('mensaje')(e.target.value)} className={campo} />
+            <PreviaAviso t={t} tipo="directo" fuentes={datos.fuentes} plantilla={form.mensaje} rol={form.rolId && roles.find((x) => x.id === form.rolId)} />
           </Campo>
           <Campo etiqueta={t('dashboard.crec_v.directos.messageVideo')} className="sm:col-span-2">
             <input maxLength={500} value={form.mensajeVideo || ''} onChange={(e) => set('mensajeVideo')(e.target.value)} className={campo} />
+            <PreviaAviso t={t} tipo="video" fuentes={datos.fuentes} plantilla={form.mensajeVideo} rol={form.rolId && roles.find((x) => x.id === form.rolId)} />
           </Campo>
           <Campo etiqueta={t('dashboard.crec_v.directos.messagePost')} ayuda={t('dashboard.crec_v.directos.messageHint')} className="sm:col-span-2">
             <input maxLength={500} value={form.mensajePost || ''} onChange={(e) => set('mensajePost')(e.target.value)} className={campo} />
+            <PreviaAviso t={t} tipo="post" fuentes={datos.fuentes} plantilla={form.mensajePost} rol={form.rolId && roles.find((x) => x.id === form.rolId)} />
           </Campo>
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-bg px-4 py-3 sm:col-span-2">
             <span className="text-sm font-semibold text-fg">{t('dashboard.crec_v.directos.shorts')}</span>

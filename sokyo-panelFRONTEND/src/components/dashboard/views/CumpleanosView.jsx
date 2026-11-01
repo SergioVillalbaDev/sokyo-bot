@@ -8,6 +8,7 @@ import { Avatar } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio } from './modulosShared';
 import { useModulo } from '../../../hooks/useModulo';
+import VistaDiscord from '../VistaDiscord';
 
 const VARIABLES = ['{mention}', '{user}', '{server}'];
 
@@ -49,6 +50,9 @@ export default function CumpleanosView({ dash }) {
           <Campo etiqueta={t('dashboard.cumple_v.message')} ayuda={t('dashboard.cumple_v.messageHint', { vars: VARIABLES.join(' ') })} className="sm:col-span-2">
             <textarea rows={2} maxLength={1000} value={form.mensaje || ''} onChange={(e) => set('mensaje')(e.target.value)} className={`${campo} resize-y`} />
           </Campo>
+          <div className="sm:col-span-2">
+            <VistaDiscord texto={form.mensaje || t('dashboard.cumple_v.defaultMessage')} variables={{ mention: '@Alex', user: 'Alex', server: 'Nébula Gaming' }} />
+          </div>
           <Campo etiqueta={t('dashboard.cumple_v.role')} ayuda={t('dashboard.cumple_v.roleHint')}>
             <SelectRol roles={roles} value={form.rolId} onChange={set('rolId')} vacio={t('dashboard.cumple_v.noRole')} />
           </Campo>

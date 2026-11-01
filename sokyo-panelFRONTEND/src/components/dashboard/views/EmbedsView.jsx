@@ -120,7 +120,7 @@ export default function EmbedsView({ dash }) {
       {/* Embed (solo en modo embed) */}
       {modo === 'embed' && (
         <div data-help="embeds-builder" className={card}>
-          <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} />
+          <EmbedBuilder value={embed} onChange={(v) => { setEstado(''); setEmbed(v); }} subirImagen={subirImagen} texto={contenido} />
         </div>
       )}
 

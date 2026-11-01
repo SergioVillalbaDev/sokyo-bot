@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { MessagesSquare, Plus, Trash2, Save, Check, Info } from 'lucide-react';
+import VistaDiscord from '../VistaDiscord';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -47,6 +48,9 @@ function ReglaCard({ regla, onSet, onDelete, t }) {
         <span className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.autoresp_v.reply')}</span>
         <textarea value={regla.respuesta} onChange={(e) => onSet('respuesta', e.target.value)} rows={2} className={input} placeholder={t('dashboard.autoresp_v.replyPh')} maxLength={2000} />
       </label>
+      {regla.respuesta && (
+        <VistaDiscord className="mt-3" texto={regla.comoEmbed ? '' : regla.respuesta} embed={regla.comoEmbed ? { descripcion: regla.respuesta, color: '#5865F2' } : null} />
+      )}
 
       <div className="mt-3 flex flex-wrap gap-4">
         <label className="flex cursor-pointer items-center gap-2 text-xs text-fg">
