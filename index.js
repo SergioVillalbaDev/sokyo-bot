@@ -15,19 +15,20 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel]
 });
 
-// 1. Cargador de Comandos
+// 1. Cargador de Comandos (slash). Cada archivo exporta un comando { data, execute } o { comandos: [...] }.
 client.commands = new Collection();
 const comandosPath = path.join(__dirname, 'comandos');
 const commandFiles = fs.readdirSync(comandosPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-    const filePath = path.join(comandosPath, file);
-    const command = require(filePath);
-    if ('name' in command && 'execute' in command) {
-        client.commands.set(command.name, command);
-        console.log(`✅ Comando cargado: ${command.name}`);
-    } else {
-        console.log(`⚠️ Falta el 'name' o 'execute' en el comando ${file}`);
+    const modulo = require(path.join(comandosPath, file));
+    for (const command of (modulo.comandos || [modulo])) {
+        if (command.data && command.execute) {
+            client.commands.set(command.data.name, command);
+            console.log(`✅ Comando cargado: /${command.data.name}`);
+        } else {
+            console.log(`⚠️ Falta 'data' o 'execute' en un comando de ${file}`);
+        }
     }
 }
 

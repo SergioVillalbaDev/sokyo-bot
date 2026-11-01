@@ -1,46 +1,44 @@
 // Portal del Cliente: los usuarios entran con Discord y gestionan SUS tickets.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './index.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function Portal() {
-  const [token, setToken] = useState(localStorage.getItem('portalToken') || '');
+  // Al volver del login con Discord, la URL trae el token (o un error). Se lee una sola vez al arrancar.
+  const [token, setToken] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('token');
+    if (t) localStorage.setItem('portalToken', t);
+    return localStorage.getItem('portalToken') || '';
+  });
   const [usuario, setUsuario] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [ticketSel, setTicketSel] = useState(null);
   const [mensajes, setMensajes] = useState([]);
   const [nuevoMensaje, setNuevoMensaje] = useState('');
-  const [error, setError] = useState('');
-  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState(() => {
+    const err = new URLSearchParams(window.location.search).get('error');
+    if (!err) return '';
+    return err === 'denegado' ? 'Has cancelado el inicio de sesión.' : 'No se pudo iniciar sesión con Discord.';
+  });
+  const [cargando, setCargando] = useState(!!token);
 
   // Tema oscuro fijo para el portal
   useEffect(() => { document.documentElement.setAttribute('data-theme', 'dark'); }, []);
 
-  // Al cargar: capturar token de la URL (vuelta del login) o errores
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const t = params.get('token');
-    const err = params.get('error');
-    if (err) setError(err === 'denegado' ? 'Has cancelado el inicio de sesión.' : 'No se pudo iniciar sesión con Discord.');
-    if (t) {
-      localStorage.setItem('portalToken', t);
-      setToken(t);
-      window.history.replaceState({}, '', '/?portal=1'); // limpia el token de la URL
-    }
-  }, []);
+  // Limpia el token de la barra de direcciones.
+  useEffect(() => { if (window.location.search.includes('token') || window.location.search.includes('error')) window.history.replaceState({}, '', '/?portal=1'); }, []);
 
-  const portalFetch = (path, options = {}) => fetch(`${API_URL}${path}`, {
+  const portalFetch = useCallback((path, options = {}) => fetch(`${API_URL}${path}`, {
     ...options,
     headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` }
-  });
+  }), [token]);
 
   const logout = () => { localStorage.removeItem('portalToken'); setToken(''); setUsuario(null); setTickets([]); setTicketSel(null); };
 
   // Cargar usuario + tickets cuando hay token
   useEffect(() => {
     if (!token) return;
-    setCargando(true);
     Promise.all([
       portalFetch('/api/portal/yo').then(r => { if (r.status === 401) throw new Error('sesion'); return r.json(); }),
       portalFetch('/api/portal/tickets').then(r => r.json())
@@ -48,7 +46,7 @@ function Portal() {
       .then(([yo, tks]) => { setUsuario(yo); setTickets(Array.isArray(tks) ? tks : []); setError(''); })
       .catch(() => { setError('Tu sesión ha caducado. Vuelve a entrar.'); logout(); })
       .finally(() => setCargando(false));
-  }, [token]);
+  }, [token, portalFetch]);
 
   // Refresco del chat abierto cada 4s
   useEffect(() => {
@@ -57,7 +55,7 @@ function Portal() {
     cargar();
     const id = setInterval(cargar, 4000);
     return () => clearInterval(id);
-  }, [ticketSel]);
+  }, [ticketSel, portalFetch]);
 
   const enviar = async () => {
     if (!nuevoMensaje.trim()) return;

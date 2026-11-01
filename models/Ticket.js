@@ -23,7 +23,16 @@ const ticketSchema = new mongoose.Schema({
     ultimaInteractStaff: { type: Date, default: null },
     notasInternas: { type: Array, default: [] },
     visibleWeb: { type: Boolean, default: true },
-    valoracionCSAT: { type: Number, default: null } 
+    valoracionCSAT: { type: Number, default: null },
+
+    // --- Seguimiento de actividad (métricas, SLA e inactividad) ---
+    primeraRespuestaStaff: { type: Date, default: null },   // cuándo contestó el staff por 1ª vez
+    ultimoMensajeFecha: { type: Date, default: null },
+    ultimoMensajePor: { type: String, default: null },      // 'usuario' | 'staff'
+    slaAvisado: { type: Boolean, default: false },          // ya se avisó al staff de que está sin atender
+    inactividadAvisadaEn: { type: Date, default: null }     // ya se avisó al usuario de que se cerrará
 });
+ticketSchema.index({ guildId: 1, estado: 1 });
+ticketSchema.index({ creadorId: 1, estado: 1 });
 
 module.exports = mongoose.model('Ticket', ticketSchema);
