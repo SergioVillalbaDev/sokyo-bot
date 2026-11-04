@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { navGroups } from '../navConfig';
 import { MonitorSmartphone, ShieldAlert, Save, Check, Info, LayoutList } from 'lucide-react';
+import { useAutoguardado, avisarGuardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
@@ -79,7 +81,14 @@ export default function AccesoView({ dash }) {
     const ok = await guardarAcceso({ rolesPanelAcceso: panel, rolesModeracion: moderacion, accesoAreas: areas });
     setGuardando(false);
     setGuardado(ok);
+    if (ok) avisarGuardado();
+    return ok; // el autoguardado (Ctrl + S) mira esto: un fallo sigue pendiente
   };
+  // Se guarda con su botón (son permisos): borrador y «Cambios sin guardar» mientras tanto.
+  const estadoGuardado = useAutoguardado([panel, moderacion, areas], guardar, {
+    listo: !!configServidor, borrador: 'acceso', manual: true,
+    restaurar: ([p, m, a]) => { setPanel(p || []); setModeracion(m || []); setAreas(a || areasVacias); },
+  });
 
   return (
     <div className="space-y-5">
@@ -128,6 +137,7 @@ export default function AccesoView({ dash }) {
           <Save size={16} /> {guardando ? t('dashboard.acceso_v.saving') : t('dashboard.acceso_v.save')}
         </button>
         {guardado && <span className="flex items-center gap-1.5 text-sm font-semibold text-success"><Check size={16} /> {t('dashboard.acceso_v.saved')}</span>}
+        {!guardado && <EstadoAutoguardado estado={estadoGuardado} />}
       </div>
     </div>
   );

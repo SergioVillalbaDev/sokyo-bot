@@ -7,13 +7,14 @@ import { PRESETS_TARJETA } from '../../presetsTarjeta';
 import { Tarjeta, TituloVista } from './glass';
 import { API_URL } from '../../lib/api';
 import { estiloFondoTarjeta } from '../../lib/encuadreTarjeta';
+import { prepararParaSubir } from './prepararPortal';
 
 const INICIAL = { colorAcento: '#5865F2', fondoTipo: 'color', fondoColor: '#1e2030', colorSecundario: '#9b59b6', fondoImagen: '', preset: null, animado: false };
 // La tarjeta se genera a 900×270 px: con menos, el fondo saldría borroso.
 const ANCHO_MIN = 900, ALTO_MIN = 270;
 
 export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tarjeta, setTarjeta] = useState(INICIAL);
   const [catalogo, setCatalogo] = useState({ ocultos: [], personalizados: [] });
   const [cargada, setCargada] = useState(false);
@@ -80,25 +81,26 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
     } catch { avisar(t('portal.card.saveError'), 'error'); } finally { setGuardando(false); }
   };
 
-  const subir = (e) => {
+  const subir = async (e) => {
     const archivo = e.target.files?.[0]; e.target.value = '';
     if (!archivo) return;
-    const lector = new FileReader();
-    lector.onload = () => {
-      const img = new Image();
-      img.onload = async () => {
-        if (img.naturalWidth < ANCHO_MIN || img.naturalHeight < ALTO_MIN) {
-          avisar(t('portal.card.imgTooSmall', { w: img.naturalWidth, h: img.naturalHeight, minW: ANCHO_MIN, minH: ALTO_MIN }), 'error');
-          return;
-        }
-        const res = await portalFetch('/api/portal/tarjeta/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datos: lector.result }) });
-        const d = await res.json().catch(() => ({}));
-        if (d.url) cambiar('fondoImagen', d.url); else avisar(d.error || t('portal.card.imgUploadError'), 'error');
-      };
-      img.onerror = () => avisar(t('portal.card.imgReadError'), 'error');
-      img.src = lector.result;
+    // Tipo real, GIF grandes, WebP animados… (prepararPortal.js / lib/imagenes.js).
+    let preparada;
+    // El fondo pide al menos 900 px de ancho: un GIF grande se encoge sin bajar de ahí.
+    try { preparada = await prepararParaSubir(archivo, t, { video: false, ladoMinimo: ANCHO_MIN }, i18n.language); } catch (err) { avisar(err.message, 'error'); return; }
+    if (preparada.nota) avisar(preparada.nota, 'ok');
+    const img = new Image();
+    img.onload = async () => {
+      if (img.naturalWidth < ANCHO_MIN || img.naturalHeight < ALTO_MIN) {
+        avisar(t('portal.card.imgTooSmall', { w: img.naturalWidth, h: img.naturalHeight, minW: ANCHO_MIN, minH: ALTO_MIN }), 'error');
+        return;
+      }
+      const res = await portalFetch('/api/portal/tarjeta/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datos: preparada.datos }) });
+      const d = await res.json().catch(() => ({}));
+      if (d.url) cambiar('fondoImagen', d.url); else avisar(d.error || t('portal.card.imgUploadError'), 'error');
     };
-    lector.readAsDataURL(archivo);
+    img.onerror = () => avisar(t('portal.card.imgReadError'), 'error');
+    img.src = preparada.datos;
   };
 
   const presets = [
@@ -168,7 +170,7 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
                 <input value={tarjeta.fondoImagen} onChange={(e) => cambiar('fondoImagen', e.target.value)} placeholder={t('portal.card.bgImagePlaceholder')} className="gx-input flex-1 py-2" />
                 <label className="gx-btn gx-btn-primario cursor-pointer px-3.5 py-2">
                   <Upload size={14} /> {t('portal.card.upload')}
-                  <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={subir} className="hidden" />
+                  <input type="file" accept="image/*" onChange={subir} className="hidden" />
                 </label>
               </div>
               <span className="text-xs text-muted">{t('portal.card.bgImageHint')}</span>

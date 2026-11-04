@@ -417,6 +417,17 @@ export function useDashboard() {
       return { error: data.error || 'No se pudo crear' };
     } catch (error) { console.error('Error creando emoji:', error); return { error: 'Fallo de conexión' }; }
   };
+  // Cambia el nombre de un emoji (no ocupa hueco). Devuelve {error} si Discord no lo acepta.
+  const renombrarEmoji = async (emojiId, nombre) => {
+    try {
+      const res = await apiFetch(`/api/servidor/emojis/${emojiId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, nombre }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { await cargarEmojisServidor(); return data; }
+      return { error: data.error || 'No se pudo renombrar' };
+    } catch (error) { console.error('Error renombrando emoji:', error); return { error: 'Fallo de conexión' }; }
+  };
+  // Cuántos emojis caben de cada tipo (estáticos / animados) con el nivel de mejoras.
+  const cargarLimiteEmojis = () => apiFetch(`/api/servidor/emojis/limite${gp()}`).then(procesarRespuesta).catch(() => null);
   const eliminarEmoji = async (emojiId) => {
     try { const res = await apiFetch(`/api/servidor/emojis/${emojiId}${gp()}`, { method: 'DELETE' }); if (res.ok) { await cargarEmojisServidor(); return true; } }
     catch (error) { console.error('Error eliminando emoji:', error); }
@@ -1168,6 +1179,16 @@ export function useDashboard() {
       return { error: data.error || 'No se pudo guardar' };
     } catch (error) { console.error('Error guardando preset:', error); return { error: 'Network error' }; }
   };
+  // Guarda los cambios en un mensaje guardado que ya existe.
+  const actualizarPresetAnuncio = async (id, payload) => {
+    try {
+      const res = await apiFetch(`/api/anuncios/presets/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { await cargarPresetsAnuncio(); return data; }
+      // 404: lo han borrado (en otra pestaña o lo ha hecho otra persona del staff).
+      return { error: data.error || 'No se pudo guardar', noExiste: res.status === 404 };
+    } catch (error) { console.error('Error actualizando preset:', error); return { error: 'Network error' }; }
+  };
   const eliminarPresetAnuncio = async (id) => {
     try { const res = await apiFetch(`/api/anuncios/presets/${id}`, { method: 'DELETE' }); if (res.ok) { await cargarPresetsAnuncio(); return true; } }
     catch (error) { console.error('Error borrando preset:', error); }
@@ -1649,13 +1670,13 @@ export function useDashboard() {
     // productividad: auto-respuestas, embeds, anuncios programados
     guardarAutoRespuestas, enviarEmbed,
     anuncios, cargarAnuncios, crearAnuncio, eliminarAnuncio,
-    presetsAnuncio, cargarPresetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio,
+    presetsAnuncio, cargarPresetsAnuncio, guardarPresetAnuncio, actualizarPresetAnuncio, eliminarPresetAnuncio,
     esBroadcaster, servidoresBot, difundir,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
     guardarAcceso, misPermisos,
     // emojis y stickers
-    stickers, crearEmoji, eliminarEmoji, crearSticker, eliminarSticker,
+    stickers, crearEmoji, eliminarEmoji, renombrarEmoji, cargarLimiteEmojis, crearSticker, eliminarSticker,
     // niveles
     ranking, guardarNiveles,
     guardarMusica,

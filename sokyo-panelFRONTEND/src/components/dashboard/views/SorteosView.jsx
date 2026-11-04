@@ -7,6 +7,8 @@ import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
 import { API_URL } from '../../../lib/api';
 import { useRelativo } from '../../../hooks/useModulo';
+import { useBorrador } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -56,6 +58,16 @@ export default function SorteosView({ dash }) {
 
   const activos = sorteos.filter((s) => s.activo);
   const terminados = sorteos.filter((s) => !s.activo);
+
+  // Borrador: lo que se está escribiendo vuelve tras recargar (useBorrador).
+  const borrador = useBorrador('sorteos', { nombre, premio, canalId, fechaFin, ganadores, nivelMin, rolRequerido, imagen, multiplicadores, invitacionesMin, entradasPorInvitacion, maxEntradasExtra },
+    !nombre.trim() && !premio.trim() && !imagen,
+    (v) => {
+      setNombre(v?.nombre || ''); setPremio(v?.premio || ''); setCanalId(v?.canalId || ''); setFechaFin(v?.fechaFin || '');
+      setGanadores(v?.ganadores ?? 1); setNivelMin(v?.nivelMin ?? 0); setRolRequerido(v?.rolRequerido || ''); setImagen(v?.imagen || '');
+      setMultiplicadores(Array.isArray(v?.multiplicadores) ? v.multiplicadores : []); setInvitacionesMin(v?.invitacionesMin ?? 0);
+      setEntradasPorInvitacion(v?.entradasPorInvitacion ?? 0); setMaxEntradasExtra(v?.maxEntradasExtra ?? 10);
+    });
 
   const crear = async () => {
     setEstado('creando');
@@ -407,6 +419,7 @@ export default function SorteosView({ dash }) {
             <Gift size={16} />
             {estado === 'creando' ? t('dashboard.sorteos_v.creating') : t('dashboard.sorteos_v.create')}
           </button>
+          {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.sorteos_v.createOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}
         </div>

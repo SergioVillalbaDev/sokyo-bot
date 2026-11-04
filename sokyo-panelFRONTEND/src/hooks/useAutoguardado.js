@@ -38,6 +38,13 @@ if (typeof document !== 'undefined') {
   for (const ev of ['input', 'change', 'pointerup', 'keydown', 'keyup', 'click']) document.addEventListener(ev, () => { ultimaInteraccion = Date.now(); }, true);
 }
 const MARGEN_INTERACCION = 1500;
+// Lo que termina más tarde que el toque (subir un GIF, convertir un enlace de Tenor…)
+// llama a esto justo antes de cambiar el formulario: si no, ese cambio llegaba pasado
+// el margen, se tomaba por algo del servidor y no se guardaba.
+export function marcarInteraccion() { ultimaInteraccion = Date.now(); }
+// Secciones con `manual`: su botón «Guardar» avisa con esto cuando ha ido bien, y el
+// formulario de ese momento (ya con lo que devuelva el servidor) pasa a ser lo guardado.
+export function avisarGuardado() { if (typeof window !== 'undefined') window.dispatchEvent(new Event('sokyo-guardado')); }
 // Lo que cambia nada más abrir la sección (los datos del servidor que la
 // vista copia a su formulario) tampoco es de la persona.
 const ARRANQUE = 1200;
@@ -70,16 +77,27 @@ function escribirBorrador(clave, v, b) { try { localStorage.setItem(clave, JSON.
 function quitarBorrador(clave) { try { localStorage.removeItem(clave); } catch { /* sin almacenamiento */ } }
 // Al cerrar sesión se borran todos (App.jsx: logout), para que otra persona en este
 // navegador no recupere lo de antes.
+// Quita el borrador de una sección cuando ya se ha guardado de otra forma (p. ej. un
+// panel de roles que se guarda y se cierra su ventana).
+export function borrarBorrador(seccion) { quitarBorrador(claveBorrador(seccion)); }
 
 // `valor`: lo que se edita en la sección. `guardar`: su función de guardar (que
 // devuelva false o { ok: false } si falla). `listo`: ya han llegado los datos.
 // `borrador` + `restaurar`: nombre de la sección y cómo volver a poner un `valor`
 // en su formulario (lo contrario de armar `valor`); con ellos, lo que no se ha
 // guardado se recupera tras recargar.
+// Sin `guardar` (null), solo borrador: lo que se está escribiendo se copia en este
+// navegador y se recupera al volver, sin guardar nada en el servidor (Creador de
+// mensajes: un mensaje que se manda una vez).
 // Devuelve el estado para pintarlo:
-// 'apagado' | 'sin-guardar' | 'al-dia' | 'pendiente' | 'guardando' | 'guardado' | 'error'.
-export function useAutoguardado(valor, guardar, { listo = true, espera = 1500, borrador = null, restaurar = null } = {}) {
-  const activo = useAutoguardadoActivo();
+// 'apagado' | 'sin-guardar' | 'borrador' | 'al-dia' | 'pendiente' | 'guardando' | 'guardado' | 'error'.
+// `manual`: la sección se guarda solo con su botón (p. ej. porque al guardar toca
+// Discord): borrador, aviso al salir y «Cambios sin guardar», como con el
+// autoguardado apagado. Lo guardado se da por bueno cuando la API avisa de que ha
+// cambiado la configuración (sokyo-cambio).
+export function useAutoguardado(valor, guardar, { listo = true, espera = 1500, borrador = null, restaurar = null, manual = false } = {}) {
+  const soloBorrador = !manual && typeof guardar !== 'function';
+  const activo = useAutoguardadoActivo() && !soloBorrador && !manual;
   const firma = listo ? JSON.stringify(valor ?? null) : null;
   const [base, setBase] = useState(null); // lo que hay guardado
   // Lo primero que se ve al estar listo es lo guardado (se fija al pintar).
@@ -108,8 +126,11 @@ export function useAutoguardado(valor, guardar, { listo = true, espera = 1500, b
     // Lo recuperado del borrador no está guardado: cuenta como un cambio de la persona.
     if (restaurando.current) { restaurando.current = false; return; }
     const alAbrir = ahora - listoDesde.current < ARRANQUE;
+    // Solo borrador: no llega nada del servidor después de abrir; todo es de la persona,
+    // también lo que escribe nada más abrir (si no, «Cancelar» no preguntaba).
+    if (soloBorrador) { if (alAbrir && ultimaInteraccion <= listoDesde.current) setBase(firma); return; }
     if (alAbrir || ahora - ultimaInteraccion > MARGEN_INTERACCION) setBase(firma);
-  }, [firma]);
+  }, [firma, soloBorrador]);
 
   const cambiado = firma !== null && base !== null && firma !== base;
   const pendiente = activo && cambiado;
@@ -151,7 +172,7 @@ export function useAutoguardado(valor, guardar, { listo = true, espera = 1500, b
   const guardandoRef = useRef(false);
   const guardarAhora = useRef(null);
   guardarAhora.current ??= async () => {
-    if (guardandoRef.current || firmaRef.current === null) return;
+    if (guardandoRef.current || firmaRef.current === null || typeof guardarRef.current !== 'function') return;
     const guardada = firmaRef.current;
     guardandoRef.current = true;
     setGuardando(true);
@@ -193,20 +214,23 @@ export function useAutoguardado(valor, guardar, { listo = true, espera = 1500, b
   // Con el autoguardado apagado, «Guardar» llama directo a la sección: cuando la API
   // dice que ha cambiado la configuración (sokyo-cambio), lo de ahora ya está guardado.
   useEffect(() => {
-    if (activo) return undefined;
-    const guardado = () => { if (firmaRef.current !== null) setBase(firmaRef.current); };
+    if (activo || soloBorrador) return undefined;
+    // Un momento después: el formulario ya lleva lo que haya devuelto el servidor.
+    const guardado = () => setTimeout(() => { if (firmaRef.current !== null) setBase(firmaRef.current); }, 60);
     window.addEventListener('sokyo-cambio', guardado);
-    return () => window.removeEventListener('sokyo-cambio', guardado);
-  }, [activo]);
+    window.addEventListener('sokyo-guardado', guardado);
+    return () => { window.removeEventListener('sokyo-cambio', guardado); window.removeEventListener('sokyo-guardado', guardado); };
+  }, [activo, soloBorrador]);
 
   // Cerrar la pestaña con cambios sin guardar: el navegador pregunta antes
-  // (también con el autoguardado apagado: ahí no se guarda nada solo).
+  // (también con el autoguardado apagado: ahí no se guarda nada solo). Con solo
+  // borrador no hace falta: se recupera al volver.
   useEffect(() => {
-    if (!cambiado) return undefined;
+    if (!cambiado || soloBorrador) return undefined;
     const avisar = (e) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', avisar);
     return () => window.removeEventListener('beforeunload', avisar);
-  }, [cambiado]);
+  }, [cambiado, soloBorrador]);
 
   // Al salir de la sección con algo sin guardar: se guarda antes de irse (y, si sale
   // bien, el borrador sobra).
@@ -215,8 +239,17 @@ export function useAutoguardado(valor, guardar, { listo = true, espera = 1500, b
     Promise.resolve(guardarRef.current?.()).then((r) => { if (clave && !fallo(r)) quitarBorrador(clave); }, () => {});
   }, [clave]);
 
+  if (soloBorrador) return cambiado ? 'borrador' : 'apagado';
   if (!activo) return cambiado ? 'sin-guardar' : 'apagado';
   if (guardando) return 'guardando';
   if (pendiente) return fallos ? 'error' : 'pendiente';
   return recien ? 'guardado' : 'al-dia';
+}
+
+// Formularios para crear algo (anuncio programado, encuesta, evento, sorteo…): solo
+// borrador. Lo que se está escribiendo se recupera tras recargar, con «Descartar».
+// `vacio`: el formulario está como al abrirlo (entonces no hay borrador: al crear y
+// vaciarse, desaparece solo). `restaurar(v)` pone `v` en el formulario; con null, lo vacía.
+export function useBorrador(seccion, valor, vacio, restaurar) {
+  return useAutoguardado(vacio ? null : valor, null, { borrador: seccion, restaurar: (v) => restaurar(v || null) });
 }

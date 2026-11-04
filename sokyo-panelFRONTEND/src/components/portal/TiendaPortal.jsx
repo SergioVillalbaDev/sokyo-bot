@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ShoppingBag, Search, Backpack, Hammer, Gift, Zap, Loader2, PackageOpen, Timer, Upload } from 'lucide-react';
 import { Tarjeta, TituloVista, Vacio } from './glass';
 import { rareza, ICONO_TIPO, precioEfectivo, fmtNum } from './portalUtils';
+import { prepararParaSubir } from './prepararPortal';
 
 const RAREZAS = ['legendario', 'epico', 'raro', 'comun'];
 
@@ -270,7 +271,7 @@ function Revelacion({ premio, onCerrar }) {
 
 // Forja: crear objetos, cajas de botín y ofertas relámpago de lo tuyo.
 function Forja({ portalFetch, usuario, items, avisar, onCreado }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [imgObjeto, setImgObjeto] = useState('');
   const [imgCaja, setImgCaja] = useState('');
   const [enCaja, setEnCaja] = useState({}); // id -> peso
@@ -280,8 +281,9 @@ function Forja({ portalFetch, usuario, items, avisar, onCreado }) {
   const subir = async (e, poner) => {
     const archivo = e.target.files?.[0]; e.target.value = '';
     if (!archivo) return;
-    const datos = await new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = mal; r.readAsDataURL(archivo); }).catch(() => null);
-    if (!datos) return avisar(t('portal.card.imgReadError'), 'error');
+    // Tipo real, GIF grandes, WebP animados, vídeos → GIF (prepararPortal.js).
+    let datos;
+    try { ({ datos } = await prepararParaSubir(archivo, t, {}, i18n.language)); } catch (err) { return avisar(err.message, 'error'); }
     const res = await portalFetch('/api/portal/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datos }) });
     const d = await res.json().catch(() => ({}));
     if (res.ok && d.url) { poner(d.url); avisar(t('portal.shop.imageUploaded'), 'ok'); } else avisar(d.error || t('portal.card.imgUploadError'), 'error');
@@ -417,7 +419,7 @@ function SubirImagen({ valor, onCambiar, onSubir }) {
       {t('portal.shop.fImage')}
       <div className="flex gap-2">
         <input value={valor} onChange={(e) => onCambiar(e.target.value)} placeholder="https://…" className="gx-input flex-1" />
-        <label className="gx-btn shrink-0 cursor-pointer"><Upload size={14} /> {t('portal.card.upload')}<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onSubir} className="hidden" /></label>
+        <label className="gx-btn shrink-0 cursor-pointer"><Upload size={14} /> {t('portal.card.upload')}<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" onChange={onSubir} className="hidden" /></label>
       </div>
     </div>
   );

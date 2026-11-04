@@ -10,6 +10,11 @@ import { Card, Toggle } from '../../ui/primitives';
 import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
 import { pieMarca } from '../../../lib/pieMarca';
+import EstadoSubida from '../EstadoSubida';
+import { API_URL } from '../../../lib/api';
+import { useSubidaImagen, ACEPTA_IMAGEN } from '../../../hooks/useSubidaImagen';
+import { useAutoguardado, avisarGuardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const inputCls = 'rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-brand/50';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -84,7 +89,8 @@ export default function VozTemporalView({ dash }) {
   const [msg, setMsg] = useState(null);
   const [publicando, setPublicando] = useState(false);
   const [pubMsg, setPubMsg] = useState(null);   // resultado de publicar, junto al botón
-  const [subiendoImg, setSubiendoImg] = useState(false);
+  const sub = useSubidaImagen(); // GIF grandes, WebP animados, vídeos → GIF (lib/imagenes.js)
+  const subiendoImg = sub.ocupado;
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -105,6 +111,10 @@ export default function VozTemporalView({ dash }) {
   }, [configServidor]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Se guarda con su botón (al guardar puede tocar el panel de Discord): borrador en
+  // este dispositivo y «Cambios sin guardar» mientras tanto (useAutoguardado manual).
+  // (Ctrl + S no: la llamada va antes de la salida temprana y `guardar` aún no existe.)
+  const estadoGuardado = useAutoguardado(f, null, { listo: !!f, borrador: 'voz-temporal', restaurar: setF, manual: true });
   if (!f) return null;
 
   const set = (campo, valor) => { setGuardado(false); setF((s) => ({ ...s, [campo]: valor })); };
@@ -132,6 +142,7 @@ export default function VozTemporalView({ dash }) {
     const ok = await guardarVozTemporal(f);
     setGuardando(false);
     setGuardado(ok);
+    if (ok) avisarGuardado();
     setMsg(ok ? { tipo: 'ok', texto: t('dashboard.voztemporal_v.msgSaved') } : { tipo: 'err', texto: t('dashboard.voztemporal_v.msgSaveError') });
     setTimeout(() => setMsg(null), 3000);
   };
@@ -141,21 +152,11 @@ export default function VozTemporalView({ dash }) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setSubiendoImg(true);
     setMsg(null);
-    try {
-      const dataUrl = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result);
-        r.onerror = rej;
-        r.readAsDataURL(file);
-      });
-      const r = await subirImagen(dataUrl);
-      if (r?.url) { set('panelImagen', r.url); setMsg({ tipo: 'ok', texto: t('dashboard.voztemporal_v.msgImgUploaded') }); }
-      else setMsg({ tipo: 'err', texto: r?.error || t('dashboard.voztemporal_v.msgImgError') });
-    } catch { setMsg({ tipo: 'err', texto: t('dashboard.voztemporal_v.msgReadError') }); }
-    setSubiendoImg(false);
-    setTimeout(() => setMsg(null), 4000);
+    const r = await sub.preparar(file);
+    if (!r) return;
+    const res = await sub.subir(subirImagen, r.archivo);
+    if (res?.url) { set('panelImagen', res.url); setMsg({ tipo: 'ok', texto: t('dashboard.voztemporal_v.msgImgUploaded') }); setTimeout(() => setMsg(null), 4000); }
   };
 
   const publicar = async () => {
@@ -343,7 +344,7 @@ export default function VozTemporalView({ dash }) {
                 />
                 <label className={`flex cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-sm font-semibold text-fg hover:bg-elevated ${!esPremium || subiendoImg ? 'pointer-events-none opacity-50' : ''}`}>
                   {subiendoImg ? t('dashboard.voztemporal_v.uploading') : t('dashboard.voztemporal_v.upload')}
-                  <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={onSubirImagen} disabled={!esPremium || subiendoImg} />
+                  <input type="file" accept={ACEPTA_IMAGEN} className="hidden" onChange={onSubirImagen} disabled={!esPremium || subiendoImg} />
                 </label>
                 {f.panelImagen && esPremium && (
                   <button type="button" onClick={() => set('panelImagen', '')}
@@ -352,8 +353,9 @@ export default function VozTemporalView({ dash }) {
                   </button>
                 )}
               </div>
+              <EstadoSubida sub={sub} className="mt-1.5" />
               {f.panelImagen && (
-                <img src={f.panelImagen} alt="preview"
+                <img src={f.panelImagen.startsWith('/uploads/') ? `${API_URL}${f.panelImagen}` : f.panelImagen} alt="preview"
                   className="mt-2 max-h-40 w-auto rounded-xl border border-line object-contain"
                   onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
               )}
@@ -414,7 +416,8 @@ export default function VozTemporalView({ dash }) {
       </Card>
 
       {/* Guardar */}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <EstadoAutoguardado estado={estadoGuardado} />
         <button onClick={guardar} disabled={guardando}
           className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
           {guardado ? <Check size={16} /> : <Save size={16} />}

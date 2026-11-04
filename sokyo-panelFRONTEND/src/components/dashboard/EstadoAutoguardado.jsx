@@ -13,6 +13,7 @@ export default function EstadoAutoguardado({ estado }) {
     guardado: t('dashboard.autoguardado.guardado'),
     error: t('dashboard.autoguardado.error'),
     'sin-guardar': t('dashboard.autoguardado.sinGuardar'),
+    borrador: t('dashboard.autoguardado.borrador'),
   };
   const Icono = estado === 'guardando' ? Loader2 : estado === 'guardado' ? CheckCircle2 : estado === 'error' ? AlertTriangle : CloudUpload;
   const color = estado === 'guardado' ? 'text-success' : estado === 'error' ? 'text-danger' : estado === 'sin-guardar' ? 'text-warning' : 'text-muted';

@@ -96,6 +96,35 @@ function urlInvitar(guildId, permisos) {
 const TODOS = PERMISOS.reduce((acc, [k]) => acc | P[k], 0n);
 
 // Devuelve { comprobados, problemas: [{ id, nivel, titulo, detalle, solucion, tab, arreglo }] }.
+// ¿Se puede abrir esta dirección desde internet? (no vale localhost, IPs de casa,
+// 0.0.0.0, [::1] ni nombres de la red local como «raspberrypi.local»).
+function direccionPublica(url) {
+    let u;
+    try { u = new URL(url); } catch { return false; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+    const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (!host.includes('.') && !host.includes(':')) return false; // «localhost», «raspberrypi»
+    if (/\.(local|lan|home|internal|localhost)$/.test(host)) return false;
+    if (/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.)/.test(host)) return false;
+    if (host.includes(':') && (host === '::1' || host === '::' || /^(f[cd]|fe80:)/.test(host))) return false; // IPv6 de casa
+    return true;
+}
+
+// ¿Usa el servidor alguna imagen subida desde el panel que Discord tenga que descargar?
+// (ajustes como los juegos o la voz temporal, sorteos activos y eventos por venir).
+async function usaImagenesSubidas(guildId, cfg) {
+    if (JSON.stringify(cfg || {}).includes('"/uploads/')) return true;
+    try {
+        const Sorteo = require('../models/Sorteo.js');
+        const Evento = require('../models/Evento.js');
+        const [s, e] = await Promise.all([
+            Sorteo.exists({ guildId, activo: true, imagen: /^\/uploads\// }),
+            Evento.exists({ guildId, fechaInicio: { $gte: new Date() }, portada: /^\/uploads\// }),
+        ]);
+        return !!(s || e);
+    } catch { return false; }
+}
+
 async function diagnosticar(client, guildId, cfg, idioma) {
     const guild = client.guilds.cache.get(guildId);
     const problemas = [];
@@ -195,6 +224,18 @@ async function diagnosticar(client, guildId, cfg, idioma) {
     medio(cfg?.solicitudes?.activo && !(cfg?.solicitudes?.formularios || []).length, 'medio:solicitudes', 'com-solicitudes', 'Las solicitudes están encendidas pero no hay ningún formulario', 'Applications are on but there are no forms', 'Crea al menos un formulario con sus preguntas.', 'Create at least one form with its questions.');
     medio(!cfg?.rolStaffId, 'medio:staff', 'tickets-config', 'Los tickets no tienen rol de staff', 'Tickets have no staff role', 'Elige qué rol atiende los tickets (si no, solo los que pueden «Gestionar canales»).', 'Choose which role handles tickets (otherwise, only those who can “Manage channels”).');
 
+    // 3.0) Imágenes subidas desde el panel en Eventos, Sorteos, Encuestas, Juegos y la voz
+    // temporal: Discord las descarga de la dirección pública del panel (FRONTEND_URL,
+    // utils/comunidad.js y dinamicas.js: urlAbs). Si no es una dirección de internet, no
+    // se ven (las del Creador de mensajes y los paneles de roles van adjuntas: no les pasa).
+    comprobados++;
+    {
+        const pub = String(process.env.FRONTEND_URL || '');
+        if (!direccionPublica(pub) && await usaImagenesSubidas(guildId, cfg)) {
+            add({ id: 'imagenes:url', nivel: 'aviso', titulo: t(idioma, 'Las imágenes subidas en eventos, sorteos y juegos no se verán en Discord', 'Images uploaded for events, giveaways and games won’t show in Discord'), detalle: t(idioma, `Discord las descarga de la dirección del panel, y ahora es «${pub || '(vacía)'}», que no se puede abrir desde internet.`, `Discord downloads them from the panel’s address, which is now “${pub || '(empty)'}” and can’t be opened from the internet.`), solucion: t(idioma, 'El dueño del bot: pon en FRONTEND_URL (archivo .env) la dirección pública del panel, p. ej. https://dashboard.sokyo.studio, y reinicia el bot. Mientras, usa enlaces de imágenes.', 'Bot owner: set FRONTEND_URL (.env file) to the panel’s public address, e.g. https://dashboard.sokyo.studio, and restart the bot. Meanwhile, use image links.'), tab: null, arreglo: null });
+        }
+    }
+
     // 3.a) Confesar escribiendo en el canal: el bot tiene que poder borrar el mensaje
     // (si no, se vería quién lo ha escrito y no se publica).
     {
@@ -269,4 +310,4 @@ async function arreglar(client, guildId, arreglo) {
     return { ok: false };
 }
 
-module.exports = { diagnosticar, arreglar, PERMISOS, REFERENCIAS, urlInvitar };
+module.exports = { diagnosticar, arreglar, PERMISOS, REFERENCIAS, urlInvitar, direccionPublica };

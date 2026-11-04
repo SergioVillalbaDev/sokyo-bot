@@ -161,7 +161,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   (al recargar el navegador puede cortarlo: para eso está el borrador); con el autoguardado
   apagado avisa antes de salir y el estado es `sin-guardar`.
   Cerrar sesión borra los borradores. **Toda sección nueva con autoguardado: pásale
-  `borrador` y `restaurar`.**
+  `borrador` y `restaurar`.** Otros modos del mismo hook: sin `guardar` (null) = solo
+  borrador (Creador de mensajes, Dinámicas, editor de paneles de roles); `useBorrador(sección,
+  valor, vacío, restaurar)` para formularios de crear algo (anuncios, encuestas, eventos,
+  sorteos: al vaciarse tras crear, el borrador desaparece); `manual: true` = se guarda solo
+  con su botón (voz temporal, página pública, acceso al panel), con «Cambios sin guardar» y
+  `avisarGuardado()` tras guardar bien. `borrarBorrador(sección)` lo quita a mano. Lo que
+  cambia tarde (subir una imagen, resolver un enlace) llama a `marcarInteraccion()` antes:
+  si no, pasado 1,5 s se tomaba por algo del servidor y no se guardaba. Sin borrador aún:
+  ajustes de tickets, textos, registros y las listas (auto-respuestas, fijos, tipos, roles).
   **Copiar del servidor al formulario**: con `useDesdeServidor(configServidor, () => …)`
   (`hooks/useDesdeServidor.js`), NO con un `useEffect([configServidor])`: la respuesta de su
   propio guardado (marcada con `marcarEco` en `useDashboard`) no se copia, porque borraba las
@@ -427,5 +435,21 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   devuelve su texto). Si no puede borrarlo no la publica; su borrado no va al registro
   (`esBorradoPorConfesion`); el Diagnóstico mira «Gestionar mensajes» ahí. Tests en
   `test/musica.test.js` y `test/confesiones.test.js`.
+- 1.9.10 (2.ª parte) **Imágenes y GIF** (`src/lib/imagenes.js` + `hooks/useSubidaImagen.js` +
+  `EstadoSubida.jsx`; en «Mi cuenta», `components/portal/prepararPortal.js`): todo campo de imagen
+  mira qué es el archivo por sus bytes (galerías del móvil sin tipo), no recorta lo animado (se
+  quedaba quieto), encoge GIF de más de 8 MB (omggif + gifenc, se cargan solo si hacen falta),
+  pasa WebP/PNG animados (ImageDecoder) y vídeos cortos (WhatsApp/Telegram) a GIF, y cambia el
+  enlace de la página de Tenor/Giphy por el GIF (`GET /api/imagen/enlace`; Tenor por su og:image
+  con `redSegura`). El servidor también mira los bytes (`utils/imagenes.js`) en todas las subidas.
+  Ojo: Eventos, Sorteos, Encuestas, Dinámicas y voz temporal guardan `/uploads/…` y el bot le
+  pone delante `FRONTEND_URL` (Discord la descarga): si no es pública, no se ve (lo avisa el
+  Diagnóstico). El Creador de mensajes y los paneles de roles adjuntan el archivo. Enviar desde
+  el Creador comprueba antes «Adjuntar archivos» y explica los errores de Discord.
+  **Creador de mensajes**: «Guardar» junto a «Enviar» (mensajes guardados = `AnuncioPreset`,
+  `PUT /api/anuncios/presets/:id` para guardar cambios) y borrador. **Emojis**: renombrar
+  (`PATCH /api/servidor/emojis/:id`), huecos por nivel de mejoras (`/emojis/limite`) y los que
+  Discord desactiva al perder mejoras (`disponible: false`; «No hay ranuras de emojis abiertas»
+  es Discord). Tests en `test/imagenes.test.js` (con `test/fixtures/`).
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

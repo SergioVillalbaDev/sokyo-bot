@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { ChannelType, PermissionsBitField, AttachmentBuilder } = require('discord.js');
+const { extensionImagen, imagenDeDataUrl, ERROR_NO_IMAGEN } = require('../utils/imagenes.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
@@ -719,10 +720,9 @@ module.exports = (client) => {
     // Subir el fondo de la tarjeta desde el ordenador (dataURL base64).
     app.post('/api/portal/tarjeta/upload', portalAuth, (req, res) => {
         try {
-            const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(req.body?.datos || '');
-            if (!m) return res.status(400).json({ error: 'Formato no válido (png, jpg, gif o webp)' });
-            const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
-            const buffer = Buffer.from(m[3], 'base64');
+            const img = imagenDeDataUrl(req.body?.datos); // por sus bytes, no por el tipo que dice
+            if (!img) return res.status(400).json({ error: ERROR_NO_IMAGEN });
+            const { buffer, ext } = img;
             if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 8 MB' });
             const archivo = `tarjeta-${req.usuario.id}-${Date.now()}.${ext}`;
             fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
@@ -2257,11 +2257,27 @@ app.get('/api/stats/uso', async (req, res) => {
             const cfg = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean().catch(() => null);
             const payload = construirMensaje(req.body.contenido, sanearEmbed(req.body.embed), uploadsDir, cfg);
             if (!payload.content && !payload.embeds) return res.status(400).json({ error: 'El mensaje está vacío' });
+            // Antes de mandarlo, ¿puede el bot? Una imagen subida va como archivo adjunto:
+            // sin «Adjuntar archivos» Discord rechaza el mensaje entero.
+            const idioma = idiomaPanel(req, cfg);
+            const { permisosQueFaltan } = require('../utils/erroresDiscord.js');
+            const necesita = ['ViewChannel', 'SendMessages', ...(payload.embeds ? ['EmbedLinks'] : []), ...(payload.files ? ['AttachFiles'] : [])];
+            const faltan = permisosQueFaltan(canal, necesita, idioma);
+            if (faltan.length) {
+                return res.status(403).json({ error: idioma === 'es'
+                    ? `Al bot le falta en #${canal.name}: ${faltan.join(', ')}. Dáselos en Discord (clic derecho en el canal → Editar canal → Permisos) o elige otro canal.`
+                    : `The bot is missing in #${canal.name}: ${faltan.join(', ')}. Give them in Discord (right-click the channel → Edit channel → Permissions) or pick another channel.` });
+            }
             const msg = await canal.send(payload);
             res.json({ success: true, mensajeId: msg.id });
         } catch (error) {
-            console.error('Error al enviar embed:', error);
-            res.status(400).json({ error: error.message || 'No se pudo enviar' });
+            console.error('Error al enviar embed:', error.message);
+            const es = String(req.get('x-sokyo-lang') || 'es').startsWith('es');
+            const texto = error?.code === 40005 ? (es ? 'La imagen pesa más de lo que deja este servidor de Discord. Usa una más pequeña.' : 'The image is bigger than this Discord server allows. Use a smaller one.')
+                : error?.code === 50035 ? (es ? 'Discord no acepta algo del mensaje (suele ser el enlace de una imagen que no es una imagen). Revísalo o sube la imagen.' : 'Discord rejected part of the message (usually an image link that isn’t an image). Check it or upload the image.')
+                    : error?.code === 50013 ? (es ? 'Al bot le falta un permiso en ese canal. En «¿Algo no funciona?» te dice cuál.' : 'The bot is missing a permission in that channel. “Something not working?” tells you which one.')
+                        : (error.message || 'No se pudo enviar');
+            res.status(400).json({ error: texto });
         }
     });
 
@@ -2361,6 +2377,30 @@ app.get('/api/stats/uso', async (req, res) => {
             res.json({ success: true, preset: doc });
         } catch (error) {
             console.error('Error al guardar preset de anuncio:', error);
+            res.status(400).json({ error: error.message || 'No se pudo guardar' });
+        }
+    });
+
+    // Guardar cambios en un mensaje guardado (Creador de mensajes: «Guardar» con uno abierto).
+    app.put('/api/anuncios/presets/:id', async (req, res) => {
+        try {
+            const doc = await AnuncioPreset.findById(req.params.id).catch(() => null);
+            if (!doc) return res.status(404).json({ error: 'No encontrado' });
+            if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) {
+                return res.status(403).json({ error: 'Sin permiso para este servidor' });
+            }
+            const b = req.body || {};
+            const embedSan = sanearEmbed(b.embed);
+            const tieneEmbed = embedTieneContenido(embedSan);
+            const contenido = String(b.contenido || '').slice(0, 2000);
+            if (!tieneEmbed && !contenido) return res.status(400).json({ error: 'El mensaje está vacío' });
+            if (b.nombre !== undefined && String(b.nombre).trim()) doc.nombre = String(b.nombre).trim().slice(0, 80);
+            doc.contenido = contenido;
+            doc.embed = tieneEmbed ? embedSan : null;
+            await doc.save();
+            res.json({ success: true, preset: doc });
+        } catch (error) {
+            console.error('Error al actualizar preset de anuncio:', error);
             res.status(400).json({ error: error.message || 'No se pudo guardar' });
         }
     });
@@ -2830,10 +2870,11 @@ app.get('/api/stats/uso', async (req, res) => {
     app.post('/api/paneles/upload', (req, res) => {
         try {
             const { datos } = req.body;
-            const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(datos || '');
-            if (!m) return res.status(400).json({ error: 'Formato no válido (solo png, jpg, gif o webp)' });
-            const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
-            const buffer = Buffer.from(m[3], 'base64');
+            // Se mira qué es de verdad (sus primeros bytes), no el tipo que dice: algunas
+            // galerías del móvil no lo dicen o lo dicen mal y antes se rechazaba.
+            const img = imagenDeDataUrl(datos);
+            if (!img) return res.status(400).json({ error: ERROR_NO_IMAGEN });
+            const { buffer, ext } = img;
             if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera el máximo de 8 MB' });
             const archivo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
             fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
@@ -2952,6 +2993,9 @@ app.get('/api/stats/uso', async (req, res) => {
                 // Código que se inserta en el mensaje y que el bot sabe interpretar.
                 codigo: `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`,
                 url: e.imageURL({ size: 64 }),
+                // false: Discord lo ha desactivado porque el servidor perdió mejoras y ya
+                // no le caben tantos (no se puede usar ni renombrar hasta que haya hueco).
+                disponible: e.available !== false,
             }));
             res.json(emojis);
         } catch (error) {
@@ -2960,14 +3004,85 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    // Helper: dataURL base64 -> { buffer, mime }.
+    // Helper: dataURL base64 -> { buffer, mime }. `mime` es el de verdad (por los bytes).
     function dataUrlABuffer(datos) {
-        const m = /^data:(.+?);base64,(.+)$/.exec(datos || '');
+        const m = /^data:([^;,]*);base64,(.+)$/.exec(datos || '');
         if (!m) return null;
-        return { mime: m[1], buffer: Buffer.from(m[2], 'base64') };
+        const buffer = Buffer.from(m[2], 'base64');
+        const ext = extensionImagen(buffer);
+        return { mime: ext ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : m[1], buffer };
     }
+
+    // Enlace de Tenor o Giphy (la página del GIF) → dirección de la imagen, que es lo
+    // que Discord enseña. Giphy se saca de la dirección; Tenor, de su página.
+    app.get('/api/imagen/enlace', async (req, res) => {
+        try {
+            const url = String(req.query.url || '').trim().slice(0, 600);
+            const giphy = url.match(/^https?:\/\/(?:www\.)?giphy\.com\/(?:gifs|stickers)\/(?:[\w-]*-)?([A-Za-z0-9]{6,})\/?(?:[?#].*)?$/i)
+                || url.match(/^https?:\/\/(?:www\.)?giphy\.com\/embed\/([A-Za-z0-9]{6,})/i);
+            if (giphy) return res.json({ url: `https://media.giphy.com/media/${giphy[1]}/giphy.gif`, origen: 'giphy' });
+            if (!/^https?:\/\/(?:www\.)?tenor\.com\//i.test(url)) return res.json({ url, origen: null });
+            const { pedirTextoSeguro } = require('../utils/redSegura.js');
+            const r = await pedirTextoSeguro(url, { cabeceras: { 'User-Agent': 'Mozilla/5.0 (compatible; SokyoBot/1.0)' }, maxBytes: 1024 * 1024 });
+            const media = (r.texto || '').match(/<meta[^>]+property="og:image"[^>]+content="(https:\/\/media\d*\.tenor\.com\/[^"]+\.gif)"/i)
+                || (r.texto || '').match(/content="(https:\/\/media\d*\.tenor\.com\/[^"]+\.gif)"[^>]+property="og:image"/i);
+            if (!media) return res.status(404).json({ error: 'No he encontrado el GIF en ese enlace de Tenor. Abre el GIF, mantén pulsado y elige «Copiar dirección de la imagen».' });
+            res.json({ url: media[1], origen: 'tenor' });
+        } catch (error) {
+            console.error('Enlace de imagen:', error.message);
+            res.status(502).json({ error: 'No se ha podido abrir ese enlace. Prueba otra vez o sube el GIF desde el móvil.' });
+        }
+    });
     // Nombre válido de emoji/sticker: 2–32, letras/números/guion bajo.
     const limpiarNombre = (n) => String(n || '').trim().replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32);
+
+    // Huecos de emojis según el nivel de mejoras (estáticos y animados por separado).
+    const maxEmojis = (guild) => {
+        const base = [50, 100, 150, 250][guild.premiumTier] ?? 50;
+        return (guild.features || []).includes('MORE_EMOJI') ? Math.max(base, 200) : base;
+    };
+    // Errores de Discord con los emojis, en palabras normales.
+    const errorEmoji = (error, guild, animado) => {
+        const max = maxEmojis(guild);
+        if (error?.code === 30008) return `El servidor ya tiene los ${max} emojis ${animado ? 'animados' : 'estáticos'} que permite su nivel de mejoras. Borra alguno o sube de nivel para que quepan más.`;
+        if (error?.code === 50013) return 'Al bot le falta el permiso «Gestionar expresiones» en el servidor.';
+        if (error?.code === 50035) return 'El nombre solo puede llevar letras, números y _ (de 2 a 32).';
+        if (error?.code === 50045 || error?.code === 50138) return 'La imagen pesa demasiado: un emoji puede tener 256 KB como mucho.';
+        if (error?.code === 10014) return 'Ese emoji ya no existe (puede que lo hayan borrado).';
+        return error?.message || 'Discord no ha aceptado el cambio.';
+    };
+
+    // Cuántos emojis caben (para que el panel enseñe «48 / 50»).
+    app.get('/api/servidor/emojis/limite', async (req, res) => {
+        try {
+            const guild = await resolverGuild(req.query.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            res.json({ max: maxEmojis(guild), nivel: guild.premiumTier || 0 });
+        } catch (error) {
+            console.error('Error al leer el límite de emojis:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+
+    // Cambiar el nombre de un emoji (no ocupa hueco: es el mismo emoji).
+    app.patch('/api/servidor/emojis/:emojiId', async (req, res) => {
+        let guild;
+        try {
+            guild = await resolverGuild(req.body.guildId, req.staff);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const nombre = limpiarNombre(req.body.nombre);
+            if (nombre.length < 2) return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
+            const actual = guild.emojis.cache.get(req.params.emojiId);
+            if (actual && actual.available === false) {
+                return res.status(409).json({ error: `Discord tiene este emoji desactivado: el servidor ya no tiene hueco para él (caben ${maxEmojis(guild)} ${actual.animated ? 'animados' : 'estáticos'} con su nivel de mejoras). Hasta que haya hueco no se puede usar ni renombrar: borra otro emoji o sube de nivel.`, codigo: 'sin-hueco' });
+            }
+            const emoji = await guild.emojis.edit(req.params.emojiId, { name: nombre });
+            res.json({ success: true, emoji: { id: emoji.id, nombre: emoji.name, animado: emoji.animated, codigo: `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`, url: emoji.imageURL({ size: 64 }), disponible: emoji.available !== false } });
+        } catch (error) {
+            console.error('Error al renombrar emoji:', error.message);
+            res.status(400).json({ error: guild ? errorEmoji(error, guild, guild.emojis.cache.get(req.params.emojiId)?.animated) : 'No se pudo renombrar' });
+        }
+    });
 
     // Crear un emoji (imagen en dataURL).
     app.post('/api/servidor/emojis', async (req, res) => {
@@ -2980,8 +3095,12 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!datos || !/image\/(png|jpe?g|gif)/i.test(datos.mime)) return res.status(400).json({ error: 'Formato no válido (png, jpg o gif)' });
             if (datos.buffer.length > 256 * 1024) return res.status(400).json({ error: 'El emoji supera 256 KB' });
 
-            const emoji = await guild.emojis.create({ attachment: datos.buffer, name: nombre });
-            res.json({ success: true, emoji: { id: emoji.id, nombre: emoji.name, animado: emoji.animated, codigo: `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`, url: emoji.imageURL({ size: 64 }) } });
+            let emoji;
+            try { emoji = await guild.emojis.create({ attachment: datos.buffer, name: nombre }); } catch (error) {
+                console.error('Error al crear emoji:', error.message);
+                return res.status(400).json({ error: errorEmoji(error, guild, /gif/i.test(datos.mime)) });
+            }
+            res.json({ success: true, emoji: { id: emoji.id, nombre: emoji.name, animado: emoji.animated, codigo: `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>`, url: emoji.imageURL({ size: 64 }), disponible: true } });
         } catch (error) {
             console.error('Error al crear emoji:', error);
             res.status(400).json({ error: error.message || 'No se pudo crear el emoji' });

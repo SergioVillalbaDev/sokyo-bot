@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { BarChart2, Trash2, Info, Plus, X, CheckSquare, EyeOff, Clock, Users, RefreshCw } from 'lucide-react';
 import { CierrePicker } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
+import { useBorrador } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 import VistaDiscord from '../VistaDiscord';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -47,6 +49,11 @@ export default function EncuestasView({ dash }) {
   const addOpcion = () => setOpciones((prev) => [...prev, '']);
   const removeOpcion = (i) => setOpciones((prev) => prev.filter((_, idx) => idx !== i));
   const setOpcion = (i, v) => setOpciones((prev) => prev.map((o, idx) => (idx === i ? v : o)));
+
+  // Borrador: lo que se está escribiendo vuelve tras recargar (useBorrador).
+  const borrador = useBorrador('encuestas', { pregunta, opciones, canalId, fechaFin, multiple, anonima },
+    !pregunta.trim() && opciones.every((o) => !o.trim()),
+    (v) => { setPregunta(v?.pregunta || ''); setOpciones(Array.isArray(v?.opciones) && v.opciones.length >= 2 ? v.opciones : ['', '']); setCanalId(v?.canalId || ''); setFechaFin(v?.fechaFin || ''); setMultiple(!!v?.multiple); setAnonima(!!v?.anonima); });
 
   const crear = async () => {
     setEstado('creando');
@@ -304,6 +311,7 @@ export default function EncuestasView({ dash }) {
             <BarChart2 size={16} />
             {estado === 'creando' ? t('dashboard.encuestas_v.creating') : t('dashboard.encuestas_v.create')}
           </button>
+          {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.encuestas_v.createOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}
         </div>
