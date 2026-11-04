@@ -17,15 +17,20 @@ plugins:
   # de Lavalink, que está obsoleto.
   youtube:
     enabled: true
-    # Se prueban en este orden. MUSIC solo busca; los demás reproducen (si
-    # YouTube bloquea uno, se pasa al siguiente en vez de quedarse en silencio).
-    clients:
-      - MUSIC
-      - ANDROID_VR
-      - TVHTML5_SIMPLY
-      - MWEB
-      - WEB
-      - WEBEMBEDDED
+    # Se prueban en este orden (si YouTube bloquea uno, se pasa al siguiente en
+    # vez de quedarse en silencio). MUSIC solo busca; TV solo sirve con una cuenta
+    # de YouTube conectada (panel → Música → «Cuenta de YouTube»). El lanzador
+    # (scripts/lavalink.js) pone TV el primero cuando hay cuenta; YOUTUBE_CLIENTS
+    # en el .env elige otra lista (separada por comas).
+    clients: "${YOUTUBE_CLIENTS:MUSIC,ANDROID_VR,WEB,WEBEMBEDDED,MWEB,IOS,TVHTML5_SIMPLY,TV}"
+    # Desde 2026 el plugin ya no sabe descifrar él solo las direcciones del audio
+    # de YouTube: se lo pide a un servidor de cifrado (yt-cipher). Por defecto, el
+    # público de su autor; YOUTUBE_CIPHER_URL en el .env usa otro (p. ej. uno propio).
+    remoteCipher:
+      url: "${YOUTUBE_CIPHER_URL:https://cipher.kikkia.dev/}"
+      userAgent: "sokyo-bot"
+    # La cuenta de YouTube NO va aquí: si el token caduca, Lavalink no arrancaría.
+    # La pone el bot al conectarse (utils/cuentaYoutube.js).
   # LavaSrc: permite pegar URLs de Spotify. Lee solo los TÍTULOS de Spotify y
   # reproduce el audio desde YouTube (modo "mirror", igual que Jockie).
   # Funciona en cuanto pongas SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET en el .env.
@@ -49,8 +54,14 @@ plugins:
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-      repository: "https://maven.lavalink.dev/releases"
+    # YouTube: la 1.18.2 (última publicada) dejó de sonar en agosto de 2026
+    # («All clients failed… This video requires login»). Esta es la versión de
+    # desarrollo con los arreglos (commit 2be8e54 de lavalink-devs/youtube-source,
+    # 17-09-2026). Cuando salga la 1.18.3 o posterior, vuelve a la versión normal.
+    # Lavalink borra solo el .jar de la versión anterior de lavalink/plugins.
+    - dependency: "dev.lavalink.youtube:youtube-plugin:2be8e542d3f6f178e048dca565892684c2e40177"
+      repository: "https://maven.lavalink.dev/snapshots"
+      snapshot: true
     - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
       repository: "https://maven.lavalink.dev/releases"
   server:

@@ -18,7 +18,7 @@ module.exports = {
             }
 
             if (!reportado) {
-                return message.reply(t(cfg, '❌ Menciona a un usuario o responde a su mensaje. Ej.: `!report @usuario spam`', '❌ Mention a user or reply to their message. e.g. `!report @user spam`'));
+                return message.reply(t(cfg, '❌ Elige a quién reportar. Ej.: `/reportar usuario: @alguien motivo: spam` (o clic derecho en su mensaje → Apps → Reportar mensaje).', '❌ Pick who to report. e.g. `/report user: @someone reason: spam` (or right-click their message → Apps → Report message).'));
             }
             if (reportado.id === message.author.id) {
                 return message.reply(t(cfg, '❌ No puedes reportarte a ti mismo.', '❌ You can’t report yourself.'));

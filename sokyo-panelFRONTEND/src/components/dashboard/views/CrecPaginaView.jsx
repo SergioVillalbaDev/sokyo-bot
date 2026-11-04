@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Globe2, SlidersHorizontal, Link2, ExternalLink, Copy, Check, X, Eye, LayoutGrid } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, Aviso, BotonGuardar } from './crecimientoShared';
+import { useAutoguardado, avisarGuardado } from '../../../hooks/useAutoguardado';
 
 const limpiarSlug = (v) => String(v || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 32);
 
@@ -42,6 +43,9 @@ export default function CrecPaginaView({ dash }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 
+  // (Ctrl + S no: la llamada va antes de las salidas tempranas y `guardar` aún no existe.)
+  // Se guarda con su botón (cambia la dirección pública): borrador y «Cambios sin guardar».
+  const estadoGuardado = useAutoguardado(form, null, { listo: !!form, borrador: 'crec-pagina', restaurar: setForm, manual: true });
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.crec_v.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
   if (!form) return null;
@@ -62,6 +66,7 @@ export default function CrecPaginaView({ dash }) {
     setEstado('ok');
     if (r.aviso) setAviso(r.aviso);
     aplicar(r);
+    avisarGuardado();
   };
 
   const copiar = () => {
@@ -130,7 +135,7 @@ export default function CrecPaginaView({ dash }) {
         </div>
       </div>
 
-      <BotonGuardar estado={estado} onClick={guardar} />
+      <BotonGuardar estado={estado} onClick={guardar} autoguardado={estadoGuardado} />
       {aviso && <Aviso tipo="alerta">{aviso}</Aviso>}
 
       <div data-help="pagina-enlace" className={tarjeta}>

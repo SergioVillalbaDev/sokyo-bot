@@ -18,7 +18,7 @@ module.exports = {
         }
 
         const target = message.mentions.users.first();
-        if (!target) return message.reply(t(cfg, '❌ Menciona a un usuario. Ej.: `!activity @usuario`', '❌ Mention a user. e.g. `!activity @user`'));
+        if (!target) return message.reply(t(cfg, '❌ Elige a un usuario. Ej.: `/actividad usuario: @alguien`', '❌ Pick a user. e.g. `/activity user: @someone`'));
 
         const act = await ActividadUsuario.findOne({ guildId: message.guild.id, userId: target.id });
         const ultimos = await RegistroMensaje.find({ guildId: message.guild.id, userId: target.id }).sort({ fecha: -1 }).limit(5);

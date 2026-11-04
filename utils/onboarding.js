@@ -4,6 +4,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { aplicarPieMarca } = require('./marca.js');
 const { t } = require('./i18n.js');
+const MensajeEntrada = require('../models/MensajeEntrada.js');
 
 // Textos del mensaje de bienvenida. Apostamos por mercado global -> inglés por
 // defecto, con un botón en el propio mensaje para cambiar a español al vuelo
@@ -11,7 +12,7 @@ const { t } = require('./i18n.js');
 const TEXTOS_BIENVENIDA = {
     en: {
         title: '👋 Hi! I’m Sokyo',
-        desc: (name) => `I just joined **${name}**. You only need **3 quick steps** to get started.`,
+        descPlantilla: 'I just joined **{server}**. You only need **3 quick steps** to get started.',
         trial: (d) => `\n> 🎁 **Pro trial active** — ${d} day${d !== 1 ? 's' : ''} left`,
         stepsTitle: '⚡ Setup steps',
         step1: '**Staff role** — who can manage tickets',
@@ -29,7 +30,7 @@ const TEXTOS_BIENVENIDA = {
     },
     es: {
         title: '👋 ¡Hola! Soy Sokyo',
-        desc: (name) => `Me acabo de unir a **${name}**. Solo necesitas **3 pasos rápidos** para empezar.`,
+        descPlantilla: 'Me acabo de unir a **{server}**. Solo necesitas **3 pasos rápidos** para empezar.',
         trial: (d) => `\n> 🎁 **Prueba Pro activa** — quedan ${d} día${d !== 1 ? 's' : ''}`,
         stepsTitle: '⚡ Pasos de configuración',
         step1: '**Rol de staff** — quién puede gestionar los tickets',
@@ -47,11 +48,74 @@ const TEXTOS_BIENVENIDA = {
     },
 };
 
+// «Todo lo que puedo hacer»: la guía completa que se añade al mensaje de entrada
+// (si los propietarios la dejan activada en el panel).
+const GUIA_COMPLETA = {
+    es: [
+        { name: '🧭 Todo lo que puedo hacer', value: [
+            '🎫 **Tickets** de soporte con formulario, transcripción y valoración.',
+            '🛡️ **Moderación**: avisos, aislamientos, baneos con deshacer, automod y anti-raid.',
+            '👋 **Bienvenidas**, verificación y roles automáticos.',
+            '📈 **Niveles** con tarjetas, 🎉 sorteos, encuestas, cumpleaños y clanes.',
+            '🎵 **Música** de YouTube y Spotify, 🪙 oro y tienda.',
+            '🚀 **Crecimiento**: invitaciones, avisos de directos y página pública.',
+        ].join('\n') },
+        { name: '⌨️ Comandos', value: 'Escribe **/** en el chat y Discord te enseña todos mis comandos. `/ayuda` los explica por categorías.' },
+    ],
+    en: [
+        { name: '🧭 Everything I can do', value: [
+            '🎫 Support **tickets** with forms, transcripts and ratings.',
+            '🛡️ **Moderation**: warnings, timeouts, undoable bans, automod and anti-raid.',
+            '👋 **Welcomes**, verification and auto roles.',
+            '📈 **Levels** with cards, 🎉 giveaways, polls, birthdays and clans.',
+            '🎵 **Music** from YouTube and Spotify, 🪙 gold and shop.',
+            '🚀 **Growth**: invites, live stream alerts and a public page.',
+        ].join('\n') },
+        { name: '⌨️ Commands', value: 'Type **/** in the chat and Discord shows all my commands. `/help` explains them by category.' },
+    ],
+};
+
+// Ajustes del mensaje de entrada (panel → Propietario). Se guardan en memoria un
+// minuto: el mensaje se construye a menudo (al entrar, en /setup, al cambiar de idioma).
+const ENTRADA_DEFECTO = { activo: true, alDueno: true, alCanal: 'respaldo', guiaCompleta: true, es: { titulo: '', descripcion: '' }, en: { titulo: '', descripcion: '' } };
+let entradaCache = null;
+let entradaHasta = 0;
+async function cargarMensajeEntrada({ forzar = false } = {}) {
+    if (!forzar && entradaCache && Date.now() < entradaHasta) return entradaCache;
+    try {
+        const doc = await MensajeEntrada.findOne({ clave: 'global' }).lean();
+        entradaCache = { ...ENTRADA_DEFECTO, ...(doc || {}), es: { ...ENTRADA_DEFECTO.es, ...(doc?.es || {}) }, en: { ...ENTRADA_DEFECTO.en, ...(doc?.en || {}) } };
+    } catch {
+        entradaCache = entradaCache || { ...ENTRADA_DEFECTO };
+    }
+    entradaHasta = Date.now() + 60_000;
+    return entradaCache;
+}
+const olvidarMensajeEntrada = () => { entradaHasta = 0; };
+
+// Textos de fábrica y partes fijas del mensaje, para la vista previa del panel.
+function piezasMensajeEntrada(lang) {
+    const tx = TEXTOS_BIENVENIDA[lang] || TEXTOS_BIENVENIDA.en;
+    return {
+        porDefecto: { titulo: tx.title, descripcion: tx.descPlantilla },
+        pasos: { nombre: tx.stepsTitle, valor: [`1️⃣ ${tx.step1}`, `2️⃣ ${tx.step2}`, `3️⃣ ${tx.step3}`].join('\n') },
+        panel: { nombre: tx.panelTitle, valor: tx.panelValue(process.env.FRONTEND_URL || 'http://localhost:5173') },
+        consejo: { nombre: tx.tipTitle, valor: tx.tipValue },
+        guia: (GUIA_COMPLETA[lang] || GUIA_COMPLETA.en).map((c) => ({ nombre: c.name, valor: c.value })),
+        botones: [tx.btnOpenPanel, tx.btnStatus, tx.btnPublish, tx.btnLang],
+    };
+}
+
 // Mensaje interactivo enviado al unirse el bot y en !setup.
 // lang: 'en' (por defecto, mercado global) o 'es' — se cambia con el botón del propio mensaje.
 // Sin `lang` explícito usa el idioma guardado del servidor (antes salía siempre en inglés).
-function construirBienvenida(guild, config, lang = (config && config.idioma) || 'en') {
+// `entrada`: ajustes del panel (Propietario → Mensaje de entrada); sin ellos, los de
+// la última carga (cargarMensajeEntrada) o los de fábrica.
+function construirBienvenida(guild, config, lang = (config && config.idioma) || 'en', entrada = entradaCache || ENTRADA_DEFECTO) {
     const t = TEXTOS_BIENVENIDA[lang] || TEXTOS_BIENVENIDA.en;
+    const propios = (entrada && entrada[lang === 'es' ? 'es' : 'en']) || {};
+    const titulo = (propios.titulo || '').trim() || t.title;
+    const descripcion = ((propios.descripcion || '').trim() || t.descPlantilla).replace(/\{(server|servidor)\}/gi, () => guild.name); // función: un «$» del nombre no es un patrón
     const url = process.env.FRONTEND_URL || 'http://localhost:5173';
     const guildId = guild.id;
 
@@ -71,8 +135,8 @@ function construirBienvenida(guild, config, lang = (config && config.idioma) || 
 
     const embed = new EmbedBuilder()
         .setColor(config?.colorEmbed || '#5865F2')
-        .setTitle(t.title)
-        .setDescription(`${t.desc(guild.name)}${planLinea}`)
+        .setTitle(titulo.slice(0, 256))
+        .setDescription(`${descripcion}${planLinea}`.slice(0, 4000))
         .addFields(
             {
                 name: t.stepsTitle,
@@ -93,6 +157,7 @@ function construirBienvenida(guild, config, lang = (config && config.idioma) || 
                 inline: true,
             },
         );
+    if (entrada?.guiaCompleta !== false) embed.addFields(...(GUIA_COMPLETA[lang] || GUIA_COMPLETA.en));
 
     if (guild.iconURL()) embed.setThumbnail(guild.iconURL({ size: 128 }));
     aplicarPieMarca(embed, config);
@@ -178,4 +243,7 @@ function construirEmbedEstado(guild, config) {
     return { embeds: [embed], components: [fila], flags: 64 }; // 64 = ephemeral
 }
 
-module.exports = { construirGuia, construirBienvenida, construirEmbedEstado };
+module.exports = {
+    construirGuia, construirBienvenida, construirEmbedEstado,
+    cargarMensajeEntrada, olvidarMensajeEntrada, piezasMensajeEntrada, ENTRADA_DEFECTO,
+};

@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.9.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.11.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -57,6 +57,24 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
   anterior queda en `Lavalink.jar.anterior`). DAVE necesita glibc 2.35+ (Raspberry
   Pi OS Bookworm). `/api/health` dice en `musica` si está conectado y su versión, y
   el panel (Música) avisa si no puede sonar.
+- **YouTube (1.9.10)**: en agosto de 2026 la 1.18.2 del plugin dejó de sonar («All
+  clients failed… This video requires login»). `lavalink/application.yml` usa la versión
+  de desarrollo `2be8e54` (repositorio `snapshots`; volver a una normal cuando salga la
+  1.18.3+), el servidor de cifrado `remoteCipher` (`YOUTUBE_CIPHER_URL`, por defecto el
+  público `cipher.kikkia.dev`) y clientes por `YOUTUBE_CLIENTS`. Lo que de verdad quita el
+  «requires login» es una **cuenta de YouTube** (Google secundaria): panel → Música →
+  «Cuenta de YouTube», solo propietarios (`utils/cuentaYoutube.js`, `CuentaYoutube.jsx`,
+  `/api/musica/youtube*`). El bot pide a Lavalink el inicio de sesión de TV (`POST
+  /youtube`), el lanzador lee de su salida el código y el token y los guarda en
+  `lavalink/.youtube-cuenta.json` (0600, fuera de git); el bot pasa el token en cada
+  conexión. **El token NO va en application.yml**: uno caducado tumba el arranque de
+  Lavalink (probado). Si cambia `utils/cuentaYoutube.js`, reiniciar también Lavalink.
+  Una canción que falla (`trackError` en `utils/musica.js`) se prueba una vez con otra
+  subida de la misma canción y, si no, se explica sin el error de Java; `queueEnd` espera a
+  ese reintento. Desde una IP de la nube YouTube lo bloquea todo: no se puede probar el
+  sonido aquí, solo con la Pi (SoundCloud y JioSaavn tampoco sirven de repuesto). Al
+  aplicar la cuenta, solo «oauth2 token fetch: 400/401» (Google la rechaza) la borra; otro
+  fallo la deja y reintenta al minuto. Los tests no escriben por stdout (rompe el ejecutor).
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -64,6 +82,14 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 `utils/propietarios.js`: los de `OWNER_IDS` del `.env` más los fijados en el código
 (`1433388927233953902`). Ven todos los servidores, cambian planes, usan `/sistema`
 y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
+Su grupo del menú, **Propietario** (el último, `owner: true` en `navConfig.js`), tiene
+Suscripciones y **Mensaje de entrada** (1.9.11, `OwnerEntradaView.jsx`): el mensaje que manda
+el bot al entrar en un servidor (`utils/onboarding.js` → `construirBienvenida` con los ajustes
+de `models/MensajeEntrada.js`, documento global `clave: 'global'`, en caché 1 min con
+`cargarMensajeEntrada`). Por defecto va por privado al dueño y al canal solo de respaldo
+(`alCanal: 'respaldo'`), con la guía «Todo lo que puedo hacer». API: `GET/PUT
+/api/owner/mensaje-entrada` y `POST …/probar` (a tu privado, botones desactivados); las
+rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
 
 ## Panel de admin: convenciones
 - **Menú**: `components/dashboard/navConfig.js` (bloques, grupos e ítems con `tab`,
@@ -135,6 +161,23 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   `{ ok: false }` si falla (entonces reintenta, cada vez más espaciado). Solo cuenta
   como cambio lo que pasa tras tocar algo. No va en secciones que publican en
   Discord o tienen límites (canales, paneles). Se apaga en Preferencias (⚙).
+  **Borradores (1.9.10)**: con `{ borrador: 'nombre', restaurar }` (lo contrario de armar
+  el valor; `useModulo` ya lo pasa) lo no guardado se copia al momento en localStorage
+  (`sokyoBorrador:<servidor>:<sección>`) y se recupera al volver tras recargar o cerrar,
+  con aviso y «Descartar» (`AvisoBorrador.jsx`); si lo guardado cambió desde entonces,
+  solo si es de hace menos de 10 min. Al ocultar o cerrar la página se intenta guardar ya
+  (al recargar el navegador puede cortarlo: para eso está el borrador); con el autoguardado
+  apagado avisa antes de salir y el estado es `sin-guardar`.
+  Cerrar sesión borra los borradores. **Toda sección nueva con autoguardado: pásale
+  `borrador` y `restaurar`.** Otros modos del mismo hook: sin `guardar` (null) = solo
+  borrador (Creador de mensajes, Dinámicas, editor de paneles de roles); `useBorrador(sección,
+  valor, vacío, restaurar)` para formularios de crear algo (anuncios, encuestas, eventos,
+  sorteos: al vaciarse tras crear, el borrador desaparece); `manual: true` = se guarda solo
+  con su botón (voz temporal, página pública, acceso al panel), con «Cambios sin guardar» y
+  `avisarGuardado()` tras guardar bien. `borrarBorrador(sección)` lo quita a mano. Lo que
+  cambia tarde (subir una imagen, resolver un enlace) llama a `marcarInteraccion()` antes:
+  si no, pasado 1,5 s se tomaba por algo del servidor y no se guardaba. Sin borrador aún:
+  ajustes de tickets, textos, registros y las listas (auto-respuestas, fijos, tipos, roles).
   **Copiar del servidor al formulario**: con `useDesdeServidor(configServidor, () => …)`
   (`hooks/useDesdeServidor.js`), NO con un `useEffect([configServidor])`: la respuesta de su
   propio guardado (marcada con `marcarEco` en `useDashboard`) no se copia, porque borraba las
@@ -182,6 +225,14 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   escucha el `change` en captura), asistente por tipo de servidor en el Inicio
   (`AsistenteInicio.jsx`), copiar ajustes a otro servidor (Backup), letra/compacto/
   tema según el sistema (`lib/aspecto.js`) y avisos del navegador (`lib/avisosNavegador.js`).
+- **Comandos con barra (1.9.11)**: TODO comando de prefijo (`comandos/*.js`) tiene su versión
+  `/` en `slash/` hecha con `crearSlashDesdePrefijo` (`utils/puenteSlash.js`): traduce las
+  opciones a los argumentos de siempre y le pasa al comando un «mensaje» equivalente (reply,
+  menciones, adjuntos, cfg), así las dos formas hacen lo mismo. `test/puenteSlash.test.js`
+  falla si un `!comando` nuevo no tiene su `/` (o si un nombre se repite). Las opciones de texto se
+  parten en palabras (motivos); `junto: true` las pasa enteras (nombre de un rol con espacios) y
+  `efimero: true` en el comando hace que solo lo vea quien lo usa (`/reportar`). Las ayudas de uso de
+  los comandos enseñan la forma con `/` (nombre en español en el texto en español).
 - **Discord 1.8.0**: clic derecho (`slash/ctx*.js`), `/ayuda` por categorías
   (`utils/ayuda.js`: si añades un comando, apúntalo ahí), todos los slash con nombre en
   español, errores explicados con botón al panel (`utils/erroresDiscord.js`),
@@ -215,6 +266,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Reddit (su RSS) y cualquier web con RSS. Las direcciones que escribe el staff pasan por
   `utils/redSegura.js` (nada de IPs privadas, también tras redirecciones). TikTok no tiene forma
   pública de saber cuándo alguien publica: no se ofrece.
+- **Modo simple / avanzado de permisos** (1.9.11, `lib/modoPermisos.js` +
+  `SelectorModoPermisos.jsx`, se recuerda en el navegador): simple = lo de siempre; avanzado =
+  todo lo de Discord. Roles: «Mostrar por separado» (`separado` → `hoist`) en los dos modos;
+  en avanzado `mencionable`, `colorSecundario` (degradado, solo con `ENHANCED_ROLE_COLORS`) y
+  `emoji` (`unicodeEmoji`, solo con `ROLE_ICONS`; `GET /api/roles/funciones`), copiar y quitar
+  permisos. Canales: `@everyone` en los dos modos; en avanzado, permisos de miembros concretos
+  (`tipo: 'miembro'`, `quitarMiembros` para borrarlos) y «Permitir/Denegar todo». **Cada
+  overwrite que se manda a Discord lleva `type`** (0 rol, 1 miembro): sin él, discord.js lo
+  busca en caché y falla con «not a cached User or Role» (pasaba al guardar tickets).
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -390,5 +450,42 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Contadores: `PreviaCanal` (nombre del canal de voz con una cifra de ejemplo). Ojo (descubierto
   al hacer la de sanciones): el privado de una sanción usa el color y el emoji de la ACCIÓN, no los
   del tipo (`utils/moderationManager.js`: `enviarDM`); el color/emoji del tipo solo se ven en el panel.
+- 1.9.10 La música vuelve a sonar (YouTube, ver *Desplegar → YouTube*): plugin de desarrollo,
+  servidor de cifrado, «Cuenta de YouTube» en Música, otra versión de la canción si un vídeo
+  falla y errores con palabras normales. Autoguardado que no pierde nada al recargar
+  (borradores, ver *Autoguardado*). Confesiones escribiendo en un canal (opcional:
+  `confesiones.escribirEnCanal` + `canalEscrituraId`, vacío = el de las confesiones): en
+  `events/messageCreate.js` va lo primero (antes del automod, la actividad y la XP), el bot
+  borra el mensaje, lo pasa por `enviar` como /confesar y contesta por privado (si falla, le
+  devuelve su texto). Si no puede borrarlo no la publica; su borrado no va al registro
+  (`esBorradoPorConfesion`); el Diagnóstico mira «Gestionar mensajes» ahí. Tests en
+  `test/musica.test.js` y `test/confesiones.test.js`.
+- 1.9.10 (2.ª parte) **Imágenes y GIF** (`src/lib/imagenes.js` + `hooks/useSubidaImagen.js` +
+  `EstadoSubida.jsx`; en «Mi cuenta», `components/portal/prepararPortal.js`): todo campo de imagen
+  mira qué es el archivo por sus bytes (galerías del móvil sin tipo), no recorta lo animado (se
+  quedaba quieto), encoge GIF de más de 8 MB (omggif + gifenc, se cargan solo si hacen falta),
+  pasa WebP/PNG animados (ImageDecoder) y vídeos cortos (WhatsApp/Telegram) a GIF, y cambia el
+  enlace de la página de Tenor/Giphy por el GIF (`GET /api/imagen/enlace`; Tenor por su og:image
+  con `redSegura`). El servidor también mira los bytes (`utils/imagenes.js`) en todas las subidas.
+  Ojo: Eventos, Sorteos, Encuestas, Dinámicas y voz temporal guardan `/uploads/…` y el bot le
+  pone delante `FRONTEND_URL` (Discord la descarga): si no es pública, no se ve (lo avisa el
+  Diagnóstico). El Creador de mensajes y los paneles de roles adjuntan el archivo. Enviar desde
+  el Creador comprueba antes «Adjuntar archivos» y explica los errores de Discord.
+  **Creador de mensajes**: «Guardar» junto a «Enviar» (mensajes guardados = `AnuncioPreset`,
+  `PUT /api/anuncios/presets/:id` para guardar cambios) y borrador. **Emojis**: renombrar
+  (`PATCH /api/servidor/emojis/:id`), huecos por nivel de mejoras (`/emojis/limite`) y los que
+  Discord desactiva al perder mejoras (`disponible: false`; «No hay ranuras de emojis abiertas»
+  es Discord). Tests en `test/imagenes.test.js` (con `test/fixtures/`).
+- 1.9.11 **Música**: `/play` cumple las mismas reglas que la web (`fuenteDe`, `limitarEncolado`,
+  `nodoMusica` en `utils/musica.js`: fuentes permitidas, playlists, tope de la cola, «ya
+  suena en otro canal») y nunca enseña el error técnico; los dos buscan ANTES de entrar a la voz
+  (si no hay nada que añadir, el bot no se queda en el canal callado); Lavalink arranca con `clientReady`
+  (`'ready'` está obsoleto). **Roles**: «Mostrar por separado» y modo simple/avanzado (los colores solo se mandan si
+  cambian: así no se pierde el estilo holográfico de Discord); **canales**:
+  `@everyone`, permisos por miembro y `type` en cada overwrite (ver *Modo simple / avanzado*).
+  **Todos los comandos con `/`** (ver *Comandos con barra*), `/ayuda` al día (descripciones
+  reales, sin «solo con prefijo») y `/sancionar` sin tipo enseña la lista. **Mensaje de entrada**
+  configurable por los propietarios (ver *Propietarios del bot*). Tests: `test/puenteSlash.test.js`,
+  `test/entrada.test.js` y más en `musica` y `canales`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

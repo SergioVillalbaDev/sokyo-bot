@@ -11,7 +11,7 @@ module.exports = {
 
         const duracionMin = parseDuracion(tokens[0]);
         if (duracionMin === null) {
-            return message.reply(t(cfg, '❌ Indica el tiempo. Ej.: `!timeout @usuario 30m spam` (m, h, d).', '❌ Provide the time. e.g. `!timeout @user 30m spam` (m, h, d).'));
+            return message.reply(t(cfg, '❌ Indica el tiempo. Ej.: `/aislar usuario: @alguien duracion: 30m motivo: spam` (m, h, d).', '❌ Provide the time. e.g. `/timeout user: @someone duration: 30m reason: spam` (m, h, d).'));
         }
         tokens.shift();
 

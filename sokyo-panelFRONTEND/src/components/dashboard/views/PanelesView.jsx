@@ -1,6 +1,6 @@
 // Vista de Paneles de autoasignación de roles.
 // Lista de paneles + editor completo (tipo, apariencia, opciones y roles).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,6 +11,10 @@ import { EmojiPicker } from '../../ui/EmojiPicker';
 import { API_URL } from '../../../lib/api';
 import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
+import EstadoSubida from '../EstadoSubida';
+import { useSubidaImagen, resolverEnlaceImagen, ACEPTA_IMAGEN } from '../../../hooks/useSubidaImagen';
+import { useAutoguardado, borrarBorrador } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-fg outline-none focus:border-brand';
@@ -98,7 +102,7 @@ export default function PanelesView({ dash }) {
             onGuardar={async (datos) => {
               const res = editando._id ? await editarPanel(editando._id, datos) : await crearPanel(datos);
               if (res?.aviso) alert(res.aviso);
-              if (res) setEditando(null);
+              if (res) { borrarBorrador(`paneles:${editando._id || 'nuevo'}`); setEditando(null); }
             }}
           />
         )}
@@ -118,7 +122,10 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
   const [color, setColor] = useState(panel.color || COLOR_DEFECTO);
   const [imagen, setImagen] = useState(panel.imagen || '');
   const [imagenArchivo, setImagenArchivo] = useState(panel.imagenArchivo || '');
-  const [subiendo, setSubiendo] = useState(false);
+  const sub = useSubidaImagen(); // GIF grandes, WebP animados, vídeos → GIF (lib/imagenes.js)
+  const [avisoEnlace, setAvisoEnlace] = useState('');
+  const turnoEnlace = useRef(0);   // una respuesta de Tenor tardía no pisa lo hecho después
+  const ultimoEnlace = useRef(''); // el mismo enlace no se pide dos veces (pegar + salir)
   const [channelId, setChannelId] = useState(panel.channelId || '');
   const [exclusivo, setExclusivo] = useState(!!panel.exclusivo);
   const [maxRoles, setMaxRoles] = useState(panel.maxRoles || 0);
@@ -126,25 +133,53 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
   const [items, setItems] = useState(panel.items?.length ? panel.items.map((i) => ({ ...i })) : [{ roleId: '', emoji: '', label: '', descripcion: '', duracionMin: 0, estilo: 'secondary' }]);
   const [guardando, setGuardando] = useState(false);
 
+  // Borrador de este panel en este dispositivo (useAutoguardado sin guardar): si se
+  // recarga o se cierra la ventana sin guardar, al volver a abrirlo sigue como estaba.
+  const borrador = useAutoguardado({ tipo, titulo, descripcion, color, imagen, imagenArchivo, channelId, exclusivo, maxRoles, permitirQuitar, items }, null, {
+    borrador: `paneles:${panel._id || 'nuevo'}`,
+    restaurar: (v) => {
+      setTipo(v.tipo || 'boton'); setTitulo(v.titulo ?? ''); setDescripcion(v.descripcion ?? ''); setColor(v.color || COLOR_DEFECTO);
+      setImagen(v.imagen || ''); setImagenArchivo(v.imagenArchivo || ''); setChannelId(v.channelId || ''); setExclusivo(!!v.exclusivo);
+      setMaxRoles(v.maxRoles || 0); setPermitirQuitar(v.permitirQuitar !== false); if (Array.isArray(v.items) && v.items.length) setItems(v.items);
+    },
+  });
+
+  // Cerrar (X, fuera o «Cancelar») descarta: si hay cambios sin guardar se pregunta antes,
+  // y el borrador se quita (si no, al volver a abrirlo volvían los cambios descartados).
+  // El borrador queda solo para una recarga o un cierre del navegador sin querer.
+  const cerrar = () => {
+    if (borrador === 'borrador' && !window.confirm(t('dashboard.paneles_v.discardConfirm'))) return;
+    borrarBorrador(`paneles:${panel._id || 'nuevo'}`);
+    onClose();
+  };
+
   const esVerif = tipo === 'verificacion';
 
   // Vista previa: la imagen subida (servida por la API) o la URL externa.
   const preview = imagenArchivo ? `${API_URL}/uploads/${imagenArchivo}` : (imagen.trim() || '');
 
   // Sube un archivo elegido por el usuario (lo lee como base64 y lo manda a la API).
-  const onSubirArchivo = (e) => {
+  const onSubirArchivo = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // permite re-elegir el mismo archivo
     if (!file) return;
-    const lector = new FileReader();
-    lector.onload = async () => {
-      setSubiendo(true);
-      const res = await subirImagen(lector.result);
-      setSubiendo(false);
-      if (res?.archivo) { setImagenArchivo(res.archivo); setImagen(''); }
-      else alert(res?.error || 'Couldn’t upload the image');
-    };
-    lector.readAsDataURL(file);
+    turnoEnlace.current++;
+    setAvisoEnlace('');
+    const r = await sub.preparar(file);
+    if (!r) return;
+    const res = await sub.subir(subirImagen, r.archivo);
+    if (res?.archivo) { setImagenArchivo(res.archivo); setImagen(''); }
+  };
+  // Enlace de la página de Tenor/Giphy → el GIF de verdad (Discord no enseña la página).
+  const revisarEnlace = async (valor) => {
+    const limpio = String(valor || '').trim();
+    if (!limpio || limpio === ultimoEnlace.current) return;
+    ultimoEnlace.current = limpio;
+    const mio = ++turnoEnlace.current;
+    const r = await resolverEnlaceImagen(limpio);
+    if (mio !== turnoEnlace.current) return;
+    if (r.error) setAvisoEnlace(`error:${t('dashboard.imagen.enlace.tenorFallo')}`);
+    else if (r.origen && r.url !== String(valor).trim()) { setImagen(r.url); setImagenArchivo(''); setAvisoEnlace(t(`dashboard.imagen.enlace.${r.origen}`)); }
   };
 
   const setItem = (idx, campo, valor) => setItems(items.map((it, i) => (i === idx ? { ...it, [campo]: valor } : it)));
@@ -160,7 +195,7 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={cerrar}>
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }} transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
@@ -168,7 +203,7 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
       >
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-extrabold text-fg">{editando ? t('dashboard.paneles_v.editTitle') : t('dashboard.paneles_v.createTitle')}</h2>
-          <button onClick={onClose} className="text-muted transition-colors hover:text-fg"><X size={20} /></button>
+          <button onClick={cerrar} className="text-muted transition-colors hover:text-fg"><X size={20} /></button>
         </div>
 
         {/* Tipo de panel */}
@@ -212,12 +247,19 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
         {/* Imagen / GIF del panel: subir un archivo o pegar una URL */}
         <label className="mb-1.5 mt-3 block text-xs font-semibold text-muted">{t('dashboard.paneles_v.fieldImage')}</label>
         <div className="flex gap-2">
-          <input value={imagen} onChange={(e) => { setImagen(e.target.value); if (e.target.value) setImagenArchivo(''); }} placeholder={t('dashboard.paneles_v.imagePh')} className={inputCls} />
-          <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-line bg-bg px-3.5 text-sm font-semibold text-muted transition-colors hover:text-fg">
-            <Upload size={15} /> {subiendo ? t('dashboard.paneles_v.uploading') : t('dashboard.paneles_v.upload')}
-            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={onSubirArchivo} />
+          <input value={imagen} onChange={(e) => { turnoEnlace.current++; ultimoEnlace.current = ''; setImagen(e.target.value); setAvisoEnlace(''); if (e.target.value) setImagenArchivo(''); }}
+            onBlur={(e) => e.target.value && revisarEnlace(e.target.value)}
+            onPaste={(e) => { const v = e.clipboardData.getData('text'); setTimeout(() => revisarEnlace(v), 0); }}
+            placeholder={t('dashboard.paneles_v.imagePh')} className={inputCls} />
+          <label className={`flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-line bg-bg px-3.5 text-sm font-semibold text-muted transition-colors hover:text-fg ${sub.ocupado ? 'pointer-events-none opacity-60' : ''}`}>
+            <Upload size={15} /> {sub.ocupado ? t('dashboard.paneles_v.uploading') : t('dashboard.paneles_v.upload')}
+            <input type="file" accept={ACEPTA_IMAGEN} className="hidden" onChange={onSubirArchivo} disabled={sub.ocupado} />
           </label>
         </div>
+        <EstadoSubida sub={sub} className="mt-1.5" />
+        {avisoEnlace && (avisoEnlace.startsWith('error:')
+          ? <p role="alert" className="mt-1.5 text-xs text-danger">{avisoEnlace.slice(6)}</p>
+          : <p className="mt-1.5 text-xs text-success">{avisoEnlace}</p>)}
         {preview && (
           <div className="relative mt-2 inline-block">
             <img src={preview} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="max-h-40 rounded-xl border border-line object-contain" />
@@ -326,7 +368,8 @@ function PanelModal({ panel, canales, emojis, subirImagen, roles, onClose, onGua
 
         {/* Acciones */}
         <div className="mt-6 flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">{t('dashboard.paneles_v.cancel')}</button>
+          <button onClick={cerrar} className="rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">{t('dashboard.paneles_v.cancel')}</button>
+          <EstadoAutoguardado estado={borrador} />
           <button onClick={guardar} disabled={guardando} className="rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50">
             {guardando ? t('dashboard.paneles_v.saving') : t('dashboard.paneles_v.save')}
           </button>

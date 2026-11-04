@@ -7,6 +7,8 @@ import EmbedBuilder from './EmbedBuilder';
 import PresetsAnuncio from './PresetsAnuncio';
 import { EMBED_VACIO } from './embedDefaults';
 import { OpcionCrear } from '../CrearAlVuelo';
+import { useBorrador } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -29,6 +31,11 @@ export default function AnunciosView({ dash }) {
   const [fechaEnvio, setFechaEnvio] = useState('');
   const [repetir, setRepetir] = useState('no');
   const [estado, setEstado] = useState(''); // '' | 'creando' | 'ok' | 'error:...'
+
+  // Borrador: lo que se está escribiendo vuelve tras recargar (useBorrador).
+  const borrador = useBorrador('anuncios', { embed, contenido, canalId, fechaEnvio, repetir },
+    !contenido.trim() && JSON.stringify(embed) === JSON.stringify(EMBED_VACIO),
+    (v) => { setEmbed(v ? { ...EMBED_VACIO, ...(v.embed || {}) } : EMBED_VACIO); setContenido(v?.contenido || ''); setCanalId(v?.canalId || canalId); setFechaEnvio(v?.fechaEnvio || ''); setRepetir(v?.repetir || 'no'); });
 
   const programar = async () => {
     setEstado('creando');
@@ -128,6 +135,7 @@ export default function AnunciosView({ dash }) {
           >
             <CalendarClock size={16} /> {estado === 'creando' ? t('dashboard.anuncios_v.scheduling') : t('dashboard.anuncios_v.schedule')}
           </button>
+          {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.anuncios_v.scheduledOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}
         </div>

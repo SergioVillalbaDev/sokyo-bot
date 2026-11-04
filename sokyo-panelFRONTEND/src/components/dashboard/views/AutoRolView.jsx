@@ -67,7 +67,7 @@ export default function AutoRolView({ dash }) {
     return ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([autoRoles, autoRolesBots], guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado([autoRoles, autoRolesBots], guardar, { listo: !!configServidor, borrador: 'autorol', restaurar: ([r, rb]) => { setAutoRoles(r); setAutoRolesBots(rb); } });
 
   const hayBloqueados = rolesDetalle.some((r) => !r.gestionable);
 

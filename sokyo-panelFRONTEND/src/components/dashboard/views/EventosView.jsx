@@ -7,6 +7,8 @@ import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
 import { API_URL } from '../../../lib/api';
 import { useRelativo } from '../../../hooks/useModulo';
+import { useBorrador } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -40,6 +42,11 @@ export default function EventosView({ dash }) {
     .filter((e) => new Date(e.fechaInicio) > ahora)
     .sort((a, b) => new Date(a.fechaInicio) - new Date(b.fechaInicio));
   const pasados = eventos.filter((e) => new Date(e.fechaInicio) <= ahora);
+
+  // Borrador: lo que se está escribiendo vuelve tras recargar (useBorrador).
+  const borrador = useBorrador('eventos', { titulo, descripcion, canalId, fechaInicio, tipo, recordatorio, portada },
+    !titulo.trim() && !descripcion.trim() && !portada,
+    (v) => { setTitulo(v?.titulo || ''); setDescripcion(v?.descripcion || ''); setCanalId(v?.canalId || ''); setFechaInicio(v?.fechaInicio || ''); setTipo(v?.tipo || 'voz'); setRecordatorio(v?.recordatorio || '15'); setPortada(v?.portada || ''); });
 
   const crear = async () => {
     setEstado('creando');
@@ -232,6 +239,7 @@ export default function EventosView({ dash }) {
             <CalendarDays size={16} />
             {estado === 'creando' ? t('dashboard.eventos_v.creating') : t('dashboard.eventos_v.create')}
           </button>
+          {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.eventos_v.createOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}
         </div>

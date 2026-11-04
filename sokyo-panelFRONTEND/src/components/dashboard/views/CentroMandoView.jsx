@@ -11,6 +11,8 @@ import {
 import { Avatar, Badge } from '../../ui/primitives';
 import { ACCIONES, accionMeta, textoDuracion, aUnidad, aMinutos } from '../../../lib/sanciones';
 import { API_URL } from '../../../lib/api';
+import EstadoSubida from '../EstadoSubida';
+import { useSubidaImagen, ACEPTA_SOLO_IMAGEN } from '../../../hooks/useSubidaImagen';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const srcPrueba = (p) => (/^https?:\/\//i.test(p) ? p : `${API_URL}${p}`);
@@ -453,7 +455,8 @@ export function AplicarModal({ tipo, usuario, dash, onClose, onAplicado }) {
   const [urlPrueba, setUrlPrueba] = useState('');
   const [valor, setValor] = useState(tipo.accion === 'timeout' ? 10 : durIni.valor);
   const [unidad, setUnidad] = useState(tipo.accion === 'timeout' ? 'min' : durIni.unidad || 'dias');
-  const [subiendo, setSubiendo] = useState(false);
+  const sub = useSubidaImagen({ video: false }); // tipo real y capturas que pasan de 8 MB
+  const subiendo = sub.ocupado;
   const [aplicando, setAplicando] = useState(false);
   const [error, setError] = useState('');
 
@@ -461,12 +464,13 @@ export function AplicarModal({ tipo, usuario, dash, onClose, onAplicado }) {
   const nombreMostrar = tipo.nombre || t(`dashboard.mod_v.actions.${tipo.accion}`);
 
   const addUrl = () => { if (/^https?:\/\//i.test(urlPrueba.trim())) { setPruebas([...pruebas, urlPrueba.trim()]); setUrlPrueba(''); } };
-  const onSubir = (e) => {
+  const onSubir = async (e) => {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
-    const lector = new FileReader();
-    lector.onload = async () => { setSubiendo(true); const r = await subirPrueba(lector.result); setSubiendo(false); if (r?.url) setPruebas((p) => [...p, r.url]); else setError(r?.error || t('dashboard.mod_v.uploadError')); };
-    lector.readAsDataURL(file);
+    const r = await sub.preparar(file);
+    if (!r) return;
+    const res = await sub.subir(subirPrueba, r.archivo);
+    if (res?.url) setPruebas((p) => [...p, res.url]);
   };
 
   const aplicar = async () => {
@@ -523,9 +527,10 @@ export function AplicarModal({ tipo, usuario, dash, onClose, onAplicado }) {
           <input value={urlPrueba} onChange={(e) => setUrlPrueba(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addUrl()} placeholder={t('dashboard.mod_v.evidenceUrlPh')} className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-brand" />
           <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 text-sm font-semibold text-muted hover:text-fg">
             {subiendo ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={onSubir} />
+            <input type="file" accept={ACEPTA_SOLO_IMAGEN} className="hidden" onChange={onSubir} disabled={subiendo} />
           </label>
         </div>
+        <EstadoSubida sub={sub} className="mt-1.5" />
         {pruebas.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {pruebas.map((p, i) => (

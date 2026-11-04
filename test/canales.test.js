@@ -517,3 +517,61 @@ describe('crear canales', () => {
         assert.ok(!todos.includes('BanMembers'), 'banear no es un permiso de canal');
     });
 });
+
+// 1.9.11: cada permiso va con su tipo (rol/miembro). Sin tipo, discord.js lo deduce de
+// su caché y, si la persona no está (lo normal tras reiniciar), guardar fallaba con
+// «not a cached User or Role». El modo avanzado del panel edita también los de miembro.
+describe('permisos de miembros al guardar (modo simple y avanzado)', () => {
+    const { PermissionsBitField } = require('discord.js');
+    let ediciones = [];
+    const ow = (id, type, allow) => [id, { id, type, allow: new PermissionsBitField(allow), deny: new PermissionsBitField([]) }];
+    const categoria = {
+        id: 'c-tickets', type: ChannelType.GuildCategory, parentId: null, rawPosition: 12, position: 12, name: 'Tickets',
+        permissionOverwrites: { cache: new Collection([ow('rol-staff', 0, ['ViewChannel']), ow('u-ticket', 1, ['ViewChannel', 'SendMessages'])]) },
+        edit(cambios) { ediciones.push(cambios); return Promise.resolve(this); },
+    };
+    let s; let url;
+    const guardar = (cuerpo) => fetch(`${url}/api/config/${GUILD}/canales/categorias/c-tickets`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo),
+    }).then(async (r) => ({ status: r.status, ...(await r.json()) }));
+    const enviado = () => ediciones.at(-1).permissionOverwrites;
+
+    before(async () => {
+        guild.channels.cache.set('c-tickets', categoria);
+        s = await arrancar();
+        url = `http://127.0.0.1:${s.address().port}`;
+    });
+    after(() => { s.close(); guild.channels.cache.delete('c-tickets'); });
+    beforeEach(() => { ediciones = []; });
+
+    it('modo simple: se mandan los de rol con su tipo y el del miembro se conserva (con tipo 1)', async () => {
+        const r = await guardar({ overwrites: [{ id: 'rol-staff', tipo: 'rol', allow: ['ViewChannel', 'SendMessages'], deny: [] }] });
+        assert.strictEqual(r.success, true);
+        const lista = enviado();
+        assert.deepStrictEqual(lista.find((o) => o.id === 'rol-staff').type, 0);
+        const miembro = lista.find((o) => o.id === 'u-ticket');
+        assert.ok(miembro, 'se ha perdido el acceso del creador del ticket');
+        assert.strictEqual(miembro.type, 1, 'sin tipo, discord.js falla si esa persona no está en caché');
+    });
+
+    it('lo que se manda lo acepta discord.js aunque nadie esté en caché', async () => {
+        const { PermissionOverwrites } = require('discord.js');
+        await guardar({ overwrites: [{ id: 'rol-staff', tipo: 'rol', allow: ['ViewChannel'], deny: ['AttachFiles'] }] });
+        const vacio = { roles: { resolve: () => null }, client: { users: { resolve: () => null } } };
+        for (const o of enviado()) assert.doesNotThrow(() => PermissionOverwrites.resolve(o, vacio), `«${o.id}» no lleva tipo`);
+    });
+
+    it('modo avanzado: se puede añadir un miembro y quitar otro a mano', async () => {
+        const r = await guardar({
+            overwrites: [
+                { id: 'rol-staff', tipo: 'rol', allow: ['ViewChannel'], deny: [] },
+                { id: 'u-invitado', tipo: 'miembro', allow: ['ViewChannel'], deny: [] },
+            ],
+            quitarMiembros: ['u-ticket'],
+        });
+        assert.strictEqual(r.success, true);
+        const lista = enviado();
+        assert.strictEqual(lista.find((o) => o.id === 'u-invitado')?.type, 1);
+        assert.ok(!lista.some((o) => o.id === 'u-ticket'), 'el miembro quitado sigue');
+    });
+});

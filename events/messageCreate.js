@@ -30,6 +30,19 @@ module.exports = {
             return;
         }
 
+        // Confesiones escribiendo en su canal (opcional): va lo primero, antes del automod,
+        // del registro de actividad y de la XP, para que no quede rastro de quién la escribe.
+        if (message.guild) {
+            const confesiones = require('../utils/confesiones.js');
+            const cfgConf = await getConfigCached(message.guildId).catch(() => null);
+            if (confesiones.esMensajeDeConfesion(message, cfgConf)) {
+                const { idiomaMiembro } = require('../utils/preferencias.js');
+                const idioma = await idiomaMiembro(message.author.id, { cfg: cfgConf }).catch(() => cfgConf);
+                await confesiones.desdeMensaje(message, cfgConf, idioma).catch((e) => console.error('Confesión (mensaje):', e.message));
+                return;
+            }
+        }
+
         // 0. Registro de actividad del usuario (mensajes), solo en servidores.
         if (message.guild) {
             try {

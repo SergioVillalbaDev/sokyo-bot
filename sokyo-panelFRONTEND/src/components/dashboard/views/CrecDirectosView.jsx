@@ -72,7 +72,7 @@ export default function CrecDirectosView({ dash }) {
     return true;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado(form, guardar, { listo: !!form });
+  const autoguardado = useAutoguardado(form, guardar, { listo: !!form, borrador: 'crec-directos', restaurar: setForm });
 
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.crec_v.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;

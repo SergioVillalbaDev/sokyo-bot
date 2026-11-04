@@ -10,6 +10,15 @@ const { t } = require('./i18n.js');
 // Permiso de Discord requerido para cada acción.
 const PERMISO = { ban: 'BanMembers', expulsion: 'KickMembers', timeout: 'ModerateMembers', aviso: 'ModerateMembers' };
 
+// Ejemplo de uso con barra de cada acción [español, inglés] (cuando falta el usuario).
+const EJEMPLO = {
+    ban: ['/banear usuario: @alguien motivo: spam', '/ban user: @someone reason: spam'],
+    expulsion: ['/expulsar usuario: @alguien motivo: spam', '/kick user: @someone reason: spam'],
+    timeout: ['/aislar usuario: @alguien duracion: 30m motivo: spam', '/timeout user: @someone duration: 30m reason: spam'],
+    aviso: ['/avisar usuario: @alguien motivo: spam', '/warn user: @someone reason: spam'],
+    sancion: ['/sancionar usuario: @alguien tipo: spam', '/sanction user: @someone type: spam'],
+};
+
 // Convierte "30m" / "2h" / "7d" / "1w" a minutos. Devuelve null si no es válido.
 const UNIDADES = { m: 1, min: 1, mins: 1, h: 60, hora: 60, horas: 60, d: 1440, dia: 1440, dias: 1440, w: 10080, semana: 10080, semanas: 10080 };
 function parseDuracion(str) {
@@ -31,7 +40,10 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
 
     // 2. Usuario objetivo (por mención).
     const target = message.mentions.users.first();
-    if (!target) return message.reply(t(cfg, '❌ Menciona a un usuario. p. ej. `!ban @usuario motivo`', '❌ Mention a user. e.g. `!ban @user reason`'));
+    if (!target) {
+        const [es, en] = nombre ? EJEMPLO.sancion : (EJEMPLO[accion] || EJEMPLO.aviso);
+        return message.reply(t(cfg, `❌ Elige a un usuario. Ej.: \`${es}\``, `❌ Pick a user. e.g. \`${en}\``));
+    }
 
     // 3. Banear o expulsar se confirma antes con dos botones (solo quien lo pidió).
     if (accion === 'ban' || accion === 'expulsion') {

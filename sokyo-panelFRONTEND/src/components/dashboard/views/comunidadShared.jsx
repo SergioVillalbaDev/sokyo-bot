@@ -1,8 +1,11 @@
 // Componentes compartidos de la sección Comunidad: selector de hora amigable
 // (con preview en la zona horaria del usuario) y subida de imágenes desde el PC.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, Clock, Image as ImageIcon, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { API_URL } from '../../../lib/api';
+import EstadoSubida from '../EstadoSubida';
+import { useSubidaImagen, resolverEnlaceImagen, ACEPTA_IMAGEN } from '../../../hooks/useSubidaImagen';
 
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 const label = 'mb-1.5 block text-sm font-semibold text-fg';
@@ -211,32 +214,53 @@ export function FechaPicker({ value, onChange, titulo }) {
   );
 }
 
-function leerComoDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
-
-// Campo de imagen: URL manual o "Subir del PC". Devuelve la URL en onChange.
+// Campo de imagen: enlace o "Subir del PC/móvil". Devuelve la URL en onChange (las
+// subidas, como «/uploads/…»; el bot les pone delante la dirección pública).
+// 1.9.10: lo elegido pasa por useSubidaImagen (GIF de más de 8 MB, WebP animados,
+// vídeos → GIF, galerías que no dicen el tipo). El enlace se escribe en su caja y se
+// pone al pegarlo, con Enter o al salir (antes cada letra se guardaba como enlace); si
+// es la página de Tenor/Giphy se cambia por el GIF, y si no carga como imagen se avisa.
 export function SubirImagen({ value, onChange, subirImagen, titulo }) {
   const { t } = useTranslation();
-  const [estado, setEstado] = useState('');
+  const sub = useSubidaImagen();
+  const [texto, setTexto] = useState('');
+  const [avisoEnlace, setAvisoEnlace] = useState('');
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
+  const vista = value && value.startsWith('/uploads/') ? `${API_URL}${value}` : value;
+  // El aviso de «no es una imagen» va con ese enlace: si cambia (borrador, otro elemento), se va.
+  const [rotaDe, setRotaDe] = useState(null);
+  const rota = !!value && rotaDe === value;
+  // Una respuesta de Tenor tardía no pisa lo hecho después; el mismo enlace no se pide dos veces.
+  const turno = useRef(0);
+  const ultimoEnlace = useRef('');
+
+  const ponerEnlace = async (valor) => {
+    const limpio = String(valor || '').trim();
+    if (!limpio) return;
+    if (!/^https?:\/\//i.test(limpio)) { setAvisoEnlace(`error:${t('dashboard.imagen.enlace.noImagen')}`); return; }
+    if (limpio === ultimoEnlace.current) return;
+    ultimoEnlace.current = limpio;
+    const mio = ++turno.current;
+    const r = await resolverEnlaceImagen(limpio);
+    if (mio !== turno.current) return; // mientras tanto se ha hecho otra cosa
+    ultimoEnlace.current = '';
+    if (r.error) { setAvisoEnlace(`error:${t('dashboard.imagen.enlace.tenorFallo')}`); return; }
+    setTexto('');
+    setAvisoEnlace(r.origen ? t(`dashboard.imagen.enlace.${r.origen}`) : '');
+    onChangeRef.current(r.url);
+  };
 
   const onFile = async (ev) => {
     const file = ev.target.files?.[0];
     ev.target.value = '';
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { setEstado(`error:${t('dashboard.shared.imageTooBig')}`); return; }
-    setEstado('subiendo');
-    try {
-      const dataUrl = await leerComoDataURL(file);
-      const r = await subirImagen(dataUrl);
-      if (r.error) setEstado(`error:${r.error}`);
-      else { onChange(r.url); setEstado(''); }
-    } catch { setEstado(`error:${t('dashboard.shared.uploadFailed')}`); }
+    turno.current++;
+    setAvisoEnlace('');
+    const r = await sub.preparar(file);
+    if (!r) return;
+    const res = await sub.subir(subirImagen, r.archivo);
+    if (res) onChangeRef.current(res.url);
   };
 
   return (
@@ -244,23 +268,30 @@ export function SubirImagen({ value, onChange, subirImagen, titulo }) {
       <span className={label}>{titulo ?? t('dashboard.shared.image')} <span className="font-normal text-muted">({t('dashboard.shared.optional')})</span></span>
       {value ? (
         <div className="flex items-center gap-2">
-          <img src={value} alt="" className="h-12 w-20 rounded-lg border border-line object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-          <span className="flex-1 truncate text-xs text-success">✓ {t('dashboard.shared.imageReady')}</span>
-          <button type="button" onClick={() => onChange('')} className="rounded-xl border border-line px-2 py-2 text-muted transition-colors hover:text-danger">
+          {!rota && <img src={vista} alt="" className="h-12 w-20 rounded-lg border border-line object-cover" onLoad={() => setRotaDe(null)} onError={() => setRotaDe(value)} />}
+          <span className={`flex-1 truncate text-xs ${rota ? 'text-danger' : 'text-success'}`}>{rota ? `⚠ ${value}` : `✓ ${t('dashboard.shared.imageReady')}`}</span>
+          <button type="button" onClick={() => { onChange(''); setAvisoEnlace(''); sub.setNota(''); }} className="rounded-xl border border-line px-2 py-2 text-muted transition-colors hover:text-danger" aria-label={t('dashboard.recorte.quitar')}>
             <X size={14} />
           </button>
         </div>
       ) : (
         <div className="flex gap-2">
-          <input value="" onChange={(e) => onChange(e.target.value)} className={`${input} flex-1`} placeholder={t('dashboard.shared.imageUrlPh')} />
-          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand">
-            {estado === 'subiendo' ? <ImageIcon size={14} className="animate-pulse" /> : <Upload size={14} />}
-            {estado === 'subiendo' ? t('dashboard.shared.uploading') : t('dashboard.shared.uploadFromPC')}
-            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onFile} className="hidden" disabled={estado === 'subiendo'} />
+          <input value={texto} onChange={(e) => { turno.current++; ultimoEnlace.current = ''; setTexto(e.target.value); setAvisoEnlace(''); }}
+            onBlur={() => ponerEnlace(texto)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); ponerEnlace(texto); } }}
+            onPaste={(e) => { const v = e.clipboardData.getData('text'); e.preventDefault(); setTexto(v); ponerEnlace(v); }}
+            className={`${input} flex-1`} placeholder={t('dashboard.shared.imageUrlPh')} maxLength={500} />
+          <label className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand ${sub.ocupado ? 'pointer-events-none opacity-60' : ''}`}>
+            {sub.ocupado ? <ImageIcon size={14} className="animate-pulse" /> : <Upload size={14} />}
+            {sub.ocupado ? t('dashboard.shared.uploading') : t('dashboard.shared.uploadFromPC')}
+            <input type="file" accept={ACEPTA_IMAGEN} onChange={onFile} className="hidden" disabled={sub.ocupado} />
           </label>
         </div>
       )}
-      {estado.startsWith('error:') && <p className="mt-1 text-xs text-danger">{estado.slice(6)}</p>}
+      {rota && value && <p role="alert" className="mt-1 text-xs text-danger">{t('dashboard.imagen.enlace.noImagen')}</p>}
+      {avisoEnlace && (avisoEnlace.startsWith('error:')
+        ? <p role="alert" className="mt-1 text-xs text-danger">{avisoEnlace.slice(6)}</p>
+        : <p className="mt-1 text-xs text-success">{avisoEnlace}</p>)}
+      <EstadoSubida sub={sub} />
     </div>
   );
 }

@@ -12,6 +12,8 @@ import { SubirImagen } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
 import { API_URL } from '../../../lib/api';
+import { useAutoguardado, avisarGuardado } from '../../../hooks/useAutoguardado';
+import EstadoAutoguardado from '../EstadoAutoguardado';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -112,10 +114,16 @@ export default function DinamicasView({ dash }) {
     setEstado((s) => ({ ...s, [dyn]: undefined }));
   };
 
+  // Borrador en este dispositivo: lo que se cambia en cualquier dinámica vuelve tras
+  // recargar, y «Cambios sin guardar» hasta pulsar su «Guardar» (useAutoguardado manual;
+  // sin Ctrl + S: cada dinámica se guarda aparte).
+  const borrador = useAutoguardado(form, null, { listo: !!form.qotd, borrador: 'dinamicas', restaurar: setForm, manual: true });
+
   const guardar = async (dyn) => {
     setEstado((s) => ({ ...s, [dyn]: 'saving' }));
     const ok = await guardarDinamicas({ [dyn]: form[dyn] });
     setEstado((s) => ({ ...s, [dyn]: ok ? 'saved' : 'error' }));
+    if (ok) avisarGuardado();
   };
 
   const dias = t('dashboard.dinamicas_v.days', { returnObjects: true });
@@ -258,6 +266,7 @@ export default function DinamicasView({ dash }) {
         <Info size={16} className="mt-0.5 shrink-0 text-brand" />
         <p className="text-xs text-muted">{t('dashboard.dinamicas_v.note')}</p>
       </div>
+      {borrador === 'sin-guardar' && <EstadoAutoguardado estado={borrador} />}
 
       <div data-help="dinamicas-lista" className="space-y-3">
         {ORDEN.map((dyn) => {

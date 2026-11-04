@@ -3,13 +3,15 @@
 // "de fantasía" (Unicode), barra de formato Markdown, paletas de color, imagen/
 // miniatura/iconos por URL o subida desde el PC (el bot los adjunta con
 // attachment://). Lo usan EmbedsView y AnunciosView.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Upload, X, Crop, Bold, Italic, Underline, Strikethrough, Code, Quote, Heading1, Heading2, Heading3, List, Link2, Minus, LayoutTemplate, Save, Check } from 'lucide-react';
 import { API_URL } from '../../../lib/api';
 import { ESTILOS_FUENTE_EMBED, estilizar } from '../../../lib/fancyText';
 import { EMBED_VACIO, PALETAS_COLOR } from './embedDefaults';
 import RecortarImagen from '../RecortarImagen';
+import EstadoSubida from '../EstadoSubida';
+import { useSubidaImagen, resolverEnlaceImagen, ACEPTA_IMAGEN } from '../../../hooks/useSubidaImagen';
 import TextareaCanales from '../TextareaCanales';
 import MarkdownDiscord from '../MarkdownDiscord';
 import { CabeceraBot, BotonesDiscord } from '../VistaDiscord';
@@ -23,15 +25,6 @@ function urlImagen(archivo, url) {
   if (archivo) return `${API_URL}/uploads/${archivo}`;
   if (url && /^https?:\/\//.test(url)) return url;
   return '';
-}
-
-function leerComoDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 // Selector de tipografía: cada opción se muestra ya con su propio estilo.
@@ -80,23 +73,46 @@ function BarraFormato({ onWrap, onInsert, t }) {
 // Al elegir una imagen (o con «Ajustar» sobre la que ya hay) se abre RecortarImagen
 // para dejarla bien en la forma en que la enseña Discord: `forma` = 'circulo'
 // (iconos del autor y del pie), 'cuadrado' (miniatura) o 'ancho' (imagen grande).
-const MAX_SUBIDA = 8 * 1024 * 1024;
+// 1.9.10: lo que se elige pasa antes por useSubidaImagen (lib/imagenes.js): se mira
+// qué es de verdad, lo animado (GIF, WebP animado, vídeo → GIF) se sube sin recortar
+// para que se mueva, y lo que pasa de 8 MB se encoge. Un enlace de la página de Tenor
+// o Giphy se cambia por el del GIF, y si un enlace no es una imagen se avisa.
 const MINIATURA_FORMA = { circulo: 'h-8 w-8 rounded-full', cuadrado: 'h-8 w-8 rounded-md', ancho: 'h-8 w-14 rounded-md' };
 
 function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirImagen, t }) {
-  const [estado, setEstado] = useState('');
+  const sub = useSubidaImagen();
   const [recortando, setRecortando] = useState(null); // File que se está ajustando
   const [yaPuesta, setYaPuesta] = useState(false);     // ¿viene de «Ajustar» (ya está subida/enlazada)?
+  const [abriendo, setAbriendo] = useState(false);
+  const [avisoEnlace, setAvisoEnlace] = useState('');  // qué se ha hecho con el enlace pegado
   const actual = urlImagen(archivo, url);
+  // El enlace que no carga como imagen (ligado a ese enlace: si cambia, el aviso se va).
+  const [rotaDe, setRotaDe] = useState(null);
+  const rota = !!actual && rotaDe === actual;
+  // Una respuesta de Tenor que llega tarde no pisa lo que se haya hecho después
+  // (subir un archivo, escribir otro enlace); y el mismo enlace no se pide dos veces.
+  const turno = useRef(0);
+  const ultimoEnlace = useRef('');
+  // Tras esperar al servidor (Tenor), se usa el onChange de ese momento: el del render
+  // anterior llevaría el embed de antes y desharía lo que se haya tocado mientras.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
 
-  const onFile = (ev) => {
+  const onFile = async (ev) => {
     const file = ev.target.files?.[0];
     ev.target.value = '';
     if (!file) return;
-    if (file.size > MAX_SUBIDA) { setEstado(`error:${t('dashboard.embed_b.tooBig')}`); return; }
-    setEstado('');
+    turno.current++;
     setYaPuesta(false);
-    setRecortando(file);
+    setAvisoEnlace('');
+    const r = await sub.preparar(file);
+    if (!r) return;
+    if (r.animada) { // recortarlo en un lienzo lo dejaría quieto: tal cual
+      const res = await sub.subir(subirImagen, r.archivo);
+      if (res) onChangeRef.current({ archivo: res.archivo, url: '' });
+      return;
+    }
+    setRecortando(r.archivo);
   };
 
   // dataUrl = recorte hecho; null = subir el archivo tal cual.
@@ -104,19 +120,28 @@ function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirIma
     const file = recortando;
     setRecortando(null);
     if (!dataUrl && yaPuesta) return; // sin recortar la que ya estaba: nada que subir
-    setEstado('subiendo');
-    try {
-      const datos = dataUrl || await leerComoDataURL(file);
-      if (datos.length > MAX_SUBIDA * 1.37) { setEstado(`error:${t('dashboard.embed_b.tooBig')}`); return; }
-      const r = await subirImagen(datos);
-      if (r.error) setEstado(`error:${r.error}`);
-      else { onChange({ archivo: r.archivo, url: '' }); setEstado(''); }
-    } catch { setEstado(`error:${t('dashboard.embed_b.uploadFail')}`); }
+    const res = await sub.subir(subirImagen, dataUrl || file);
+    if (res) onChangeRef.current({ archivo: res.archivo, url: '' });
   };
 
+  // Enlace pegado: si es la página de un GIF de Tenor o Giphy, se pone el GIF de verdad.
+  const revisarEnlace = async (valor) => {
+    const limpio = String(valor || '').trim();
+    if (!/^https?:\/\//i.test(limpio) || limpio === ultimoEnlace.current) return;
+    ultimoEnlace.current = limpio;
+    const mio = ++turno.current;
+    const r = await resolverEnlaceImagen(limpio);
+    if (mio !== turno.current) return; // mientras tanto se ha hecho otra cosa
+    if (r.error) { setAvisoEnlace(`error:${t('dashboard.imagen.enlace.tenorFallo')}`); return; }
+    if (r.origen && r.url !== limpio) {
+      onChangeRef.current({ archivo: '', url: r.url });
+      setAvisoEnlace(t(`dashboard.imagen.enlace.${r.origen}`));
+    }
+  };
   // Abre en el recortador la imagen que ya está puesta (subida o por enlace).
   const ajustar = async () => {
-    setEstado('abriendo');
+    setAbriendo(true);
+    sub.setEstado('');
     try {
       const res = await fetch(actual);
       if (!res.ok) throw new Error(String(res.status));
@@ -124,20 +149,20 @@ function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirIma
       if (!blob.type.startsWith('image/')) throw new Error('tipo');
       setYaPuesta(true);
       setRecortando(new File([blob], 'imagen', { type: blob.type }));
-      setEstado('');
-    } catch { setEstado(`error:${t('dashboard.recorte.noAjustable')}`); }
+    } catch { sub.setEstado(`error:${t('dashboard.recorte.noAjustable')}`); }
+    setAbriendo(false);
   };
 
-  const botonAjustar = actual && (
-    <button type="button" onClick={ajustar} disabled={estado === 'abriendo' || estado === 'subiendo'}
+  const botonAjustar = actual && !rota && (
+    <button type="button" onClick={ajustar} disabled={abriendo || sub.ocupado}
       className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand disabled:opacity-50"
       title={t('dashboard.recorte.ajustarAyuda')}>
-      <Crop size={14} /> {estado === 'abriendo' ? t('dashboard.recorte.cargando') : t('dashboard.recorte.ajustar')}
+      <Crop size={14} /> {abriendo ? t('dashboard.recorte.cargando') : t('dashboard.recorte.ajustar')}
     </button>
   );
-  const miniatura = actual && (
+  const miniatura = actual && !rota && (
     <img src={actual} alt="" className={`${MINIATURA_FORMA[forma] || MINIATURA_FORMA.ancho} shrink-0 border border-line object-cover`}
-      onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
+      onLoad={() => setRotaDe(null)} onError={() => { if (!archivo) setRotaDe(actual); }} />
   );
 
   return (
@@ -153,16 +178,22 @@ function CampoImagen({ titulo, url, archivo, forma = 'ancho', onChange, subirIma
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           {miniatura}
-          <input value={url} onChange={(e) => onChange({ archivo: '', url: e.target.value })} className={input + ' min-w-0 flex-1'} placeholder="https://…" maxLength={500} />
+          <input value={url} onChange={(e) => { turno.current++; ultimoEnlace.current = ''; onChange({ archivo: '', url: e.target.value }); setAvisoEnlace(''); }}
+            onBlur={(e) => revisarEnlace(e.target.value)} onPaste={(e) => { const v = e.clipboardData.getData('text'); setTimeout(() => revisarEnlace(v), 0); }}
+            className={input + ' min-w-0 flex-1'} placeholder="https://…" maxLength={500} />
           {botonAjustar}
-          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand">
-            <Upload size={14} /> {estado === 'subiendo' ? t('dashboard.embed_b.uploading') : t('dashboard.embed_b.uploadPc')}
-            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onFile} className="hidden" disabled={estado === 'subiendo'} />
+          <label className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2 text-xs font-semibold text-fg transition-colors hover:border-brand ${sub.ocupado ? 'pointer-events-none opacity-60' : ''}`}>
+            <Upload size={14} /> {sub.ocupado ? t('dashboard.embed_b.uploading') : t('dashboard.embed_b.uploadPc')}
+            <input type="file" accept={ACEPTA_IMAGEN} onChange={onFile} className="hidden" disabled={sub.ocupado} />
           </label>
         </div>
       )}
       {forma === 'ancho' && !archivo && !url && <p className="mt-1 text-xs text-muted">{t('dashboard.embed_b.gifHint')}</p>}
-      {estado.startsWith('error:') && <p className="mt-1 text-xs text-danger">{estado.slice(6)}</p>}
+      {rota && url && <p role="alert" className="mt-1 text-xs text-danger">{t('dashboard.imagen.enlace.noImagen')}</p>}
+      {avisoEnlace && (avisoEnlace.startsWith('error:')
+        ? <p role="alert" className="mt-1 text-xs text-danger">{avisoEnlace.slice(6)}</p>
+        : <p className="mt-1 text-xs text-success">{avisoEnlace}</p>)}
+      <EstadoSubida sub={sub} />
       {recortando && <RecortarImagen archivo={recortando} forma={forma} onCancelar={() => setRecortando(null)} onListo={subir} />}
     </div>
   );

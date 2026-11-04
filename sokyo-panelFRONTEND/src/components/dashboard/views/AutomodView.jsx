@@ -258,7 +258,7 @@ export default function AutomodView({ dash }) {
     return ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado(am, guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado(am, guardar, { listo: !!configServidor, borrador: 'automod', restaurar: setAm });
 
   const textoLista = (arr) => (arr || []).join('\n');
   const parseLista = (txt) => txt.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);

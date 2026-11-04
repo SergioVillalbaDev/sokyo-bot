@@ -91,6 +91,8 @@ function App() {
 
   const logout = () => {
     localStorage.removeItem('sokyoStaffToken');
+    // Cambios sin guardar del panel (hooks/useAutoguardado.js): no son para quien entre después.
+    try { Object.keys(localStorage).filter((k) => k.startsWith('sokyoBorrador:')).forEach((k) => localStorage.removeItem(k)); } catch { /* sin almacenamiento */ }
     setStaffToken('');
     goLanding();
   };

@@ -29,7 +29,7 @@ module.exports = {
             // --- Crear un rol nuevo ---
             if (subcomando === 'create') {
                 const nombre = args[1];
-                if (!nombre) return message.reply(t(cfg, '❌ Uso: `!role create <nombre> [#color]`', '❌ Usage: `!role create <name> [#color]`'));
+                if (!nombre) return message.reply(t(cfg, '❌ Uso: `/rol crear nombre: Vip color: #ff9900`', '❌ Usage: `/role create name: Vip color: #ff9900`'));
 
                 const color = args[2] || '#99AAB5'; // gris Discord por defecto
                 if (!/^#?[0-9a-f]{6}$/i.test(color)) {
@@ -46,8 +46,8 @@ module.exports = {
                 const rol = message.mentions.roles.first();
                 if (!usuario || !rol) {
                     return message.reply(subcomando === 'assign'
-                        ? t(cfg, '❌ Uso: `!role assign <@usuario> <@rol>`', '❌ Usage: `!role assign <@user> <@role>`')
-                        : t(cfg, '❌ Uso: `!role remove <@usuario> <@rol>`', '❌ Usage: `!role remove <@user> <@role>`'));
+                        ? t(cfg, '❌ Uso: `/rol dar usuario: @alguien rol: @Rol`', '❌ Usage: `/role assign user: @someone role: @Role`')
+                        : t(cfg, '❌ Uso: `/rol quitar usuario: @alguien rol: @Rol`', '❌ Usage: `/role remove user: @someone role: @Role`'));
                 }
                 if (!puedeGestionar(message.member, rol)) {
                     return message.reply(t(cfg,

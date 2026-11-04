@@ -115,7 +115,10 @@ export default function PresentacionesView({ dash }) {
     setTimeout(() => setGuardadoOk(false), 2500);
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros], guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros], guardar, {
+    listo: !!configServidor, borrador: 'presentaciones',
+    restaurar: ([ci, cs, m, p, q, fl]) => { setCanalIntro(ci); setCanalStaff(cs); setModo(m); setPlantilla(p); setPreguntas(q); setFiltros(fl); },
+  });
 
   const pendientes = presentaciones.filter((p) => !p.procesada);
   const procesadas = presentaciones.filter((p) => p.procesada);

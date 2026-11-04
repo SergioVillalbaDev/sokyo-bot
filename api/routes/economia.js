@@ -80,10 +80,10 @@ module.exports = ({ portalAuth }) => {
     // SUBIR IMAGEN de un objeto desde el PC. Recibe un dataURL base64 y la guarda
     // en api/uploads, devolviendo su URL pública (/uploads/...).
     router.post('/portal/upload', portalAuth, (req, res) => {
-        const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(req.body?.datos || '');
-        if (!m) return res.status(400).json({ error: 'Formato no válido (png, jpg, gif o webp).' });
-        const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
-        const buffer = Buffer.from(m[3], 'base64');
+        // Por sus bytes, no por el tipo que dice (galerías del móvil: utils/imagenes.js).
+        const img = require('../../utils/imagenes.js').imagenDeDataUrl(req.body?.datos);
+        if (!img) return res.status(400).json({ error: require('../../utils/imagenes.js').ERROR_NO_IMAGEN });
+        const { buffer, ext } = img;
         if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 8 MB.' });
         const uploadsDir = path.join(__dirname, '..', 'uploads');
         if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });

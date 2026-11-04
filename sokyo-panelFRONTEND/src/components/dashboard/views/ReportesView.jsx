@@ -40,7 +40,7 @@ export default function ReportesView({ dash }) {
     return ok;
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado(cfg, guardar, { listo: !!configServidor });
+  const autoguardado = useAutoguardado(cfg, guardar, { listo: !!configServidor, borrador: 'reportes', restaurar: setCfg });
 
   const lista = (reportes || []).filter((r) => filtro === 'todos' || r.estado === filtro);
   const fecha = (d) => new Date(d).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });

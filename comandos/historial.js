@@ -20,7 +20,7 @@ module.exports = {
 
         let userId = message.mentions.users.first()?.id;
         if (!userId && /^\d{15,20}$/.test(args[0] || '')) userId = args[0];
-        if (!userId) return message.reply(t(cfg, '❌ Menciona al usuario o pon su ID. Ej.: `!history @usuario`', '❌ Mention or provide the user ID. e.g. `!history @user`'));
+        if (!userId) return message.reply(t(cfg, '❌ Elige al usuario o pon su ID. Ej.: `/historial usuario: @alguien`', '❌ Pick the user or give their ID. e.g. `/history user: @someone`'));
 
         const sanciones = await Sancion.find({ guildId: message.guild.id, usuarioId: userId }).sort({ fecha: -1 }).limit(10);
         if (sanciones.length === 0) return message.reply(t(cfg, '✅ Este usuario no tiene sanciones registradas.', '✅ This user has no recorded sanctions.'));

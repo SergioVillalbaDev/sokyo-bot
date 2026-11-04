@@ -10,8 +10,8 @@ import { Upload, Crop, X, Eye, Loader2 } from 'lucide-react';
 import { API_URL, apiFetch } from '../../lib/api';
 import { estiloFondoTarjeta } from '../../lib/encuadreTarjeta';
 import RecortarImagen from './RecortarImagen';
-
-const MAX_BYTES = 8 * 1024 * 1024; // lo que admite /api/paneles/upload
+import { prepararImagen, aDataUrl, textoErrorImagen } from '../../lib/imagenes';
+import { ACEPTA_SOLO_IMAGEN } from '../../hooks/useSubidaImagen';
 const urlDe = (ruta) => (ruta && ruta.startsWith('/uploads/') ? `${API_URL}${ruta}` : ruta || '');
 const boton = 'flex items-center gap-1.5 rounded-xl border border-line bg-card px-3 py-1.5 text-xs font-semibold text-fg transition-colors hover:border-brand disabled:opacity-50';
 
@@ -31,21 +31,28 @@ export function MuestraDiseno({ p, className = '' }) {
 }
 
 export default function FondoDiseno({ p, onCambiar, subirImagen }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [ajustando, setAjustando] = useState(null); // { archivo, nuevo, inicial }
   const [estado, setEstado] = useState(''); // '', 'subiendo', 'error:<texto>'
   const [real, setReal] = useState(null); // { url, cargando }
   const urlReal = useRef('');
   useEffect(() => () => { if (urlReal.current) URL.revokeObjectURL(urlReal.current); }, []);
 
-  const elegir = (ev) => {
+  // Se mira qué es de verdad (lib/imagenes.js): un WebP animado pasa a GIF y lo que
+  // pasa de 8 MB se encoge. El GIF se ajusta igual (aquí no se recorta: es encuadre).
+  const elegir = async (ev) => {
     const archivo = ev.target.files && ev.target.files[0];
     ev.target.value = '';
     if (!archivo) return;
-    if (!/^image\/(png|jpe?g|gif|webp)$/.test(archivo.type)) { setEstado(`error:${t('dashboard.niveles_v.catImgType')}`); return; }
-    if (archivo.size > MAX_BYTES) { setEstado(`error:${t('dashboard.niveles_v.catImgBig')}`); return; }
-    setEstado('');
-    setAjustando({ archivo, nuevo: true, inicial: null });
+    setEstado('preparando');
+    try {
+      // La tarjeta mide 900 px de ancho: un GIF que se encoja no baja de ahí.
+      const r = await prepararImagen(archivo, { video: false, ladoMinimo: 900 });
+      setEstado('');
+      setAjustando({ archivo: r.archivo, nuevo: true, inicial: null });
+    } catch (e) {
+      setEstado(`error:${textoErrorImagen(e, t, { idioma: i18n.language })}`);
+    }
   };
 
   // Retocar la imagen ya subida: se abre la original con el encuadre de antes.
@@ -64,7 +71,7 @@ export default function FondoDiseno({ p, onCambiar, subirImagen }) {
     if (!resultado || !resultado.encuadre) return;
     if (!nuevo) { onCambiar({ encuadre: resultado.encuadre }); return; }
     setEstado('subiendo');
-    const datos = await new Promise((ok) => { const l = new FileReader(); l.onload = () => ok(l.result); l.onerror = () => ok(null); l.readAsDataURL(archivo); });
+    const datos = await aDataUrl(archivo).catch(() => null);
     const r = datos ? await subirImagen(datos) : { error: t('dashboard.recorte.errorCargar') };
     if (!r || r.error || !r.archivo) { setEstado(`error:${(r && r.error) || t('dashboard.niveles_v.catImgError')}`); return; }
     setEstado('');
@@ -93,9 +100,9 @@ export default function FondoDiseno({ p, onCambiar, subirImagen }) {
       <div className="flex flex-wrap items-center gap-2">
         {esImagen && (
           <label className={`${boton} cursor-pointer`}>
-            {estado === 'subiendo' ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-            {p.fondoImagen ? t('dashboard.niveles_v.catImgChange') : t('dashboard.niveles_v.catImgUpload')}
-            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={elegir} className="hidden" disabled={estado === 'subiendo'} />
+            {estado === 'subiendo' || estado === 'preparando' ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+            {estado === 'preparando' ? t('dashboard.imagen.preparando') : p.fondoImagen ? t('dashboard.niveles_v.catImgChange') : t('dashboard.niveles_v.catImgUpload')}
+            <input type="file" accept={ACEPTA_SOLO_IMAGEN} onChange={elegir} className="hidden" disabled={estado === 'subiendo' || estado === 'preparando'} />
           </label>
         )}
         {esImagen && p.fondoImagen && (

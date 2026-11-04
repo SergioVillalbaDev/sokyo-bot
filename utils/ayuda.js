@@ -44,9 +44,9 @@ const CATEGORIAS = [
         ['givegold', 's', 'daroro', '(Admin) Dar o quitar oro.', '(Admin) Give or take gold.'],
     ] },
     { id: 'niveles', emoji: '📈', titulo: ['Niveles', 'Levels'], tab: 'config-niveles', cmds: [
-        ['level', 'p', 'nivel', 'Tu nivel y tu tarjeta.', 'Your level and card.'],
-        ['ranking', 'p', null, 'Los que más XP tienen.', 'Who has the most XP.'],
-        ['xp', 'p', null, 'Cuánta XP te falta para subir.', 'How much XP you need to level up.'],
+        ['level', 's', 'nivel', 'Tu nivel y tu tarjeta (o los de otra persona).', 'Your level and card (or someone else’s).'],
+        ['ranking', 's', null, 'Los que más XP tienen.', 'Who has the most XP.'],
+        ['xp', 's', null, '(Admin) Sumar XP, poner un nivel o reiniciar a alguien.', '(Admin) Add XP, set a level or reset someone.'],
     ] },
     { id: 'crecimiento', emoji: '🚀', titulo: ['Invitaciones', 'Invites'], tab: 'crec-invitaciones', cmds: [
         ['invites', 's', 'invitaciones', 'A cuánta gente has invitado y el top.', 'How many people you invited and the top.'],
@@ -55,25 +55,30 @@ const CATEGORIAS = [
         ['Sancionar / Sanction', 'c', null, 'Clic derecho en alguien → Apps: avisar, aislar, expulsar o banear.', 'Right-click someone → Apps: warn, time out, kick or ban.'],
         ['Ver ficha / View profile', 'c', null, 'Clic derecho en alguien → Apps: sus sanciones, nivel y desde cuándo está.', 'Right-click someone → Apps: their sanctions, level and join date.'],
         ['Reportar mensaje / Report message', 'c', null, 'Clic derecho en un mensaje → Apps: avisar al staff.', 'Right-click a message → Apps: tell the staff.'],
-        ['ban', 'p', 'banear', 'Banear (pide confirmación y se puede deshacer).', 'Ban (asks to confirm and can be undone).'],
-        ['kick', 'p', 'expulsar', 'Expulsar (pide confirmación).', 'Kick (asks to confirm).'],
-        ['timeout', 'p', 'aislar', 'Aislar un rato.', 'Time out for a while.'],
-        ['warn', 'p', 'avisar', 'Avisar.', 'Warn.'], ['unban', 'p', 'desbanear', 'Quitar un ban.', 'Unban.'],
-        ['history', 'p', 'historial', 'Las sanciones de alguien.', 'Someone’s sanctions.'],
-        ['report', 'p', 'reportar', 'Reportar a alguien al staff.', 'Report someone to the staff.'],
+        ['ban', 's', 'banear', 'Banear (pide confirmación y se puede deshacer).', 'Ban (asks to confirm and can be undone).'],
+        ['kick', 's', 'expulsar', 'Expulsar (pide confirmación).', 'Kick (asks to confirm).'],
+        ['timeout', 's', 'aislar', 'Aislar un rato.', 'Time out for a while.'],
+        ['warn', 's', 'avisar', 'Avisar (queda registrado y le llega por privado).', 'Warn (logged and sent by DM).'],
+        ['sanction', 's', 'sancionar', 'Aplicar un tipo de sanción de los del panel.', 'Apply one of the panel’s sanction types.'],
+        ['unban', 's', 'desbanear', 'Quitar un ban.', 'Unban.'],
+        ['history', 's', 'historial', 'Las sanciones de alguien.', 'Someone’s sanctions.'],
+        ['report', 's', 'reportar', 'Reportar a alguien al staff.', 'Report someone to the staff.'],
     ] },
     { id: 'tickets', emoji: '🎫', titulo: ['Ayuda del staff (tickets)', 'Staff help (tickets)'], tab: 'tickets-gestion', cmds: [
         ['Abrir ticket con esto / Open ticket about this', 'c', null, 'Clic derecho en un mensaje → Apps: pedir ayuda sobre él.', 'Right-click a message → Apps: ask for help about it.'],
+        ['support-panel', 's', 'panel-soporte', '(Admin) Publicar el panel de soporte (botón «Abrir ticket») en un canal.', '(Admin) Post the support panel (“Open a ticket” button) in a channel.'],
+        ['user', 's', 'usuario', 'Los tickets de alguien: cuántos, abiertos y el último.', 'Someone’s tickets: how many, open and the latest.'],
         ['account-panel', 's', 'panel-cuenta', '(Admin) Publicar el botón «Abrir mi cuenta» en un canal.', '(Admin) Post the “Open my account” button in a channel.'],
     ] },
     { id: 'utilidades', emoji: '🧰', titulo: ['Utilidades', 'Utility'], tab: null, cmds: [
-        ['ping', 'p', null, 'Si el bot responde y lo rápido que va.', 'Whether the bot answers and how fast.'],
-        ['user', 'p', 'usuario', 'Información de alguien.', 'Info about someone.'],
-        ['activity', 'p', 'actividad', 'Tu actividad en el servidor.', 'Your activity on the server.'],
-        ['role', 'p', 'rol', 'Información de un rol.', 'Info about a role.'],
-        ['emoji', 'p', null, 'Ver un emoji en grande.', 'See an emoji big.'],
-        ['dice', 'p', 'dado', 'Tirar un dado.', 'Roll a die.'],
-        ['setup', 'p', null, '(Admin) Primeros pasos del bot.', '(Admin) Bot first steps.'],
+        ['ping', 's', null, 'Si el bot responde y lo rápido que va.', 'Whether the bot answers and how fast.'],
+        ['activity', 's', 'actividad', '(Staff) La actividad de alguien en el servidor (mensajes, voz, invitaciones).', '(Staff) Someone’s activity on the server (messages, voice, invites).'],
+        ['role', 's', 'rol', '(Staff) Crear un rol, dárselo o quitárselo a alguien.', '(Staff) Create a role, give it to or take it from someone.'],
+        ['emoji', 's', null, '(Staff) Añadir o quitar emojis del servidor.', '(Staff) Add or remove server emojis.'],
+        ['sticker', 's', null, '(Staff) Añadir o quitar stickers del servidor.', '(Staff) Add or remove server stickers.'],
+        ['dice', 's', 'dado', 'Tirar un dado.', 'Roll a die.'], ['coin', 's', 'moneda', 'Cara o cruz.', 'Heads or tails.'],
+        ['language', 's', 'idioma', '(Admin) El idioma del bot en este servidor.', '(Admin) The bot’s language on this server.'],
+        ['setup', 's', null, '(Admin) Primeros pasos del bot.', '(Admin) Bot first steps.'],
     ] },
 ];
 
@@ -90,8 +95,8 @@ function mensajeAyuda(idioma, prefijo = '!', { categoria = null } = {}) {
     if (!cat) {
         embed.setTitle(t(idioma, '📖 ¿Qué puedo hacer?', '📖 What can I do?'))
             .setDescription(t(idioma,
-                `Elige una categoría en el menú de abajo y te explico sus comandos.\n\n• Los que empiezan por **/** se escriben y Discord te ayuda a rellenarlos.\n• Los de **${prefijo}** se escriben tal cual.\n• 🖱️ Los de **clic derecho**: sobre una persona o un mensaje → **Apps**.\n\n✨ Todo lo tuyo (tickets, oro, tienda, tarjeta) está también en tu web: \`/cuenta\`.`,
-                `Pick a category in the menu below and I’ll explain its commands.\n\n• Commands starting with **/** are typed and Discord helps you fill them in.\n• The **${prefijo}** ones are typed as they are.\n• 🖱️ The **right-click** ones: on a person or a message → **Apps**.\n\n✨ All your stuff (tickets, gold, shop, card) is also on your web: \`/account\`.`))
+                `Elige una categoría en el menú de abajo y te explico sus comandos.\n\n• Escribe **/** y Discord te enseña los comandos y te ayuda a rellenarlos.\n• También funcionan con **${prefijo}** delante, como siempre (p. ej. \`${prefijo}ping\`).\n• 🖱️ Los de **clic derecho**: sobre una persona o un mensaje → **Apps**.\n\n✨ Todo lo tuyo (tickets, oro, tienda, tarjeta) está también en tu web: \`/cuenta\`.`,
+                `Pick a category in the menu below and I’ll explain its commands.\n\n• Type **/** and Discord shows the commands and helps you fill them in.\n• They also work with **${prefijo}** in front, as always (e.g. \`${prefijo}ping\`).\n• 🖱️ The **right-click** ones: on a person or a message → **Apps**.\n\n✨ All your stuff (tickets, gold, shop, card) is also on your web: \`/account\`.`))
             .addFields(CATEGORIAS.map((c) => ({ name: `${c.emoji} ${t(idioma, c.titulo[0], c.titulo[1])}`, value: c.cmds.slice(0, 4).map((x) => nombreComando(x, idioma, prefijo)).join(' · ') + (c.cmds.length > 4 ? ' …' : ''), inline: false })));
     } else {
         embed.setTitle(`${cat.emoji} ${t(idioma, cat.titulo[0], cat.titulo[1])}`)
