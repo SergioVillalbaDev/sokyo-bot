@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.10.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.11.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -82,6 +82,14 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 `utils/propietarios.js`: los de `OWNER_IDS` del `.env` más los fijados en el código
 (`1433388927233953902`). Ven todos los servidores, cambian planes, usan `/sistema`
 y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
+Su grupo del menú, **Propietario** (el último, `owner: true` en `navConfig.js`), tiene
+Suscripciones y **Mensaje de entrada** (1.9.11, `OwnerEntradaView.jsx`): el mensaje que manda
+el bot al entrar en un servidor (`utils/onboarding.js` → `construirBienvenida` con los ajustes
+de `models/MensajeEntrada.js`, documento global `clave: 'global'`, en caché 1 min con
+`cargarMensajeEntrada`). Por defecto va por privado al dueño y al canal solo de respaldo
+(`alCanal: 'respaldo'`), con la guía «Todo lo que puedo hacer». API: `GET/PUT
+/api/owner/mensaje-entrada` y `POST …/probar` (a tu privado, botones desactivados); las
+rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
 
 ## Panel de admin: convenciones
 - **Menú**: `components/dashboard/navConfig.js` (bloques, grupos e ítems con `tab`,
@@ -217,6 +225,14 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   escucha el `change` en captura), asistente por tipo de servidor en el Inicio
   (`AsistenteInicio.jsx`), copiar ajustes a otro servidor (Backup), letra/compacto/
   tema según el sistema (`lib/aspecto.js`) y avisos del navegador (`lib/avisosNavegador.js`).
+- **Comandos con barra (1.9.11)**: TODO comando de prefijo (`comandos/*.js`) tiene su versión
+  `/` en `slash/` hecha con `crearSlashDesdePrefijo` (`utils/puenteSlash.js`): traduce las
+  opciones a los argumentos de siempre y le pasa al comando un «mensaje» equivalente (reply,
+  menciones, adjuntos, cfg), así las dos formas hacen lo mismo. `test/puenteSlash.test.js`
+  falla si un `!comando` nuevo no tiene su `/` (o si un nombre se repite). Las opciones de texto se
+  parten en palabras (motivos); `junto: true` las pasa enteras (nombre de un rol con espacios) y
+  `efimero: true` en el comando hace que solo lo vea quien lo usa (`/reportar`). Las ayudas de uso de
+  los comandos enseñan la forma con `/` (nombre en español en el texto en español).
 - **Discord 1.8.0**: clic derecho (`slash/ctx*.js`), `/ayuda` por categorías
   (`utils/ayuda.js`: si añades un comando, apúntalo ahí), todos los slash con nombre en
   español, errores explicados con botón al panel (`utils/erroresDiscord.js`),
@@ -250,6 +266,15 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   Reddit (su RSS) y cualquier web con RSS. Las direcciones que escribe el staff pasan por
   `utils/redSegura.js` (nada de IPs privadas, también tras redirecciones). TikTok no tiene forma
   pública de saber cuándo alguien publica: no se ofrece.
+- **Modo simple / avanzado de permisos** (1.9.11, `lib/modoPermisos.js` +
+  `SelectorModoPermisos.jsx`, se recuerda en el navegador): simple = lo de siempre; avanzado =
+  todo lo de Discord. Roles: «Mostrar por separado» (`separado` → `hoist`) en los dos modos;
+  en avanzado `mencionable`, `colorSecundario` (degradado, solo con `ENHANCED_ROLE_COLORS`) y
+  `emoji` (`unicodeEmoji`, solo con `ROLE_ICONS`; `GET /api/roles/funciones`), copiar y quitar
+  permisos. Canales: `@everyone` en los dos modos; en avanzado, permisos de miembros concretos
+  (`tipo: 'miembro'`, `quitarMiembros` para borrarlos) y «Permitir/Denegar todo». **Cada
+  overwrite que se manda a Discord lleva `type`** (0 rol, 1 miembro): sin él, discord.js lo
+  busca en caché y falla con «not a cached User or Role» (pasaba al guardar tickets).
 - Fuentes propias en `public/fonts` (Inter y JetBrains Mono, OFL). Los `.js`/`.css`
   con huella se sirven con caché de un año.
 - Si una parte no se descarga (típico justo tras un despliegue),
@@ -451,5 +476,16 @@ y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
   (`PATCH /api/servidor/emojis/:id`), huecos por nivel de mejoras (`/emojis/limite`) y los que
   Discord desactiva al perder mejoras (`disponible: false`; «No hay ranuras de emojis abiertas»
   es Discord). Tests en `test/imagenes.test.js` (con `test/fixtures/`).
+- 1.9.11 **Música**: `/play` cumple las mismas reglas que la web (`fuenteDe`, `limitarEncolado`,
+  `nodoMusica` en `utils/musica.js`: fuentes permitidas, playlists, tope de la cola, «ya
+  suena en otro canal») y nunca enseña el error técnico; los dos buscan ANTES de entrar a la voz
+  (si no hay nada que añadir, el bot no se queda en el canal callado); Lavalink arranca con `clientReady`
+  (`'ready'` está obsoleto). **Roles**: «Mostrar por separado» y modo simple/avanzado (los colores solo se mandan si
+  cambian: así no se pierde el estilo holográfico de Discord); **canales**:
+  `@everyone`, permisos por miembro y `type` en cada overwrite (ver *Modo simple / avanzado*).
+  **Todos los comandos con `/`** (ver *Comandos con barra*), `/ayuda` al día (descripciones
+  reales, sin «solo con prefijo») y `/sancionar` sin tipo enseña la lista. **Mensaje de entrada**
+  configurable por los propietarios (ver *Propietarios del bot*). Tests: `test/puenteSlash.test.js`,
+  `test/entrada.test.js` y más en `musica` y `canales`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

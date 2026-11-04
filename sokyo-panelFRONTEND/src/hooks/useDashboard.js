@@ -103,6 +103,8 @@ export function useDashboard() {
   // Gestión de roles (panel mejorado): lista detallada + catálogo de permisos.
   const [rolesDetalle, setRolesDetalle] = useState([]);
   const [permisosCatalogo, setPermisosCatalogo] = useState([]);
+  // Opciones de rol que dependen de las mejoras del servidor (degradado, emoji).
+  const [funcionesRol, setFuncionesRol] = useState({ degradado: false, iconos: false });
   // Gestión de categorías y canales del servidor (árbol completo + catálogo de permisos por canal).
   const [estructuraCanales, setEstructuraCanales] = useState({ categorias: [], sinCategoria: [] });
   const [permisosCanalCatalogo, setPermisosCanalCatalogo] = useState([]);
@@ -202,13 +204,19 @@ export function useDashboard() {
   // --- Gestión de roles (panel mejorado) ---
   const cargarRolesDetalle = () => apiFetch(`/api/roles${gp()}`).then(procesarRespuesta).then((datos) => { setRolesDetalle(Array.isArray(datos) ? datos : []); setErrorConexion(''); }).catch(reportarError('cargando roles'));
   const cargarPermisosCatalogo = () => apiFetch('/api/roles/catalogo').then(procesarRespuesta).then((datos) => setPermisosCatalogo(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando catálogo de permisos'));
+  const cargarFuncionesRol = () => apiFetch(`/api/roles/funciones${gp()}`).then(procesarRespuesta).then((d) => setFuncionesRol({ degradado: !!d?.degradado, iconos: !!d?.iconos })).catch(() => {});
+
+  // Datos del formulario de rol que se mandan a la API (modo simple y avanzado).
+  const datosRol = ({ nombre, color, permisos, separado, mencionable, colorSecundario, emoji }) => ({
+    guildId, nombre, color, permisos, separado, mencionable, colorSecundario, emoji,
+  });
 
   // Crea un rol y refresca la lista. Devuelve true/false según el resultado.
-  const crearRol = async ({ nombre, color, permisos }) => {
+  const crearRol = async (datos) => {
     try {
       const res = await apiFetch('/api/roles', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guildId, nombre, color, permisos }),
+        body: JSON.stringify(datosRol(datos)),
       });
       const data = await res.json().catch(() => ({}));
       if (data.success) { await cargarRolesDetalle(); return { ok: true }; }
@@ -217,12 +225,12 @@ export function useDashboard() {
     return { ok: false };
   };
 
-  // Edita un rol existente (nombre / color / permisos) y refresca la lista.
-  const editarRol = async (roleId, { nombre, color, permisos }) => {
+  // Edita un rol existente (nombre, color, permisos y opciones de mostrar) y refresca la lista.
+  const editarRol = async (roleId, datos) => {
     try {
       const res = await apiFetch(`/api/roles/${roleId}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guildId, nombre, color, permisos }),
+        body: JSON.stringify(datosRol(datos)),
       });
       const data = await res.json().catch(() => ({}));
       if (data.success) { await cargarRolesDetalle(); return { ok: true }; }
@@ -1500,7 +1508,7 @@ export function useDashboard() {
     else if (activeTab === 'config-acceso') { cargarConfiguracion(); cargarRoles(); }
     else if (activeTab === 'config-expresiones') { cargarEmojisServidor(); cargarStickers(); }
     else if (activeTab === 'config-niveles') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarRanking(); cargarCatalogoPresets(); }
-    else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); }
+    else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); cargarFuncionesRol(); }
     else if (activeTab === 'config-canales') { cargarEstructuraCanales(); cargarPermisosCanalCatalogo(); cargarRoles(); }
     else if (activeTab === 'com-micuenta') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
@@ -1629,7 +1637,7 @@ export function useDashboard() {
     // reglas (Fase 3)
     categorias, guardarReglas,
     // gestión de roles (panel mejorado)
-    rolesDetalle, permisosCatalogo, crearRol, editarRol, eliminarRol,
+    rolesDetalle, permisosCatalogo, funcionesRol, crearRol, editarRol, eliminarRol,
     listarMiembrosRol, buscarMiembros, asignarRolMiembro, quitarRolMiembro,
     // gestión de categorías y canales (texto/voz/anuncios/foro/escenario, con permisos)
     estructuraCanales, permisosCanalCatalogo,

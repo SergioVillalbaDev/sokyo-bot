@@ -7,9 +7,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { UsersRound, Plus, Pencil, Trash2, X, Lock, ChevronDown, Search, UserPlus, Loader2, ShieldAlert, Globe, MessageSquare, Volume2, Wrench, Info } from 'lucide-react';
+import { UsersRound, Plus, Pencil, Trash2, X, Lock, ChevronDown, Search, UserPlus, Loader2, ShieldAlert, Globe, MessageSquare, Volume2, Wrench, Info, Rows3, AtSign } from 'lucide-react';
 import { Card, Badge, Avatar, Toggle } from '../../ui/primitives';
 import { ESTILOS_FUENTE, aplicarEstilo } from '../../../lib/fancyText';
+import { useModoPermisos } from '../../../lib/modoPermisos';
+import SelectorModoPermisos from '../SelectorModoPermisos';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const COLOR_DEFECTO = '#99AAB5';
@@ -37,7 +39,7 @@ const humanizar = (flag) => flag.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([
 
 export default function RolesView({ dash }) {
   const { t } = useTranslation();
-  const { rolesDetalle, permisosCatalogo, crearRol, editarRol } = dash;
+  const { rolesDetalle, permisosCatalogo, funcionesRol, crearRol, editarRol } = dash;
 
   // El modal: null = cerrado · {} = creando · {rol} = editando ese rol.
   const [editando, setEditando] = useState(null);
@@ -86,6 +88,8 @@ export default function RolesView({ dash }) {
           <RolModal
             rol={editando}
             catalogo={permisosCatalogo}
+            roles={rolesDetalle}
+            funciones={funcionesRol || {}}
             onClose={() => setEditando(null)}
             onGuardar={async (datos) => {
               const r = editando.id ? await editarRol(editando.id, datos) : await crearRol(datos);
@@ -163,7 +167,7 @@ function RolRow({ rol, index, dash, onEditar }) {
       <div className="flex items-center gap-3 p-4">
         <button onClick={alternar} className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <ChevronDown size={18} className={`shrink-0 text-muted transition-transform ${abierto ? 'rotate-180' : ''}`} />
-          <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: color }} />
+          <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: rol.colorSecundario ? `linear-gradient(135deg, ${color}, ${rol.colorSecundario})` : color }} />
           {/* En el móvil los contadores van debajo del nombre: en la misma línea
               lo dejaban reducido a "S…". */}
           <span className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-2">
@@ -171,9 +175,13 @@ function RolRow({ rol, index, dash, onEditar }) {
               <span className="truncate font-bold text-fg">{rol.nombre}</span>
               {!rol.gestionable && <Lock size={13} className="shrink-0 text-muted" title={t('dashboard.roles_v.locked')} />}
             </span>
-            <span className="text-xs text-muted sm:shrink-0">
-              {t('dashboard.roles_v.memberCount', { count: rol.miembros })}
-              {rol.permisos.length > 0 && ` · ${t('dashboard.roles_v.permCount', { count: rol.permisos.length })}`}
+            <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted sm:shrink-0">
+              <span>
+                {rol.emoji ? `${rol.emoji} ` : ''}{t('dashboard.roles_v.memberCount', { count: rol.miembros })}
+                {rol.permisos.length > 0 && ` · ${t('dashboard.roles_v.permCount', { count: rol.permisos.length })}`}
+              </span>
+              {rol.separado && <span className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[10px] font-semibold"><Rows3 size={10} /> {t('dashboard.roles_v.badgeHoist')}</span>}
+              {rol.mencionable && <span className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[10px] font-semibold"><AtSign size={10} /> {t('dashboard.roles_v.badgeMention')}</span>}
             </span>
           </span>
         </button>
@@ -368,14 +376,24 @@ function CategoriaBloque({ bloque, etiquetaPermiso }) {
 }
 
 // --- Modal (formulario) de creación / edición de un rol ---
-function RolModal({ rol, catalogo, onClose, onGuardar }) {
+function RolModal({ rol, catalogo, roles = [], funciones = {}, onClose, onGuardar }) {
   const { t } = useTranslation();
   const editando = !!rol.id;
+  const [modo, setModo] = useModoPermisos();
+  const avanzado = modo === 'avanzado';
 
   const [nombre, setNombre] = useState(rol.nombre || '');
   const [estiloFuente, setEstiloFuente] = useState('normal');
   const [color, setColor] = useState(colorVisible(rol.color));
   const [permisos, setPermisos] = useState(new Set(rol.permisos || []));
+  // Opciones de «mostrar» de Discord.
+  const [separado, setSeparado] = useState(!!rol.separado);
+  const [mencionable, setMencionable] = useState(!!rol.mencionable);
+  const [degradado, setDegradado] = useState(!!rol.colorSecundario);
+  const [colorSecundario, setColorSecundario] = useState(rol.colorSecundario || '#ffffff');
+  const [emoji, setEmoji] = useState(rol.emoji || '');
+  const [copiarDe, setCopiarDe] = useState('');
+  const otrosRoles = roles.filter((r) => r.id !== rol.id);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState(null);
   // Buscador: con todos los permisos de Discord la lista es larga.
@@ -400,7 +418,17 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
   const guardar = async () => {
     if (!nombre.trim()) return;
     setGuardando(true); setError(null);
-    const r = await onGuardar({ nombre: nombreFinal, color, permisos: [...permisos] });
+    // Lo del modo avanzado solo se manda si se ve y el servidor lo tiene (si aún no se sabe,
+    // no se toca): en modo simple no se cambia lo que el rol tenga de antes. El color, solo
+    // si cambia (así no se pierde lo que el panel no maneja, como el estilo holográfico).
+    const datos = { nombre: nombreFinal, permisos: [...permisos], separado };
+    if (!editando || color.toLowerCase() !== colorVisible(rol.color).toLowerCase()) datos.color = color;
+    if (avanzado) {
+      datos.mencionable = mencionable;
+      if (funciones.degradado) datos.colorSecundario = degradado ? colorSecundario : null;
+      if (funciones.iconos) datos.emoji = emoji.trim();
+    }
+    const r = await onGuardar(datos);
     setGuardando(false);
     if (r?.ok) return;
     if (r?.codigo === 'permisos_bot') setError(t('dashboard.roles_v.errPermBot', { lista: (r.permisos || []).map((f) => `«${etiquetaPermiso(f)}»`).join(', ') }));
@@ -425,6 +453,9 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
           </h2>
           <button onClick={onClose} className="text-muted transition-colors hover:text-fg"><X size={20} /></button>
         </div>
+
+        {/* Modo simple / avanzado (todas las opciones de Discord) */}
+        <SelectorModoPermisos modo={modo} setModo={setModo} className="mb-5" />
 
         {/* Nombre */}
         <label className="mb-1.5 block text-xs font-semibold text-muted">{t('dashboard.roles_v.fieldName')}</label>
@@ -462,8 +493,64 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
           <span className="rounded-lg border border-line bg-bg px-3 py-1.5 font-mono text-sm text-fg">{color}</span>
         </div>
 
+        {/* Degradado (avanzado, si el servidor lo tiene) */}
+        {avanzado && (
+          <Card className="mb-4 space-y-3 p-3.5">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.roles_v.advancedTitle')}</p>
+            <OpcionRol titulo={t('dashboard.roles_v.gradient')} desc={funciones.degradado ? t('dashboard.roles_v.gradientDesc') : t('dashboard.roles_v.gradientNo')}>
+              <Toggle checked={degradado && !!funciones.degradado} onChange={() => funciones.degradado && setDegradado((v) => !v)} />
+            </OpcionRol>
+            {degradado && funciones.degradado && (
+              <div className="flex items-center gap-3">
+                <input type="color" value={colorSecundario} onChange={(e) => setColorSecundario(e.target.value)} className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-bg" aria-label={t('dashboard.roles_v.gradient')} />
+                <span className="h-6 flex-1 rounded-lg border border-line" style={{ background: `linear-gradient(90deg, ${color}, ${colorSecundario})` }} />
+              </div>
+            )}
+            <OpcionRol titulo={t('dashboard.roles_v.emoji')} desc={funciones.iconos ? t('dashboard.roles_v.emojiDesc') : t('dashboard.roles_v.emojiNo')}>
+              <input
+                value={emoji} onChange={(e) => setEmoji(e.target.value)} disabled={!funciones.iconos} maxLength={16} placeholder="⭐"
+                className="w-16 rounded-xl border border-line bg-bg px-2 py-1.5 text-center text-lg text-fg outline-none focus:border-brand disabled:opacity-40"
+                aria-label={t('dashboard.roles_v.emoji')}
+              />
+            </OpcionRol>
+          </Card>
+        )}
+
+        {/* Opciones de mostrar (como en Discord → Ajustes del rol → Mostrar) */}
+        <Card className="mb-5 space-y-3 p-3.5">
+          <OpcionRol titulo={t('dashboard.roles_v.hoist')} desc={t('dashboard.roles_v.hoistDesc')}>
+            <Toggle checked={separado} onChange={() => setSeparado((v) => !v)} />
+          </OpcionRol>
+          {avanzado && (
+            <OpcionRol titulo={t('dashboard.roles_v.mentionable')} desc={t('dashboard.roles_v.mentionableDesc')}>
+              <Toggle checked={mencionable} onChange={() => setMencionable((v) => !v)} />
+            </OpcionRol>
+          )}
+        </Card>
+
         {/* Permisos agrupados */}
         <label className="mb-2 block text-xs font-semibold text-muted">{t('dashboard.roles_v.fieldPerms')}</label>
+        {avanzado && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <select
+              value={copiarDe}
+              onChange={(e) => {
+                const otro = otrosRoles.find((r) => r.id === e.target.value);
+                if (otro) setPermisos(new Set(otro.permisos));
+                setCopiarDe('');
+              }}
+              className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-xs text-fg outline-none focus:border-brand"
+              aria-label={t('dashboard.roles_v.copyFrom')}
+            >
+              <option value="">{t('dashboard.roles_v.copyFrom')}</option>
+              {otrosRoles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+            </select>
+            <button type="button" onClick={() => setPermisos(new Set())} disabled={permisos.size === 0}
+              className="rounded-xl border border-line px-3 py-2 text-xs font-semibold text-muted transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-40">
+              {t('dashboard.roles_v.clearPerms')}
+            </button>
+          </div>
+        )}
         <div className="relative mb-3">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
@@ -515,5 +602,18 @@ function RolModal({ rol, catalogo, onClose, onGuardar }) {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+// Una opción del rol: título + explicación a la izquierda, control a la derecha.
+function OpcionRol({ titulo, desc, children }) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3">
+      <span className="min-w-0">
+        <span className="block text-sm text-fg">{titulo}</span>
+        {desc && <span className="block text-xs leading-snug text-muted">{desc}</span>}
+      </span>
+      {children}
+    </label>
   );
 }

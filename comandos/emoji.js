@@ -27,7 +27,7 @@ module.exports = {
             } else if (message.attachments.size > 0) {
                 url = message.attachments.first().url;
             } else {
-                return message.reply(t(cfg, '❌ Adjunta una imagen o pega un emoji. Ej.: `!emoji add nombre` (con imagen) o `!emoji add :otroEmoji:`.', '❌ Attach an image or paste an emoji. e.g. `!emoji add name` (with image) or `!emoji add :otherEmoji:`.'));
+                return message.reply(t(cfg, '❌ Sube una imagen o pega un emoji. Ej.: `/emoji añadir nombre: fiesta imagen:` o `/emoji añadir nombre: fiesta emoji: :otroEmoji:`.', '❌ Upload an image or paste an emoji. e.g. `/emoji add name: party image:` or `/emoji add name: party emoji: :otherEmoji:`.'));
             }
             if (!nombre || nombre.length < 2) return message.reply(t(cfg, '❌ Indica un nombre (mínimo 2 caracteres).', '❌ Provide a name (at least 2 characters).'));
 
@@ -46,6 +46,6 @@ module.exports = {
             catch (e) { return message.reply(`❌ ${e.message}`); }
         }
 
-        return message.reply(t(cfg, 'Uso: `!emoji add <nombre>` (adjunta una imagen o pega un emoji) · `!emoji remove <nombre o emoji>`', 'Usage: `!emoji add <name>` (attach an image or paste an emoji) · `!emoji remove <name or emoji>`'));
+        return message.reply(t(cfg, 'Uso: `/emoji añadir` (con una imagen o pegando un emoji) · `/emoji quitar`', 'Usage: `/emoji add` (with an image or a pasted emoji) · `/emoji remove`'));
     },
 };

@@ -3,6 +3,21 @@
 export default {
   dashboard: {
     brand: 'Sokyo Bot',
+    ownerEntrada: {
+      loading: 'Cargando el mensaje de entrada…', loadErr: 'No se ha podido cargar el mensaje de entrada.',
+      intro: 'Esto es lo que recibe el dueño de un servidor cuando añade el bot: cómo ponerlo en marcha y, si quieres, todo lo que puede hacer. Lo ven solo los propietarios del bot aquí y vale para todos los servidores. Por defecto va por privado al dueño, así la configuración no se ve en un canal público.',
+      sendTitle: 'A quién se manda', active: 'Mandar el mensaje al entrar', activeDesc: 'Si lo apagas, el bot entra sin decir nada.',
+      toOwner: 'Por privado al dueño del servidor', toOwnerDesc: 'Lo más discreto: solo lo lee quien ha añadido el bot.',
+      toChannel: 'En un canal del servidor', toChannelDesc: 'El canal del sistema o el primero donde el bot pueda escribir (lo verá quien tenga acceso a ese canal).',
+      channelFallback: 'Solo si no le llega por privado (recomendado)', channelAlways: 'Siempre, además del privado', channelNever: 'Nunca',
+      fullGuide: 'Explicar todo lo que puede hacer', fullGuideDesc: 'Añade «Todo lo que puedo hacer» (tickets, moderación, música, niveles…) y cómo ver los comandos con /.',
+      textsTitle: 'Textos', langHint: 'El bot usa el idioma del servidor (inglés por defecto) y el mensaje trae un botón para cambiarlo. Vacío = el texto de fábrica que ves en gris.',
+      fieldTitle: 'Título', fieldDesc: 'Texto de presentación', vars: '{server} se cambia por el nombre del servidor.', reset: 'Volver a los textos de fábrica',
+      preview: 'Vista previa (así lo verá el dueño)', offPreview: 'El mensaje está apagado: el bot no mandará nada al entrar.', exampleServer: 'Tu servidor',
+      test: 'Enviar prueba a mi privado', testSent: '✅ Te lo he mandado por privado tal como está aquí (sin guardar).', testErr: 'No se ha podido enviar la prueba.',
+      save: 'Guardar', allSaved: 'Todo guardado', saved: '✅ Guardado: los próximos servidores recibirán este mensaje.', saveErr: 'No se ha podido guardar.',
+    },
+    modoPermisos: { label: 'Modo del editor de permisos', simple: 'Modo simple', avanzado: 'Modo avanzado', simpleDesc: 'Lo esencial. Pásate al avanzado para ver todas las opciones que ofrece Discord.', avanzadoDesc: 'Todas las opciones de Discord: mencionable, degradado, emoji del rol, copiar o quitar permisos y permisos por miembro.' },
     inicio: 'Inicio',
     back: 'Volver al inicio',
     backToTop: 'Volver arriba',
@@ -120,6 +135,7 @@ export default {
         'config-diagnostico': '¿Algo no funciona?',
         'config-cambios': 'Historial de cambios',
         'owner-subs': 'Suscripciones',
+        'owner-entrada': 'Mensaje de entrada',
       },
     },
     meta: {
@@ -131,6 +147,7 @@ export default {
       musica: { title: 'Reproductor de música', subtitle: 'Configura el reproductor y controla en directo lo que suena.' },
       'voz-temporal': { title: 'Salas de voz temporales', subtitle: 'Cuando alguien entra a un canal generador, el bot le crea su propia sala de voz.' },
       'owner-subs': { title: 'Suscripciones', subtitle: 'Controla el plan y la caducidad de cada servidor. Solo para propietarios del bot.' },
+      'owner-entrada': { title: 'Mensaje de entrada', subtitle: 'Lo que manda el bot al entrar en un servidor nuevo. Solo para propietarios del bot.' },
       'tickets-gestion': { title: 'Bandeja de tickets', subtitle: 'Administra las solicitudes activas de tu servidor.' },
       'tickets-usuarios': { title: 'Usuarios y valoraciones', subtitle: 'Estadísticas y recuento global de los usuarios en tu servidor.' },
       'tickets-config': { title: 'Ajustes de tickets', subtitle: 'Todo el sistema de tickets en un sitio: panel, reglas, cierre, notificaciones, urgencias y respuestas rápidas.' },
@@ -574,6 +591,10 @@ export default {
       'owner-subs': {
         title: '👑 Suscripciones',
         desc: 'Solo para propietarios del bot: controla el plan y la caducidad de cada servidor a mano. Útil para corregir errores de cobro o activar pruebas.',
+      },
+      'owner-entrada': {
+        title: '💌 Mensaje de entrada',
+        desc: 'Solo para propietarios del bot: el mensaje que manda Sokyo al entrar en un servidor nuevo, explicando todo lo que hace y cómo ponerlo en marcha. Vale para todos los servidores.',
       },
     },
     sectionTours: {
@@ -1209,6 +1230,11 @@ export default {
       chooseServer: 'Elige un servidor', manageMultiple: 'Gestionas varios; elige cuál ver ahora.', close: 'Cerrar',
     },
     roles_v: {
+      hoist: 'Mostrar a los miembros del rol por separado', hoistDesc: 'En la lista de miembros de Discord salen en su propio grupo, separados de los demás conectados.', badgeHoist: 'Por separado', badgeMention: 'Mencionable',
+      mentionable: 'Permitir que cualquiera @mencione este rol', mentionableDesc: 'Cualquiera podrá avisar a todos los que lo tengan escribiendo @rol. Sin esto, solo quien tenga «Mencionar @everyone, @here y todos los roles».',
+      advancedTitle: 'Opciones avanzadas de Discord', gradient: 'Color en degradado', gradientDesc: 'El nombre del rol pasa del color principal a este segundo color.', gradientNo: 'Tu servidor aún no tiene colores en degradado para los roles (Discord lo da con las mejoras de servidor).',
+      emoji: 'Emoji del rol', emojiDesc: 'Sale al lado del nombre de quien tenga el rol. Un emoji normal (no uno del servidor).', emojiNo: 'Hace falta el nivel 2 de mejoras del servidor (iconos de rol) para poner un emoji.',
+      copyFrom: 'Copiar los permisos de otro rol…', clearPerms: 'Quitar todos los permisos',
       intro: 'Crea, edita y reparte los roles de tu servidor sin pelearte con Discord.',
       create: 'Crear rol', createTitle: 'Crear rol nuevo', editTitle: 'Editar rol',
       empty: 'Aún no hay roles personalizados en este servidor.',
@@ -1375,6 +1401,8 @@ export default {
       unbanError: 'No se pudo quitar el ban. Comprueba que el bot tiene «Banear miembros».',
     },
     canales_v: {
+      memberTag: 'Miembro', removeOverwrite: 'Quitar', allowAll: '✓ Permitir todo', denyAll: '✕ Denegar todo', resetAll: '— Restablecer', everyoneHint: 'todo el servidor',
+      addMember: 'Añadir un miembro concreto', searchMemberPlaceholder: 'Busca por nombre…', memberNote: 'Ojo: los tickets y las salas de voz temporales dan acceso a personas concretas; si los quitas aquí, esa persona pierde el acceso.',
       orderHelpShort: 'Arrastra por el asa ⠿ o usa las flechas.',
       savedOk: 'Guardado en Discord.',
       saveQueued: 'Discord está aplicando el cambio con retraso (limita los cambios seguidos de un mismo canal). Se verá solo en unos minutos.',
@@ -1679,8 +1707,8 @@ export default {
     reportes_v: {
       prevTitle: 'Así le llega el aviso al staff', prevName: '🚩 Nuevo reporte', prevReported: 'Reportado', prevBy: 'Reportado por', prevChannel: 'Canal', prevReason: 'Motivo',
       prevReasonVal: 'Está insultando en el chat', prevMessage: 'Mensaje reportado', prevMessageVal: 'Mensaje de ejemplo', prevResolve: '✅ Resolver', prevTicket: '🎫 Abrir ticket', prevDismiss: '🗑️ Descartar',
-      intro: 'Deja que los usuarios reporten a otros con !reportar y gestiónalos aquí.',
-      note: 'Uso: !reportar @usuario [motivo], o responde a un mensaje con !reportar [motivo]. El staff recibe el aviso en el canal elegido.',
+      intro: 'Deja que los usuarios reporten a otros con /reportar (o clic derecho en un mensaje → Apps → Reportar mensaje) y gestiónalos aquí.',
+      note: 'Uso: /reportar usuario: @alguien motivo: …, o clic derecho en un mensaje → Apps → «Reportar mensaje». También funciona !reportar. El staff recibe el aviso en el canal elegido.',
       enable: 'Reportes activos', channel: 'Canal de staff', channelPh: 'Elige un canal…',
       inbox: 'Bandeja de reportes',
       filter: { pendiente: 'Pendientes', resuelto: 'Resueltos', descartado: 'Descartados', todos: 'Todos' },

@@ -63,24 +63,33 @@ module.exports = ({ client, exigeArea = pasar }) => {
 
     // Saca del body una lista de overwrites {id, allow, deny} ya validada
     // (solo flags conocidos, máximo 50 entradas para no reventar la API).
+    // Cada overwrite lleva su tipo (0 = rol, 1 = miembro): sin él, discord.js intenta
+    // deducirlo de su caché y, si esa persona no está en caché (lo normal tras reiniciar
+    // el bot), falla con «not a cached User or Role» y no se guarda nada.
+    const TIPO = { rol: 0, miembro: 1 };
     function construirOverwrites(lista) {
         if (!Array.isArray(lista)) return undefined;
         const limpiar = (arr) => (Array.isArray(arr) ? arr.filter((f) => FLAGS_VALIDOS.has(f)) : []);
         return lista
             .filter((o) => o && o.id)
             .slice(0, 50)
-            .map((o) => ({ id: String(o.id), allow: limpiar(o.allow), deny: limpiar(o.deny) }));
+            .map((o) => ({
+                id: String(o.id), allow: limpiar(o.allow), deny: limpiar(o.deny),
+                ...(o.tipo in TIPO ? { type: TIPO[o.tipo] } : {}),
+            }));
     }
 
-    // Overwrites finales al guardar desde el panel: los de ROL que se editan ahí,
-    // sin tocar los de MIEMBRO (p. ej. el acceso del creador de un ticket o del
+    // Overwrites finales al guardar desde el panel: los que se editan ahí, sin tocar
+    // los de MIEMBRO que no se tocan (p. ej. el acceso del creador de un ticket o del
     // dueño de una sala de voz temporal), que gestionan otros sistemas del bot.
-    function overwritesConLosDeMiembro(canalOCategoria, listaRoles) {
-        const nuevos = construirOverwrites(listaRoles) || [];
+    // `quitarMiembros`: los de miembro que se han quitado a mano (modo avanzado).
+    function overwritesConLosDeMiembro(canalOCategoria, lista, quitarMiembros = []) {
+        const nuevos = construirOverwrites(lista) || [];
         const idsNuevos = new Set(nuevos.map((o) => o.id));
+        const quitar = new Set(Array.isArray(quitarMiembros) ? quitarMiembros.map(String) : []);
         const miembrosPrevios = canalOCategoria.permissionOverwrites.cache
-            .filter((ov) => ov.type === 1 && !idsNuevos.has(ov.id))
-            .map((ov) => ({ id: ov.id, allow: ov.allow.toArray(), deny: ov.deny.toArray() }));
+            .filter((ov) => ov.type === 1 && !idsNuevos.has(ov.id) && !quitar.has(ov.id))
+            .map((ov) => ({ id: ov.id, type: 1, allow: ov.allow.toArray(), deny: ov.deny.toArray() }));
         return [...nuevos, ...miembrosPrevios];
     }
     // ¿Son los mismos permisos que ya tiene? (para no mandar a Discord lo que no cambia)
@@ -278,7 +287,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
                 if (posicion !== categoria.position) cambios.position = posicion;
             }
             if (Array.isArray(cuerpo.overwrites)) {
-                const permisos = overwritesConLosDeMiembro(categoria, cuerpo.overwrites);
+                const permisos = overwritesConLosDeMiembro(categoria, cuerpo.overwrites, cuerpo.quitarMiembros);
                 if (!mismosPermisos(categoria, permisos)) cambios.permissionOverwrites = permisos;
             }
             const antes = comprobarAntes(guild, { overwrites: cambios.permissionOverwrites ? cuerpo.overwrites : undefined, previos: previosDe(categoria), tocar: [categoria] });
@@ -495,7 +504,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
             if (bitrate !== undefined) poner('bitrate', Math.min(guild.maximumBitrate || 96000, Math.max(8000, parseInt(bitrate, 10) || 64000)), canal.bitrate);
             if (userLimit !== undefined) poner('userLimit', Math.min(99, Math.max(0, parseInt(userLimit, 10) || 0)), canal.userLimit || 0);
             if (Array.isArray(overwrites)) {
-                const permisos = overwritesConLosDeMiembro(canal, overwrites);
+                const permisos = overwritesConLosDeMiembro(canal, overwrites, req.body?.quitarMiembros);
                 if (!mismosPermisos(canal, permisos)) cambios.permissionOverwrites = permisos;
             }
             const destino = cambios.parent ? guild.channels.cache.get(String(cambios.parent)) : null;

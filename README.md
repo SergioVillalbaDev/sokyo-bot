@@ -30,7 +30,7 @@ sokyo-bot/
 - **Tickets por privado**: escribir al bot por privado abre un ticket; las respuestas del staff llegan por privado.
 
 ### 🛡️ Moderación
-- Comandos: `!ban`, `!unban`, `!kick`, `!timeout`, `!warn`, `!sancion`, `!historial`.
+- Comandos: `/banear`, `/desbanear`, `/expulsar`, `/aislar`, `/avisar`, `/sancionar`, `/historial` (y clic derecho → Apps → «Sancionar»). Con `!` delante también funcionan.
 - Sistema de **sanciones** con tipos configurables y registro persistente.
 - **Automod** (filtros de contenido) y **Anti-Raid**.
 - Respeta la **jerarquía de Discord**: nadie puede sancionar a través del bot a alguien con un rol igual o superior al suyo (ni a sí mismo).
@@ -46,12 +46,12 @@ sokyo-bot/
 - Desde el panel, el staff solo puede usar o repartir roles **por debajo de su rol más alto** y sin permisos que él no tenga (el dueño del servidor y los `OWNER_IDS` no tienen límite).
 
 ### 📊 Niveles y actividad
-- Sistema de **XP/niveles** (`!xp`, `!nivel`, `!ranking`).
+- Sistema de **XP/niveles** (`/xp`, `/nivel`, `/ranking`).
 - **Tarjetas de rango** personalizables (canvas) con estilos y fuentes.
 - Seguimiento de actividad de **mensajes y voz**.
 
 ### 🚀 Crecimiento
-- **Invitaciones**: el bot sabe con qué invitación entra cada miembro y premia a quien invita con oro, XP y roles por número de invitaciones. Antitrampas: solo cuenta si el invitado sigue dentro pasadas X horas y si su cuenta tiene cierta antigüedad; cada persona cuenta una vez. Comando `/invites` (o `!invites`).
+- **Invitaciones**: el bot sabe con qué invitación entra cada miembro y premia a quien invita con oro, XP y roles por número de invitaciones. Antitrampas: solo cuenta si el invitado sigue dentro pasadas X horas y si su cuenta tiene cierta antigüedad; cada persona cuenta una vez. Comando `/invitaciones` (o `!invites`).
 - **Bump de DISBOARD**: avisa cuando se puede volver a hacer `/bump`, menciona a un rol, premia con oro a quien lo hace y lleva un ranking. (Un bot no puede usar comandos de otro bot: el `/bump` lo hace una persona.)
 - **Página pública** del servidor en `/s/<dirección>` con botón para unirse, y **directorio** de servidores con Sokyo en `/servidores`. Se generan en el servidor, así que al compartir el enlace sale la vista previa.
 - **Avisos de directos** de Twitch y Kick, de vídeos de YouTube y de lo nuevo en comunidades de Reddit o en cualquier web con RSS. Funcionan sin claves; con `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` y `YOUTUBE_API_KEY` (opcionales, ver `.env.example`) son más precisos.
@@ -69,13 +69,13 @@ sokyo-bot/
 - **Mensajes fijos**: un mensaje que siempre queda al final de un canal.
 
 ### 🚨 Reportes
-- Comando `!reportar` + gestión de reportes/incidencias desde el panel.
+- Comando `/reportar` (o clic derecho en un mensaje → Apps → «Reportar mensaje») + gestión de reportes/incidencias desde el panel.
 
 ### 📢 Anuncios y comunicación
 - **Anuncios programados** y **Difusión** (a un servidor o a TODOS los del bot, solo IDs autorizadas).
 - **Creador de anuncios/embeds** con presets reutilizables y previsualización de Markdown.
 - **Auto-respuestas** (expresiones/macros configurables).
-- **Recordatorios** (`!remind`).
+- **Recordatorios** (`/recordar`).
 
 ### 🎵 Música
 - Reproductor de voz con **Lavalink**: `/play` (URL de **YouTube/Spotify** o búsqueda por nombre),
@@ -95,8 +95,10 @@ sokyo-bot/
 - Sin Stripe configurado, el bot funciona igual y los planes se activan a mano.
 
 ### ⚙️ Otros comandos
-`!ping`, `!dado`, `!moneda`, `!emoji`, `!sticker`, `!user`, `!actividad`, `!setup`,
-`!setupSoporte`, `!rol`.
+`/ping`, `/dado`, `/moneda`, `/emoji`, `/sticker`, `/usuario`, `/actividad`, `/setup`,
+`/panel-soporte`, `/rol`, `/idioma`. **Todos los comandos tienen versión con `/`** (Discord los enseña al
+escribir `/`) y siguen funcionando con `!` delante: las dos formas ejecutan la misma lógica
+(`utils/puenteSlash.js`).
 
 ### 🌐 Panel web + "Mi cuenta"
 - Panel de administración con ~30 vistas (Tickets, Logs, Usuarios, Roles, Automod,
@@ -266,15 +268,15 @@ bash deploy/instalar-autodeploy.sh    # (una vez) lo hace solo cada 5 minutos co
 
 ## 🎫 Uso básico
 
-- En tu servidor de Discord, ejecuta **`!sokyo`** (como administrador) en el canal donde
+- En tu servidor de Discord, ejecuta **`/panel-soporte`** (o `!sokyo`, como administrador) en el canal donde
   quieras el panel de soporte. Aparecerá un botón **📩 Abrir Ticket**.
 - Los usuarios abren tickets eligiendo categoría y rellenando un formulario.
 - Desde el panel web puedes ver conversaciones, responder, añadir notas internas,
   cerrar/reabrir tickets, ver logs y estadísticas, gestionar moderación, niveles,
   verificación, anuncios y mucho más.
 
-Algunos comandos rápidos: `!user [@usuario]` (estadísticas), `!nivel`, `!ranking`,
-`!warn`, `!ban`, `!remind`, `!dado`, `!moneda`.
+Algunos comandos rápidos: `/usuario` (estadísticas), `/nivel`, `/ranking`,
+`/avisar`, `/banear`, `/recordar`, `/dado`, `/moneda`. `/ayuda` los explica todos por categorías.
 
 ---
 

@@ -241,3 +241,44 @@ describe('cuenta de YouTube: hablar con Lavalink', () => {
         assert.deepStrictEqual(peticiones[0].json, { refreshToken: '', skipInitialization: true });
     });
 });
+
+// ----------------------------------------------------------------------------
+// 1.9.11: /play en Discord cumple las mismas reglas que el panel web
+// (fuentes permitidas, playlists y tope de la cola) y avisa si Lavalink no está.
+// ----------------------------------------------------------------------------
+describe('reglas al añadir música (fuenteDe, limitarEncolado, hayNodoMusica)', () => {
+    const { fuenteDe, limitarEncolado, hayNodoMusica } = require('../utils/musica.js');
+    const pista = (n) => ({ info: { identifier: `id${n}`, title: `Canción ${n}` } });
+    const lista = (n) => ({ loadType: 'playlist', tracks: Array.from({ length: n }, (_, i) => pista(i)) });
+
+    it('reconoce de dónde viene lo que se pide', () => {
+        assert.strictEqual(fuenteDe('https://open.spotify.com/track/123'), 'spotify');
+        assert.strictEqual(fuenteDe('spotify:track:123'), 'spotify');
+        assert.strictEqual(fuenteDe('https://soundcloud.com/artista/tema'), 'soundcloud');
+        assert.strictEqual(fuenteDe('https://youtu.be/abc'), 'youtube');
+        assert.strictEqual(fuenteDe('bad bunny'), 'youtube');
+        assert.strictEqual(fuenteDe(''), 'youtube');
+    });
+    it('una canción suelta: se añade solo la primera del resultado', () => {
+        const r = limitarEncolado({ loadType: 'search', tracks: [pista(1), pista(2)] }, { maxCola: 100, permitirPlaylists: true }, 0);
+        assert.deepStrictEqual(r.tracks.map((x) => x.info.identifier), ['id1']);
+        assert.strictEqual(r.error, null);
+        assert.strictEqual(r.esPlaylist, false);
+    });
+    it('playlists desactivadas en el servidor', () => {
+        assert.strictEqual(limitarEncolado(lista(5), { permitirPlaylists: false }, 0).error, 'sin-playlists');
+        assert.strictEqual(limitarEncolado(lista(5), { permitirPlaylists: true }, 0).tracks.length, 5);
+    });
+    it('el tope de la cola recorta la playlist y avisa si ya está llena', () => {
+        const r = limitarEncolado(lista(10), { permitirPlaylists: true, maxCola: 8 }, 5);
+        assert.strictEqual(r.tracks.length, 3);
+        assert.strictEqual(r.recortadas, 7);
+        assert.strictEqual(limitarEncolado(lista(1), { maxCola: 8 }, 8).error, 'cola-llena');
+        assert.strictEqual(limitarEncolado({ loadType: 'track', tracks: [pista(1)] }, { maxCola: 0 }, 5000).tracks.length, 1, 'maxCola 0 = sin límite');
+    });
+    it('sin servidor de música conectado, se sabe antes de intentar sonar', () => {
+        assert.strictEqual(hayNodoMusica({}), false);
+        assert.strictEqual(hayNodoMusica({ lavalink: { nodeManager: { nodes: new Map([['a', { connected: false }]]) } } }), false);
+        assert.strictEqual(hayNodoMusica({ lavalink: { nodeManager: { nodes: new Map([['a', { connected: false }], ['b', { connected: true }]]) } } }), true);
+    });
+});

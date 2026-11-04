@@ -18,7 +18,7 @@ module.exports = {
         const sub = args[0]?.toLowerCase();
         const target = message.mentions.users.first();
         if (!['add', 'set', 'reset'].includes(sub) || !target) {
-            return message.reply(t(cfg, 'Uso: `!xp add @usuario <xp>` · `!xp set @usuario <nivel>` · `!xp reset @usuario`', 'Usage: `!xp add @user <xp>` · `!xp set @user <level>` · `!xp reset @user`'));
+            return message.reply(t(cfg, 'Uso: `/xp sumar` · `/xp poner-nivel` · `/xp reiniciar`', 'Usage: `/xp add` · `/xp set` · `/xp reset`'));
         }
 
         const dif = cfg?.dificultad || 1;
@@ -29,11 +29,11 @@ module.exports = {
 
         if (sub === 'add') {
             const n = parseInt(args[2], 10);
-            if (Number.isNaN(n)) return message.reply(t(cfg, '❌ Indica una cantidad de XP. Ej.: `!xp add @usuario 500`', '❌ Provide an XP amount. e.g. `!xp add @user 500`'));
+            if (Number.isNaN(n)) return message.reply(t(cfg, '❌ Indica una cantidad de XP. Ej.: `/xp sumar usuario: @alguien cantidad: 500`', '❌ Provide an XP amount. e.g. `/xp add user: @someone amount: 500`'));
             xp = Math.max(0, xp + n);
         } else if (sub === 'set') {
             const nivel = parseInt(args[2], 10);
-            if (Number.isNaN(nivel)) return message.reply(t(cfg, '❌ Indica un nivel. Ej.: `!xp set @usuario 10`', '❌ Provide a level. e.g. `!xp set @user 10`'));
+            if (Number.isNaN(nivel)) return message.reply(t(cfg, '❌ Indica un nivel. Ej.: `/xp poner-nivel usuario: @alguien nivel: 10`', '❌ Provide a level. e.g. `/xp set user: @someone level: 10`'));
             xp = xpTotalParaNivel(Math.max(0, nivel), dif);
         } else {
             xp = 0;

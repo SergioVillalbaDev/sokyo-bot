@@ -3,6 +3,21 @@
 export default {
   dashboard: {
     brand: 'Sokyo Bot',
+    ownerEntrada: {
+      loading: 'Loading the entry message…', loadErr: 'Couldn’t load the entry message.',
+      intro: 'This is what a server owner gets when they add the bot: how to set it up and, if you like, everything it can do. Only bot owners see it here and it applies to every server. By default it goes by DM to the owner, so the setup isn’t shown in a public channel.',
+      sendTitle: 'Who gets it', active: 'Send the message when joining', activeDesc: 'If you turn it off, the bot joins without saying anything.',
+      toOwner: 'By DM to the server owner', toOwnerDesc: 'The most discreet: only whoever added the bot reads it.',
+      toChannel: 'In a server channel', toChannelDesc: 'The system channel or the first one the bot can write in (anyone with access to that channel will see it).',
+      channelFallback: 'Only if the DM doesn’t get through (recommended)', channelAlways: 'Always, as well as the DM', channelNever: 'Never',
+      fullGuide: 'Explain everything it can do', fullGuideDesc: 'Adds “Everything I can do” (tickets, moderation, music, levels…) and how to see the commands with /.',
+      textsTitle: 'Texts', langHint: 'The bot uses the server language (English by default) and the message has a button to switch it. Empty = the default text shown in grey.',
+      fieldTitle: 'Title', fieldDesc: 'Introduction text', vars: '{server} becomes the server name.', reset: 'Back to the default texts',
+      preview: 'Preview (what the owner will see)', offPreview: 'The message is off: the bot won’t send anything when joining.', exampleServer: 'Your server',
+      test: 'Send a test to my DMs', testSent: '✅ Sent to your DMs exactly as it is here (not saved).', testErr: 'Couldn’t send the test.',
+      save: 'Save', allSaved: 'All saved', saved: '✅ Saved: new servers will get this message.', saveErr: 'Couldn’t save.',
+    },
+    modoPermisos: { label: 'Permission editor mode', simple: 'Simple mode', avanzado: 'Advanced mode', simpleDesc: 'The essentials. Switch to advanced to see every option Discord offers.', avanzadoDesc: 'Every Discord option: mentionable, gradient, role emoji, copy or clear permissions and per-member permissions.' },
     inicio: 'Home',
     back: 'Back to home',
     backToTop: 'Back to top',
@@ -120,6 +135,7 @@ export default {
         'config-diagnostico': 'Something not working?',
         'config-cambios': 'Change history',
         'owner-subs': 'Subscriptions',
+        'owner-entrada': 'Entry message',
       },
     },
     meta: {
@@ -131,6 +147,7 @@ export default {
       musica: { title: 'Music player', subtitle: 'Configure the player and control what is playing live.' },
       'voz-temporal': { title: 'Temporary voice rooms', subtitle: 'When someone joins a generator channel, the bot creates their own voice room.' },
       'owner-subs': { title: 'Subscriptions', subtitle: 'Control each server\'s plan and expiry. Bot owners only.' },
+      'owner-entrada': { title: 'Entry message', subtitle: 'What the bot sends when it joins a new server. Bot owners only.' },
       'tickets-gestion': { title: 'Ticket inbox', subtitle: 'Manage your server’s active requests.' },
       'tickets-usuarios': { title: 'Users & ratings', subtitle: 'Stats and global count of users in your server.' },
       'tickets-config': { title: 'Ticket settings', subtitle: 'The whole ticket system in one place: panel, rules, close, notifications, urgencies and quick replies.' },
@@ -574,6 +591,10 @@ export default {
       'owner-subs': {
         title: '👑 Subscriptions',
         desc: 'Bot owners only: manually control each server’s plan and expiry. Handy for fixing billing issues or granting trials.',
+      },
+      'owner-entrada': {
+        title: '💌 Entry message',
+        desc: 'Bot owners only: the message Sokyo sends when it joins a new server, explaining everything it does and how to set it up. It applies to every server.',
       },
     },
     sectionTours: {
@@ -1209,6 +1230,11 @@ export default {
       chooseServer: 'Choose a server', manageMultiple: 'You manage several; pick which one to view now.', close: 'Close',
     },
     roles_v: {
+      hoist: 'Display role members separately from online members', hoistDesc: 'In Discord’s member list they show up in their own group, apart from everyone else online.', badgeHoist: 'Separate', badgeMention: 'Mentionable',
+      mentionable: 'Allow anyone to @mention this role', mentionableDesc: 'Anyone can ping everyone with it by typing @role. Without this, only people with “Mention @everyone, @here and All Roles”.',
+      advancedTitle: 'Advanced Discord options', gradient: 'Gradient colour', gradientDesc: 'The role name fades from the main colour into this second one.', gradientNo: 'Your server doesn’t have gradient role colours yet (Discord unlocks them with server boosts).',
+      emoji: 'Role emoji', emojiDesc: 'Shows next to the name of anyone with the role. A regular emoji (not a server one).', emojiNo: 'Server boost level 2 (role icons) is needed to set an emoji.',
+      copyFrom: 'Copy permissions from another role…', clearPerms: 'Clear all permissions',
       intro: 'Create, edit and assign your server roles without fighting Discord.',
       create: 'Create role', createTitle: 'Create new role', editTitle: 'Edit role',
       empty: 'No custom roles in this server yet.',
@@ -1375,6 +1401,8 @@ export default {
       unbanError: 'Couldn’t unban. Check that the bot has “Ban members”.',
     },
     canales_v: {
+      memberTag: 'Member', removeOverwrite: 'Remove', allowAll: '✓ Allow all', denyAll: '✕ Deny all', resetAll: '— Reset', everyoneHint: 'the whole server',
+      addMember: 'Add a specific member', searchMemberPlaceholder: 'Search by name…', memberNote: 'Heads up: tickets and temporary voice rooms give access to specific people; removing them here takes that access away.',
       orderHelpShort: 'Drag by the ⠿ handle or use the arrows.',
       savedOk: 'Saved on Discord.',
       saveQueued: 'Discord is applying the change with a delay (it limits repeated changes to the same channel). It will show up on its own in a few minutes.',
@@ -1679,8 +1707,8 @@ export default {
     reportes_v: {
       prevTitle: 'How the notice reaches the staff', prevName: '🚩 New report', prevReported: 'Reported', prevBy: 'Reported by', prevChannel: 'Channel', prevReason: 'Reason',
       prevReasonVal: 'They’re insulting people in chat', prevMessage: 'Reported message', prevMessageVal: 'Sample message', prevResolve: '✅ Resolve', prevTicket: '🎫 Open ticket', prevDismiss: '🗑️ Dismiss',
-      intro: 'Let users report others with !reportar and handle them here.',
-      note: 'Usage: !reportar @user [reason], or reply to a message with !reportar [reason]. Staff get notified in the chosen channel.',
+      intro: 'Let users report others with /report (or right-click a message → Apps → Report message) and handle them here.',
+      note: 'Usage: /report user: @someone reason: …, or right-click a message → Apps → “Report message”. !report works too. Staff get notified in the chosen channel.',
       enable: 'Reports enabled', channel: 'Staff channel', channelPh: 'Pick a channel…',
       inbox: 'Reports inbox',
       filter: { pendiente: 'Pending', resuelto: 'Resolved', descartado: 'Dismissed', todos: 'All' },

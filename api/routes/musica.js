@@ -9,6 +9,7 @@ const express = require('express');
 const ServidorConfig = require('../../models/ServidorConfig.js');
 const {
     getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON, buscarMusica, estadoServidorMusica,
+    fuenteDe, limitarEncolado, nodoMusica,
 } = require('../../utils/musica.js');
 
 module.exports = ({ portalAuth, client }) => {
@@ -16,25 +17,11 @@ module.exports = ({ portalAuth, client }) => {
 
     // --- Helpers internos ---------------------------------------------------
 
-    // Primer nodo de Lavalink conectado (para buscar sin necesidad de un player).
-    function nodoConectado() {
-        for (const [, n] of client.lavalink.nodeManager.nodes) if (n.connected) return n;
-        return null;
-    }
-
     // Busca pistas priorizando YouTube Music (versión oficial); ver buscarMusica.
     async function buscar(query, requester) {
-        const node = nodoConectado();
+        const node = nodoMusica(client); // primer nodo de Lavalink conectado (busca sin player)
         if (!node) throw new Error('motor-apagado');
         return buscarMusica(node, query, requester);
-    }
-
-    // ¿De qué fuente es esta consulta? (para respetar las fuentes permitidas).
-    function fuenteDe(query) {
-        const q = String(query).toLowerCase();
-        if (q.includes('spotify.com') || q.startsWith('spotify:')) return 'spotify';
-        if (q.includes('soundcloud.com')) return 'soundcloud';
-        return 'youtube';
     }
 
     // Canal de texto donde anunciar (la web no tiene canal, elegimos uno válido).
@@ -119,6 +106,15 @@ module.exports = ({ portalAuth, client }) => {
                 return res.status(409).json({ error: 'Ya estoy sonando en otro canal de voz.' });
             }
 
+            // Se busca ANTES de entrar al canal: si no hay nada que añadir, el bot no se queda en la voz.
+            const r = await buscar(query, { id: req.usuario.id, username: req.usuario.username });
+            if (!r || !r.tracks?.length) return res.status(404).json({ error: 'No encontré nada con eso.' });
+
+            // Playlists permitidas y tope de la cola (las mismas reglas que /play en Discord).
+            const { tracks: aAnadir, error, esPlaylist } = limitarEncolado(r, ctx.cfg, existente?.queue.tracks.length || 0);
+            if (error === 'sin-playlists') return res.status(403).json({ error: 'Las playlists están desactivadas. Añade canciones de una en una.' });
+            if (error === 'cola-llena') return res.status(409).json({ error: 'La cola está llena.' });
+
             const player = existente || client.lavalink.createPlayer({
                 guildId: ctx.guild.id,
                 voiceChannelId: ctx.voiceChannel.id,
@@ -127,22 +123,6 @@ module.exports = ({ portalAuth, client }) => {
                 volume: Math.min(ctx.cfg.volumenDefecto, ctx.cfg.volumenMax),
             });
             if (!player.connected) await player.connect();
-
-            const r = await buscar(query, { id: req.usuario.id, username: req.usuario.username });
-            if (!r || !r.tracks?.length) return res.status(404).json({ error: 'No encontré nada con eso.' });
-
-            const esPlaylist = r.loadType === 'playlist';
-            if (esPlaylist && !ctx.cfg.permitirPlaylists) {
-                return res.status(403).json({ error: 'Las playlists están desactivadas. Añade canciones de una en una.' });
-            }
-
-            // Respetar el tope de cola.
-            const aAnadir = esPlaylist ? r.tracks : [r.tracks[0]];
-            if (ctx.cfg.maxCola > 0) {
-                const hueco = ctx.cfg.maxCola - player.queue.tracks.length;
-                if (hueco <= 0) return res.status(409).json({ error: 'La cola está llena.' });
-                if (aAnadir.length > hueco) aAnadir.length = hueco;
-            }
 
             await player.queue.add(aAnadir);
             if (!player.playing && !player.paused) await player.play();

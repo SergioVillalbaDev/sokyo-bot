@@ -19,7 +19,7 @@ module.exports = {
         // El usuario está fuera del servidor: por mención o por ID en bruto.
         let userId = message.mentions.users.first()?.id;
         if (!userId && /^\d{15,20}$/.test(args[0] || '')) userId = args[0];
-        if (!userId) return message.reply(t(cfg, '❌ Indica el ID del usuario. Ej.: `!unban 123456789012345678`', '❌ Provide the user ID. e.g. `!unban 123456789012345678`'));
+        if (!userId) return message.reply(t(cfg, '❌ Indica a quién o su ID. Ej.: `/desbanear id-usuario: 123456789012345678`', '❌ Say who or give their ID. e.g. `/unban user-id: 123456789012345678`'));
 
         try {
             // Si hay un ban activo registrado, lo revocamos (desbanea + actualiza el registro).

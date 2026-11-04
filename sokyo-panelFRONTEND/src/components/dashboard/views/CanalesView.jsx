@@ -9,8 +9,10 @@ import {
   Hash, Volume2, Megaphone, MessagesSquare, Radio, Check, Minus, Search, Move, CheckCircle2, Info, Lock, ChevronsDownUp, ChevronsUpDown,
 } from 'lucide-react';
 import OrdenarCanales from './OrdenarCanales';
-import { Toggle } from '../../ui/primitives';
+import { Toggle, Avatar } from '../../ui/primitives';
 import { ESTILOS_FUENTE, aplicarEstilo } from '../../../lib/fancyText';
+import { useModoPermisos } from '../../../lib/modoPermisos';
+import SelectorModoPermisos from '../SelectorModoPermisos';
 
 const card = 'rounded-3xl border border-line bg-card shadow-soft';
 const ICONO_TIPO = { texto: Hash, voz: Volume2, anuncios: Megaphone, foro: MessagesSquare, escenario: Radio };
@@ -22,7 +24,7 @@ const colorVisible = (c) => (!c || c === '#000000' ? COLOR_DEFECTO : c);
 export default function CanalesView({ dash }) {
   const { t } = useTranslation();
   const {
-    estructuraCanales, permisosCanalCatalogo, roles,
+    estructuraCanales, permisosCanalCatalogo, roles, guildId, buscarMiembros,
     crearCategoriaCanal, editarCategoriaCanal, eliminarCategoriaCanal,
     crearCanalServidor, editarCanalServidor, eliminarCanalServidor, reordenarCanales,
   } = dash;
@@ -184,7 +186,7 @@ export default function CanalesView({ dash }) {
         {editandoCategoria && (
           <CategoriaModal
             categoria={editandoCategoria}
-            roles={roles} catalogo={permisosCanalCatalogo} permisosBot={permisosBot}
+            roles={roles} catalogo={permisosCanalCatalogo} permisosBot={permisosBot} guildId={guildId} buscarMiembros={buscarMiembros}
             onClose={() => setEditandoCategoria(null)}
             onGuardar={async (datos) => trasGuardar(
               editandoCategoria.id ? await editarCategoriaCanal(editandoCategoria.id, datos) : await crearCategoriaCanal(datos),
@@ -195,7 +197,7 @@ export default function CanalesView({ dash }) {
         {editandoCanal && (
           <CanalModal
             estado={editandoCanal}
-            categorias={categorias} roles={roles} catalogo={permisosCanalCatalogo} permisosBot={permisosBot} comunidad={comunidad}
+            categorias={categorias} roles={roles} catalogo={permisosCanalCatalogo} permisosBot={permisosBot} comunidad={comunidad} guildId={guildId} buscarMiembros={buscarMiembros}
             onClose={() => setEditandoCanal(null)}
             onGuardar={async (datos) => trasGuardar(
               editandoCanal.canal ? await editarCanalServidor(editandoCanal.canal.id, datos) : await crearCanalServidor(datos),
@@ -277,24 +279,45 @@ function CanalRow({ canal, onEditar, onEliminar }) {
   );
 }
 
-// --- Editor de permisos por rol (overwrites), reutilizado en ambos modales ---
+// --- Editor de permisos (overwrites), reutilizado en ambos modales ---
 // `permisosBot`: los que el bot puede dar (null = no se sabe, se deja todo).
-function EditorPermisos({ overwrites, setOverwrites, roles, catalogo, permisosBot }) {
+// Modo simple: permisos por ROL (incluido @everyone). Modo avanzado: además los de
+// MIEMBROS concretos y botones para permitir/denegar/restablecer todo de golpe.
+function EditorPermisos({ overwrites, setOverwrites, roles, catalogo, permisosBot, modo, guildId, buscarMiembros }) {
   const { t } = useTranslation();
+  const avanzado = modo === 'avanzado';
   const etiquetaPermiso = (flag) => t(`dashboard.canales_v.perms.${flag}`, { defaultValue: t(`dashboard.roles_v.perms.${flag}`, flag) });
   const bloqueado = (flag) => Array.isArray(permisosBot) && !permisosBot.includes(flag);
   const [busqueda, setBusqueda] = useState('');
+  const [busquedaMiembro, setBusquedaMiembro] = useState('');
+  const [miembrosEncontrados, setMiembrosEncontrados] = useState([]);
+  const todosLosFlags = (catalogo || []).flatMap((g) => g.permisos);
 
   const colorDe = (id) => colorVisible((roles || []).find((r) => r.id === id)?.color);
+  const esMiembro = (o) => o.tipo === 'miembro';
+  const visibles = overwrites.filter((o) => avanzado || !esMiembro(o));
 
-  const disponibles = (roles || [])
+  // @everyone (el id del servidor) también se puede añadir: es lo que hace privado un canal.
+  const everyone = guildId ? [{ id: guildId, nombre: '@everyone', color: null }] : [];
+  const disponibles = [...everyone, ...(roles || [])]
     .filter((r) => !overwrites.some((o) => o.id === r.id))
     .filter((r) => !busqueda.trim() || r.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()));
 
   // Clic directo en un rol de la lista: se añade al instante (sin desplegable ni botón aparte).
   const añadir = (rolId) => {
-    const rol = roles.find((r) => r.id === rolId);
-    setOverwrites([...overwrites, { id: rolId, nombre: rol?.nombre || rolId, allow: [], deny: [] }]);
+    const rol = [...everyone, ...(roles || [])].find((r) => r.id === rolId);
+    setOverwrites([...overwrites, { id: rolId, nombre: rol?.nombre || rolId, tipo: 'rol', allow: [], deny: [] }]);
+  };
+  const añadirMiembro = (m) => {
+    if (overwrites.some((o) => o.id === m.id)) return;
+    setOverwrites([...overwrites, { id: m.id, nombre: m.displayName, avatar: m.avatar, tipo: 'miembro', allow: [], deny: [] }]);
+    setBusquedaMiembro(''); setMiembrosEncontrados([]);
+  };
+  const buscarMiembro = async (q) => {
+    setBusquedaMiembro(q);
+    if (!buscarMiembros) return;
+    const encontrados = await buscarMiembros(q);
+    setMiembrosEncontrados((encontrados || []).filter((m) => !overwrites.some((o) => o.id === m.id)).slice(0, 8));
   };
 
   const quitar = (id) => setOverwrites(overwrites.filter((o) => o.id !== id));
@@ -312,27 +335,47 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo, permisosBo
       return { ...o, allow: [...o.allow, flag] };
     }));
   };
+  // Todo de golpe (modo avanzado). Lo que el bot no tiene no se puede dar: se queda en «heredar».
+  const ponerTodo = (id, estado) => {
+    const posibles = todosLosFlags.filter((f) => !bloqueado(f));
+    setOverwrites(overwrites.map((o) => {
+      if (o.id !== id) return o;
+      if (estado === 'allow') return { ...o, allow: posibles, deny: [] };
+      if (estado === 'deny') return { ...o, allow: [], deny: posibles };
+      return { ...o, allow: [], deny: [] };
+    }));
+  };
 
   return (
     <div>
       <label className="mb-2 block text-xs font-semibold text-muted">{t('dashboard.canales_v.fieldPerms')}</label>
 
-      {overwrites.length === 0 ? (
+      {visibles.length === 0 ? (
         <p className="mb-2 text-sm italic text-muted">{t('dashboard.canales_v.noOverwrites')}</p>
       ) : (
         <p className="mb-2 text-xs text-muted">{t('dashboard.canales_v.permsHelp')}</p>
       )}
 
       <div className="space-y-3">
-        {overwrites.map((o) => (
+        {visibles.map((o) => (
           <div key={o.id} className="rounded-2xl border border-line bg-bg p-3.5">
-            <div className="mb-2.5 flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm font-bold text-fg">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorDe(o.id) }} />
-                {o.nombre}
+            <div className="mb-2.5 flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-2 text-sm font-bold text-fg">
+                {esMiembro(o)
+                  ? <Avatar src={o.avatar} name={o.nombre} size={20} />
+                  : <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: o.id === guildId ? COLOR_DEFECTO : colorDe(o.id) }} />}
+                <span className="truncate">{o.nombre}</span>
+                {esMiembro(o) && <span className="shrink-0 rounded-md border border-line px-1.5 py-0.5 text-[10px] font-semibold text-muted">{t('dashboard.canales_v.memberTag')}</span>}
               </span>
-              <button onClick={() => quitar(o.id)} className="text-muted transition-colors hover:text-danger"><X size={15} /></button>
+              <button onClick={() => quitar(o.id)} className="shrink-0 text-muted transition-colors hover:text-danger" title={t('dashboard.canales_v.removeOverwrite')}><X size={15} /></button>
             </div>
+            {avanzado && (
+              <div className="mb-2.5 flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => ponerTodo(o.id, 'allow')} className="rounded-lg border border-success/40 px-2 py-1 text-[11px] font-semibold text-success">{t('dashboard.canales_v.allowAll')}</button>
+                <button type="button" onClick={() => ponerTodo(o.id, 'deny')} className="rounded-lg border border-danger/40 px-2 py-1 text-[11px] font-semibold text-danger">{t('dashboard.canales_v.denyAll')}</button>
+                <button type="button" onClick={() => ponerTodo(o.id, 'neutral')} className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-muted">{t('dashboard.canales_v.resetAll')}</button>
+              </div>
+            )}
             <div className="space-y-2.5">
               {(catalogo || []).map((grupo) => (
                 <div key={grupo.grupo}>
@@ -368,7 +411,7 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo, permisosBo
         ))}
       </div>
 
-      {(roles || []).length > 0 && (
+      {disponibles.length + (roles || []).length > 0 && (
         <div className="mt-3">
           <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.canales_v.addOverwrite')}</p>
           <div className="relative">
@@ -389,6 +432,7 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo, permisosBo
               >
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorVisible(r.color) }} />
                 <span className="min-w-0 flex-1 truncate text-fg">{r.nombre}</span>
+                {r.id === guildId && <span className="shrink-0 text-xs text-muted">{t('dashboard.canales_v.everyoneHint')}</span>}
                 {typeof r.miembros === 'number' && (
                   <span className="shrink-0 text-xs text-muted">{t('dashboard.roles_v.memberCount', { count: r.miembros })}</span>
                 )}
@@ -398,18 +442,58 @@ function EditorPermisos({ overwrites, setOverwrites, roles, catalogo, permisosBo
           </div>
         </div>
       )}
+
+      {avanzado && buscarMiembros && (
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.canales_v.addMember')}</p>
+          <div className="relative">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              value={busquedaMiembro} onChange={(e) => buscarMiembro(e.target.value)}
+              onFocus={() => { if (!miembrosEncontrados.length) buscarMiembro(busquedaMiembro); }}
+              placeholder={t('dashboard.canales_v.searchMemberPlaceholder')}
+              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-3 text-sm text-fg outline-none focus:border-brand"
+            />
+          </div>
+          {miembrosEncontrados.length > 0 && (
+            <div className="mt-2 max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-line p-1.5">
+              {miembrosEncontrados.map((m) => (
+                <button key={m.id} onClick={() => añadirMiembro(m)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-elevated">
+                  <Avatar src={m.avatar} name={m.displayName} size={22} />
+                  <span className="min-w-0 flex-1 truncate text-fg">{m.displayName}</span>
+                  <Plus size={14} className="shrink-0 text-muted" />
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="mt-1.5 text-[11px] leading-snug text-muted">{t('dashboard.canales_v.memberNote')}</p>
+        </div>
+      )}
     </div>
   );
 }
 
+// Lista de permisos para mandar a la API: en modo simple solo los de rol (los de miembro
+// no se tocan); en avanzado también los de miembro y los que se han quitado a mano.
+function permisosParaGuardar(overwrites, originales, modo) {
+  const avanzado = modo === 'avanzado';
+  const lista = overwrites
+    .filter((o) => avanzado || o.tipo !== 'miembro')
+    .map(({ id, allow, deny, tipo }) => ({ id, allow, deny, tipo: tipo || 'rol' }));
+  const quedan = new Set(overwrites.map((o) => o.id));
+  const quitarMiembros = avanzado ? originales.filter((o) => o.tipo === 'miembro' && !quedan.has(o.id)).map((o) => o.id) : [];
+  return { overwrites: lista, quitarMiembros };
+}
+
 // --- Modal de crear / editar CATEGORÍA ---
-function CategoriaModal({ categoria, roles, catalogo, permisosBot, onClose, onGuardar }) {
+function CategoriaModal({ categoria, roles, catalogo, permisosBot, guildId, buscarMiembros, onClose, onGuardar }) {
   const { t } = useTranslation();
   const editando = !!categoria.id;
+  const [modo, setModo] = useModoPermisos();
 
   const [nombre, setNombre] = useState(categoria.nombre || '');
   const [estiloFuente, setEstiloFuente] = useState('normal');
-  const [overwrites, setOverwrites] = useState((categoria.overwrites || []).filter((o) => o.tipo !== 'miembro'));
+  const [overwrites, setOverwrites] = useState(categoria.overwrites || []);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState(null);
 
@@ -418,7 +502,7 @@ function CategoriaModal({ categoria, roles, catalogo, permisosBot, onClose, onGu
   const guardar = async () => {
     if (!nombre.trim()) return;
     setGuardando(true); setError(null);
-    const fallo = await onGuardar({ nombre: nombreFinal, overwrites: overwrites.map(({ id, allow, deny }) => ({ id, allow, deny })) });
+    const fallo = await onGuardar({ nombre: nombreFinal, ...permisosParaGuardar(overwrites, categoria.overwrites || [], modo) });
     setGuardando(false);
     if (fallo) setError(fallo);
   };
@@ -447,7 +531,8 @@ function CategoriaModal({ categoria, roles, catalogo, permisosBot, onClose, onGu
         )}
 
         <div className="mb-2">
-          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} permisosBot={permisosBot} />
+          <SelectorModoPermisos modo={modo} setModo={setModo} className="mb-3" />
+          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} permisosBot={permisosBot} modo={modo} guildId={guildId} buscarMiembros={buscarMiembros} />
         </div>
 
         {error && <p role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger">{error}</p>}
@@ -463,7 +548,8 @@ function CategoriaModal({ categoria, roles, catalogo, permisosBot, onClose, onGu
 }
 
 // --- Modal de crear / editar CANAL ---
-function CanalModal({ estado, categorias, roles, catalogo, permisosBot, comunidad = true, onClose, onGuardar }) {
+function CanalModal({ estado, categorias, roles, catalogo, permisosBot, comunidad = true, onClose, onGuardar, guildId, buscarMiembros }) {
+  const [modo, setModo] = useModoPermisos();
   const { t } = useTranslation();
   const canal = estado.canal || null;
   const editando = !!canal;
@@ -477,7 +563,7 @@ function CanalModal({ estado, categorias, roles, catalogo, permisosBot, comunida
   const [slowmode, setSlowmode] = useState(canal?.slowmode || 0);
   const [bitrate, setBitrate] = useState(canal?.bitrate ? Math.round(canal.bitrate / 1000) : 64);
   const [userLimit, setUserLimit] = useState(canal?.userLimit || 0);
-  const [overwrites, setOverwrites] = useState((canal?.overwrites || []).filter((o) => o.tipo !== 'miembro'));
+  const [overwrites, setOverwrites] = useState(canal?.overwrites || []);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState(null);
 
@@ -492,7 +578,7 @@ function CanalModal({ estado, categorias, roles, catalogo, permisosBot, comunida
     setGuardando(true); setError(null);
     const datos = {
       nombre: nombreFinal, categoriaId: categoriaId || null,
-      overwrites: overwrites.map(({ id, allow, deny }) => ({ id, allow, deny })),
+      ...permisosParaGuardar(overwrites, canal?.overwrites || [], modo),
     };
     if (!editando) datos.tipo = tipo;
     if (esTexto) { datos.topic = topic; datos.nsfw = nsfw; if (conModoLento) datos.slowmode = slowmode; }
@@ -577,7 +663,8 @@ function CanalModal({ estado, categorias, roles, catalogo, permisosBot, comunida
         )}
 
         <div className="mb-2">
-          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} permisosBot={permisosBot} />
+          <SelectorModoPermisos modo={modo} setModo={setModo} className="mb-3" />
+          <EditorPermisos overwrites={overwrites} setOverwrites={setOverwrites} roles={roles} catalogo={catalogo} permisosBot={permisosBot} modo={modo} guildId={guildId} buscarMiembros={buscarMiembros} />
         </div>
 
         {error && <p role="alert" className="mt-5 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger">{error}</p>}

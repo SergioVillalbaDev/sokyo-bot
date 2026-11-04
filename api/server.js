@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { ChannelType, PermissionsBitField, AttachmentBuilder } = require('discord.js');
+const { ChannelType, PermissionsBitField, AttachmentBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const { extensionImagen, imagenDeDataUrl, ERROR_NO_IMAGEN } = require('../utils/imagenes.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
@@ -19,6 +19,7 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const RegistroMensaje = require('../models/RegistroMensaje.js');
 const TarjetaPersonal = require('../models/TarjetaPersonal.js');
 const CatalogoPresets = require('../models/CatalogoPresets.js');
+const MensajeEntrada = require('../models/MensajeEntrada.js');
 const Reporte = require('../models/Reporte.js');
 const AnuncioProgramado = require('../models/AnuncioProgramado.js');
 const AnuncioPreset = require('../models/AnuncioPreset.js');
@@ -839,6 +840,74 @@ module.exports = (client) => {
         }
     });
 
+    // ===================== MENSAJE DE ENTRADA (solo propietarios del bot) =====================
+    // El mensaje que manda el bot al entrar en un servidor (utils/onboarding.js). Es GLOBAL.
+    // Las rutas usan `exigeOwner` (está con las demás rutas de propietario, más abajo).
+    const onboarding = require('../utils/onboarding.js');
+    const CANAL_ENTRADA = ['siempre', 'respaldo', 'nunca'];
+    // Lo que llega del panel, saneado (textos recortados a los límites de Discord).
+    function sanearMensajeEntrada(b = {}) {
+        const textos = (x = {}) => ({
+            titulo: String(x.titulo || '').trim().slice(0, 256),
+            descripcion: String(x.descripcion || '').trim().slice(0, 2000),
+        });
+        return {
+            activo: b.activo !== false,
+            alDueno: b.alDueno !== false,
+            alCanal: CANAL_ENTRADA.includes(b.alCanal) ? b.alCanal : 'respaldo',
+            guiaCompleta: b.guiaCompleta !== false,
+            es: textos(b.es), en: textos(b.en),
+        };
+    }
+    app.get('/api/owner/mensaje-entrada', exigeOwner, async (req, res) => {
+        try {
+            const config = await onboarding.cargarMensajeEntrada({ forzar: true });
+            res.json({ config, piezas: { es: onboarding.piezasMensajeEntrada('es'), en: onboarding.piezasMensajeEntrada('en') } });
+        } catch (error) {
+            console.error('Error leyendo el mensaje de entrada:', error);
+            res.status(500).json({ error: 'Error del servidor' });
+        }
+    });
+    app.put('/api/owner/mensaje-entrada', exigeOwner, async (req, res) => {
+        try {
+            const datos = sanearMensajeEntrada(req.body);
+            if (datos.activo && !datos.alDueno && datos.alCanal === 'respaldo') datos.alCanal = 'siempre'; // si no va por privado, el respaldo es el canal
+            await MensajeEntrada.findOneAndUpdate(
+                { clave: 'global' }, { $set: { ...datos, actualizadoPor: req.staff.username || req.staff.id } },
+                { upsert: true, returnDocument: 'after' },
+            );
+            onboarding.olvidarMensajeEntrada();
+            res.json({ success: true, config: await onboarding.cargarMensajeEntrada({ forzar: true }) });
+        } catch (error) {
+            console.error('Error guardando el mensaje de entrada:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+    // Manda a tu privado el mensaje tal como está en el panel (sin guardar), como si el
+    // bot entrara ahora en el servidor que tienes abierto en el panel (o en uno de ejemplo).
+    // Los botones salen desactivados (es una prueba).
+    app.post('/api/owner/mensaje-entrada/probar', exigeOwner, async (req, res) => {
+        try {
+            const entrada = sanearMensajeEntrada(req.body);
+            const idioma = req.body?.idioma === 'en' ? 'en' : 'es';
+            const guild = client.guilds.cache.get(String(req.body?.guildId || ''))
+                || { id: '0', name: idioma === 'es' ? 'Tu servidor' : 'Your server', iconURL: () => null };
+            const config = await ServidorConfig.findOne({ guildId: guild.id }).lean().catch(() => null);
+            const mensaje = onboarding.construirBienvenida(guild, config, idioma, entrada);
+            mensaje.components = (mensaje.components || []).map((fila) => {
+                const f = ActionRowBuilder.from(fila);
+                f.components.forEach((b) => { if (b.data.style !== ButtonStyle.Link) b.setDisabled(true); });
+                return f;
+            });
+            const usuario = await client.users.fetch(req.staff.id);
+            await usuario.send({ content: idioma === 'es' ? '🧪 **Prueba del mensaje de entrada** (así lo verá el dueño de un servidor nuevo):' : '🧪 **Entry message test** (this is what a new server owner will see):', ...mensaje });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error enviando la prueba del mensaje de entrada:', error.message);
+            res.status(error.code === 50007 ? 409 : 500).json({ error: error.code === 50007 ? 'No te puedo escribir por privado: abre los mensajes directos del servidor en tu Discord.' : 'No se pudo enviar la prueba' });
+        }
+    });
+
     // Máximo de caracteres de un mensaje enviado desde la web (Discord admite 2000
     // y se reserva sitio para el prefijo "**[usuario]** ").
     const LIMITE_MENSAJE_WEB = 1900;
@@ -1587,10 +1656,10 @@ app.get('/api/stats/uso', async (req, res) => {
     // `req.staff.owner` se firma en el login a partir de OWNER_IDS (no es falsificable
     // sin el JWT_SECRET). Esto deja a los dueños del bot conceder Pro/Agencia a mano
     // desde el panel, sin tocar la consola. NADIE más puede llamar a esto.
-    const exigeOwner = (req, res, next) => {
+    function exigeOwner(req, res, next) {
         if (req.staff && req.staff.owner) return next();
         return res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' });
-    };
+    }
     app.post('/api/owner/premium', exigeOwner, async (req, res) => {
         try {
             const guildId = String(req.body.guildId || '').trim();
@@ -2619,17 +2688,53 @@ app.get('/api/stats/uso', async (req, res) => {
         return gid ? client.guilds.cache.get(gid) : null;
     }
 
+    // Color de Discord (número) a #rrggbb, o null si no tiene.
+    const hexDe = (n) => (typeof n === 'number' && n > 0 ? `#${n.toString(16).padStart(6, '0')}` : null);
+
     // Pasa un rol de Discord al formato que consume el frontend.
     function serializarRol(rol) {
         return {
             id: rol.id,
             nombre: rol.name,
             color: rol.hexColor,
+            colorSecundario: hexDe(rol.colors?.secondaryColor),   // degradado (si el servidor lo tiene)
+            emoji: rol.unicodeEmoji || null,                        // emoji del rol (si el servidor tiene iconos de rol)
+            separado: !!rol.hoist,                                  // «Mostrar a los miembros del rol por separado»
+            mencionable: !!rol.mentionable,                         // «Permitir que cualquiera @mencione este rol»
             miembros: rol.members.size,
             posicion: rol.position,
             gestionable: rol.editable,           // ¿el bot puede tocarlo? (jerarquía)
             permisos: sinAlias(rol.permissions.toArray()), // lista de flags activos
         };
+    }
+
+    // Qué opciones de rol de Discord tiene este servidor (algunas dependen de sus mejoras).
+    const funcionesRol = (guild) => ({
+        degradado: (guild.features || []).includes('ENHANCED_ROLE_COLORS'), // color en degradado
+        iconos: (guild.features || []).includes('ROLE_ICONS'),              // emoji/icono del rol (nivel 2 de mejoras)
+    });
+
+    // Opciones de «mostrar» del rol que llegan del panel (modo simple y avanzado),
+    // validadas. Devuelve { cambios } o { error, codigo }.
+    const HEX = /^#[0-9a-f]{6}$/i;
+    function opcionesMostrarRol(guild, body) {
+        const cambios = {};
+        if (body.separado !== undefined) cambios.hoist = !!body.separado;
+        if (body.mencionable !== undefined) cambios.mentionable = !!body.mencionable;
+        const f = funcionesRol(guild);
+        if (body.colorSecundario !== undefined) {
+            const c = body.colorSecundario;
+            if (c && !HEX.test(c)) return { error: 'El color del degradado no es válido', codigo: 'color' };
+            if (c && !f.degradado) return { error: 'Este servidor no tiene colores en degradado para los roles (son de las mejoras de servidor)', codigo: 'sin_degradado' };
+            cambios.secondaryColor = c || null;
+        }
+        if (body.emoji !== undefined) {
+            const e = String(body.emoji || '').trim();
+            if (e && !f.iconos) return { error: 'Este servidor no tiene iconos de rol (hacen falta 7 mejoras de servidor, nivel 2)', codigo: 'sin_iconos' };
+            if (e.length > 16) return { error: 'Pon un solo emoji', codigo: 'emoji' };
+            cambios.unicodeEmoji = e || null;
+        }
+        return { cambios };
     }
 
     // Reglas de jerarquía de Discord para el staff (ver utils/permisos.js).
@@ -2638,6 +2743,12 @@ app.get('/api/stats/uso', async (req, res) => {
 
     // Catálogo de permisos para que el panel pinte los toggles.
     app.get('/api/roles/catalogo', (req, res) => res.json(PERMISOS_CATALOGO));
+
+    // Opciones de rol que dependen de las mejoras del servidor (modo avanzado del panel).
+    app.get('/api/roles/funciones', async (req, res) => {
+        const guild = await resolverGuild(req.query.guildId, req.staff);
+        res.json(guild ? funcionesRol(guild) : { degradado: false, iconos: false });
+    });
 
     // Lista detallada de roles (con nº de miembros y permisos) para el panel.
     app.get('/api/roles', async (req, res) => {
@@ -2662,6 +2773,9 @@ app.get('/api/stats/uso', async (req, res) => {
             const guild = await resolverGuild(guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
             if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
+            const mostrar = opcionesMostrarRol(guild, req.body);
+            if (mostrar.error) return res.status(400).json({ error: mostrar.error, codigo: mostrar.codigo });
+            const { secondaryColor, ...otras } = mostrar.cambios;
             const permisosRol = Array.isArray(permisos) ? permisos : [];
             const errJer = await errorJerarquia(req, guild, null, permisosRol);
             if (errJer) return res.status(403).json({ error: errJer });
@@ -2669,12 +2783,15 @@ app.get('/api/stats/uso', async (req, res) => {
             if (faltan.length) return res.status(403).json({ error: 'El bot no puede dar permisos que él no tiene', codigo: 'permisos_bot', permisos: faltan });
             const rol = await guild.roles.create({
                 name: nombre.trim().slice(0, 100),
-                colors: { primaryColor: color || '#99AAB5' },
+                colors: { primaryColor: color || '#99AAB5', ...(secondaryColor ? { secondaryColor } : {}) },
                 permissions: permisosRol,
+                ...otras,
             });
             res.json({ success: true, rol: serializarRol(rol) });
         } catch (error) {
             console.error('Error al crear rol:', error);
+            // 50035 = Discord rechaza un dato (p. ej. un emoji que no es un emoji normal).
+            if (error.code === 50035) return res.status(400).json({ error: 'Discord ha rechazado algún dato del rol: revisa el emoji (tiene que ser uno normal, no uno del servidor) y los colores.', codigo: 'dato_invalido' });
             res.status(500).json({ error: 'No se pudo crear el rol' });
         }
     });
@@ -2695,15 +2812,33 @@ app.get('/api/stats/uso', async (req, res) => {
             if (errJer) return res.status(403).json({ error: errJer });
             const faltan = permisosQueElBotNoTiene(guild, nuevos);
             if (faltan.length) return res.status(403).json({ error: 'El bot no puede dar permisos que él no tiene', codigo: 'permisos_bot', permisos: faltan });
-            const cambios = {};
+            const mostrar = opcionesMostrarRol(guild, req.body);
+            if (mostrar.error) return res.status(400).json({ error: mostrar.error, codigo: mostrar.codigo });
+            const { secondaryColor, ...otras } = mostrar.cambios;
+            const cambios = { ...otras };
             if (nombre !== undefined) cambios.name = String(nombre).trim().slice(0, 100);
-            if (color !== undefined) cambios.colors = { primaryColor: color };
+            // Los colores solo se mandan si cambian: si no, se perdería lo que el panel no
+            // maneja (el estilo holográfico de Discord, con su tercer color).
+            const actuales = rol.colors || {};
+            const numero = (c) => (c ? parseInt(String(c).replace('#', ''), 16) : null);
+            const cambiaPrimario = color !== undefined && numero(color) !== (actuales.primaryColor ?? rol.color ?? null);
+            const cambiaSecundario = secondaryColor !== undefined && numero(secondaryColor) !== (actuales.secondaryColor ?? null);
+            if (cambiaPrimario || cambiaSecundario) {
+                cambios.colors = { primaryColor: cambiaPrimario ? color : rol.hexColor };
+                if (cambiaSecundario) cambios.colors.secondaryColor = secondaryColor;
+                else if (actuales.secondaryColor) { // no perder el degradado (ni el holográfico)
+                    cambios.colors.secondaryColor = actuales.secondaryColor;
+                    if (actuales.tertiaryColor) cambios.colors.tertiaryColor = actuales.tertiaryColor;
+                }
+            }
             if (Array.isArray(permisos)) cambios.permissions = permisos;
 
             await rol.edit(cambios);
             res.json({ success: true, rol: serializarRol(rol) });
         } catch (error) {
             console.error('Error al editar rol:', error);
+            // 50035 = Discord rechaza un dato (p. ej. un emoji que no es un emoji normal).
+            if (error.code === 50035) return res.status(400).json({ error: 'Discord ha rechazado algún dato del rol: revisa el emoji (tiene que ser uno normal, no uno del servidor) y los colores.', codigo: 'dato_invalido' });
             res.status(500).json({ error: 'No se pudo editar el rol' });
         }
     });

@@ -47,6 +47,9 @@ module.exports = {
             require('../utils/grupos.js').cargarSalas(),
         ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
 
+        // Mensaje de entrada (panel → Propietario): se tiene a mano para /setup y el botón de idioma.
+        esperarMongo().then(() => require('../utils/onboarding.js').cargarMensajeEntrada()).catch(() => {});
+
         // Crecimiento: usos actuales de las invitaciones (para saber quién invita a quién).
         esperarMongo().then(() => cargarInvitaciones(client)).catch((e) => console.error('Cargar invitaciones:', e.message));
 

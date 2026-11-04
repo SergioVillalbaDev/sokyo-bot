@@ -1,6 +1,6 @@
 const { Events, ChannelType, PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
-const { construirBienvenida } = require('../utils/onboarding.js');
+const { construirBienvenida, cargarMensajeEntrada } = require('../utils/onboarding.js');
 const { cargarInvitaciones } = require('../utils/invitaciones.js');
 
 module.exports = {
@@ -25,21 +25,32 @@ module.exports = {
                 console.log(`🎁 Prueba Pro de 7 días activada en ${guild.name} (${guild.id})`);
             }
 
-            const bienvenida = construirBienvenida(guild, config);
+            // Mensaje de entrada: lo configuran los propietarios del bot (panel → Propietario).
+            const entrada = await cargarMensajeEntrada();
+            if (entrada.activo) {
+                const bienvenida = construirBienvenida(guild, config, undefined, entrada);
 
-            // 2. Intentar MD privado al dueño del servidor.
-            try {
-                const owner = await guild.fetchOwner();
-                await owner.send(bienvenida);
-            } catch { /* el dueño tiene los MD cerrados: lo dejamos en un canal */ }
+                // 2. Por privado al dueño del servidor (así la configuración no se ve en público).
+                let llegoAlDueno = false;
+                if (entrada.alDueno) {
+                    try {
+                        const owner = await guild.fetchOwner();
+                        await owner.send(bienvenida);
+                        llegoAlDueno = true;
+                    } catch { /* el dueño tiene los MD cerrados */ }
+                }
 
-            // 3. Respaldo en un canal: el del sistema, o el primero donde el bot pueda escribir.
-            const yo = guild.members.me;
-            const puedeEscribir = (c) => c.type === ChannelType.GuildText && c.permissionsFor(yo)?.has(PermissionsBitField.Flags.SendMessages);
-            const canal = (guild.systemChannel && puedeEscribir(guild.systemChannel))
-                ? guild.systemChannel
-                : guild.channels.cache.find(puedeEscribir);
-            if (canal) await canal.send(bienvenida).catch(() => {});
+                // 3. En un canal (el del sistema, o el primero donde el bot pueda escribir):
+                //    siempre, solo si no le llegó por privado («respaldo») o nunca.
+                if (entrada.alCanal === 'siempre' || (entrada.alCanal === 'respaldo' && !llegoAlDueno)) {
+                    const yo = guild.members.me;
+                    const puedeEscribir = (c) => c.type === ChannelType.GuildText && c.permissionsFor(yo)?.has(PermissionsBitField.Flags.SendMessages);
+                    const canal = (guild.systemChannel && puedeEscribir(guild.systemChannel))
+                        ? guild.systemChannel
+                        : guild.channels.cache.find(puedeEscribir);
+                    if (canal) await canal.send(bienvenida).catch(() => {});
+                }
+            }
 
             console.log(`🎉 Bot añadido a un servidor nuevo: ${guild.name} (${guild.id})`);
         } catch (error) {

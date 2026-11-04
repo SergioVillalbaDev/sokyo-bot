@@ -6,7 +6,7 @@
 // (npm run lavalink) que es quien reproduce en los canales de voz.
 
 const { LavalinkManager } = require('lavalink-client');
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { esPro } = require('./billing.js');
 const { getConfigCached } = require('./config.js');
@@ -137,6 +137,42 @@ async function otraVersion(player, track) {
         } catch { /* se prueba la siguiente búsqueda */ }
     }
     return null;
+}
+
+// ¿De qué fuente es lo que pide el usuario? (para respetar las fuentes permitidas del
+// servidor). Un texto sin enlace se busca en YouTube.
+function fuenteDe(query) {
+    const q = String(query || '').toLowerCase();
+    if (q.includes('spotify.com') || q.startsWith('spotify:')) return 'spotify';
+    if (q.includes('soundcloud.com')) return 'soundcloud';
+    return 'youtube';
+}
+
+// ¿Hay un servidor de música (Lavalink) conectado? Sin él no se puede buscar ni sonar.
+function nodoMusica(client) {
+    const nodos = client?.lavalink?.nodeManager?.nodes;
+    if (!nodos) return null;
+    for (const [, n] of nodos) if (n.connected) return n;
+    return null;
+}
+const hayNodoMusica = (client) => !!nodoMusica(client);
+
+// Qué canciones de un resultado se pueden añadir según los ajustes del servidor
+// (playlists permitidas y tope de la cola). La usan /play y el panel web, para que
+// las dos vías cumplan las mismas reglas.
+// Devuelve { tracks, recortadas, error } con error = 'sin-playlists' | 'cola-llena' | null.
+function limitarEncolado(res, cfg, enColaAhora = 0) {
+    const esPlaylist = res?.loadType === 'playlist';
+    if (esPlaylist && cfg && cfg.permitirPlaylists === false) return { tracks: [], recortadas: 0, error: 'sin-playlists', esPlaylist };
+    const tracks = esPlaylist ? [...(res.tracks || [])] : (res?.tracks?.length ? [res.tracks[0]] : []);
+    let recortadas = 0;
+    const max = Number(cfg?.maxCola) || 0;
+    if (max > 0) {
+        const hueco = max - enColaAhora;
+        if (hueco <= 0) return { tracks: [], recortadas: 0, error: 'cola-llena', esPlaylist };
+        if (tracks.length > hueco) { recortadas = tracks.length - hueco; tracks.length = hueco; }
+    }
+    return { tracks, recortadas, error: null, esPlaylist };
 }
 
 // Fuentes que en realidad suenan desde YouTube (Spotify, Apple Music… van en modo espejo).
@@ -648,8 +684,9 @@ function initMusica(client) {
     // Reenviar los paquetes de voz crudos de Discord a Lavalink.
     client.on('raw', (d) => client.lavalink.sendRawData(d));
 
-    // Inicializar el manager cuando el bot ya tenga sesión.
-    client.once('ready', () => {
+    // Inicializar el manager cuando el bot ya tenga sesión. (clientReady: 'ready' está
+    // obsoleto en discord.js y dejará de existir; sin esto la música nunca arrancaría.)
+    client.once(Events.ClientReady, () => {
         client.lavalink.init({ id: client.user.id, username: client.user.username });
     });
 
@@ -685,5 +722,5 @@ module.exports = {
     initMusica, formatDuration, ensureVoice, gateMusica, COLOR_MUSICA,
     getMusicaConfig, encontrarContextoVoz, puedeControlar, serializarEstado, trackJSON,
     manejarBotonMusica, MUSICA_DEFAULTS, buscarMusica, es247, estadoServidorMusica,
-    motivoFallo, tituloParaBuscar,
+    motivoFallo, tituloParaBuscar, fuenteDe, hayNodoMusica, nodoMusica, limitarEncolado,
 };

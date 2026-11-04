@@ -15,7 +15,7 @@ module.exports = {
 
         if (sub === 'add') {
             const nombre = String(args[1] || '').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32);
-            if (!nombre || nombre.length < 2) return message.reply(t(cfg, '❌ Indica un nombre. Ej.: `!sticker add nombre` con un PNG adjunto.', '❌ Provide a name. e.g. `!sticker add name` with a PNG attached.'));
+            if (!nombre || nombre.length < 2) return message.reply(t(cfg, '❌ Indica un nombre. Ej.: `/sticker añadir nombre: gato imagen:` con un PNG.', '❌ Provide a name. e.g. `/sticker add name: cat image:` with a PNG.'));
             const att = message.attachments.first();
             if (!att) return message.reply(t(cfg, '❌ Adjunta una imagen PNG (máx. 512 KB, ideal 320×320).', '❌ Attach a PNG image (≤512 KB, ideally 320×320).'));
 
@@ -33,6 +33,6 @@ module.exports = {
             catch (e) { return message.reply(`❌ ${e.message}`); }
         }
 
-        return message.reply(t(cfg, 'Uso: `!sticker add <nombre>` (adjunta un PNG) · `!sticker remove <nombre>`', 'Usage: `!sticker add <name>` (attach a PNG) · `!sticker remove <name>`'));
+        return message.reply(t(cfg, 'Uso: `/sticker añadir` (con un PNG) · `/sticker quitar`', 'Usage: `/sticker add` (with a PNG) · `/sticker remove`'));
     },
 };
