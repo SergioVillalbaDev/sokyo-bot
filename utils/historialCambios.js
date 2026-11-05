@@ -15,7 +15,7 @@ const { esInterno, aplanar, leerRuta } = require('./camposInternos.js');
 const SECCION = {
     motivos: 'tickets-config', urgencias: 'tickets-config', mensajeSoporteTitulo: 'tickets-config',
     mensajeSoporteDescripcion: 'tickets-config', textoBoton: 'tickets-config', mensajeBienvenida: 'tickets-config',
-    categoriaArchivados: 'tickets-config', rolStaffId: 'tickets-config', categoriaTicketsId: 'tickets-config',
+    categoriaArchivados: 'tickets-config', categoriaArchivadosId: 'tickets-config', rolStaffId: 'tickets-config', categoriaTicketsId: 'tickets-config',
     maxTicketsAbiertos: 'tickets-config', autoCierreDias: 'tickets-config', autoAsignar: 'tickets-config',
     respuestasRapidas: 'tickets-config', ratingActivo: 'tickets-config', enviarTranscript: 'tickets-config',
     avisoCierreCanal: 'tickets-config', pingSoporte: 'tickets-config', rolSoporteId: 'tickets-config',

@@ -65,21 +65,21 @@ export default function GraficaActividad({ serie = [] }) {
       <svg width={ancho} height={ALTO} role="img" aria-label={t('portal.home.chartAria')} className="block overflow-visible">
         <defs>
           <linearGradient id="gx-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#c026d3" stopOpacity=".34" />
-            <stop offset=".55" stopColor="#7c3aed" stopOpacity=".12" />
-            <stop offset="1" stopColor="#7c3aed" stopOpacity="0" />
+            <stop offset="0" style={{ stopColor: 'var(--gx-fucsia)' }} stopOpacity=".34" />
+            <stop offset=".55" style={{ stopColor: 'var(--gx-violeta)' }} stopOpacity=".12" />
+            <stop offset="1" style={{ stopColor: 'var(--gx-violeta)' }} stopOpacity="0" />
           </linearGradient>
           <linearGradient id="gx-linea" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#818cf8" />
-            <stop offset=".5" stopColor="#c084fc" />
-            <stop offset="1" stopColor="#f472b6" />
+            <stop offset="0" style={{ stopColor: 'var(--gx-azul)' }} />
+            <stop offset=".5" style={{ stopColor: 'var(--gx-violeta)' }} />
+            <stop offset="1" style={{ stopColor: 'var(--gx-rosa)' }} />
           </linearGradient>
         </defs>
 
         {/* Rejilla: líneas finas y discretas */}
         {marcas.map((v) => (
           <g key={v}>
-            <line x1={M.izquierda} x2={ancho - M.derecha} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,.07)" strokeWidth="1" />
+            <line x1={M.izquierda} x2={ancho - M.derecha} y1={y(v)} y2={y(v)} stroke="rgb(var(--gx-tinta) / .07)" strokeWidth="1" />
             <text x={M.izquierda - 8} y={y(v)} dy="0.32em" textAnchor="end" fontSize="11" fill="var(--text-secondary)">{fmtNum(v, idioma)}</text>
           </g>
         ))}
@@ -94,14 +94,14 @@ export default function GraficaActividad({ serie = [] }) {
 
         {/* Hoy, siempre marcado */}
         {n > 0 && activo == null && (
-          <circle cx={x(n - 1)} cy={y(serie[n - 1].mensajes)} r="5" fill="#f9a8d4" stroke="#0d0b1c" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 6px #ec4899)' }} />
+          <circle cx={x(n - 1)} cy={y(serie[n - 1].mensajes)} r="5" fill="var(--gx-neon3)" stroke="var(--gx-fondo)" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 6px var(--gx-rosa))' }} />
         )}
 
         {/* Cruz del punto elegido */}
         {sel && (
           <g pointerEvents="none">
-            <line x1={x(activo)} x2={x(activo)} y1={M.arriba} y2={base} stroke="rgba(255,255,255,.28)" strokeWidth="1" />
-            <circle cx={x(activo)} cy={y(sel.mensajes)} r="5.5" fill="#fff" stroke="#0d0b1c" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 8px #d946ef)' }} />
+            <line x1={x(activo)} x2={x(activo)} y1={M.arriba} y2={base} stroke="rgb(var(--gx-tinta) / .28)" strokeWidth="1" />
+            <circle cx={x(activo)} cy={y(sel.mensajes)} r="5.5" fill="var(--text-primary)" stroke="var(--gx-fondo)" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 8px var(--gx-fucsia))' }} />
           </g>
         )}
 

@@ -2,7 +2,7 @@ const { Events, ActionRowBuilder, StringSelectMenuBuilder, ChannelSelectMenuBuil
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Ticket = require('../models/Ticket.js');
 const RolePanel = require('../models/RolePanel.js');
-const { cerrarTicket, registrarLogTicket, permisosCanalTicket } = require('../utils/ticketManager.js');
+const { cerrarTicket, registrarLogTicket, permisosCanalTicket, categoriaAbiertos } = require('../utils/ticketManager.js');
 const { toggleRol, aplicarSeleccionMenu } = require('../utils/rolePanelManager.js');
 const verificacion = require('../utils/verificacion.js');
 const reportes = require('../utils/reportes.js');
@@ -91,9 +91,8 @@ async function abrirTicketFormulario(interaction, client, { motivo, asunto, desc
             }
         }
 
-        // Categoría de Discord donde se crea el ticket (si está configurada y existe).
-        const parentId = (config && config.categoriaTicketsId && interaction.guild.channels.cache.get(config.categoriaTicketsId))
-            ? config.categoriaTicketsId : null;
+        // Categoría de los tickets abiertos (la elegida o «🎫 Tickets abiertos», que crea el bot).
+        const parentId = await categoriaAbiertos(interaction.guild, config);
 
         const canalTicket = await interaction.guild.channels.create({
             name: `ticket-${interaction.user.username}`,
@@ -357,9 +356,14 @@ module.exports = {
         if (interaction.isButton() && interaction.customId.startsWith('embudo_aceptar:')) return embudo.manejarAceptar(interaction, client);
         if (interaction.isButton() && interaction.customId.startsWith('embudo_captcha:')) return embudo.manejarCaptcha(interaction, client);
         if (interaction.isModalSubmit() && interaction.customId.startsWith('embudo_modal:')) return embudo.manejarModal(interaction, client);
+        // Preguntas al entrar (1.9.12): desplegable de cada pregunta, «Atrás» y «Saltar».
+        if ((interaction.isStringSelectMenu() && interaction.customId.startsWith('entq:'))
+            || (interaction.isButton() && (interaction.customId.startsWith('entq_atras:') || interaction.customId.startsWith('entq_saltar:')))) {
+            return require('../utils/preguntasEntrada.js').manejar(interaction, client);
+        }
 
         // --- SEGURIDAD: gestión de reportes (resolver / descartar / abrir ticket) ---
-        if (interaction.isButton() && (interaction.customId.startsWith('rep_resolver:') || interaction.customId.startsWith('rep_descartar:') || interaction.customId.startsWith('rep_ticket:'))) {
+        if (interaction.isButton() && (interaction.customId.startsWith('rep_resolver:') || interaction.customId.startsWith('rep_descartar:') || interaction.customId.startsWith('rep_ticket:') || interaction.customId.startsWith('rep_autor:'))) {
             return reportes.manejarBoton(interaction, client);
         }
 
@@ -387,6 +391,11 @@ module.exports = {
         }
         if (interaction.isModalSubmit() && interaction.customId.startsWith('intro_modal:')) {
             return require('../utils/comunidad.js').procesarPresentacion(interaction);
+        }
+        // Aprobación de presentaciones: «Aceptar», «Rechazar» y la ventana del motivo.
+        if ((interaction.isButton() && (interaction.customId.startsWith('intro_ok:') || interaction.customId.startsWith('intro_no:')))
+            || (interaction.isModalSubmit() && interaction.customId.startsWith('intro_nom:'))) {
+            return require('../utils/comunidad.js').manejarRevisionPresentacion(interaction);
         }
 
         // --- ONBOARDING: botones del mensaje de bienvenida y !setup ---

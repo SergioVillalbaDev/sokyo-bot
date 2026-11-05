@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.11.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.12.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -75,6 +75,14 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
   sonido aquí, solo con la Pi (SoundCloud y JioSaavn tampoco sirven de repuesto). Al
   aplicar la cuenta, solo «oauth2 token fetch: 400/401» (Google la rechaza) la borra; otro
   fallo la deja y reintenta al minuto. Los tests no escriben por stdout (rompe el ejecutor).
+- **Apagones en la Pi (nov. 2026)**: con una fuente que no da bastante corriente
+  (`vcgencmd get_throttled` ≠ `0x0`; `0x50000` = hubo bajo voltaje) la Pi se apagó justo
+  tras desplegar y lo recién escrito quedó VACÍO en la tarjeta (`package.json`, ~130
+  archivos del repo, `node_modules` del panel, el `dist` del panel): bot y Lavalink en
+  bucle con «Invalid package config». Se arregla en la Pi: `git checkout -- .` (+ `sync`),
+  reinstalar `node_modules` del panel y recompilar con el bot parado, y borrar
+  `lavalink/plugins/youtube-plugin-*.jar` para que se baje limpio. Desde 1.9.12
+  `deploy.sh` hace `sync` antes de reiniciar. `git status` en la Pi debe salir limpio.
 - El `.env` de la Pi no es accesible desde aquí. Lo que deba valer en la Pi sin
   tocar el `.env` va en código (p. ej. `utils/propietarios.js`).
 
@@ -487,5 +495,25 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   reales, sin «solo con prefijo») y `/sancionar` sin tipo enseña la lista. **Mensaje de entrada**
   configurable por los propietarios (ver *Propietarios del bot*). Tests: `test/puenteSlash.test.js`,
   `test/entrada.test.js` y más en `musica` y `canales`.
+- 1.9.12 **Verificación única** (`utils/preguntasEntrada.js`, `preguntasEntrada` en la config, tarjeta
+  `PreguntasEntrada.jsx` en Verificación): tras el botón/captcha o la doble bienvenida (`siHayPreguntas`
+  en `verificacion.js` y `embudo.js`), preguntas una a una con desplegable (`entq:<gid>:<n>`, también por
+  MD), cada opción da un rol (y abre una categoría); el rol de acceso se da AL TERMINAR. **Cerrar el
+  servidor** (`utils/cierreServidor.js`, `CierreServidor.jsx`, `GET/POST /api/seguridad/:g/cierre`, solo
+  admins): canal de verificación abierto a @everyone, rol de acceso con «Ver canales», canales abiertos a
+  @everyone → al rol de acceso, categorías de las respuestas solo con su rol y, lo ÚLTIMO, @everyone sin
+  «Ver canales». **Presentaciones con aprobación** (`presentaciones.aprobacion`, `revisarPresentacion`,
+  botones `intro_ok/intro_no`, `POST /api/presentaciones/:id/revisar`, privado de rechazo con {motivo});
+  el panel «Preséntate» ya no se publica en cada guardado (`panelMensajeId`). **Reportes anónimos**
+  (`reportes.ocultarAutor` + `rolesVerAutor`, botón `rep_autor`, la API oculta el autor a quien no puede;
+  `!report` borra el mensaje y confirma por privado; `/reportar` efímero). **Tickets**: categoría de
+  abiertos siempre (`categoriaAbiertos` la crea si falta) y de cerrados por id (`categoriaArchivadosId`) o
+  nombre; `POST …/tickets/ordenar`. **Mensaje de «Mi cuenta» personalizable** (`panelCuenta.contenido/
+  embed/textoBoton/estiloBoton/botonWeb/secciones/etiquetas`, solo `canalId`/`fecha` son internos).
+  **Editar** (`editarCreado` en `useDashboard`, `PUT /api/{anuncios,sorteos,eventos,encuestas}/:id`,
+  `refrescarPublicado` repinta el mensaje de Discord), motivos de ticket y respuestas rápidas en su sitio,
+  renombrar mensajes guardados. **Temas en «Mi cuenta»** (`lib/temaCuenta.js`, `data-cuenta` + paleta
+  `--gx-*` por tema en `portal.css`; nada de `bg-white/…` en el portal: `bg-[rgb(var(--gx-tinta)/.06)]`).
+  `MarkdownDiscord` entiende `-#`. Tests: `entradaPreguntas`, `presentaciones`, `reportes`, `tickets`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

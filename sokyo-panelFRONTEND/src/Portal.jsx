@@ -5,6 +5,7 @@
 // Se abre en /cuenta (o con ?portal=1, la dirección antigua). La pantalla va en
 // el #hash (/cuenta#tienda, /cuenta#tickets/<canal>): así el botón "atrás" del
 // móvil vuelve a la pantalla anterior y el bot puede mandar enlaces directos.
+import { leerTemaCuenta, guardarTemaCuenta, temaVisible, EVENTO_TEMA_CUENTA } from './lib/temaCuenta';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -61,11 +62,22 @@ function Portal() {
   const [vistos, setVistos] = useState(leerVistos);
   const [sorteosVistos, setSorteosVistos] = useState(leerSorteosVistos);
 
-  // Tema de cristal fijo para "Mi cuenta".
+  // Tema de «Mi cuenta» (1.9.12): el elegido en Ajustes (lib/temaCuenta.js). El cristal
+  // de portal.css se pinta con su paleta gracias a data-cuenta.
+  const [tema, setTema] = useState(leerTemaCuenta);
+  const premium = usuario ? !!usuario.esPremium : null;
+  const temaActivo = temaVisible(tema, premium);
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', 'glass');
+    const html = document.documentElement;
+    html.setAttribute('data-cuenta', '');
     document.title = 'Sokyo · Mi cuenta';
+    return () => html.removeAttribute('data-cuenta');
   }, []);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', temaActivo);
+    window.dispatchEvent(new Event(EVENTO_TEMA_CUENTA)); // las estrellas del fondo cambian de color
+  }, [temaActivo]);
+  const cambiarTema = useCallback((id) => { setTema(id); guardarTemaCuenta(id); }, []);
 
   // Al cargar: el token de vuelta del login (o del enlace de /cuenta) o un error.
   // Efecto solo-en-montaje: el setState aquí es intencional (leer la URL una vez).
@@ -208,7 +220,7 @@ function Portal() {
   } else if (vista === 'tarjeta') {
     contenido = <TarjetaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} />;
   } else if (vista === 'ajustes') {
-    contenido = <AjustesPortal portalFetch={portalFetch} avisar={avisar} sorteos={resumen?.sorteos || []} />;
+    contenido = <AjustesPortal portalFetch={portalFetch} avisar={avisar} sorteos={resumen?.sorteos || []} tema={temaActivo} onCambiarTema={cambiarTema} premium={premium} />;
   } else if (vista === 'musica') {
     contenido = (
       <>
@@ -274,16 +286,16 @@ function Entrada({ error }) {
           <a
             href={`${API_URL}/api/auth/discord`}
             onClick={() => { try { if (window.location.hash) sessionStorage.setItem(CLAVE_DESTINO, window.location.hash); } catch { /* nada */ } }}
-            className="gx-btn mt-6 w-full border-white/20 py-3.5 text-base font-bold text-white"
+            className="gx-btn mt-6 w-full border-[rgb(var(--gx-tinta)/.2)] py-3.5 text-base font-bold text-fg"
             style={{ background: 'linear-gradient(135deg, #5865F2, #7c3aed)', boxShadow: '0 0 0 1px rgba(88,101,242,.35), 0 14px 40px -12px rgba(88,101,242,.9)' }}
           >
             <LogIn size={18} /> {t('portal.login.button')}
           </a>
 
-          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-line bg-white/[.04] p-3.5 text-left">
+          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.04)] p-3.5 text-left">
             <span className="gx-orbe h-9 w-9" style={{ '--orbe': '#a855f7' }}><Zap size={16} /></span>
             <p className="text-xs leading-relaxed text-muted">
-              <strong className="text-fg">{t('portal.login.fastTitle')}</strong> {t('portal.login.fastPre')} <code className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-fg">/{t('portal.login.fastCmd')}</code> {t('portal.login.fastPost')}
+              <strong className="text-fg">{t('portal.login.fastTitle')}</strong> {t('portal.login.fastPre')} <code className="rounded-md bg-[rgb(var(--gx-tinta)/.1)] px-1.5 py-0.5 font-mono text-[11px] text-fg">/{t('portal.login.fastCmd')}</code> {t('portal.login.fastPost')}
             </p>
           </div>
         </Tarjeta>
@@ -336,7 +348,7 @@ function Cabecera({ usuario, nuevas, premios = [], onVerPremios, irA, onLogout, 
             <Desplegable>
               <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wider text-muted">{t('portal.header.notifications')}</p>
               {premios.map((p) => (
-                <button key={p.id} onClick={() => { setAbierto(null); onVerPremios?.(); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/[.07]">
+                <button key={p.id} onClick={() => { setAbierto(null); onVerPremios?.(); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[rgb(var(--gx-tinta)/.07)]">
                   <span className="gx-orbe mt-0.5 h-8 w-8" style={{ '--orbe': '#ec4899' }}><Gift size={14} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-fg">{t('portal.header.ganaste', { premio: p.premio })}</span>
@@ -347,7 +359,7 @@ function Cabecera({ usuario, nuevas, premios = [], onVerPremios, irA, onLogout, 
               {nuevas.length === 0 && premios.length === 0 ? (
                 <p className="flex items-center gap-2 px-3 pb-3 text-sm text-muted"><Sparkles size={15} className="text-brand" /> {t('portal.header.allCaughtUp')}</p>
               ) : nuevas.map((n) => (
-                <button key={n.canalId} onClick={() => { setAbierto(null); irA('tickets', n.canalId); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/[.07]">
+                <button key={n.canalId} onClick={() => { setAbierto(null); irA('tickets', n.canalId); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[rgb(var(--gx-tinta)/.07)]">
                   <span className="gx-orbe mt-0.5 h-8 w-8" style={{ '--orbe': '#3b82f6' }}><TicketIcon size={14} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-fg">{t('portal.header.replyFrom', { name: n.ultimo.usuario || t('portal.chat.unknownUser') })}</span>
@@ -386,18 +398,18 @@ function MenuAjustes({ usuario, onLogout, onPreferencias }) {
   return (
     <Desplegable ancho="w-64">
       {usuario && <p className="truncate px-3 pb-2 pt-1.5 text-sm font-bold text-fg">{usuario.username}</p>}
-      <button onClick={onPreferencias} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-white/[.07]"><BellRing size={15} className="text-brand" /> {t('portal.header.preferencias')}</button>
-      <div className="my-1.5 h-px bg-white/10" />
+      <button onClick={onPreferencias} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-fg transition-colors hover:bg-[rgb(var(--gx-tinta)/.07)]"><BellRing size={15} className="text-brand" /> {t('portal.header.preferencias')}</button>
+      <div className="my-1.5 h-px bg-[rgb(var(--gx-tinta)/.1)]" />
       <p className="px-3 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-muted"><Globe size={11} className="mr-1 inline" /> {t('portal.header.language')}</p>
       {IDIOMAS.map((idioma) => (
-        <button key={idioma.code} onClick={() => cambiarIdioma(idioma.code)} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]">
+        <button key={idioma.code} onClick={() => cambiarIdioma(idioma.code)} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-[rgb(var(--gx-tinta)/.07)]">
           <span>{idioma.flag} {idioma.label}</span>
           {i18n.language === idioma.code && <Check size={14} className="text-brand" />}
         </button>
       ))}
-      <div className="my-1.5 h-px bg-white/10" />
-      {esStaff && <a href="/panel" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]"><LayoutDashboard size={15} /> {t('portal.header.panel')}</a>}
-      <a href="/" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-white/[.07]"><Home size={15} /> {t('portal.header.homeTitle')}</a>
+      <div className="my-1.5 h-px bg-[rgb(var(--gx-tinta)/.1)]" />
+      {esStaff && <a href="/panel" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-[rgb(var(--gx-tinta)/.07)]"><LayoutDashboard size={15} /> {t('portal.header.panel')}</a>}
+      <a href="/" className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-fg transition-colors hover:bg-[rgb(var(--gx-tinta)/.07)]"><Home size={15} /> {t('portal.header.homeTitle')}</a>
       <button onClick={onLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-300 transition-colors hover:bg-rose-500/10"><LogOut size={15} /> {t('portal.header.logout')}</button>
     </Desplegable>
   );
@@ -468,7 +480,7 @@ function Paleta({ irA, onCerrar, onDaily, onLogout }) {
               <li key={a.id}>
                 <button
                   onClick={a.hacer} onMouseEnter={() => setSel(i)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${i === elegido ? 'bg-white/[.09] text-fg' : 'text-muted'}`}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${i === elegido ? 'bg-[rgb(var(--gx-tinta)/.09)] text-fg' : 'text-muted'}`}
                 >
                   <Icono size={17} className={i === elegido ? 'text-brand' : ''} />
                   <span className="flex-1">{a.texto}</span>

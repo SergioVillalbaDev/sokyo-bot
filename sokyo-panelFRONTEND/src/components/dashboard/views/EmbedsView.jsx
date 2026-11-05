@@ -53,7 +53,9 @@ export default function EmbedsView({ dash }) {
 
   const datosMensaje = () => ({ contenido, embed: modo === 'texto' ? null : embed });
   // «Guardar»: con un mensaje guardado abierto, guarda sus cambios; si no, pide un nombre.
+  // Los botones no se apagan sin explicación: si falta algo, se dice qué.
   const guardarMensaje = async () => {
+    if (vacio) { setGuardado(`error:${t('dashboard.embeds_v.emptySave')}`); return; }
     if (!plantilla) { setAvisoNombre(''); setGuardado('nombre'); return; }
     setGuardado('guardando');
     const r = await actualizarPresetAnuncio(plantilla.id, datosMensaje());
@@ -75,6 +77,10 @@ export default function EmbedsView({ dash }) {
     if (!vacio && !window.confirm(t('dashboard.embeds_v.newConfirm'))) return;
     setContenido(''); setEmbed(EMBED_VACIO); setPlantilla(null); setEstado(''); setGuardado('');
   };
+  const renombrarGuardado = async (p, nombre) => {
+    const r = await actualizarPresetAnuncio(p._id, { nombre, contenido: p.contenido || '', embed: p.embed || null });
+    if (!r?.error && plantilla?.id === p._id) setPlantilla({ id: p._id, nombre });
+  };
   const eliminarGuardado = async (id) => {
     const ok = await eliminarPresetAnuncio(id);
     if (ok && plantilla?.id === id) setPlantilla(null);
@@ -82,6 +88,7 @@ export default function EmbedsView({ dash }) {
   };
 
   const enviar = async () => {
+    if (!todos && !canalId) { setEstado(`error:${t('dashboard.embeds_v.pickChannel')}`); return; }
     setEstado('enviando'); setResumen(null);
     const emb = modo === 'texto' ? {} : embed;
     const r = todos
@@ -182,7 +189,8 @@ export default function EmbedsView({ dash }) {
       )}
 
       {/* Mensajes guardados (cargar / borrar; se guarda con «Guardar», abajo) */}
-      <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarGuardado} sinGuardar abierto={plantilla?.id} />
+      <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarGuardado} sinGuardar abierto={plantilla?.id}
+        onGuardarActual={guardarMensaje} onRenombrar={renombrarGuardado} />
 
       {plantilla && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-brand/40 bg-brand/10 px-4 py-3 text-sm text-fg">
@@ -196,7 +204,7 @@ export default function EmbedsView({ dash }) {
         <button
           type="button"
           onClick={enviar}
-          disabled={estado === 'enviando' || (!todos && (!configServidor || !canalId))}
+          disabled={estado === 'enviando' || (!todos && !configServidor)}
           className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${todos ? 'bg-warning' : 'bg-gradient-brand'}`}
         >
           {todos ? <Radio size={16} /> : <Send size={16} />}
@@ -205,7 +213,7 @@ export default function EmbedsView({ dash }) {
         {estado === 'ok' && (resumen
           ? <span className="text-sm font-semibold text-success">{t('dashboard.embeds_v.sentAll', { n: resumen.enviados, total: resumen.total })}{resumen.fallos.length ? ` · ${t('dashboard.embeds_v.failed', { n: resumen.fallos.length })}` : ''}</span>
           : <span className="text-sm font-semibold text-success">{t('dashboard.embeds_v.sent')}</span>)}
-        <button type="button" onClick={guardarMensaje} disabled={vacio || guardado === 'guardando'}
+        <button type="button" onClick={guardarMensaje} disabled={guardado === 'guardando'}
           className="flex items-center gap-2 rounded-2xl border border-line bg-bg px-5 py-2.5 text-sm font-bold text-fg transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-50"
           title={t('dashboard.embeds_v.saveHint')}>
           <Save size={16} /> {guardado === 'guardando' ? t('dashboard.embeds_v.saving') : plantilla ? t('dashboard.embeds_v.saveChanges') : t('dashboard.embeds_v.save')}

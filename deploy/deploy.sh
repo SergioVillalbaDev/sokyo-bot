@@ -130,10 +130,15 @@ main() {
 
     local ok=1
     preparar || ok=0
+    # Todo lo escrito (código, dependencias, panel) al disco ANTES de reiniciar: si se
+    # va la luz justo después (pasó con una fuente que no daba bastante corriente),
+    # los archivos recién escritos quedaban vacíos y el bot ya no arrancaba.
+    sync
     reiniciar
     if [ $ok -eq 1 ] && arrancado "$(corto)"; then
         git rev-parse HEAD > .deploy-ok
         rm -f .deploy-fallido
+        sync
         log "✓ Desplegado $(corto) (v$(node -p "require('./package.json').version"))"
         registrar_comandos
         exit 0

@@ -2,7 +2,8 @@
 // con preguntas configurables y filtros automáticos de descarte.
 import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Info, Filter, Check, AlertTriangle, Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Info, Filter, Check, AlertTriangle, Bell, ChevronDown, ChevronUp, ShieldCheck, X } from 'lucide-react';
+import { Toggle } from '../../ui/primitives';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
@@ -36,9 +37,15 @@ const PLANTILLA_FABRICA = {
   es: 'Edad: \nDe dónde eres: \nAficiones: \nPor qué te unes: ',
 };
 
+// Privado de rechazo de fábrica: el mismo que utils/comunidad.js (RECHAZO_FABRICA).
+const RECHAZO_FABRICA = {
+  es: 'Hola {user}, tu presentación en **{server}** no ha sido aceptada.\n**Motivo:** {motivo}\n\nPuedes enviar otra cuando quieras desde el canal de presentaciones.',
+  en: 'Hi {user}, your intro on **{server}** wasn’t accepted.\n**Reason:** {motivo}\n\nYou can send another one whenever you like from the intros channel.',
+};
+
 export default function PresentacionesView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, esPremium, presentaciones = [], guardarConfigPresentaciones, eliminarPresentacion } = dash;
+  const { canales, roles = [], configServidor, esPremium, presentaciones = [], guardarConfigPresentaciones, eliminarPresentacion, revisarPresentacion } = dash;
 
   const [canalIntro, setCanalIntro] = useState('');
   const [canalStaff, setCanalStaff] = useState('');
@@ -46,6 +53,13 @@ export default function PresentacionesView({ dash }) {
   const [plantilla, setPlantilla] = useState(() => PLANTILLA_FABRICA[configServidor?.idioma] || PLANTILLA_FABRICA.en);
   const [preguntas, setPreguntas] = useState(() => preguntasDefecto(t));
   const [filtros, setFiltros] = useState([]);
+  // Aprobación del staff (1.9.12)
+  const [aprobacion, setAprobacion] = useState(true);
+  const [canalPublico, setCanalPublico] = useState('');
+  const [mensajeRechazo, setMensajeRechazo] = useState('');
+  const [mensajeAceptada, setMensajeAceptada] = useState('');
+  const [rolAceptadaId, setRolAceptadaId] = useState('');
+  const [revision, setRevision] = useState({}); // id -> { rechazando, motivo, estado, texto }
   const [guardando, setGuardando] = useState(false);
   const [guardadoOk, setGuardadoOk] = useState(false);
   const [seccionAbierta, setSeccionAbierta] = useState('preguntas'); // 'preguntas' | 'filtros'
@@ -59,6 +73,11 @@ export default function PresentacionesView({ dash }) {
       if (p.plantilla) setPlantilla(p.plantilla);
       if (Array.isArray(p.preguntas) && p.preguntas.length) setPreguntas(p.preguntas);
       if (Array.isArray(p.filtros)) setFiltros(p.filtros);
+      setAprobacion(p.aprobacion !== false);
+      setCanalPublico(p.canalPublico || '');
+      setMensajeRechazo(p.mensajeRechazo || '');
+      setMensajeAceptada(p.mensajeAceptada || '');
+      setRolAceptadaId(p.rolAceptadaId || '');
     }
   });
 
@@ -109,16 +128,36 @@ export default function PresentacionesView({ dash }) {
 
   const guardar = async () => {
     setGuardando(true);
-    await guardarConfigPresentaciones({ canalIntro, canalStaff, modo, plantilla, preguntas, filtros });
-    setGuardadoOk(true);
+    const ok = await guardarConfigPresentaciones({ canalIntro, canalStaff, modo, plantilla, preguntas, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId });
+    setGuardadoOk(!!ok);
     setGuardando(false);
-    setTimeout(() => setGuardadoOk(false), 2500);
+    if (ok) setTimeout(() => setGuardadoOk(false), 2500);
+    return ok; // el autoguardado reintenta si falla
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros], guardar, {
+  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId], guardar, {
     listo: !!configServidor, borrador: 'presentaciones',
-    restaurar: ([ci, cs, m, p, q, fl]) => { setCanalIntro(ci); setCanalStaff(cs); setModo(m); setPlantilla(p); setPreguntas(q); setFiltros(fl); },
+    restaurar: ([ci, cs, m, p, q, fl, ap = true, cp = '', mr = '', ma = '', ra = '']) => {
+      setCanalIntro(ci); setCanalStaff(cs); setModo(m); setPlantilla(p); setPreguntas(q); setFiltros(fl);
+      setAprobacion(ap !== false); setCanalPublico(cp || ''); setMensajeRechazo(mr || ''); setMensajeAceptada(ma || ''); setRolAceptadaId(ra || '');
+    },
   });
+
+  // Aceptar / rechazar desde el panel (igual que los botones del aviso del staff).
+  const cambiarRevision = (id, parche) => setRevision((r) => ({ ...r, [id]: { ...(r[id] || {}), ...parche } }));
+  const revisar = async (p, aceptar) => {
+    const motivo = revision[p._id]?.motivo || '';
+    if (!aceptar && !motivo.trim()) { cambiarRevision(p._id, { texto: t('dashboard.presentaciones_v.reasonNeeded'), error: true }); return; }
+    cambiarRevision(p._id, { estado: 'enviando', texto: '', error: false });
+    const r = await revisarPresentacion(p._id, aceptar, motivo);
+    if (r.ok) cambiarRevision(p._id, { estado: 'hecho', rechazando: false, texto: aceptar ? t('dashboard.presentaciones_v.acceptedOk') : (r.aviso ? t('dashboard.presentaciones_v.rejectedOk') : t('dashboard.presentaciones_v.rejectedNoDm')) });
+    else cambiarRevision(p._id, { estado: '', error: true, texto: r.codigo === 'sin-canal' ? t('dashboard.presentaciones_v.errNoChannel') : r.codigo === 'ya-revisada' ? t('dashboard.presentaciones_v.errDone') : t('dashboard.presentaciones_v.errReview') });
+  };
+  const idiomaBot = configServidor?.idioma === 'es' ? 'es' : 'en';
+  const servidorNombre = dash.servidorInfo?.nombre || 'Nébula';
+  const ejemploRechazo = (mensajeRechazo.trim() || RECHAZO_FABRICA[idiomaBot])
+    .replace(/\{(user|usuario)\}/gi, '@Alex').replace(/\{(server|servidor)\}/gi, servidorNombre)
+    .replace(/\{(motivo|reason)\}/gi, t('dashboard.presentaciones_v.exampleReason'));
 
   const pendientes = presentaciones.filter((p) => !p.procesada);
   const procesadas = presentaciones.filter((p) => p.procesada);
@@ -155,6 +194,58 @@ export default function PresentacionesView({ dash }) {
             </select>
           </label>
         </div>
+      </div>
+
+      {/* Aprobación del staff (utils/comunidad.js: revisarPresentacion) */}
+      <div data-help="presentaciones-aprobacion" className={card}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="flex items-center gap-2 font-bold text-fg"><ShieldCheck size={18} className="text-brand" /> {t('dashboard.presentaciones_v.approval')}</h3>
+            <p className="mt-0.5 text-xs leading-snug text-muted">{t('dashboard.presentaciones_v.approvalDesc')}</p>
+          </div>
+          <Toggle checked={aprobacion} onChange={setAprobacion} />
+        </div>
+        <div className="mt-4 grid gap-4 border-t border-line pt-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.presentaciones_v.publicChannel')}</span>
+            <select value={canalPublico} onChange={(e) => setCanalPublico(e.target.value)} className={input}>
+              <option value="">{t('dashboard.presentaciones_v.publicSame')}</option>
+              {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              <OpcionCrear tipo="canal" />
+            </select>
+            <span className="mt-1 block text-xs text-muted">{t('dashboard.presentaciones_v.publicChannelDesc')}</span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.presentaciones_v.acceptRole')}</span>
+            <select value={rolAceptadaId} onChange={(e) => setRolAceptadaId(e.target.value)} className={input}>
+              <option value="">{t('dashboard.presentaciones_v.acceptRoleNone')}</option>
+              {roles.map((r) => <option key={r.id} value={r.id}>@{r.nombre}</option>)}
+            </select>
+            <span className="mt-1 block text-xs text-muted">{t('dashboard.presentaciones_v.acceptRoleDesc')}</span>
+          </label>
+        </div>
+        {aprobacion && (
+          <div className="mt-4 grid gap-4 border-t border-line pt-4 lg:grid-cols-2">
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.presentaciones_v.rejectMsg')}</span>
+                <textarea value={mensajeRechazo} onChange={(e) => setMensajeRechazo(e.target.value)} rows={5} maxLength={1500}
+                  className={`${input} resize-y`} placeholder={RECHAZO_FABRICA[idiomaBot]} />
+                <span className="mt-1 block text-xs text-muted">{t('dashboard.presentaciones_v.rejectVars')}</span>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.presentaciones_v.acceptMsg')}</span>
+                <textarea value={mensajeAceptada} onChange={(e) => setMensajeAceptada(e.target.value)} rows={3} maxLength={1500}
+                  className={`${input} resize-y`} placeholder={t('dashboard.presentaciones_v.acceptMsgPh')} />
+                <span className="mt-1 block text-xs text-muted">{t('dashboard.presentaciones_v.acceptMsgDesc')}</span>
+              </label>
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.presentaciones_v.rejectPreview')}</p>
+              <VistaDiscord texto={ejemploRechazo} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modo de presentación */}
@@ -459,6 +550,8 @@ export default function PresentacionesView({ dash }) {
                           {t('dashboard.presentaciones_v.discarded')}
                         </span>
                       )}
+                      {!p.descartada && p.estado === 'aceptada' && <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">{t('dashboard.presentaciones_v.stAccepted')}</span>}
+                      {!p.descartada && p.estado === 'rechazada' && <span className="ml-2 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">{t('dashboard.presentaciones_v.stRejected')}</span>}
                     </p>
                     <div className="mt-1.5 space-y-1">
                       {p.respuestas?.map((r, i) => (
@@ -472,6 +565,26 @@ export default function PresentacionesView({ dash }) {
                         <AlertTriangle size={10} /> {p.motivoDescarte}
                       </p>
                     )}
+                    {p.estado === 'rechazada' && p.motivoRechazo && <p className="mt-2 text-xs text-danger">{t('dashboard.presentaciones_v.reason')}: {p.motivoRechazo}</p>}
+                    {/* Pendiente de revisar: aceptar o rechazar con motivo */}
+                    {!p.procesada && !p.descartada && (!p.estado || p.estado === 'pendiente') && revision[p._id]?.estado !== 'hecho' && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" disabled={revision[p._id]?.estado === 'enviando'} onClick={() => revisar(p, true)}
+                            className="flex items-center gap-1.5 rounded-xl bg-success px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"><Check size={13} /> {t('dashboard.presentaciones_v.accept')}</button>
+                          <button type="button" disabled={revision[p._id]?.estado === 'enviando'} onClick={() => cambiarRevision(p._id, { rechazando: !revision[p._id]?.rechazando, texto: '' })}
+                            className="flex items-center gap-1.5 rounded-xl border border-danger/50 px-3 py-1.5 text-xs font-bold text-danger disabled:opacity-50"><X size={13} /> {t('dashboard.presentaciones_v.reject')}</button>
+                        </div>
+                        {revision[p._id]?.rechazando && (
+                          <div className="flex flex-wrap gap-2">
+                            <input value={revision[p._id]?.motivo || ''} onChange={(e) => cambiarRevision(p._id, { motivo: e.target.value, texto: '' })} maxLength={1000}
+                              placeholder={t('dashboard.presentaciones_v.reasonPh')} className={`${input} min-w-0 flex-1`} />
+                            <button type="button" onClick={() => revisar(p, false)} className="rounded-xl bg-danger px-3 py-1.5 text-xs font-bold text-white">{t('dashboard.presentaciones_v.sendReject')}</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {revision[p._id]?.texto && <p className={`mt-2 text-xs font-semibold ${revision[p._id]?.error ? 'text-danger' : 'text-success'}`}>{revision[p._id].texto}</p>}
                   </div>
                   <button
                     type="button"

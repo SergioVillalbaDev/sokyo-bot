@@ -1,7 +1,7 @@
 // Comunidad · Sorteos — crea y gestiona sorteos en tu servidor de Discord.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck, Sparkles, Plus, X, Send, ArrowRight } from 'lucide-react';
+import { Gift, Trash2, Info, Trophy, Clock, RefreshCw, Play, Users, ShieldCheck, Sparkles, Plus, X, Send, ArrowRight, Pencil } from 'lucide-react';
 import { CierrePicker, SubirImagen } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
@@ -26,7 +26,8 @@ function tiempoRestante(fechaFin) {
 export default function SorteosView({ dash }) {
   const { t } = useTranslation();
   const relativo = useRelativo();
-  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen, cargarParticipantesSorteo, configServidor, setActiveTab } = dash;
+  const { canales, roles, sorteos = [], crearSorteo, terminarSorteo, rerollSorteo, eliminarSorteo, subirImagen, cargarParticipantesSorteo, configServidor, setActiveTab, editarCreado } = dash;
+  const [editando, setEditando] = useState(null); // id del sorteo que se edita (1.9.12)
   const invitacionesActivas = !!(configServidor && configServidor.crecimiento && configServidor.crecimiento.invitaciones && configServidor.crecimiento.invitaciones.activo);
 
   const [partLista, setPartLista] = useState({}); // id -> array (cargado) | null (cargando) | undefined (oculto)
@@ -69,9 +70,24 @@ export default function SorteosView({ dash }) {
       setEntradasPorInvitacion(v?.entradasPorInvitacion ?? 0); setMaxEntradasExtra(v?.maxEntradasExtra ?? 10);
     });
 
+  const vaciar = () => {
+    setNombre(''); setPremio(''); setCanalId(''); setFechaFin('');
+    setGanadores(1); setNivelMin(0); setRolRequerido(''); setImagen(''); setMultiplicadores([]);
+    setInvitacionesMin(0); setEntradasPorInvitacion(0); setMaxEntradasExtra(10); setEditando(null);
+  };
+  // «Editar» un sorteo en marcha: vuelve al formulario (su mensaje se actualiza al guardar).
+  const editar = (s) => {
+    setEstado(''); setEditando(s._id);
+    setNombre(s.nombre || ''); setPremio(s.premio || ''); setCanalId(s.canalId); setFechaFin(s.fechaFin);
+    setGanadores(s.ganadores ?? 1); setNivelMin(s.nivelMin ?? 0); setRolRequerido(s.rolRequerido || ''); setImagen(s.imagen || '');
+    setMultiplicadores(Array.isArray(s.multiplicadores) ? s.multiplicadores.map((m) => ({ rolId: m.rolId, multiplicador: m.multiplicador })) : []);
+    setInvitacionesMin(s.invitacionesMin ?? 0); setEntradasPorInvitacion(s.entradasPorInvitacion ?? 0); setMaxEntradasExtra(s.maxEntradasExtra ?? 10);
+    document.querySelector('[data-help="sorteos-crear"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const crear = async () => {
     setEstado('creando');
-    const r = await crearSorteo({
+    const enviar = editando ? (datos) => editarCreado('sorteos', editando, datos) : crearSorteo;
+    const r = await enviar({
       nombre, premio, canalId,
       fechaFin,
       ganadores: Number(ganadores),
@@ -83,12 +99,8 @@ export default function SorteosView({ dash }) {
       entradasPorInvitacion: Number(entradasPorInvitacion) || 0,
       maxEntradasExtra: Number(maxEntradasExtra) || 10,
     });
-    setEstado(r?.error ? `error:${r.error}` : 'ok');
-    if (!r?.error) {
-      setNombre(''); setPremio(''); setCanalId(''); setFechaFin('');
-      setGanadores(1); setNivelMin(0); setRolRequerido(''); setImagen(''); setMultiplicadores([]);
-      setInvitacionesMin(0); setEntradasPorInvitacion(0); setMaxEntradasExtra(10);
-    }
+    setEstado(r?.error ? `error:${r.error}` : editando ? (r.enDiscord === false ? 'editado-sin-discord' : 'editado') : 'ok');
+    if (!r?.error) vaciar();
   };
 
   const nombreCanal = (id) => (canales.find((c) => c.id === id) || {}).nombre || id;
@@ -189,9 +201,10 @@ export default function SorteosView({ dash }) {
                       >
                         <Play size={14} />
                       </button>
+                      <button type="button" onClick={() => editar(s)} className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-brand" aria-label={t('dashboard.editar.edit')} title={t('dashboard.editar.edit')}><Pencil size={14} /></button>
                       <button
                         type="button"
-                        onClick={() => eliminarSorteo(s._id)}
+                        onClick={() => { if (editando === s._id) vaciar(); eliminarSorteo(s._id); }}
                         className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger"
                       >
                         <Trash2 size={14} />
@@ -249,7 +262,8 @@ export default function SorteosView({ dash }) {
 
       {/* Crear sorteo */}
       <div data-help="sorteos-crear" className={card}>
-        <h3 className="mb-4 font-bold text-fg">{t('dashboard.sorteos_v.createTitle')}</h3>
+        <h3 className="mb-4 font-bold text-fg">{editando ? t('dashboard.editar.edit') : t('dashboard.sorteos_v.createTitle')}</h3>
+        {editando && <p className="mb-4 rounded-xl border border-brand/40 bg-brand/10 px-3 py-2 text-xs font-semibold text-fg">{t('dashboard.editar.editing', { n: nombre })} {t('dashboard.editar.channelLocked')}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sorteos_v.name')}</span>
@@ -273,7 +287,7 @@ export default function SorteosView({ dash }) {
           </label>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.sorteos_v.channel')}</span>
-            <select value={canalId} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={input}>
+            <select value={canalId} disabled={!!editando} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={`${input} disabled:opacity-60`}>
               <option value="">{t('dashboard.sorteos_v.channelPh')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               <OpcionCrear tipo="canal" />
@@ -417,8 +431,15 @@ export default function SorteosView({ dash }) {
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Gift size={16} />
-            {estado === 'creando' ? t('dashboard.sorteos_v.creating') : t('dashboard.sorteos_v.create')}
+            {estado === 'creando' ? t('dashboard.sorteos_v.creating') : editando ? t('dashboard.editar.save') : t('dashboard.sorteos_v.create')}
           </button>
+          {editando && (
+            <button type="button" onClick={() => { vaciar(); setEstado(''); }} className="flex items-center gap-1.5 rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">
+              <X size={15} /> {t('dashboard.editar.cancel')}
+            </button>
+          )}
+          {estado === 'editado' && <span className="text-sm font-semibold text-success">{t('dashboard.editar.savedDiscord')}</span>}
+          {estado === 'editado-sin-discord' && <span className="text-sm font-semibold text-warning">{t('dashboard.editar.notInDiscord')}</span>}
           {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.sorteos_v.createOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}

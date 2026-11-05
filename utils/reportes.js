@@ -10,6 +10,23 @@ const { miembroPuedeModerar } = require('./permisos.js');
 const { crearTicket } = require('./ticketManager.js');
 const { t } = require('./i18n.js');
 
+// ¿Se oculta quién reportó en el aviso del staff? (por defecto, sí)
+const autorOculto = (cfg) => !(cfg && cfg.reportes && cfg.reportes.ocultarAutor === false);
+
+// Botón «Ver quién reportó»: se queda también cuando el reporte ya está gestionado.
+const botonVerAutor = (cfg, id) => new ButtonBuilder()
+    .setCustomId(`rep_autor:${id}`).setLabel(t(cfg, '👁️ Ver quién reportó', '👁️ See who reported')).setStyle(ButtonStyle.Secondary);
+
+// Quién puede ver al autor de un reporte: administradores (o «Gestionar servidor")
+// y los roles elegidos en el panel. Nadie más, tampoco el resto del staff.
+function puedeVerAutor(member, cfg) {
+    if (!member) return false;
+    const F = PermissionsBitField.Flags;
+    if (member.permissions?.has(F.Administrator) || member.permissions?.has(F.ManageGuild)) return true;
+    const roles = (cfg && cfg.reportes && cfg.reportes.rolesVerAutor) || [];
+    return roles.some((id) => member.roles?.cache?.has(id));
+}
+
 // Crea un reporte y lo publica en el canal de staff. Devuelve el documento.
 async function crearReporte(client, { guildId, reportante, reportado, canalId, mensaje, motivo }) {
     const cfg = await ServidorConfig.findOne({ guildId });
@@ -45,7 +62,7 @@ async function publicarEnStaff(client, cfg, doc) {
         .setThumbnail(doc.reportadoAvatar || null)
         .addFields(
             { name: t(cfg, 'Reportado', 'Reported'), value: doc.reportadoId ? `<@${doc.reportadoId}> (\`${doc.reportadoId}\`)` : '—', inline: true },
-            { name: t(cfg, 'Reportado por', 'Reported by'), value: `<@${doc.reportanteId}>`, inline: true },
+            { name: t(cfg, 'Reportado por', 'Reported by'), value: autorOculto(cfg) ? t(cfg, '🔒 Oculto · «Ver quién reportó»', '🔒 Hidden · “See who reported”') : `<@${doc.reportanteId}>`, inline: true },
             ...(doc.canalId ? [{ name: t(cfg, 'Canal', 'Channel'), value: `<#${doc.canalId}>`, inline: true }] : []),
             { name: t(cfg, 'Motivo', 'Reason'), value: doc.motivo || t(cfg, '_Sin motivo_', '_No reason_') },
             ...(doc.mensajeContenido ? [{ name: t(cfg, 'Mensaje reportado', 'Reported message'), value: doc.mensajeContenido.slice(0, 1000) }] : []),
@@ -57,6 +74,7 @@ async function publicarEnStaff(client, cfg, doc) {
         new ButtonBuilder().setCustomId(`rep_resolver:${doc._id}`).setLabel(t(cfg, '✅ Resolver', '✅ Resolve')).setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`rep_ticket:${doc._id}`).setLabel(t(cfg, '🎫 Abrir ticket', '🎫 Open ticket')).setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(`rep_descartar:${doc._id}`).setLabel(t(cfg, '🗑️ Descartar', '🗑️ Dismiss')).setStyle(ButtonStyle.Secondary),
+        ...(autorOculto(cfg) ? [botonVerAutor(cfg, doc._id)] : []),
     );
     await canal.send({ embeds: [embed], components: [row] });
 }
@@ -99,10 +117,18 @@ async function abrirTicketDesdeReporte(client, reporteId, autorTag) {
     return { canalId: res.canal.id, reporte: doc };
 }
 
-// Botones resolver / descartar / abrir ticket (solo staff).
+// Botones resolver / descartar / abrir ticket (solo staff) y «Ver quién reportó».
 async function manejarBoton(interaction, client) {
     const [accion, id] = interaction.customId.split(':');
     const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
+    if (accion === 'rep_autor') {
+        if (!puedeVerAutor(interaction.member, cfg)) {
+            return interaction.reply({ content: t(cfg, '🔒 Solo los administradores y los roles elegidos en el panel pueden ver quién ha reportado.', '🔒 Only administrators and the roles chosen in the panel can see who reported.'), flags: 64 });
+        }
+        const doc = await Reporte.findById(id).catch(() => null);
+        if (!doc) return interaction.reply({ content: t(cfg, '❌ Reporte no encontrado.', '❌ Report not found.'), flags: 64 });
+        return interaction.reply({ content: t(cfg, `👁️ Lo reportó <@${doc.reportanteId}> (${doc.reportanteTag || doc.reportanteId}). Solo lo ves tú.`, `👁️ Reported by <@${doc.reportanteId}> (${doc.reportanteTag || doc.reportanteId}). Only you can see this.`), flags: 64, allowedMentions: { parse: [] } });
+    }
     if (!miembroPuedeModerar(interaction.member, cfg, PermissionsBitField.Flags.ModerateMembers)) {
         return interaction.reply({ content: t(cfg, '❌ Solo el staff puede gestionar reportes.', '❌ Only staff can manage reports.'), flags: 64 });
     }
@@ -120,7 +146,7 @@ async function manejarBoton(interaction, client) {
             const editado = EmbedBuilder.from(original)
                 .setColor(0x3498db)
                 .addFields({ name: t(cfg, '🎫 Ticket abierto', '🎫 Ticket opened'), value: `<#${r.canalId}> · ${t(cfg, 'por', 'by')} ${interaction.user.username}` });
-            await interaction.message.edit({ embeds: [editado], components: [] }).catch(() => {});
+            await interaction.message.edit({ embeds: [editado], components: filaTrasGestionar(cfg, id) }).catch(() => {});
             return interaction.editReply({ content: t(cfg, `✅ Ticket abierto: <#${r.canalId}>`, `✅ Ticket opened: <#${r.canalId}>`) });
         } catch (e) {
             return interaction.editReply({ content: `❌ ${e.message}` });
@@ -136,7 +162,10 @@ async function manejarBoton(interaction, client) {
     const editado = EmbedBuilder.from(original)
         .setColor(doc.estado === 'resuelto' ? 0x2ecc71 : 0x95a5a6)
         .addFields({ name: doc.estado === 'resuelto' ? t(cfg, '✅ Resuelto por', '✅ Resolved by') : t(cfg, '🗑️ Descartado por', '🗑️ Dismissed by'), value: interaction.user.username });
-    await interaction.update({ embeds: [editado], components: [] });
+    await interaction.update({ embeds: [editado], components: filaTrasGestionar(cfg, id) });
 }
 
-module.exports = { crearReporte, manejarBoton, abrirTicketDesdeReporte };
+// Tras gestionar un reporte se quitan sus botones, salvo «Ver quién reportó».
+const filaTrasGestionar = (cfg, id) => (autorOculto(cfg) ? [new ActionRowBuilder().addComponents(botonVerAutor(cfg, id))] : []);
+
+module.exports = { crearReporte, manejarBoton, abrirTicketDesdeReporte, puedeVerAutor, autorOculto };

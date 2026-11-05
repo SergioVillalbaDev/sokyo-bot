@@ -190,7 +190,7 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
                 return (
                   <button
                     key={p.id} onClick={() => aplicar(p)} disabled={bloqueado} aria-pressed={activo}
-                    className={`overflow-hidden rounded-2xl border-2 text-left transition-all ${activo ? 'border-fuchsia-400 shadow-[0_0_22px_-6px_rgba(217,70,239,.9)]' : 'border-white/10'} ${bloqueado ? 'cursor-not-allowed' : 'hover:border-white/30'}`}
+                    className={`overflow-hidden rounded-2xl border-2 text-left transition-all ${activo ? 'border-fuchsia-400 shadow-[0_0_22px_-6px_rgba(217,70,239,.9)]' : 'border-[rgb(var(--gx-tinta)/.1)]'} ${bloqueado ? 'cursor-not-allowed' : 'hover:border-[rgb(var(--gx-tinta)/.30)]'}`}
                   >
                     <div className="relative overflow-hidden" style={{ aspectRatio: '900 / 270', background: p.fondoImagen ? p.fondoColor : (p.swatch || `linear-gradient(135deg, ${p.fondoColor}, ${p.colorSecundario})`) }}>
                       {p.fondoImagen && <img src={p.fondoImagen.startsWith('/uploads/') ? `${API_URL}${p.fondoImagen}` : p.fondoImagen} alt="" loading="lazy" style={estiloFondoTarjeta(p.encuadre)} />}
@@ -198,7 +198,7 @@ export default function TarjetaPortal({ portalFetch, usuario, avisar }) {
                       {(p.animado || /\.gif$/i.test(p.fondoImagen || '')) && <span className="absolute right-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">✨ GIF</span>}
                       {bloqueado && <span className="absolute inset-0 grid place-items-center bg-black/50 text-white"><Lock size={16} /></span>}
                     </div>
-                    <div className="bg-white/[.04] px-2 py-1.5 text-xs font-semibold text-fg">{p.nombre}</div>
+                    <div className="bg-[rgb(var(--gx-tinta)/.04)] px-2 py-1.5 text-xs font-semibold text-fg">{p.nombre}</div>
                   </button>
                 );
               })}

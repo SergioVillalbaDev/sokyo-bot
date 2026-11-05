@@ -115,15 +115,15 @@ function responderBotonCuenta(interaction, cfg) {
     return interaction.reply({ ...mensajeAcceso(interaction.user, idiomaDe(interaction, cfg), vista), flags: 64 });
 }
 
-// Mensaje fijo para un canal (#información, #bienvenida…): explica qué es "Mi
-// cuenta" y cómo entrar, con un botón para cada uno. Lo publican /panel-cuenta,
-// !panelcuenta y el panel web («Mi cuenta de los miembros»).
-function panelCuenta(cfg) {
+// El embed de fábrica del mensaje fijo, en el formato del Creador de embeds del
+// panel (así se puede empezar a editar desde él). `panelCuenta` lo usa si el
+// servidor no ha hecho el suyo.
+function embedCuentaDefecto(cfg) {
     const web = urlCuenta().replace(/^https?:\/\//, '');
-    const embed = new EmbedBuilder()
-        .setColor('#a855f7')
-        .setTitle(t(cfg, '✨ Tu cuenta Sokyo: todo lo tuyo en un sitio', '✨ Your Sokyo account: all your stuff in one place'))
-        .setDescription(t(cfg,
+    return {
+        color: '#a855f7',
+        titulo: t(cfg, '✨ Tu cuenta Sokyo: todo lo tuyo en un sitio', '✨ Your Sokyo account: all your stuff in one place'),
+        descripcion: t(cfg,
             'Cada miembro tiene **su propia web** con lo suyo de este servidor:\n\n'
             + '🎫 **Tus tickets** · habla con el staff también desde el móvil\n'
             + '🛒 **Tienda y mochila** · gasta tu oro y usa tus objetos\n'
@@ -133,34 +133,78 @@ function panelCuenta(cfg) {
             + '🎫 **Your tickets** · talk to the staff, from your phone too\n'
             + '🛒 **Shop and bag** · spend your gold and use your items\n'
             + '🎵 **Music** · play songs in your voice channel\n'
-            + '🎨 **Your level card** · style it the way you like'))
-        .addFields(
+            + '🎨 **Your level card** · style it the way you like'),
+        campos: [
             {
-                name: t(cfg, '👇 Cómo entrar (1 clic)', '👇 How to get in (1 click)'),
-                value: t(cfg,
+                nombre: t(cfg, '👇 Cómo entrar (1 clic)', '👇 How to get in (1 click)'),
+                valor: t(cfg,
                     '**1.** Pulsa **Abrir mi cuenta**.\n**2.** Pulsa el botón que te aparece (solo lo ves tú).\n**3.** ¡Dentro! Sin contraseñas ni formularios.',
                     '**1.** Press **Open my account**.\n**2.** Press the button you get (only you can see it).\n**3.** You’re in! No passwords, no forms.'),
+                inline: false,
             },
             {
-                name: t(cfg, 'También puedes', 'You can also'),
-                value: t(cfg,
+                nombre: t(cfg, 'También puedes', 'You can also'),
+                valor: t(cfg,
                     `Escribir \`/cuenta\` en cualquier canal · Entrar en **${web}** con tu Discord`,
                     `Type \`/account\` in any channel · Go to **${web}** and log in with Discord`),
+                inline: false,
             },
-        );
-    require('./marca.js').aplicarPieMarca(embed, cfg);
+        ],
+    };
+}
+
+// Textos de fábrica de los botones (los cambia el servidor en el panel).
+function etiquetasCuentaDefecto(cfg) {
+    return {
+        abrir: t(cfg, 'Abrir mi cuenta', 'Open my account'),
+        tickets: t(cfg, 'Mis tickets', 'My tickets'),
+        tienda: t(cfg, 'Tienda', 'Shop'),
+        musica: t(cfg, 'Música', 'Music'),
+        tarjeta: t(cfg, 'Mi tarjeta', 'My card'),
+    };
+}
+
+// Mensaje fijo para un canal (#información, #bienvenida…): explica qué es "Mi
+// cuenta" y cómo entrar, con un botón para cada uno. Lo publican /panel-cuenta,
+// !panelcuenta y el panel web («Mi cuenta de los miembros»). Todo se puede cambiar
+// en el panel (`panelCuenta`: texto, embed, botones y sus textos); `guild` sirve
+// para enlazar «#canal».
+function panelCuenta(cfg, guild = null) {
+    const { construirMensaje, embedTieneContenido, estiloBoton } = require('./embeds.js');
+    const { mencionarEnMensaje } = require('./mencionesCanal.js');
+    const pc = (cfg && cfg.panelCuenta) || {};
+    const { contenido, embed: propio } = mencionarEnMensaje(pc.contenido, pc.embed, guild);
+    let payload;
+    if (propio && embedTieneContenido(propio)) {
+        payload = construirMensaje(contenido, propio, require('path').join(__dirname, '..', 'api', 'uploads'), cfg);
+    } else {
+        const d = embedCuentaDefecto(cfg);
+        const embed = new EmbedBuilder().setColor(d.color).setTitle(d.titulo).setDescription(d.descripcion)
+            .addFields(d.campos.map((c) => ({ name: c.nombre, value: c.valor })));
+        require('./marca.js').aplicarPieMarca(embed, cfg);
+        payload = { embeds: [embed] };
+        if (contenido) payload.content = String(contenido).slice(0, 2000);
+    }
+    const fab = etiquetasCuentaDefecto(cfg);
+    const et = { ...fab, ...Object.fromEntries(Object.entries(pc.etiquetas || {}).filter(([, v]) => String(v || '').trim()).map(([k, v]) => [k, String(v).trim().slice(0, 80)])) };
+    const web = urlCuenta().replace(/^https?:\/\//, '');
     const filaPrincipal = new ActionRowBuilder().addComponents(
-        botonAbrirCuenta(cfg),
-        new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(urlCuenta()).setLabel(web.slice(0, 80)).setEmoji('🌐'),
+        botonAbrirCuenta(cfg, { etiqueta: String(pc.textoBoton || '').trim().slice(0, 80) || fab.abrir, estilo: estiloBoton(pc.estiloBoton) }),
+        ...(pc.botonWeb !== false ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(urlCuenta()).setLabel(web.slice(0, 80)).setEmoji('🌐')] : []),
     );
-    const secundario = { estilo: ButtonStyle.Secondary };
-    const filaSecciones = new ActionRowBuilder().addComponents(
-        botonAbrirCuenta(cfg, { ...secundario, vista: 'tickets', emoji: '🎫', etiqueta: t(cfg, 'Mis tickets', 'My tickets') }),
-        botonAbrirCuenta(cfg, { ...secundario, vista: 'tienda', emoji: '🛒', etiqueta: t(cfg, 'Tienda', 'Shop') }),
-        botonAbrirCuenta(cfg, { ...secundario, vista: 'musica', emoji: '🎵', etiqueta: t(cfg, 'Música', 'Music') }),
-        botonAbrirCuenta(cfg, { ...secundario, vista: 'tarjeta', emoji: '🎨', etiqueta: t(cfg, 'Mi tarjeta', 'My card') }),
-    );
-    return { embeds: [embed], components: [filaPrincipal, filaSecciones] };
+    payload.components = [filaPrincipal];
+    if (pc.secciones !== false) {
+        const secundario = { estilo: ButtonStyle.Secondary };
+        payload.components.push(new ActionRowBuilder().addComponents(
+            botonAbrirCuenta(cfg, { ...secundario, vista: 'tickets', emoji: '🎫', etiqueta: et.tickets }),
+            botonAbrirCuenta(cfg, { ...secundario, vista: 'tienda', emoji: '🛒', etiqueta: et.tienda }),
+            botonAbrirCuenta(cfg, { ...secundario, vista: 'musica', emoji: '🎵', etiqueta: et.musica }),
+            botonAbrirCuenta(cfg, { ...secundario, vista: 'tarjeta', emoji: '🎨', etiqueta: et.tarjeta }),
+        ));
+    }
+    // Un mensaje fijo no debe avisar a nadie aunque lleve @menciones.
+    payload.allowedMentions = { parse: [] };
+    return payload;
 }
 
 // ¿Puede el bot publicar el mensaje en ese canal? (ver, escribir y poner embeds)
@@ -176,18 +220,20 @@ function puedePublicar(canal) {
 async function publicarPanelCuenta(canal, cfg) {
     const ServidorConfig = require('../models/ServidorConfig.js'); // perezoso: la API lo carga antes que Mongo
     const { invalidateConfig } = require('./config.js');
-    const contenido = panelCuenta(cfg);
+    const contenido = panelCuenta(cfg, canal.guild);
     const previo = cfg && cfg.panelCuenta;
     let mensaje = null;
     let actualizado = false;
     if (previo && previo.mensajeId && previo.canalId === canal.id) {
         mensaje = await canal.messages.fetch(previo.mensajeId).catch(() => null);
-        if (mensaje) { await mensaje.edit(contenido); actualizado = true; }
+        // attachments: [] quita la imagen subida de antes (si no, se quedaba debajo al cambiarla).
+        if (mensaje) { await mensaje.edit({ content: null, ...contenido, attachments: [] }); actualizado = true; }
     }
     if (!mensaje) mensaje = await canal.send(contenido);
+    // Solo dónde está publicado: lo personalizado (texto, embed, botones) se queda.
     await ServidorConfig.updateOne(
         { guildId: canal.guild.id },
-        { $set: { panelCuenta: { canalId: canal.id, mensajeId: mensaje.id, fecha: new Date() } } },
+        { $set: { 'panelCuenta.canalId': canal.id, 'panelCuenta.mensajeId': mensaje.id, 'panelCuenta.fecha': new Date() } },
         { upsert: true },
     );
     invalidateConfig(canal.guild.id);
@@ -197,5 +243,6 @@ async function publicarPanelCuenta(canal, cfg) {
 module.exports = {
     VISTAS, DURACION_MS, crearEnlace, canjear, mensajeAcceso, botonWeb, urlCuenta, origenApi,
     idiomaDe, botonAbrirCuenta, responderBotonCuenta, panelCuenta, puedePublicar, publicarPanelCuenta,
+    embedCuentaDefecto, etiquetasCuentaDefecto,
     _codigos: codigos,
 };

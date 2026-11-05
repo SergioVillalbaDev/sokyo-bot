@@ -105,11 +105,11 @@ export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pest
         </div>
       </TituloVista>
 
-      <div className="mb-5 flex gap-1.5 overflow-x-auto rounded-2xl border border-line bg-white/[.03] p-1.5" role="tablist">
+      <div className="mb-5 flex gap-1.5 overflow-x-auto rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.03)] p-1.5" role="tablist">
         {pestanas.map(({ id, icono: Icono, label }) => (
           <button
             key={id} role="tab" aria-selected={pestana === id} onClick={() => setPestana(id)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${pestana === id ? 'bg-gradient-to-br from-violet-500/60 to-pink-500/50 text-white shadow-[0_0_22px_-6px_rgba(217,70,239,.8)]' : 'text-muted hover:bg-white/[.06] hover:text-fg'}`}
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${pestana === id ? 'bg-gradient-to-br from-violet-500/60 to-pink-500/50 text-white shadow-[0_0_22px_-6px_rgba(217,70,239,.8)]' : 'text-muted hover:bg-[rgb(var(--gx-tinta)/.06)] hover:text-fg'}`}
           >
             <Icono size={15} /> {label}
           </button>
@@ -123,7 +123,7 @@ export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pest
               {['todos', ...RAREZAS].map((r) => (
                 <button
                   key={r} onClick={() => setFiltro(r)} aria-pressed={filtro === r}
-                  className={`gx-chip px-3 py-1.5 text-xs transition-all ${filtro === r ? 'text-white' : 'text-muted hover:text-fg'}`}
+                  className={`gx-chip px-3 py-1.5 text-xs transition-all ${filtro === r ? 'text-fg' : 'text-muted hover:text-fg'}`}
                   style={filtro === r ? { borderColor: r === 'todos' ? 'rgba(196,181,253,.6)' : rareza(r).color, boxShadow: `0 0 16px -4px ${r === 'todos' ? '#a855f7' : rareza(r).color}` } : undefined}
                 >
                   {t(`portal.shop.rarity.${r}`)}
@@ -230,11 +230,11 @@ function Carta({ item, idx, destacado = false, etiqueta, children }) {
       <div className="flex items-center justify-end gap-2 px-4 pt-3.5">
         <span className="gx-chip gx-rareza">{t(`portal.shop.rarity.${item.rareza || 'comun'}`)}</span>
       </div>
-      <div className="gx-escena relative mx-3.5 mt-2.5 grid h-40 place-items-center overflow-hidden rounded-2xl border border-white/5">
+      <div className="gx-escena relative mx-3.5 mt-2.5 grid h-40 place-items-center overflow-hidden rounded-2xl border border-[rgb(var(--gx-tinta)/.05)]">
         {item.imageUrl
           ? <img src={item.imageUrl} alt="" className="gx-flota max-h-28 max-w-[70%] object-contain" style={{ animationDelay: `${(idx % 6) * 0.4}s` }} />
           : <span className="gx-emoji gx-flota text-6xl" style={{ animationDelay: `${(idx % 6) * 0.4}s` }}>{ICONO_TIPO[item.tipo] || '📦'}</span>}
-        {etiqueta && <span className="absolute bottom-2 right-2 rounded-lg border border-white/15 bg-black/60 px-2 py-0.5 text-[11px] font-bold text-fg">{etiqueta}</span>}
+        {etiqueta && <span className="absolute bottom-2 right-2 rounded-lg border border-[rgb(var(--gx-tinta)/.15)] bg-black/60 px-2 py-0.5 text-[11px] font-bold text-fg">{etiqueta}</span>}
       </div>
       <div className="flex flex-1 flex-col p-4">
         <h3 className="font-bold leading-tight text-fg">{item.nombre}</h3>
@@ -323,7 +323,7 @@ function Forja({ portalFetch, usuario, items, avisar, onCreado }) {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <p className="rounded-2xl border border-line bg-white/[.04] px-4 py-3 text-sm text-muted">{t('portal.shop.forgeIntro')}</p>
+      <p className="rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.04)] px-4 py-3 text-sm text-muted">{t('portal.shop.forgeIntro')}</p>
 
       <Tarjeta as="form" brillo onSubmit={crearObjeto} className="flex flex-col gap-4 p-5 sm:p-6">
         <h2 className="flex items-center gap-2 text-lg font-bold text-fg"><Hammer size={18} className="text-amber-300" /> {t('portal.shop.forgeItem')}</h2>

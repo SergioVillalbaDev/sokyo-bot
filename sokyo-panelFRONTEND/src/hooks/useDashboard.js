@@ -371,6 +371,20 @@ export function useDashboard() {
 
   // «Mi cuenta de los miembros»: publica (o actualiza) en un canal el mensaje
   // con el botón «Abrir mi cuenta». Devuelve { ok, actualizado, url } o { ok: false, codigo }.
+  // Mensaje de «Mi cuenta» personalizable (1.9.12): lo de fábrica y guardar cómo es.
+  const cargarMensajeCuentaDefecto = async () => {
+    if (!gidActivo()) return null;
+    try { const res = await apiFetch(`/api/cuenta/${gidActivo()}/mensaje-defecto`); return res.ok ? await res.json() : null; } catch { return null; }
+  };
+  const guardarMensajeCuenta = async (datos) => {
+    if (!gidActivo()) return false;
+    try {
+      const res = await apiFetch(`/api/cuenta/${gidActivo()}/mensaje`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const data = await res.json().catch(() => ({}));
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
+    } catch (error) { console.error('Error guardando el mensaje de Mi cuenta:', error); }
+    return false;
+  };
   const publicarPanelCuenta = async (canalId) => {
     if (!gidActivo()) return { ok: false };
     try {
@@ -759,6 +773,29 @@ export function useDashboard() {
   };
 
   // --- DOBLE BIENVENIDA (Test A/B, Pro) — usa el motor embudoAB del backend ---
+  // Preguntas al entrar y «Cerrar el servidor» (1.9.12).
+  const guardarPreguntasEntrada = async (datos) => {
+    if (!gidActivo()) return false;
+    try {
+      const res = await apiFetch(`/api/seguridad/${gidActivo()}/preguntas`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const data = await res.json().catch(() => ({}));
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
+      return { ok: false, error: data.error || null };
+    } catch (error) { console.error('Error guardando las preguntas al entrar:', error); }
+    return false;
+  };
+  const estadoCierre = async () => {
+    if (!gidActivo()) return null;
+    try { const res = await apiFetch(`/api/seguridad/${gidActivo()}/cierre`); return res.ok ? await res.json() : null; } catch { return null; }
+  };
+  const cambiarCierre = async (accion) => {
+    if (!gidActivo()) return { error: true };
+    try {
+      const res = await apiFetch(`/api/seguridad/${gidActivo()}/cierre`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion }) });
+      const data = await res.json().catch(() => ({}));
+      return data.success ? data : { error: data.error || true, codigo: data.codigo || null };
+    } catch { return { error: true }; }
+  };
   const guardarEmbudo = async (embudoAB) => {
     if (!gidActivo()) return false;
     try {
@@ -1058,6 +1095,17 @@ export function useDashboard() {
 
   // --- COMUNIDAD: sorteos ---
   const cargarSorteos = () => apiFetch(`/api/sorteos${gp()}`).then(procesarRespuesta).then((d) => setSorteos(Array.isArray(d) ? d : [])).catch(reportarError('cargando sorteos'));
+  // Editar algo ya creado (1.9.12): anuncios programados, sorteos, eventos y encuestas.
+  // `tipo` = la ruta de la API. Devuelve { ok, enDiscord } o { error }.
+  const editarCreado = async (tipo, id, payload) => {
+    try {
+      const res = await apiFetch(`/api/${tipo}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      const recargar = { anuncios: cargarAnuncios, sorteos: cargarSorteos, eventos: cargarEventos, encuestas: cargarEncuestas }[tipo];
+      if (data.success) { if (recargar) await recargar(); return { ok: true, enDiscord: data.enDiscord }; }
+      return { error: data.error || 'No se pudo guardar' };
+    } catch (error) { console.error(`Error editando ${tipo}:`, error); return { error: 'Network error' }; }
+  };
   const crearSorteo = async (payload) => {
     try {
       const res = await apiFetch('/api/sorteos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId, ...payload }) });
@@ -1166,6 +1214,15 @@ export function useDashboard() {
   const eliminarPresentacion = async (id) => {
     try { const res = await apiFetch(`/api/presentaciones/${id}`, { method: 'DELETE' }); if (res.ok) await cargarPresentaciones(); }
     catch (error) { console.error('Error eliminando presentacion:', error); }
+  };
+  // Aceptar / rechazar una presentación (como los botones de Discord). Devuelve { ok, aviso } o { error, codigo }.
+  const revisarPresentacion = async (id, aceptar, motivo = '') => {
+    try {
+      const res = await apiFetch(`/api/presentaciones/${id}/revisar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aceptar, motivo }) });
+      const data = await res.json().catch(() => ({}));
+      await cargarPresentaciones();
+      return data.success ? { ok: true, aviso: data.aviso } : { error: data.error || true, codigo: data.codigo || null };
+    } catch { return { error: true }; }
   };
   const guardarConfigPresentaciones = async (datos) => {
     if (!gidActivo()) return false;
@@ -1283,6 +1340,17 @@ export function useDashboard() {
       if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
     } catch (error) { console.error('Error guardando reglas:', error); }
     return false;
+  };
+
+  // «Ordenar tickets»: mueve cada ticket a su categoría (abiertos / cerrados).
+  const ordenarTickets = async () => {
+    if (!gidActivo()) return { error: true };
+    try {
+      const res = await apiFetch(`/api/config/${gidActivo()}/tickets/ordenar`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { if (data.config) setConfigServidor(marcarEco(data.config)); cargarCategorias(); return data; }
+      return { error: data.error || true };
+    } catch { return { error: true }; }
   };
 
   // Guarda los ajustes de comportamiento y refresca la config en memoria.
@@ -1410,6 +1478,14 @@ export function useDashboard() {
   const agregarUrgencia = () => { if (nuevaUrgNombre.trim() !== '' && !urgencias.some((u) => u.nombre.toLowerCase() === nuevaUrgNombre.trim().toLowerCase())) { setUrgencias([...urgencias, { nombre: nuevaUrgNombre.trim(), color: nuevaUrgColor, nivel: Number(nuevaUrgNivel) }]); setNuevaUrgNombre(''); setNuevaUrgNivel(1); } };
   const eliminarUrgencia = (nombreUrg) => setUrgencias(urgencias.filter((u) => u.nombre !== nombreUrg));
   const agregarMotivo = () => { if (nuevoMotivo.trim() !== '' && !motivos.some((m) => (typeof m === 'string' ? m : m.nombre).toLowerCase() === nuevoMotivo.trim().toLowerCase())) { setMotivos([...motivos, { nombre: nuevoMotivo.trim(), urgencia: nuevaUrgencia }]); setNuevoMotivo(''); } };
+  // Editar un motivo en su sitio (1.9.12): nombre y urgencia, sin borrarlo y volverlo a crear.
+  const editarMotivo = (indice, nombre, urgencia) => {
+    const limpio = String(nombre || '').trim();
+    if (!limpio) return false;
+    if (motivos.some((m, i) => i !== indice && (typeof m === 'string' ? m : m.nombre).toLowerCase() === limpio.toLowerCase())) return false;
+    setMotivos(motivos.map((m, i) => (i === indice ? { nombre: limpio, urgencia: urgencia || (typeof m === 'string' ? 'Normal' : m.urgencia) } : m)));
+    return true;
+  };
   const eliminarMotivo = (motivoABorrar) => setMotivos(motivos.filter((m) => (typeof m === 'string' ? m : m.nombre) !== (typeof motivoABorrar === 'string' ? motivoABorrar : motivoABorrar.nombre)));
 
   const guardarCambiosConfig = async () => {
@@ -1510,15 +1586,15 @@ export function useDashboard() {
     else if (activeTab === 'config-niveles') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarRanking(); cargarCatalogoPresets(); }
     else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); cargarFuncionesRol(); }
     else if (activeTab === 'config-canales') { cargarEstructuraCanales(); cargarPermisosCanalCatalogo(); cargarRoles(); }
-    else if (activeTab === 'com-micuenta') { cargarConfiguracion(); cargarCanales(); }
+    else if (activeTab === 'com-micuenta') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); }
     else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
     else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
     else if (activeTab === 'mod-tipos') { cargarTiposSancion(); }
     else if (activeTab === 'mod-automod') { cargarConfiguracion(); cargarRoles(); cargarCanales(); }
-    else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); cargarPresetsAnuncio(); }
+    else if (activeTab === 'seg-verificacion') { cargarConfiguracion(); cargarRoles(); cargarCanales(); cargarCategorias(); cargarPresetsAnuncio(); }
     else if (activeTab === 'prod-bienvenidas') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarPresetsAnuncio(); }
-    else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarReportes(); }
+    else if (activeTab === 'seg-reportes' || activeTab === 'mod-reportes') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarReportes(); }
     else if (activeTab === 'seg-backup') { cargarConfiguracion(); }
     else if (activeTab === 'cuenta-plan') { cargarConfiguracion(); cargarEstadoBilling(); }
     else if (activeTab === 'owner-subs') { cargarOwnerServidores(); }
@@ -1528,7 +1604,7 @@ export function useDashboard() {
     else if (activeTab === 'com-eventos') { cargarEventos(); cargarCanales(); }
     else if (activeTab === 'com-encuestas') { cargarEncuestas(); cargarCanales(); }
     else if (activeTab === 'com-sugerencias') { cargarSugerencias(); cargarCanales(); cargarConfiguracion(); }
-    else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarConfiguracion(); }
+    else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarRoles(); cargarConfiguracion(); }
     else if (activeTab === 'com-dinamicas') { cargarConfiguracion(); cargarCanales(); cargarRoles(); cargarTrivia(); }
     else if (activeTab === 'musica') { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     else if (activeTab === 'crec-contadores') { cargarConfiguracion(); cargarCategorias(); }
@@ -1672,7 +1748,7 @@ export function useDashboard() {
     eventos, crearEvento, eliminarEvento, cargarEventos,
     encuestas, crearEncuesta, eliminarEncuesta, cargarEncuestas,
     sugerencias, actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias, cargarSugerencias,
-    presentaciones, eliminarPresentacion, guardarConfigPresentaciones,
+    presentaciones, eliminarPresentacion, guardarConfigPresentaciones, revisarPresentacion,
     // comunidad: dinámicas (config + banco de trivia)
     guardarDinamicas, trivia, cargarTrivia, crearTrivia, eliminarTrivia,
     // productividad: auto-respuestas, embeds, anuncios programados
@@ -1682,7 +1758,8 @@ export function useDashboard() {
     esBroadcaster, servidoresBot, difundir,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
-    guardarAcceso, misPermisos,
+    guardarAcceso, misPermisos, ordenarTickets, editarCreado, cargarMensajeCuentaDefecto, guardarMensajeCuenta,
+    guardarPreguntasEntrada, estadoCierre, cambiarCierre,
     // emojis y stickers
     stickers, crearEmoji, eliminarEmoji, renombrarEmoji, cargarLimiteEmojis, crearSticker, eliminarSticker,
     // niveles
@@ -1703,7 +1780,7 @@ export function useDashboard() {
     // personalización (Fase 2)
     colorEmbed, setColorEmbed, textoBoton, setTextoBoton, mensajeBienvenida, setMensajeBienvenida, prefijo, setPrefijo, idioma, setIdioma, categoriaArchivados, setCategoriaArchivados,
     // incidencias
-    motivos, nuevoMotivo, setNuevoMotivo, nuevaUrgencia, setNuevaUrgencia,
+    motivos, nuevoMotivo, setNuevoMotivo, nuevaUrgencia, setNuevaUrgencia, editarMotivo,
     urgencias, nuevaUrgNombre, setNuevaUrgNombre, nuevaUrgColor, setNuevaUrgColor, nuevaUrgNivel, setNuevaUrgNivel,
     // usuarios
     usuariosStats,

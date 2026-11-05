@@ -4,7 +4,8 @@
 // servidores, con su estado.
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bell, Gavel, Gift, Loader2, ExternalLink, Globe, ShieldCheck, Cake } from 'lucide-react';
+import { Bell, Gavel, Gift, Loader2, ExternalLink, Globe, ShieldCheck, Cake, Palette, Lock, Check, Crown } from 'lucide-react';
+import { TEMAS_CUENTA } from '../../lib/temaCuenta';
 import { Tarjeta, TituloVista, Vacio } from './glass';
 
 const TIPOS = ['anuncios', 'tickets', 'niveles', 'sorteos'];
@@ -13,7 +14,7 @@ const COLOR_ESTADO = { activa: '#f87171', terminada: '#94a3b8', quitada: '#34d39
 function Interruptor({ activo, onCambiar, etiqueta }) {
   return (
     <button type="button" role="switch" aria-checked={activo} aria-label={etiqueta} onClick={() => onCambiar(!activo)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${activo ? 'bg-[var(--accent-color)]' : 'bg-white/15'}`}>
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${activo ? 'bg-[var(--accent-color)]' : 'bg-[rgb(var(--gx-tinta)/.15)]'}`}>
       <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${activo ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
     </button>
   );
@@ -63,14 +64,14 @@ function Cumple({ portalFetch, avisar }) {
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-muted">{t('portal.ajustes.cumpleDia')}</span>
-            <select value={form.dia} onChange={(e) => setForm((f) => ({ ...f, dia: Number(e.target.value) || '' }))} className="rounded-xl border border-white/10 bg-white/[.06] px-3 py-2 text-sm text-fg">
+            <select value={form.dia} onChange={(e) => setForm((f) => ({ ...f, dia: Number(e.target.value) || '' }))} className="rounded-xl border border-[rgb(var(--gx-tinta)/.1)] bg-[rgb(var(--gx-tinta)/.06)] px-3 py-2 text-sm text-fg">
               <option value="">—</option>
               {Array.from({ length: maxDia }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-muted">{t('portal.ajustes.cumpleMes')}</span>
-            <select value={form.mes} onChange={(e) => setForm((f) => ({ ...f, mes: Number(e.target.value) || '', dia: f.dia && Number(e.target.value) && f.dia > DIAS_MES[Number(e.target.value) - 1] ? '' : f.dia }))} className="rounded-xl border border-white/10 bg-white/[.06] px-3 py-2 text-sm capitalize text-fg">
+            <select value={form.mes} onChange={(e) => setForm((f) => ({ ...f, mes: Number(e.target.value) || '', dia: f.dia && Number(e.target.value) && f.dia > DIAS_MES[Number(e.target.value) - 1] ? '' : f.dia }))} className="rounded-xl border border-[rgb(var(--gx-tinta)/.1)] bg-[rgb(var(--gx-tinta)/.06)] px-3 py-2 text-sm capitalize text-fg">
               <option value="">—</option>
               {meses.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
             </select>
@@ -90,7 +91,40 @@ function Cumple({ portalFetch, avisar }) {
   );
 }
 
-export default function AjustesPortal({ portalFetch, avisar, sorteos = [] }) {
+// Tema de «Mi cuenta» (1.9.12): los del panel y la web, con los premium bloqueados sin
+// plan (como en el panel). Se ve al momento; lo guarda lib/temaCuenta.js.
+function TemaCuenta({ tema, onCambiar, premium }) {
+  const { t } = useTranslation();
+  const bloqueado = (tm) => tm.premium && premium === false;
+  const grupo = (lista) => (
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {lista.map((tm) => (
+        <button key={tm.id} type="button" disabled={bloqueado(tm)} onClick={() => onCambiar(tm.id)} title={tm.label} aria-pressed={tema === tm.id}
+          className={`relative flex flex-col items-center gap-1.5 rounded-2xl border p-2 transition-all ${tema === tm.id ? 'border-[var(--accent-color)] ring-2 ring-[var(--accent-color)]/40' : 'border-line hover:border-[var(--accent-color)]/50'} ${bloqueado(tm) ? 'cursor-not-allowed opacity-50' : ''}`}>
+          <span className="relative flex h-9 w-full items-center justify-center overflow-hidden rounded-xl" style={{ background: tm.swatch[0] }}>
+            <span className="h-4 w-4 rounded-full" style={{ background: tm.swatch[1] }} />
+            {bloqueado(tm) && <span className="absolute inset-0 flex items-center justify-center bg-black/35"><Lock size={13} className="text-white" /></span>}
+            {tema === tm.id && !bloqueado(tm) && <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-color)] text-[var(--on-brand)]"><Check size={10} strokeWidth={3} /></span>}
+          </span>
+          <span className="text-[11px] font-medium text-muted">{tm.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <Tarjeta className="p-5 sm:p-6">
+      <h2 className="flex items-center gap-2 font-bold text-fg"><Palette size={18} className="text-brand" /> {t('portal.ajustes.temaTitle')}</h2>
+      <p className="mt-1 text-sm text-muted">{t('portal.ajustes.temaDesc')}</p>
+      <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wide text-muted">{t('portal.ajustes.temaBasicos')}</p>
+      {grupo(TEMAS_CUENTA.filter((x) => !x.premium))}
+      <p className="mb-2 mt-4 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted"><Crown size={12} className="text-amber-400" /> {t('portal.ajustes.temaPremium')}</p>
+      {grupo(TEMAS_CUENTA.filter((x) => x.premium))}
+      {premium === false && <p className="mt-3 rounded-xl border border-line px-3 py-2 text-xs text-muted">{t('portal.ajustes.temaBloqueado')}</p>}
+    </Tarjeta>
+  );
+}
+
+export default function AjustesPortal({ portalFetch, avisar, sorteos = [], tema = 'glass', onCambiarTema, premium = null }) {
   const { t, i18n } = useTranslation();
   const [prefs, setPrefs] = useState(null);
   const [sanciones, setSanciones] = useState(null);
@@ -113,13 +147,15 @@ export default function AjustesPortal({ portalFetch, avisar, sorteos = [] }) {
     <div className="space-y-5">
       <TituloVista icono={Bell} color="#a855f7" titulo={t('portal.ajustes.title')} subtitulo={t('portal.ajustes.subtitle')} />
 
+      {onCambiarTema && <TemaCuenta tema={tema} onCambiar={onCambiarTema} premium={premium} />}
+
       {/* Avisos por privado e idioma */}
       <Tarjeta className="p-5 sm:p-6">
         <h2 className="flex items-center gap-2 font-bold text-fg"><Bell size={18} className="text-brand" /> {t('portal.ajustes.dmsTitle')}</h2>
         <p className="mt-1 text-sm text-muted">{t('portal.ajustes.dmsDesc')}</p>
         {!prefs ? <div className="flex justify-center py-6"><Loader2 className="animate-spin text-muted" /></div> : (
           <>
-            <ul className="mt-4 divide-y divide-white/10">
+            <ul className="mt-4 divide-y divide-[rgb(var(--gx-tinta)/.1)]">
               {TIPOS.map((k) => (
                 <li key={k} className="flex items-center justify-between gap-4 py-3">
                   <span className="min-w-0">
@@ -135,7 +171,7 @@ export default function AjustesPortal({ portalFetch, avisar, sorteos = [] }) {
               <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('portal.ajustes.idioma')}>
                 {['auto', 'es', 'en'].map((op) => (
                   <button key={op} type="button" role="radio" aria-checked={prefs.idioma === op} onClick={() => guardar({ idioma: op })}
-                    className={`rounded-xl border px-2 py-2 text-xs font-semibold transition-colors ${prefs.idioma === op ? 'border-[var(--accent-color)] bg-white/10 text-fg' : 'border-white/10 text-muted hover:text-fg'}`}>
+                    className={`rounded-xl border px-2 py-2 text-xs font-semibold transition-colors ${prefs.idioma === op ? 'border-[var(--accent-color)] bg-[rgb(var(--gx-tinta)/.1)] text-fg' : 'border-[rgb(var(--gx-tinta)/.1)] text-muted hover:text-fg'}`}>
                     {t(`portal.ajustes.idiomas.${op}`)}
                   </button>
                 ))}
@@ -154,7 +190,7 @@ export default function AjustesPortal({ portalFetch, avisar, sorteos = [] }) {
           <h2 className="flex items-center gap-2 font-bold text-fg"><Gift size={18} className="text-pink-400" /> {t('portal.ajustes.sorteosTitle')}</h2>
           <ul className="mt-3 space-y-2">
             {sorteos.map((s) => (
-              <li key={s.id} className="flex items-start gap-3 rounded-2xl bg-white/[.05] px-3 py-2.5">
+              <li key={s.id} className="flex items-start gap-3 rounded-2xl bg-[rgb(var(--gx-tinta)/.05)] px-3 py-2.5">
                 <span className="text-xl leading-none" aria-hidden="true">🎉</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-fg">{s.premio}</span>
@@ -178,7 +214,7 @@ export default function AjustesPortal({ portalFetch, avisar, sorteos = [] }) {
           ) : (
             <ul className="mt-4 space-y-2">
               {sanciones.map((s) => (
-                <li key={s.id} className="rounded-2xl bg-white/[.05] px-3 py-2.5">
+                <li key={s.id} className="rounded-2xl bg-[rgb(var(--gx-tinta)/.05)] px-3 py-2.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-bold text-fg">{t(`portal.ajustes.acciones.${s.accion}`, { defaultValue: s.accion })}</span>
                     <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${COLOR_ESTADO[s.estado]}26`, color: COLOR_ESTADO[s.estado] }}>

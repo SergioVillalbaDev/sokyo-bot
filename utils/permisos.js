@@ -69,6 +69,8 @@ function rolesQueDaElBot(c = {}) {
         ...((c.crecimiento && c.crecimiento.invitaciones && c.crecimiento.invitaciones.recompensas) || []).map((r) => r && r.rolId),
         c.cumpleanos && c.cumpleanos.rolId,
         ...((c.solicitudes && c.solicitudes.formularios) || []).map((f) => f && f.rolId),
+        // Preguntas al entrar (1.9.12): cada respuesta puede dar un rol.
+        ...((c.preguntasEntrada && c.preguntasEntrada.preguntas) || []).flatMap((q) => ((q && q.opciones) || []).map((o) => o && o.rolId)),
     ].filter((x) => typeof x === 'string' && x);
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, Sparkles, X } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { ligeroActivo } from '../../lib/ligero';
+import { EVENTO_TEMA_CUENTA } from '../../lib/temaCuenta';
 
 // Fondo: nebulosas de color, estelas de luz que se mecen despacio y polvo de
 // estrellas (canvas). Todo lo que se mueve detrás del cristal obliga al
@@ -20,7 +21,13 @@ export function FondoEspacial() {
     const quieto = ligeroActivo() || !!window.matchMedia?.('(prefers-reduced-motion: reduce), (max-width: 640px), (pointer: coarse)').matches;
     const PASO = 1000 / 30;
     let ultimo = 0;
-    const colores = ['255,255,255', '221,214,254', '249,168,212', '191,219,254', '254,215,170'];
+    // Colores de las motas: los del tema (portal.css: --gx-motas, «r,g,b|r,g,b…»).
+    const coloresTema = () => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--gx-motas').trim();
+      const lista = v ? v.split('|').map((x) => x.trim()).filter((x) => /^\d+,\d+,\d+$/.test(x)) : [];
+      return lista.length ? lista : ['255,255,255', '221,214,254', '249,168,212', '191,219,254', '254,215,170'];
+    };
+    let colores = coloresTema();
     let ancho = 0, alto = 0, motas = [], raf = 0;
 
     const preparar = () => {
@@ -68,6 +75,9 @@ export function FondoEspacial() {
     };
 
     const alCambiarTamano = () => { preparar(); if (quieto) pintar(); };
+    // Otro tema (lib/temaCuenta.js): las motas toman sus colores.
+    const alCambiarTema = () => { colores = coloresTema(); alCambiarTamano(); };
+    window.addEventListener(EVENTO_TEMA_CUENTA, alCambiarTema);
     const alCambiarVisibilidad = () => {
       cancelAnimationFrame(raf);
       if (!document.hidden && !quieto) raf = requestAnimationFrame(pintar);
@@ -78,6 +88,7 @@ export function FondoEspacial() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', alCambiarTamano);
+      window.removeEventListener(EVENTO_TEMA_CUENTA, alCambiarTema);
       document.removeEventListener('visibilitychange', alCambiarVisibilidad);
     };
   }, []);
@@ -93,10 +104,10 @@ export function FondoEspacial() {
     <div className="gx-espacio" aria-hidden="true">
       <svg className="gx-estelas" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
         <defs>
-          <linearGradient id="gx-e1" x1="0" x2="1"><stop offset="0" stopColor="#a855f7" stopOpacity="0" /><stop offset=".35" stopColor="#a855f7" /><stop offset=".7" stopColor="#ec4899" /><stop offset="1" stopColor="#ec4899" stopOpacity="0" /></linearGradient>
-          <linearGradient id="gx-e2" x1="0" x2="1"><stop offset="0" stopColor="#3b82f6" stopOpacity="0" /><stop offset=".4" stopColor="#60a5fa" /><stop offset=".75" stopColor="#22d3ee" /><stop offset="1" stopColor="#22d3ee" stopOpacity="0" /></linearGradient>
-          <linearGradient id="gx-e3" x1="0" x2="1"><stop offset="0" stopColor="#fb923c" stopOpacity="0" /><stop offset=".45" stopColor="#fb923c" /><stop offset=".8" stopColor="#ec4899" /><stop offset="1" stopColor="#ec4899" stopOpacity="0" /></linearGradient>
-          <linearGradient id="gx-e4" x1="0" x2="1"><stop offset="0" stopColor="#ec4899" stopOpacity="0" /><stop offset=".5" stopColor="#d946ef" /><stop offset=".85" stopColor="#8b5cf6" /><stop offset="1" stopColor="#8b5cf6" stopOpacity="0" /></linearGradient>
+          <linearGradient id="gx-e1" x1="0" x2="1"><stop offset="0" style={{ stopColor: 'var(--gx-violeta)' }} stopOpacity="0" /><stop offset=".35" style={{ stopColor: 'var(--gx-violeta)' }} /><stop offset=".7" style={{ stopColor: 'var(--gx-rosa)' }} /><stop offset="1" style={{ stopColor: 'var(--gx-rosa)' }} stopOpacity="0" /></linearGradient>
+          <linearGradient id="gx-e2" x1="0" x2="1"><stop offset="0" style={{ stopColor: 'var(--gx-azul)' }} stopOpacity="0" /><stop offset=".4" style={{ stopColor: 'var(--gx-azul)' }} /><stop offset=".75" style={{ stopColor: 'var(--gx-cian)' }} /><stop offset="1" style={{ stopColor: 'var(--gx-cian)' }} stopOpacity="0" /></linearGradient>
+          <linearGradient id="gx-e3" x1="0" x2="1"><stop offset="0" style={{ stopColor: 'var(--gx-naranja)' }} stopOpacity="0" /><stop offset=".45" style={{ stopColor: 'var(--gx-naranja)' }} /><stop offset=".8" style={{ stopColor: 'var(--gx-rosa)' }} /><stop offset="1" style={{ stopColor: 'var(--gx-rosa)' }} stopOpacity="0" /></linearGradient>
+          <linearGradient id="gx-e4" x1="0" x2="1"><stop offset="0" style={{ stopColor: 'var(--gx-rosa)' }} stopOpacity="0" /><stop offset=".5" style={{ stopColor: 'var(--gx-fucsia)' }} /><stop offset=".85" style={{ stopColor: 'var(--gx-violeta)' }} /><stop offset="1" style={{ stopColor: 'var(--gx-violeta)' }} stopOpacity="0" /></linearGradient>
           <filter id="gx-difuso" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14" /></filter>
         </defs>
         {estelas.map((e) => (
