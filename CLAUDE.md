@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.12.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.13.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -515,5 +515,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   renombrar mensajes guardados. **Temas en «Mi cuenta»** (`lib/temaCuenta.js`, `data-cuenta` + paleta
   `--gx-*` por tema en `portal.css`; nada de `bg-white/…` en el portal: `bg-[rgb(var(--gx-tinta)/.06)]`).
   `MarkdownDiscord` entiende `-#`. Tests: `entradaPreguntas`, `presentaciones`, `reportes`, `tickets`.
+- 1.9.13 **Verificación con aprobación del staff** (`preguntasEntrada.aprobacion` + `canalRevisionId`,
+  `mensajeRechazo`/`mensajeAceptada`; modelo `SolicitudEntrada`): al terminar (con o sin preguntas) no se da
+  nada: `solicitarAprobacion` manda al canal un aviso con lo respondido y `entv_ok/entv_no` (motivo en
+  ventana `entv_nom`); `revisarSolicitud` la reserva de golpe (doble clic) y da roles + acceso con
+  `concederEntrada`. Panel: `AprobacionEntrada.jsx` en Verificación (ajustes, vista previa y solicitudes
+  pendientes con vista previa del aviso al staff y de los dos privados; `GET/POST
+  /api/seguridad/:g/verificaciones…`, área `entrada`). El canal del staff tiene que ser del mismo
+  servidor (`canalRevision`), dos clics no crean dos solicitudes, si el aviso no llega se reenvía al
+  volver a intentarlo y una revisión cortada por un reinicio (`revisandoDesde`) se libera a los 2 min.
+  Las respuestas pueden abrir un canal suelto (no solo categorías); al cerrar el servidor, ese canal
+  deja de verlo el rol de acceso. **Panel de tickets** (`utils/panelTickets.js`, `panelTickets` en la
+  config): `!sokyo` y el botón del panel (Tickets → Ajustes, `POST /api/config/:g/tickets/panel`) lo
+  publican o actualizan igual. `guardarTextosConfig` y `guardarCambiosConfig` ya no sacan un `alert` en
+  inglés: devuelven true/false y el botón `BotonGuardar.jsx` dice «✅ Guardado» o el error. Fecha de
+  apertura/cierre en cada ticket (`TicketsView`). Tests: `aprobacionEntrada`, `entradaPreguntas`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

@@ -1,8 +1,6 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
-const { aplicarPieMarca } = require('../utils/marca.js');
 const { t } = require('../utils/i18n.js');
-const { botonAbrirCuenta } = require('../utils/cuenta.js');
 
 module.exports = {
     name: 'sokyo', // O el nombre que uses en tu gestor de comandos
@@ -23,30 +21,9 @@ module.exports = {
                 config = await ServidorConfig.create({ guildId: message.guild.id });
             }
 
-            // 3. Construimos el Embed MÁGICO devorando los datos dinámicos de tu web
-            const embedPanel = new EmbedBuilder()
-                .setTitle(config.mensajeSoporteTitulo || t(cfg, '🎫 El soporte está abierto', '🎫 Support is open'))
-                .setDescription(config.mensajeSoporteDescripcion || t(cfg, 'Pulsa el botón de abajo para abrir un ticket de soporte.', 'Click the button below to open a support ticket.'))
-                .setColor(config.colorEmbed || '#5865F2') // Color configurable desde el panel
-                .setTimestamp();
-            aplicarPieMarca(embedPanel, config); // marca blanca: Sokyo en Free, su marca en Pro
-
-            // 4. Creamos el botón interactivo que dispara el evento "create_ticket"
-            const botonAbrir = new ButtonBuilder()
-                .setCustomId('create_ticket')
-                .setLabel(config.textoBoton || t(cfg, '📩 Abrir un ticket', '📩 Open a ticket'))
-                .setStyle(ButtonStyle.Primary);
-
-            // Al lado, "Ver mis tickets": cada uno entra a su cuenta con un clic.
-            const filaComponentes = new ActionRowBuilder().addComponents(botonAbrir, botonAbrirCuenta(config, {
-                vista: 'tickets', emoji: '🗂️', estilo: ButtonStyle.Secondary, etiqueta: t(config, 'Ver mis tickets', 'See my tickets'),
-            }));
-
-            // 5. Lanzamos el panel al canal y borramos el comando del administrador para limpiar el chat
-            await message.channel.send({
-                embeds: [embedPanel],
-                components: [filaComponentes]
-            });
+            // 3. Publicamos el panel (utils/panelTickets.js, el mismo que el botón del panel web):
+            //    si ya estaba en este canal, se actualiza en vez de repetirse.
+            await require('../utils/panelTickets.js').publicarPanelTickets(message.channel, config);
 
             await message.delete().catch(console.error);
 

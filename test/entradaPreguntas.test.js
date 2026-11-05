@@ -70,7 +70,17 @@ function servidor() {
     const canal = (id, name, type, ows = {}, parent = null) => {
         const cache = new Collection(Object.entries(ows).map(([k, v]) => [k, { allow: new PermissionsBitField(v.allow || []), deny: new PermissionsBitField(v.deny || []) }]));
         const c = { id, name, type, parentId: parent, children: { cache: new Collection() },
-            permissionOverwrites: { cache, async edit(target, cambios) { ediciones.push(['canal', id, target, cambios]); } },
+            permissionOverwrites: { cache, async edit(target, cambios) {
+                ediciones.push(['canal', id, target, cambios]);
+                // Como discord.js: la caché queda con el permiso nuevo.
+                const ow = cache.get(target) || { allow: new PermissionsBitField([]), deny: new PermissionsBitField([]) };
+                const v = cambios.ViewChannel;
+                if (v !== undefined) {
+                    ow.allow = v === true ? new PermissionsBitField(ow.allow).add(F.ViewChannel) : new PermissionsBitField(ow.allow).remove(F.ViewChannel);
+                    ow.deny = v === false ? new PermissionsBitField(ow.deny).add(F.ViewChannel) : new PermissionsBitField(ow.deny).remove(F.ViewChannel);
+                }
+                cache.set(target, ow);
+            } },
             permissionsFor: () => new PermissionsBitField([F.ViewChannel]) };
         return c;
     };
@@ -109,6 +119,15 @@ describe('cerrar el servidor hasta verificarse', () => {
         // @everyone es lo último que se cierra (nunca queda nadie sin ver el canal de verificación).
         const iEveryone = ed.findIndex(([k, id]) => k === 'rol' && id === 'g1');
         assert.strictEqual(iEveryone, ed.length - 1);
+    });
+    it('un canal suelto de una respuesta (1.9.13) solo lo ve su rol, aunque antes estuviera abierto a todos', async () => {
+        const g = servidor();
+        const conCanal = { ...cfg, preguntasEntrada: { activo: true, preguntas: [{ id: 'j', texto: '¿Juegas?', opciones: [{ id: 'v', etiqueta: 'Valorant', rolId: '333333', categoriaId: 'reglas' }] }] } };
+        await cierre.cerrar(g, conCanal);
+        const ows = g.channels.cache.get('reglas').permissionOverwrites.cache;
+        assert.strictEqual(ows.get('333333').allow.has(F.ViewChannel), true);
+        assert.strictEqual(ows.get('g1').deny.has(F.ViewChannel), true);
+        assert.strictEqual(ows.get('555555').allow.has(F.ViewChannel), false, 'el rol de acceso no debe verlo');
     });
     it('sin rol de acceso o sin canal no toca nada', async () => {
         await assert.rejects(cierre.cerrar(servidor(), { verificacion: { activo: true, canalId: 'verif' } }), /sin-rol/);

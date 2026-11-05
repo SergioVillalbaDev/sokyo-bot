@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.13': [
+        { tab: 'seg-verificacion', es: '🛂 Verificación con aprobación: nadie entra al servidor hasta que el staff acepta su verificación. Le llega a un canal vuestro (y al panel) con lo que respondió, «Aceptar» y «Rechazar»; si se rechaza, recibe el motivo por privado.', en: '🛂 Verification with approval: nobody gets into the server until the staff accepts their verification. It reaches a channel of yours (and the panel) with what they answered, “Accept” and “Reject”; if rejected, they get the reason by DM.' },
+        { tab: 'seg-verificacion', es: '📁 Cada respuesta de las preguntas al entrar puede abrir una categoría o un canal suelto.', en: '📁 Each answer to the joining questions can open a category or a single channel.' },
+        { tab: 'tickets-config', es: '🎫 «Publicar el panel de tickets» desde el panel: elige el canal y listo, ya no hace falta escribir !sokyo (si ya está, se actualiza).', en: '🎫 “Publish the ticket panel” from the panel: pick the channel and done, no need to type !sokyo anymore (if it’s already there, it gets updated).' },
+        { tab: 'tickets-gestion', es: '📅 Cada ticket enseña cuándo se abrió (y cuándo se cerró).', en: '📅 Each ticket shows when it was opened (and when it was closed).' },
+    ],
     '1.9.12': [
         { tab: 'seg-verificacion', es: '🚪 Una sola verificación para todo: tras el botón (o el captcha), el bot hace tus preguntas una a una (edad, de dónde eres, anuncios, juegos…) y cada respuesta da su rol. El rol de acceso llega al terminar.', en: '🚪 One verification for everything: after the button (or the captcha), the bot asks your questions one by one (age, where you’re from, announcements, games…) and each answer gives its role. The access role comes at the end.' },
         { tab: 'seg-verificacion', es: '🔒 «Cerrar el servidor hasta verificarse»: sin el rol de acceso solo se ve el canal de verificación, y las categorías de juegos solo las ve quien las elige.', en: '🔒 “Close the server until verified”: without the access role only the verification channel is visible, and game categories are only visible to those who pick them.' },

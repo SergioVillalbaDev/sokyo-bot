@@ -393,7 +393,11 @@ export function useDashboard() {
         signal: AbortSignal.timeout?.(30000),
       });
       const data = await res.json().catch(() => ({}));
-      if (data.success) { cargarConfiguracion(); return { ok: true, actualizado: !!data.actualizado, url: data.url || null }; }
+      if (data.success) {
+        // Solo lo del panel publicado: recargar toda la config pisaba los motivos y urgencias sin guardar.
+        if (data.panelTickets) setConfigServidor((c) => (c ? marcarEco({ ...c, panelTickets: data.panelTickets }) : c));
+        return { ok: true, actualizado: !!data.actualizado, url: data.url || null };
+      }
       return { ok: false, codigo: data.codigo || (res.status === 403 ? 'acceso' : 'error') };
     } catch (error) {
       console.error('Error publicando el botón de Mi cuenta:', error);
@@ -783,6 +787,19 @@ export function useDashboard() {
       return { ok: false, error: data.error || null };
     } catch (error) { console.error('Error guardando las preguntas al entrar:', error); }
     return false;
+  };
+  // Verificaciones pendientes de aprobar (1.9.13) y revisarlas.
+  const cargarVerificaciones = async () => {
+    if (!gidActivo()) return null;
+    try { const res = await apiFetch(`/api/seguridad/${gidActivo()}/verificaciones`); return res.ok ? await res.json() : null; } catch { return null; }
+  };
+  const revisarVerificacion = async (id, aceptar, motivo = '') => {
+    if (!gidActivo()) return { error: true };
+    try {
+      const res = await apiFetch(`/api/seguridad/${gidActivo()}/verificaciones/${id}/revisar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aceptar, motivo }) });
+      const data = await res.json().catch(() => ({}));
+      return data.success ? { ok: true, aviso: data.aviso, fallo: data.fallo } : { error: data.error || true, codigo: data.codigo || null };
+    } catch { return { error: true }; }
   };
   const estadoCierre = async () => {
     if (!gidActivo()) return null;
@@ -1488,16 +1505,20 @@ export function useDashboard() {
   };
   const eliminarMotivo = (motivoABorrar) => setMotivos(motivos.filter((m) => (typeof m === 'string' ? m : m.nombre) !== (typeof motivoABorrar === 'string' ? motivoABorrar : motivoABorrar.nombre)));
 
+  // Devuelve true/false: el botón (BotonGuardar) dice si ha ido bien (antes, un alert en inglés).
   const guardarCambiosConfig = async () => {
-    if (!formularioDelServidor()) return;
+    if (!formularioDelServidor()) return false;
     const motivosFormateados = motivos.map((m) => typeof m === 'string' ? { nombre: m, urgencia: 'Normal' } : m);
-    await apiFetch(`/api/config/${gidActivo()}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
-    await apiFetch(`/api/config/${gidActivo()}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
-    alert('✅ Ticket system updated in Discord successfully!'); setMotivos(motivosFormateados);
+    try {
+      const r1 = await apiFetch(`/api/config/${gidActivo()}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
+      const r2 = await apiFetch(`/api/config/${gidActivo()}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
+      setMotivos(motivosFormateados);
+      return r1.ok && r2.ok;
+    } catch { return false; }
   };
 
   const guardarTextosConfig = async () => {
-    if (!formularioDelServidor()) return;
+    if (!formularioDelServidor()) return false;
     const res = await apiFetch(`/api/config/${gidActivo()}/textos`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1505,7 +1526,20 @@ export function useDashboard() {
         colorEmbed, textoBoton, mensajeBienvenida, prefijo, categoriaArchivados, idioma,
       }),
     });
-    if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(marcarEco(data.config)); alert('✅ Customization updated!'); }
+    // Sin alert (salía en inglés): lo dice el botón (BotonGuardar).
+    if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(marcarEco(data.config)); return true; }
+    return false;
+  };
+  // Publicar (o actualizar) el panel de tickets en un canal (1.9.13), sin !sokyo. Guarda antes los textos.
+  const publicarPanelTickets = async (canalId) => {
+    if (!gidActivo()) return { ok: false };
+    if (!(await guardarTextosConfig())) return { ok: false, codigo: 'guardar' };
+    try {
+      const res = await apiFetch(`/api/config/${gidActivo()}/tickets/panel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canalId }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) { cargarConfiguracion(); return { ok: true, actualizado: !!data.actualizado, url: data.url || null }; }
+      return { ok: false, codigo: data.codigo || (res.status === 403 ? 'acceso' : 'error') };
+    } catch { return { ok: false, codigo: 'red' }; }
   };
 
   const getTicketsOrdenados = () => [...ticketsReales].sort((a, b) => (urgencias.find((u) => u.nombre === b.prioridad)?.nivel || 0) - (urgencias.find((u) => u.nombre === a.prioridad)?.nivel || 0));
@@ -1758,8 +1792,8 @@ export function useDashboard() {
     esBroadcaster, servidoresBot, difundir,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
-    guardarAcceso, misPermisos, ordenarTickets, editarCreado, cargarMensajeCuentaDefecto, guardarMensajeCuenta,
-    guardarPreguntasEntrada, estadoCierre, cambiarCierre,
+    guardarAcceso, misPermisos, ordenarTickets, editarCreado, publicarPanelTickets, cargarMensajeCuentaDefecto, guardarMensajeCuenta,
+    guardarPreguntasEntrada, estadoCierre, cambiarCierre, cargarVerificaciones, revisarVerificacion,
     // emojis y stickers
     stickers, crearEmoji, eliminarEmoji, renombrarEmoji, cargarLimiteEmojis, crearSticker, eliminarSticker,
     // niveles

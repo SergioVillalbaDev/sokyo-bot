@@ -1621,6 +1621,24 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // Publicar (o actualizar) el panel de tickets en un canal desde el panel web (1.9.13).
+    app.post('/api/config/:guildId/tickets/panel', exigeArea('tickets'), async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const canal = guild.channels.cache.get(String((req.body && req.body.canalId) || ''));
+            if (!canal || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(canal.type)) return res.status(400).json({ error: 'Elige un canal de texto', codigo: 'canal' });
+            const pt = require('../utils/panelTickets.js');
+            if (!pt.puedePublicar(canal)) return res.status(403).json({ error: 'El bot no puede escribir en ese canal', codigo: 'sin_permiso' });
+            const cfg = await ServidorConfig.findOne({ guildId: guild.id });
+            const { mensaje, actualizado } = await pt.publicarPanelTickets(canal, cfg);
+            res.json({ success: true, actualizado, canalId: canal.id, url: mensaje.url, panelTickets: { canalId: canal.id, mensajeId: mensaje.id, fecha: new Date() } });
+        } catch (error) {
+            console.error('Error al publicar el panel de tickets:', error);
+            res.status(500).json({ error: 'No se pudo publicar el panel' });
+        }
+    });
+
     // «Ordenar tickets»: abiertos a su categoría y cerrados a la de cerrados (utils/ticketManager.js).
     app.post('/api/config/:guildId/tickets/ordenar', exigeArea('config'), async (req, res) => {
         try {
@@ -1950,6 +1968,16 @@ app.get('/api/stats/uso', async (req, res) => {
             if (b.activo !== undefined) set['preguntasEntrada.activo'] = !!b.activo;
             if (b.preguntas !== undefined) set['preguntasEntrada.preguntas'] = preguntas;
             if (b.ocultarVerificacion !== undefined) set['preguntasEntrada.ocultarVerificacion'] = b.ocultarVerificacion !== false;
+            // Aprobación del staff (1.9.13)
+            if (b.aprobacion !== undefined) set['preguntasEntrada.aprobacion'] = !!b.aprobacion;
+            if (b.canalRevisionId !== undefined) {
+                // Solo un canal de este servidor (el bot tampoco manda las solicitudes a otro).
+                const id = /^\d{5,25}$/.test(String(b.canalRevisionId || '')) ? String(b.canalRevisionId) : null;
+                const guild = client.guilds.cache.get(req.params.guildId);
+                set['preguntasEntrada.canalRevisionId'] = id && guild && !guild.channels.cache.has(id) ? null : id;
+            }
+            if (b.mensajeRechazo !== undefined) set['preguntasEntrada.mensajeRechazo'] = String(b.mensajeRechazo || '').slice(0, 1500);
+            if (b.mensajeAceptada !== undefined) set['preguntasEntrada.mensajeAceptada'] = String(b.mensajeAceptada || '').slice(0, 1500);
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
             );
@@ -1959,6 +1987,39 @@ app.get('/api/stats/uso', async (req, res) => {
             res.status(500).json({ error: 'No se pudo guardar' });
         }
     });
+    // Verificaciones pendientes de aprobar (y las últimas revisadas), y revisarlas desde el panel
+    // (área «entrada», la misma que la sección Verificación).
+    app.get('/api/seguridad/:guildId/verificaciones', exigeArea('entrada'), async (req, res) => {
+        try {
+            const SolicitudEntrada = require('../models/SolicitudEntrada.js');
+            const [pendientes, revisadas] = await Promise.all([
+                SolicitudEntrada.find({ guildId: req.params.guildId, estado: { $in: ['pendiente', 'revisando'] } }).sort({ fecha: 1 }).limit(100).lean(),
+                SolicitudEntrada.find({ guildId: req.params.guildId, estado: { $in: ['aceptada', 'rechazada'] } }).sort({ revisadaFecha: -1 }).limit(10).lean(),
+            ]);
+            res.json({ pendientes, revisadas });
+        } catch (error) {
+            console.error('Error al listar verificaciones:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+    app.post('/api/seguridad/:guildId/verificaciones/:id/revisar', exigeArea('entrada'), async (req, res) => {
+        try {
+            const SolicitudEntrada = require('../models/SolicitudEntrada.js');
+            const doc = await SolicitudEntrada.findOne({ _id: req.params.id, guildId: req.params.guildId }).catch(() => null);
+            if (!doc) return res.status(404).json({ error: 'No encontrada', codigo: 'not-found' });
+            const aceptar = !!(req.body && req.body.aceptar);
+            const motivo = String((req.body && req.body.motivo) || '').slice(0, 1000);
+            if (!aceptar && !motivo.trim()) return res.status(400).json({ error: 'Escribe el motivo del rechazo', codigo: 'motivo' });
+            const r = await require('../utils/preguntasEntrada.js').revisarSolicitud(client, doc._id, { guildId: req.params.guildId, aceptar, motivo, revisor: (req.staff && req.staff.username) || 'Panel' });
+            res.json({ success: true, aviso: r.aviso, fallo: r.fallo });
+        } catch (error) {
+            const codigos = { 'ya-revisada': 409, 'no-esta': 410, 'not-found': 404 };
+            if (codigos[error.message]) return res.status(codigos[error.message]).json({ error: error.message, codigo: error.message });
+            console.error('Error al revisar una verificación:', error);
+            res.status(500).json({ error: 'No se pudo revisar' });
+        }
+    });
+
     app.get('/api/seguridad/:guildId/cierre', exigeArea('config'), async (req, res) => {
         const guild = client.guilds.cache.get(req.params.guildId);
         if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
