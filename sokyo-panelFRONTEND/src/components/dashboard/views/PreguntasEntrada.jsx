@@ -24,7 +24,7 @@ const preguntaVacia = () => ({ id: nuevoId('q'), texto: '', descripcion: '', mul
 
 export default function PreguntasEntrada({ dash, rolAccesoId }) {
   const { t } = useTranslation();
-  const { configServidor, roles = [], categorias = [], guardarPreguntasEntrada } = dash;
+  const { configServidor, roles = [], categorias = [], canales = [], guardarPreguntasEntrada } = dash;
   const [activo, setActivo] = useState(false);
   const [preguntas, setPreguntas] = useState([]);
   const [error, setError] = useState('');
@@ -120,7 +120,8 @@ export default function PreguntasEntrada({ dash, rolAccesoId }) {
                     </select>
                     <select value={o.categoriaId} onChange={(e) => cambiarOpcion(i, k, { categoriaId: e.target.value })} disabled={!o.rolId} className={`${mini} col-span-2 sm:col-span-1 disabled:opacity-40`} aria-label={t('dashboard.verif_v.q.category')} title={t('dashboard.verif_v.q.categoryHint')}>
                       <option value="">{t('dashboard.verif_v.q.noCategory')}</option>
-                      {categorias.map((c) => <option key={c.id} value={c.id}>📁 {c.nombre}</option>)}
+                      {categorias.length > 0 && <optgroup label={t('dashboard.verif_v.q.groupCategories')}>{categorias.map((c) => <option key={c.id} value={c.id}>📁 {c.nombre}</option>)}</optgroup>}
+                      {canales.length > 0 && <optgroup label={t('dashboard.verif_v.q.groupChannels')}>{canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}</optgroup>}
                     </select>
                     <button type="button" onClick={() => cambiarPregunta(i, { opciones: q.opciones.filter((_, m) => m !== k) })} className="justify-self-end rounded-lg p-1 text-muted hover:text-danger" aria-label={t('dashboard.verif_v.q.removeOption')}><X size={14} /></button>
                   </div>

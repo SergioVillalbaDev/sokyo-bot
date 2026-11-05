@@ -361,6 +361,11 @@ module.exports = {
             || (interaction.isButton() && (interaction.customId.startsWith('entq_atras:') || interaction.customId.startsWith('entq_saltar:')))) {
             return require('../utils/preguntasEntrada.js').manejar(interaction, client);
         }
+        // Verificación con aprobación del staff (1.9.13): «Aceptar», «Rechazar» y su motivo.
+        if ((interaction.isButton() && (interaction.customId.startsWith('entv_ok:') || interaction.customId.startsWith('entv_no:')))
+            || (interaction.isModalSubmit() && interaction.customId.startsWith('entv_nom:'))) {
+            return require('../utils/preguntasEntrada.js').manejarRevision(interaction);
+        }
 
         // --- SEGURIDAD: gestión de reportes (resolver / descartar / abrir ticket) ---
         if (interaction.isButton() && (interaction.customId.startsWith('rep_resolver:') || interaction.customId.startsWith('rep_descartar:') || interaction.customId.startsWith('rep_ticket:') || interaction.customId.startsWith('rep_autor:'))) {

@@ -19,6 +19,7 @@ import EstadoAutoguardado from '../EstadoAutoguardado';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 import PreguntasEntrada from './PreguntasEntrada';
 import CierreServidor from './CierreServidor';
+import AprobacionEntrada from './AprobacionEntrada';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -346,6 +347,7 @@ export default function VerificacionView({ dash }) {
       {!abBloqueado && (
         <>
           <PreguntasEntrada dash={dash} rolAccesoId={esAB ? e.rolVerificadoId : v.rolVerificadoId} />
+          <AprobacionEntrada dash={dash} rolAccesoId={esAB ? e.rolVerificadoId : v.rolVerificadoId} />
           <CierreServidor dash={dash} />
         </>
       )}

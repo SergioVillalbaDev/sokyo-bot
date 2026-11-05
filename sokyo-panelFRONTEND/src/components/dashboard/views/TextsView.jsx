@@ -2,8 +2,9 @@
 // muestra la guía completa de comandos (slash y de texto), agrupada por
 // categoría. Los textos del panel de tickets se movieron a Tickets > Ajustes.
 import { useTranslation } from 'react-i18next';
-import { Save, Terminal, BookOpen, Languages } from 'lucide-react';
+import { Terminal, BookOpen, Languages } from 'lucide-react';
 import { Card } from '../../ui/primitives';
+import BotonGuardar from '../BotonGuardar';
 
 // Guía de comandos. `s` = comando slash (/), `p` = comando de texto (prefijo).
 const GUIA = [
@@ -46,9 +47,7 @@ export default function TextsView({ dash }) {
             <h2 className="flex items-center gap-2 text-xl font-bold text-fg"><Terminal size={18} className="text-brand" /> {t('dashboard.commands_v.prefixTitle')}</h2>
             <p className="mt-1 text-sm text-muted">{t('dashboard.commands_v.prefixDesc')}</p>
           </div>
-          <button onClick={guardarTextosConfig} className="flex items-center gap-2 rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-on-brand glow-brand transition-transform hover:scale-[1.03]">
-            <Save size={16} /> {t('dashboard.texts_v.save')}
-          </button>
+          <BotonGuardar onGuardar={guardarTextosConfig}>{t('dashboard.texts_v.save')}</BotonGuardar>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="max-w-xs">

@@ -55,6 +55,11 @@ const ServidorConfigSchema = new mongoose.Schema({
         secciones: { type: Boolean, default: true },
         etiquetas: { type: mongoose.Schema.Types.Mixed, default: null }, // { tickets, tienda, musica, tarjeta }
     },
+    panelTickets: {                                                                    // panel «Abrir un ticket» publicado (!sokyo o el panel web, 1.9.13)
+        canalId: { type: String, default: null },
+        mensajeId: { type: String, default: null },
+        fecha: { type: Date, default: null },
+    },
     categoriaArchivados: { type: String, default: '🗄️ Archived Tickets' },          // categoría de tickets cerrados (por nombre: se crea si no existe)
     categoriaArchivadosId: { type: String, default: null },                           // o una categoría concreta elegida en el panel (1.9.12)
 
@@ -294,6 +299,11 @@ const ServidorConfigSchema = new mongoose.Schema({
         // [{ id, texto, descripcion, multiple, obligatoria, opciones: [{ id, etiqueta, emoji, descripcion, rolId, categoriaId }] }]
         preguntas: { type: mongoose.Schema.Types.Mixed, default: [] },
         ocultarVerificacion: { type: Boolean, default: true }, // al cerrar el servidor, quien entra ya no ve el canal de verificación
+        // Aprobación del staff (1.9.13): nadie entra hasta que el staff acepta su verificación.
+        aprobacion: { type: Boolean, default: false },
+        canalRevisionId: { type: String, default: null },  // donde llegan las solicitudes (con Aceptar / Rechazar)
+        mensajeRechazo: { type: String, default: '' },      // privado al rechazar ({user}, {server}, {motivo}); vacío = de fábrica
+        mensajeAceptada: { type: String, default: '' },     // privado al aceptar; vacío = de fábrica
     },
 
     // --- EMBUDO DE BIENVENIDA: Test A/B de retención (Pro) ---

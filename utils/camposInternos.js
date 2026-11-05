@@ -15,7 +15,7 @@ const RAICES_INTERNAS = new Set([
 ]);
 // Rutas concretas: dónde está publicado el mensaje de «Mi cuenta» es del bot, pero
 // cómo es (texto, embed, botones; 1.9.12) es un ajuste más (se deshace y se copia).
-const RUTAS_INTERNAS = new Set(['panelCuenta.canalId', 'panelCuenta.fecha']);
+const RUTAS_INTERNAS = new Set(['panelCuenta.canalId', 'panelCuenta.fecha', 'panelTickets.canalId', 'panelTickets.fecha']);
 
 // ruta = 'dinamicas.qotd.lastDia' (o una lista de partes)
 function esInterno(ruta) {

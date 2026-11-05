@@ -109,7 +109,8 @@ async function cerrar(guild, cfg, { arreglarCanales = true } = {}) {
             } catch { fallos.push({ id: c.id, nombre: c.name }); }
         }
     }
-    // 5. Categorías de juegos (o lo que sea): solo con su rol.
+    // 5. Categorías (o canales sueltos) de las respuestas: solo con su rol. Si el paso 4
+    // le dio «Ver canal» al rol de acceso, se le quita: si no, lo vería todo verificado.
     for (const { rolId: rid, categoriaId } of categoriasPorRol(cfg)) {
         const cat = guild.channels.cache.get(categoriaId);
         if (!cat || !guild.roles.cache.get(rid)) continue;
@@ -117,6 +118,9 @@ async function cerrar(guild, cfg, { arreglarCanales = true } = {}) {
             try {
                 await c.permissionOverwrites.edit(everyone.id, { ViewChannel: false }, { type: OverwriteType.Role, reason: motivo });
                 await c.permissionOverwrites.edit(rid, { ViewChannel: true }, { type: OverwriteType.Role, reason: motivo });
+                if (rid !== acceso.id && c.permissionOverwrites.cache.get(acceso.id)?.allow?.has(F.ViewChannel)) {
+                    await c.permissionOverwrites.edit(acceso.id, { ViewChannel: null }, { type: OverwriteType.Role, reason: motivo });
+                }
             } catch { fallos.push({ id: c.id, nombre: c.name }); }
         }
     }

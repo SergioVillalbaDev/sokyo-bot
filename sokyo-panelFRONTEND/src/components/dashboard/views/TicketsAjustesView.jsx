@@ -8,8 +8,9 @@ import { useTranslation } from 'react-i18next';
 import {
   Save, Pencil, Eye, ShieldCheck, FolderTree, Hash, Clock, UserCheck, Info,
   Star, FileText, MessageSquareWarning, BellRing, Gauge, Tags, Zap, X, Plus,
-  Hourglass, Lightbulb, Sparkles, Mail, Archive, Loader2,
+  Hourglass, Lightbulb, Sparkles, Mail, Archive, Loader2, Send, CheckCircle2,
 } from 'lucide-react';
+import BotonGuardar from '../BotonGuardar';
 import { Card, Toggle } from '../../ui/primitives';
 import { OpcionCrear } from '../CrearAlVuelo';
 
@@ -45,7 +46,7 @@ export default function TicketsAjustesView({ dash }) {
     mensajeBienvenida, setMensajeBienvenida, prefijo,
     categoriaArchivados, setCategoriaArchivados, guardarTextosConfig,
     // Reglas y comportamiento
-    guardarReglas, guardarComportamiento, ordenarTickets,
+    guardarReglas, guardarComportamiento, ordenarTickets, publicarPanelTickets, canales = [], guildId,
     // Urgencias y motivos
     urgencias, nuevaUrgNombre, setNuevaUrgNombre, nuevaUrgColor, setNuevaUrgColor,
     nuevaUrgNivel, setNuevaUrgNivel, agregarUrgencia, eliminarUrgencia,
@@ -55,6 +56,8 @@ export default function TicketsAjustesView({ dash }) {
     guardarMacros,
   } = dash;
 
+  const [canalPanel, setCanalPanel] = useState(''); // canal elegido para publicar el panel (vacío = donde ya está)
+  const [publicando, setPublicando] = useState(null); // null | 'enviando' | { ok, texto, url }
   const [orden, setOrden] = useState(null); // «Ordenar tickets»: null | { cargando } | { texto } | { error }
   const [motivoEd, setMotivoEd] = useState(null); // { i, nombre, urgencia }: motivo que se edita
   const [macroEd, setMacroEd] = useState(null);   // índice de la respuesta rápida que se edita
@@ -93,9 +96,42 @@ export default function TicketsAjustesView({ dash }) {
           <h2 className="flex items-center gap-2 text-xl font-bold text-fg"><Pencil size={18} className="text-brand" /> {t('dashboard.tickets_set.panelTitle')}</h2>
           <p className="mt-1 text-sm text-muted">{t('dashboard.tickets_set.panelDesc')}</p>
         </div>
-        <button onClick={guardarTextosConfig} className="flex items-center gap-2 rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-on-brand glow-brand transition-transform hover:scale-[1.03]">
-          <Save size={16} /> {t('dashboard.texts_v.save')}
-        </button>
+        <BotonGuardar onGuardar={guardarTextosConfig}>{t('dashboard.texts_v.save')}</BotonGuardar>
+      </Card>
+
+      {/* Publicar el panel en un canal desde aquí (antes solo con !sokyo en Discord) */}
+      <Card data-help="tickets-publicar" className="p-6 shadow-soft">
+        <h3 className="flex items-center gap-2 font-bold text-fg"><Send size={17} className="text-brand" /> {t('dashboard.tickets_set.publishTitle')}</h3>
+        <p className="mt-1 text-sm text-muted">{t('dashboard.tickets_set.publishDesc')}</p>
+        {c.panelTickets?.mensajeId && (
+          <p className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm font-semibold text-fg">
+            <CheckCircle2 size={15} className="text-success" /> {t('dashboard.tickets_set.publishedIn', { canal: canales.find((x) => x.id === c.panelTickets.canalId)?.nombre || '?' })}
+            {guildId && <a href={`https://discord.com/channels/${guildId}/${c.panelTickets.canalId}/${c.panelTickets.mensajeId}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-brand hover:underline">{t('dashboard.tickets_set.viewInDiscord')}</a>}
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <select value={canalPanel || c.panelTickets?.canalId || ''} onChange={(e) => { setCanalPanel(e.target.value); setPublicando(null); }} className={select} style={{ maxWidth: 280 }}>
+            <option value="">{t('dashboard.tickets_set.publishChannelPh')}</option>
+            {canales.map((ch) => <option key={ch.id} value={ch.id}>#{ch.nombre}</option>)}
+            <OpcionCrear tipo="canal" />
+          </select>
+          <button type="button" disabled={publicando === 'enviando'} onClick={async () => {
+            const canalId = canalPanel || c.panelTickets?.canalId || '';
+            if (!canalId) { setPublicando({ ok: false, texto: t('dashboard.tickets_set.publishPick') }); return; }
+            setPublicando('enviando');
+            const r = await publicarPanelTickets(canalId);
+            const clave = { canal: 'publishPick', sin_permiso: 'publishPerm', guardar: 'publishSaveErr' }[r.codigo] || 'publishErr';
+            setPublicando(r.ok ? { ok: true, texto: t(r.actualizado ? 'dashboard.tickets_set.publishUpdated' : 'dashboard.tickets_set.publishOk'), url: r.url } : { ok: false, texto: t(`dashboard.tickets_set.${clave}`) });
+          }} className="flex items-center gap-2 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand disabled:opacity-60">
+            {publicando === 'enviando' ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+            {(canalPanel || c.panelTickets?.canalId) === c.panelTickets?.canalId && c.panelTickets?.mensajeId ? t('dashboard.tickets_set.publishUpdate') : t('dashboard.tickets_set.publishBtn')}
+          </button>
+          {publicando && publicando !== 'enviando' && (
+            <span role="status" className={`text-sm font-semibold ${publicando.ok ? 'text-success' : 'text-danger'}`}>
+              {publicando.texto} {publicando.url && <a href={publicando.url} target="_blank" rel="noreferrer" className="underline">{t('dashboard.tickets_set.viewInDiscord')}</a>}
+            </span>
+          )}
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -285,9 +321,7 @@ export default function TicketsAjustesView({ dash }) {
           <h2 className="flex items-center gap-2 text-xl font-bold text-fg"><Gauge size={18} className="text-brand" /> {t('dashboard.incidents_v.title')}</h2>
           <p className="mt-1 text-sm text-muted">{t('dashboard.incidents_v.subtitle')}</p>
         </div>
-        <button onClick={guardarCambiosConfig} className="flex items-center gap-2 rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-on-brand glow-brand transition-transform hover:scale-[1.03]">
-          <Save size={16} /> {t('dashboard.incidents_v.save')}
-        </button>
+        <BotonGuardar onGuardar={guardarCambiosConfig}>{t('dashboard.incidents_v.save')}</BotonGuardar>
       </Card>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card data-help="incidents-urgencias" className="flex flex-col p-6">

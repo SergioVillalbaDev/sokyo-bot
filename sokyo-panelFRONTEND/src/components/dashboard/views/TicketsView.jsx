@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox, Hourglass } from 'lucide-react';
+import { MessageSquare, Lock, Unlock, EyeOff, ShieldCheck, Tag, Inbox, Hourglass, CalendarDays } from 'lucide-react';
 import { Avatar, Badge, Stars, Card } from '../../ui/primitives';
 import { cn } from '../../../lib/cn';
 import { nombrePrioridad } from '../../../lib/prioridad';
@@ -17,6 +17,14 @@ function hace(fecha, lng) {
   if (Math.abs(min) < 60) return rtf.format(min, 'minute');
   if (Math.abs(min) < 60 * 24) return rtf.format(Math.round(min / 60), 'hour');
   return rtf.format(Math.round(min / 1440), 'day');
+}
+
+// Fecha corta de un ticket: «5 nov, 18:24» (y el año si no es este).
+function fechaTicket(d, idioma) {
+  const f = new Date(d);
+  if (Number.isNaN(f.getTime())) return '';
+  const otroAno = f.getFullYear() !== new Date().getFullYear();
+  return f.toLocaleString(idioma, { day: 'numeric', month: 'short', ...(otroAno ? { year: 'numeric' } : {}), hour: '2-digit', minute: '2-digit' });
 }
 
 export default function TicketsView({ dash }) {
@@ -123,6 +131,14 @@ export default function TicketsView({ dash }) {
                   <Tag size={12} /> {ticket.motivo}
                 </span>
               </div>
+
+              {/* Cuándo se abrió (y, si está cerrado, cuándo se cerró) */}
+              {ticket.fechaCreacion && (
+                <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted" title={new Date(ticket.fechaCreacion).toLocaleString(i18n.language)}>
+                  <CalendarDays size={13} /> {t('dashboard.tickets_v.openedOn', { fecha: fechaTicket(ticket.fechaCreacion, i18n.language) })}
+                  {ticket.fechaCierre && <span>· {t('dashboard.tickets_v.closedOn', { fecha: fechaTicket(ticket.fechaCierre, i18n.language) })}</span>}
+                </p>
+              )}
 
               {/* Asignación */}
               <div className="mt-3 flex items-center gap-1.5 border-b border-dashed border-line pb-3 text-xs text-muted">
