@@ -234,6 +234,40 @@ async function categoriaArchivoLibre(guild, nombreCat, canalId) {
     return null;
 }
 
+// ¿Cabe un canal más en esta categoría? (o ya está dentro)
+const cabe = (cat, canalId) => !!cat && (cat.children.cache.has(canalId) || cat.children.cache.size < 50);
+
+// Nombre de la categoría de tickets abiertos que crea el bot si no hay ninguna elegida.
+const NOMBRE_ABIERTOS = (cfg) => t(cfg, '🎫 Tickets abiertos', '🎫 Open tickets');
+
+// Categoría donde van los tickets ABIERTOS (1.9.12): la elegida en el panel y, si
+// no hay ninguna (o la borraron), una «🎫 Tickets abiertos» que crea el bot y deja
+// apuntada. Así todos los tickets quedan juntos en su categoría, no sueltos. Si la
+// elegida está llena (50 canales), «… 2», «… 3». Devuelve el id o null si no se puede.
+async function categoriaAbiertos(guild, cfg, canalId = null) {
+    const elegida = cfg && cfg.categoriaTicketsId && guild.channels.cache.get(cfg.categoriaTicketsId);
+    if (elegida && cabe(elegida, canalId)) return elegida.id;
+    try {
+        const cat = await categoriaArchivoLibre(guild, elegida ? elegida.name : NOMBRE_ABIERTOS(cfg), canalId);
+        if (cat && !elegida) {
+            // Se apunta sin esperar (el ticket no tiene por qué esperar a la base de datos);
+            // mientras, el siguiente la encuentra igual por su nombre.
+            const ServidorConfig = require('../models/ServidorConfig.js');
+            ServidorConfig.updateOne({ guildId: guild.id }, { $set: { categoriaTicketsId: cat.id } })
+                .then(() => require('./config.js').invalidateConfig(guild.id), () => {});
+        }
+        return cat ? cat.id : null;
+    } catch { return null; } // sin «Gestionar canales»: el ticket se crea suelto
+}
+
+// Categoría de los tickets CERRADOS: la elegida en el panel o, si no, la del nombre
+// (se crea si no existe). También con «… 2» si está llena.
+async function categoriaCerrados(guild, cfg, canalId) {
+    const elegida = cfg && cfg.categoriaArchivadosId && guild.channels.cache.get(cfg.categoriaArchivadosId);
+    if (elegida && cabe(elegida, canalId)) return elegida;
+    return categoriaArchivoLibre(guild, elegida ? elegida.name : ((cfg && cfg.categoriaArchivados) || CATEGORIA_ARCHIVO), canalId);
+}
+
 // Cambia el nombre sin esperar: Discord solo deja renombrar un canal 2 veces
 // cada 10 minutos y discord.js esperaría en cola, bloqueando el cierre/reapertura.
 function renombrarSinEsperar(canal, nombre) {
@@ -242,11 +276,10 @@ function renombrarSinEsperar(canal, nombre) {
 }
 
 // Mueve el canal a la categoría de archivados y lo deja en modo solo lectura.
-async function archivarCanal(canal, ticket, categoriaNombre = CATEGORIA_ARCHIVO) {
+async function archivarCanal(canal, ticket, cfg) {
     try {
         const guild = canal.guild;
-        const nombreCat = categoriaNombre || CATEGORIA_ARCHIVO;
-        const categoria = await categoriaArchivoLibre(guild, nombreCat, canal.id);
+        const categoria = await categoriaCerrados(guild, cfg, canal.id);
         if (categoria && canal.parentId !== categoria.id) {
             await canal.setParent(categoria.id, { lockPermissions: false }).catch(() => {});
         }
@@ -264,7 +297,7 @@ async function crearTicket(client, { guildId, creador, motivo = 'Support', titul
     if (!guild) return { ok: false, error: 'Server not found' };
 
     const cfg = await getConfig(guildId);
-    const parentId = (cfg && cfg.categoriaTicketsId && guild.channels.cache.get(cfg.categoriaTicketsId)) ? cfg.categoriaTicketsId : null;
+    const parentId = await categoriaAbiertos(guild, cfg);
     const overwrites = permisosCanalTicket(guild, cfg, darAccesoCreador && creador ? creador.id : null);
 
     const nombreBase = (creador && creador.username) ? creador.username : 'ticket';
@@ -379,7 +412,7 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
         if (avisarCanal && avisoCierreCanal) {
             await canal.send(t(cfg, '🔒 **Este ticket ha sido cerrado.** Queda archivado en modo solo lectura.', '🔒 **This ticket has been closed.** It’s archived in read-only mode.')).catch(() => {});
         }
-        await archivarCanal(canal, ticket, cfg && cfg.categoriaArchivados);
+        await archivarCanal(canal, ticket, cfg);
     }
     return { ok: true, ticket };
 }
@@ -401,9 +434,9 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     const canal = client.channels.cache.get(canalId);
     if (canal) {
         await canal.permissionOverwrites.edit(ticket.creadorId, { ViewChannel: true, SendMessages: true }, { type: OverwriteType.Member }).catch(() => {});
-        const destino = cfg && cfg.categoriaTicketsId && canal.guild.channels.cache.get(cfg.categoriaTicketsId);
-        // Si la categoría de tickets está llena (50 canales), al menos sale del archivo.
-        await canal.setParent(destino ? destino.id : null, { lockPermissions: false })
+        // Vuelve a la categoría de abiertos (o, si no se puede, al menos sale del archivo).
+        const destino = await categoriaAbiertos(canal.guild, cfg, canal.id);
+        await canal.setParent(destino, { lockPermissions: false })
             .catch(() => canal.setParent(null, { lockPermissions: false }).catch(() => {}));
         renombrarSinEsperar(canal, `ticket-${ticket.creadorNombre}`);
         await canal.send(t(cfg, '🔓 **Este ticket ha sido reabierto.** Puedes volver a escribir.', '🔓 **This ticket has been reopened.** You can write again.')).catch(() => {});
@@ -412,4 +445,31 @@ async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     return { ok: true, ticket };
 }
 
-module.exports = { crearTicket, cerrarTicket, reabrirTicket, permisosCanalTicket, generarTranscript, construirTranscriptHTML, generarTranscriptHTML, generarTranscriptPDF, registrarLogTicket };
+// «Ordenar tickets» (panel → Tickets → Ajustes): pone cada ticket donde le toca,
+// los abiertos en su categoría y los cerrados en la de cerrados. Para los que ya
+// existían antes de elegir las categorías. Devuelve { abiertos, cerrados, fallos }.
+async function ordenarTickets(client, guildId) {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) throw new Error('Server not found');
+    const cfg = await getConfig(guildId);
+    // Solo los que siguen teniendo canal (los viejos ya borrados no cuestan nada).
+    const tickets = (await Ticket.find({ guildId, estado: { $in: ['Abierto', 'Cerrado'] } }).select('canalId estado').lean())
+        .filter((tk) => guild.channels.cache.has(tk.canalId));
+    const resumen = { abiertos: 0, cerrados: 0, fallos: 0 };
+    for (const tk of tickets) {
+        const canal = guild.channels.cache.get(tk.canalId);
+        if (!canal) continue; // borrado
+        try {
+            if (tk.estado === 'Abierto') {
+                const destino = await categoriaAbiertos(guild, cfg, canal.id);
+                if (destino && canal.parentId !== destino) { await canal.setParent(destino, { lockPermissions: false }); resumen.abiertos++; }
+            } else {
+                const cat = await categoriaCerrados(guild, cfg, canal.id);
+                if (cat && canal.parentId !== cat.id) { await canal.setParent(cat.id, { lockPermissions: false }); resumen.cerrados++; }
+            }
+        } catch { resumen.fallos++; }
+    }
+    return resumen;
+}
+
+module.exports = { ordenarTickets, categoriaAbiertos, categoriaCerrados, crearTicket, cerrarTicket, reabrirTicket, permisosCanalTicket, generarTranscript, construirTranscriptHTML, generarTranscriptHTML, generarTranscriptPDF, registrarLogTicket };

@@ -1,13 +1,29 @@
 // Tu comunidad · «Mi cuenta» de los miembros — cómo encuentra cada miembro su
 // web (tickets, tienda, música y tarjeta) y el mensaje fijo con el botón
 // «Abrir mi cuenta» para un canal. Lógica del bot en utils/cuenta.js.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CircleUserRound, MousePointerClick, KeyRound, PartyPopper, Send, Loader2, Check, ExternalLink, Copy,
-  SquareSlash, AtSign, Ticket, Globe, AlertTriangle, Eye,
+  SquareSlash, AtSign, Ticket, Globe, AlertTriangle, Eye, Paintbrush, RotateCcw,
 } from 'lucide-react';
 import { tarjeta, Campo, SelectCanal } from './crecimientoShared';
+import EmbedBuilder from './EmbedBuilder';
+import { EMBED_VACIO } from './embedDefaults';
+import EditorBoton from '../EditorBoton';
+import TextareaCanales from '../TextareaCanales';
+import { Toggle } from '../../ui/primitives';
+import { useAutoguardado } from '../../../hooks/useAutoguardado';
+import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
+import EstadoAutoguardado from '../EstadoAutoguardado';
+
+const ETIQUETAS_VACIAS = { tickets: '', tienda: '', musica: '', tarjeta: '' };
+const SECCIONES = [['tickets', '🎫'], ['tienda', '🛒'], ['musica', '🎵'], ['tarjeta', '🎨']];
+// El formulario del mensaje a partir de lo guardado (models/ServidorConfig.js: panelCuenta).
+const formDesde = (pc = {}) => ({
+  contenido: pc.contenido || '', embed: pc.embed || null, textoBoton: pc.textoBoton || '', estiloBoton: pc.estiloBoton || 'verde',
+  botonWeb: pc.botonWeb !== false, secciones: pc.secciones !== false, etiquetas: { ...ETIQUETAS_VACIAS, ...(pc.etiquetas || {}) },
+});
 
 const PASOS = [
   { Icono: MousePointerClick, color: '#a855f7' },
@@ -23,7 +39,29 @@ const OTRAS = [
 
 export default function MiCuentaView({ dash }) {
   const { t } = useTranslation();
-  const { configServidor, canales = [], guildId, publicarPanelCuenta } = dash;
+  const { configServidor, canales = [], guildId, publicarPanelCuenta, subirImagen, presetsAnuncio, guardarPresetAnuncio, cargarMensajeCuentaDefecto, guardarMensajeCuenta } = dash;
+
+  // Cómo es el mensaje (1.9.12): todo editable. Lo de fábrica viene del bot, en su idioma.
+  const [defecto, setDefecto] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    cargarMensajeCuentaDefecto?.().then((d) => { if (vivo) setDefecto(d); });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guildId]);
+  const [form, setForm] = useState(null);
+  const [sinPublicar, setSinPublicar] = useState(false); // cambios guardados que aún no se ven en Discord
+  useDesdeServidor(configServidor, () => { if (configServidor) setForm(formDesde(configServidor.panelCuenta || {})); });
+  const cambiar = (parche) => { setForm((f) => ({ ...f, ...parche })); setSinPublicar(true); };
+  const guardarForm = async () => (form ? guardarMensajeCuenta(form) : true);
+  const autoguardado = useAutoguardado(form, guardarForm, { listo: !!form, borrador: 'micuenta-mensaje', restaurar: setForm });
+  const restaurarFabrica = () => cambiar(formDesde({}));
+  const et = (k) => form?.etiquetas?.[k]?.trim() || defecto?.etiquetas?.[k] || '';
+  const botonesPrevia = form ? [
+    { texto: `✨ ${form.textoBoton.trim() || defecto?.etiquetas?.abrir || 'Abrir mi cuenta'}`, estilo: form.estiloBoton },
+    ...(form.botonWeb ? [{ texto: `🌐 ${window.location.host}/cuenta`, estilo: 'gris' }] : []),
+    ...(form.secciones ? SECCIONES.map(([k, emoji]) => ({ texto: `${emoji} ${et(k)}`, estilo: 'gris' })) : []),
+  ] : [];
   const publicado = configServidor?.panelCuenta?.mensajeId ? configServidor.panelCuenta : null;
   const nombreCanal = (id) => canales.find((c) => c.id === id)?.nombre || '';
 
@@ -37,7 +75,10 @@ export default function MiCuentaView({ dash }) {
   const publicar = async () => {
     if (!canalId) { setEstado({ ok: false, texto: t('dashboard.micuenta_v.errChannel') }); return; }
     setEstado('publicando');
+    // Primero se guarda cómo es (por si el autoguardado aún no lo ha hecho).
+    if (form && !(await guardarForm())) { setEstado({ ok: false, texto: t('dashboard.micuenta_v.err') }); return; }
     const r = await publicarPanelCuenta(canalId);
+    if (r.ok) setSinPublicar(false);
     const canal = nombreCanal(canalId);
     if (r.ok) setEstado({ ok: true, texto: t(r.actualizado ? 'dashboard.micuenta_v.okUpdated' : 'dashboard.micuenta_v.okNew', { canal }), url: r.url });
     else {
@@ -122,12 +163,66 @@ export default function MiCuentaView({ dash }) {
           </div>
         </div>
 
-        {/* Vista previa del mensaje en Discord */}
+        {/* Lo que dice el mensaje, en resumen */}
         <div className={tarjeta}>
-          <h3 className="font-bold text-fg">{t('dashboard.micuenta_v.previewTitle')}</h3>
-          <VistaPrevia />
+          <h3 className="flex items-center gap-2 font-bold text-fg"><Paintbrush size={18} className="text-brand" /> {t('dashboard.micuenta_v.customTitle')}</h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{t('dashboard.micuenta_v.customDesc')}</p>
+          {publicado && sinPublicar && (
+            <p className="mt-3 flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-semibold text-warning">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {t('dashboard.micuenta_v.pendingUpdate')}
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={restaurarFabrica} className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-muted transition-colors hover:text-fg">
+              <RotateCcw size={13} /> {t('dashboard.micuenta_v.resetMsg')}
+            </button>
+            <EstadoAutoguardado estado={autoguardado} />
+          </div>
         </div>
       </div>
+
+      {/* Editor del mensaje (texto, embed con imágenes/GIF y botones) con la vista previa de Discord */}
+      {form && (
+        <div className={tarjeta} data-help="micuenta-mensaje">
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.micuenta_v.msgText')}</span>
+              <TextareaCanales canales={canales} value={form.contenido} onChange={(ev) => cambiar({ contenido: ev.target.value })} onValor={(val) => cambiar({ contenido: val })}
+                rows={2} maxLength={2000} placeholder={t('dashboard.micuenta_v.msgTextPh')}
+                className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none" />
+            </label>
+            <EmbedBuilder value={form.embed || defecto?.embed || EMBED_VACIO} onChange={(emb) => cambiar({ embed: emb })} subirImagen={subirImagen}
+              presets={presetsAnuncio} onGuardarPreset={(p) => guardarPresetAnuncio({ ...p, contenido: '' })} canales={canales} texto={form.contenido} botones={botonesPrevia} />
+            <div className="grid gap-4 border-t border-line pt-4 lg:grid-cols-2">
+              <div>
+                <p className="mb-2 text-sm font-semibold text-fg">{t('dashboard.micuenta_v.mainButton')}</p>
+                <EditorBoton texto={form.textoBoton} estilo={form.estiloBoton} onTexto={(val) => cambiar({ textoBoton: val })} onEstilo={(val) => cambiar({ estiloBoton: val })} placeholder={defecto?.etiquetas?.abrir || ''} />
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0"><span className="block text-sm font-semibold text-fg">{t('dashboard.micuenta_v.webButton')}</span><span className="block text-xs text-muted">{t('dashboard.micuenta_v.webButtonDesc')}</span></span>
+                  <Toggle checked={form.botonWeb} onChange={(v) => cambiar({ botonWeb: v })} />
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0"><span className="block text-sm font-semibold text-fg">{t('dashboard.micuenta_v.sectionButtons')}</span><span className="block text-xs text-muted">{t('dashboard.micuenta_v.sectionButtonsDesc')}</span></span>
+                  <Toggle checked={form.secciones} onChange={(v) => cambiar({ secciones: v })} />
+                </div>
+                {form.secciones && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {SECCIONES.map(([k, emoji]) => (
+                      <label key={k} className="block">
+                        <span className="mb-1 block text-xs font-semibold text-muted">{emoji} {defecto?.etiquetas?.[k] || k}</span>
+                        <input value={form.etiquetas[k]} maxLength={80} onChange={(ev) => cambiar({ etiquetas: { ...form.etiquetas, [k]: ev.target.value } })}
+                          placeholder={defecto?.etiquetas?.[k] || ''} className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none" />
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Otras formas de entrar, que ya funcionan sin configurar nada */}
       <div className={tarjeta}>
@@ -146,40 +241,6 @@ export default function MiCuentaView({ dash }) {
               )}
             </div>
           ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Maqueta del mensaje tal y como lo pinta Discord (colores de Discord, no del tema).
-function VistaPrevia() {
-  const { t } = useTranslation();
-  const p = (k) => t(`dashboard.micuenta_v.preview.${k}`);
-  const boton = 'inline-flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-[13px] font-medium text-white';
-  return (
-    <div className="mt-4 rounded-2xl bg-[#313338] p-4 text-[#dbdee1]" aria-label={t('dashboard.micuenta_v.previewTitle')}>
-      <div className="flex gap-3">
-        <img src="/assets/logo-96.webp" alt="" width="40" height="40" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[15px] font-medium text-white">
-            Sokyo <span className="rounded-[3px] bg-[#5865f2] px-1 text-[10px] font-semibold leading-4 text-white">{p('app')}</span>
-          </p>
-          <div className="mt-1 rounded-[4px] border-l-4 border-[#a855f7] bg-[#2b2d31] p-3">
-            <p className="text-[15px] font-semibold text-white">{p('title')}</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed">{p('desc')}</p>
-            <p className="mt-2 text-[13px] font-semibold text-white">{p('how')}</p>
-            <p className="text-[13px] leading-relaxed">{p('steps')}</p>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span className={`${boton} bg-[#248046]`}>✨ {p('open')}</span>
-            <span className={`${boton} bg-[#4e5058]`}>🌐 {p('web')} <ExternalLink size={12} /></span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {['tickets', 'shop', 'music', 'card'].map((k, i) => (
-              <span key={k} className={`${boton} bg-[#4e5058]`}>{['🎫', '🛒', '🎵', '🎨'][i]} {p(k)}</span>
-            ))}
-          </div>
         </div>
       </div>
     </div>

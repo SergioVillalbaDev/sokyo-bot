@@ -2,7 +2,7 @@
 // para publicarse en un canal a una fecha/hora, con repetición opcional.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarClock, Trash2, Info, Repeat } from 'lucide-react';
+import { CalendarClock, Trash2, Info, Repeat, Pencil, X } from 'lucide-react';
 import EmbedBuilder from './EmbedBuilder';
 import PresetsAnuncio from './PresetsAnuncio';
 import { EMBED_VACIO } from './embedDefaults';
@@ -23,7 +23,8 @@ function minLocal() {
 
 export default function AnunciosView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, anuncios, crearAnuncio, eliminarAnuncio, subirImagen, presetsAnuncio, guardarPresetAnuncio, eliminarPresetAnuncio } = dash;
+  const { canales, configServidor, anuncios, crearAnuncio, eliminarAnuncio, subirImagen, presetsAnuncio, guardarPresetAnuncio, actualizarPresetAnuncio, eliminarPresetAnuncio, editarCreado } = dash;
+  const [editando, setEditando] = useState(null); // id del anuncio que se está editando (1.9.12)
 
   const [embed, setEmbed] = useState(EMBED_VACIO);
   const [contenido, setContenido] = useState('');
@@ -37,11 +38,21 @@ export default function AnunciosView({ dash }) {
     !contenido.trim() && JSON.stringify(embed) === JSON.stringify(EMBED_VACIO),
     (v) => { setEmbed(v ? { ...EMBED_VACIO, ...(v.embed || {}) } : EMBED_VACIO); setContenido(v?.contenido || ''); setCanalId(v?.canalId || canalId); setFechaEnvio(v?.fechaEnvio || ''); setRepetir(v?.repetir || 'no'); });
 
+  const vaciar = () => { setContenido(''); setEmbed(EMBED_VACIO); setFechaEnvio(''); setRepetir('no'); setEditando(null); };
   const programar = async () => {
     setEstado('creando');
-    const r = await crearAnuncio({ canalId, contenido, embed, fechaEnvio: new Date(fechaEnvio).toISOString(), repetir });
-    setEstado(r.error ? `error:${r.error}` : 'ok');
-    if (!r.error) { setContenido(''); setEmbed(EMBED_VACIO); setFechaEnvio(''); setRepetir('no'); }
+    const datos = { canalId, contenido, embed, fechaEnvio: new Date(fechaEnvio).toISOString(), repetir };
+    const r = editando ? await editarCreado('anuncios', editando, datos) : await crearAnuncio(datos);
+    setEstado(r.error ? `error:${r.error}` : (editando ? 'editado' : 'ok'));
+    if (!r.error) vaciar();
+  };
+  // «Editar»: el anuncio vuelve al formulario de abajo (la fecha, en hora local).
+  const aLocal = (d) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+  const editar = (a) => {
+    setEstado(''); setEditando(a._id);
+    setCanalId(a.canalId); setContenido(a.contenido || ''); setEmbed(a.embed ? { ...EMBED_VACIO, ...a.embed } : EMBED_VACIO);
+    setFechaEnvio(aLocal(a.fechaEnvio)); setRepetir(a.repetir || 'no');
+    document.querySelector('[data-help="anuncios-crear"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   // Presets: cargar uno repuebla el embed/texto; guardar guarda el actual.
@@ -81,7 +92,10 @@ export default function AnunciosView({ dash }) {
                   <p className="mt-1 text-xs text-muted">#{nombreCanal(a.canalId)}</p>
                   <p className="mt-1 truncate text-sm text-muted">{a.contenido || (a.embed && (a.embed.titulo || a.embed.descripcion)) || t('dashboard.anuncios_v.embedOnly')}</p>
                 </div>
-                <button type="button" onClick={() => eliminarAnuncio(a._id)} className="shrink-0 rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger"><Trash2 size={15} /></button>
+                <div className="flex shrink-0 gap-2">
+                  <button type="button" onClick={() => editar(a)} className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-brand" aria-label={t('dashboard.editar.edit')} title={t('dashboard.editar.edit')}><Pencil size={15} /></button>
+                  <button type="button" onClick={() => { if (editando === a._id) vaciar(); eliminarAnuncio(a._id); }} className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger"><Trash2 size={15} /></button>
+                </div>
               </div>
             ))}
           </div>
@@ -89,11 +103,13 @@ export default function AnunciosView({ dash }) {
       </div>
 
       {/* Presets */}
-      <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarPresetAnuncio} />
+      <PresetsAnuncio presets={presetsAnuncio} onCargar={cargarPreset} onGuardar={guardarPreset} onEliminar={eliminarPresetAnuncio}
+        onRenombrar={(p, nombre) => actualizarPresetAnuncio(p._id, { nombre, contenido: p.contenido || '', embed: p.embed || null })} />
 
       {/* Crear */}
       <div data-help="anuncios-crear" className={card}>
-        <h3 className="mb-4 font-bold text-fg">{t('dashboard.anuncios_v.createTitle')}</h3>
+        <h3 className="mb-4 font-bold text-fg">{editando ? t('dashboard.editar.edit') : t('dashboard.anuncios_v.createTitle')}</h3>
+        {editando && <p className="mb-4 rounded-xl border border-brand/40 bg-brand/10 px-3 py-2 text-xs font-semibold text-fg">{t('dashboard.editar.editing', { n: fechaEnvio ? fecha(fechaEnvio) : '' })}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.anuncios_v.channel')}</span>
@@ -133,8 +149,14 @@ export default function AnunciosView({ dash }) {
             disabled={estado === 'creando' || !configServidor || !canalId || !fechaEnvio}
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <CalendarClock size={16} /> {estado === 'creando' ? t('dashboard.anuncios_v.scheduling') : t('dashboard.anuncios_v.schedule')}
+            <CalendarClock size={16} /> {estado === 'creando' ? t('dashboard.anuncios_v.scheduling') : editando ? t('dashboard.editar.save') : t('dashboard.anuncios_v.schedule')}
           </button>
+          {editando && (
+            <button type="button" onClick={() => { vaciar(); setEstado(''); }} className="flex items-center gap-1.5 rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">
+              <X size={15} /> {t('dashboard.editar.cancel')}
+            </button>
+          )}
+          {estado === 'editado' && <span className="text-sm font-semibold text-success">{t('dashboard.editar.saved')}</span>}
           {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.anuncios_v.scheduledOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}

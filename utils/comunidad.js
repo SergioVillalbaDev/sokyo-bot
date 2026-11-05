@@ -642,8 +642,12 @@ async function publicarPanelPresentacion(client, guildId, cfg) {
         const fila = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`intro_start:${guildId}`).setLabel(t(cfg, '📝 Presentarme', '📝 Introduce myself')).setStyle(ButtonStyle.Primary),
         );
-        await canal.send({ embeds: [embed], components: [fila] }).catch(() => {});
-        return true;
+        // Se reedita el que ya hay (antes, cada guardado del panel publicaba otro igual).
+        const previo = pres.panelMensajeId && await canal.messages.fetch(pres.panelMensajeId).catch(() => null);
+        if (previo) { await previo.edit({ embeds: [embed], components: [fila] }).catch(() => {}); return true; }
+        const msg = await canal.send({ embeds: [embed], components: [fila] }).catch(() => null);
+        if (msg) await ServidorConfig.updateOne({ guildId }, { $set: { 'presentaciones.panelMensajeId': msg.id } }).catch(() => {});
+        return !!msg;
     } catch (e) { console.error('Panel presentación:', e.message); return false; }
 }
 
@@ -747,7 +751,8 @@ async function procesarPresentacion(interaction) {
         const descartada = !!(filtro && (filtro.accion === 'descartar' || accionMod));
         const marcada = !!(filtro && filtro.accion === 'marcar');
 
-        await Presentacion.create({
+        const conAprobacion = pres.aprobacion !== false;
+        const doc = await Presentacion.create({
             guildId,
             autorId: interaction.user.id,
             autor: interaction.user.tag,
@@ -755,6 +760,7 @@ async function procesarPresentacion(interaction) {
             descartada,
             motivoDescarte: filtro ? `Filtro: ${filtro.campo} ${filtro.operador} ${filtro.valor}` : '',
             procesada: descartada, // si se descarta automáticamente, ya está "resuelta"
+            estado: descartada ? 'descartada' : 'pendiente',
         });
 
         // Aviso al usuario si el filtro lo pide.
@@ -762,7 +768,8 @@ async function procesarPresentacion(interaction) {
             await interaction.user.send(filtro.mensajeAviso).catch(() => {});
         }
 
-        // Publicar al staff (salvo descarte silencioso ya avisado).
+        // Publicar al staff (salvo descarte silencioso ya avisado). Con aprobación, con
+        // los botones «Aceptar» y «Rechazar».
         if (pres.canalStaff && !descartada) {
             const canal = await interaction.client.channels.fetch(pres.canalStaff).catch(() => null);
             if (canal?.isTextBased()) {
@@ -771,20 +778,185 @@ async function procesarPresentacion(interaction) {
                     .setColor(marcada ? '#e67e22' : color)
                     .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
                     .setTitle(t(idioma, '📝 Nueva presentación', '📝 New intro'))
+                    .setDescription(`<@${interaction.user.id}>`)
                     .addFields(respuestas.map((r) => ({ name: r.pregunta.slice(0, 256), value: (r.respuesta || '—').slice(0, 1024) })));
                 if (marcada) embed.setFooter({ text: t(idioma, `⚠️ Marcada por filtro: ${filtro.campo} ${filtro.operador} ${filtro.valor}`, `⚠️ Flagged by filter: ${filtro.campo} ${filtro.operador} ${filtro.valor}`) });
-                await canal.send({ embeds: [embed] }).catch(() => {});
+                const payload = { embeds: [embed], allowedMentions: { parse: [] } };
+                if (conAprobacion) payload.components = [filaRevisarPresentacion(cfg, doc._id)];
+                const msg = await canal.send(payload).catch(() => null);
+                if (msg) await Presentacion.updateOne({ _id: doc._id }, { $set: { canalStaffId: canal.id, mensajeStaffId: msg.id } }).catch(() => {});
             }
+        }
+        // Sin aprobación: se publica ya en el canal de presentaciones.
+        let publicada = true;
+        if (!descartada && !conAprobacion) {
+            await revisarPresentacion(interaction.client, doc._id, { aceptar: true, revisor: 'Sokyo' })
+                .catch((e) => { publicada = false; console.error('Publicar presentación:', e.message); });
         }
 
         const respuesta = descartada
             ? (filtro?.mensajeAviso ? t(idioma, '📩 Te hemos enviado un mensaje con más información.', '📩 We’ve sent you a message with more info.') : t(idioma, '❌ Tu presentación no cumple los requisitos del servidor.', '❌ Your intro doesn’t meet the server’s requirements.'))
-            : t(idioma, '✅ ¡Gracias! Tu presentación se envió correctamente.', '✅ Thanks! Your intro was submitted successfully.');
+            : conAprobacion
+                ? t(idioma, '✅ ¡Gracias! El staff revisará tu presentación y te avisaremos por privado.', '✅ Thanks! The staff will review your intro and we’ll let you know by DM.')
+                : publicada
+                    ? t(idioma, '✅ ¡Gracias! Tu presentación ya está publicada.', '✅ Thanks! Your intro is now published.')
+                    : t(idioma, '✅ ¡Gracias! La hemos recibido; el staff la publicará en cuanto pueda.', '✅ Thanks! We got it; the staff will publish it as soon as they can.');
         await interaction.reply({ content: respuesta, flags: 64 }).catch(() => {});
     } catch (e) {
         console.error('Procesar presentación:', e.message);
         if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al enviar tu presentación.', '❌ Error submitting your intro.'), flags: 64 }).catch(() => {});
     }
+}
+
+// --- Aprobación de presentaciones (1.9.12) ---
+
+// Mensaje de rechazo de fábrica (si el servidor no ha escrito el suyo).
+const RECHAZO_FABRICA = {
+    es: 'Hola {user}, tu presentación en **{server}** no ha sido aceptada.\n**Motivo:** {motivo}\n\nPuedes enviar otra cuando quieras desde el canal de presentaciones.',
+    en: 'Hi {user}, your intro on **{server}** wasn’t accepted.\n**Reason:** {motivo}\n\nYou can send another one whenever you like from the intros channel.',
+};
+// Cambia {user}, {server} y {motivo} (con función: un «$» del texto no es un patrón).
+function rellenarAvisoPresentacion(texto, { user = '', server = '', motivo = '' } = {}) {
+    return String(texto || '')
+        .replace(/\{(user|usuario)\}/gi, () => user)
+        .replace(/\{(server|servidor)\}/gi, () => server)
+        .replace(/\{(motivo|reason)\}/gi, () => motivo);
+}
+
+function filaRevisarPresentacion(cfg, id) {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`intro_ok:${id}`).setLabel(t(cfg, '✅ Aceptar', '✅ Accept')).setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`intro_no:${id}`).setLabel(t(cfg, '❌ Rechazar', '❌ Reject')).setStyle(ButtonStyle.Danger),
+    );
+}
+
+// La presentación tal como se ve en el canal público al aceptarla.
+function embedPresentacionPublica(doc, user, cfg) {
+    const embed = new EmbedBuilder()
+        .setColor((cfg && cfg.colorEmbed) || COLOR)
+        .setTitle(t(cfg, `👋 ¡Démosle la bienvenida a ${user?.globalName || user?.username || doc.autor}!`, `👋 Let’s welcome ${user?.globalName || user?.username || doc.autor}!`))
+        .addFields((doc.respuestas || []).map((r) => ({ name: String(r.pregunta || '—').slice(0, 256), value: String(r.respuesta || '—').slice(0, 1024) })))
+        .setTimestamp(doc.creadoFecha || new Date());
+    if (user) embed.setAuthor({ name: user.username, iconURL: user.displayAvatarURL() }).setThumbnail(user.displayAvatarURL({ size: 256 }));
+    aplicarPieMarca(embed, cfg);
+    return embed;
+}
+
+// Acepta o rechaza una presentación (botones de Discord y panel web). Aceptar: se
+// publica en el canal de presentaciones, se da el rol (si hay) y se avisa (si hay
+// mensaje). Rechazar: privado con el motivo. Actualiza el aviso del staff.
+// Devuelve { ok, aviso } (aviso: si le llegó el privado) o lanza un Error.
+async function revisarPresentacion(client, id, { aceptar, motivo = '', revisor = '' } = {}) {
+    // Se «reserva» de golpe: si dos del staff pulsan a la vez, solo uno la revisa.
+    const doc = await Presentacion.findOneAndUpdate(
+        { _id: id, $or: [{ estado: 'pendiente' }, { estado: { $exists: false } }] },
+        { $set: { estado: 'revisando' } }, { returnDocument: 'after' },
+    );
+    if (!doc) throw new Error((await Presentacion.exists({ _id: id })) ? 'ya-revisada' : 'not-found');
+    try { return await completarRevision(client, doc, { aceptar, motivo, revisor }); } catch (e) {
+        await Presentacion.updateOne({ _id: doc._id, estado: 'revisando' }, { $set: { estado: 'pendiente' } }).catch(() => {});
+        throw e;
+    }
+}
+
+async function completarRevision(client, doc, { aceptar, motivo, revisor }) {
+    const cfg = await ServidorConfig.findOne({ guildId: doc.guildId });
+    const pres = (cfg && cfg.presentaciones) || {};
+    const guild = client.guilds.cache.get(doc.guildId);
+    const user = doc.autorId ? await client.users.fetch(doc.autorId).catch(() => null) : null;
+    const datos = { user: user ? `<@${user.id}>` : doc.autor, server: guild ? guild.name : '', motivo: String(motivo || '').trim() || t(cfg, 'no se ha indicado', 'not given') };
+    let aviso = false;
+
+    if (aceptar) {
+        const canalId = pres.canalPublico || pres.canalIntro;
+        const canal = canalId ? await client.channels.fetch(canalId).catch(() => null) : null;
+        if (!canal?.isTextBased()) throw new Error('sin-canal');
+        const msg = await canal.send({ content: user ? `<@${user.id}>` : undefined, embeds: [embedPresentacionPublica(doc, user, cfg)], allowedMentions: { users: user ? [user.id] : [] } });
+        doc.mensajePublicoId = msg.id;
+        if (pres.rolAceptadaId && guild && user) {
+            const member = await guild.members.fetch(user.id).catch(() => null);
+            if (member) await member.roles.add(pres.rolAceptadaId).catch(() => {});
+        }
+        if (user && String(pres.mensajeAceptada || '').trim()) {
+            aviso = await user.send({ content: rellenarAvisoPresentacion(pres.mensajeAceptada, datos).slice(0, 2000), allowedMentions: { parse: [] } }).then(() => true, () => false);
+        }
+        doc.estado = 'aceptada';
+    } else {
+        const plantilla = String(pres.mensajeRechazo || '').trim() || RECHAZO_FABRICA[cfg && cfg.idioma === 'es' ? 'es' : 'en'];
+        if (user) aviso = await user.send({ content: rellenarAvisoPresentacion(plantilla, datos).slice(0, 2000), allowedMentions: { parse: [] } }).then(() => true, () => false);
+        doc.estado = 'rechazada';
+        doc.motivoRechazo = String(motivo || '').slice(0, 1000);
+    }
+    doc.procesada = true;
+    doc.revisadaPor = String(revisor || '').slice(0, 100);
+    doc.revisadaFecha = new Date();
+    await doc.save();
+
+    // El aviso del staff dice cómo acabó (y se le quitan los botones).
+    if (doc.canalStaffId && doc.mensajeStaffId) {
+        const canal = await client.channels.fetch(doc.canalStaffId).catch(() => null);
+        const msg = canal?.isTextBased() ? await canal.messages.fetch(doc.mensajeStaffId).catch(() => null) : null;
+        if (msg && msg.embeds[0]) {
+            const e = EmbedBuilder.from(msg.embeds[0]).setColor(aceptar ? 0x2ecc71 : 0xe74c3c).addFields(aceptar
+                ? { name: t(cfg, '✅ Aceptada', '✅ Accepted'), value: t(cfg, `por ${doc.revisadaPor || '—'}`, `by ${doc.revisadaPor || '—'}`) }
+                : { name: t(cfg, '❌ Rechazada', '❌ Rejected'), value: `${t(cfg, `por ${doc.revisadaPor || '—'}`, `by ${doc.revisadaPor || '—'}`)}\n${t(cfg, 'Motivo', 'Reason')}: ${doc.motivoRechazo || '—'}`.slice(0, 1024) });
+            await msg.edit({ embeds: [e], components: [] }).catch(() => {});
+        }
+    }
+    return { ok: true, aviso, doc };
+}
+
+// Botones «Aceptar» / «Rechazar» del aviso del staff (y la ventana del motivo).
+async function manejarRevisionPresentacion(interaction) {
+    const cfg = await ServidorConfig.findOne({ guildId: interaction.guildId });
+    const { miembroPuedeModerar } = require('./permisos.js');
+    const { PermissionsBitField } = require('discord.js');
+    if (!miembroPuedeModerar(interaction.member, cfg, PermissionsBitField.Flags.ModerateMembers)) {
+        return interaction.reply({ content: t(cfg, '❌ Solo el staff puede revisar presentaciones.', '❌ Only staff can review intros.'), flags: 64 });
+    }
+    const [accion, id] = interaction.customId.split(':');
+    if (accion === 'intro_no') {
+        const modal = new ModalBuilder().setCustomId(`intro_nom:${id}`).setTitle(t(cfg, 'Rechazar presentación', 'Reject intro'));
+        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder()
+            .setCustomId('motivo').setLabel(t(cfg, 'Motivo (le llega por privado)', 'Reason (they get it by DM)'))
+            .setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000)
+            .setPlaceholder(t(cfg, 'P. ej.: faltan datos, no respeta las normas…', 'E.g.: missing details, breaks the rules…'))));
+        return interaction.showModal(modal);
+    }
+    const aceptar = accion === 'intro_ok';
+    const motivo = aceptar ? '' : (interaction.fields.getTextInputValue('motivo') || '');
+    await interaction.deferReply({ flags: 64 });
+    try {
+        const r = await revisarPresentacion(interaction.client, id, { aceptar, motivo, revisor: interaction.user.username });
+        const sinDM = !aceptar && !r.aviso ? t(cfg, ' (no le ha llegado el privado: los tiene cerrados)', ' (the DM didn’t reach them: their DMs are closed)') : '';
+        return interaction.editReply(aceptar
+            ? t(cfg, '✅ Aceptada y publicada en el canal de presentaciones.', '✅ Accepted and published in the intros channel.')
+            : t(cfg, `❌ Rechazada. Le he enviado el motivo por privado${sinDM}.`, `❌ Rejected. I’ve sent them the reason by DM${sinDM}.`));
+    } catch (e) {
+        const textos = {
+            'ya-revisada': t(cfg, 'ℹ️ Esta presentación ya estaba revisada.', 'ℹ️ This intro was already reviewed.'),
+            'sin-canal': t(cfg, '❌ No hay canal de presentaciones (o no puedo escribir en él). Elígelo en el panel → Presentaciones.', '❌ There’s no intros channel (or I can’t write in it). Pick it in the panel → Intros.'),
+            'not-found': t(cfg, '❌ Esa presentación ya no existe.', '❌ That intro no longer exists.'),
+        };
+        return interaction.editReply(textos[e.message] || `❌ ${e.message}`);
+    }
+}
+
+// Tras editar un sorteo, evento o encuesta en el panel (1.9.12): el mensaje que ya
+// está en Discord se repinta con lo nuevo (sin publicar otro). Devuelve si se pudo.
+async function refrescarPublicado(client, tipo, doc) {
+    if (!doc || !doc.mensajeId) return false;
+    const canal = await client.channels.fetch(doc.canalId).catch(() => null);
+    const msg = canal?.isTextBased() ? await canal.messages.fetch(doc.mensajeId).catch(() => null) : null;
+    if (!msg) return false;
+    const color = await colorDe(doc.guildId);
+    const idioma = await getConfigCached(doc.guildId).catch(() => null);
+    let payload;
+    if (tipo === 'sorteo') payload = { embeds: [construirEmbedSorteo(doc, color, false, idioma)], components: [filaSorteo(doc, idioma)] };
+    else if (tipo === 'evento') payload = { embeds: [construirEmbedEvento(doc, color, idioma)], components: [filaEvento(doc, idioma)] };
+    else if (tipo === 'encuesta') payload = { embeds: [construirEmbedEncuesta(doc, color, false, idioma)], components: filasEncuesta(doc) };
+    else return false;
+    return msg.edit(payload).then(() => true, () => false);
 }
 
 // ============================ SCHEDULER ============================
@@ -867,6 +1039,8 @@ module.exports = {
     publicarPanelSugerencias, abrirModalSugerencia, procesarModalSugerencia,
     // presentaciones
     publicarPanelPresentacion, abrirModalPresentacion, procesarPresentacion,
+    revisarPresentacion, manejarRevisionPresentacion, rellenarAvisoPresentacion, RECHAZO_FABRICA,
+    refrescarPublicado,
     // scheduler
     barrerComunidad,
 };

@@ -3,14 +3,16 @@
 // Anuncios y los Anuncios programados.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bookmark, Save, Trash2, FileText, LayoutTemplate, Check } from 'lucide-react';
+import { Bookmark, Save, Trash2, FileText, LayoutTemplate, Check, Pencil } from 'lucide-react';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
 
 // `sinGuardar`: sin la fila de guardar (el Creador de mensajes tiene su «Guardar»
 // junto a «Enviar») y con los textos de «Mensajes guardados». `abierto`: el que se edita.
-export default function PresetsAnuncio({ presets, onCargar, onGuardar, onEliminar, sinGuardar = false, abierto = null }) {
+// `onGuardarActual`: botón «Guardar» también arriba, junto a la lista. `onRenombrar(p, nombre)`:
+// lápiz para cambiar el nombre de uno sin tener que borrarlo y guardarlo otra vez.
+export default function PresetsAnuncio({ presets, onCargar, onGuardar, onEliminar, sinGuardar = false, abierto = null, onGuardarActual = null, onRenombrar = null }) {
   const { t } = useTranslation();
   const [nombre, setNombre] = useState('');
   const [estado, setEstado] = useState(''); // '' | 'guardando' | 'ok' | 'error:...'
@@ -25,7 +27,14 @@ export default function PresetsAnuncio({ presets, onCargar, onGuardar, onElimina
 
   return (
     <div className={card}>
-      <h3 className="mb-3 flex items-center gap-2 font-bold text-fg"><Bookmark size={18} className="text-brand" /> {t(sinGuardar ? 'dashboard.presets_a.titleSaved' : 'dashboard.presets_a.title')}</h3>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-bold text-fg"><Bookmark size={18} className="text-brand" /> {t(sinGuardar ? 'dashboard.presets_a.titleSaved' : 'dashboard.presets_a.title')}</h3>
+        {onGuardarActual && (
+          <button type="button" onClick={onGuardarActual} className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-1.5 text-xs font-bold text-fg transition-colors hover:border-brand">
+            <Save size={14} /> {t('dashboard.presets_a.saveCurrent')}
+          </button>
+        )}
+      </div>
 
       {(!presets || presets.length === 0) ? (
         <p className="py-2 text-sm italic text-muted">{t(sinGuardar ? 'dashboard.presets_a.emptySaved' : 'dashboard.presets_a.empty')}</p>
@@ -37,6 +46,10 @@ export default function PresetsAnuncio({ presets, onCargar, onGuardar, onElimina
                 {p.embed ? <LayoutTemplate size={13} className="text-muted" /> : <FileText size={13} className="text-muted" />}
                 {p.nombre}
               </button>
+              {onRenombrar && (
+                <button type="button" onClick={() => { const n = window.prompt(t('dashboard.presets_a.renamePrompt'), p.nombre); if (n && n.trim() && n.trim() !== p.nombre) onRenombrar(p, n.trim().slice(0, 80)); }}
+                  className="rounded-full p-1 text-muted transition-colors hover:text-brand" aria-label={t('dashboard.presets_a.rename')} title={t('dashboard.presets_a.rename')}><Pencil size={13} /></button>
+              )}
               <button type="button" onClick={() => { if (window.confirm(t('dashboard.presets_a.confirmDelete', { n: p.nombre }))) onEliminar(p._id); }} className="rounded-full p-1 text-muted transition-colors hover:text-danger" aria-label={t('dashboard.presets_a.delete')}><Trash2 size={13} /></button>
             </div>
           ))}

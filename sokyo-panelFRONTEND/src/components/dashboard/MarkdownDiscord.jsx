@@ -57,7 +57,8 @@ export default function MarkdownDiscord({ text }) {
       while (i < lineas.length && /^>\s?/.test(lineas[i])) { buf.push(lineas[i].replace(/^>\s?/, '')); i++; }
       i--;
       out.push(<div key={`q${i}`} className="my-1 border-l-4 border-white/30 pl-2">{buf.map((b, j) => <p key={j}>{parseInline(b)}</p>)}</div>);
-    } else if (/^###\s/.test(l)) out.push(<p key={i} className="mt-1 text-base font-bold text-white">{parseInline(l.replace(/^###\s/, ''))}</p>);
+    } else if (/^-#\s/.test(l)) out.push(<p key={i} className="text-xs text-[#949ba4]">{parseInline(l.replace(/^-#\s/, ''))}</p>); // texto pequeño de Discord («-# …»)
+    else if (/^###\s/.test(l)) out.push(<p key={i} className="mt-1 text-base font-bold text-white">{parseInline(l.replace(/^###\s/, ''))}</p>);
     else if (/^##\s/.test(l)) out.push(<p key={i} className="mt-1 text-lg font-bold text-white">{parseInline(l.replace(/^##\s/, ''))}</p>);
     else if (/^#\s/.test(l)) out.push(<p key={i} className="mt-1 text-xl font-bold text-white">{parseInline(l.replace(/^#\s/, ''))}</p>);
     else if (/^[-*]\s/.test(l)) out.push(<p key={i} className="flex gap-1.5"><span>•</span><span>{parseInline(l.replace(/^[-*]\s/, ''))}</span></p>);

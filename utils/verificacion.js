@@ -86,8 +86,9 @@ async function manejarInicio(interaction) {
         return interaction.reply({ content: t(cfg, '✅ Ya estás verificado.', '✅ You’re already verified.'), flags: 64 });
     }
 
-    // Modo botón: conceder directamente.
+    // Modo botón: conceder directamente (o, si hay preguntas al entrar, hacerlas antes).
     if (v.modo !== 'captcha') {
+        if (await require('./preguntasEntrada.js').siHayPreguntas(interaction, { gid: interaction.guildId, cfg, origen: 'verif' })) return;
         const err = await conceder(interaction, v, cfg);
         return interaction.reply({ content: err || t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), flags: 64 });
     }
@@ -141,6 +142,7 @@ async function manejarModal(interaction) {
     }
 
     pendientes.delete(clave);
+    if (await require('./preguntasEntrada.js').siHayPreguntas(interaction, { gid: interaction.guildId, cfg, origen: 'verif' })) return;
     const err = await conceder(interaction, v, cfg);
     return interaction.reply({ content: err || t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), flags: 64 });
 }

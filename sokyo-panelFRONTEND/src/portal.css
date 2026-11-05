@@ -17,18 +17,101 @@
   --text-primary: #f5f3ff; --text-secondary: #aaa5c8; --border-color: rgba(255, 255, 255, .11);
   --accent-color: #c4b5fd; --accent-hover: #ddd6fe; --brand-from: #a855f7; --brand-to: #ec4899; --on-brand: #ffffff;
   --success: #4ade80; --warning: #fbbf24; --danger: #fb7185; --ring: rgba(192, 132, 252, .5); --shadow-color: rgba(0, 0, 0, .6);
-
-  --gx-violeta: #a855f7;
-  --gx-rosa: #ec4899;
-  --gx-azul: #60a5fa;
-  --gx-cian: #22d3ee;
-  --gx-naranja: #fb923c;
-  --gx-vidrio: linear-gradient(145deg, rgba(255, 255, 255, .085), rgba(255, 255, 255, .025) 55%, rgba(255, 255, 255, .04));
-  --gx-borde: linear-gradient(135deg, rgba(196, 181, 253, .75), rgba(236, 72, 153, .45) 30%, rgba(255, 255, 255, .06) 55%, rgba(96, 165, 250, .55));
   color-scheme: dark;
 }
 
-[data-theme='glass'] body { background: #05040d; }
+/*
+  Temas de «Mi cuenta» (1.9.12): los mismos que el panel y la web (src/lib/themes.js),
+  con el mismo cristal. Cada tema pone su paleta en estas variables (data-cuenta lo
+  pone el portal en <html>; data-theme es el tema elegido). Las de color van como
+  colores; las de «tinta», como canales RGB para poder darles transparencia:
+    --gx-violeta, --gx-fucsia, --gx-rosa, --gx-azul, --gx-naranja: los colores del brillo.
+    --gx-claro: el tono suave de los bordes y el foco. --gx-neon1..3: el texto en degradado.
+    --gx-fondo: el fondo. --gx-tinta: el «blanco» del cristal (negro en los temas claros).
+    --gx-panel / --gx-hondo: el cristal opaco (móvil, menú) y lo hundido (campos).
+    --gx-sombra: las sombras. --gx-sobre: el texto encima de los botones de color.
+    --gx-motas: los colores de las estrellas del fondo (glass.jsx los lee).
+*/
+html[data-cuenta] {
+  --gx-violeta: #a855f7; --gx-fucsia: #d946ef; --gx-rosa: #ec4899; --gx-azul: #60a5fa; --gx-naranja: #fb923c; --gx-cian: #22d3ee;
+  --gx-claro: #c4b5fd; --gx-neon1: #c4b5fd; --gx-neon2: #f0abfc; --gx-neon3: #f9a8d4;
+  --gx-fondo: #05040d; --gx-tinta: 255 255 255; --gx-panel: 17 12 38; --gx-hondo: 6 4 18; --gx-sombra: 0 0 0; --gx-sobre: #ffffff;
+  --gx-motas: 255,255,255|221,214,254|249,168,212|191,219,254|254,215,170;
+  --gx-vidrio: linear-gradient(145deg, rgb(var(--gx-tinta) / .085), rgb(var(--gx-tinta) / .025) 55%, rgb(var(--gx-tinta) / .04));
+  --gx-borde: linear-gradient(135deg, color-mix(in srgb, var(--gx-claro) 75%, transparent), color-mix(in srgb, var(--gx-rosa) 45%, transparent) 30%, rgb(var(--gx-tinta) / .06) 55%, color-mix(in srgb, var(--gx-azul) 55%, transparent));
+}
+html[data-cuenta] body { background: var(--gx-fondo); }
+
+/* Oscuros */
+html[data-cuenta][data-theme='dark'] {
+  --gx-violeta: #a1a1aa; --gx-fucsia: #d4d4d8; --gx-rosa: #e4e4e7; --gx-azul: #71717a; --gx-naranja: #a1a1aa; --gx-cian: #d4d4d8;
+  --gx-claro: #e4e4e7; --gx-neon1: #ffffff; --gx-neon2: #e4e4e7; --gx-neon3: #a1a1aa;
+  --gx-fondo: #0b0c0e; --gx-panel: 22 24 28; --gx-hondo: 11 12 14; --gx-sobre: #0b0c0e; --gx-motas: 255,255,255|228,228,231|161,161,170;
+}
+html[data-cuenta][data-theme='lima'] {
+  --gx-violeta: #7860c0; --gx-fucsia: #9db4fa; --gx-rosa: #b4d8fc; --gx-azul: #7aa2f7; --gx-naranja: #c4b5fd; --gx-cian: #b4d8fc;
+  --gx-claro: #b9cbfd; --gx-neon1: #d6e2ff; --gx-neon2: #b4d8fc; --gx-neon3: #9db4fa;
+  --gx-fondo: #07080f; --gx-panel: 14 16 32; --gx-hondo: 7 8 15; --gx-sobre: #0a0b18; --gx-motas: 255,255,255|214,226,255|180,216,252|157,180,250;
+}
+html[data-cuenta][data-theme='esmeralda'] {
+  --gx-violeta: #10b981; --gx-fucsia: #34d399; --gx-rosa: #6ee7b7; --gx-azul: #2dd4bf; --gx-naranja: #a3e635; --gx-cian: #5eead4;
+  --gx-claro: #a7f3d0; --gx-neon1: #d1fae5; --gx-neon2: #6ee7b7; --gx-neon3: #34d399;
+  --gx-fondo: #06120d; --gx-panel: 12 31 23; --gx-hondo: 6 18 13; --gx-sobre: #052e1a; --gx-motas: 255,255,255|209,250,229|110,231,183|94,234,212;
+}
+html[data-cuenta][data-theme='oceano'] {
+  --gx-violeta: #0ea5e9; --gx-fucsia: #38bdf8; --gx-rosa: #67e8f9; --gx-azul: #3b82f6; --gx-naranja: #22d3ee; --gx-cian: #67e8f9;
+  --gx-claro: #bae6fd; --gx-neon1: #e0f2fe; --gx-neon2: #7dd3fc; --gx-neon3: #67e8f9;
+  --gx-fondo: #060c18; --gx-panel: 12 24 48; --gx-hondo: 6 12 24; --gx-sobre: #04121f; --gx-motas: 255,255,255|224,242,254|125,211,252|103,232,249;
+}
+html[data-cuenta][data-theme='atardecer'] {
+  --gx-violeta: #f43f5e; --gx-fucsia: #fb7185; --gx-rosa: #fdba74; --gx-azul: #f472b6; --gx-naranja: #fbbf24; --gx-cian: #fda4af;
+  --gx-claro: #fecdd3; --gx-neon1: #ffe4e6; --gx-neon2: #fda4af; --gx-neon3: #fdba74;
+  --gx-fondo: #140a0c; --gx-panel: 36 17 21; --gx-hondo: 20 10 12; --gx-sobre: #2a0d10; --gx-motas: 255,255,255|255,228,230|253,164,175|253,186,116;
+}
+html[data-cuenta][data-theme='synthwave'] {
+  --gx-violeta: #c084fc; --gx-fucsia: #e879f9; --gx-rosa: #f0abfc; --gx-azul: #22d3ee; --gx-naranja: #f472b6; --gx-cian: #22d3ee;
+  --gx-claro: #f5d0fe; --gx-neon1: #f5d0fe; --gx-neon2: #e879f9; --gx-neon3: #67e8f9;
+  --gx-fondo: #0a0712; --gx-panel: 22 12 42; --gx-hondo: 10 7 18; --gx-sobre: #190726; --gx-motas: 255,255,255|245,208,254|232,121,249|103,232,249;
+}
+html[data-cuenta][data-theme='ambar'] {
+  --gx-violeta: #f59e0b; --gx-fucsia: #fbbf24; --gx-rosa: #fcd34d; --gx-azul: #fb923c; --gx-naranja: #facc15; --gx-cian: #fde68a;
+  --gx-claro: #fde68a; --gx-neon1: #fef3c7; --gx-neon2: #fcd34d; --gx-neon3: #f59e0b;
+  --gx-fondo: #120d06; --gx-panel: 34 25 12; --gx-hondo: 18 13 6; --gx-sobre: #221705; --gx-motas: 255,255,255|254,243,199|252,211,77|251,146,60;
+}
+html[data-cuenta][data-theme='pizarra'] {
+  --gx-violeta: #6366f1; --gx-fucsia: #7dd3fc; --gx-rosa: #a5b4fc; --gx-azul: #38bdf8; --gx-naranja: #94a3b8; --gx-cian: #7dd3fc;
+  --gx-claro: #c7d2fe; --gx-neon1: #e0e7ff; --gx-neon2: #a5b4fc; --gx-neon3: #7dd3fc;
+  --gx-fondo: #0b1120; --gx-panel: 22 32 58; --gx-hondo: 11 17 32; --gx-sobre: #07101f; --gx-motas: 255,255,255|224,231,255|165,180,252|125,211,252;
+}
+/* Claros: el cristal se vuelve blanco esmerilado y la «tinta» pasa a ser oscura. */
+html[data-cuenta][data-theme='light'] {
+  --gx-violeta: #374151; --gx-fucsia: #4b5563; --gx-rosa: #6b7280; --gx-azul: #1f2937; --gx-naranja: #9ca3af; --gx-cian: #6b7280;
+  --gx-claro: #9ca3af; --gx-neon1: #111827; --gx-neon2: #374151; --gx-neon3: #4b5563;
+  --gx-fondo: #f6f7f9; --gx-tinta: 15 23 42; --gx-panel: 255 255 255; --gx-hondo: 255 255 255; --gx-sombra: 15 23 42; --gx-sobre: #ffffff;
+  --gx-motas: 148,163,184|203,213,225|100,116,139;
+  --gx-vidrio: linear-gradient(145deg, rgb(255 255 255 / .92), rgb(255 255 255 / .78) 55%, rgb(255 255 255 / .86));
+  color-scheme: light;
+}
+html[data-cuenta][data-theme='lavanda'] {
+  --gx-violeta: #7c5cbf; --gx-fucsia: #a78bda; --gx-rosa: #c084fc; --gx-azul: #8b9cf7; --gx-naranja: #e9a8d0; --gx-cian: #a5b4fc;
+  --gx-claro: #a78bda; --gx-neon1: #5b3fa0; --gx-neon2: #7c5cbf; --gx-neon3: #a855f7;
+  --gx-fondo: #efeaf4; --gx-tinta: 46 38 64; --gx-panel: 251 249 252; --gx-hondo: 255 255 255; --gx-sombra: 124 92 191; --gx-sobre: #ffffff;
+  --gx-motas: 167,139,218|196,181,253|233,168,208;
+  --gx-vidrio: linear-gradient(145deg, rgb(255 255 255 / .9), rgb(251 249 252 / .75) 55%, rgb(255 255 255 / .84));
+  color-scheme: light;
+}
+html[data-cuenta][data-theme='cereza'] {
+  --gx-violeta: #e11d48; --gx-fucsia: #fb7185; --gx-rosa: #f43f5e; --gx-azul: #ec4899; --gx-naranja: #fb923c; --gx-cian: #fda4af;
+  --gx-claro: #fb7185; --gx-neon1: #9f1239; --gx-neon2: #e11d48; --gx-neon3: #f43f5e;
+  --gx-fondo: #fdf2f5; --gx-tinta: 61 18 32; --gx-panel: 255 255 255; --gx-hondo: 255 255 255; --gx-sombra: 225 29 72; --gx-sobre: #ffffff;
+  --gx-motas: 251,113,133|253,164,175|251,146,60;
+  --gx-vidrio: linear-gradient(145deg, rgb(255 255 255 / .92), rgb(255 255 255 / .78) 55%, rgb(255 255 255 / .86));
+  color-scheme: light;
+}
+/* En los claros, las sombras son suaves (con el tono del tema, no negras). */
+html[data-cuenta][data-theme='light'] .gx-card, html[data-cuenta][data-theme='lavanda'] .gx-card, html[data-cuenta][data-theme='cereza'] .gx-card {
+  box-shadow: 0 1px 0 rgb(255 255 255 / .8) inset, 0 18px 40px -26px rgb(var(--gx-sombra) / .35);
+}
 
 /* Las clases gx-* van en la capa "components" de Tailwind: así una utilidad
    (pl-10, py-2, w-16…) puede ajustar un gx-input o un gx-btn concreto. Se
@@ -41,11 +124,11 @@
 .gx-espacio {
   position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
   background:
-    radial-gradient(1100px 700px at 12% -10%, rgba(124, 58, 237, .32), transparent 60%),
-    radial-gradient(900px 650px at 100% 15%, rgba(37, 99, 235, .22), transparent 60%),
-    radial-gradient(800px 600px at 70% 110%, rgba(236, 72, 153, .20), transparent 60%),
-    radial-gradient(600px 400px at 0% 100%, rgba(251, 146, 60, .10), transparent 60%),
-    #05040d;
+    radial-gradient(1100px 700px at 12% -10%, color-mix(in srgb, var(--gx-violeta) 32%, transparent), transparent 60%),
+    radial-gradient(900px 650px at 100% 15%, color-mix(in srgb, var(--gx-azul) 22%, transparent), transparent 60%),
+    radial-gradient(800px 600px at 70% 110%, color-mix(in srgb, var(--gx-rosa) 20%, transparent), transparent 60%),
+    radial-gradient(600px 400px at 0% 100%, color-mix(in srgb, var(--gx-naranja) 10%, transparent), transparent 60%),
+    var(--gx-fondo);
 }
 .gx-espacio canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* Las estelas se mecen todas juntas, como una sola capa: así el navegador
@@ -62,17 +145,17 @@
 /* Viñeta: oscurece los bordes para que el contenido destaque. */
 .gx-espacio::after {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(3, 2, 10, .75));
+  background: radial-gradient(ellipse at 50% 40%, transparent 55%, rgb(var(--gx-hondo) / .75));
 }
 
 /* ----------------------------------------------------------------- cristal */
 .gx-card {
   position: relative; border-radius: 22px;
   background: var(--gx-vidrio);
-  border: 1px solid rgba(255, 255, 255, .09);
+  border: 1px solid rgb(var(--gx-tinta) / .09);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), 0 24px 60px -30px rgba(0, 0, 0, .85);
+  box-shadow: inset 0 1px 0 rgb(var(--gx-tinta) / .09), 0 24px 60px -30px rgb(var(--gx-sombra) / .85);
 }
 /* Borde de luz en degradado (el marco brillante de la referencia). */
 .gx-brillo { border-color: transparent; }
@@ -82,80 +165,80 @@
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
-.gx-halo { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 0 0 1px rgba(168, 85, 247, .08), 0 0 50px -18px rgba(168, 85, 247, .55), 0 0 90px -40px rgba(236, 72, 153, .5), 0 30px 70px -35px rgba(0, 0, 0, .9); }
+.gx-halo { box-shadow: inset 0 1px 0 rgb(var(--gx-tinta) / .1), 0 0 0 1px color-mix(in srgb, var(--gx-violeta) 8%, transparent), 0 0 50px -18px color-mix(in srgb, var(--gx-violeta) 55%, transparent), 0 0 90px -40px color-mix(in srgb, var(--gx-rosa) 50%, transparent), 0 30px 70px -35px rgb(var(--gx-sombra) / .9); }
 
 /* Tarjeta pulsable (accesos rápidos, filas de tickets…). */
 .gx-pulsable { transition: transform .2s ease, border-color .2s ease, box-shadow .25s ease, background .2s ease; }
-.gx-pulsable:hover { transform: translateY(-3px); border-color: rgba(196, 181, 253, .35); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 40px -14px rgba(168, 85, 247, .6), 0 24px 60px -30px rgba(0, 0, 0, .85); }
+.gx-pulsable:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--gx-claro) 35%, transparent); box-shadow: inset 0 1px 0 rgb(var(--gx-tinta) / .12), 0 0 40px -14px color-mix(in srgb, var(--gx-violeta) 60%, transparent), 0 24px 60px -30px rgb(var(--gx-sombra) / .85); }
 .gx-pulsable:active { transform: translateY(-1px) scale(.995); }
-.gx-pulsable:focus-visible { outline: 2px solid rgba(196, 181, 253, .8); outline-offset: 3px; }
+.gx-pulsable:focus-visible { outline: 2px solid color-mix(in srgb, var(--gx-claro) 80%, transparent); outline-offset: 3px; }
 
 /* --------------------------------------------------------------- botones */
 .gx-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
   border-radius: 14px; padding: .7rem 1.1rem; font-weight: 600; font-size: .875rem; color: var(--text-primary);
-  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
+  background: rgb(var(--gx-tinta) / .06); border: 1px solid rgb(var(--gx-tinta) / .12);
   transition: background .2s, border-color .2s, transform .15s, box-shadow .2s;
 }
-.gx-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .11); border-color: rgba(255, 255, 255, .22); }
+.gx-btn:hover:not(:disabled) { background: rgb(var(--gx-tinta) / .11); border-color: rgb(var(--gx-tinta) / .22); }
 .gx-btn:active:not(:disabled) { transform: scale(.98); }
 .gx-btn:disabled { opacity: .45; }
-.gx-btn:focus-visible { outline: 2px solid rgba(196, 181, 253, .8); outline-offset: 2px; }
+.gx-btn:focus-visible { outline: 2px solid color-mix(in srgb, var(--gx-claro) 80%, transparent); outline-offset: 2px; }
 
 .gx-btn-primario {
-  color: #fff; border: 1px solid rgba(255, 255, 255, .18);
-  background: linear-gradient(135deg, #8b5cf6, #d946ef 55%, #ec4899);
-  box-shadow: 0 0 0 1px rgba(236, 72, 153, .15), 0 10px 30px -10px rgba(217, 70, 239, .75), inset 0 1px 0 rgba(255, 255, 255, .25);
+  color: var(--gx-sobre); border: 1px solid rgb(255 255 255 / .18);
+  background: linear-gradient(135deg, var(--gx-violeta), var(--gx-fucsia) 55%, var(--gx-rosa));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gx-rosa) 15%, transparent), 0 10px 30px -10px color-mix(in srgb, var(--gx-fucsia) 75%, transparent), inset 0 1px 0 rgb(255 255 255 / .25);
 }
-.gx-btn-primario:hover:not(:disabled) { background: linear-gradient(135deg, #9d6cff, #e15bf7 55%, #f05aa8); box-shadow: 0 0 0 1px rgba(236, 72, 153, .25), 0 14px 38px -10px rgba(217, 70, 239, .9), inset 0 1px 0 rgba(255, 255, 255, .3); }
+.gx-btn-primario:hover:not(:disabled) { background: linear-gradient(135deg, color-mix(in srgb, var(--gx-violeta) 85%, white), color-mix(in srgb, var(--gx-fucsia) 85%, white) 55%, color-mix(in srgb, var(--gx-rosa) 85%, white)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gx-rosa) 25%, transparent), 0 14px 38px -10px color-mix(in srgb, var(--gx-fucsia) 90%, transparent), inset 0 1px 0 rgb(255 255 255 / .3); }
 
 /* Botón de contorno que brilla ("Upgrade Pro" de la referencia). */
 .gx-btn-neon {
-  position: relative; color: #fff; background: rgba(168, 85, 247, .08); border-color: transparent;
-  box-shadow: 0 0 24px -6px rgba(217, 70, 239, .65), inset 0 0 18px -6px rgba(217, 70, 239, .55);
+  position: relative; color: var(--text-primary); background: color-mix(in srgb, var(--gx-violeta) 8%, transparent); border-color: transparent;
+  box-shadow: 0 0 24px -6px color-mix(in srgb, var(--gx-fucsia) 65%, transparent), inset 0 0 18px -6px color-mix(in srgb, var(--gx-fucsia) 55%, transparent);
 }
 .gx-btn-neon::before {
   content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; pointer-events: none;
-  background: linear-gradient(90deg, #60a5fa, #a855f7, #ec4899, #fb923c);
+  background: linear-gradient(90deg, var(--gx-azul), var(--gx-violeta), var(--gx-rosa), var(--gx-naranja));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
-.gx-btn-neon:hover:not(:disabled) { background: rgba(168, 85, 247, .18); box-shadow: 0 0 34px -4px rgba(217, 70, 239, .85), inset 0 0 22px -6px rgba(217, 70, 239, .7); }
+.gx-btn-neon:hover:not(:disabled) { background: color-mix(in srgb, var(--gx-violeta) 18%, transparent); box-shadow: 0 0 34px -4px color-mix(in srgb, var(--gx-fucsia) 85%, transparent), inset 0 0 22px -6px color-mix(in srgb, var(--gx-fucsia) 70%, transparent); }
 .gx-btn-neon:disabled { opacity: .6; box-shadow: none; }
 
 /* Botón redondo de icono (cabecera). */
 .gx-icono {
   position: relative; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 999px; color: var(--text-primary);
-  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
+  background: rgb(var(--gx-tinta) / .06); border: 1px solid rgb(var(--gx-tinta) / .12);
   transition: background .2s, border-color .2s, box-shadow .2s;
 }
-.gx-icono:hover { background: rgba(255, 255, 255, .12); border-color: rgba(196, 181, 253, .4); box-shadow: 0 0 20px -6px rgba(168, 85, 247, .7); }
-.gx-icono:focus-visible { outline: 2px solid rgba(196, 181, 253, .8); outline-offset: 2px; }
+.gx-icono:hover { background: rgb(var(--gx-tinta) / .12); border-color: color-mix(in srgb, var(--gx-claro) 40%, transparent); box-shadow: 0 0 20px -6px color-mix(in srgb, var(--gx-violeta) 70%, transparent); }
+.gx-icono:focus-visible { outline: 2px solid color-mix(in srgb, var(--gx-claro) 80%, transparent); outline-offset: 2px; }
 .gx-punto {
   position: absolute; top: -3px; right: -3px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px;
   display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff;
-  background: linear-gradient(135deg, #f472b6, #ec4899); box-shadow: 0 0 12px rgba(236, 72, 153, .9); border: 2px solid #0b0918;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--gx-rosa) 80%, white), var(--gx-rosa)); box-shadow: 0 0 12px color-mix(in srgb, var(--gx-rosa) 90%, transparent); border: 2px solid var(--gx-fondo);
 }
 
 /* ------------------------------------------------------- campos de texto */
 .gx-input {
   width: 100%; border-radius: 14px; padding: .75rem 1rem; font-size: .875rem; color: var(--text-primary);
-  background: rgba(6, 4, 18, .55); border: 1px solid rgba(255, 255, 255, .12); outline: none;
+  background: rgb(var(--gx-hondo) / .55); border: 1px solid rgb(var(--gx-tinta) / .12); outline: none;
   transition: border-color .2s, box-shadow .2s;
 }
-.gx-input::placeholder { color: rgba(170, 165, 200, .7); }
-.gx-input:focus { border-color: rgba(196, 181, 253, .6); box-shadow: 0 0 0 3px rgba(168, 85, 247, .2), 0 0 24px -8px rgba(168, 85, 247, .7); }
+.gx-input::placeholder { color: color-mix(in srgb, var(--text-secondary) 80%, transparent); }
+.gx-input:focus { border-color: color-mix(in srgb, var(--gx-claro) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gx-violeta) 20%, transparent), 0 0 24px -8px color-mix(in srgb, var(--gx-violeta) 70%, transparent); }
 .gx-input:disabled { opacity: .5; }
-select.gx-input option { background: #120f24; color: #f5f3ff; }
+select.gx-input option { background: var(--bg-card); color: var(--text-primary); }
 
 /* ---------------------------------------------------------------- piezas */
 .gx-chip {
   display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; padding: .2rem .65rem;
   font-size: .72rem; font-weight: 700; letter-spacing: .01em;
-  background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12); color: var(--text-primary);
+  background: rgb(var(--gx-tinta) / .07); border: 1px solid rgb(var(--gx-tinta) / .12); color: var(--text-primary);
 }
 .gx-texto-neon {
-  background-image: linear-gradient(90deg, #c4b5fd, #f0abfc 45%, #f9a8d4);
+  background-image: linear-gradient(90deg, var(--gx-neon1), var(--gx-neon2) 45%, var(--gx-neon3));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .gx-titulo { letter-spacing: -.02em; }
@@ -163,42 +246,42 @@ select.gx-input option { background: #120f24; color: #f5f3ff; }
 /* Avatar con aro de luz. */
 .gx-aro {
   position: relative; border-radius: 999px; padding: 3px;
-  background: conic-gradient(from 210deg, #60a5fa, #a855f7, #ec4899, #fb923c, #60a5fa);
-  box-shadow: 0 0 30px -4px rgba(168, 85, 247, .8), 0 0 60px -20px rgba(236, 72, 153, .8);
+  background: conic-gradient(from 210deg, var(--gx-azul), var(--gx-violeta), var(--gx-rosa), var(--gx-naranja), var(--gx-azul));
+  box-shadow: 0 0 30px -4px color-mix(in srgb, var(--gx-violeta) 80%, transparent), 0 0 60px -20px color-mix(in srgb, var(--gx-rosa) 80%, transparent);
 }
-.gx-aro > img { display: block; border-radius: 999px; border: 3px solid #0d0b1c; }
+.gx-aro > img { display: block; border-radius: 999px; border: 3px solid var(--gx-fondo); }
 
 /* Icono dentro de un círculo que brilla con el color de su sección. */
 .gx-orbe {
   display: grid; place-items: center; flex-shrink: 0; border-radius: 16px; color: #fff;
   background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--orbe, #a855f7) 75%, white), var(--orbe, #a855f7) 55%, color-mix(in srgb, var(--orbe, #a855f7) 60%, black));
-  box-shadow: 0 0 26px -6px var(--orbe, #a855f7), inset 0 1px 0 rgba(255, 255, 255, .35);
+  box-shadow: 0 0 26px -6px var(--orbe, #a855f7), inset 0 1px 0 rgb(255 255 255 / .35);
 }
 
 /* Barra de progreso de nivel. */
-.gx-barra { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
-.gx-barra > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #60a5fa, #a855f7, #ec4899); box-shadow: 0 0 14px rgba(217, 70, 239, .8); }
+.gx-barra { height: 8px; border-radius: 999px; background: rgb(var(--gx-tinta) / .08); overflow: hidden; }
+.gx-barra > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gx-azul), var(--gx-violeta), var(--gx-rosa)); box-shadow: 0 0 14px color-mix(in srgb, var(--gx-fucsia) 80%, transparent); }
 
 /* ------------------------------------------------------------ menú inferior */
 .gx-dock {
   position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); z-index: 40; transform: translateX(-50%);
   display: flex; gap: 4px; padding: 7px; border-radius: 24px; max-width: calc(100vw - 20px);
-  background: linear-gradient(145deg, rgba(30, 24, 60, .72), rgba(12, 10, 28, .78));
-  border: 1px solid rgba(255, 255, 255, .12);
+  background: linear-gradient(145deg, rgb(var(--gx-panel) / .72), rgb(var(--gx-panel) / .78));
+  border: 1px solid rgb(var(--gx-tinta) / .12);
   -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 0 40px -14px rgba(168, 85, 247, .6), 0 20px 50px -20px rgba(0, 0, 0, .9);
+  box-shadow: inset 0 1px 0 rgb(var(--gx-tinta) / .1), 0 0 40px -14px color-mix(in srgb, var(--gx-violeta) 60%, transparent), 0 20px 50px -20px rgb(var(--gx-sombra) / .9);
 }
 .gx-dock-item {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   min-width: 64px; height: 56px; padding: 0 10px; border-radius: 18px; color: var(--text-secondary);
   font-size: 11px; font-weight: 600; transition: color .2s, background .2s, box-shadow .25s;
 }
-.gx-dock-item:hover { color: var(--text-primary); background: rgba(255, 255, 255, .07); }
-.gx-dock-item:focus-visible { outline: 2px solid rgba(196, 181, 253, .8); outline-offset: 1px; }
+.gx-dock-item:hover { color: var(--text-primary); background: rgb(var(--gx-tinta) / .07); }
+.gx-dock-item:focus-visible { outline: 2px solid color-mix(in srgb, var(--gx-claro) 80%, transparent); outline-offset: 1px; }
 .gx-dock-item[aria-current='page'] {
-  color: #fff;
-  background: linear-gradient(145deg, rgba(139, 92, 246, .55), rgba(236, 72, 153, .45));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 0 24px -4px rgba(217, 70, 239, .8);
+  color: var(--gx-sobre);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--gx-violeta) 55%, transparent), color-mix(in srgb, var(--gx-rosa) 45%, transparent));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .25), 0 0 24px -4px color-mix(in srgb, var(--gx-fucsia) 80%, transparent);
 }
 .gx-dock-item .gx-punto { top: 3px; right: 8px; min-width: 17px; height: 17px; font-size: 10px; }
 @media (max-width: 420px) {
@@ -207,14 +290,14 @@ select.gx-input option { background: #120f24; color: #f5f3ff; }
 }
 
 /* ------------------------------------------------------------- gráfica */
-.gx-grafica-linea { filter: drop-shadow(0 0 6px rgba(217, 70, 239, .75)); }
+.gx-grafica-linea { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--gx-fucsia) 75%, transparent)); }
 
 /* ---------------------------------------------------- avisos y ventanas */
 .gx-toasts { position: fixed; right: 16px; bottom: 96px; z-index: 60; display: flex; flex-direction: column; gap: 10px; max-width: min(380px, calc(100vw - 32px)); }
 .gx-toast { animation: gx-entra .35s cubic-bezier(.2, .9, .3, 1.3); }
 @keyframes gx-entra { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
 
-.gx-velo { position: fixed; inset: 0; z-index: 70; background: rgba(3, 2, 10, .72); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: gx-aparece .2s ease; }
+.gx-velo { position: fixed; inset: 0; z-index: 70; background: rgb(var(--gx-hondo) / .72); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: gx-aparece .2s ease; }
 @keyframes gx-aparece { from { opacity: 0; } to { opacity: 1; } }
 .gx-pop { animation: gx-pop .5s cubic-bezier(.2, .9, .3, 1.4); }
 @keyframes gx-pop { 0% { opacity: 0; transform: scale(.7) rotate(-3deg); } 60% { transform: scale(1.04); } 100% { opacity: 1; transform: none; } }
@@ -228,14 +311,14 @@ select.gx-input option { background: #120f24; color: #f5f3ff; }
 
 /* Tienda: cartas con el color de su rareza. */
 .gx-carta { --rar: #2dd4bf; border-color: color-mix(in srgb, var(--rar) 32%, transparent); }
-.gx-carta:hover { border-color: color-mix(in srgb, var(--rar) 60%, transparent); box-shadow: 0 0 40px -12px var(--rar), 0 24px 60px -30px rgba(0, 0, 0, .85); }
-.gx-escena { background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--rar) 30%, transparent), transparent 65%), rgba(0, 0, 0, .25); }
-.gx-escena img, .gx-escena .gx-emoji { filter: drop-shadow(0 14px 20px rgba(0, 0, 0, .55)) drop-shadow(0 0 16px color-mix(in srgb, var(--rar) 70%, transparent)); }
+.gx-carta:hover { border-color: color-mix(in srgb, var(--rar) 60%, transparent); box-shadow: 0 0 40px -12px var(--rar), 0 24px 60px -30px rgb(var(--gx-sombra) / .85); }
+.gx-escena { background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--rar) 30%, transparent), transparent 65%), rgb(var(--gx-sombra) / .25); }
+.gx-escena img, .gx-escena .gx-emoji { filter: drop-shadow(0 14px 20px rgb(var(--gx-sombra) / .55)) drop-shadow(0 0 16px color-mix(in srgb, var(--rar) 70%, transparent)); }
 .gx-rareza { color: var(--rar); background: color-mix(in srgb, var(--rar) 14%, transparent); border-color: color-mix(in srgb, var(--rar) 45%, transparent); }
 
 /* Burbujas del chat. */
-.gx-burbuja-mia { color: #fff; background: linear-gradient(135deg, rgba(139, 92, 246, .9), rgba(219, 39, 119, .85)); box-shadow: 0 8px 26px -12px rgba(217, 70, 239, .9); }
-.gx-burbuja-otra { background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .1); }
+.gx-burbuja-mia { color: var(--gx-sobre); background: linear-gradient(135deg, color-mix(in srgb, var(--gx-violeta) 90%, transparent), color-mix(in srgb, var(--gx-rosa) 85%, transparent)); box-shadow: 0 8px 26px -12px color-mix(in srgb, var(--gx-fucsia) 90%, transparent); }
+.gx-burbuja-otra { background: rgb(var(--gx-tinta) / .07); border: 1px solid rgb(var(--gx-tinta) / .1); }
 
 /* Quien prefiere menos movimiento: todo quieto. */
 @media (prefers-reduced-motion: reduce) {
@@ -247,9 +330,9 @@ select.gx-input option { background: #120f24; color: #f5f3ff; }
    del scroll es lo que más cuesta a un teléfono). Un fondo tintado hace de
    "cristal esmerilado"; el menú inferior lo conserva, pero más suave. */
 @media (max-width: 1023px), (pointer: coarse) {
-  .gx-card { background: var(--gx-vidrio), rgba(17, 12, 38, .62); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .gx-card { background: var(--gx-vidrio), rgb(var(--gx-panel) / .62); -webkit-backdrop-filter: none; backdrop-filter: none; }
   /* Lo que flota encima del contenido (menús, avisos, globos) casi opaco para leerse. */
-  .gx-card.absolute, .gx-card.gx-toast { background: var(--gx-vidrio), rgba(17, 12, 38, .94); }
+  .gx-card.absolute, .gx-card.gx-toast { background: var(--gx-vidrio), rgb(var(--gx-panel) / .94); }
   .gx-dock { -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%); }
 }
 
@@ -258,8 +341,8 @@ select.gx-input option { background: #120f24; color: #f5f3ff; }
 @media (min-width: 1024px) {
   .gx-marco {
     position: relative; border-radius: 34px; padding: 26px 30px 34px;
-    background: linear-gradient(160deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .012) 45%, rgba(255, 255, 255, .03));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 80px -30px rgba(168, 85, 247, .55), 0 0 140px -60px rgba(236, 72, 153, .5), 0 40px 90px -50px rgba(0, 0, 0, .9);
+    background: linear-gradient(160deg, rgb(var(--gx-tinta) / .055), rgb(var(--gx-tinta) / .012) 45%, rgb(var(--gx-tinta) / .03));
+    box-shadow: inset 0 1px 0 rgb(var(--gx-tinta) / .08), 0 0 80px -30px color-mix(in srgb, var(--gx-violeta) 55%, transparent), 0 0 140px -60px color-mix(in srgb, var(--gx-rosa) 50%, transparent), 0 40px 90px -50px rgb(var(--gx-sombra) / .9);
   }
   .gx-marco::before {
     content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
@@ -269,3 +352,10 @@ select.gx-input option { background: #120f24; color: #f5f3ff; }
   }
 }
 }
+
+/* Temas claros de «Mi cuenta»: los tonos pastel pensados para el cristal oscuro, más
+   intensos (si no, apenas se leen sobre blanco). */
+html[data-cuenta][data-theme='light'] .text-amber-300, html[data-cuenta][data-theme='lavanda'] .text-amber-300, html[data-cuenta][data-theme='cereza'] .text-amber-300,
+html[data-cuenta][data-theme='light'] .text-amber-400, html[data-cuenta][data-theme='lavanda'] .text-amber-400, html[data-cuenta][data-theme='cereza'] .text-amber-400 { color: #b45309; }
+html[data-cuenta][data-theme='light'] .text-pink-300, html[data-cuenta][data-theme='lavanda'] .text-pink-300, html[data-cuenta][data-theme='cereza'] .text-pink-300,
+html[data-cuenta][data-theme='light'] .text-pink-400, html[data-cuenta][data-theme='lavanda'] .text-pink-400, html[data-cuenta][data-theme='cereza'] .text-pink-400 { color: #be185d; }

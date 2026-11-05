@@ -237,8 +237,10 @@ describe('publicar el mensaje fijo de «Mi cuenta»', () => {
         assert.strictEqual(canal.enviados.length, 1);
         const [filtro, cambios] = guardado.mock.calls[0].arguments;
         assert.deepStrictEqual(filtro, { guildId: 'g1' });
-        assert.strictEqual(cambios.$set.panelCuenta.canalId, 'c1');
-        assert.strictEqual(cambios.$set.panelCuenta.mensajeId, 'm1');
+        // Solo dónde está: lo personalizado del mensaje (1.9.12) no se pisa.
+        assert.strictEqual(cambios.$set['panelCuenta.canalId'], 'c1');
+        assert.strictEqual(cambios.$set['panelCuenta.mensajeId'], 'm1');
+        assert.strictEqual(cambios.$set.panelCuenta, undefined);
     });
 
     it('si ya estaba en ese canal, lo actualiza en vez de repetirlo', async (t) => {
@@ -250,6 +252,19 @@ describe('publicar el mensaje fijo de «Mi cuenta»', () => {
         assert.strictEqual(r.actualizado, true);
         assert.ok(editado && editado.components.length === 2);
         assert.strictEqual(canal.enviados.length, 0);
+    });
+
+    it('lo personalizado en el panel sale en Discord (embed, botones y sus textos)', () => {
+        const { embeds, components } = cuenta.panelCuenta({ idioma: 'es', panelCuenta: {
+            contenido: '¡Mira!', embed: { titulo: 'Tu web', descripcion: 'Todo aquí', color: '#ff0000' },
+            textoBoton: 'Entrar ya', estiloBoton: 'azul', botonWeb: false, etiquetas: { tickets: 'Soporte', tienda: '  ' },
+        } });
+        assert.strictEqual(embeds[0].data.title, 'Tu web');
+        const fila1 = components[0].components.map((b) => b.data);
+        assert.deepStrictEqual(fila1.map((b) => b.label), ['Entrar ya'], 'sin el botón de la web');
+        const fila2 = components[1].components.map((b) => b.data.label);
+        assert.deepStrictEqual(fila2, ['Soporte', 'Tienda', 'Música', 'Mi tarjeta'], 'un texto vacío vuelve al de fábrica');
+        assert.strictEqual(cuenta.panelCuenta({ idioma: 'es', panelCuenta: { secciones: false } }).components.length, 1);
     });
 
     it('si lo borraron (o está en otro canal), publica uno nuevo', async (t) => {

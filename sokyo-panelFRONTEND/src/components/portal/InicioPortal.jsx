@@ -143,7 +143,7 @@ function TarjetaUsuario({ resumen, usuario, idioma, irA, onDaily, ahora, classNa
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-line bg-white/[.03] p-3 text-center">
+      <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.03)] p-3 text-center">
         {datos.map((d) => (
           <div key={d.etiqueta}>
             <div className="gx-texto-neon text-2xl font-extrabold leading-tight">{d.valor}</div>
@@ -195,10 +195,10 @@ function Servidores({ servidores = [], idioma, className = '' }) {
           {servidores.map((s) => {
             const pct = s.xpNecesaria ? Math.min(100, Math.round((s.xpActual / s.xpNecesaria) * 100)) : 0;
             return (
-              <li key={s.id} className="flex items-center gap-3 rounded-2xl border border-line bg-white/[.03] p-3">
+              <li key={s.id} className="flex items-center gap-3 rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.03)] p-3">
                 {s.icono
                   ? <img src={s.icono} alt="" width="40" height="40" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
-                  : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-sm font-bold text-fg">{(s.nombre || '?').slice(0, 2).toUpperCase()}</span>}
+                  : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[rgb(var(--gx-tinta)/.1)] text-sm font-bold text-fg">{(s.nombre || '?').slice(0, 2).toUpperCase()}</span>}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-fg">{s.nombre}</span>
@@ -247,7 +247,7 @@ function Extras({ resumen, idioma, irA, ahora, className = '' }) {
           </div>
         </div>
         {resumen.boost && (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-white/[.04] px-3 py-2 text-xs text-fg">
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-[rgb(var(--gx-tinta)/.04)] px-3 py-2 text-xs text-fg">
             <Zap size={14} className="text-amber-300" /> {t('portal.home.boost', { x: resumen.boost.multiplicador, time: boostMin })}
           </div>
         )}
@@ -262,7 +262,7 @@ function Extras({ resumen, idioma, irA, ahora, className = '' }) {
           <ul className="mt-2 flex flex-col gap-1.5">
             {resumen.tickets.recientes.slice(0, 4).map((tk) => (
               <li key={tk.canalId}>
-                <button onClick={() => irA('tickets', tk.canalId)} className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/[.06]">
+                <button onClick={() => irA('tickets', tk.canalId)} className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[rgb(var(--gx-tinta)/.06)]">
                   <TicketIcon size={15} className="shrink-0 text-blue-300" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-fg">{tk.titulo}</span>
@@ -283,7 +283,7 @@ function EsqueletoInicio() {
   const bloque = 'gx-card animate-pulse';
   return (
     <div className="flex flex-col gap-5" aria-busy="true">
-      <div className="h-10 w-64 rounded-xl bg-white/[.06]" />
+      <div className="h-10 w-64 rounded-xl bg-[rgb(var(--gx-tinta)/.06)]" />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className={`${bloque} h-[340px] lg:col-span-7 xl:col-span-8`} />
         <div className={`${bloque} h-[340px] lg:col-span-5 xl:col-span-4`} />

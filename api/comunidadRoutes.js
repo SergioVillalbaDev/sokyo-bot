@@ -72,6 +72,34 @@ module.exports = function montarRutasComunidad(app, client) {
         } catch (e) { console.error('POST sorteo:', e.message); res.status(400).json({ error: 'No se pudo crear' }); }
     });
 
+    // Editar un sorteo en marcha (1.9.12): el mensaje de Discord se actualiza solo.
+    app.put('/api/sorteos/:id', async (req, res) => {
+        try {
+            const s = await Sorteo.findById(req.params.id);
+            if (!s) return res.status(404).json({ error: 'No encontrado' });
+            if (!puedeGestionar(req, s.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            if (!s.activo) return res.status(400).json({ error: 'Ya ha terminado: no se puede editar' });
+            const b = req.body || {};
+            if (b.nombre !== undefined) { if (!String(b.nombre).trim()) return res.status(400).json({ error: 'Falta el nombre' }); s.nombre = String(b.nombre).slice(0, 100); }
+            if (b.premio !== undefined) { if (!String(b.premio).trim()) return res.status(400).json({ error: 'Falta el premio' }); s.premio = String(b.premio).slice(0, 200); }
+            if (b.fechaFin !== undefined) { const f = fechaFutura(b.fechaFin); if (!f) return res.status(400).json({ error: 'La fecha debe ser futura' }); s.fechaFin = f; }
+            if (b.ganadores !== undefined) s.ganadores = Math.min(20, Math.max(1, parseInt(b.ganadores, 10) || 1));
+            if (b.nivelMin !== undefined) s.nivelMin = Math.max(0, parseInt(b.nivelMin, 10) || 0);
+            if (b.rolRequerido !== undefined) s.rolRequerido = b.rolRequerido || null;
+            if (b.imagen !== undefined) s.imagen = b.imagen || null;
+            if (Array.isArray(b.multiplicadores)) {
+                s.multiplicadores = b.multiplicadores.filter((m) => m && m.rolId)
+                    .map((m) => ({ rolId: String(m.rolId), multiplicador: Math.max(1, Math.min(100, parseInt(m.multiplicador, 10) || 1)) })).slice(0, 10);
+            }
+            if (b.invitacionesMin !== undefined) s.invitacionesMin = Math.min(100, Math.max(0, parseInt(b.invitacionesMin, 10) || 0));
+            if (b.entradasPorInvitacion !== undefined) s.entradasPorInvitacion = Math.min(10, Math.max(0, parseInt(b.entradasPorInvitacion, 10) || 0));
+            if (b.maxEntradasExtra !== undefined) s.maxEntradasExtra = Math.min(100, Math.max(1, parseInt(b.maxEntradasExtra, 10) || 10));
+            await s.save();
+            const enDiscord = await comunidad.refrescarPublicado(client, 'sorteo', s);
+            res.json({ success: true, sorteo: s, enDiscord });
+        } catch (e) { console.error('PUT sorteo:', e.message); res.status(400).json({ error: 'No se pudo guardar' }); }
+    });
+
     app.post('/api/sorteos/:id/terminar', async (req, res) => {
         try {
             const s = await Sorteo.findById(req.params.id);
@@ -164,6 +192,31 @@ module.exports = function montarRutasComunidad(app, client) {
         } catch (e) { console.error('POST evento:', e.message); res.status(400).json({ error: 'No se pudo crear' }); }
     });
 
+    // Editar un evento (1.9.12): el mensaje de Discord se actualiza solo.
+    app.put('/api/eventos/:id', async (req, res) => {
+        try {
+            const ev = await Evento.findById(req.params.id);
+            if (!ev) return res.status(404).json({ error: 'No encontrado' });
+            if (!puedeGestionar(req, ev.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            const b = req.body || {};
+            if (b.titulo !== undefined) { if (!String(b.titulo).trim()) return res.status(400).json({ error: 'Falta el título' }); ev.titulo = String(b.titulo).slice(0, 100); }
+            if (b.descripcion !== undefined) ev.descripcion = String(b.descripcion || '').slice(0, 500);
+            if (b.tipo !== undefined) ev.tipo = ['voz', 'escenario', 'externo'].includes(b.tipo) ? b.tipo : 'voz';
+            if (b.portada !== undefined) ev.portada = b.portada || null;
+            if (b.recordatorio !== undefined) ev.recordatorio = Math.max(0, parseInt(b.recordatorio, 10) || 0);
+            if (b.fechaInicio !== undefined) {
+                const f = fechaFutura(b.fechaInicio);
+                if (!f) return res.status(400).json({ error: 'La fecha debe ser futura' });
+                // Otra hora: los avisos vuelven a salir a su hora nueva.
+                if (+f !== +ev.fechaInicio) { ev.recordatorioEnviado = false; ev.avisoInteresadosEnviado = false; }
+                ev.fechaInicio = f;
+            }
+            await ev.save();
+            const enDiscord = await comunidad.refrescarPublicado(client, 'evento', ev);
+            res.json({ success: true, evento: ev, enDiscord });
+        } catch (e) { console.error('PUT evento:', e.message); res.status(400).json({ error: 'No se pudo guardar' }); }
+    });
+
     app.delete('/api/eventos/:id', async (req, res) => {
         try {
             const e = await Evento.findById(req.params.id);
@@ -206,6 +259,28 @@ module.exports = function montarRutasComunidad(app, client) {
             await comunidad.publicarEncuesta(client, doc);
             res.json({ success: true, encuesta: doc });
         } catch (e) { console.error('POST encuesta:', e.message); res.status(400).json({ error: 'No se pudo crear' }); }
+    });
+
+    // Editar una encuesta abierta (1.9.12): pregunta, fecha y el TEXTO de las
+    // opciones (no cuántas hay: los votos ya dados son de cada opción).
+    app.put('/api/encuestas/:id', async (req, res) => {
+        try {
+            const enc = await Encuesta.findById(req.params.id);
+            if (!enc) return res.status(404).json({ error: 'No encontrado' });
+            if (!puedeGestionar(req, enc.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            if (enc.activa === false) return res.status(400).json({ error: 'Ya está cerrada: no se puede editar' });
+            const b = req.body || {};
+            if (b.pregunta !== undefined) { if (!String(b.pregunta).trim()) return res.status(400).json({ error: 'Falta la pregunta' }); enc.pregunta = String(b.pregunta).slice(0, 200); }
+            if (b.fechaFin !== undefined) { const f = fechaFutura(b.fechaFin); if (!f) return res.status(400).json({ error: 'La fecha debe ser futura' }); enc.fechaFin = f; }
+            if (Array.isArray(b.opciones)) {
+                const textos = b.opciones.map((o) => String(o || '').trim());
+                if (textos.length !== enc.opciones.length || textos.some((x) => !x)) return res.status(400).json({ error: 'Se puede cambiar el texto de las opciones, pero no cuántas hay' });
+                textos.forEach((x, i) => { enc.opciones[i].texto = x.slice(0, 100); });
+            }
+            await enc.save();
+            const enDiscord = await comunidad.refrescarPublicado(client, 'encuesta', enc);
+            res.json({ success: true, encuesta: enc, enDiscord });
+        } catch (e) { console.error('PUT encuesta:', e.message); res.status(400).json({ error: 'No se pudo guardar' }); }
     });
 
     app.delete('/api/encuestas/:id', async (req, res) => {
@@ -283,6 +358,25 @@ module.exports = function montarRutasComunidad(app, client) {
         } catch (e) { console.error('DELETE presentacion:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 
+    // Aceptar o rechazar una presentación desde el panel (igual que los botones de Discord).
+    app.post('/api/presentaciones/:id/revisar', async (req, res) => {
+        try {
+            const p = await Presentacion.findById(req.params.id).catch(() => null);
+            if (!p) return res.status(404).json({ error: 'No encontrado' });
+            if (!puedeGestionar(req, p.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            const aceptar = !!(req.body && req.body.aceptar);
+            const motivo = String((req.body && req.body.motivo) || '').slice(0, 1000);
+            if (!aceptar && !motivo.trim()) return res.status(400).json({ error: 'Escribe el motivo del rechazo', codigo: 'motivo' });
+            const r = await comunidad.revisarPresentacion(client, p._id, { aceptar, motivo, revisor: (req.staff && req.staff.username) || 'Panel' });
+            res.json({ success: true, aviso: r.aviso, presentacion: r.doc });
+        } catch (e) {
+            const codigos = { 'ya-revisada': 409, 'sin-canal': 400, 'not-found': 404 };
+            if (codigos[e.message]) return res.status(codigos[e.message]).json({ error: e.message, codigo: e.message });
+            console.error('Revisar presentación:', e.message);
+            res.status(500).json({ error: 'No se pudo revisar' });
+        }
+    });
+
     app.put('/api/config/:guildId/presentaciones', async (req, res) => {
         try {
             const b = req.body || {};
@@ -294,12 +388,25 @@ module.exports = function montarRutasComunidad(app, client) {
                 'presentaciones.plantilla': String(b.plantilla || '').slice(0, 1500),
                 'presentaciones.preguntas': Array.isArray(b.preguntas) ? b.preguntas.slice(0, 10) : [],
                 'presentaciones.filtros': Array.isArray(b.filtros) ? b.filtros.slice(0, 20) : [],
+                // Aprobación del staff (1.9.12)
+                'presentaciones.aprobacion': b.aprobacion !== false,
+                'presentaciones.canalPublico': b.canalPublico || null,
+                'presentaciones.mensajeRechazo': String(b.mensajeRechazo || '').slice(0, 1500),
+                'presentaciones.mensajeAceptada': String(b.mensajeAceptada || '').slice(0, 1500),
+                'presentaciones.rolAceptadaId': b.rolAceptadaId || null,
             };
+            const antes = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('presentaciones').lean();
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
             );
-            // Publicar/refrescar el panel de presentación en el canal de intro.
-            await comunidad.publicarPanelPresentacion(client, req.params.guildId, config).catch(() => {});
+            // El panel «Preséntate» solo se publica si aún no está o cambia de canal (el
+            // autoguardado llama aquí cada pocos segundos mientras se escribe).
+            const pa = (antes && antes.presentaciones) || {};
+            if (!pa.panelMensajeId || pa.canalIntro !== set['presentaciones.canalIntro']) {
+                if (pa.canalIntro !== set['presentaciones.canalIntro']) await ServidorConfig.updateOne({ guildId: req.params.guildId }, { $set: { 'presentaciones.panelMensajeId': null } });
+                const fresca = await ServidorConfig.findOne({ guildId: req.params.guildId });
+                await comunidad.publicarPanelPresentacion(client, req.params.guildId, fresca).catch(() => {});
+            }
             res.json({ success: true, config });
         } catch (e) { console.error('Config presentaciones:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });

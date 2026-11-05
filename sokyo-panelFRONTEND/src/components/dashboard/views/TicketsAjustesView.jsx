@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Save, Pencil, Eye, ShieldCheck, FolderTree, Hash, Clock, UserCheck, Info,
   Star, FileText, MessageSquareWarning, BellRing, Gauge, Tags, Zap, X, Plus,
-  Hourglass, Lightbulb, Sparkles, Mail,
+  Hourglass, Lightbulb, Sparkles, Mail, Archive, Loader2,
 } from 'lucide-react';
 import { Card, Toggle } from '../../ui/primitives';
 import { OpcionCrear } from '../CrearAlVuelo';
@@ -45,16 +45,19 @@ export default function TicketsAjustesView({ dash }) {
     mensajeBienvenida, setMensajeBienvenida, prefijo,
     categoriaArchivados, setCategoriaArchivados, guardarTextosConfig,
     // Reglas y comportamiento
-    guardarReglas, guardarComportamiento,
+    guardarReglas, guardarComportamiento, ordenarTickets,
     // Urgencias y motivos
     urgencias, nuevaUrgNombre, setNuevaUrgNombre, nuevaUrgColor, setNuevaUrgColor,
     nuevaUrgNivel, setNuevaUrgNivel, agregarUrgencia, eliminarUrgencia,
     motivos, nuevoMotivo, setNuevoMotivo, nuevaUrgencia, setNuevaUrgencia,
-    agregarMotivo, eliminarMotivo, getColorUrgencia, guardarCambiosConfig,
+    agregarMotivo, eliminarMotivo, editarMotivo, getColorUrgencia, guardarCambiosConfig,
     // Respuestas rápidas
     guardarMacros,
   } = dash;
 
+  const [orden, setOrden] = useState(null); // «Ordenar tickets»: null | { cargando } | { texto } | { error }
+  const [motivoEd, setMotivoEd] = useState(null); // { i, nombre, urgencia }: motivo que se edita
+  const [macroEd, setMacroEd] = useState(null);   // índice de la respuesta rápida que se edita
   const [macroTitulo, setMacroTitulo] = useState('');
   const [macroContenido, setMacroContenido] = useState('');
 
@@ -70,10 +73,13 @@ export default function TicketsAjustesView({ dash }) {
 
   const añadirMacro = () => {
     if (!macroTitulo.trim() || !macroContenido.trim()) return;
-    guardarMacros([...macros, { titulo: macroTitulo.trim(), contenido: macroContenido.trim() }]);
-    setMacroTitulo(''); setMacroContenido('');
+    const nueva = { titulo: macroTitulo.trim(), contenido: macroContenido.trim() };
+    // Editando (1.9.12): se cambia en su sitio; si no, se añade al final.
+    guardarMacros(macroEd !== null ? macros.map((m, i) => (i === macroEd ? nueva : m)) : [...macros, nueva]);
+    setMacroTitulo(''); setMacroContenido(''); setMacroEd(null);
   };
-  const eliminarMacro = (i) => guardarMacros(macros.filter((_, idx) => idx !== i));
+  const editarMacro = (i) => { setMacroEd(i); setMacroTitulo(macros[i].titulo); setMacroContenido(macros[i].contenido); };
+  const eliminarMacro = (i) => { if (macroEd === i) { setMacroEd(null); setMacroTitulo(''); setMacroContenido(''); } guardarMacros(macros.filter((_, idx) => idx !== i)); };
 
   return (
     <div className="flex flex-col gap-6">
@@ -169,6 +175,33 @@ export default function TicketsAjustesView({ dash }) {
               <option value="">{t('dashboard.rules_v.noCategory')}</option>
               {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nombre}</option>)}
             </select>
+          </div>
+          {/* Cerrados: una categoría concreta o, si no, la del nombre de «Textos» (1.9.12) */}
+          <div data-help="reglas-cerrados" className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-brand"><Archive size={18} /></span>
+              <div><p className="text-sm font-semibold text-fg">{t('dashboard.rules_v.closedCategory')}</p><p className="text-xs text-muted">{t('dashboard.rules_v.closedCategoryDesc')}</p></div>
+            </div>
+            <select value={c.categoriaArchivadosId || ''} onChange={(e) => guardarReglas({ categoriaArchivadosId: e.target.value || null })} className={select} style={{ maxWidth: 260 }}>
+              <option value="">{t('dashboard.rules_v.closedByName', { n: categoriaArchivados || '🗄️' })}</option>
+              {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nombre}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-brand"><FolderTree size={18} /></span>
+              <div><p className="text-sm font-semibold text-fg">{t('dashboard.rules_v.sortTitle')}</p><p className="text-xs text-muted">{t('dashboard.rules_v.sortDesc')}</p></div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {orden && <span className={`text-xs font-semibold ${orden.error ? 'text-danger' : 'text-success'}`}>{orden.error ? t('dashboard.rules_v.sortErr') : orden.texto}</span>}
+              <button type="button" disabled={orden?.cargando} onClick={async () => {
+                setOrden({ cargando: true });
+                const r = await ordenarTickets();
+                setOrden(r.error ? { error: true } : { texto: t('dashboard.rules_v.sortOk', { a: r.abiertos || 0, c: r.cerrados || 0 }) });
+              }} className="flex items-center gap-2 rounded-2xl border border-line bg-bg px-4 py-2 text-sm font-bold text-fg transition-colors hover:border-brand disabled:opacity-50">
+                {orden?.cargando ? <Loader2 size={15} className="animate-spin" /> : <FolderTree size={15} />} {t('dashboard.rules_v.sortBtn')}
+              </button>
+            </div>
           </div>
           <div data-help="reglas-limite" className="flex flex-wrap items-center justify-between gap-3 py-3.5">
             <div className="flex items-start gap-3">
@@ -286,12 +319,28 @@ export default function TicketsAjustesView({ dash }) {
               const urgencia = typeof motivo === 'string' ? 'Normal' : motivo.urgencia;
               const colorUrg = getColorUrgencia(urgencia);
               return (
-                <li key={index} className="flex items-center justify-between rounded-xl border border-line bg-bg px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <strong className="text-fg">{nombre}</strong>
-                    <span className="rounded px-2 py-0.5 text-xs font-bold text-white" style={{ backgroundColor: colorUrg }}>{urgencia}</span>
-                  </div>
-                  <button onClick={() => eliminarMotivo(motivo)} className="text-muted transition-colors hover:text-danger"><X size={16} /></button>
+                <li key={index} className="flex items-center justify-between gap-2 rounded-xl border border-line bg-bg px-4 py-3">
+                  {motivoEd?.i === index ? (
+                    <form className="flex min-w-0 flex-1 flex-wrap items-center gap-2" onSubmit={(ev) => { ev.preventDefault(); if (editarMotivo(index, motivoEd.nombre, motivoEd.urgencia)) setMotivoEd(null); }}>
+                      <input autoFocus value={motivoEd.nombre} onChange={(ev) => setMotivoEd({ ...motivoEd, nombre: ev.target.value })} maxLength={100} className={`${smallInput} min-w-[120px] flex-1`} />
+                      <select value={motivoEd.urgencia} onChange={(ev) => setMotivoEd({ ...motivoEd, urgencia: ev.target.value })} className={`${smallInput} cursor-pointer`}>
+                        {urgencias.map((u, i) => <option key={i} value={u.nombre}>{u.nombre}</option>)}
+                      </select>
+                      <button type="submit" className="rounded-lg bg-gradient-brand px-3 py-2 text-xs font-bold text-on-brand">{t('dashboard.editar.save')}</button>
+                      <button type="button" onClick={() => setMotivoEd(null)} className="text-muted hover:text-fg" aria-label={t('dashboard.editar.cancel')}><X size={15} /></button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <strong className="text-fg">{nombre}</strong>
+                        <span className="rounded px-2 py-0.5 text-xs font-bold text-white" style={{ backgroundColor: colorUrg }}>{urgencia}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button onClick={() => setMotivoEd({ i: index, nombre, urgencia })} className="text-muted transition-colors hover:text-brand" aria-label={t('dashboard.editar.edit')} title={t('dashboard.editar.edit')}><Pencil size={15} /></button>
+                        <button onClick={() => eliminarMotivo(motivo)} className="text-muted transition-colors hover:text-danger"><X size={16} /></button>
+                      </div>
+                    </>
+                  )}
                 </li>
               );
             })}
@@ -313,7 +362,10 @@ export default function TicketsAjustesView({ dash }) {
         <p className="flex items-center gap-2 rounded-xl border border-line bg-bg px-3 py-2 text-xs text-muted"><Info size={14} className="text-brand" /> {t('dashboard.macros_v.hint')}</p>
         <input type="text" value={macroTitulo} onChange={(e) => setMacroTitulo(e.target.value)} placeholder={t('dashboard.macros_v.newTitle')} maxLength={100} className={field} />
         <textarea value={macroContenido} onChange={(e) => setMacroContenido(e.target.value)} placeholder={t('dashboard.macros_v.newContent')} maxLength={2000} className={`${field} min-h-[90px] resize-y`} />
-        <button onClick={añadirMacro} className="flex w-fit items-center gap-1.5 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand transition-transform hover:scale-[1.03]"><Plus size={15} /> {t('dashboard.macros_v.add')}</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={añadirMacro} className="flex w-fit items-center gap-1.5 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-on-brand transition-transform hover:scale-[1.03]">{macroEd !== null ? <><Save size={15} /> {t('dashboard.editar.save')}</> : <><Plus size={15} /> {t('dashboard.macros_v.add')}</>}</button>
+          {macroEd !== null && <button type="button" onClick={() => { setMacroEd(null); setMacroTitulo(''); setMacroContenido(''); }} className="rounded-xl px-3 py-2 text-sm text-muted hover:text-fg">{t('dashboard.editar.cancel')}</button>}
+        </div>
         {macros.length === 0 ? (
           <p className="py-2 text-center text-sm italic text-muted">{t('dashboard.macros_v.empty')}</p>
         ) : (
@@ -324,7 +376,10 @@ export default function TicketsAjustesView({ dash }) {
                   <p className="text-sm font-bold text-fg">{m.titulo}</p>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{m.contenido}</p>
                 </div>
-                <button onClick={() => eliminarMacro(i)} className="shrink-0 text-muted transition-colors hover:text-danger" aria-label="Eliminar"><X size={18} /></button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button onClick={() => editarMacro(i)} className="text-muted transition-colors hover:text-brand" aria-label={t('dashboard.editar.edit')} title={t('dashboard.editar.edit')}><Pencil size={16} /></button>
+                  <button onClick={() => eliminarMacro(i)} className="text-muted transition-colors hover:text-danger" aria-label="Eliminar"><X size={18} /></button>
+                </div>
               </div>
             ))}
           </div>

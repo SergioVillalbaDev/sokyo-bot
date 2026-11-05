@@ -3,7 +3,7 @@
 import {useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
-import { Flag, Save, Check, X, Info, Ticket } from 'lucide-react';
+import { Flag, Save, Check, X, Info, Ticket, EyeOff, Lock } from 'lucide-react';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { OpcionCrear } from '../CrearAlVuelo';
@@ -21,15 +21,17 @@ const ESTADO_META = {
 
 export default function ReportesView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, guardarReportes, reportes, actualizarReporte, abrirTicketReporte } = dash;
+  const { canales, roles = [], configServidor, guardarReportes, reportes, actualizarReporte, abrirTicketReporte } = dash;
 
-  const [cfg, setCfg] = useState({ activo: false, canalId: null });
+  const [cfg, setCfg] = useState({ activo: false, canalId: null, ocultarAutor: true, rolesVerAutor: [] });
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [filtro, setFiltro] = useState('pendiente');
 
   useDesdeServidor(configServidor, () => {
-    if (configServidor) setCfg({ activo: !!(configServidor.reportes && configServidor.reportes.activo), canalId: (configServidor.reportes && configServidor.reportes.canalId) || null });
+    if (!configServidor) return;
+    const r = configServidor.reportes || {};
+    setCfg({ activo: !!r.activo, canalId: r.canalId || null, ocultarAutor: r.ocultarAutor !== false, rolesVerAutor: Array.isArray(r.rolesVerAutor) ? r.rolesVerAutor : [] });
   });
 
   const guardar = async () => {
@@ -72,6 +74,36 @@ export default function ReportesView({ dash }) {
             <OpcionCrear tipo="canal" />
           </select>
         </label>
+        {/* Quién reportó: oculto para el reportado y para el resto del staff (utils/reportes.js) */}
+        <div className="mt-4 space-y-3 border-t border-line pt-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold text-fg"><EyeOff size={15} className="text-brand" /> {t('dashboard.reportes_v.hideAuthor')}</p>
+              <p className="text-xs leading-snug text-muted">{t('dashboard.reportes_v.hideAuthorDesc')}</p>
+            </div>
+            <Toggle checked={cfg.ocultarAutor} onChange={(v) => { setGuardado(false); setCfg((p) => ({ ...p, ocultarAutor: v })); }} />
+          </div>
+          {cfg.ocultarAutor && (
+            <div>
+              <p className="text-sm font-semibold text-fg">{t('dashboard.reportes_v.rolesSee')}</p>
+              <p className="mb-2 text-xs leading-snug text-muted">{t('dashboard.reportes_v.rolesSeeDesc')}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {cfg.rolesVerAutor.map((id) => (
+                  <span key={id} className="flex items-center gap-1 rounded-full border border-line bg-bg py-1 pl-3 pr-1.5 text-xs font-semibold text-fg">
+                    @{roles.find((r) => r.id === id)?.nombre || id}
+                    <button type="button" onClick={() => { setGuardado(false); setCfg((p) => ({ ...p, rolesVerAutor: p.rolesVerAutor.filter((x) => x !== id) })); }}
+                      className="rounded-full p-0.5 text-muted hover:text-danger" aria-label={t('dashboard.reportes_v.removeRole')}><X size={12} /></button>
+                  </span>
+                ))}
+                <select value="" onChange={(e) => { const id = e.target.value; if (!id) return; setGuardado(false); setCfg((p) => ({ ...p, rolesVerAutor: [...new Set([...p.rolesVerAutor, id])] })); }}
+                  className={input + ' max-w-[220px]'}>
+                  <option value="">{t('dashboard.reportes_v.rolesSeePh')}</option>
+                  {roles.filter((r) => !cfg.rolesVerAutor.includes(r.id)).map((r) => <option key={r.id} value={r.id}>@{r.nombre}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="mt-4 flex items-center gap-3">
           <button
             type="button"
@@ -94,13 +126,14 @@ export default function ReportesView({ dash }) {
             titulo: t('dashboard.reportes_v.prevName'), color: '#e67e22', pie: 'ID: 6720a1f3',
             campos: [
               { nombre: t('dashboard.reportes_v.prevReported'), valor: '@Marc', inline: true },
-              { nombre: t('dashboard.reportes_v.prevBy'), valor: '@Alex', inline: true },
+              { nombre: t('dashboard.reportes_v.prevBy'), valor: cfg.ocultarAutor ? t('dashboard.reportes_v.prevHidden') : '@Alex', inline: true },
               { nombre: t('dashboard.reportes_v.prevChannel'), valor: '#general', inline: true },
               { nombre: t('dashboard.reportes_v.prevReason'), valor: t('dashboard.reportes_v.prevReasonVal') },
               { nombre: t('dashboard.reportes_v.prevMessage'), valor: t('dashboard.reportes_v.prevMessageVal') },
             ],
           }}
-          botones={[{ texto: t('dashboard.reportes_v.prevResolve'), estilo: 'verde' }, { texto: t('dashboard.reportes_v.prevTicket'), estilo: 'azul' }, { texto: t('dashboard.reportes_v.prevDismiss'), estilo: 'gris' }]} />
+          botones={[{ texto: t('dashboard.reportes_v.prevResolve'), estilo: 'verde' }, { texto: t('dashboard.reportes_v.prevTicket'), estilo: 'azul' }, { texto: t('dashboard.reportes_v.prevDismiss'), estilo: 'gris' },
+            ...(cfg.ocultarAutor ? [{ texto: t('dashboard.reportes_v.prevSeeWho'), estilo: 'gris' }] : [])]} />
       </div>
 
       {/* Bandeja */}
@@ -135,7 +168,9 @@ export default function ReportesView({ dash }) {
                   </div>
                   <p className="mt-2 text-sm text-fg">
                     <span className="font-semibold">{r.reportadoTag || r.reportadoId || '—'}</span>
-                    <span className="text-muted"> · {t('dashboard.reportes_v.by')} {r.reportanteTag}</span>
+                    {r.autorOculto
+                      ? <span className="text-muted"> · <Lock size={11} className="inline" /> {t('dashboard.reportes_v.byHidden')}</span>
+                      : <span className="text-muted"> · {t('dashboard.reportes_v.by')} {r.reportanteTag}</span>}
                   </p>
                   {r.motivo && <p className="mt-1 text-sm text-muted"><span className="font-semibold text-fg">{t('dashboard.reportes_v.reason')}:</span> {r.motivo}</p>}
                   {r.mensajeContenido && <p className="mt-1 rounded-lg bg-elevated px-3 py-2 text-xs italic text-muted">“{r.mensajeContenido}”</p>}

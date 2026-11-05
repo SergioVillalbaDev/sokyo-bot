@@ -16,6 +16,14 @@ const PresentacionSchema = new mongoose.Schema({
     descartada: { type: Boolean, default: false },     // un filtro la descartó
     motivoDescarte: { type: String, default: '' },
     procesada: { type: Boolean, default: false },      // ya revisada / publicada al staff
+    // Aprobación del staff (1.9.12).
+    estado: { type: String, enum: ['pendiente', 'revisando', 'aceptada', 'rechazada', 'descartada'], default: 'pendiente' },
+    motivoRechazo: { type: String, default: '' },
+    revisadaPor: { type: String, default: '' },
+    revisadaFecha: { type: Date, default: null },
+    canalStaffId: { type: String, default: null },     // aviso al staff (para actualizarlo al revisar)
+    mensajeStaffId: { type: String, default: null },
+    mensajePublicoId: { type: String, default: null }, // la presentación publicada (si se aceptó)
     creadoFecha: { type: Date, default: Date.now },
 });
 

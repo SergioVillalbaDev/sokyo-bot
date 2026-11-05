@@ -1,7 +1,7 @@
 // Comunidad · Encuestas — crea y gestiona votaciones en Discord con resultados en tiempo real.
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BarChart2, Trash2, Info, Plus, X, CheckSquare, EyeOff, Clock, Users, RefreshCw } from 'lucide-react';
+import { BarChart2, Trash2, Info, Plus, X, CheckSquare, EyeOff, Clock, Users, RefreshCw, Pencil } from 'lucide-react';
 import { CierrePicker } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
 import { useBorrador } from '../../../hooks/useAutoguardado';
@@ -23,7 +23,8 @@ function tiempoRestante(fechaFin) {
 
 export default function EncuestasView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, encuestas = [], crearEncuesta, eliminarEncuesta, cargarEncuestas } = dash;
+  const { canales, configServidor, encuestas = [], crearEncuesta, eliminarEncuesta, cargarEncuestas, editarCreado } = dash;
+  const [editando, setEditando] = useState(null); // id de la encuesta que se edita (1.9.12)
 
   const [pregunta, setPregunta] = useState('');
   const [opciones, setOpciones] = useState(['', '']);
@@ -55,19 +56,24 @@ export default function EncuestasView({ dash }) {
     !pregunta.trim() && opciones.every((o) => !o.trim()),
     (v) => { setPregunta(v?.pregunta || ''); setOpciones(Array.isArray(v?.opciones) && v.opciones.length >= 2 ? v.opciones : ['', '']); setCanalId(v?.canalId || ''); setFechaFin(v?.fechaFin || ''); setMultiple(!!v?.multiple); setAnonima(!!v?.anonima); });
 
+  const vaciar = () => {
+    setPregunta(''); setOpciones(['', '']); setCanalId(''); setFechaFin('');
+    setMultiple(false); setAnonima(false); setEditando(null);
+  };
+  // «Editar» una encuesta abierta: pregunta, cierre y el texto de las opciones.
+  const editar = (enc) => {
+    setEstado(''); setEditando(enc._id);
+    setPregunta(enc.pregunta || ''); setOpciones((enc.opciones || []).map((o) => o.texto || '')); setCanalId(enc.canalId);
+    setFechaFin(enc.fechaFin); setMultiple(!!enc.multiple); setAnonima(!!enc.anonima);
+    document.querySelector('[data-help="encuestas-crear"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const crear = async () => {
     setEstado('creando');
-    const opsFiltradas = opciones.filter((o) => o.trim());
-    const r = await crearEncuesta({
-      pregunta, opciones: opsFiltradas, canalId,
-      fechaFin,
-      multiple, anonima,
-    });
-    setEstado(r?.error ? `error:${r.error}` : 'ok');
-    if (!r?.error) {
-      setPregunta(''); setOpciones(['', '']); setCanalId(''); setFechaFin('');
-      setMultiple(false); setAnonima(false);
-    }
+    const r = editando
+      ? await editarCreado('encuestas', editando, { pregunta, opciones, fechaFin })
+      : await crearEncuesta({ pregunta, opciones: opciones.filter((o) => o.trim()), canalId, fechaFin, multiple, anonima });
+    setEstado(r?.error ? `error:${r.error}` : editando ? (r.enDiscord === false ? 'editado-sin-discord' : 'editado') : 'ok');
+    if (!r?.error) vaciar();
   };
 
   const totalVotos = (enc) => enc.opciones?.reduce((sum, o) => sum + (o.votos || 0), 0) || 0;
@@ -113,13 +119,16 @@ export default function EncuestasView({ dash }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-semibold text-fg">{enc.pregunta}</p>
-                        <button
-                          type="button"
-                          onClick={() => eliminarEncuesta(enc._id)}
-                          className="shrink-0 rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex shrink-0 gap-2">
+                          <button type="button" onClick={() => editar(enc)} className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-brand" aria-label={t('dashboard.editar.edit')} title={t('dashboard.editar.edit')}><Pencil size={14} /></button>
+                          <button
+                            type="button"
+                            onClick={() => { if (editando === enc._id) vaciar(); eliminarEncuesta(enc._id); }}
+                            className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <span className="text-xs text-muted">#{nombreCanal(enc.canalId)}</span>
@@ -193,7 +202,8 @@ export default function EncuestasView({ dash }) {
 
       {/* Crear encuesta */}
       <div data-help="encuestas-crear" className={card}>
-        <h3 className="mb-4 font-bold text-fg">{t('dashboard.encuestas_v.createTitle')}</h3>
+        <h3 className="mb-4 font-bold text-fg">{editando ? t('dashboard.editar.edit') : t('dashboard.encuestas_v.createTitle')}</h3>
+        {editando && <p className="mb-4 rounded-xl border border-brand/40 bg-brand/10 px-3 py-2 text-xs font-semibold text-fg">{t('dashboard.editar.editing', { n: pregunta })} {t('dashboard.editar.optionsLocked')}</p>}
         <div className="space-y-4">
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.encuestas_v.question')}</span>
@@ -218,7 +228,7 @@ export default function EncuestasView({ dash }) {
                     placeholder={`${t('dashboard.encuestas_v.optionPh')} ${i + 1}`}
                     maxLength={100}
                   />
-                  {opciones.length > 2 && (
+                  {opciones.length > 2 && !editando && (
                     <button
                       type="button"
                       onClick={() => removeOpcion(i)}
@@ -229,7 +239,7 @@ export default function EncuestasView({ dash }) {
                   )}
                 </div>
               ))}
-              {opciones.length < 10 && (
+              {opciones.length < 10 && !editando && (
                 <button
                   type="button"
                   onClick={addOpcion}
@@ -244,7 +254,7 @@ export default function EncuestasView({ dash }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.encuestas_v.channel')}</span>
-              <select value={canalId} onChange={(e) => setCanalId(e.target.value)} className={input}>
+              <select value={canalId} disabled={!!editando} onChange={(e) => setCanalId(e.target.value)} className={`${input} disabled:opacity-60`}>
                 <option value="">{t('dashboard.encuestas_v.channelPh')}</option>
                 {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                 <OpcionCrear tipo="canal" />
@@ -260,6 +270,7 @@ export default function EncuestasView({ dash }) {
               <input
                 type="checkbox"
                 checked={multiple}
+                disabled={!!editando}
                 onChange={(e) => setMultiple(e.target.checked)}
                 className="h-4 w-4 rounded accent-brand"
               />
@@ -271,6 +282,7 @@ export default function EncuestasView({ dash }) {
               <input
                 type="checkbox"
                 checked={anonima}
+                disabled={!!editando}
                 onChange={(e) => setAnonima(e.target.checked)}
                 className="h-4 w-4 rounded accent-brand"
               />
@@ -309,8 +321,15 @@ export default function EncuestasView({ dash }) {
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <BarChart2 size={16} />
-            {estado === 'creando' ? t('dashboard.encuestas_v.creating') : t('dashboard.encuestas_v.create')}
+            {estado === 'creando' ? t('dashboard.encuestas_v.creating') : editando ? t('dashboard.editar.save') : t('dashboard.encuestas_v.create')}
           </button>
+          {editando && (
+            <button type="button" onClick={() => { vaciar(); setEstado(''); }} className="flex items-center gap-1.5 rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">
+              <X size={15} /> {t('dashboard.editar.cancel')}
+            </button>
+          )}
+          {estado === 'editado' && <span className="text-sm font-semibold text-success">{t('dashboard.editar.savedDiscord')}</span>}
+          {estado === 'editado-sin-discord' && <span className="text-sm font-semibold text-warning">{t('dashboard.editar.notInDiscord')}</span>}
           {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.encuestas_v.createOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}

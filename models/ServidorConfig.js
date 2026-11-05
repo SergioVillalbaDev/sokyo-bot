@@ -44,8 +44,19 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalId: { type: String, default: null },
         mensajeId: { type: String, default: null },
         fecha: { type: Date, default: null },
+        // Todo personalizable (1.9.12): texto de encima, embed (imágenes/GIF, campos…),
+        // el botón principal (texto y color), el botón de la web y los de las secciones
+        // (y sus textos). Sin embed propio sale el de siempre.
+        contenido: { type: String, default: '' },
+        embed: { type: mongoose.Schema.Types.Mixed, default: null },
+        textoBoton: { type: String, default: null },
+        estiloBoton: { type: String, default: 'verde' },
+        botonWeb: { type: Boolean, default: true },
+        secciones: { type: Boolean, default: true },
+        etiquetas: { type: mongoose.Schema.Types.Mixed, default: null }, // { tickets, tienda, musica, tarjeta }
     },
-    categoriaArchivados: { type: String, default: '🗄️ Archived Tickets' },          // categoría de tickets cerrados
+    categoriaArchivados: { type: String, default: '🗄️ Archived Tickets' },          // categoría de tickets cerrados (por nombre: se crea si no existe)
+    categoriaArchivadosId: { type: String, default: null },                           // o una categoría concreta elegida en el panel (1.9.12)
 
     // --- REGLAS Y CONTROL (Fase 3) ---
     rolStaffId: { type: String, default: null },              // rol que puede reclamar/cerrar (además de admins)
@@ -273,6 +284,18 @@ const ServidorConfigSchema = new mongoose.Schema({
         mensajeId: { type: String, default: null },         // id del mensaje publicado (para republicar/editar)
     },
 
+    // --- PREGUNTAS AL ENTRAR (1.9.12) ---
+    // Tras verificarse (un clic, captcha o doble bienvenida), el bot hace estas
+    // preguntas una a una con desplegables (edad, de dónde eres, anuncios…). Cada
+    // opción puede dar un rol (y abrir la categoría de ese rol: juegos). El rol de
+    // acceso se da al terminar. utils/preguntasEntrada.js. Se sanea en la API.
+    preguntasEntrada: {
+        activo: { type: Boolean, default: false },
+        // [{ id, texto, descripcion, multiple, obligatoria, opciones: [{ id, etiqueta, emoji, descripcion, rolId, categoriaId }] }]
+        preguntas: { type: mongoose.Schema.Types.Mixed, default: [] },
+        ocultarVerificacion: { type: Boolean, default: true }, // al cerrar el servidor, quien entra ya no ve el canal de verificación
+    },
+
     // --- EMBUDO DE BIENVENIDA: Test A/B de retención (Pro) ---
     // Al entrar un usuario se le asigna una variante (50/50) y se mide cuál
     // retiene/engancha más. Variante A = reglas en texto + captcha; variante B =
@@ -337,6 +360,10 @@ const ServidorConfigSchema = new mongoose.Schema({
     reportes: {
         activo: { type: Boolean, default: false },
         canalId: { type: String, default: null },           // canal de staff donde llegan los reportes
+        // Quién reportó no sale en el aviso: se ve con «Ver quién reportó», y solo
+        // los administradores y estos roles (1.9.12). Así el reportado nunca lo sabe.
+        ocultarAutor: { type: Boolean, default: true },
+        rolesVerAutor: { type: [String], default: [] },
     },
 
     // --- COMUNIDAD: sugerencias ---
@@ -358,6 +385,16 @@ const ServidorConfigSchema = new mongoose.Schema({
         activo: { type: Boolean, default: false },
         canalIntro: { type: String, default: null },        // canal donde se pide la presentación
         canalStaff: { type: String, default: null },        // canal donde se publican para el staff
+        // Aprobación (1.9.12): el staff acepta o rechaza cada presentación. Aceptada →
+        // se publica en `canalPublico` (vacío = el de intro); rechazada → privado al
+        // miembro con `mensajeRechazo` ({motivo}, {user}, {server}). Sin aprobación,
+        // se publica directamente.
+        aprobacion: { type: Boolean, default: true },
+        canalPublico: { type: String, default: null },
+        mensajeRechazo: { type: String, default: '' },      // vacío = el de fábrica en el idioma del servidor
+        mensajeAceptada: { type: String, default: '' },     // privado al aceptar (vacío = no se manda)
+        rolAceptadaId: { type: String, default: null },     // rol que se da al aceptar (opcional)
+        panelMensajeId: { type: String, default: null },    // mensaje «Preséntate» publicado (se reedita, no se repite)
         // modo 'preguntas' = campos sueltos (uno por pregunta).
         // modo 'plantilla' = un único texto rellenable que el usuario edita.
         modo: { type: String, enum: ['preguntas', 'plantilla'], default: 'preguntas' },

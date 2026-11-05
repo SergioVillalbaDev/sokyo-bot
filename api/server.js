@@ -1597,11 +1597,12 @@ app.get('/api/stats/uso', async (req, res) => {
     app.put('/api/config/:guildId/reglas', exigeArea('config'), async (req, res) => {
         try {
             const { guildId } = req.params;
-            const { rolStaffId, categoriaTicketsId, maxTicketsAbiertos, autoCierreDias, autoAsignar, avisoSinRespuestaHoras } = req.body;
+            const { rolStaffId, categoriaTicketsId, categoriaArchivadosId, maxTicketsAbiertos, autoCierreDias, autoAsignar, avisoSinRespuestaHoras } = req.body;
 
             const cambios = {};
             if (rolStaffId !== undefined) cambios.rolStaffId = rolStaffId || null;
             if (categoriaTicketsId !== undefined) cambios.categoriaTicketsId = categoriaTicketsId || null;
+            if (categoriaArchivadosId !== undefined) cambios.categoriaArchivadosId = categoriaArchivadosId || null;
             if (maxTicketsAbiertos !== undefined) cambios.maxTicketsAbiertos = Math.max(0, parseInt(maxTicketsAbiertos, 10) || 0);
             if (autoCierreDias !== undefined) cambios.autoCierreDias = Math.max(0, parseInt(autoCierreDias, 10) || 0);
             if (autoAsignar !== undefined) cambios.autoAsignar = !!autoAsignar;
@@ -1617,6 +1618,18 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al actualizar reglas:', error);
             res.status(500).json({ error: 'Fallo interno al actualizar las reglas' });
+        }
+    });
+
+    // «Ordenar tickets»: abiertos a su categoría y cerrados a la de cerrados (utils/ticketManager.js).
+    app.post('/api/config/:guildId/tickets/ordenar', exigeArea('config'), async (req, res) => {
+        try {
+            const r = await require('../utils/ticketManager.js').ordenarTickets(client, req.params.guildId);
+            const config = await ServidorConfig.findOne({ guildId: req.params.guildId });
+            res.json({ success: true, ...r, config });
+        } catch (error) {
+            console.error('Error al ordenar los tickets:', error);
+            res.status(500).json({ error: 'No se pudieron ordenar los tickets' });
         }
     });
 
@@ -1922,6 +1935,57 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Publica (o reedita) el panel de verificación en el canal configurado.
+    // --- PREGUNTAS AL ENTRAR y CERRAR EL SERVIDOR (1.9.12) ---
+    // utils/preguntasEntrada.js y utils/cierreServidor.js.
+    app.put('/api/seguridad/:guildId/preguntas', exigeArea('config'), async (req, res) => {
+        try {
+            const b = req.body || {};
+            const preguntas = require('../utils/preguntasEntrada.js').sanearPreguntas(b.preguntas);
+            const actual = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean();
+            const rolesDe = (lista) => (lista || []).flatMap((q) => (q.opciones || []).map((o) => o.rolId));
+            const errRol = await errorRolesNuevos(client, req.staff, req.params.guildId, rolesDe(preguntas), rolesDe(actual && actual.preguntasEntrada && actual.preguntasEntrada.preguntas));
+            if (errRol) return res.status(403).json({ error: errRol });
+            // Solo lo que llega (la tarjeta de «Cerrar el servidor» manda solo su interruptor).
+            const set = {};
+            if (b.activo !== undefined) set['preguntasEntrada.activo'] = !!b.activo;
+            if (b.preguntas !== undefined) set['preguntasEntrada.preguntas'] = preguntas;
+            if (b.ocultarVerificacion !== undefined) set['preguntasEntrada.ocultarVerificacion'] = b.ocultarVerificacion !== false;
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error guardando las preguntas al entrar:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+    app.get('/api/seguridad/:guildId/cierre', exigeArea('config'), async (req, res) => {
+        const guild = client.guilds.cache.get(req.params.guildId);
+        if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+        const cfg = await ServidorConfig.findOne({ guildId: guild.id }).lean();
+        res.json(require('../utils/cierreServidor.js').estadoCierre(guild, cfg));
+    });
+    // Cerrar o abrir toca los permisos de @everyone: solo administradores.
+    app.post('/api/seguridad/:guildId/cierre', exigeArea('config'), exigeAdmin, async (req, res) => {
+        const guild = client.guilds.cache.get(req.params.guildId);
+        if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+        const cierre = require('../utils/cierreServidor.js');
+        try {
+            const cfg = await ServidorConfig.findOne({ guildId: guild.id }).lean();
+            if (req.body && req.body.accion === 'abrir') {
+                await cierre.abrir(guild);
+                return res.json({ success: true, estado: cierre.estadoCierre(guild, cfg), fallos: [] });
+            }
+            const r = await cierre.cerrar(guild, cfg, { arreglarCanales: !(req.body && req.body.arreglarCanales === false) });
+            res.json({ success: true, ...r });
+        } catch (error) {
+            const codigos = { 'sin-rol': 'Elige primero el rol de acceso (y que exista).', 'sin-canal': 'Elige primero el canal de verificación (y que exista).', 'sin-permisos': 'El bot necesita «Gestionar roles» y «Gestionar canales».', 'rol-alto': 'El rol de acceso está por encima del rol del bot: súbelo en Discord.' };
+            if (codigos[error.message]) return res.status(400).json({ error: codigos[error.message], codigo: error.message });
+            console.error('Error al cerrar/abrir el servidor:', error);
+            res.status(500).json({ error: 'Discord no lo ha permitido', codigo: 'discord' });
+        }
+    });
+
     app.post('/api/seguridad/:guildId/verificacion/publicar', exigeArea('config'), async (req, res) => {
         try {
             const mensajeId = await publicarPanelVerificacion(client, req.params.guildId);
@@ -1929,6 +1993,40 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al publicar panel de verificación:', error);
             res.status(400).json({ error: error.message || 'No se pudo publicar el panel' });
+        }
+    });
+
+    // --- MI CUENTA: el mensaje fijo se personaliza entero (1.9.12) ---
+    // Lo de fábrica (en el idioma del bot en el servidor) para empezar a editar desde ahí.
+    app.get('/api/cuenta/:guildId/mensaje-defecto', exigeArea('config'), async (req, res) => {
+        const cfg = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean().catch(() => null);
+        const cuenta = require('../utils/cuenta.js');
+        res.json({ embed: cuenta.embedCuentaDefecto(cfg), etiquetas: cuenta.etiquetasCuentaDefecto(cfg) });
+    });
+    // Guarda cómo es el mensaje (no lo publica: eso es «Publicar/Actualizar»).
+    app.put('/api/cuenta/:guildId/mensaje', exigeArea('config'), async (req, res) => {
+        try {
+            const b = req.body || {};
+            const embed = sanearEmbed(b.embed);
+            const etiquetas = {};
+            for (const k of ['tickets', 'tienda', 'musica', 'tarjeta']) etiquetas[k] = String((b.etiquetas && b.etiquetas[k]) || '').trim().slice(0, 80);
+            const config = await ServidorConfig.findOneAndUpdate(
+                { guildId: req.params.guildId },
+                { $set: {
+                    'panelCuenta.contenido': String(b.contenido || '').slice(0, 2000),
+                    'panelCuenta.embed': b.embed && embedTieneAlgo(embed) ? embed : null,
+                    'panelCuenta.textoBoton': String(b.textoBoton || '').trim().slice(0, 80) || null,
+                    'panelCuenta.estiloBoton': sanearEstiloBoton(b.estiloBoton),
+                    'panelCuenta.botonWeb': b.botonWeb !== false,
+                    'panelCuenta.secciones': b.secciones !== false,
+                    'panelCuenta.etiquetas': etiquetas,
+                } },
+                { returnDocument: 'after', upsert: true },
+            );
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error guardando el mensaje de Mi cuenta:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
         }
     });
 
@@ -2110,7 +2208,11 @@ app.get('/api/stats/uso', async (req, res) => {
             const b = req.body.reportes || req.body || {};
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
-                { $set: { 'reportes.activo': !!b.activo, 'reportes.canalId': b.canalId ? String(b.canalId) : null } },
+                { $set: {
+                    'reportes.activo': !!b.activo, 'reportes.canalId': b.canalId ? String(b.canalId) : null,
+                    ...(b.ocultarAutor !== undefined ? { 'reportes.ocultarAutor': b.ocultarAutor !== false } : {}),
+                    ...(Array.isArray(b.rolesVerAutor) ? { 'reportes.rolesVerAutor': b.rolesVerAutor.map(String).filter((x) => /^\d{5,25}$/.test(x)).slice(0, 25) } : {}),
+                } },
                 { returnDocument: 'after', upsert: true },
             );
             res.json({ success: true, config });
@@ -2127,7 +2229,27 @@ app.get('/api/stats/uso', async (req, res) => {
             const filtro = {};
             if (guildId) filtro.guildId = guildId;
             else if (req.staff && !req.staff.owner) filtro.guildId = { $in: req.staff.guilds || [] };
-            res.json(await Reporte.find(filtro).sort({ fecha: -1 }).limit(200));
+            const docs = await Reporte.find(filtro).sort({ fecha: -1 }).limit(200).lean();
+            // Quién reportó: solo para administradores y los roles elegidos (como en Discord).
+            const { puedeVerAutor, autorOculto } = require('../utils/reportes.js');
+            const permitido = new Map(); // guildId -> ¿puede verlo?
+            for (const d of docs) {
+                if (!permitido.has(d.guildId)) {
+                    let ok = !req.staff || !!req.staff.owner;
+                    if (!ok) {
+                        const cfgR = await ServidorConfig.findOne({ guildId: d.guildId }).select('reportes').lean().catch(() => null);
+                        if (!autorOculto(cfgR)) ok = true;
+                        else {
+                            const guild = client.guilds.cache.get(d.guildId);
+                            const member = guild && await guild.members.fetch(req.staff.id).catch(() => null);
+                            ok = puedeVerAutor(member, cfgR);
+                        }
+                    }
+                    permitido.set(d.guildId, ok);
+                }
+                if (!permitido.get(d.guildId)) { d.reportanteId = null; d.reportanteTag = ''; d.autorOculto = true; }
+            }
+            res.json(docs);
         } catch (error) {
             console.error('Error al listar reportes:', error);
             res.status(500).json({ error: 'Fallo interno' });
@@ -2399,6 +2521,41 @@ app.get('/api/stats/uso', async (req, res) => {
         } catch (error) {
             console.error('Error al crear anuncio:', error);
             res.status(400).json({ error: error.message || 'No se pudo crear' });
+        }
+    });
+
+    // Editar un anuncio programado que aún no ha salido (1.9.12).
+    app.put('/api/anuncios/:id', async (req, res) => {
+        try {
+            const doc = await AnuncioProgramado.findById(req.params.id).catch(() => null);
+            if (!doc) return res.status(404).json({ error: 'No encontrado' });
+            if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) return res.status(403).json({ error: 'Sin permiso para este servidor' });
+            if (doc.enviado) return res.status(400).json({ error: 'Ya se ha enviado: no se puede editar' });
+            const b = req.body || {};
+            const guild = client.guilds.cache.get(doc.guildId);
+            if (b.canalId !== undefined) {
+                if (!guild || !guild.channels.cache.get(String(b.canalId))) return res.status(400).json({ error: 'Canal no válido' });
+                doc.canalId = String(b.canalId);
+            }
+            if (b.fechaEnvio !== undefined) {
+                const fecha = new Date(b.fechaEnvio);
+                if (isNaN(fecha.getTime()) || fecha.getTime() < Date.now() - 60000) return res.status(400).json({ error: 'La fecha debe ser futura' });
+                doc.fechaEnvio = fecha;
+            }
+            if (b.repetir !== undefined) doc.repetir = ['no', 'diario', 'semanal', 'mensual'].includes(b.repetir) ? b.repetir : 'no';
+            if (b.contenido !== undefined || b.embed !== undefined) {
+                const embedSan = sanearEmbed(b.embed);
+                const tieneEmbed = embedTieneContenido(embedSan);
+                const contenido = String(b.contenido || '').slice(0, 2000);
+                if (!tieneEmbed && !contenido) return res.status(400).json({ error: 'El anuncio está vacío' });
+                doc.contenido = contenido;
+                doc.embed = tieneEmbed ? embedSan : null;
+            }
+            await doc.save();
+            res.json({ success: true, anuncio: doc });
+        } catch (error) {
+            console.error('Error al editar anuncio:', error);
+            res.status(400).json({ error: 'No se pudo guardar' });
         }
     });
 

@@ -621,6 +621,8 @@ export default {
       offerNone: 'You haven’t created any items yet.', offerItem: 'Item', offerPct: 'Discount (%)', offerMin: 'Duration (min)', offerBtn: 'Launch offer',
     },
     ajustes: {
+      temaTitle: 'Theme', temaDesc: 'The same themes as the panel and the website. It applies right away and is remembered in this browser.',
+      temaBasicos: 'Basic', temaPremium: 'Premium', temaBloqueado: 'Premium themes are for people in a server with a Premium plan (like in the panel).',
       cumpleTitle: 'My birthday', cumpleDesc: 'Servers with Sokyo that have birthday wishes turned on will congratulate you on that day. Only the day and month are saved (same as /birthday in Discord).',
       cumpleDia: 'Day', cumpleMes: 'Month', cumpleGuardar: 'Save', cumpleBorrar: 'Delete',
       title: 'My notices & sanctions', subtitle: 'What the bot sends you by DM, which language it speaks to you in, your birthday and your history on the servers.',

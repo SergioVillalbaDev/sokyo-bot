@@ -17,6 +17,8 @@ import { EMBED_VACIO } from './embedDefaults';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import EstadoAutoguardado from '../EstadoAutoguardado';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
+import PreguntasEntrada from './PreguntasEntrada';
+import CierreServidor from './CierreServidor';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -337,6 +339,14 @@ export default function VerificacionView({ dash }) {
               </div>
             </div>
           </div>
+        </>
+      )}
+
+      {/* Una sola verificación: preguntas que dan roles y servidor cerrado sin el rol de acceso (1.9.12) */}
+      {!abBloqueado && (
+        <>
+          <PreguntasEntrada dash={dash} rolAccesoId={esAB ? e.rolVerificadoId : v.rolVerificadoId} />
+          <CierreServidor dash={dash} />
         </>
       )}
 

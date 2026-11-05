@@ -1,7 +1,7 @@
 // Comunidad · Eventos — crea y gestiona eventos del servidor de Discord.
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic } from 'lucide-react';
+import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic, Pencil, X } from 'lucide-react';
 import { FechaPicker, SubirImagen } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
@@ -20,7 +20,8 @@ const EMOJI_TIPO = { voz: '🔊', escenario: '🎤', externo: '📍' };
 export default function EventosView({ dash }) {
   const { t, i18n } = useTranslation();
   const relativo = useRelativo();
-  const { canales, configServidor, eventos = [], crearEvento, eliminarEvento, subirImagen } = dash;
+  const { canales, configServidor, eventos = [], crearEvento, eliminarEvento, subirImagen, editarCreado } = dash;
+  const [editando, setEditando] = useState(null); // id del evento que se edita (1.9.12)
 
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -48,19 +49,23 @@ export default function EventosView({ dash }) {
     !titulo.trim() && !descripcion.trim() && !portada,
     (v) => { setTitulo(v?.titulo || ''); setDescripcion(v?.descripcion || ''); setCanalId(v?.canalId || ''); setFechaInicio(v?.fechaInicio || ''); setTipo(v?.tipo || 'voz'); setRecordatorio(v?.recordatorio || '15'); setPortada(v?.portada || ''); });
 
+  const vaciar = () => {
+    setTitulo(''); setDescripcion(''); setCanalId(''); setFechaInicio('');
+    setTipo('voz'); setRecordatorio('15'); setPortada(''); setEditando(null);
+  };
   const crear = async () => {
     setEstado('creando');
-    const r = await crearEvento({
-      titulo, descripcion, canalId,
-      fechaInicio,
-      tipo, recordatorio: Number(recordatorio),
-      portada: portada || null,
-    });
-    setEstado(r?.error ? `error:${r.error}` : 'ok');
-    if (!r?.error) {
-      setTitulo(''); setDescripcion(''); setCanalId(''); setFechaInicio('');
-      setTipo('voz'); setRecordatorio('15'); setPortada('');
-    }
+    const datos = { titulo, descripcion, canalId, fechaInicio, tipo, recordatorio: Number(recordatorio), portada: portada || null };
+    const r = editando ? await editarCreado('eventos', editando, datos) : await crearEvento(datos);
+    setEstado(r?.error ? `error:${r.error}` : editando ? (r.enDiscord === false ? 'editado-sin-discord' : 'editado') : 'ok');
+    if (!r?.error) vaciar();
+  };
+  // «Editar»: el evento vuelve al formulario (su mensaje de Discord se actualiza al guardar).
+  const editar = (e) => {
+    setEstado(''); setEditando(e._id);
+    setTitulo(e.titulo || ''); setDescripcion(e.descripcion || ''); setCanalId(e.canalId); setFechaInicio(e.fechaInicio);
+    setTipo(e.tipo || 'voz'); setRecordatorio(String(e.recordatorio ?? 15)); setPortada(e.portada || '');
+    document.querySelector('[data-help="eventos-crear"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const nombreCanal = (id) => (canales.find((c) => c.id === id) || {}).nombre || id;
@@ -118,13 +123,16 @@ export default function EventosView({ dash }) {
                         )}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => eliminarEvento(e._id)}
-                      className="shrink-0 rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex shrink-0 gap-2">
+                      <button type="button" onClick={() => editar(e)} className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-brand" aria-label={t('dashboard.editar.edit')} title={t('dashboard.editar.edit')}><Pencil size={14} /></button>
+                      <button
+                        type="button"
+                        onClick={() => { if (editando === e._id) vaciar(); eliminarEvento(e._id); }}
+                        className="rounded-xl border border-line px-2.5 py-2 text-muted transition-colors hover:text-danger"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -159,7 +167,8 @@ export default function EventosView({ dash }) {
 
       {/* Crear evento */}
       <div data-help="eventos-crear" className={card}>
-        <h3 className="mb-4 font-bold text-fg">{t('dashboard.eventos_v.createTitle')}</h3>
+        <h3 className="mb-4 font-bold text-fg">{editando ? t('dashboard.editar.edit') : t('dashboard.eventos_v.createTitle')}</h3>
+        {editando && <p className="mb-4 rounded-xl border border-brand/40 bg-brand/10 px-3 py-2 text-xs font-semibold text-fg">{t('dashboard.editar.editing', { n: titulo })} {t('dashboard.editar.channelLocked')}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.eventos_v.title')}</span>
@@ -184,7 +193,7 @@ export default function EventosView({ dash }) {
           </label>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.eventos_v.channel')}</span>
-            <select value={canalId} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={input}>
+            <select value={canalId} disabled={!!editando} onChange={(e) => { setEstado(''); setCanalId(e.target.value); }} className={`${input} disabled:opacity-60`}>
               <option value="">{t('dashboard.eventos_v.channelPh')}</option>
               {canales.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               <OpcionCrear tipo="canal" />
@@ -237,8 +246,15 @@ export default function EventosView({ dash }) {
             className="flex items-center gap-2 rounded-2xl bg-gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CalendarDays size={16} />
-            {estado === 'creando' ? t('dashboard.eventos_v.creating') : t('dashboard.eventos_v.create')}
+            {estado === 'creando' ? t('dashboard.eventos_v.creating') : editando ? t('dashboard.editar.save') : t('dashboard.eventos_v.create')}
           </button>
+          {editando && (
+            <button type="button" onClick={() => { vaciar(); setEstado(''); }} className="flex items-center gap-1.5 rounded-2xl border border-line px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:text-fg">
+              <X size={15} /> {t('dashboard.editar.cancel')}
+            </button>
+          )}
+          {estado === 'editado' && <span className="text-sm font-semibold text-success">{t('dashboard.editar.savedDiscord')}</span>}
+          {estado === 'editado-sin-discord' && <span className="text-sm font-semibold text-warning">{t('dashboard.editar.notInDiscord')}</span>}
           {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.eventos_v.createOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}

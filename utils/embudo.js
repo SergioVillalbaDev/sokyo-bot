@@ -294,6 +294,8 @@ async function manejarAceptar(interaction, client) {
     const { gid, e, member, cfg } = ctx;
     if (yaTieneAcceso(member, e)) return interaction.reply({ content: t(cfg, '✅ Ya tienes acceso al servidor.', '✅ You already have access to the server.'), flags: 64 });
 
+    // Preguntas al entrar (1.9.12): el rol se da al terminarlas.
+    if (await require('./preguntasEntrada.js').siHayPreguntas(interaction, { gid, cfg, origen: 'embudo' })) return;
     const err = await conceder(member, e, cfg);
     if (!err) await marcarVerificado(gid, member.id);
     return interaction.reply({ content: err || t(cfg, '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', '✅ Done! You now have access to the server. 🎉'), flags: 64 });
@@ -329,6 +331,7 @@ async function manejarModal(interaction, client) {
     }
     captchasPendientes.delete(clave);
 
+    if (await require('./preguntasEntrada.js').siHayPreguntas(interaction, { gid, cfg, origen: 'embudo' })) return;
     const err = await conceder(member, e, cfg);
     if (!err) await marcarVerificado(gid, member.id);
     return interaction.reply({ content: err || t(cfg, '✅ ¡Listo! Ya tienes acceso al servidor. 🎉', '✅ Done! You now have access to the server. 🎉'), flags: 64 });

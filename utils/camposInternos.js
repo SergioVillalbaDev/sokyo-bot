@@ -11,13 +11,16 @@ const HOJAS_INTERNAS = new Set([
 const RAICES_INTERNAS = new Set([
     '_id', '__v', 'guildId', 'createdAt', 'updatedAt', 'ultimaVersionAnunciada', 'autoAsignarIndex',
     'iaUsos', 'iaMesRef', 'esPremium', 'plan', 'premiumHasta', 'premiumCancelaAlFinal',
-    'stripeCustomerId', 'stripeSubscriptionId', 'soporteCompradorId', 'trialUsado', 'panelCuenta',
+    'stripeCustomerId', 'stripeSubscriptionId', 'soporteCompradorId', 'trialUsado',
 ]);
+// Rutas concretas: dónde está publicado el mensaje de «Mi cuenta» es del bot, pero
+// cómo es (texto, embed, botones; 1.9.12) es un ajuste más (se deshace y se copia).
+const RUTAS_INTERNAS = new Set(['panelCuenta.canalId', 'panelCuenta.fecha']);
 
 // ruta = 'dinamicas.qotd.lastDia' (o una lista de partes)
 function esInterno(ruta) {
     const partes = Array.isArray(ruta) ? ruta : String(ruta).split('.');
-    return RAICES_INTERNAS.has(partes[0]) || HOJAS_INTERNAS.has(partes[partes.length - 1]);
+    return RAICES_INTERNAS.has(partes[0]) || HOJAS_INTERNAS.has(partes[partes.length - 1]) || RUTAS_INTERNAS.has(partes.join('.'));
 }
 
 const esObjeto = (v) => !!v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype;

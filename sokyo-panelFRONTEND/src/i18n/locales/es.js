@@ -621,6 +621,8 @@ export default {
       offerNone: 'Aún no has creado ningún objeto.', offerItem: 'Objeto', offerPct: 'Descuento (%)', offerMin: 'Duración (min)', offerBtn: 'Lanzar oferta',
     },
     ajustes: {
+      temaTitle: 'Tema', temaDesc: 'Los mismos temas que el panel y la web. Se ve al momento y se recuerda en este navegador.',
+      temaBasicos: 'Básicos', temaPremium: 'Premium', temaBloqueado: 'Los temas Premium son para quien está en un servidor con plan Premium (como en el panel).',
       cumpleTitle: 'Mi cumpleaños', cumpleDesc: 'Los servidores con Sokyo que tengan las felicitaciones activadas te felicitarán ese día. Solo se guarda el día y el mes (lo mismo que /cumple en Discord).',
       cumpleDia: 'Día', cumpleMes: 'Mes', cumpleGuardar: 'Guardar', cumpleBorrar: 'Borrar',
       title: 'Mis avisos y sanciones', subtitle: 'Qué te manda el bot por privado, en qué idioma te habla, tu cumpleaños y tu historial en los servidores.',

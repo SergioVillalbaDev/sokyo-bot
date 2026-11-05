@@ -52,7 +52,7 @@ export default function TicketsPortal({ portalFetch, usuario, ticketId, irA, avi
         <Vacio icono={Inbox} titulo={t('portal.tickets.emptyTitle')} texto={t('portal.tickets.emptyDesc')} />
       )}
       {ticketId && tickets && !sel && (
-        <p className="mb-4 rounded-2xl border border-line bg-white/[.04] px-4 py-3 text-sm text-muted">{t('portal.tickets.notFound')}</p>
+        <p className="mb-4 rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.04)] px-4 py-3 text-sm text-muted">{t('portal.tickets.notFound')}</p>
       )}
 
       {abiertos.length > 0 && (
