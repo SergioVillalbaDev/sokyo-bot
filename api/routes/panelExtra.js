@@ -106,6 +106,13 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso, idiomaPanel }) => {
                 const estado = r.codigo === 'cambiado_despues' ? 409 : r.codigo === 'sin_permiso' ? 403 : 400;
                 return res.status(estado).json({ error: r.error || r.codigo, codigo: r.codigo, claves: r.claves || [] });
             }
+            // Si lo deshecho cambia un mensaje ya publicado (Preséntate, Mi cuenta…), se
+            // reescribe también en Discord (en segundo plano; solo edita, nunca publica).
+            const publicados = require('../../utils/panelesPublicados.js');
+            if (publicados.afectaPaneles(r.claves)) {
+                publicados.refrescarPanelesPublicados(client, c.guildId)
+                    .catch((e) => console.error('Error actualizando paneles tras deshacer:', e.message));
+            }
             res.json({ success: true, id: r.id, claves: r.claves, omitidas: r.omitidas });
         } catch (e) {
             console.error('Deshacer cambio:', e);

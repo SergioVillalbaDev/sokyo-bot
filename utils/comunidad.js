@@ -4,7 +4,7 @@
 // participaciones, modales) y resolvemos lo que vence (lo llama el scheduler).
 const {
     EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    ModalBuilder, TextInputBuilder, TextInputStyle,
+    ModalBuilder, TextInputBuilder, TextInputStyle, PermissionsBitField,
 } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const Encuesta = require('../models/Encuesta.js');
@@ -14,6 +14,7 @@ const Sugerencia = require('../models/Sugerencia.js');
 const Presentacion = require('../models/Presentacion.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const { aplicarPieMarca } = require('./marca.js');
+const { armarPanel, editarOPublicar } = require('./panelMensaje.js');
 const { getConfigCached } = require('./config.js');
 const { t } = require('./i18n.js');
 const { contarActivas, contarActivasDe } = require('./invitaciones.js');
@@ -515,31 +516,74 @@ async function manejarMensajeSugerencia(message, cfg) {
     } catch (e) { console.error('Mensaje sugerencia:', e.message); return false; }
 }
 
-// Publica (o republica) el panel del modo formulario y bloquea el chat libre
-// del canal (deja solo el botón para sugerir).
-async function publicarPanelSugerencias(client, guildId, cfg) {
+// Lo de fábrica del mensaje «Nueva sugerencia», en el idioma del bot en el servidor.
+function defectoPanelSugerencias(cfg) {
+    return {
+        titulo: t(cfg, '💡 Sugerencias', '💡 Suggestions'),
+        descripcion: t(cfg, 'Pulsa el botón para enviar tu sugerencia. La comunidad puede votarla con 👍/👎.', 'Click the button to submit your suggestion. The community can vote it up/down 👍/👎.'),
+        color: (cfg && cfg.colorEmbed) || COLOR,
+        textoBoton: t(cfg, '💡 Nueva sugerencia', '💡 New suggestion'),
+        estilo: 'azul',
+    };
+}
+
+// El mensaje con el botón «Nueva sugerencia» (todo personalizable: sugerenciasPanel).
+function contenidoPanelSugerencias(cfg, guild = null) {
+    return armarPanel(cfg && cfg.sugerenciasPanel, {
+        cfg, guild, defecto: defectoPanelSugerencias(cfg), customId: `sug_nueva:${cfg && cfg.guildId}`,
+    });
+}
+
+// Publica el mensaje con el botón en el canal de sugerencias (modo formulario) y
+// bloquea el chat libre del canal (deja solo el botón para sugerir) o, si ya está,
+// lo actualiza: antes salía uno nuevo en cada guardado del panel. Con `soloEditar`
+// no publica nada si no estaba (p. ej. al cambiar el idioma del bot).
+async function publicarPanelSugerencias(client, guildId, cfg, { soloEditar = false } = {}) {
     try {
         if (cfg?.sugerenciasModo !== 'formulario' || !cfg.canalSugerencias) return false;
         const canal = await client.channels.fetch(cfg.canalSugerencias).catch(() => null);
         if (!canal?.isTextBased()) return false;
+        const mensajeId = cfg.sugerenciasPanel && cfg.sugerenciasPanel.mensajeId;
+        if (soloEditar && !mensajeId) return false;
 
         // Bloquear el envío de mensajes a @everyone (el bot sí puede; el botón funciona).
-        try {
-            await canal.permissionOverwrites.edit(canal.guild.roles.everyone, { SendMessages: false });
-        } catch (e) { console.error('Bloqueo canal sugerencias:', e.message); }
+        // Si ya estaba bloqueado por el staff, se apunta para no abrirlo al salir del modo.
+        if (!soloEditar) {
+            try {
+                const everyone = canal.guild.roles.everyone;
+                const previo = canal.permissionOverwrites.cache && canal.permissionOverwrites.cache.get(everyone.id);
+                if (previo && previo.deny && previo.deny.has(PermissionsBitField.Flags.SendMessages)) {
+                    if (cfg.sugerenciasPanel?.bloqueado !== true) await ServidorConfig.updateOne({ guildId }, { $set: { 'sugerenciasPanel.bloqueado': false } }).catch(() => {});
+                } else {
+                    await canal.permissionOverwrites.edit(everyone, { SendMessages: false });
+                    await ServidorConfig.updateOne({ guildId }, { $set: { 'sugerenciasPanel.bloqueado': true } }).catch(() => {});
+                }
+            } catch (e) { console.error('Bloqueo canal sugerencias:', e.message); }
+        }
 
-        const color = cfg.colorEmbed || COLOR;
-        const embed = new EmbedBuilder()
-            .setColor(color)
-            .setTitle(t(cfg, '💡 Sugerencias', '💡 Suggestions'))
-            .setDescription(t(cfg, 'Pulsa el botón para enviar tu sugerencia. La comunidad puede votarla con 👍/👎.', 'Click the button to submit your suggestion. The community can vote it up/down 👍/👎.'));
-        aplicarPieMarca(embed, cfg);
-        const fila = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`sug_nueva:${guildId}`).setLabel(t(cfg, '💡 Nueva sugerencia', '💡 New suggestion')).setStyle(ButtonStyle.Primary),
-        );
-        await canal.send({ embeds: [embed], components: [fila] }).catch(() => {});
-        return true;
+        const payload = contenidoPanelSugerencias({ ...(cfg.toObject ? cfg.toObject() : cfg), guildId }, canal.guild);
+        const { mensaje, nuevo } = await editarOPublicar(canal, mensajeId, payload, { soloEditar });
+        if (mensaje && nuevo) await ServidorConfig.updateOne({ guildId }, { $set: { 'sugerenciasPanel.mensajeId': mensaje.id } }).catch(() => {});
+        return !!mensaje;
     } catch (e) { console.error('Panel sugerencias:', e.message); return false; }
+}
+
+// Al salir del modo formulario (o cambiar de canal): ese canal vuelve a dejar
+// escribir a @everyone si lo bloqueó el bot (no si ya lo tenía así el staff;
+// antes de 1.9.14 lo bloqueaba siempre el bot) y se quita el mensaje del botón.
+async function quitarPanelSugerencias(client, guildId, cfgAntes) {
+    try {
+        const canal = cfgAntes?.canalSugerencias ? await client.channels.fetch(cfgAntes.canalSugerencias).catch(() => null) : null;
+        if (canal?.isTextBased() && canal.permissionOverwrites) {
+            if (cfgAntes.sugerenciasPanel?.bloqueado !== false) {
+                await canal.permissionOverwrites.edit(canal.guild.roles.everyone, { SendMessages: null }).catch((e) => console.error('Desbloqueo canal sugerencias:', e.message));
+            }
+            const id = cfgAntes.sugerenciasPanel && cfgAntes.sugerenciasPanel.mensajeId;
+            const msg = id ? await canal.messages.fetch(id).catch(() => null) : null;
+            if (msg) await msg.delete().catch(() => {});
+        }
+        await ServidorConfig.updateOne({ guildId }, { $set: { 'sugerenciasPanel.mensajeId': null, 'sugerenciasPanel.bloqueado': null } }).catch(() => {});
+    } catch (e) { console.error('Quitar panel sugerencias:', e.message); }
 }
 
 // Botón "Nueva sugerencia" → modal con la plantilla configurada.
@@ -626,28 +670,38 @@ async function refrescarSugerencia(client, sug) {
 
 // ============================ PRESENTACIONES ============================
 
-// Publica (o republica) el panel con el botón "Presentarme" en el canal de intro.
-async function publicarPanelPresentacion(client, guildId, cfg) {
+// Lo de fábrica del mensaje «Preséntate», en el idioma del bot en el servidor.
+function defectoPanelPresentacion(cfg) {
+    return {
+        titulo: t(cfg, '👋 ¡Preséntate a la comunidad!', '👋 Introduce yourself to the community!'),
+        descripcion: t(cfg, 'Pulsa el botón para rellenar una breve presentación y que todos te conozcan.', 'Click the button to fill out a short intro so everyone gets to know you.'),
+        color: (cfg && cfg.colorEmbed) || COLOR,
+        textoBoton: t(cfg, '📝 Presentarme', '📝 Introduce myself'),
+        estilo: 'azul',
+    };
+}
+
+// El mensaje con el botón «Presentarme» (todo personalizable: presentaciones.panel).
+function contenidoPanelPresentacion(cfg, guild = null) {
+    return armarPanel(cfg && cfg.presentaciones && cfg.presentaciones.panel, {
+        cfg, guild, defecto: defectoPanelPresentacion(cfg), customId: `intro_start:${cfg && cfg.guildId}`,
+    });
+}
+
+// Publica el panel con el botón "Presentarme" en el canal de intro o, si ya está,
+// lo actualiza (antes, cada guardado del panel publicaba otro igual). Con
+// `soloEditar` no publica nada si no estaba (p. ej. al cambiar el idioma del bot).
+async function publicarPanelPresentacion(client, guildId, cfg, { soloEditar = false } = {}) {
     try {
         const pres = cfg?.presentaciones;
         if (!pres?.activo || !pres.canalIntro) return false;
+        if (soloEditar && !pres.panelMensajeId) return false;
         const canal = await client.channels.fetch(pres.canalIntro).catch(() => null);
         if (!canal?.isTextBased()) return false;
-        const color = cfg.colorEmbed || COLOR;
-        const embed = new EmbedBuilder()
-            .setColor(color)
-            .setTitle(t(cfg, '👋 ¡Preséntate a la comunidad!', '👋 Introduce yourself to the community!'))
-            .setDescription(t(cfg, 'Pulsa el botón para rellenar una breve presentación y que todos te conozcan.', 'Click the button to fill out a short intro so everyone gets to know you.'));
-        aplicarPieMarca(embed, cfg);
-        const fila = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`intro_start:${guildId}`).setLabel(t(cfg, '📝 Presentarme', '📝 Introduce myself')).setStyle(ButtonStyle.Primary),
-        );
-        // Se reedita el que ya hay (antes, cada guardado del panel publicaba otro igual).
-        const previo = pres.panelMensajeId && await canal.messages.fetch(pres.panelMensajeId).catch(() => null);
-        if (previo) { await previo.edit({ embeds: [embed], components: [fila] }).catch(() => {}); return true; }
-        const msg = await canal.send({ embeds: [embed], components: [fila] }).catch(() => null);
-        if (msg) await ServidorConfig.updateOne({ guildId }, { $set: { 'presentaciones.panelMensajeId': msg.id } }).catch(() => {});
-        return !!msg;
+        const payload = contenidoPanelPresentacion({ ...(cfg.toObject ? cfg.toObject() : cfg), guildId }, canal.guild);
+        const { mensaje, nuevo } = await editarOPublicar(canal, pres.panelMensajeId, payload, { soloEditar });
+        if (mensaje && nuevo) await ServidorConfig.updateOne({ guildId }, { $set: { 'presentaciones.panelMensajeId': mensaje.id } }).catch(() => {});
+        return !!mensaje;
     } catch (e) { console.error('Panel presentación:', e.message); return false; }
 }
 
@@ -1036,9 +1090,11 @@ module.exports = {
     publicarEvento, manejarAvisoEvento,
     // sugerencias
     manejarMensajeSugerencia, manejarVotoSugerencia, refrescarSugerencia,
-    publicarPanelSugerencias, abrirModalSugerencia, procesarModalSugerencia,
+    publicarPanelSugerencias, quitarPanelSugerencias, contenidoPanelSugerencias, defectoPanelSugerencias,
+    abrirModalSugerencia, procesarModalSugerencia,
     // presentaciones
-    publicarPanelPresentacion, abrirModalPresentacion, procesarPresentacion,
+    publicarPanelPresentacion, contenidoPanelPresentacion, defectoPanelPresentacion,
+    abrirModalPresentacion, procesarPresentacion,
     revisarPresentacion, manejarRevisionPresentacion, rellenarAvisoPresentacion, RECHAZO_FABRICA,
     refrescarPublicado,
     // scheduler

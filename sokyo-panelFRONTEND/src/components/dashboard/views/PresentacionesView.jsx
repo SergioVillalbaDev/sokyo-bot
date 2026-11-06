@@ -10,7 +10,8 @@ import { OpcionCrear } from '../CrearAlVuelo';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 import VistaDiscord from '../VistaDiscord';
 import VentanaDiscord from '../VentanaDiscord';
-import { pieMarca } from '../../../lib/pieMarca';
+import EditorMensajePanel from '../EditorMensajePanel';
+import { PANEL_VACIO, panelDesde } from '../../../lib/panelMensaje';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -45,7 +46,7 @@ const RECHAZO_FABRICA = {
 
 export default function PresentacionesView({ dash }) {
   const { t } = useTranslation();
-  const { canales, roles = [], configServidor, esPremium, presentaciones = [], guardarConfigPresentaciones, eliminarPresentacion, revisarPresentacion } = dash;
+  const { canales, roles = [], configServidor, presentaciones = [], guardarConfigPresentaciones, eliminarPresentacion, revisarPresentacion } = dash;
 
   const [canalIntro, setCanalIntro] = useState('');
   const [canalStaff, setCanalStaff] = useState('');
@@ -59,6 +60,8 @@ export default function PresentacionesView({ dash }) {
   const [mensajeRechazo, setMensajeRechazo] = useState('');
   const [mensajeAceptada, setMensajeAceptada] = useState('');
   const [rolAceptadaId, setRolAceptadaId] = useState('');
+  // Cómo es el mensaje «Preséntate» en Discord (1.9.14)
+  const [panel, setPanel] = useState(PANEL_VACIO);
   const [revision, setRevision] = useState({}); // id -> { rechazando, motivo, estado, texto }
   const [guardando, setGuardando] = useState(false);
   const [guardadoOk, setGuardadoOk] = useState(false);
@@ -78,6 +81,7 @@ export default function PresentacionesView({ dash }) {
       setMensajeRechazo(p.mensajeRechazo || '');
       setMensajeAceptada(p.mensajeAceptada || '');
       setRolAceptadaId(p.rolAceptadaId || '');
+      setPanel(panelDesde(p.panel));
     }
   });
 
@@ -128,18 +132,19 @@ export default function PresentacionesView({ dash }) {
 
   const guardar = async () => {
     setGuardando(true);
-    const ok = await guardarConfigPresentaciones({ canalIntro, canalStaff, modo, plantilla, preguntas, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId });
+    const ok = await guardarConfigPresentaciones({ canalIntro, canalStaff, modo, plantilla, preguntas, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId, panel });
     setGuardadoOk(!!ok);
     setGuardando(false);
     if (ok) setTimeout(() => setGuardadoOk(false), 2500);
     return ok; // el autoguardado reintenta si falla
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId], guardar, {
+  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId, panel], guardar, {
     listo: !!configServidor, borrador: 'presentaciones',
-    restaurar: ([ci, cs, m, p, q, fl, ap = true, cp = '', mr = '', ma = '', ra = '']) => {
+    restaurar: ([ci, cs, m, p, q, fl, ap = true, cp = '', mr = '', ma = '', ra = '', pn = PANEL_VACIO]) => {
       setCanalIntro(ci); setCanalStaff(cs); setModo(m); setPlantilla(p); setPreguntas(q); setFiltros(fl);
       setAprobacion(ap !== false); setCanalPublico(cp || ''); setMensajeRechazo(mr || ''); setMensajeAceptada(ma || ''); setRolAceptadaId(ra || '');
+      setPanel(panelDesde(pn));
     },
   });
 
@@ -195,6 +200,11 @@ export default function PresentacionesView({ dash }) {
           </label>
         </div>
       </div>
+
+      {/* El mensaje con el botón «Presentarme» (utils/comunidad.js: contenidoPanelPresentacion) */}
+      <EditorMensajePanel dash={dash} tipo="presentaciones" valor={panel} onCambio={(parche) => setPanel((pn) => ({ ...pn, ...parche }))}
+        publicado={configServidor?.presentaciones?.panelMensajeId ? { canalId: configServidor.presentaciones.canalIntro, mensajeId: configServidor.presentaciones.panelMensajeId } : null}
+        pendiente={!!configServidor?.presentaciones?.panelPendiente} />
 
       {/* Aprobación del staff (utils/comunidad.js: revisarPresentacion) */}
       <div data-help="presentaciones-aprobacion" className={card}>
@@ -484,11 +494,6 @@ export default function PresentacionesView({ dash }) {
         <h3 className="font-bold text-fg">{t('dashboard.presentaciones_v.prevTitle')}</h3>
         <p className="mb-3 mt-0.5 text-xs text-muted">{t('dashboard.presentaciones_v.prevHint')}</p>
         <div className="space-y-4">
-          <div>
-            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.presentaciones_v.prevStepPanel')}</p>
-            <VistaDiscord embed={{ titulo: t('dashboard.presentaciones_v.prevPanelTitle'), descripcion: t('dashboard.presentaciones_v.prevPanelDesc'), color: configServidor?.colorEmbed || '#5865F2', pie: pieMarca(esPremium) }}
-              botones={[{ texto: t('dashboard.presentaciones_v.prevStartBtn'), estilo: 'azul' }]} />
-          </div>
           <div>
             <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.presentaciones_v.prevStepWindow')}</p>
             <VentanaDiscord titulo={t('dashboard.presentaciones_v.prevModalTitle')}

@@ -8,7 +8,8 @@ import { OpcionCrear } from '../CrearAlVuelo';
 import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 import VistaDiscord from '../VistaDiscord';
 import VentanaDiscord from '../VentanaDiscord';
-import { pieMarca } from '../../../lib/pieMarca';
+import EditorMensajePanel from '../EditorMensajePanel';
+import { PANEL_VACIO, panelDesde } from '../../../lib/panelMensaje';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -24,13 +25,15 @@ const ESTADOS = Object.keys(ESTADO_CONFIG);
 
 export default function SugerenciasView({ dash }) {
   const { t } = useTranslation();
-  const { canales, configServidor, esPremium, sugerencias = [], actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias } = dash;
+  const { canales, configServidor, sugerencias = [], actualizarSugerencia, eliminarSugerencia, guardarConfigSugerencias } = dash;
 
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [canalSugs, setCanalSugs] = useState('');
   const [modo, setModo] = useState('mensaje');
   const [plantilla, setPlantilla] = useState('');
   const [minLong, setMinLong] = useState(0);
+  // Cómo es el mensaje con el botón «Nueva sugerencia» (modo formulario, 1.9.14)
+  const [panel, setPanel] = useState(PANEL_VACIO);
   const [guardando, setGuardando] = useState(false);
   const [guardadoOk, setGuardadoOk] = useState(false);
 
@@ -39,6 +42,7 @@ export default function SugerenciasView({ dash }) {
     if (configServidor?.sugerenciasModo) setModo(configServidor.sugerenciasModo);
     if (configServidor?.sugerenciasPlantilla) setPlantilla(configServidor.sugerenciasPlantilla);
     if (configServidor?.sugerenciasMinLong != null) setMinLong(configServidor.sugerenciasMinLong);
+    if (configServidor) setPanel(panelDesde(configServidor.sugerenciasPanel));
   });
 
   const sugsOrdenadas = [...sugerencias].sort(
@@ -50,20 +54,22 @@ export default function SugerenciasView({ dash }) {
 
   const guardar = async () => {
     setGuardando(true);
-    await guardarConfigSugerencias({
+    const ok = await guardarConfigSugerencias({
       canalSugerencias: canalSugs,
       sugerenciasModo: modo,
       sugerenciasPlantilla: plantilla,
       sugerenciasMinLong: Number(minLong) || 0,
+      panel,
     });
-    setGuardadoOk(true);
+    setGuardadoOk(!!ok);
     setGuardando(false);
-    setTimeout(() => setGuardadoOk(false), 2500);
+    if (ok) setTimeout(() => setGuardadoOk(false), 2500);
+    return ok; // el autoguardado reintenta si falla
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([canalSugs, modo, plantilla, minLong], guardar, {
+  const autoguardado = useAutoguardado([canalSugs, modo, plantilla, minLong, panel], guardar, {
     listo: !!configServidor, borrador: 'sugerencias',
-    restaurar: ([c, m, p, n]) => { setCanalSugs(c); setModo(m); setPlantilla(p); setMinLong(n); },
+    restaurar: ([c, m, p, n, pn = PANEL_VACIO]) => { setCanalSugs(c); setModo(m); setPlantilla(p); setMinLong(n); setPanel(panelDesde(pn)); },
   });
 
   const cambiarEstado = (id, nuevoEstado) => actualizarSugerencia(id, { estado: nuevoEstado });
@@ -128,18 +134,20 @@ export default function SugerenciasView({ dash }) {
         {guardadoOk && <p className="mt-2 text-xs font-semibold text-success">{t('dashboard.sugerencias_v.savedOk')}</p>}
       </div>
 
-      {/* Cómo lo ve la gente en Discord (utils/comunidad.js: publicarPanelSugerencias, abrirModalSugerencia, construirEmbedSugerencia) */}
+      {/* El mensaje con el botón «Nueva sugerencia» (solo en modo formulario; utils/comunidad.js: contenidoPanelSugerencias) */}
+      {modo === 'formulario' && (
+        <EditorMensajePanel dash={dash} tipo="sugerencias" valor={panel} onCambio={(parche) => setPanel((pn) => ({ ...pn, ...parche }))}
+          publicado={configServidor?.sugerenciasModo === 'formulario' && configServidor?.sugerenciasPanel?.mensajeId ? { canalId: configServidor.canalSugerencias, mensajeId: configServidor.sugerenciasPanel.mensajeId } : null}
+          pendiente={!!configServidor?.sugerenciasPanel?.pendiente} />
+      )}
+
+      {/* Cómo lo ve la gente en Discord (utils/comunidad.js: abrirModalSugerencia, construirEmbedSugerencia) */}
       <div data-help="sugerencias-previa" className={card}>
         <h3 className="font-bold text-fg">{t('dashboard.sugerencias_v.prevTitle')}</h3>
         <p className="mb-3 mt-0.5 text-xs text-muted">{t('dashboard.sugerencias_v.prevHint')}</p>
         <div className="space-y-4">
           {modo === 'formulario' && (
             <>
-              <div>
-                <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.sugerencias_v.prevStepPanel')}</p>
-                <VistaDiscord embed={{ titulo: t('dashboard.sugerencias_v.prevPanelTitle'), descripcion: t('dashboard.sugerencias_v.prevPanelDesc'), color: configServidor?.colorEmbed || '#5865F2', pie: pieMarca(esPremium) }}
-                  botones={[{ texto: t('dashboard.sugerencias_v.prevNewBtn'), estilo: 'azul' }]} />
-              </div>
               <div>
                 <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.sugerencias_v.prevStepWindow')}</p>
                 <VentanaDiscord titulo={t('dashboard.sugerencias_v.prevModalTitle')} campos={[{ etiqueta: t('dashboard.sugerencias_v.prevField'), valor: plantilla.slice(0, 1000), parrafo: true, obligatorio: true }]} />

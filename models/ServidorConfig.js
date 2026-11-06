@@ -386,6 +386,18 @@ const ServidorConfigSchema = new mongoose.Schema({
     sugerenciasModo: { type: String, enum: ['mensaje', 'formulario'], default: 'mensaje' },
     sugerenciasPlantilla: { type: String, default: '' }, // plantilla prerellenada del formulario
     sugerenciasMinLong: { type: Number, default: 0 },    // longitud mínima (0 = sin mínimo)
+    // Mensaje con el botón «Nueva sugerencia» (modo formulario), todo personalizable
+    // (1.9.14): texto de encima, embed (imágenes/GIF, campos…) y el botón (texto y
+    // color). Vacío = el de fábrica en el idioma del servidor. Se reedita, no se repite.
+    sugerenciasPanel: {
+        contenido: { type: String, default: '' },
+        embed: { type: mongoose.Schema.Types.Mixed, default: null },
+        textoBoton: { type: String, default: null },
+        estiloBoton: { type: String, default: null },       // null = azul
+        mensajeId: { type: String, default: null },         // (interno) el mensaje publicado
+        bloqueado: { type: Boolean, default: null },        // (interno) true = el bot cerró el canal a @everyone; false = ya lo estaba
+        pendiente: { type: Boolean, default: false },       // (interno) no se pudo publicar/actualizar en Discord: se reintenta al guardar
+    },
 
     // --- COMUNIDAD: presentaciones de nuevos miembros ---
     // Al entrar un miembro, el bot publica en `canalIntro` un botón para abrir un
@@ -405,6 +417,16 @@ const ServidorConfigSchema = new mongoose.Schema({
         mensajeAceptada: { type: String, default: '' },     // privado al aceptar (vacío = no se manda)
         rolAceptadaId: { type: String, default: null },     // rol que se da al aceptar (opcional)
         panelMensajeId: { type: String, default: null },    // mensaje «Preséntate» publicado (se reedita, no se repite)
+        panelPendiente: { type: Boolean, default: false },  // (interno) no se pudo publicar/actualizar en Discord: se reintenta al guardar
+        // Cómo es ese mensaje, todo personalizable (1.9.14): texto de encima, embed
+        // (imágenes/GIF, campos…) y el botón «Presentarme» (texto y color). Vacío = el
+        // de fábrica en el idioma del servidor.
+        panel: {
+            contenido: { type: String, default: '' },
+            embed: { type: mongoose.Schema.Types.Mixed, default: null },
+            textoBoton: { type: String, default: null },
+            estiloBoton: { type: String, default: null },   // null = azul
+        },
         // modo 'preguntas' = campos sueltos (uno por pregunta).
         // modo 'plantilla' = un único texto rellenable que el usuario edita.
         modo: { type: String, enum: ['preguntas', 'plantilla'], default: 'preguntas' },

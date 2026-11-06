@@ -1542,6 +1542,12 @@ app.get('/api/stats/uso', async (req, res) => {
             if (cambiaIdioma) {
                 const adaptados = await adaptarTextosAlIdioma(guildId, cambios.idioma);
                 if (Object.keys(adaptados).length) configActualizada = await ServidorConfig.findOne({ guildId });
+                // Y los paneles que ya están en Discord (Preséntate, tickets, Mi cuenta…)
+                // se reescriben en el idioma nuevo. En segundo plano: son varias
+                // peticiones a Discord y el panel no tiene que esperarlas.
+                require('../utils/panelesPublicados.js').refrescarPanelesPublicados(client, guildId)
+                    .then((hechos) => { if (hechos.length) console.log(`🌐 Paneles actualizados al ${cambios.idioma} en ${guildId}: ${hechos.join(', ')}`); })
+                    .catch((e) => console.error('Error actualizando paneles al cambiar el idioma:', e.message));
             }
 
             res.json({ success: true, config: configActualizada });

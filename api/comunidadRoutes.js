@@ -11,6 +11,7 @@ const Sugerencia = require('../models/Sugerencia.js');
 const Presentacion = require('../models/Presentacion.js');
 const TriviaPregunta = require('../models/TriviaPregunta.js');
 const comunidad = require('../utils/comunidad.js');
+const { sanearPanel, mismoPanel, embedDeFabrica } = require('../utils/panelMensaje.js');
 
 module.exports = function montarRutasComunidad(app, client) {
     // Filtro por servidor respetando el alcance del staff (igual que /api/anuncios).
@@ -327,19 +328,53 @@ module.exports = function montarRutasComunidad(app, client) {
     app.put('/api/config/:guildId/sugerencias', async (req, res) => {
         try {
             const b = req.body || {};
+            const gid = req.params.guildId;
             const set = { canalSugerencias: b.canalSugerencias || null };
             if (b.sugerenciasModo !== undefined) set.sugerenciasModo = ['mensaje', 'formulario'].includes(b.sugerenciasModo) ? b.sugerenciasModo : 'mensaje';
             if (b.sugerenciasPlantilla !== undefined) set.sugerenciasPlantilla = String(b.sugerenciasPlantilla || '').slice(0, 1000);
             if (b.sugerenciasMinLong !== undefined) set.sugerenciasMinLong = Math.max(0, parseInt(b.sugerenciasMinLong, 10) || 0);
-            const config = await ServidorConfig.findOneAndUpdate(
-                { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
-            );
-            // Si es modo formulario, publica el panel y bloquea el canal.
-            if (config.sugerenciasModo === 'formulario') {
-                await comunidad.publicarPanelSugerencias(client, req.params.guildId, config).catch(() => {});
+            // Cómo es el mensaje con el botón (1.9.14); dónde está publicado lo lleva el bot.
+            if (b.panel !== undefined) {
+                const p = sanearPanel(b.panel);
+                for (const k of Object.keys(p)) set[`sugerenciasPanel.${k}`] = p[k];
             }
+            const antes = await ServidorConfig.findOne({ guildId: gid }).select('canalSugerencias sugerenciasModo sugerenciasPanel').lean();
+            const eraFormulario = !!antes && antes.sugerenciasModo === 'formulario';
+            const otroCanal = !!antes && (antes.canalSugerencias || null) !== set.canalSugerencias;
+            if (otroCanal) set['sugerenciasPanel.mensajeId'] = null; // en el canal nuevo sale uno nuevo
+            let config = await ServidorConfig.findOneAndUpdate(
+                { guildId: gid }, { $set: set }, { returnDocument: 'after', upsert: true },
+            );
+            const formulario = config.sugerenciasModo === 'formulario';
+            // Sale del modo formulario o del canal: ese canal se abre (si lo cerró el
+            // bot) y se quita el botón de allí.
+            if (eraFormulario && (!formulario || otroCanal)) await comunidad.quitarPanelSugerencias(client, gid, antes);
+            if (formulario) {
+                // Se publica si aún no está, si cambia de canal o de modo, si cambia cómo
+                // es o si la última vez no se pudo. Si no, nada: el autoguardado llama
+                // aquí cada pocos segundos (antes salía un mensaje nuevo cada vez).
+                const pa = (antes && antes.sugerenciasPanel) || {};
+                if (!pa.mensajeId || otroCanal || !eraFormulario || pa.pendiente || !mismoPanel(pa, config.sugerenciasPanel)) {
+                    const ok = await comunidad.publicarPanelSugerencias(client, gid, config).catch(() => false);
+                    await ServidorConfig.updateOne({ guildId: gid }, { $set: { 'sugerenciasPanel.pendiente': !ok && !!set.canalSugerencias } });
+                }
+            }
+            if (formulario || eraFormulario) config = (await ServidorConfig.findOne({ guildId: gid })) || config;
             res.json({ success: true, config });
         } catch (e) { console.error('Config sugerencias:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+
+    // Lo de fábrica de los mensajes con botón de esta sección (en el idioma del bot en
+    // el servidor), para empezar a editarlos desde ahí en el panel (1.9.14).
+    app.get('/api/config/:guildId/paneles/:tipo/defecto', async (req, res) => {
+        try {
+            const defectos = { presentaciones: comunidad.defectoPanelPresentacion, sugerencias: comunidad.defectoPanelSugerencias };
+            const fn = defectos[req.params.tipo];
+            if (!fn) return res.status(404).json({ error: 'No encontrado' });
+            const cfg = await ServidorConfig.findOne({ guildId: req.params.guildId }).lean();
+            const d = fn(cfg);
+            res.json({ embed: embedDeFabrica(d, cfg), textoBoton: d.textoBoton, estiloBoton: d.estilo, idioma: (cfg && cfg.idioma) || 'en' });
+        } catch (e) { console.error('Panel de fábrica:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 
     // ===================== PRESENTACIONES =====================
@@ -395,17 +430,27 @@ module.exports = function montarRutasComunidad(app, client) {
                 'presentaciones.mensajeAceptada': String(b.mensajeAceptada || '').slice(0, 1500),
                 'presentaciones.rolAceptadaId': b.rolAceptadaId || null,
             };
-            const antes = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('presentaciones').lean();
-            const config = await ServidorConfig.findOneAndUpdate(
-                { guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true },
-            );
-            // El panel «Preséntate» solo se publica si aún no está o cambia de canal (el
-            // autoguardado llama aquí cada pocos segundos mientras se escribe).
+            // Cómo es el mensaje «Preséntate» (1.9.14): texto, embed y botón.
+            if (b.panel !== undefined) {
+                const p = sanearPanel(b.panel);
+                for (const k of Object.keys(p)) set[`presentaciones.panel.${k}`] = p[k];
+            }
+            const gid = req.params.guildId;
+            const antes = await ServidorConfig.findOne({ guildId: gid }).select('presentaciones').lean();
             const pa = (antes && antes.presentaciones) || {};
-            if (!pa.panelMensajeId || pa.canalIntro !== set['presentaciones.canalIntro']) {
-                if (pa.canalIntro !== set['presentaciones.canalIntro']) await ServidorConfig.updateOne({ guildId: req.params.guildId }, { $set: { 'presentaciones.panelMensajeId': null } });
-                const fresca = await ServidorConfig.findOne({ guildId: req.params.guildId });
-                await comunidad.publicarPanelPresentacion(client, req.params.guildId, fresca).catch(() => {});
+            const otroCanal = (pa.canalIntro || null) !== set['presentaciones.canalIntro'];
+            if (otroCanal) set['presentaciones.panelMensajeId'] = null; // en el canal nuevo sale uno nuevo
+            let config = await ServidorConfig.findOneAndUpdate(
+                { guildId: gid }, { $set: set }, { returnDocument: 'after', upsert: true },
+            );
+            // El panel «Preséntate» se publica si aún no está o cambia de canal, y se
+            // actualiza si cambia cómo es o si la última vez no se pudo. Si no, nada: el
+            // autoguardado llama aquí cada pocos segundos mientras se escribe.
+            const cambiaPanel = b.panel !== undefined && !mismoPanel(pa.panel, config.presentaciones && config.presentaciones.panel);
+            if (!pa.panelMensajeId || otroCanal || cambiaPanel || pa.panelPendiente) {
+                const ok = await comunidad.publicarPanelPresentacion(client, gid, config).catch(() => false);
+                await ServidorConfig.updateOne({ guildId: gid }, { $set: { 'presentaciones.panelPendiente': !ok && !!set['presentaciones.canalIntro'] } });
+                config = (await ServidorConfig.findOne({ guildId: gid })) || config;
             }
             res.json({ success: true, config });
         } catch (e) { console.error('Config presentaciones:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }

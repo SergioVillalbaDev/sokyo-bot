@@ -1530,6 +1530,25 @@ export function useDashboard() {
     if (res.ok) { const data = await res.json().catch(() => null); if (data?.config) setConfigServidor(marcarEco(data.config)); return true; }
     return false;
   };
+  // Cambia solo el idioma en el que escribe el bot en Discord (1.9.14, aviso «El bot
+  // escribe en inglés…»). El bot pasa al idioma nuevo los textos de fábrica y reescribe
+  // los paneles ya publicados; aquí se recarga la config para ver los textos nuevos.
+  const cambiarIdiomaBot = async (nuevo) => {
+    if (!gidActivo()) return false;
+    try {
+      const res = await apiFetch(`/api/config/${gidActivo()}/textos`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idioma: nuevo === 'es' ? 'es' : 'en' }),
+      });
+      if (!res.ok) return false;
+      await cargarConfiguracion();
+      return true;
+    } catch { return false; }
+  };
+  // Lo de fábrica de un mensaje con botón (presentaciones, sugerencias), en el idioma del bot.
+  const cargarPanelDefecto = async (tipo) => {
+    if (!gidActivo()) return null;
+    try { const res = await apiFetch(`/api/config/${gidActivo()}/paneles/${tipo}/defecto`); return res.ok ? await res.json() : null; } catch { return null; }
+  };
   // Publicar (o actualizar) el panel de tickets en un canal (1.9.13), sin !sokyo. Guarda antes los textos.
   const publicarPanelTickets = async (canalId) => {
     if (!gidActivo()) return { ok: false };
@@ -1826,7 +1845,7 @@ export function useDashboard() {
     verMensajes, cerrarMensajes, enviarMensaje, errorEnvio, agregarNotaInterna,
     handleCerrarTicket, handleReabrirTicket, handleOcultarTicket,
     agregarUrgencia, eliminarUrgencia, agregarMotivo, eliminarMotivo,
-    guardarCambiosConfig, guardarTextosConfig,
+    guardarCambiosConfig, guardarTextosConfig, cambiarIdiomaBot, cargarPanelDefecto,
     // helpers
     getTicketsOrdenados, getColorUrgencia, obtenerParticipantes, obtenerLogsFiltrados,
   };
