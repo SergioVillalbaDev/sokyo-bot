@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.13.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.14.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -193,6 +193,22 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   los campos vaciados (volvía el texto de fábrica). Lo mismo en `useModulo` y las vistas de
   Crecimiento: tras guardar, `form` no se pisa con `r.config`. Si el servidor cambia otro
   ajuste al guardar (p. ej. verificación ↔ doble bienvenida), la vista lo hace también.
+- **Mensajes con botón que el bot deja fijos** (1.9.14, `utils/panelMensaje.js`): «Preséntate»
+  (`presentaciones.panel`) y «Nueva sugerencia» (`sugerenciasPanel`) se guardan como `{ contenido,
+  embed, textoBoton, estiloBoton }` (vacío = de fábrica en el idioma del bot: `defectoPanel*` en
+  `utils/comunidad.js`, `GET /api/config/:g/paneles/:tipo/defecto`) y se arman con `armarPanel`; se
+  publican con `editarOPublicar` (reedita el que hay, nunca repite). La ruta de la sección solo toca
+  Discord si cambia algo que se ve (`mismoPanel`), de canal, o si la última vez falló (`panelPendiente`
+  / `sugerenciasPanel.pendiente`, con aviso en el panel). En el panel: `EditorMensajePanel.jsx` (texto,
+  `EmbedBuilder` empezando por lo de fábrica, `EditorBoton`, «Volver al de fábrica») y
+  `lib/panelMensaje.js`. **Un panel nuevo de este tipo: hazlo igual y apúntalo en
+  `utils/panelesPublicados.js`**, que reescribe los ya publicados (solo edita) al cambiar el idioma del
+  bot (`PUT …/textos`, `!sokyolanguage`) y al «Deshacer» un ajuste suyo (`afectaPaneles`). El pie de
+  fábrica del editor es solo el del servidor: «Powered by Sokyo» lo pone el bot al publicar en Free.
+  Sugerencias en formulario: el bot cierra el canal a @everyone y apunta si lo hizo él
+  (`sugerenciasPanel.bloqueado`); al salir del modo o cambiar de canal lo vuelve a abrir solo entonces y
+  quita el botón. **Idioma del bot ≠ del panel**: `AvisoIdiomaBot.jsx` (Inicio, ocultable, y en los
+  editores) con «Pasar el bot a …» (`cambiarIdiomaBot`, solo con el área config).
 - **Buscador en los desplegables** (`BuscadorSelects.jsx`, montado en `Dashboard.jsx`): todo
   `<select>` del panel con 8 opciones o más abre una lista con buscador (ratón, toque, teclado)
   y cambia el valor como a mano (`change`), así que vale para cualquier sección sin tocarla.
@@ -530,5 +546,11 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   publican o actualizan igual. `guardarTextosConfig` y `guardarCambiosConfig` ya no sacan un `alert` en
   inglés: devuelven true/false y el botón `BotonGuardar.jsx` dice «✅ Guardado» o el error. Fecha de
   apertura/cierre en cada ticket (`TicketsView`). Tests: `aprobacionEntrada`, `entradaPreguntas`.
+- 1.9.14 **Mensajes «Preséntate» y «Nueva sugerencia» personalizables** enteros (texto, embed con
+  imágenes/GIF, botón con texto y color) y actualizados solos en Discord (ver *Mensajes con botón que el
+  bot deja fijos*). Arreglado: Sugerencias en formulario publicaba el mensaje otra vez en cada guardado.
+  Aviso «El bot escribe en inglés…» con botón para cambiarlo, y al cambiar el idioma los paneles ya
+  publicados (presentaciones, sugerencias, tickets, Mi cuenta, verificación, doble bienvenida,
+  solicitudes, voz temporal) se reescriben. Test en `test/panelesMensaje.test.js`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

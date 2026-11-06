@@ -29,13 +29,19 @@ module.exports = {
                 `Current language: **${actual}**. Usage: \`sokyolanguage spanish\` or \`sokyolanguage english\`.`));
         }
 
+        const cambia = ((cfg && cfg.idioma) || 'en') !== elegido;
         let config = await ServidorConfig.findOneAndUpdate(
             { guildId: message.guild.id },
             { $set: { idioma: elegido } },
             { returnDocument: 'after', upsert: true },
         );
-        // Los textos que siguen como venían de fábrica pasan al nuevo idioma.
+        // Los textos que siguen como venían de fábrica pasan al nuevo idioma…
         await adaptarTextosAlIdioma(message.guild.id, elegido).catch(() => {});
+        // …y los paneles ya publicados (Preséntate, tickets, Mi cuenta…) se reescriben.
+        if (cambia) {
+            require('../utils/panelesPublicados.js').refrescarPanelesPublicados(client, message.guild.id)
+                .catch((e) => console.error('Error actualizando paneles al cambiar el idioma:', e.message));
+        }
 
         const nombre = elegido === 'es' ? 'Español' : 'English';
         return message.reply(t(config, `✅ Idioma del bot cambiado a **${nombre}**.`, `✅ Bot language switched to **${nombre}**.`));

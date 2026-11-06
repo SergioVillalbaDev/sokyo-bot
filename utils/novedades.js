@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.14': [
+        { tab: 'com-presentaciones', es: '✏️ El mensaje «Preséntate a la comunidad» se personaliza entero: título, texto, imagen o GIF, colores y el botón (texto y color). Lo que cambias se actualiza solo en el mensaje que ya está en Discord.', en: '✏️ The “Introduce yourself to the community” message is fully customizable: title, text, image or GIF, colours and the button (text and colour). What you change updates on its own in the message already in Discord.' },
+        { tab: 'com-sugerencias', es: '💡 Lo mismo con el mensaje «Nueva sugerencia». Arreglado: con el formulario, cada guardado publicaba el mensaje otra vez; ahora se actualiza el que ya hay.', en: '💡 Same for the “New suggestion” message. Fixed: in form mode, every save posted the message again; now the existing one is updated.' },
+        { tab: 'config-textos', es: '🌐 Si el bot escribe en inglés y tu panel está en español, el panel te avisa y lo cambias con un botón. Al cambiar el idioma, los paneles que ya estaban en Discord (presentaciones, tickets, Mi cuenta, verificación…) se reescriben solos en el idioma nuevo.', en: '🌐 If the bot writes in a different language from your panel, the panel tells you and you switch it with one button. When you change the language, the panels already in Discord (intros, tickets, My account, verification…) are rewritten on their own.' },
+        { tab: 'config-cambios', es: '↩️ «Deshacer» un cambio de uno de esos mensajes también lo deshace en Discord.', en: '↩️ “Undo” on a change to one of those messages also undoes it in Discord.' },
+    ],
     '1.9.13': [
         { tab: 'seg-verificacion', es: '🛂 Verificación con aprobación: nadie entra al servidor hasta que el staff acepta su verificación. Le llega a un canal vuestro (y al panel) con lo que respondió, «Aceptar» y «Rechazar»; si se rechaza, recibe el motivo por privado.', en: '🛂 Verification with approval: nobody gets into the server until the staff accepts their verification. It reaches a channel of yours (and the panel) with what they answered, “Accept” and “Reject”; if rejected, they get the reason by DM.' },
         { tab: 'seg-verificacion', es: '📁 Cada respuesta de las preguntas al entrar puede abrir una categoría o un canal suelto.', en: '📁 Each answer to the joining questions can open a category or a single channel.' },

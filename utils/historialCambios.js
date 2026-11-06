@@ -34,7 +34,7 @@ const SECCION = {
     verificacion: 'seg-verificacion', embudoAB: 'seg-verificacion',
     bienvenida: 'prod-bienvenidas', despedida: 'prod-bienvenidas', bienvenidasExtra: 'prod-bienvenidas',
     reportes: 'mod-reportes',
-    canalSugerencias: 'com-sugerencias', sugerenciasModo: 'com-sugerencias', sugerenciasPlantilla: 'com-sugerencias', sugerenciasMinLong: 'com-sugerencias',
+    canalSugerencias: 'com-sugerencias', sugerenciasModo: 'com-sugerencias', sugerenciasPlantilla: 'com-sugerencias', sugerenciasMinLong: 'com-sugerencias', sugerenciasPanel: 'com-sugerencias',
     presentaciones: 'com-presentaciones', dinamicas: 'com-dinamicas', vozTemporal: 'voz-temporal',
     rolesPanelAcceso: 'config-acceso', rolesModeracion: 'config-acceso', accesoAreas: 'config-acceso',
     resumenDiario: 'datos-resumen', crecimiento: 'crec-invitaciones',

@@ -13,6 +13,7 @@ import { CircularGauge } from '../../ui/CircularGauge';
 import { gruposVisibles, navSections, bloqueadoPorPlan, ubicacion, itemVisible } from '../navConfig';
 import { getStaffSession, apiFetch, procesarRespuesta } from '../../../lib/api';
 import AsistenteInicio from '../AsistenteInicio';
+import AvisoIdiomaBot from '../AvisoIdiomaBot';
 import { cn } from '../../../lib/cn';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
@@ -130,6 +131,9 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
           <ChevronRight size={18} className="shrink-0 text-muted" />
         </button>
       )}
+
+      {/* El bot escribe en otro idioma que el panel: sus mensajes de fábrica salían en inglés (1.9.14) */}
+      <AvisoIdiomaBot key={guildId} dash={dash} ocultable />
 
       <AsistenteInicio
         guildId={guildId} estadoModulos={estadoModulos} configServidor={configServidor} setActiveTab={setActiveTab}
