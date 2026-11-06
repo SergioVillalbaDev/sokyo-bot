@@ -56,6 +56,9 @@ module.exports = {
         // Primera vez con una versión nueva: avisar de "Bot actualizado" (ANUNCIO_SERVIDOR).
         anunciarActualizacion(client).catch((e) => console.error('Aviso de actualización:', e.message));
 
+        // Verificación (1.9.15): recordar y expulsar a quien no se verifica a tiempo.
+        esperarMongo().then(() => require('../utils/puertaEntrada.js').iniciarBarrido(client)).catch((e) => console.error('Barrido de verificación:', e.message));
+
         // Arranca el barrido de auto-cierre por inactividad (configurable por servidor).
         iniciarAutoCierre(client);
 

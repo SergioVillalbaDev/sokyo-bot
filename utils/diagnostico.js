@@ -47,6 +47,11 @@ const REFERENCIAS = [
     ['verificacion.rolVerificadoId', 'rolDar', 'seg-verificacion', 'el rol de verificado', 'the verified role', activo('verificacion.activo')],
     ['embudoAB.canalId', 'texto', 'seg-verificacion', 'el canal de la bienvenida guiada', 'the guided welcome channel', activo('embudoAB.activo')],
     ['embudoAB.rolVerificadoId', 'rolDar', 'seg-verificacion', 'el rol de la bienvenida guiada', 'the guided welcome role', activo('embudoAB.activo')],
+    // Verificación (1.9.13 y 1.9.15)
+    ['preguntasEntrada.canalRevisionId', 'texto', 'seg-verificacion', 'el canal donde el staff acepta las verificaciones', 'the channel where the staff accepts verifications', (cfg) => !!(leer(cfg, 'preguntasEntrada.aprobacion') || ['siempre', 'sospechosos'].includes(leer(cfg, 'preguntasEntrada.aprobacionModo')))],
+    ['preguntasEntrada.rolAvisoId', 'rol', 'seg-verificacion', 'el rol al que se avisa de las verificaciones', 'the role notified about verifications'],
+    ['opcionesEntrada.rolNoVerificadoId', 'rolDar', 'seg-verificacion', 'el rol «Sin verificar»', 'the “Unverified” role'],
+    ['opcionesEntrada.canalRegistroId', 'texto', 'seg-verificacion', 'el canal del registro de la verificación', 'the verification log channel'],
     ['bienvenida.canalId', 'texto', 'prod-bienvenidas', 'el canal de bienvenidas', 'the welcome channel', activo('bienvenida.activo')],
     ['despedida.canalId', 'texto', 'prod-bienvenidas', 'el canal de despedidas', 'the goodbye channel', activo('despedida.activo')],
     ['reportes.canalId', 'texto', 'mod-reportes', 'el canal de reportes', 'the reports channel', activo('reportes.activo')],
@@ -79,6 +84,7 @@ const LISTAS_ROLES = [
     ['recompensasNivel', 'rolId', 'config-niveles', 'un rol de recompensa por nivel', 'a level reward role'],
     ['crecimiento.invitaciones.recompensas', 'rolId', 'crec-invitaciones', 'un rol de recompensa por invitar', 'an invite reward role'],
     ['solicitudes.formularios', 'rolId', 'com-solicitudes', 'un rol que se da al aceptar una solicitud', 'a role given when an application is accepted', true],
+    ['opcionesEntrada.rolesExtra', null, 'seg-verificacion', 'un rol de más que se da al verificarse', 'an extra role given on verification'],
 ];
 
 function leer(obj, ruta) {

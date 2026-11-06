@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.14.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.15.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -209,6 +209,25 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   (`sugerenciasPanel.bloqueado`); al salir del modo o cambiar de canal lo vuelve a abrir solo entonces y
   quita el botón. **Idioma del bot ≠ del panel**: `AvisoIdiomaBot.jsx` (Inicio, ocultable, y en los
   editores) con «Pasar el bot a …» (`cambiarIdiomaBot`, solo con el área config).
+- **Verificación completa (1.9.15)**, `utils/puertaEntrada.js` + `opcionesEntrada` en la config (para la
+  verificación normal y la doble bienvenida): requisitos (`requisitoQueFalla`: edad de la cuenta, foto, espera;
+  se miran en CADA paso que da el acceso, también por privado en la doble bienvenida), normas («He leído y
+  acepto», botón `verif_normas`), captcha (letras, intentos con `contarFalloCaptcha` → `castigarCaptcha`
+  DESPUÉS de contestarle: esperar/aislar/expulsar), al verificarse (`trasVerificarse`: roles de más, quitar
+  «Sin verificar», privado y registro; lo llaman `verificacion.conceder`, `embudo.conceder` y
+  `concederEntrada`, y SOLO si el rol de acceso se ha dado de verdad), «Sin verificar» al entrar (`alEntrar`;
+  nunca puede ser un rol de acceso: `rolSinVerificar`), expulsar a quien no se verifica (`barrerSinVerificar`
+  cada 15 min desde `ready.js`: solo quien entró después de `expulsarDesde`, nunca staff, quien espera al
+  staff ni quien tiene cualquier rol de acceso o se verificó según el registro; la lista entera de miembros
+  se pide como mucho una vez por hora; el recordatorio sale en su ventana para que un reinicio no lo repita)
+  y registro (`models/RegistroEntrada.js`, 90 días, y canal opcional). **Aprobación en tres modos**
+  (`preguntasEntrada.aprobacionModo`: nunca/siempre/sospechosos, `requiereAprobacion` en
+  `preguntasEntrada.js`; `aprobacion` queda a juego para lo de antes): sospechoso = cuenta de menos de
+  `revisarCuentaDias`, sin foto (`revisarSinAvatar`) o respuesta con `revisar` (🕵️ en el panel); el aviso al
+  staff dice por qué y menciona `rolAvisoId`. API: `PUT /api/seguridad/:g/opciones`, `GET
+  …/verificaciones/registro` (con `esperando` = las que siguen esperando) y `POST …/verificar` (a mano; si
+  esperaba al staff, acepta su solicitud). Panel: `OpcionesEntrada.jsx` (bloques plegables con resumen),
+  `RegistroVerificaciones.jsx` y los modos en `AprobacionEntrada.jsx`. Tests: `test/verificacionOpciones.test.js`.
 - **Buscador en los desplegables** (`BuscadorSelects.jsx`, montado en `Dashboard.jsx`): todo
   `<select>` del panel con 8 opciones o más abre una lista con buscador (ratón, toque, teclado)
   y cambia el valor como a mano (`change`), así que vale para cualquier sección sin tocarla.
@@ -552,5 +571,8 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   Aviso «El bot escribe en inglés…» con botón para cambiarlo, y al cambiar el idioma los paneles ya
   publicados (presentaciones, sugerencias, tickets, Mi cuenta, verificación, doble bienvenida,
   solicitudes, voz temporal) se reescriben. Test en `test/panelesMensaje.test.js`.
+- 1.9.15 **Verificación muy completa**: la aprobación del staff pasa a ser una elección (nadie, todos o
+  solo los sospechosos), requisitos, normas, captcha a medida, qué pasa al verificarse, expulsar a quien no
+  se verifica, registro con cifras y verificar a mano (ver *Verificación completa*).
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

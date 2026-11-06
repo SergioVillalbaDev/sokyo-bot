@@ -300,10 +300,42 @@ const ServidorConfigSchema = new mongoose.Schema({
         preguntas: { type: mongoose.Schema.Types.Mixed, default: [] },
         ocultarVerificacion: { type: Boolean, default: true }, // al cerrar el servidor, quien entra ya no ve el canal de verificación
         // Aprobación del staff (1.9.13): nadie entra hasta que el staff acepta su verificación.
-        aprobacion: { type: Boolean, default: false },
+        aprobacion: { type: Boolean, default: false },      // antes de 1.9.15; ahora manda `aprobacionModo`
+        // 1.9.15: quién tiene que esperar al staff: 'nunca' (entran al momento), 'siempre' o
+        // 'sospechosos' (cuenta de menos de `revisarCuentaDias` días, sin foto si
+        // `revisarSinAvatar`, o una respuesta marcada con `revisar`). null = lo que diga `aprobacion`.
+        aprobacionModo: { type: String, enum: ['nunca', 'siempre', 'sospechosos', null], default: null },
+        revisarCuentaDias: { type: Number, default: 7 },
+        revisarSinAvatar: { type: Boolean, default: true },
+        rolAvisoId: { type: String, default: null },        // rol al que se menciona al llegar una solicitud
         canalRevisionId: { type: String, default: null },  // donde llegan las solicitudes (con Aceptar / Rechazar)
         mensajeRechazo: { type: String, default: '' },      // privado al rechazar ({user}, {server}, {motivo}); vacío = de fábrica
         mensajeAceptada: { type: String, default: '' },     // privado al aceptar; vacío = de fábrica
+    },
+    // Opciones de la verificación (1.9.15), para la normal y la doble bienvenida
+    // (utils/puertaEntrada.js): requisitos, normas, captcha, qué pasa al verificarse,
+    // expulsar a quien no se verifica y el canal del registro.
+    opcionesEntrada: {
+        edadMinDias: { type: Number, default: 0 },          // cuenta de Discord con al menos estos días (0 = da igual)
+        exigirAvatar: { type: Boolean, default: false },    // hace falta foto de perfil
+        esperaMinutos: { type: Number, default: 0 },        // minutos dentro antes de poder verificarse
+        normasActivo: { type: Boolean, default: false },    // aceptar las normas antes («He leído y acepto»)
+        normasTexto: { type: String, default: '' },
+        normasBoton: { type: String, default: '' },
+        captchaLongitud: { type: Number, default: 5 },      // letras del código (4-8)
+        captchaIntentos: { type: Number, default: 3 },      // intentos antes de la acción
+        captchaMinutos: { type: Number, default: 5 },       // lo que dura un captcha
+        captchaFallo: { type: String, enum: ['esperar', 'aislar', 'expulsar'], default: 'esperar' },
+        rolesExtra: { type: [String], default: [] },        // roles de más al verificarse
+        rolNoVerificadoId: { type: String, default: null }, // se da al entrar y se quita al verificarse
+        mensajeExito: { type: String, default: '' },        // el «¡Listo!» ({user}, {server}); vacío = de fábrica
+        dmActivo: { type: Boolean, default: false },        // privado de bienvenida al verificarse
+        mensajeDM: { type: String, default: '' },
+        expulsarHoras: { type: Number, default: 0 },        // expulsar a quien no se verifica en X h (0 = nunca)
+        expulsarDesde: { type: Date, default: null },       // (interno) solo cuenta a quien entra desde aquí
+        recordatorio: { type: Boolean, default: true },     // privado a mitad de plazo
+        mensajeExpulsion: { type: String, default: '' },    // privado al expulsar ({server}, {horas})
+        canalRegistroId: { type: String, default: null },   // canal donde se apunta cada verificación
     },
 
     // --- EMBUDO DE BIENVENIDA: Test A/B de retención (Pro) ---
