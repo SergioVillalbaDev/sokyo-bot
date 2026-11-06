@@ -53,6 +53,10 @@ module.exports = {
             }
         } catch (error) { console.error('Error aplicando autorol:', error); }
 
+        // --- Verificación (1.9.15): el rol «Sin verificar» hasta que se verifique ---
+        try { await require('../utils/puertaEntrada.js').alEntrar(member, cfg); }
+        catch (error) { console.error('Error dando el rol «Sin verificar»:', error.message); }
+
         // --- Embudo de bienvenida A/B: asignar variante al entrar ---
         // Si la entrega incluye MD, se le manda su onboarding por privado.
         // (la entrega por panel es un botón fijo publicado en el canal)

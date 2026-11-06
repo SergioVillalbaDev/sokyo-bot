@@ -19,7 +19,7 @@ const MAX_OPCIONES = 25;
 
 let contador = 0;
 const nuevoId = (p) => `${p}${Date.now().toString(36)}${(contador++).toString(36)}`;
-const opcionVacia = () => ({ id: nuevoId('o'), etiqueta: '', emoji: '', descripcion: '', rolId: '', categoriaId: '' });
+const opcionVacia = () => ({ id: nuevoId('o'), etiqueta: '', emoji: '', descripcion: '', rolId: '', categoriaId: '', revisar: false });
 const preguntaVacia = () => ({ id: nuevoId('q'), texto: '', descripcion: '', multiple: false, obligatoria: true, opciones: [opcionVacia(), opcionVacia()] });
 
 export default function PreguntasEntrada({ dash, rolAccesoId }) {
@@ -111,7 +111,7 @@ export default function PreguntasEntrada({ dash, rolAccesoId }) {
               <div className="mt-3 space-y-2 border-t border-line pt-3">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-muted">{t('dashboard.verif_v.q.options')}</p>
                 {q.opciones.map((o, k) => (
-                  <div key={o.id} className="grid grid-cols-[3.2rem_1fr_auto] items-center gap-2 sm:grid-cols-[3.2rem_1.2fr_1fr_1fr_auto]">
+                  <div key={o.id} className="grid grid-cols-[3.2rem_1fr_auto_auto] items-center gap-2 sm:grid-cols-[3.2rem_1.2fr_1fr_1fr_auto_auto]">
                     <input value={o.emoji} maxLength={64} onChange={(e) => cambiarOpcion(i, k, { emoji: e.target.value })} placeholder="🎮" className={`${mini} text-center`} aria-label={t('dashboard.verif_v.q.emoji')} />
                     <input value={o.etiqueta} maxLength={100} onChange={(e) => cambiarOpcion(i, k, { etiqueta: e.target.value })} placeholder={t('dashboard.verif_v.q.optionPh')} className={mini} aria-label={t('dashboard.verif_v.q.option')} />
                     <select value={o.rolId} onChange={(e) => cambiarOpcion(i, k, { rolId: e.target.value })} className={`${mini} col-span-2 sm:col-span-1`} aria-label={t('dashboard.verif_v.q.role')}>
@@ -123,6 +123,9 @@ export default function PreguntasEntrada({ dash, rolAccesoId }) {
                       {categorias.length > 0 && <optgroup label={t('dashboard.verif_v.q.groupCategories')}>{categorias.map((c) => <option key={c.id} value={c.id}>📁 {c.nombre}</option>)}</optgroup>}
                       {canales.length > 0 && <optgroup label={t('dashboard.verif_v.q.groupChannels')}>{canales.map((c) => <option key={c.id} value={c.id}>#{c.nombre}</option>)}</optgroup>}
                     </select>
+                    {/* 🕵️ Revisar (aprobación «Solo los sospechosos», 1.9.15) */}
+                    <button type="button" role="switch" aria-checked={!!o.revisar} onClick={() => cambiarOpcion(i, k, { revisar: !o.revisar })} title={t('dashboard.verif_v.q.review')} aria-label={t('dashboard.verif_v.q.review')}
+                      className={`rounded-lg px-1.5 py-1 text-sm transition-opacity ${o.revisar ? 'bg-warning/15 opacity-100 ring-1 ring-warning/50' : 'opacity-35 hover:opacity-80'}`}>🕵️</button>
                     <button type="button" onClick={() => cambiarPregunta(i, { opciones: q.opciones.filter((_, m) => m !== k) })} className="justify-self-end rounded-lg p-1 text-muted hover:text-danger" aria-label={t('dashboard.verif_v.q.removeOption')}><X size={14} /></button>
                   </div>
                 ))}

@@ -1974,8 +1974,21 @@ app.get('/api/stats/uso', async (req, res) => {
             if (b.activo !== undefined) set['preguntasEntrada.activo'] = !!b.activo;
             if (b.preguntas !== undefined) set['preguntasEntrada.preguntas'] = preguntas;
             if (b.ocultarVerificacion !== undefined) set['preguntasEntrada.ocultarVerificacion'] = b.ocultarVerificacion !== false;
-            // Aprobación del staff (1.9.13)
+            // Aprobación del staff (1.9.13). Desde 1.9.15 se elige quién espera: nadie,
+            // todos o solo los sospechosos (`aprobacion` queda a juego para lo de antes).
             if (b.aprobacion !== undefined) set['preguntasEntrada.aprobacion'] = !!b.aprobacion;
+            if (b.aprobacionModo !== undefined) {
+                const modo = ['nunca', 'siempre', 'sospechosos'].includes(b.aprobacionModo) ? b.aprobacionModo : 'nunca';
+                set['preguntasEntrada.aprobacionModo'] = modo;
+                set['preguntasEntrada.aprobacion'] = modo !== 'nunca';
+            }
+            if (b.revisarCuentaDias !== undefined) set['preguntasEntrada.revisarCuentaDias'] = Math.min(365, Math.max(0, parseInt(b.revisarCuentaDias, 10) || 0));
+            if (b.revisarSinAvatar !== undefined) set['preguntasEntrada.revisarSinAvatar'] = b.revisarSinAvatar !== false;
+            if (b.rolAvisoId !== undefined) {
+                const id = /^\d{5,25}$/.test(String(b.rolAvisoId || '')) ? String(b.rolAvisoId) : null;
+                const guild = client.guilds.cache.get(req.params.guildId);
+                set['preguntasEntrada.rolAvisoId'] = id && guild && !guild.roles.cache.has(id) ? null : id;
+            }
             if (b.canalRevisionId !== undefined) {
                 // Solo un canal de este servidor (el bot tampoco manda las solicitudes a otro).
                 const id = /^\d{5,25}$/.test(String(b.canalRevisionId || '')) ? String(b.canalRevisionId) : null;
@@ -1993,6 +2006,91 @@ app.get('/api/stats/uso', async (req, res) => {
             res.status(500).json({ error: 'No se pudo guardar' });
         }
     });
+    // --- OPCIONES DE LA VERIFICACIÓN (1.9.15): requisitos, normas, captcha, al
+    // verificarse, quien no se verifica y registro (utils/puertaEntrada.js) ---
+    app.put('/api/seguridad/:guildId/opciones', exigeArea('config'), async (req, res) => {
+        try {
+            const puerta = require('../utils/puertaEntrada.js');
+            const actual = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('opcionesEntrada').lean();
+            const antes = (actual && actual.opcionesEntrada) || {};
+            const o = puerta.sanearOpciones(req.body || {}, antes);
+            const guild = client.guilds.cache.get(req.params.guildId);
+            // Solo roles y canales de este servidor.
+            if (guild) {
+                o.rolesExtra = o.rolesExtra.filter((id) => guild.roles.cache.has(id));
+                if (o.rolNoVerificadoId && !guild.roles.cache.has(o.rolNoVerificadoId)) o.rolNoVerificadoId = null;
+                if (o.canalRegistroId && !guild.channels.cache.has(o.canalRegistroId)) o.canalRegistroId = null;
+            }
+            // «Sin verificar» se quita al verificarse: no puede ser el rol de acceso (se colarían
+            // al entrar y lo perderían al verificarse) ni uno de los roles de más.
+            const cfgAcceso = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('verificacion.rolVerificadoId embudoAB.rolVerificadoId').lean();
+            if (o.rolNoVerificadoId && puerta.rolesAcceso(cfgAcceso).includes(o.rolNoVerificadoId)) {
+                return res.status(400).json({ error: 'El rol «Sin verificar» no puede ser el rol de acceso', codigo: 'mismo-rol' });
+            }
+            o.rolesExtra = o.rolesExtra.filter((id) => id !== o.rolNoVerificadoId);
+            // Nadie puede hacer que el bot dé roles que no podría dar a mano.
+            const errRol = await errorRolesNuevos(client, req.staff, req.params.guildId, [...o.rolesExtra, o.rolNoVerificadoId], [...(antes.rolesExtra || []), antes.rolNoVerificadoId]);
+            if (errRol) return res.status(403).json({ error: errRol });
+            const set = Object.fromEntries(Object.entries(o).map(([k, v]) => [`opcionesEntrada.${k}`, v]));
+            const config = await ServidorConfig.findOneAndUpdate({ guildId: req.params.guildId }, { $set: set }, { returnDocument: 'after', upsert: true });
+            res.json({ success: true, config });
+        } catch (error) {
+            console.error('Error guardando las opciones de la verificación:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+    // Registro de la verificación: lo último que ha pasado y las cifras de la semana.
+    app.get('/api/seguridad/:guildId/verificaciones/registro', exigeArea('entrada'), async (req, res) => {
+        try {
+            const RegistroEntrada = require('../models/RegistroEntrada.js');
+            const gid = req.params.guildId;
+            const semana = new Date(Date.now() - 7 * 86400000);
+            const SolicitudEntrada = require('../models/SolicitudEntrada.js');
+            const [eventos, porTipo, esperando] = await Promise.all([
+                RegistroEntrada.find({ guildId: gid }).sort({ fecha: -1 }).limit(50).lean(),
+                RegistroEntrada.aggregate([{ $match: { guildId: gid, fecha: { $gte: semana } } }, { $group: { _id: '$tipo', n: { $sum: 1 } } }]),
+                SolicitudEntrada.countDocuments({ guildId: gid, estado: { $in: ['pendiente', 'revisando'] } }),
+            ]);
+            // «Esperando al staff» son las que siguen esperando ahora, no las que llegaron.
+            res.json({ eventos, semana: Object.fromEntries(porTipo.map((x) => [x._id, x.n])), esperando });
+        } catch (error) {
+            console.error('Error leyendo el registro de la verificación:', error);
+            res.status(500).json({ error: 'Fallo interno' });
+        }
+    });
+    // Verificar a alguien a mano (le da el acceso como si se hubiera verificado).
+    app.post('/api/seguridad/:guildId/verificar', exigeArea('entrada'), async (req, res) => {
+        try {
+            const gid = req.params.guildId;
+            const guild = client.guilds.cache.get(gid);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado', codigo: 'servidor' });
+            const id = (String((req.body && req.body.usuario) || '').match(/\d{15,25}/) || [])[0];
+            const member = id ? await guild.members.fetch(id).catch(() => null) : null;
+            if (!member) return res.status(404).json({ error: 'No está en el servidor', codigo: 'no-esta' });
+            const cfg = await ServidorConfig.findOne({ guildId: gid });
+            const puerta = require('../utils/puertaEntrada.js');
+            const acceso = puerta.rolAccesoActivo(cfg);
+            if (!acceso) return res.status(400).json({ error: 'La verificación no está encendida o no tiene rol de acceso', codigo: 'sin-acceso' });
+            if (member.roles.cache.has(acceso)) return res.status(409).json({ error: 'Ya está verificado', codigo: 'ya' });
+            const errRol = await errorRolesNuevos(client, req.staff, gid, [acceso, ...puerta.opciones(cfg).rolesExtra], []);
+            if (errRol) return res.status(403).json({ error: errRol, codigo: 'jerarquia' });
+            const origen = cfg.embudoAB && cfg.embudoAB.activo && cfg.embudoAB.rolVerificadoId === acceso ? 'embudo' : 'verif';
+            const quien = (req.staff && req.staff.username) || 'Panel';
+            const pe = require('../utils/preguntasEntrada.js');
+            // Si estaba esperando al staff, se acepta su solicitud (con sus respuestas, el
+            // privado y el aviso del staff cerrado); si no, se le da el acceso sin más.
+            const SolicitudEntrada = require('../models/SolicitudEntrada.js');
+            const pendiente = await SolicitudEntrada.findOne({ guildId: gid, userId: member.id, estado: { $in: ['pendiente', 'revisando'] } }).select('_id').lean();
+            let fallo = false;
+            if (pendiente) fallo = !!(await pe.revisarSolicitud(client, pendiente._id, { guildId: gid, aceptar: true, revisor: quien })).fallo;
+            else fallo = !!((await pe.concederEntrada(client, { gid, cfg, userId: member.id, respuestas: {}, origen, via: 'manual', detalle: quien })) || {}).fallo;
+            res.json({ success: true, fallo, usuario: { id: member.id, nombre: member.user.username } });
+        } catch (error) {
+            console.error('Error al verificar a mano:', error);
+            res.status(500).json({ error: 'No se pudo verificar' });
+        }
+    });
+
     // Verificaciones pendientes de aprobar (y las últimas revisadas), y revisarlas desde el panel
     // (área «entrada», la misma que la sección Verificación).
     app.get('/api/seguridad/:guildId/verificaciones', exigeArea('entrada'), async (req, res) => {

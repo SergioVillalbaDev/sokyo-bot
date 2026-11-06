@@ -71,6 +71,9 @@ function rolesQueDaElBot(c = {}) {
         ...((c.solicitudes && c.solicitudes.formularios) || []).map((f) => f && f.rolId),
         // Preguntas al entrar (1.9.12): cada respuesta puede dar un rol.
         ...((c.preguntasEntrada && c.preguntasEntrada.preguntas) || []).flatMap((q) => ((q && q.opciones) || []).map((o) => o && o.rolId)),
+        // Opciones de la verificación (1.9.15): roles de más y el de «Sin verificar».
+        ...((c.opcionesEntrada && c.opcionesEntrada.rolesExtra) || []),
+        c.opcionesEntrada && c.opcionesEntrada.rolNoVerificadoId,
     ].filter((x) => typeof x === 'string' && x);
 }
 

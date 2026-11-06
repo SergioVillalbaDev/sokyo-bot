@@ -17,12 +17,14 @@ function codigoAleatorio(n = 5) {
 
 function aleatorio(min, max) { return Math.random() * (max - min) + min; }
 
-// Genera el captcha. Si no hay canvas, devuelve solo el código (modo texto).
-function generarCaptcha() {
-    const codigo = codigoAleatorio(5);
+// Genera el captcha (`largo` letras, 4-8; lo elige el servidor en el panel desde 1.9.15).
+// Si no hay canvas, devuelve solo el código (modo texto).
+function generarCaptcha(largo = 5) {
+    const n = Math.min(8, Math.max(4, parseInt(largo, 10) || 5));
+    const codigo = codigoAleatorio(n);
     if (!createCanvas) return { codigo, buffer: null };
 
-    const W = 320, H = 110;
+    const W = Math.max(320, 62 * n), H = 110;
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
 

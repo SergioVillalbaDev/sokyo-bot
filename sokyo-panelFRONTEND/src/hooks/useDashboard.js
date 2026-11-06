@@ -801,6 +801,31 @@ export function useDashboard() {
       return data.success ? { ok: true, aviso: data.aviso, fallo: data.fallo } : { error: data.error || true, codigo: data.codigo || null };
     } catch { return { error: true }; }
   };
+  // Opciones de la verificación (1.9.15): requisitos, normas, captcha, al verificarse…
+  const guardarOpcionesEntrada = async (datos) => {
+    if (!gidActivo()) return false;
+    try {
+      const res = await apiFetch(`/api/seguridad/${gidActivo()}/opciones`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+      const data = await res.json().catch(() => ({}));
+      if (data.success && data.config) { setConfigServidor(marcarEco(data.config)); return true; }
+      return { ok: false, error: data.error || null, codigo: data.codigo || null };
+    } catch (error) { console.error('Error guardando las opciones de la verificación:', error); }
+    return false;
+  };
+  // Registro de la verificación y cifras de la semana.
+  const cargarRegistroVerificacion = async () => {
+    if (!gidActivo()) return null;
+    try { const res = await apiFetch(`/api/seguridad/${gidActivo()}/verificaciones/registro`); return res.ok ? await res.json() : null; } catch { return null; }
+  };
+  // Verificar a alguien a mano (ID o @mención). Devuelve { ok, fallo, usuario } o { ok: false, codigo }.
+  const verificarAMano = async (usuario) => {
+    if (!gidActivo()) return { ok: false };
+    try {
+      const res = await apiFetch(`/api/seguridad/${gidActivo()}/verificar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario }) });
+      const data = await res.json().catch(() => ({}));
+      return data.success ? { ok: true, fallo: !!data.fallo, usuario: data.usuario } : { ok: false, codigo: data.codigo || (res.status === 403 ? 'jerarquia' : 'error'), error: data.error || '' };
+    } catch { return { ok: false, codigo: 'red' }; }
+  };
   const estadoCierre = async () => {
     if (!gidActivo()) return null;
     try { const res = await apiFetch(`/api/seguridad/${gidActivo()}/cierre`); return res.ok ? await res.json() : null; } catch { return null; }
@@ -1812,7 +1837,7 @@ export function useDashboard() {
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
     guardarAcceso, misPermisos, ordenarTickets, editarCreado, publicarPanelTickets, cargarMensajeCuentaDefecto, guardarMensajeCuenta,
-    guardarPreguntasEntrada, estadoCierre, cambiarCierre, cargarVerificaciones, revisarVerificacion,
+    guardarPreguntasEntrada, estadoCierre, cambiarCierre, cargarVerificaciones, revisarVerificacion, guardarOpcionesEntrada, cargarRegistroVerificacion, verificarAMano,
     // emojis y stickers
     stickers, crearEmoji, eliminarEmoji, renombrarEmoji, cargarLimiteEmojis, crearSticker, eliminarSticker,
     // niveles

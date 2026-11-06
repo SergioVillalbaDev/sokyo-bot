@@ -31,7 +31,7 @@ const SECCION = {
     canalNivelesId: 'config-niveles', mensajeSubida: 'config-niveles', recompensasNivel: 'config-niveles',
     recompensaAcumulativa: 'config-niveles', canalesSinXp: 'config-niveles', rolesSinXp: 'config-niveles',
     multiplicadoresRol: 'config-niveles', tarjetaActiva: 'config-niveles',
-    verificacion: 'seg-verificacion', embudoAB: 'seg-verificacion',
+    verificacion: 'seg-verificacion', embudoAB: 'seg-verificacion', preguntasEntrada: 'seg-verificacion', opcionesEntrada: 'seg-verificacion',
     bienvenida: 'prod-bienvenidas', despedida: 'prod-bienvenidas', bienvenidasExtra: 'prod-bienvenidas',
     reportes: 'mod-reportes',
     canalSugerencias: 'com-sugerencias', sugerenciasModo: 'com-sugerencias', sugerenciasPlantilla: 'com-sugerencias', sugerenciasMinLong: 'com-sugerencias', sugerenciasPanel: 'com-sugerencias',

@@ -11,6 +11,7 @@ const SolicitudEntradaSchema = new mongoose.Schema({
     origen: { type: String, default: 'verif' },               // 'verif' | 'embudo' (de dónde sale el rol de acceso)
     respuestas: { type: mongoose.Schema.Types.Mixed, default: {} }, // { preguntaId: [opcionIds] }
     resumen: { type: [{ pregunta: String, respuesta: String, _id: false }], default: [] },
+    motivos: { type: [String], default: [] }, // por qué se revisa (modo «solo sospechosos»): cuenta, avatar, respuesta
     estado: { type: String, enum: ['pendiente', 'revisando', 'aceptada', 'rechazada'], default: 'pendiente', index: true },
     revisandoDesde: { type: Date, default: null }, // una revisión que se queda a medias (reinicio) se libera sola
     motivo: { type: String, default: '' },

@@ -121,7 +121,11 @@ async function conceder(member, e, cfg) {
     const rol = member.guild.roles.cache.get(rid);
     if (!rol) return t(cfg, '❌ El rol del embudo ya no existe.', '❌ The funnel role no longer exists.');
     if (!rol.editable) return t(cfg, '❌ No puedo asignar ese rol (mi rol debe estar por encima). Avisa a un administrador.', '❌ I can’t assign that role (my role must be higher). Let an administrator know.');
-    await member.roles.add(rid).catch(() => {});
+    if (!(await member.roles.add(rid).then(() => true, () => false))) {
+        return t(cfg, '❌ No he podido darte el rol ahora mismo. Inténtalo otra vez en un momento o avisa a un administrador.', '❌ I couldn’t give you the role right now. Try again in a moment or let an administrator know.');
+    }
+    // Al verificarse (1.9.15): roles de más, quitar «Sin verificar», privado y registro.
+    await require('./puertaEntrada.js').trasVerificarse(member, cfg);
     return null;
 }
 
@@ -193,6 +197,18 @@ function contenidoVariante(gid, userId, e, variante, cfg) {
         new ButtonBuilder().setCustomId(`embudo_aceptar:${gid}`).setLabel(b.textoBoton || t(cfg, '🎉 Unirme', '🎉 Join')).setStyle(ButtonStyle.Success),
     );
     return { embeds: [embed], components: [row] };
+}
+
+// Requisitos de la verificación (1.9.15): edad de la cuenta, foto y rato de espera. Se
+// miran en cada paso que da el acceso (por privado no se pasa por «Empezar»). Devuelve
+// true si no los cumple (y ya se le ha contestado por qué).
+async function frenarPorRequisitos(interaction, member, cfg) {
+    const puerta = require('./puertaEntrada.js');
+    const falla = puerta.requisitoQueFalla(member, cfg);
+    if (!falla) return false;
+    await puerta.registrarBloqueo(member.guild, cfg, member.user, falla.tipo);
+    await interaction.reply({ content: falla.texto, flags: 64 });
+    return true;
 }
 
 // Construye el panel público (entrega = panel): un único botón "Empezar".
@@ -268,6 +284,8 @@ async function manejarInicio(interaction, client) {
     const { gid, e, member, cfg } = ctx;
 
     if (yaTieneAcceso(member, e)) return interaction.reply({ content: t(cfg, '✅ Ya tienes acceso al servidor.', '✅ You already have access to the server.'), flags: 64 });
+    // Requisitos de la verificación (1.9.15): edad de la cuenta, foto y rato de espera.
+    if (await frenarPorRequisitos(interaction, member, cfg)) return;
 
     // Recupera la ficha (o la crea si entró antes de activar el embudo).
     let cohorte = await EmbudoCohorte.findOne({ guildId: gid, userId: member.id });
@@ -293,6 +311,7 @@ async function manejarAceptar(interaction, client) {
     if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
     const { gid, e, member, cfg } = ctx;
     if (yaTieneAcceso(member, e)) return interaction.reply({ content: t(cfg, '✅ Ya tienes acceso al servidor.', '✅ You already have access to the server.'), flags: 64 });
+    if (await frenarPorRequisitos(interaction, member, cfg)) return;
 
     // Preguntas al entrar (1.9.12): el rol se da al terminarlas.
     if (await require('./preguntasEntrada.js').siHayPreguntas(interaction, { gid, cfg, origen: 'embudo' })) return;
@@ -305,6 +324,7 @@ async function manejarAceptar(interaction, client) {
 async function manejarCaptcha(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
     if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
+    if (await frenarPorRequisitos(interaction, ctx.member, ctx.cfg)) return;
     const modal = new ModalBuilder().setCustomId(`embudo_modal:${ctx.gid}`).setTitle(t(ctx.cfg, 'Verificación', 'Verification'));
     const input = new TextInputBuilder()
         .setCustomId('codigo').setLabel(t(ctx.cfg, 'Escribe el código de la imagen', 'Type the code from the image'))
@@ -318,6 +338,7 @@ async function manejarModal(interaction, client) {
     const ctx = await resolverContexto(interaction, client);
     if (ctx.error) return interaction.reply({ content: ctx.error, flags: 64 });
     const { gid, e, member, cfg } = ctx;
+    if (await frenarPorRequisitos(interaction, member, cfg)) return;
 
     const clave = `${gid}:${member.id}`;
     const reto = captchasPendientes.get(clave);

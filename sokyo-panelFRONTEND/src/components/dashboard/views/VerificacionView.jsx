@@ -20,6 +20,8 @@ import { useDesdeServidor } from '../../../hooks/useDesdeServidor';
 import PreguntasEntrada from './PreguntasEntrada';
 import CierreServidor from './CierreServidor';
 import AprobacionEntrada from './AprobacionEntrada';
+import OpcionesEntrada from './OpcionesEntrada';
+import RegistroVerificaciones from './RegistroVerificaciones';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 const input = 'w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none';
@@ -348,7 +350,10 @@ export default function VerificacionView({ dash }) {
         <>
           <PreguntasEntrada dash={dash} rolAccesoId={esAB ? e.rolVerificadoId : v.rolVerificadoId} />
           <AprobacionEntrada dash={dash} rolAccesoId={esAB ? e.rolVerificadoId : v.rolVerificadoId} />
+          {/* Requisitos, normas, captcha, al verificarse, quien no se verifica y canal del registro (1.9.15) */}
+          <OpcionesEntrada dash={dash} modo={modo} />
           <CierreServidor dash={dash} />
+          <RegistroVerificaciones dash={dash} />
         </>
       )}
 

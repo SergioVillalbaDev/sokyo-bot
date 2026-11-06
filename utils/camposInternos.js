@@ -19,6 +19,8 @@ const RUTAS_INTERNAS = new Set([
     'panelCuenta.canalId', 'panelCuenta.fecha', 'panelTickets.canalId', 'panelTickets.fecha',
     // Mensajes con botón (1.9.14): si el bot cerró el canal y si quedó algo sin publicar.
     'sugerenciasPanel.bloqueado', 'sugerenciasPanel.pendiente', 'presentaciones.panelPendiente',
+    // Verificación (1.9.15): desde cuándo cuenta la expulsión de quien no se verifica.
+    'opcionesEntrada.expulsarDesde',
 ]);
 
 // ruta = 'dinamicas.qotd.lastDia' (o una lista de partes)

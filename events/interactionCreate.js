@@ -347,6 +347,7 @@ module.exports = {
         // --- SEGURIDAD: verificación de entrada (botón + captcha) ---
         if (interaction.isButton() && interaction.customId === 'verif_inicio') return verificacion.manejarInicio(interaction);
         if (interaction.isButton() && interaction.customId === 'verif_introducir') return verificacion.manejarIntroducir(interaction);
+        if (interaction.isButton() && interaction.customId === 'verif_normas') return verificacion.manejarNormas(interaction);
         if (interaction.isModalSubmit() && interaction.customId === 'verif_modal') return verificacion.manejarModal(interaction);
 
         // --- EMBUDO DE BIENVENIDA A/B (botones por panel y por MD) ---

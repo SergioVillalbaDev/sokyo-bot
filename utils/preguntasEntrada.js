@@ -16,6 +16,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const { t } = require('./i18n.js');
+const puerta = require('./puertaEntrada.js');
 
 const DURA_MS = 15 * 60 * 1000;
 const sesiones = new Map(); // `${gid}:${uid}` -> { respuestas: { preguntaId: [opcionIds] }, origen, expira }
@@ -88,11 +89,7 @@ async function empezar(interaction, { gid, cfg, origen = 'verif' }) {
     return interaction.reply(payload);
 }
 
-// ¿Puede el bot dar este rol? (existe, no es de una integración y está por debajo del suyo)
-function rolDable(guild, id) {
-    const rol = id && guild.roles.cache.get(id);
-    return !!(rol && rol.id !== guild.id && !rol.managed && rol.editable);
-}
+const { rolDable } = puerta; // ¿puede el bot dar este rol?
 
 // Roles a dar según lo respondido (sin repetidos).
 function rolesDeRespuestas(cfg, respuestas) {
@@ -127,10 +124,11 @@ async function manejar(interaction, client) {
         return interaction.update(pantallaPregunta(gid, cfg, siguiente, sesion.respuestas[preguntas[siguiente].id] || []));
     }
 
-    // Última respondida: con aprobación, a esperar al staff; si no, roles + el de acceso.
+    // Última respondida: si tiene que esperar al staff (siempre, o por sospechoso), a la
+    // cola; si no, roles + el de acceso.
     await interaction.update({ content: t(cfg, '⏳ Un momento…', '⏳ One moment…'), embeds: [], components: [] });
     sesiones.delete(clave);
-    if (aprobacionActiva(cfg)) {
+    if (requiereAprobacion(cfg, interaction.user, sesion.respuestas)) {
         const r = await solicitarAprobacion(client, { gid, cfg, user: interaction.user, respuestas: sesion.respuestas, origen: sesion.origen });
         return interaction.editReply({ content: '', embeds: [embedEspera(cfg, r)] });
     }
@@ -139,9 +137,10 @@ async function manejar(interaction, client) {
     return interaction.editReply({ content: '', embeds: [embedListo(cfg, r)] });
 }
 
-// Da los roles de las respuestas y el de acceso. Devuelve { conseguidos, fallo } o
-// null si ya no está en el servidor.
-async function concederEntrada(client, { gid, cfg, userId, respuestas, origen }) {
+// Da los roles de las respuestas y el de acceso (y lo de «Al verificarse»: roles de
+// más, quitar «Sin verificar», el privado y el registro). Devuelve { conseguidos, fallo }
+// o null si ya no está en el servidor. `via` = cómo ha entrado (para el registro).
+async function concederEntrada(client, { gid, cfg, userId, respuestas, origen, via = 'verificado', detalle = '' }) {
     const guild = client.guilds.cache.get(gid);
     const member = guild && await guild.members.fetch(userId).catch(() => null);
     if (!member) return null;
@@ -152,14 +151,19 @@ async function concederEntrada(client, { gid, cfg, userId, respuestas, origen })
     if (dar.length) await member.roles.add(dar, 'Verificación al entrar').catch(() => { fallo = true; });
     if (origen === 'embudo') await require('./embudo.js').marcarVerificado(gid, member.id).catch(() => {});
     if (!acceso || !rolDable(guild, acceso)) fallo = true;
-    return { conseguidos: pedidos.filter((id) => dar.includes(id)), fallo };
+    // Lo de «Al verificarse» solo si de verdad tiene ya el acceso (si no, se le quitaría
+    // «Sin verificar» y contaría como verificado sin poder entrar).
+    const tras = acceso && member.roles.cache.has(acceso) ? await puerta.trasVerificarse(member, cfg, { via, detalle }) : { fallo: true };
+    return { conseguidos: pedidos.filter((id) => dar.includes(id)), fallo: fallo || tras.fallo, guild, user: member.user };
 }
 
-function embedListo(cfg, { conseguidos, fallo }) {
+function embedListo(cfg, { conseguidos, fallo, guild, user }) {
+    const propio = puerta.textoExito(cfg, guild, user); // el «¡Listo!» personalizado (Verificación → Al verificarse)
     return new EmbedBuilder()
         .setColor(0x2ecc71)
         .setTitle(t(cfg, '✅ ¡Listo! Ya tienes acceso al servidor', '✅ Done! You now have access to the server'))
         .setDescription([
+            propio || '',
             conseguidos.length ? `${t(cfg, 'Tus roles:', 'Your roles:')} ${conseguidos.map((id) => `<@&${id}>`).join(' ')}` : '',
             fallo ? t(cfg, '⚠️ Algún rol no se ha podido dar (el rol del bot tiene que estar por encima). Avisa al staff.', '⚠️ Some role couldn’t be given (the bot’s role must be higher). Let the staff know.') : '',
         ].filter(Boolean).join('\n\n') || t(cfg, '¡Bienvenido/a! 🎉', 'Welcome! 🎉'));
@@ -170,7 +174,15 @@ function embedListo(cfg, { conseguidos, fallo }) {
 // ---------------------------------------------------------------------------
 const SolicitudEntrada = require('../models/SolicitudEntrada.js');
 
-const aprobacionActiva = (cfg) => !!(cfg && cfg.preguntasEntrada && cfg.preguntasEntrada.aprobacion && cfg.preguntasEntrada.canalRevisionId);
+// ¿Hay aprobación? (cualquier modo menos «nunca», y con el canal del staff elegido)
+const aprobacionActiva = (cfg) => !!(cfg && cfg.preguntasEntrada && cfg.preguntasEntrada.canalRevisionId && puerta.modoAprobacion(cfg) !== 'nunca');
+// ¿Esta persona tiene que esperar al staff? Siempre, o solo si es sospechosa (cuenta muy
+// nueva, sin foto o una respuesta marcada para revisar).
+function requiereAprobacion(cfg, user, respuestas = {}) {
+    if (!aprobacionActiva(cfg)) return false;
+    if (puerta.modoAprobacion(cfg) === 'siempre') return true;
+    return puerta.motivosRevision(cfg, user, respuestas).length > 0;
+}
 
 const RECHAZO_ENTRADA = {
     es: 'Hola {user}, tu verificación en **{server}** no ha sido aceptada.\n**Motivo:** {motivo}\n\nSi crees que es un error, puedes volver a intentarlo desde el canal de verificación.',
@@ -242,16 +254,20 @@ function camposResumen(cfg, resumen) {
 async function avisarStaff(client, cfg, doc, user) {
     const canal = canalRevision(client, doc.guildId, cfg);
     if (!canal) return null;
+    const creada = user && user.createdTimestamp ? Math.floor(user.createdTimestamp / 1000) : null;
+    const por = (doc.motivos || []).length ? `\n⚠️ **${t(cfg, 'Por qué se revisa', 'Why it’s reviewed')}:** ${puerta.textoMotivos(cfg, doc.motivos, user)}` : '';
     const embed = new EmbedBuilder()
         .setColor((cfg && cfg.colorEmbed) || '#5865F2')
         .setTitle(t(cfg, '🚪 Nueva verificación por revisar', '🚪 New verification to review'))
-        .setDescription(t(cfg, `<@${doc.userId}> quiere entrar al servidor.`, `<@${doc.userId}> wants to join the server.`))
+        .setDescription(`${t(cfg, `<@${doc.userId}> quiere entrar al servidor.`, `<@${doc.userId}> wants to join the server.`)}${creada ? `\n${t(cfg, `Cuenta creada <t:${creada}:R>`, `Account created <t:${creada}:R>`)}` : ''}${por}`.slice(0, 4000))
         .setThumbnail(user && typeof user.displayAvatarURL === 'function' ? user.displayAvatarURL() : null)
         .setFooter({ text: `${String(doc.userTag || '').slice(0, 100)} · ${doc.userId}` })
         .setTimestamp(doc.fecha);
     const campos = camposResumen(cfg, doc.resumen);
     if (campos.length) embed.addFields(campos);
-    return canal.send({ embeds: [embed], components: [filaRevision(cfg, doc._id)], allowedMentions: { parse: [] } }).catch(() => null);
+    // Con un rol de aviso, se le menciona (solo a ese rol) para que el staff se entere.
+    const rolAviso = cfg && cfg.preguntasEntrada && /^\d{5,25}$/.test(String(cfg.preguntasEntrada.rolAvisoId || '')) ? String(cfg.preguntasEntrada.rolAvisoId) : null;
+    return canal.send({ content: rolAviso ? `<@&${rolAviso}>` : undefined, embeds: [embed], components: [filaRevision(cfg, doc._id)], allowedMentions: { roles: rolAviso ? [rolAviso] : [] } }).catch(() => null);
 }
 
 // Crea la solicitud y la manda al canal del staff. Si ya tenía una pendiente, no
@@ -265,12 +281,14 @@ async function solicitarAprobacion(client, { gid, cfg, user, respuestas = {}, or
     try {
         let doc = await SolicitudEntrada.findOne({ guildId: gid, userId: user.id, estado: { $in: ['pendiente', 'revisando'] } });
         if (doc && (doc.mensajeId || doc.estado !== 'pendiente')) return { ok: true, ya: true, solicitud: doc };
-        const datos = { userTag: user.username, origen, respuestas, resumen: resumenRespuestas(cfg, respuestas) };
+        const datos = { userTag: user.username, origen, respuestas, resumen: resumenRespuestas(cfg, respuestas), motivos: puerta.motivosRevision(cfg, user, respuestas) };
         if (doc) Object.assign(doc, datos);
         else doc = new SolicitudEntrada({ guildId: gid, userId: user.id, ...datos });
         const msg = await avisarStaff(client, cfg, doc, user);
         if (msg) { doc.canalId = msg.channelId || (msg.channel && msg.channel.id) || null; doc.mensajeId = msg.id; }
+        const nueva = doc.isNew;
         await doc.save();
+        if (nueva) await puerta.registrar(client.guilds.cache.get(gid), cfg, { user, tipo: 'pendiente', detalle: puerta.textoMotivos(cfg, datos.motivos, user) });
         return { ok: !!msg, solicitud: doc };
     } finally {
         pidiendo.delete(clave);
@@ -296,13 +314,14 @@ async function revisarSolicitud(client, id, { guildId, aceptar, motivo = '', rev
         let aviso = false;
         let fallo = false;
         if (aceptar) {
-            const r = await concederEntrada(client, { gid: doc.guildId, cfg, userId: doc.userId, respuestas: doc.respuestas, origen: doc.origen });
+            const r = await concederEntrada(client, { gid: doc.guildId, cfg, userId: doc.userId, respuestas: doc.respuestas, origen: doc.origen, via: 'aceptado', detalle: String(revisor || '') });
             if (!r) throw new Error('no-esta');
             fallo = r.fallo;
             if (user) aviso = await user.send({ content: rellenar(String(pe.mensajeAceptada || '').trim() || ACEPTADA_ENTRADA[idiomaDe(cfg)], datos).slice(0, 2000), allowedMentions: { parse: [] } }).then(() => true, () => false);
         } else if (user) {
             aviso = await user.send({ content: rellenar(String(pe.mensajeRechazo || '').trim() || RECHAZO_ENTRADA[idiomaDe(cfg)], datos).slice(0, 2000), allowedMentions: { parse: [] } }).then(() => true, () => false);
         }
+        if (!aceptar && guild) await puerta.registrar(guild, cfg, { user: user || { id: doc.userId, username: doc.userTag }, tipo: 'rechazado', detalle: `${revisor ? `${revisor}: ` : ''}${String(motivo || '').trim()}` });
         doc.estado = aceptar ? 'aceptada' : 'rechazada';
         doc.motivo = aceptar ? '' : String(motivo || '').slice(0, 1000);
         doc.revisadaPor = String(revisor || '').slice(0, 100);
@@ -371,7 +390,7 @@ async function siHayPreguntas(interaction, { gid, cfg, origen }) {
         await empezar(interaction, { gid, cfg, origen });
         return true;
     }
-    if (aprobacionActiva(cfg)) {
+    if (requiereAprobacion(cfg, interaction.user, {})) {
         const r = await solicitarAprobacion(interaction.client, { gid, cfg, user: interaction.user, respuestas: {}, origen });
         const payload = { embeds: [embedEspera(cfg, r)], flags: 64 };
         if (interaction.deferred || interaction.replied) await interaction.followUp(payload);
@@ -403,11 +422,12 @@ function sanearPreguntas(lista) {
                 descripcion: String((o && o.descripcion) || '').slice(0, 100),
                 rolId: snowflake(o && o.rolId),
                 categoriaId: snowflake(o && o.categoriaId),
+                revisar: !!(o && o.revisar), // «solo sospechosos»: elegirla manda la verificación al staff
             })),
         };
     });
 }
 
 module.exports = {
-    aprobacionActiva, solicitarAprobacion, revisarSolicitud, manejarRevision, concederEntrada, resumenRespuestas, camposResumen, canalRevision, RECHAZO_ENTRADA, ACEPTADA_ENTRADA, rellenar,
+    aprobacionActiva, requiereAprobacion, solicitarAprobacion, revisarSolicitud, manejarRevision, concederEntrada, resumenRespuestas, camposResumen, canalRevision, RECHAZO_ENTRADA, ACEPTADA_ENTRADA, rellenar,
     sanearPreguntas, preguntasValidas, hayPreguntas, pantallaPregunta, empezar, manejar, siHayPreguntas, rolesDeRespuestas, rolAcceso, emojiDe, _sesiones: sesiones };
