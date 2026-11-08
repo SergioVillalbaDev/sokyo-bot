@@ -5,8 +5,12 @@ async function manejar(interaction, client) {
     const id = interaction.customId || '';
     if (!id) return false;
     try {
-        if (interaction.isButton() && /^grp_(unir|salir|cerrar):/.test(id)) {
+        if (interaction.isButton() && /^grp_(unir|salir|cerrar|editar|reabrir):/.test(id)) {
             await require('./grupos.js').manejarBoton(interaction, client);
+            return true;
+        }
+        if (interaction.isModalSubmit() && id.startsWith('grp_ventana:')) {
+            await require('./grupos.js').manejarVentana(interaction);
             return true;
         }
         if (interaction.isButton() && /^conf_(ok|no):/.test(id)) {

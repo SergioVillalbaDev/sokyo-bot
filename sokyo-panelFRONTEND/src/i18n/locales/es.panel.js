@@ -563,7 +563,7 @@ export default {
       },
       'com-grupos': {
         title: '🎮 Buscar grupo',
-        desc: 'Con /grupo alguien busca gente para jugar a algo. Los demás se apuntan con un botón; cuando se llena, el bot avisa a todos y crea una sala de voz solo para ellos, que se borra sola al vaciarse.',
+        desc: 'Con /grupo alguien busca gente para jugar: en una ventana cuenta a qué, cuántos, cuándo y, si quiere, qué van a hacer. Los demás se apuntan con un botón; cuando se llena, el bot avisa a todos y crea una sala de voz solo para ellos, que se borra sola al vaciarse.',
       },
       'com-clanes': {
         title: '🛡️ Clanes',
@@ -2561,14 +2561,18 @@ export default {
       emptySub: 'Cuando un mensaje llegue a {{n}} {{emoji}}, aparecerá aquí y en el canal del salón.', open: 'Ver en Discord',
     },
     grupos_v: {
-      prevTitle: 'Así sale un grupo en el canal', prevAuthor: '🎮 Busco grupo', prevSlots: '👥 Plazas', prevWhen: '🕒 Cuándo', prevWhenVal: 'Hoy a las 21:00', prevRoom: '🔊 Sala', prevJoined: 'Apuntados',
-      prevFooter: 'Pulsa «Me apunto» para unirte', prevJoin: '✋ Me apunto', prevLeave: '🚪 Salir', prevClose: '🔒 Cerrar', prevDesc: 'Buscamos gente tranquila para jugar partidas competitivas.',
-      intro: 'Con /grupo, alguien busca gente para jugar (a qué, cuántos y cuándo). Los demás se apuntan con un botón; al llenarse, el bot avisa a todos y les crea una sala de voz que se borra sola al quedarse vacía.',
+      prevTitle: 'Así funciona en Discord', prevHint: 'Quien lo crea puede cambiarlo todo después (también el mensaje) con «Editar». Si algo falla al publicar, lo escrito no se pierde: queda guardado como borrador.',
+      prevStepWindow: '1. Al escribir /grupo se abre esta ventana', prevStepPost: '2. Y así sale el grupo en el canal', prevModalTitle: 'Buscar grupo',
+      prevFGame: '¿A qué vais a jugar?', prevFGamePh: 'Valorant, Minecraft, Among Us…', prevFSlots: 'Plazas en total, contándote a ti', prevFSlotsPh: 'Un número del 2 al 25',
+      prevFWhen: '¿Cuándo? (opcional)', prevFWhenPh: 'Ahora, a las 22:00, el sábado por la tarde…', prevFMsg: 'Mensaje: ¿qué vais a hacer? (opcional)', prevFMsgPh: 'Cuéntalo con detalle: modo, nivel, si hace falta micro, normas… Puedes usar varias líneas.',
+      prevAuthor: '🎮 Busco grupo', prevSlots: '👥 Plazas', prevWhen: '🕒 Cuándo', prevWhenVal: 'Hoy a las 21:00', prevRoom: '🔊 Sala', prevJoined: 'Apuntados',
+      prevFooter: 'Pulsa «Me apunto» para unirte', prevJoin: '✋ Me apunto', prevLeave: '🚪 Salir', prevEdit: '✏️ Editar', prevClose: '🔒 Cerrar', prevDesc: 'Buscamos gente tranquila para jugar partidas competitivas.\nNivel oro o más · con micro 🎧',
+      intro: 'Con /grupo se abre una ventana para contar a qué se juega, cuántos hacen falta, cuándo y, si se quiere, un mensaje con lo que se va a hacer. Los demás se apuntan con un botón; al llenarse, el bot avisa a todos y les crea una sala de voz que se borra sola al quedarse vacía.',
       title: 'Buscar grupo', channel: 'Canal de los grupos', channelHint: 'Si eliges uno, todos los grupos se publican ahí.', anyChannel: 'Donde se use /grupo',
       expire: 'Horas hasta cerrarse', expireHint: 'Los grupos se cierran solos pasado este tiempo.',
       room: 'Crear una sala de voz al llenarse', roomHint: 'Solo pueden entrar los del grupo. Se borra a los 5 minutos de quedarse vacía.',
       category: 'Dónde crear las salas', categoryHint: 'Si no eliges, se crean en la misma categoría que el canal del grupo.', sameCategory: 'Junto al canal del grupo',
-      latest: 'Últimos grupos', emptyTitle: 'Aún no se ha creado ningún grupo', emptySub: 'Prueba en Discord: /grupo juego:Valorant plazas:5',
+      latest: 'Últimos grupos', emptyTitle: 'Aún no se ha creado ningún grupo', emptySub: 'Prueba en Discord: escribe /grupo y rellena la ventana.',
       estados: { abierto: 'Abierto', lleno: 'Completo', cerrado: 'Cerrado' }, open: 'Ver en Discord', close: 'Cerrar',
     },
     clanes_v: {

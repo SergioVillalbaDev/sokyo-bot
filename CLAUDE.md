@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.15.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.16.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -574,5 +574,19 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
 - 1.9.15 **Verificación muy completa**: la aprobación del staff pasa a ser una elección (nadie, todos o
   solo los sospechosos), requisitos, normas, captcha a medida, qué pasa al verificarse, expulsar a quien no
   se verifica, registro con cifras y verificar a mano (ver *Verificación completa*).
+- 1.9.16 **Buscar grupo con ventana y mensaje** (`utils/grupos.js`): `/grupo` ya no tiene opciones; abre la
+  ventana `grp_ventana:nuevo` (`ventanaGrupo`: juego, plazas, cuándo y «Mensaje: ¿qué vais a hacer?», caja grande
+  de hasta 1000 letras con varias líneas → `descripcion`, la del embed). Antes de abrirla mira si ya tiene un
+  grupo abierto (sin esperar más de 1,5 s: la ventana hay que abrirla en 3 s; se vuelve a mirar al publicar).
+  **«✏️ Editar»** (`grp_editar:<id>`, quien lo creó o el staff) abre la misma ventana (`grp_ventana:<id>`) con lo
+  que hay; `editarGrupo` nunca deja menos plazas que apuntados (de una vez, en la consulta), reabre si hay más
+  plazas y, si quedan justas, se llena como al apuntarse el último (`marcarLleno`, también de una vez: solo uno
+  crea la sala; `avisarLleno`). La sala cambia de nombre/plazas sin esperar (Discord retiene los renombres).
+  **Borrador**: si algo falla (plazas que no valen, ya tiene un grupo abierto, no puede escribir en el canal), lo
+  escrito se guarda en memoria 1 hora por persona y destino (`guardarBorrador`/`verBorrador`) y sale «Volver a la
+  ventana» (`grp_reabrir:<destino>`); `/grupo` también lo recupera. Las respuestas personales van en el idioma de
+  quien pulsa (`idiomaInteraccion`); lo público, en el del servidor. Panel: vista previa de la ventana
+  (`VentanaDiscord` acepta `ayuda`, el texto gris de Discord) y el mensaje en «Últimos grupos». Test:
+  `test/grupos.test.js`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

@@ -28,7 +28,7 @@ const CATEGORIAS = [
         ['247', 's', null, 'Que el bot se quede en el canal (Pro).', 'Keep the bot in the channel (Pro).'],
     ] },
     { id: 'social', emoji: '🎉', titulo: ['Comunidad', 'Community'], tab: 'com-grupos', cmds: [
-        ['group', 's', 'grupo', 'Busca gente para jugar: los demás se apuntan con un botón.', 'Look for people to play with: others join with a button.'],
+        ['group', 's', 'grupo', 'Busca gente para jugar: en la ventana cuentas a qué, cuántos, cuándo y qué vais a hacer; los demás se apuntan con un botón.', 'Look for people to play with: in the form you say what, how many, when and what you’ll do; others join with a button.'],
         ['clan', 's', null, 'Funda un clan o únete a uno; cada semana gana el que más XP suma.', 'Found or join a clan; each week the one with the most XP wins.'],
         ['birthday', 's', 'cumple', 'Guarda tu cumpleaños y el servidor te felicitará.', 'Save your birthday and the server will congratulate you.'],
         ['confess', 's', 'confesar', 'Una confesión anónima: nadie sabrá que es tuya.', 'An anonymous confession: nobody will know it’s yours.'],
