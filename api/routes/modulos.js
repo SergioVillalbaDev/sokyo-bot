@@ -162,7 +162,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
 
     // ============================= BUSCAR GRUPO =============================
     const grupoJson = async (guild, g) => ({
-        id: String(g._id), juego: g.juego, plazas: g.plazas, miembros: g.miembros.length, estado: g.estado, cuando: g.cuando,
+        id: String(g._id), juego: g.juego, plazas: g.plazas, miembros: g.miembros.length, estado: g.estado, cuando: g.cuando, descripcion: g.descripcion || '',
         creador: await usuario(guild, g.creadorId), fecha: g.creadoFecha, salaVozId: g.salaVozId,
         url: g.mensajeId ? `https://discord.com/channels/${guild.id}/${g.canalId}/${g.mensajeId}` : null,
     });

@@ -60,7 +60,7 @@ sokyo-bot/
 
 ### 🎉 Comunidad y diversión
 - **Cumpleaños** (`/cumple` o en «Mi cuenta»): felicitación, rol del día y regalo.
-- **Buscar grupo** (`/grupo`): busca gente para jugar; al llenarse, sala de voz solo para el grupo.
+- **Buscar grupo** (`/grupo`): se abre una ventana para contar a qué se juega, cuántos, cuándo y un mensaje con lo que se va a hacer; los demás se apuntan con un botón y, al llenarse, sala de voz solo para el grupo. Quien lo crea lo cambia con «Editar» y, si algo falla al publicar, lo escrito queda como borrador.
 - **Clanes** (`/clan`): equipos que compiten cada semana por XP, con premio para el ganador.
 - **Salón de la fama**: los mensajes que llegan a X ⭐ se guardan en un canal.
 - **Confesiones anónimas** (`/confesar`), con revisión del staff opcional.

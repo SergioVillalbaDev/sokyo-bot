@@ -1,6 +1,6 @@
 {
   "name": "sokyo-bot",
-  "version": "1.9.15",
+  "version": "1.9.16",
   "description": "",
   "main": "index.js",
   "engines": {

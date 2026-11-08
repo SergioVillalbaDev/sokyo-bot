@@ -563,7 +563,7 @@ export default {
       },
       'com-grupos': {
         title: '🎮 Looking for group',
-        desc: 'With /group someone looks for people to play something. Others join with a button; when it fills up, the bot tells everyone and creates a voice room just for them, which deletes itself once empty.',
+        desc: 'With /group someone looks for people to play with: in a form they say what, how many, when and, if they want, what they’ll do. Others join with a button; when it fills up, the bot tells everyone and creates a voice room just for them, which deletes itself once empty.',
       },
       'com-clanes': {
         title: '🛡️ Clans',
@@ -2556,14 +2556,18 @@ export default {
       emptySub: 'When a message gets {{n}} {{emoji}}, it’ll show up here and in the hall channel.', open: 'View in Discord',
     },
     grupos_v: {
-      prevTitle: 'How a group looks in the channel', prevAuthor: '🎮 Looking for group', prevSlots: '👥 Slots', prevWhen: '🕒 When', prevWhenVal: 'Today at 9 PM', prevRoom: '🔊 Room', prevJoined: 'Joined',
-      prevFooter: 'Press “Join” to join in', prevJoin: '✋ Join', prevLeave: '🚪 Leave', prevClose: '🔒 Close', prevDesc: 'Looking for chill people to play competitive matches.',
-      intro: 'With /group, someone looks for people to play with (what, how many and when). Others join with a button; when it fills up, the bot tells everyone and creates a voice room that deletes itself once empty.',
+      prevTitle: 'How it works in Discord', prevHint: 'Whoever starts it can change everything later (the message too) with “Edit”. If posting fails, nothing written is lost: it’s kept as a draft.',
+      prevStepWindow: '1. Typing /group opens this form', prevStepPost: '2. And this is how the group looks in the channel', prevModalTitle: 'Look for a group',
+      prevFGame: 'What are you going to play?', prevFGamePh: 'Valorant, Minecraft, Among Us…', prevFSlots: 'Total slots, counting you', prevFSlotsPh: 'A number from 2 to 25',
+      prevFWhen: 'When? (optional)', prevFWhenPh: 'Now, at 10 pm, Saturday afternoon…', prevFMsg: 'Message: what will you do? (optional)', prevFMsgPh: 'Tell them in detail: mode, rank, mic needed, rules… You can use several lines.',
+      prevAuthor: '🎮 Looking for group', prevSlots: '👥 Slots', prevWhen: '🕒 When', prevWhenVal: 'Today at 9 PM', prevRoom: '🔊 Room', prevJoined: 'Joined',
+      prevFooter: 'Press “Join” to join in', prevJoin: '✋ Join', prevLeave: '🚪 Leave', prevEdit: '✏️ Edit', prevClose: '🔒 Close', prevDesc: 'Looking for chill people to play competitive matches.\nGold rank or higher · mic needed 🎧',
+      intro: 'With /group a form opens to say what you’ll play, how many people you need, when and, if you want, a message about what you’ll do. Others join with a button; when it fills up, the bot tells everyone and creates a voice room that deletes itself once empty.',
       title: 'Looking for group', channel: 'Groups channel', channelHint: 'If you choose one, every group is posted there.', anyChannel: 'Wherever /group is used',
       expire: 'Hours until it closes', expireHint: 'Groups close automatically after this time.',
       room: 'Create a voice room when full', roomHint: 'Only the group can join. It’s deleted 5 minutes after it empties.',
       category: 'Where to create the rooms', categoryHint: 'If you don’t choose, they’re created in the same category as the group’s channel.', sameCategory: 'Next to the group’s channel',
-      latest: 'Latest groups', emptyTitle: 'No groups yet', emptySub: 'Try it in Discord: /group game:Valorant slots:5',
+      latest: 'Latest groups', emptyTitle: 'No groups yet', emptySub: 'Try it in Discord: type /group and fill in the form.',
       estados: { abierto: 'Open', lleno: 'Full', cerrado: 'Closed' }, open: 'View in Discord', close: 'Close',
     },
     clanes_v: {

@@ -1,6 +1,6 @@
-// Diversión · Buscar grupo — /grupo publica «busco gente para jugar a…» con un botón
-// para apuntarse; al llenarse, el bot avisa y crea una sala de voz para el grupo.
-// Lógica del bot en utils/grupos.js.
+// Diversión · Buscar grupo — /grupo abre una ventana (a qué, cuántos, cuándo y un mensaje)
+// y publica «busco gente para jugar a…» con un botón para apuntarse; al llenarse, el bot
+// avisa y crea una sala de voz para el grupo. Lógica del bot en utils/grupos.js.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gamepad2, Users, Lock, ExternalLink, Loader2 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, Numero, Aviso, Bot
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
 import VistaDiscord from '../VistaDiscord';
+import VentanaDiscord from '../VentanaDiscord';
 
 const COLOR = { abierto: 'bg-success/15 text-success', lleno: 'bg-brand/15 text-brand', cerrado: 'bg-elevated text-muted' };
 
@@ -60,21 +61,39 @@ export default function GruposView({ dash }) {
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
       </div>
 
-      {/* Cómo sale un grupo (utils/grupos.js: embedGrupo y filaGrupo) */}
+      {/* Cómo funciona en Discord (utils/grupos.js: ventanaGrupo, embedGrupo y filaGrupo) */}
       <div data-help="grupos-previa" className={tarjeta}>
         <CabeceraTarjeta icono={Gamepad2} titulo={t('dashboard.grupos_v.prevTitle')} />
-        <div className="mt-3">
-          <VistaDiscord
-            embed={{
-              autor: t('dashboard.grupos_v.prevAuthor'), titulo: 'Valorant', descripcion: t('dashboard.grupos_v.prevDesc'), color: '#22c55e', pie: t('dashboard.grupos_v.prevFooter'),
-              campos: [
-                { nombre: t('dashboard.grupos_v.prevSlots'), valor: '**2/5**', inline: true },
-                { nombre: t('dashboard.grupos_v.prevWhen'), valor: t('dashboard.grupos_v.prevWhenVal'), inline: true },
-                ...(form.crearSala !== false ? [{ nombre: t('dashboard.grupos_v.prevRoom'), valor: '#valorant', inline: true }] : []),
-                { nombre: t('dashboard.grupos_v.prevJoined'), valor: '👑 @Alex\n• @Sara' },
-              ],
-            }}
-            botones={[{ texto: t('dashboard.grupos_v.prevJoin'), estilo: 'verde' }, { texto: t('dashboard.grupos_v.prevLeave'), estilo: 'gris' }, { texto: t('dashboard.grupos_v.prevClose'), estilo: 'rojo' }]} />
+        <p className="mt-1 text-xs text-muted">{t('dashboard.grupos_v.prevHint')}</p>
+        <div className="mt-4 space-y-4">
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.grupos_v.prevStepWindow')}</p>
+            <VentanaDiscord
+              titulo={t('dashboard.grupos_v.prevModalTitle')}
+              campos={[
+                { etiqueta: t('dashboard.grupos_v.prevFGame'), ayuda: t('dashboard.grupos_v.prevFGamePh'), obligatorio: true },
+                { etiqueta: t('dashboard.grupos_v.prevFSlots'), ayuda: t('dashboard.grupos_v.prevFSlotsPh'), obligatorio: true },
+                { etiqueta: t('dashboard.grupos_v.prevFWhen'), ayuda: t('dashboard.grupos_v.prevFWhenPh') },
+                { etiqueta: t('dashboard.grupos_v.prevFMsg'), ayuda: t('dashboard.grupos_v.prevFMsgPh'), parrafo: true },
+              ]} />
+          </div>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted">{t('dashboard.grupos_v.prevStepPost')}</p>
+            <VistaDiscord
+              embed={{
+                autor: t('dashboard.grupos_v.prevAuthor'), titulo: 'Valorant', descripcion: t('dashboard.grupos_v.prevDesc'), color: '#22c55e', pie: t('dashboard.grupos_v.prevFooter'),
+                campos: [
+                  { nombre: t('dashboard.grupos_v.prevSlots'), valor: '**2/5**', inline: true },
+                  { nombre: t('dashboard.grupos_v.prevWhen'), valor: t('dashboard.grupos_v.prevWhenVal'), inline: true },
+                  ...(form.crearSala !== false ? [{ nombre: t('dashboard.grupos_v.prevRoom'), valor: '#valorant', inline: true }] : []),
+                  { nombre: t('dashboard.grupos_v.prevJoined'), valor: '👑 @Alex\n• @Sara' },
+                ],
+              }}
+              botones={[
+                { texto: t('dashboard.grupos_v.prevJoin'), estilo: 'verde' }, { texto: t('dashboard.grupos_v.prevLeave'), estilo: 'gris' },
+                { texto: t('dashboard.grupos_v.prevEdit'), estilo: 'gris' }, { texto: t('dashboard.grupos_v.prevClose'), estilo: 'rojo' },
+              ]} />
+          </div>
         </div>
       </div>
 
@@ -90,6 +109,7 @@ export default function GruposView({ dash }) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-fg">{g.juego}</span>
                   <span className="block text-xs text-muted">{g.creador?.nombre} · {relativo(g.fecha)}{g.cuando ? ` · ${g.cuando}` : ''}</span>
+                  {g.descripcion && <span className="mt-1 line-clamp-2 whitespace-pre-line break-words text-xs text-fg/80" title={g.descripcion}>{g.descripcion}</span>}
                 </span>
                 <span className="shrink-0 text-xs font-bold text-fg">{g.miembros}/{g.plazas}</span>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${COLOR[g.estado]}`}>{t(`dashboard.grupos_v.estados.${g.estado}`)}</span>

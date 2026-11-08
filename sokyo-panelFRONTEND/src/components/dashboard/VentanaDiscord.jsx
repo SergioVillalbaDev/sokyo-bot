@@ -4,8 +4,10 @@
 //
 //   <VentanaDiscord titulo="Nueva sugerencia" campos={[{ etiqueta: 'Tu sugerencia', valor: plantilla, parrafo: true, obligatorio: true }]} />
 //
-// - `campos`: [{ etiqueta, valor (ya escrito, opcional), parrafo (caja grande), obligatorio }].
-// - Discord corta la etiqueta a 45 letras y no da formato al texto de dentro: se ve tal cual.
+// - `campos`: [{ etiqueta, valor (ya escrito, opcional), ayuda (texto gris si está vacío),
+//   parrafo (caja grande), obligatorio }].
+// - Discord corta la etiqueta a 45 letras y la ayuda a 100, y no da formato al texto de
+//   dentro: se ve tal cual.
 import { useTranslation } from 'react-i18next';
 import { Eye, X } from 'lucide-react';
 
@@ -28,8 +30,8 @@ export default function VentanaDiscord({ titulo, campos = [], className = '' }) 
               <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-[#b5bac1]">
                 {String(c.etiqueta || '…').slice(0, 45)}{c.obligatorio && <span className="ml-0.5 text-[#f23f42]">*</span>}
               </p>
-              <div className={`whitespace-pre-wrap break-words rounded-[3px] bg-[#1e1f22] px-2.5 py-2 text-sm ${c.parrafo ? 'min-h-[4.5rem]' : ''} ${c.valor ? 'text-[#dbdee1]' : 'text-transparent'}`}>
-                {c.valor || '·'}
+              <div className={`whitespace-pre-wrap break-words rounded-[3px] bg-[#1e1f22] px-2.5 py-2 text-sm ${c.parrafo ? 'min-h-[4.5rem]' : ''} ${c.valor ? 'text-[#dbdee1]' : c.ayuda ? 'text-[#87898c]' : 'text-transparent'}`}>
+                {c.valor || (c.ayuda ? String(c.ayuda).slice(0, 100) : '·')}
               </div>
             </div>
           ))}
