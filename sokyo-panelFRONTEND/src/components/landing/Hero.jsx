@@ -72,7 +72,7 @@ function Capturas() {
 
       <Ventana url={p.url}>
         <img
-          src={panel.src} srcSet={panel.srcSet} sizes="(min-width: 1280px) 680px, (min-width: 1024px) 52vw, 84vw"
+          src={panel.src} srcSet={panel.srcSet} sizes="(min-width: 1280px) 580px, (min-width: 1024px) calc(54vw - 110px), (min-width: 728px) 616px, (min-width: 640px) calc(100vw - 112px), calc(100vw - 72px)"
           width={ANCHO} height={ALTO} alt={p.alt} fetchPriority="high" decoding="async" className="lx-captura"
         />
       </Ventana>

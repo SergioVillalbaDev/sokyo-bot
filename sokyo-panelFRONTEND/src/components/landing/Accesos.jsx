@@ -61,7 +61,7 @@ export default function Accesos({ onEnterDashboard }) {
           </>}
           imagen={
             <div className="absolute inset-x-6 top-0 overflow-hidden rounded-t-2xl border border-b-0 border-white/10 sm:inset-x-8">
-              <img src={panel.src} srcSet={panel.srcSet} sizes="(min-width: 768px) 560px, 90vw" width={ANCHO} height={ALTO} alt="" loading="lazy" decoding="async" className="block h-auto w-full" />
+              <img src={panel.src} srcSet={panel.srcSet} sizes="(min-width: 1280px) 542px, (min-width: 768px) calc(50vw - 98px), (min-width: 640px) calc(100vw - 112px), calc(100vw - 88px)" width={ANCHO} height={ALTO} alt="" loading="lazy" decoding="async" className="block h-auto w-full" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0d0b1c]" />
             </div>
           }

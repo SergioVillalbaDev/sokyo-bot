@@ -86,7 +86,7 @@ export default function Comparison() {
         <span className="flex items-center gap-1"><Minus size={13} className="text-amber-400" /> {t('landing.comparison.legendLimited')}</span>
         <span className="flex items-center gap-1"><X size={13} className="text-muted/50" /> {t('landing.comparison.legendNo')}</span>
       </p>
-      <p className="mt-3 text-center text-[11px] text-muted/70">{t('landing.comparison.footnote')}</p>
+      <p className="mt-3 text-center text-[11px] text-muted">{t('landing.comparison.footnote')}</p>
     </section>
   );
 }

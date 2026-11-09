@@ -258,7 +258,9 @@ export default {
       prioridades: ['Urgent', 'High', 'Normal', 'Low'],
       samples: {
         tickets: ['Response times', 'Internal notes', '★★★★★ ratings', 'Follow on the web'],
-        chat: [{ n: 'Carlos', t: 'My purchase didn’t arrive 😥' }, { n: 'Ana · Staff', t: 'Sorted! It’s in your bag now 🙌' }],
+        // Sample chat: a typical ticket on a Discord server.
+        canalTicket: 'ticket-0142 · Report a user',
+        chat: [{ n: 'Carlos', t: 'Hi, someone from the server keeps spamming me in DMs 😥' }, { n: 'Ana · Staff', t: 'Thanks for the heads-up! They’re banned. Closing the ticket 🔒' }],
         moderacion: ['Suspicious link blocked', 'Mention spam blocked'],
         nivelDe: 'Level 14',
         nivelA: 'Level 15',
