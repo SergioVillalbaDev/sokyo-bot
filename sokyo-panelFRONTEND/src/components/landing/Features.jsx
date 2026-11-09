@@ -3,7 +3,7 @@
 import { useTranslation } from 'react-i18next';
 import {
   Ticket, ShieldCheck, TrendingUp, Coins, Music, CircleUserRound, LayoutDashboard, DoorOpen, Rocket,
-  ArrowRight, Smartphone, Search, Palette, Ban,
+  ArrowRight, Smartphone, Search, Palette, Ban, Hash,
 } from 'lucide-react';
 import { prioridadBar } from '../../lib/landingConfig';
 import Revelar from './Revelar';
@@ -68,8 +68,13 @@ export default function Features() {
         <div className="mt-6 flex flex-wrap gap-2">
           {(Array.isArray(muestras.tickets) ? muestras.tickets : []).map((txt) => <span key={txt} className="lx-chip">{txt}</span>)}
         </div>
-        {/* Mini conversación de un ticket */}
+        {/* Mini conversación de un ticket, con el nombre de su canal como en Discord */}
         <div className="mt-auto space-y-2 pt-6">
+          {muestras.canalTicket && (
+            <p className="flex items-center gap-1.5 pb-1 text-xs font-semibold text-muted">
+              <Hash size={14} className="shrink-0 text-sky-300" /> <span className="truncate">{muestras.canalTicket}</span>
+            </p>
+          )}
           {(Array.isArray(muestras.chat) ? muestras.chat : []).map((m, i) => (
             <div key={i} className={`flex ${i ? 'justify-end' : ''}`}>
               <p className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${i ? 'rounded-br-md bg-gradient-to-br from-[#5865f2]/80 to-[#7c3aed]/80 text-white' : 'rounded-bl-md border border-white/10 bg-white/[.06] text-fg'}`}>

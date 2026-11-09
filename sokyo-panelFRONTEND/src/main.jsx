@@ -1,7 +1,7 @@
 import { StrictMode, lazy, Suspense } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import './index.css'
-import './i18n'
+import i18n from './i18n'
 import App from './App.jsx'
 import { marcarSiEsApp } from './lib/appMovil'
 import { aplicarLigero } from './lib/ligero'
@@ -33,8 +33,27 @@ document.addEventListener('wheel', (e) => {
   if (el instanceof HTMLInputElement && el.type === 'number' && el === document.activeElement) el.blur()
 }, { passive: true })
 
-createRoot(document.getElementById('root')).render(
+const app = (
   <StrictMode>
     {esPortal ? <Suspense fallback={null}><Portal /></Suspense> : <App />}
-  </StrictMode>,
+  </StrictMode>
 )
+
+// La portada llega ya pintada en el HTML (scripts/prerender-portada.js), en el
+// idioma que eligió el script de index.html. Si es la portada y el idioma es el
+// mismo que el de i18n, React aprovecha lo que ya se ve («hidrata»: no lo vuelve
+// a pintar ni reinicia sus animaciones). Si no, lo quita y pinta desde cero.
+// Hidrata justo después del siguiente pintado: así lo que ya está en el HTML sale
+// en pantalla sin esperar a React (con la pestaña oculta no hay pintado: enseguida).
+const raiz = document.getElementById('root')
+const { hash, pathname, search } = window.location
+const esPortada = !esPortal && !/^#(dashboard|legal)/.test(hash) && !/^\/panel\/?$/i.test(pathname)
+  && !new URLSearchParams(search).has('staff')
+if (esPortada && raiz.firstElementChild && raiz.getAttribute('data-pre') === i18n.language) {
+  const hidratar = () => hydrateRoot(raiz, app)
+  if (document.visibilityState === 'hidden') hidratar()
+  else requestAnimationFrame(() => setTimeout(hidratar, 0))
+} else {
+  raiz.replaceChildren()
+  createRoot(raiz).render(app)
+}

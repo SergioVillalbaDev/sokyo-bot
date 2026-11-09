@@ -14,6 +14,28 @@
   src: url('/fonts/inter-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+/* Reserva con las medidas de Inter, para lo que se pinta antes de que llegue (la
+   portada viene ya pintada en el HTML: scripts/prerender-portada.js). Arial
+   (Windows, Mac, iPhone; Liberation Sans en Linux) o Roboto (Android), escaladas
+   para que cada línea ocupe lo mismo que con Inter: al llegar Inter, el texto no
+   salta de línea ni empuja lo de abajo. size-adjust = ancho con Inter / ancho con
+   la reserva, medido sobre los textos de la portada; ascent/descent = los de
+   Inter (96,875 % y 24,22 %) entre size-adjust. */
+@font-face {
+  font-family: 'Inter Reserva'; font-weight: 400 500;
+  src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('LiberationSans');
+  size-adjust: 106.5%; ascent-override: 90.96%; descent-override: 22.74%; line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Inter Reserva'; font-weight: 600 800;
+  src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('LiberationSans-Bold');
+  size-adjust: 102%; ascent-override: 94.98%; descent-override: 23.74%; line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Inter Reserva Android';
+  src: local('Roboto'), local('Roboto Regular'), local('Roboto-Regular');
+  size-adjust: 108%; ascent-override: 89.7%; descent-override: 22.43%; line-gap-override: 0%;
+}
 @font-face {
   font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500 700; font-display: swap;
   src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
@@ -167,7 +189,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Inter Reserva', 'Inter Reserva Android', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
@@ -183,7 +205,7 @@ body {
   margin: 0;
   background-color: var(--bg-main);
   color: var(--text-primary);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
@@ -248,8 +270,12 @@ body {
 .sk-visible .sk-crece, .sk-crece.sk-visible { width: var(--ancho); }
 /* Desplegables (FAQ, menú móvil): de 0 a su altura sin medirla en JS. */
 .sk-plegable { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .22s ease, opacity .22s ease; }
-.sk-plegable > * { overflow: hidden; min-height: 0; }
+.sk-plegable > * { overflow: hidden; min-height: 0; transition: content-visibility .22s allow-discrete; }
 .sk-plegable.sk-abierto { grid-template-rows: 1fr; opacity: 1; }
+/* Cerrado, su contenido ni se maqueta ni se pinta: el menú del móvil lleva las
+   banderas (emoji) de los idiomas y buscarles fuente retrasaba ~130 ms el primer
+   pintado de la portada. Al cerrarse, espera a que acabe la animación. */
+.sk-plegable:not(.sk-abierto) > * { content-visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .sk-entra, .sk-entra-suave, .sk-flota { animation: none; }

@@ -51,7 +51,7 @@ export default function Footer({ onEnterDashboard }) {
 
           {columns.map((col) => (
             <div key={col.title}>
-              <h4 className="text-sm font-semibold text-fg">{col.title}</h4>
+              <h3 className="text-sm font-semibold text-fg">{col.title}</h3>
               <ul className="mt-4 flex flex-col gap-2.5">
                 {col.links.map((l) => (
                   <li key={l.label}><FooterLink label={l.label} href={l.href} /></li>

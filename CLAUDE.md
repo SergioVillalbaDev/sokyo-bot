@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.16.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.17.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -145,6 +145,23 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   `.lx-btn-panel`) y va siempre visible en la barra, también en el móvil.
   `Mapa.jsx` saca los bloques y grupos de `navConfig.js` (los nombres, de
   `landing.map`: si cambia el menú del panel, actualízalos igual que en el panel).
+- **Portada ya pintada en el HTML (1.9.17)**: el plugin `scripts/prerender-portada.js`
+  (en `vite.config.js`) compila `src/prerender.js` para Node al terminar el build, pinta
+  `<Landing />` (barra, hero y «Dos entradas») en es y en, y lo mete en `dist/index.html`
+  en un `<template id="pre-<idioma>">` cada uno. Un script en `<head>` (tras el viewport:
+  antes, el móvil medía 980 px y precargaba la captura de 1800 px) elige el idioma como
+  `src/i18n/index.js` y precarga sus imágenes; otro tras `#root` copia la portada de ese
+  idioma; `main.jsx` la **hidrata** (`hydrateRoot`) tras el primer pintado si es la
+  portada y el idioma coincide; si no, la vacía y pinta con `createRoot`. Fuera de la
+  portada (`#dashboard`, `#legal`, `/panel`, `/cuenta`, `?portal`, `?staff`) no se pone.
+  **Lo que pinta `Landing` al principio debe ser igual en Node y en el navegador**: nada
+  de `window`/`localStorage` durante el render (solo en efectos); si no, React avisa
+  (error #418) y lo repinta. Si el plugin falla, avisa y deja `index.html` como estaba.
+  Fuente de reserva con las medidas de Inter (`Inter Reserva`, `size-adjust` en
+  `index.css`) para que el texto no salte al llegar Inter. Los plegables cerrados
+  (`.sk-plegable`) llevan `content-visibility: hidden` (las banderas emoji del menú
+  costaban ~130 ms de maquetación). Lighthouse móvil local: 92 → 96 (simulado), y con
+  red y CPU reales el texto sale ~1 s antes (3,2 → 2,2 s).
 - **Capturas de la landing**: `public/landing/<es|en>-<nombre>-<640|960|1800>.webp`
   (escritorio) y `<es|en>-m-<inicio|cuenta>-<390|780>.webp` (móvil), elegidas con
   `srcset` (`components/landing/capturas.js`). Se sacaron con un servidor de
@@ -588,5 +605,10 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   quien pulsa (`idiomaInteraccion`); lo público, en el del servidor. Panel: vista previa de la ventana
   (`VentanaDiscord` acepta `ayuda`, el texto gris de Discord) y el mensaje en «Últimos grupos». Test:
   `test/grupos.test.js`.
+- 1.9.17 **Web más rápida y ejemplo de ticket de Discord**: la portada llega ya pintada en el HTML y React
+  la hidrata (ver *Portada ya pintada en el HTML*); `sizes` de las capturas ajustados (el móvil ya no baja
+  la de 960 px en «Dos entradas»); accesibilidad 95 → 100 (contraste de la nota de la comparativa, títulos
+  del pie en `h3`). La mini conversación de la tarjeta de tickets (`Features.jsx`, `landing.features.samples`)
+  es ahora un reporte de spam por privado, con el canal del ticket (`canalTicket`) encima.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).

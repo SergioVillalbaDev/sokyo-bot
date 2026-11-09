@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.17': [
+        { es: '⚡ La web de Sokyo se ve mucho antes en el móvil: la portada llega ya pintada y aparece en torno a un segundo antes, sin esperar a que cargue todo.', en: '⚡ The Sokyo website shows up much sooner on mobile: the home page arrives ready to display and appears about a second earlier, without waiting for everything to load.' },
+        { es: '🎫 El ejemplo de ticket de la web ahora es uno de verdad de un servidor de Discord: un aviso de spam por privado que el staff resuelve y cierra.', en: '🎫 The ticket example on the website is now a real Discord server one: a DM spam report that the staff sorts out and closes.' },
+    ],
     '1.9.16': [
         { tab: 'com-grupos', es: '🎮 /grupo ahora abre una ventana con todo a la vista: a qué vais a jugar, cuántos hacen falta, cuándo y una caja grande para un mensaje con lo que vais a hacer (modo, nivel, si hace falta micro… en varias líneas).', en: '🎮 /group now opens a form with everything in sight: what you’ll play, how many people you need, when and a big box for a message about what you’ll do (mode, rank, mic needed… over several lines).' },
         { tab: 'com-grupos', es: '✏️ Botón «Editar» en cada grupo: quien lo creó (o el staff) cambia el mensaje, el juego, la hora o las plazas cuando quiera y el grupo se actualiza solo.', en: '✏️ “Edit” button on every group: whoever started it (or the staff) can change the message, the game, the time or the slots whenever they want, and the group updates itself.' },
