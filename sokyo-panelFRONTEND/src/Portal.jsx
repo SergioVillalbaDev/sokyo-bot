@@ -98,24 +98,24 @@ function Portal() {
     return (
       <div style={contenedor}>
         <Cabecera usuario={usuario} onLogout={logout} />
-        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+        <div className="portal-wrap">
           <button onClick={() => { setTicketSel(null); setMensajes([]); }} style={botonVolver}>⬅ Volver a mis tickets</button>
           <div style={{ marginTop: '15px', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
             <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0, fontSize: '1.3em' }}>{ticketSel.titulo || ticketSel.motivo}</h2>
+              <div className="portal-row">
+                <h2 style={{ margin: 0, fontSize: '1.3em', overflowWrap: 'anywhere' }}>{ticketSel.titulo || ticketSel.motivo}</h2>
                 <span style={{ fontSize: '0.8em', padding: '4px 12px', borderRadius: '12px', backgroundColor: colorEstado(ticketSel.estado), color: '#fff', fontWeight: 'bold' }}>{ticketSel.estado}</span>
               </div>
               {ticketSel.descripcion && <p style={{ color: 'var(--text-secondary)', margin: '10px 0 0 0', fontStyle: 'italic' }}>{ticketSel.descripcion}</p>}
             </div>
-            <div className="chat-box" style={{ minHeight: '350px', maxHeight: '50vh', overflowY: 'auto', padding: '20px' }}>
+            <div className="chat-box portal-chat">
               {mensajes.length === 0
                 ? <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '40px' }}>Aún no hay mensajes en este ticket.</p>
                 : mensajes.map((m, i) => {
                     const mio = m.usuarioId === usuario?.id;
                     return (
                       <div key={i} style={{ display: 'flex', justifyContent: mio ? 'flex-end' : 'flex-start', marginBottom: '10px' }}>
-                        <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: '12px', backgroundColor: mio ? 'var(--accent-color)' : 'var(--bg-main)', color: mio ? '#fff' : 'var(--text-primary)' }}>
+                        <div style={{ maxWidth: '85%', overflowWrap: 'anywhere', padding: '10px 14px', borderRadius: '12px', backgroundColor: mio ? 'var(--accent-color)' : 'var(--bg-main)', color: mio ? '#fff' : 'var(--text-primary)' }}>
                           <div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: '3px' }}>{m.usuario}</div>
                           <div>{m.contenido}</div>
                           {m.imagenes && m.imagenes.map((url, j) => <img key={j} src={url} alt="adjunto" style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '6px' }} />)}
@@ -124,11 +124,11 @@ function Portal() {
                     );
                   })}
             </div>
-            <div style={{ padding: '15px 20px', borderTop: '1px solid var(--border-color)' }}>
+            <div className="portal-compose">
               {cerrado
                 ? <p style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: 0 }}>Este ticket está cerrado.</p>
                 : <div style={{ display: 'flex', gap: '10px' }}>
-                    <input value={nuevoMensaje} onChange={e => setNuevoMensaje(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviar()} placeholder="Escribe tu mensaje..." style={input} />
+                    <input className="portal-input" value={nuevoMensaje} onChange={e => setNuevoMensaje(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviar()} placeholder="Escribe tu mensaje..." style={input} />
                     <button onClick={enviar} style={botonEnviar}>Enviar</button>
                   </div>}
             </div>
@@ -142,7 +142,7 @@ function Portal() {
   return (
     <div style={contenedor}>
       <Cabecera usuario={usuario} onLogout={logout} />
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+      <div className="portal-wrap">
         <h1 style={{ marginBottom: '5px' }}>Mis Tickets</h1>
         <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Aquí tienes todas tus solicitudes de soporte.</p>
         {error && <div style={bannerError}>⚠️ {error}</div>}
@@ -152,7 +152,7 @@ function Portal() {
             : <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {tickets.map((t, i) => (
                   <div key={i} onClick={() => setTicketSel(t)} style={tarjetaTicket}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="portal-row">
                       <strong style={{ fontSize: '1.1em' }}>{t.titulo || t.motivo}</strong>
                       <span style={{ fontSize: '0.75em', padding: '3px 10px', borderRadius: '12px', backgroundColor: colorEstado(t.estado), color: '#fff', fontWeight: 'bold' }}>{t.estado}</span>
                     </div>
@@ -170,12 +170,12 @@ function Portal() {
 
 function Cabecera({ usuario, onLogout }) {
   return (
-    <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 25px', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+    <header className="portal-header">
       <div style={{ fontWeight: 'bold', fontSize: '1.2em' }}>🤖 Sokyo · Soporte</div>
       {usuario && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="portal-user">
           <img src={usuario.avatar || `https://ui-avatars.com/api/?name=${usuario.username}&background=2c3e50&color=fff`} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
-          <span style={{ fontWeight: '600' }}>{usuario.username}</span>
+          <span className="portal-username">{usuario.username}</span>
           <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Salir</button>
         </div>
       )}
@@ -184,13 +184,13 @@ function Cabecera({ usuario, onLogout }) {
 }
 
 // --- estilos ---
-const contenedor = { minHeight: '100vh', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' };
-const pantallaCentro = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' };
-const tarjetaLogin = { backgroundColor: 'var(--bg-secondary)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center', maxWidth: '380px', width: '90%' };
+const contenedor = { minHeight: '100dvh', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' };
+const pantallaCentro = { minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' };
+const tarjetaLogin = { backgroundColor: 'var(--bg-secondary)', padding: '32px 24px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center', maxWidth: '380px', width: '100%', margin: '16px' };
 const botonDiscord = { display: 'inline-flex', alignItems: 'center', gap: '10px', backgroundColor: '#5865F2', color: '#fff', padding: '14px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold', fontSize: '1em' };
 const tarjetaTicket = { backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 18px', cursor: 'pointer' };
 const botonVolver = { padding: '8px 15px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-primary)', fontWeight: 'bold', cursor: 'pointer' };
-const input = { flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' };
+const input = { flex: 1, minWidth: 0, padding: '12px', fontSize: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' };
 const botonEnviar = { padding: '0 20px', backgroundColor: 'var(--accent-color)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' };
 const bannerError = { backgroundColor: 'rgba(231,76,60,0.12)', border: '1px solid #e74c3c', color: '#e74c3c', padding: '12px', borderRadius: '8px', marginBottom: '15px', fontWeight: '600' };
 

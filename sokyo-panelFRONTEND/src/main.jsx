@@ -4,11 +4,11 @@ import './index.css'
 import App from './App.jsx'
 import Portal from './Portal.jsx'
 
-// ?portal=1 en la URL -> Portal del Cliente; si no, el panel de staff.
-const esPortal = new URLSearchParams(window.location.search).has('portal')
+// Inicio por defecto: Portal del Cliente (diseño móvil). El panel de staff queda en ?panel=1.
+const esPanel = new URLSearchParams(window.location.search).has('panel')
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {esPortal ? <Portal /> : <App />}
+    {esPanel ? <App /> : <Portal />}
   </StrictMode>,
 )
