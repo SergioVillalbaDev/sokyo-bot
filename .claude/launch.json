@@ -4,8 +4,8 @@
     {
       "name": "sokyo-panel-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "sokyo-panelFRONTEND", "run", "dev"],
-      "port": 5173
+      "runtimeArgs": ["--prefix", "sokyo-panelFRONTEND", "run", "dev", "--", "--port", "5183", "--strictPort"],
+      "port": 5183
     }
   ]
 }
