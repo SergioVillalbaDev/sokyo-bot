@@ -343,7 +343,7 @@ module.exports = (client) => {
     app.use('/api', require('./routes/economia.js')({ portalAuth }));
 
     // --- Sistema de música (rutas en api/routes/musica.js) ---
-    app.use('/api', require('./routes/musica.js')({ portalAuth, client }));
+    app.use('/api', require('./routes/musica.js')({ portalAuth, client, tieneAreaAcceso }));
 
     // --- Canales de voz temporales (rutas en api/routes/vozTemporal.js) ---
     app.use('/api', require('./routes/vozTemporal.js')({ client }));
@@ -468,6 +468,15 @@ module.exports = (client) => {
             const lista = (cfg && cfg.accesoAreas && cfg.accesoAreas[area]) || [];
             return lista.length === 0 || lista.some((id) => member.roles.cache.has(id));
         } catch { return false; }
+    }
+
+    // Igual que exigeArea, pero para rutas que solo saben el servidor después de
+    // buscarlo (anuncios por id, emojis con el servidor por defecto…). Responde 403 y
+    // devuelve true si el staff NO tiene esa área en ese servidor.
+    async function sinArea(req, res, guildId, area) {
+        if (await tieneAreaAcceso(req, guildId, area)) return false;
+        res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
+        return true;
     }
 
     // Middleware: exige acceso al ÁREA indicada para escribir en la config del guild
@@ -2658,6 +2667,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!guildId) return res.status(400).json({ error: 'Falta el servidor' });
             const guild = client.guilds.cache.get(guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (await sinArea(req, res, guildId, 'mensajes')) return;
             const canalId = String(b.canalId || '');
             if (!guild.channels.cache.get(canalId)) return res.status(400).json({ error: 'Canal no válido' });
             const cfgAnuncio = await ServidorConfig.findOne({ guildId });
@@ -2695,6 +2705,7 @@ app.get('/api/stats/uso', async (req, res) => {
             const doc = await AnuncioProgramado.findById(req.params.id).catch(() => null);
             if (!doc) return res.status(404).json({ error: 'No encontrado' });
             if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) return res.status(403).json({ error: 'Sin permiso para este servidor' });
+            if (await sinArea(req, res, doc.guildId, 'mensajes')) return;
             if (doc.enviado) return res.status(400).json({ error: 'Ya se ha enviado: no se puede editar' });
             const b = req.body || {};
             const guild = client.guilds.cache.get(doc.guildId);
@@ -2731,6 +2742,7 @@ app.get('/api/stats/uso', async (req, res) => {
             if (req.staff && !req.staff.owner && !(req.staff.guilds || []).includes(doc.guildId)) {
                 return res.status(403).json({ error: 'Sin permiso para este servidor' });
             }
+            if (await sinArea(req, res, doc.guildId, 'mensajes')) return;
             await doc.deleteOne();
             res.json({ success: true });
         } catch (error) {
@@ -3527,6 +3539,7 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             guild = await resolverGuild(req.body.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (await sinArea(req, res, guild.id, 'config')) return;
             const nombre = limpiarNombre(req.body.nombre);
             if (nombre.length < 2) return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
             const actual = guild.emojis.cache.get(req.params.emojiId);
@@ -3546,6 +3559,7 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const guild = await resolverGuild(req.body.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (await sinArea(req, res, guild.id, 'config')) return;
             const nombre = limpiarNombre(req.body.nombre);
             if (nombre.length < 2) return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
             const datos = dataUrlABuffer(req.body.datos);
@@ -3569,6 +3583,7 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (await sinArea(req, res, guild.id, 'config')) return;
             await guild.emojis.delete(req.params.emojiId);
             res.json({ success: true });
         } catch (error) {
@@ -3596,6 +3611,7 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const guild = await resolverGuild(req.body.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (await sinArea(req, res, guild.id, 'config')) return;
             const nombre = limpiarNombre(req.body.nombre);
             if (nombre.length < 2) return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
             const datos = dataUrlABuffer(req.body.datos);
@@ -3616,6 +3632,7 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            if (await sinArea(req, res, guild.id, 'config')) return;
             await guild.stickers.delete(req.params.stickerId);
             res.json({ success: true });
         } catch (error) {

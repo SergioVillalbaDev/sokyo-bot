@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.9.17': [
+        { tab: 'config-acceso', es: '🔒 «Acceso al panel» se cumple también en Música, Anuncios programados y Emojis y stickers: quien no tenga esa sección permitida ya no puede cambiarla.', en: '🔒 “Panel access” now also applies to Music, Scheduled announcements and Emojis & stickers: anyone without that section allowed can no longer change it.' },
+    ],
     '1.9.16': [
         { tab: 'com-grupos', es: '🎮 /grupo ahora abre una ventana con todo a la vista: a qué vais a jugar, cuántos hacen falta, cuándo y una caja grande para un mensaje con lo que vais a hacer (modo, nivel, si hace falta micro… en varias líneas).', en: '🎮 /group now opens a form with everything in sight: what you’ll play, how many people you need, when and a big box for a message about what you’ll do (mode, rank, mic needed… over several lines).' },
         { tab: 'com-grupos', es: '✏️ Botón «Editar» en cada grupo: quien lo creó (o el staff) cambia el mensaje, el juego, la hora o las plazas cuando quiera y el grupo se actualiza solo.', en: '✏️ “Edit” button on every group: whoever started it (or the staff) can change the message, the game, the time or the slots whenever they want, and the group updates itself.' },
