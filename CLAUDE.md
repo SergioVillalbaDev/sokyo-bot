@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.11.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.12.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -642,4 +642,14 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     Novedades, Mensajes fijos); (3) textos de ejemplo que se enseñan sin guardarse (Presentaciones: `preguntasPropias`
     = `null` mientras sean las de ejemplo, así el autoguardado no las guarda al cambiar de idioma). Al añadir una vista
     que pide datos con textos de la API o con errores, ponle el idioma en las dependencias de la carga.
+- 1.12.0 **Quién puede entrar al panel** (Configuración → Acceso al panel, arriba; `views/QuienAccede.jsx`):
+  galería con foto (aro del color del rol más alto), apodo, @usuario, rol, corona (dueño del servidor o propietario
+  del bot), mazo (puede moderar) y un icono por área (color/icono de su grupo del menú; apagado = no llega). Filtro
+  por área con recuento, buscador y ficha al pulsar con el menú entero (✓/✗ por sección, el grupo Propietario solo
+  para propietarios del bot). `GET /api/config/:guildId/acceso/miembros` (`exigeArea('config')`: es la lista del
+  staff) devuelve los candidatos (`utils/accesoPanel.js`: `datosMiembro`, `esCandidato`) con sus roles y permisos;
+  la lista completa de miembros se pide a Discord como mucho cada 2 min por servidor (`parcial` si no llegó toda).
+  Las reglas (`calcularAcceso`) están DOS veces: `utils/accesoPanel.js` y `src/lib/accesoPanel.js` (el panel
+  recalcula al momento con los roles sin guardar). Si cambian las reglas de acceso de la API (guildsDelStaff,
+  tieneAreaAcceso, puedeModerar), cámbialas en los dos. Test en `test/accesoPanel.test.js`.
 

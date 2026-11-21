@@ -2911,6 +2911,47 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- QUIÉN TIENE ACCESO AL PANEL (1.12.0, utils/accesoPanel.js) ---
+    // Las personas de este servidor que pueden entrar al panel, por qué y a qué partes. Es
+    // la lista del staff: solo para quien tiene el área «config» (como la sección Acceso).
+    // La lista completa de miembros se pide a Discord como mucho cada 2 min por servidor.
+    const pedidoMiembros = new Map();
+    async function miembrosCompletos(guild) {
+        const antes = pedidoMiembros.get(guild.id);
+        if (!antes || Date.now() - antes > 2 * 60 * 1000) {
+            pedidoMiembros.set(guild.id, Date.now());
+            await Promise.race([guild.members.fetch(), new Promise((r) => setTimeout(r, 15000))]).catch(() => {});
+        }
+        return guild.members.cache;
+    }
+    app.get('/api/config/:guildId/acceso/miembros', exigeArea('config'), async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const acceso = require('../utils/accesoPanel.js');
+            const cfg = (await ServidorConfig.findOne({ guildId: guild.id }).lean()) || {};
+            const miembros = await miembrosCompletos(guild);
+            const lista = [];
+            for (const m of miembros.values()) {
+                if (m.user.bot) continue;
+                const d = acceso.datosMiembro(m, { ownerIds: OWNER_IDS });
+                if (!acceso.esCandidato(d, cfg)) continue;
+                lista.push({ ...d, ...acceso.calcularAcceso(d, cfg) });
+            }
+            const peso = (x) => (x.propietarioBot ? 0 : x.duenoServidor ? 1 : x.admin ? 2 : x.acceso ? 3 : 4);
+            lista.sort((a, b) => peso(a) - peso(b) || a.nombre.localeCompare(b.nombre));
+            res.json({
+                miembros: lista.slice(0, 300),
+                total: lista.length,
+                // Si Discord no ha dado la lista completa a tiempo, puede faltar alguien.
+                parcial: miembros.size < (guild.memberCount || 0),
+            });
+        } catch (error) {
+            console.error('Error al listar quién tiene acceso:', error);
+            res.status(500).json({ error: 'No se pudo cargar la lista.' });
+        }
+    });
+
     // --- ACCESO Y PERMISOS: roles que entran al panel + roles de moderación ---
     app.put('/api/config/:guildId/acceso', exigeAdmin, async (req, res) => {
         try {

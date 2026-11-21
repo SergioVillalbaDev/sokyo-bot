@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.12.0': [
+        { tab: 'config-acceso', es: '👥 «Quién puede entrar al panel»: cada persona de tu staff con su foto, su apodo, su rol y a qué partes del panel llega. Pulsa una para ver su ficha con todo lo que puede abrir. Se actualiza al momento mientras cambias los permisos.', en: '👥 “Who can access the panel”: each member of your staff with their photo, nickname, role and which parts of the panel they reach. Click someone to see their card with everything they can open. It updates instantly as you change permissions.' },
+    ],
     '1.11.0': [
         { es: '⚡ Setup rápido: con un botón y unas preguntas el bot queda funcionando en tu servidor (bienvenidas, registro, automod, tickets, temporadas…). En el panel (Inicio) o con /setup-rapido. No toca lo que ya tengas.', en: '⚡ Quick setup: one button and a few questions and the bot is up and running on your server (welcomes, log, automod, tickets, seasons…). In the panel (Home) or with /quicksetup. It won’t touch what you already have.' },
         { tab: 'crec-red', es: '🤝 Red Sokyo con filtros: bloquea servidores, pide un mínimo de miembros o elige los temas que quieres ver.', en: '🤝 Sokyo Network with filters: block servers, require a minimum of members or pick the topics you want.' },
