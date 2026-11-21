@@ -1562,6 +1562,14 @@ export default {
       },
     },
     acceso_v: {
+      quien: {
+        title: 'Who can access the panel', desc: 'Everyone on this server who can enter the panel and which parts they reach. Click someone to see their card. It updates instantly with the roles you choose below.',
+        search: 'Search by name…', all: 'Everyone', loading: 'Loading who has access…', partial: 'Discord didn’t send the full list in time: someone may be missing. Reload in a moment.',
+        empty: 'Nobody but the administrators has access. Choose below which roles can enter.', noMatch: 'Nobody matches the search.',
+        can: 'can access', cannot: 'can’t access', close: 'Close',
+        modYes: 'Can moderate (sanction, timeout, kick…)', modNo: 'Can’t moderate',
+        motivos: { propietarioBot: 'Bot owner', duenoServidor: 'Server owner', admin: 'Administrator', gestionarCanales: 'Manage Channels', rolStaff: 'Staff role: {{rol}}', rolAcceso: 'Access role: {{rol}}' },
+      },
       areaNames: { tickets: 'Tickets', moderacion: 'Moderation', entrada: 'New members and levels', roles: 'Roles', crecimiento: 'Growth', musica: 'Music player', mensajes: 'Announcements and auto-replies', datos: 'Analytics and daily report', logs: 'Activity log', config: 'Server and settings', cuenta: 'Plan and billing' },
       opens: 'Opens:',
       intro: 'Decide which roles can access the panel and who can moderate.',

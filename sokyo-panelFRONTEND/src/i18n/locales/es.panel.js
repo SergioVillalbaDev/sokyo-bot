@@ -1562,6 +1562,14 @@ export default {
       },
     },
     acceso_v: {
+      quien: {
+        title: 'Quién puede entrar al panel', desc: 'Cada persona de este servidor que entra al panel y a qué partes llega. Pulsa una para ver su ficha. Se actualiza al momento con los roles que elijas abajo.',
+        search: 'Buscar por nombre…', all: 'Todos', loading: 'Cargando quién tiene acceso…', partial: 'Discord no ha dado la lista completa a tiempo: puede faltar alguien. Recarga en un momento.',
+        empty: 'Nadie más que los administradores tiene acceso. Elige abajo los roles que pueden entrar.', noMatch: 'Nadie coincide con la búsqueda.',
+        can: 'puede entrar', cannot: 'no puede entrar', close: 'Cerrar',
+        modYes: 'Puede moderar (sancionar, aislar, expulsar…)', modNo: 'No puede moderar',
+        motivos: { propietarioBot: 'Propietario del bot', duenoServidor: 'Dueño del servidor', admin: 'Administrador', gestionarCanales: 'Gestionar canales', rolStaff: 'Rol del staff: {{rol}}', rolAcceso: 'Rol de acceso: {{rol}}' },
+      },
       areaNames: { tickets: 'Tickets', moderacion: 'Moderación', entrada: 'Llegada de miembros y niveles', roles: 'Roles', crecimiento: 'Crecimiento', musica: 'Reproductor de música', mensajes: 'Anuncios y respuestas automáticas', datos: 'Analítica y parte diario', logs: 'Registro de actividad', config: 'Servidor y ajustes', cuenta: 'Plan y facturación' },
       opens: 'Abre:',
       intro: 'Decide qué roles pueden entrar al panel y quién puede moderar.',

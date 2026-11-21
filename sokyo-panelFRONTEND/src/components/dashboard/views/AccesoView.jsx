@@ -1,6 +1,7 @@
 // Vista de Acceso y permisos — define qué roles pueden entrar al panel web y
 // qué roles pueden moderar (panel de moderación + comandos).
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import QuienAccede from './QuienAccede';
 import { useTranslation } from 'react-i18next';
 import { navGroups } from '../navConfig';
 import { MonitorSmartphone, ShieldAlert, Save, Check, Info, LayoutList } from 'lucide-react';
@@ -43,7 +44,8 @@ function SelectorRoles({ roles, seleccion, onToggle }) {
 
 export default function AccesoView({ dash }) {
   const { t } = useTranslation();
-  const { roles, configServidor, guardarAcceso } = dash;
+  const { roles, configServidor, guardarAcceso, guildId } = dash;
+  const [recargaQuien, setRecargaQuien] = useState(0);
 
   const [panel, setPanel] = useState([]);
   const [moderacion, setModeracion] = useState([]);
@@ -81,7 +83,7 @@ export default function AccesoView({ dash }) {
     const ok = await guardarAcceso({ rolesPanelAcceso: panel, rolesModeracion: moderacion, accesoAreas: areas });
     setGuardando(false);
     setGuardado(ok);
-    if (ok) avisarGuardado();
+    if (ok) { avisarGuardado(); setRecargaQuien((n) => n + 1); } // «Quién tiene acceso» se vuelve a pedir
     return ok; // el autoguardado (Ctrl + S) mira esto: un fallo sigue pendiente
   };
   // Se guarda con su botón (son permisos): borrador y «Cambios sin guardar» mientras tanto.
@@ -90,9 +92,16 @@ export default function AccesoView({ dash }) {
     restaurar: ([p, m, a]) => { setPanel(p || []); setModeracion(m || []); setAreas(a || areasVacias); },
   });
 
+  // Lo que se está eligiendo ahora (aún sin guardar): «Quién tiene acceso» lo enseña al momento.
+  const cfgVivo = useMemo(() => ({
+    rolStaffId: configServidor?.rolStaffId, rolesPanelAcceso: panel, accesoAreas: areas, rolesModeracion: moderacion,
+  }), [configServidor?.rolStaffId, panel, areas, moderacion]);
+
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted">{t('dashboard.acceso_v.intro')}</p>
+
+      <QuienAccede guildId={guildId} roles={roles} cfgVivo={cfgVivo} recarga={recargaQuien} />
 
       <div className="flex items-start gap-2.5 rounded-2xl border border-line bg-elevated px-4 py-3">
         <Info size={16} className="mt-0.5 shrink-0 text-brand" />
