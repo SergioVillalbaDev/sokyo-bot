@@ -74,7 +74,24 @@ function rolesQueDaElBot(c = {}) {
         // Opciones de la verificación (1.9.15): roles de más y el de «Sin verificar».
         ...((c.opcionesEntrada && c.opcionesEntrada.rolesExtra) || []),
         c.opcionesEntrada && c.opcionesEntrada.rolNoVerificadoId,
+        // 1.10.0: rol de quien vota y rol de campeón de la temporada.
+        c.crecimiento && c.crecimiento.votos && c.crecimiento.votos.rolId,
+        c.temporadas && c.temporadas.rolCampeonId,
     ].filter((x) => typeof x === 'string' && x);
 }
 
-module.exports = { miembroPuedeModerar, errorJerarquiaStaff, errorRolesNuevos, rolesQueDaElBot };
+// Permisos que NUNCA debe llevar un rol que el bot reparte solo a cualquiera (por votar,
+// por ganar una temporada…): con uno de estos, un voto daría poder sobre el servidor.
+const PERMISOS_PELIGROSOS = [
+    'Administrator', 'ManageGuild', 'ManageRoles', 'ManageChannels', 'ManageWebhooks', 'BanMembers',
+    'KickMembers', 'ModerateMembers', 'ManageMessages', 'MentionEveryone', 'ManageGuildExpressions', 'ManageEvents',
+];
+// Devuelve el texto del error si el rol lleva permisos peligrosos; null si es seguro.
+function errorRolPeligroso(rol) {
+    if (!rol || !rol.permissions) return null;
+    const malos = PERMISOS_PELIGROSOS.filter((p) => rol.permissions.has(PermissionsBitField.Flags[p]));
+    if (!malos.length) return null;
+    return `El rol «${rol.name}» tiene permisos de staff (${malos.join(', ')}): el bot no lo reparte automáticamente. Elige un rol sin esos permisos.`;
+}
+
+module.exports = { miembroPuedeModerar, errorJerarquiaStaff, errorRolesNuevos, rolesQueDaElBot, errorRolPeligroso, PERMISOS_PELIGROSOS };

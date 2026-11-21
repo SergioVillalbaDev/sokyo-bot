@@ -34,6 +34,7 @@ const TEXTOS = [
     ['crecimiento.directos.mensajeVideo', '📺 **{streamer}** just posted on YouTube!', '📺 ¡**{streamer}** acaba de publicar en YouTube!'],
     ['crecimiento.directos.mensajePost', '📰 New post from **{streamer}**', '📰 Nueva publicación de **{streamer}**'],
     ['cumpleanos.mensaje', '🎂 Happy birthday {mention}! The whole **{server}** wishes you an amazing day 🎉', '🎂 ¡Feliz cumpleaños, {mention}! Todo **{server}** te desea un día genial 🎉'],
+    ['crecimiento.votos.mensaje', '🗳️ Thanks for voting for Sokyo, {mention}! You got **{gold} gold**{extra}. You can vote again {next}.', '🗳️ ¡Gracias por votar por Sokyo, {mention}! Te llevas **{gold} de oro**{extra}. Puedes volver a votar {next}.'],
     ['solicitudes.titulo', '📝 Applications', '📝 Solicitudes'],
     ['solicitudes.descripcion', 'Want to join the team? Pick a form below and answer a few questions.', '¿Quieres formar parte del equipo? Elige un formulario y responde a unas preguntas.'],
 ];

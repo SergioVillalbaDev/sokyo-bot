@@ -764,6 +764,9 @@ const ServidorConfigSchema = new mongoose.Schema({
         inicio: { type: Date, default: null },
         fin: { type: Date, default: null },
         campeonId: { type: String, default: null },           // (interno) quien lleva el rol ahora
+        excluirRoles: { type: [String], default: [] },        // quien tenga uno de estos roles no compite (p. ej. el staff)
+        mencionar: { type: Boolean, default: true },          // mencionar al podio en el anuncio
+        anunciarInicio: { type: Boolean, default: true },     // avisar en el canal cuando empieza una temporada
     },
     cumpleanos: {
         activo: { type: Boolean, default: false },
@@ -903,6 +906,8 @@ const ServidorConfigSchema = new mongoose.Schema({
             horasRol: { type: Number, default: 12 },
             xp: { type: Number, default: 0 },                 // XP por voto (si los niveles están activos)
             mensaje: { type: String, default: '🗳️ Thanks for voting for Sokyo, {mention}! You got **{gold} gold**{extra}. You can vote again {next}.' },
+            oroExtra: { type: Number, default: 0 },           // oro de más que da ESTE servidor (además del global)
+            mencionar: { type: Boolean, default: true },      // mencionar a quien vota en el mensaje de gracias
         },
         // Red Sokyo (1.10.0): los servidores que la activan se promocionan entre sí. Cada
         // `cadaHoras` el bot publica en `canalId` otro servidor de la red (y el tuyo sale en
@@ -916,6 +921,9 @@ const ServidorConfigSchema = new mongoose.Schema({
             ultimaPublicacion: { type: Date, default: null },
             mostrado: { type: Number, default: 0 },           // veces que ESTE servidor ha salido en otros
             vistos: { type: [String], default: [] },          // últimos servidores publicados aquí (no repetir)
+            bloqueados: { type: [String], default: [] },      // servidores que no se publican aquí (ni este en ellos)
+            minMiembros: { type: Number, default: 0 },        // solo publicar servidores con al menos X miembros
+            etiquetas: { type: [String], default: [] },       // solo servidores con alguno de estos temas (vacío = todos)
         },
         pagina: {
             activo: { type: Boolean, default: false },

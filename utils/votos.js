@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const Voto = require('../models/Voto.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const RolTemporal = require('../models/RolTemporal.js');
+const RecordatorioVoto = require('../models/RecordatorioVoto.js');
 const { t } = require('./i18n.js');
 
 const HORAS_ENTRE_VOTOS = 12; // lo que deja top.gg
@@ -60,7 +61,14 @@ async function premiarEnServidor(client, cfg, userId, oro, proximo) {
     if (!member || member.user.bot) return false;
 
     const extras = [];
-    if (v.rolId && guild.roles.cache.has(v.rolId)) {
+    // Oro de más que da este servidor (además del global del voto).
+    const oroExtra = Math.max(0, Math.min(100000, v.oroExtra || 0));
+    if (oroExtra > 0) await require('./economia.js').darOro(userId, oroExtra).catch((e) => console.error('Votos · oro extra:', e.message));
+    // El rol se comprueba también ahora: si alguien le añadió permisos de staff, no se da.
+    const rolVoto = v.rolId ? guild.roles.cache.get(v.rolId) : null;
+    if (rolVoto && require('./permisos.js').errorRolPeligroso(rolVoto)) {
+        console.error(`Votos · ${guild.id}: el rol ${rolVoto.id} tiene permisos de staff, no se reparte.`);
+    } else if (rolVoto) {
         const ok = await member.roles.add(v.rolId, 'Ha votado por el bot en top.gg').then(() => true).catch(() => false);
         if (ok) {
             const horas = Math.max(1, Math.min(168, v.horasRol || 12));
@@ -81,8 +89,8 @@ async function premiarEnServidor(client, cfg, userId, oro, proximo) {
         const canal = guild.channels.cache.get(v.canalId);
         if (canal?.isTextBased()) {
             const extra = extras.length ? t(cfg, ` y ${extras.join(' y ')}`, ` and ${extras.join(' and ')}`) : '';
-            const texto = rellenar(v.mensaje, { userId, nombre: member.displayName, oro, extra, proximo, servidor: guild.name });
-            await canal.send({ content: texto.slice(0, 2000), allowedMentions: { users: [userId] } }).catch(() => {});
+            const texto = rellenar(v.mensaje, { userId, nombre: member.displayName, oro: oro + oroExtra, extra, proximo, servidor: guild.name });
+            await canal.send({ content: texto.slice(0, 2000), allowedMentions: { users: v.mencionar === false ? [] : [userId] } }).catch(() => {});
         }
     }
     return true;
@@ -106,7 +114,39 @@ async function procesarVoto(client, { userId, finde, prueba }) {
     for (const cfg of cfgs) {
         if (await premiarEnServidor(client, cfg, userId, oro, proximo).catch((e) => { console.error('Votos · servidor:', e.message); return false; })) servidores++;
     }
+    // «Recordarme votar»: el aviso sale cuando se pueda volver a votar.
+    await RecordatorioVoto.updateOne({ userId, activo: true }, { $set: { proximoAviso: proximo } }).catch(() => {});
     return { estado: 'ok', oro, servidores };
+}
+
+// /votar recordar: activa o quita el aviso. Si ya puede votar, el primero sale enseguida.
+async function ponerRecordatorio(userId, activo) {
+    if (!activo) { await RecordatorioVoto.deleteOne({ userId }); return false; }
+    const { proximo } = await estadoVoto(userId);
+    await RecordatorioVoto.updateOne({ userId }, { $set: { activo: true, proximoAviso: proximo || null } }, { upsert: true });
+    return true;
+}
+const tieneRecordatorio = async (userId) => !!(await RecordatorioVoto.exists({ userId, activo: true }));
+
+// Programador: privado a quien pidió que le recordaran votar y ya puede.
+async function avisarRecordatorios(client) {
+    if (!client.user) return;
+    const vencidos = await RecordatorioVoto.find({ activo: true, proximoAviso: { $ne: null, $lte: new Date() } }).limit(100);
+    const { idiomaMiembro } = require('./preferencias.js');
+    for (const r of vencidos) {
+        // Se marca antes de enviar: nunca se manda dos veces el mismo aviso.
+        const ok = await RecordatorioVoto.updateOne({ _id: r._id, proximoAviso: r.proximoAviso }, { $set: { proximoAviso: null } });
+        if (!ok.modifiedCount) continue;
+        const user = await client.users.fetch(r.userId).catch(() => null);
+        if (!user) continue;
+        const idioma = await idiomaMiembro(r.userId, {}).catch(() => 'en');
+        await user.send(t(idioma,
+            `🗳️ ¡Ya puedes volver a votar por Sokyo y ganar oro! ${urlVoto(client.user.id)}
+-# Para no recibir más avisos: \`/votar recordar:no\``,
+            `🗳️ You can vote for Sokyo again and earn gold! ${urlVoto(client.user.id)}
+-# To stop these reminders: \`/vote remind:no\``)).catch(() => {});
+        await new Promise((res) => setTimeout(res, 250));
+    }
 }
 
 // Publica en top.gg el número de servidores (si hay TOPGG_TOKEN).
@@ -138,4 +178,5 @@ async function resumenServidor(guild) {
 module.exports = {
     HORAS_ENTRE_VOTOS, ORO_POR_VOTO, urlVoto, urlFicha, webhookConfigurado,
     autorizacionValida, leerVoto, estadoVoto, rellenar, procesarVoto, publicarEstadisticas, resumenServidor,
+    ponerRecordatorio, tieneRecordatorio, avisarRecordatorios,
 };

@@ -19,7 +19,7 @@ module.exports = {
         if (!tp?.activo || !tp.fin) {
             return interaction.reply({ content: t(cfg, 'ℹ️ Las temporadas no están activadas en este servidor (panel → Diversión → Temporadas).', 'ℹ️ Seasons aren’t turned on in this server (panel → Fun → Seasons).'), flags: 64 });
         }
-        const lista = await temporadas.ranking(interaction.guild.id, 10);
+        const lista = await temporadas.ranking(interaction.guild.id, 10, { guild: interaction.guild, excluir: tp.excluirRoles });
         const yo = await temporadas.posicion(interaction.guild.id, interaction.user.id);
         const oro = temporadas.oroPodio(tp.oro);
         const premios = oro.map((o, i) => (o > 0 ? `${MEDALLAS[i]} ${o.toLocaleString('es-ES')} 🪙` : null)).filter(Boolean).join(' · ');

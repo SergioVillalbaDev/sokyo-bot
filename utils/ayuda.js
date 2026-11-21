@@ -10,6 +10,7 @@ const { t } = require('./i18n.js');
 const CATEGORIAS = [
     { id: 'empezar', emoji: '✨', titulo: ['Lo básico', 'The basics'], tab: null, cmds: [
         ['help', 's', 'ayuda', 'Esta ayuda.', 'This help.'],
+        ['quicksetup', 's', 'setup-rapido', 'Deja el bot funcionando con unas preguntas (admins).', 'Get the bot working with a few questions (admins).'],
         ['account', 's', 'cuenta', 'Tu web personal: tickets, oro, tienda, música y tarjeta.', 'Your personal web: tickets, gold, shop, music and card.'],
         ['preferences', 's', 'preferencias', 'Tu idioma y qué mensajes privados quieres del bot.', 'Your language and which DMs you want from the bot.'],
         ['remind', 's', 'recordar', 'Que el bot te recuerde algo dentro de un rato.', 'Have the bot remind you of something later.'],

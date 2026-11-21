@@ -174,6 +174,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await require('./redSokyo.js').barrerRed(client); } catch (e) { console.error('Programador (Red Sokyo):', e.message); }
         try { await require('./referidos.js').barrerReferidos(client); } catch (e) { console.error('Programador (referidos):', e.message); }
         try { await require('./eventosDiscord.js').premiarAsistencia(client); } catch (e) { console.error('Programador (premio eventos):', e.message); }
+        try { await require('./votos.js').avisarRecordatorios(client); } catch (e) { console.error('Programador (recordar votar):', e.message); }
     });
     setTimeout(tickCrecimiento, 70 * 1000);
     setInterval(tickCrecimiento, 5 * 60 * 1000);

@@ -23,9 +23,18 @@ function esVisible(cfg) {
 // Elige qué servidor publicar en `receptor`. `candidatos`: [{ guildId, idioma, mostrado }].
 // Función pura (la prueban los tests): primero los que no salieron hace poco aquí, del
 // mismo idioma si se pide, y de ellos el que menos veces ha salido en la red.
+// Filtros del receptor (1.11.0): servidores bloqueados (en los dos sentidos: si uno bloquea
+// al otro, ninguno sale en el otro), mínimo de miembros y temas (etiquetas de la página).
 function elegirCandidato(receptor, candidatos, azar = Math.random) {
     const r = receptor.crecimiento?.red || {};
-    let lista = candidatos.filter((c) => c.guildId !== receptor.guildId);
+    const bloqueados = new Set(r.bloqueados || []);
+    const minimo = Math.max(0, r.minMiembros || 0);
+    const temas = (r.etiquetas || []).map((e) => String(e).toLowerCase());
+    let lista = candidatos.filter((c) => c.guildId !== receptor.guildId
+        && !bloqueados.has(c.guildId)
+        && !(c.bloqueados || []).includes(receptor.guildId)
+        && (c.miembros ?? Infinity) >= minimo
+        && (!temas.length || (c.etiquetas || []).some((e) => temas.includes(String(e).toLowerCase()))));
     if (r.mismoIdioma !== false) lista = lista.filter((c) => (c.idioma === 'es' ? 'es' : 'en') === (receptor.idioma === 'es' ? 'es' : 'en'));
     if (!lista.length) return null;
     const vistos = r.vistos || [];
@@ -62,7 +71,11 @@ async function barrerRed(client) {
     const cfgs = await ServidorConfig.find({ 'crecimiento.red.activo': true })
         .select('guildId idioma crecimiento.red crecimiento.pagina').lean();
     const visibles = cfgs.filter((c) => esVisible(c) && apto(client, c.guildId))
-        .map((c) => ({ guildId: c.guildId, idioma: c.idioma, mostrado: c.crecimiento.red.mostrado || 0, cfg: c }));
+        .map((c) => ({
+            guildId: c.guildId, idioma: c.idioma, mostrado: c.crecimiento.red.mostrado || 0, cfg: c,
+            miembros: client.guilds.cache.get(c.guildId).memberCount || 0,
+            etiquetas: c.crecimiento.pagina.etiquetas || [], bloqueados: c.crecimiento.red.bloqueados || [],
+        }));
     const ahora = Date.now();
     for (const receptor of cfgs) {
         const r = receptor.crecimiento.red;
@@ -91,6 +104,11 @@ async function barrerRed(client) {
     }
 }
 
+const datosServidor = (client, id) => {
+    const g = client.guilds.cache.get(id);
+    return { id, nombre: g ? g.name : id, icono: g ? g.iconURL({ size: 64 }) : null, miembros: g ? g.memberCount : null };
+};
+
 // Para el panel: cuántos hay en la red y si este servidor sale en los demás.
 async function estadoRed(client, cfg) {
     const cfgs = await ServidorConfig.find({ 'crecimiento.red.activo': true }).select('guildId idioma crecimiento.red crecimiento.pagina').lean();
@@ -102,6 +120,9 @@ async function estadoRed(client, cfg) {
         visible: esVisible(cfg),
         paginaLista: !!(p.activo && p.listado && p.slug),
         mostrado: cfg.crecimiento?.red?.mostrado || 0,
+        // Últimos publicados aquí y los bloqueados, con nombre (para «Bloquear» / «Desbloquear»).
+        recientes: [...(cfg.crecimiento?.red?.vistos || [])].reverse().slice(0, 10).map((id) => datosServidor(client, id)),
+        bloqueados: (cfg.crecimiento?.red?.bloqueados || []).map((id) => datosServidor(client, id)),
         proxima: cfg.crecimiento?.red?.ultimaPublicacion
             ? new Date(new Date(cfg.crecimiento.red.ultimaPublicacion).getTime() + horasEntre(cfg.crecimiento.red.cadaHoras) * 3600 * 1000)
             : null,

@@ -530,6 +530,24 @@ module.exports = (client) => {
         return res.status(403).json({ error: 'Necesitas ser administrador de este servidor' });
     };
 
+    // --- Setup rápido (1.11.0, utils/setupRapido.js): deja Sokyo funcionando con unas
+    // preguntas. Solo administradores reales del servidor (exigeAdmin). El historial de
+    // cambios lo apunta como un solo cambio, con «Deshacer».
+    app.post('/api/config/:guildId/setup-rapido', exigeAdmin, async (req, res) => {
+        try {
+            const setup = require('../utils/setupRapido.js');
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const { respuestas, error } = setup.validar(req.body, guild);
+            if (error) return res.status(400).json({ error });
+            const faltan = setup.permisosQueFaltan(guild, respuestas);
+            if (faltan.length) return res.status(400).json({ error: 'Al bot le faltan permisos en el servidor', codigo: 'permisos_bot', permisos: faltan });
+            if (!setup.puedePasar(guild.id)) return res.status(429).json({ error: 'Espera un minuto antes de volver a pasar el setup rápido' });
+            const resultado = await setup.aplicar(client, guild, respuestas);
+            res.json({ success: true, ...resultado });
+        } catch (e) { console.error('Setup rápido:', e); res.status(500).json({ error: 'No se pudo completar el setup rápido' }); }
+    });
+
     // --- Utilidades para el nonce anti-CSRF del login OAuth (cookie <-> state) ---
     function leerCookie(req, nombre) {
         const raw = req.headers.cookie || '';
