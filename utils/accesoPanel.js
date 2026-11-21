@@ -11,8 +11,9 @@ const F = PermissionsBitField.Flags;
 
 // `m`: { roles: [ids], admin, gestionarCanales, moderarNativo, duenoServidor, propietarioBot }.
 // `cfg`: { rolStaffId, rolesPanelAcceso, accesoAreas, rolesModeracion }.
-// Devuelve { acceso, motivos: ['propietarioBot'|'admin'|'gestionarCanales'|'rolStaff'|'rolAcceso'], areas, moderar }.
-function calcularAcceso(m, cfg = {}) {
+// `concesion` (1.13.0): acceso dado a esa persona { areas, moderar, expiraEn } o null.
+// Devuelve { acceso, motivos: ['propietarioBot'|'admin'|'gestionarCanales'|'rolStaff'|'rolAcceso'|'concedido'], areas, moderar }.
+function calcularAcceso(m, cfg = {}, concesion = null) {
     const roles = new Set(m.roles || []);
     const motivos = [];
     if (m.propietarioBot) motivos.push('propietarioBot');
@@ -20,15 +21,22 @@ function calcularAcceso(m, cfg = {}) {
     if (m.gestionarCanales && !m.admin) motivos.push('gestionarCanales'); // un admin ya lo tiene todo
     if (cfg.rolStaffId && roles.has(cfg.rolStaffId)) motivos.push('rolStaff');
     if ((cfg.rolesPanelAcceso || []).some((id) => roles.has(id))) motivos.push('rolAcceso');
+    const dada = concesionVigente(concesion) ? concesion : null;
+    if (dada) motivos.push('concedido');
     const acceso = motivos.length > 0;
     const todo = !!(m.propietarioBot || m.admin);
     const areas = {};
     for (const a of AREAS) {
         const lista = (cfg.accesoAreas && cfg.accesoAreas[a]) || [];
-        areas[a] = acceso && (todo || lista.length === 0 || lista.some((id) => roles.has(id)));
+        areas[a] = acceso && (todo || lista.length === 0 || lista.some((id) => roles.has(id)) || !!(dada && (dada.areas || []).includes(a)));
     }
-    const moderar = acceso && !!(todo || m.moderarNativo || (cfg.rolesModeracion || []).some((id) => roles.has(id)));
+    const moderar = acceso && !!(todo || m.moderarNativo || (cfg.rolesModeracion || []).some((id) => roles.has(id)) || (dada && dada.moderar));
     return { acceso, motivos, areas, moderar };
+}
+
+// ¿Sigue en vigor? (sin fecha, o la fecha aún no ha pasado)
+function concesionVigente(c, ahora = Date.now()) {
+    return !!(c && (!c.expiraEn || new Date(c.expiraEn).getTime() > ahora));
 }
 
 // Datos de un miembro de Discord para calcularAcceso y para enseñarlo en el panel.
@@ -52,10 +60,36 @@ function datosMiembro(member, { ownerIds = new Set() } = {}) {
 
 // ¿Podría tener acceso con algún rol de la configuración? (para no mandar a todo el servidor:
 // solo los que ya entran y los que tienen alguno de los roles que se pueden elegir).
-function esCandidato(m, cfg = {}) {
-    if (m.admin || m.gestionarCanales || m.propietarioBot) return true;
+function esCandidato(m, cfg = {}, concesion = null) {
+    if (m.admin || m.gestionarCanales || m.propietarioBot || concesionVigente(concesion)) return true;
     const relevantes = new Set([cfg.rolStaffId, ...(cfg.rolesPanelAcceso || [])].filter(Boolean));
     return m.roles.some((id) => relevantes.has(id));
 }
 
-module.exports = { AREAS, calcularAcceso, datosMiembro, esCandidato };
+// Alerta de seguridad: queda en «Registro de actividad» (categoría Seguridad) y en el
+// canal de registro de Discord, si hay uno.
+async function alertaSeguridad(client, guildId, { accion, usuario, detalles, color = '#f59e0b' }) {
+    try {
+        const Log = require('../models/Log.js');
+        const log = await Log.create({ guildId, categoria: 'Seguridad', accion, usuario: usuario || '—', detalles: detalles || '', color });
+        if (client) await require('./logsManager.js').enviarLogADiscord(client, log);
+    } catch (e) { console.error('Alerta de seguridad:', e.message); }
+}
+
+// Programador: borra los accesos caducados y lo apunta en el registro.
+async function barrerConcesiones(client) {
+    const AccesoPersona = require('../models/AccesoPersona.js');
+    const caducadas = await AccesoPersona.find({ expiraEn: { $ne: null, $lte: new Date() } }).limit(100);
+    for (const c of caducadas) {
+        const borrado = await AccesoPersona.deleteOne({ _id: c._id });
+        if (!borrado.deletedCount) continue;
+        const guild = client.guilds.cache.get(c.guildId);
+        const m = guild ? guild.members.cache.get(c.userId) : null;
+        await alertaSeguridad(client, c.guildId, {
+            accion: '⌛ Acceso temporal al panel caducado', usuario: m ? m.user.username : c.userId,
+            detalles: `<@${c.userId}> ya no puede entrar al panel con el acceso que le dieron${c.creadoPorNombre ? ` (lo dio ${c.creadoPorNombre})` : ''}.`, color: '#94a3b8',
+        });
+    }
+}
+
+module.exports = { AREAS, calcularAcceso, datosMiembro, esCandidato, concesionVigente, alertaSeguridad, barrerConcesiones };

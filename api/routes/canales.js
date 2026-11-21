@@ -57,7 +57,7 @@ const CON_MODO_LENTO = new Set([ChannelType.GuildText, ChannelType.GuildForum]);
 // `exigeArea` (de server.js): los cambios piden el área "config" de Acceso al
 // panel, la misma que muestra "Categorías y canales" en el menú.
 const pasar = () => (req, res, next) => next();
-module.exports = ({ client, exigeArea = pasar }) => {
+module.exports = ({ client, exigeArea = pasar, exigeConfirmacion = pasar }) => {
     const router = express.Router();
     const puedeEditar = exigeArea('config');
 
@@ -302,7 +302,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
     });
 
     // Eliminar una categoría (sus canales quedan sin categoría, como en Discord).
-    router.delete('/config/:guildId/canales/categorias/:id', puedeEditar, async (req, res) => {
+    router.delete('/config/:guildId/canales/categorias/:id', puedeEditar, exigeConfirmacion('borrar-categoria'), async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -521,7 +521,7 @@ module.exports = ({ client, exigeArea = pasar }) => {
     });
 
     // Eliminar un canal.
-    router.delete('/config/:guildId/canales/:id', puedeEditar, async (req, res) => {
+    router.delete('/config/:guildId/canales/:id', puedeEditar, exigeConfirmacion('borrar-canal'), async (req, res) => {
         try {
             const guild = client.guilds.cache.get(req.params.guildId);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
