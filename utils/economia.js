@@ -155,7 +155,11 @@ async function reclamarDaily(discordId) {
     const base = 100;
     const bonus = Math.min(racha, 7) * 25;          // hasta +175 según racha
     const jackpot = (racha % 7 === 0) ? 500 : 0;    // premio gordo cada 7 días
-    const total = base + bonus + jackpot;
+    let total = base + bonus + jackpot;
+    // Compañero equipado de los cofres (1.16.0): más oro en el diario.
+    const compa = await require('./cofres.js').ventajasUsuario(discordId).catch(() => null);
+    const extraCompa = compa?.diario > 0 ? Math.round(total * compa.diario) : 0;
+    total += extraCompa;
 
     // Puerta atómica: solo se aplica si `ultimoDaily` sigue siendo el mismo que
     // acabamos de leer. Si dos /daily llegan a la vez (doble clic, reintento de
@@ -167,7 +171,7 @@ async function reclamarDaily(discordId) {
         { returnDocument: 'after' }
     );
     if (!actualizado) return { ok: false, esperaHoras: HORAS_DAILY }; // otra petición ganó la carrera justo antes
-    return { ok: true, total, racha, jackpot, balance: actualizado.balance };
+    return { ok: true, total, racha, jackpot, extraCompa, balance: actualizado.balance };
 }
 
 // Ranking de los usuarios con más oro.

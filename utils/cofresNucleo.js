@@ -1,0 +1,102 @@
+// Cofres de mascotas (1.16.0) — reglas puras. Cada persona tiene su colección de
+// compañeros (global, como el oro). Se consiguen abriendo cofres con oro; cada
+// compañero tiene una rareza y, si lo llevas equipado, te da ventajas: más XP, más oro
+// en /diario y un poco de vuelta de lo que pierdes en el casino. Los repetidos suben
+// estrellas (hasta 5), y cada estrella mejora sus ventajas.
+// Hay UNO divino: «Sokyo, el Dragón Celestial». Rarísimo y muy chetado.
+
+const RAREZAS = {
+    comun: { orden: 0, emoji: '⚪', es: 'Común', en: 'Common', color: '#9ca3af', xp: 0.02, diario: 0, vuelta: 0 },
+    rara: { orden: 1, emoji: '🔵', es: 'Rara', en: 'Rare', color: '#3b82f6', xp: 0.04, diario: 0.05, vuelta: 0 },
+    epica: { orden: 2, emoji: '🟣', es: 'Épica', en: 'Epic', color: '#a855f7', xp: 0.07, diario: 0.10, vuelta: 0.01 },
+    legendaria: { orden: 3, emoji: '🟡', es: 'Legendaria', en: 'Legendary', color: '#f59e0b', xp: 0.10, diario: 0.20, vuelta: 0.02 },
+    mitica: { orden: 4, emoji: '🔴', es: 'Mítica', en: 'Mythic', color: '#ef4444', xp: 0.15, diario: 0.35, vuelta: 0.04 },
+    divina: { orden: 5, emoji: '🌈', es: 'DIVINA', en: 'DIVINE', color: '#fde68a', xp: 0.50, diario: 1.00, vuelta: 0.10 },
+};
+
+const COMPANEROS = {
+    // Comunes
+    gato: { rareza: 'comun', svg: '1f431', emoji: '🐱', es: 'Gato', en: 'Cat' },
+    perro: { rareza: 'comun', svg: '1f436', emoji: '🐶', es: 'Perro', en: 'Dog' },
+    conejo: { rareza: 'comun', svg: '1f430', emoji: '🐰', es: 'Conejo', en: 'Bunny' },
+    hamster: { rareza: 'comun', svg: '1f439', emoji: '🐹', es: 'Hámster', en: 'Hamster' },
+    rana: { rareza: 'comun', svg: '1f438', emoji: '🐸', es: 'Rana', en: 'Frog' },
+    pollito: { rareza: 'comun', svg: '1f425', emoji: '🐥', es: 'Pollito', en: 'Chick' },
+    // Raras
+    zorro: { rareza: 'rara', svg: '1f98a', emoji: '🦊', es: 'Zorro', en: 'Fox' },
+    panda: { rareza: 'rara', svg: '1f43c', emoji: '🐼', es: 'Panda', en: 'Panda' },
+    koala: { rareza: 'rara', svg: '1f428', emoji: '🐨', es: 'Koala', en: 'Koala' },
+    buho: { rareza: 'rara', svg: '1f989', emoji: '🦉', es: 'Búho', en: 'Owl' },
+    pinguino: { rareza: 'rara', svg: '1f427', emoji: '🐧', es: 'Pingüino', en: 'Penguin' },
+    // Épicas
+    leon: { rareza: 'epica', svg: '1f981', emoji: '🦁', es: 'León', en: 'Lion' },
+    tigre: { rareza: 'epica', svg: '1f42f', emoji: '🐯', es: 'Tigre', en: 'Tiger' },
+    unicornio: { rareza: 'epica', svg: '1f984', emoji: '🦄', es: 'Unicornio', en: 'Unicorn' },
+    lobo: { rareza: 'epica', svg: '1f43a', emoji: '🐺', es: 'Lobo', en: 'Wolf' },
+    // Legendarias
+    dragon: { rareza: 'legendaria', svg: '1f409', emoji: '🐉', es: 'Dragón', en: 'Dragon' },
+    aguila: { rareza: 'legendaria', svg: '1f985', emoji: '🦅', es: 'Águila real', en: 'Royal eagle' },
+    tiburon: { rareza: 'legendaria', svg: '1f988', emoji: '🦈', es: 'Tiburón', en: 'Shark' },
+    // Míticas
+    fenix: { rareza: 'mitica', svg: '1f426-200d-1f525', emoji: '🔥', es: 'Fénix', en: 'Phoenix' },
+    trex: { rareza: 'mitica', svg: '1f996', emoji: '🦖', es: 'T-Rex', en: 'T-Rex' },
+    ballena: { rareza: 'mitica', svg: '1f40b', emoji: '🐋', es: 'Ballena ancestral', en: 'Ancient whale' },
+    // Divina (solo hay una)
+    celestial: { rareza: 'divina', svg: '1f432', emoji: '🐲', es: 'Sokyo, el Dragón Celestial', en: 'Sokyo, the Celestial Dragon', titulo: { es: '👑 Elegido de Sokyo', en: '👑 Chosen by Sokyo' } },
+};
+
+// Probabilidades (en %) de cada rareza por cofre.
+const COFRES = {
+    basico: { precio: 500, emoji: '📦', es: 'Cofre básico', en: 'Basic chest', color: '#a16207', prob: { comun: 70, rara: 22, epica: 6.5, legendaria: 1.3, mitica: 0.19, divina: 0.01 } },
+    epico: { precio: 2000, emoji: '💜', es: 'Cofre épico', en: 'Epic chest', color: '#7c3aed', prob: { comun: 35, rara: 38, epica: 20, legendaria: 5.5, mitica: 1.45, divina: 0.05 } },
+    legendario: { precio: 7500, emoji: '👑', es: 'Cofre legendario', en: 'Legendary chest', color: '#d97706', prob: { comun: 0, rara: 35, epica: 40, legendaria: 19, mitica: 5.8, divina: 0.2 } },
+};
+const PIEDAD = 10;        // a los 10 cofres seguidos sin épica o mejor, el siguiente la trae segura
+const MAX_ESTRELLAS = 5;
+const DEVOLUCION_REPETIDO = 0.25; // con 5 estrellas, un repetido devuelve el 25 % del cofre en oro
+
+function rarezaAlAzar(cofre, azar, sinEpica = 0) {
+    const prob = { ...COFRES[cofre].prob };
+    // Piedad: quita común y rara y reparte su probabilidad entre las demás.
+    if (sinEpica >= PIEDAD - 1) { prob.comun = 0; prob.rara = 0; }
+    const total = Object.values(prob).reduce((a, b) => a + b, 0);
+    let x = azar() * total;
+    // De la más rara a la más común (así los decimales pequeños cuentan bien).
+    for (const r of ['divina', 'mitica', 'legendaria', 'epica', 'rara', 'comun']) {
+        x -= prob[r] || 0;
+        if (x < 0) return r;
+    }
+    return 'comun';
+}
+function companeroAlAzar(rareza, azar) {
+    const lista = Object.keys(COMPANEROS).filter((id) => COMPANEROS[id].rareza === rareza);
+    return lista[Math.floor(azar() * lista.length) % lista.length];
+}
+// Abre un cofre sobre una colección. Devuelve lo que sale y cómo queda la colección.
+function abrir(coleccion, cofre, azar = require('./casinoNucleo.js').azarSeguro) {
+    if (!COFRES[cofre]) return { fallo: 'cofre' };
+    const sinEpica = coleccion.sinEpica || 0;
+    const rareza = rarezaAlAzar(cofre, azar, sinEpica);
+    const id = companeroAlAzar(rareza, azar);
+    const yaLo = (coleccion.mascotas || []).find((x) => x.id === id);
+    let estrellas = 1; let devuelto = 0; let nuevo = true;
+    if (yaLo) {
+        nuevo = false;
+        if (yaLo.estrellas >= MAX_ESTRELLAS) { estrellas = MAX_ESTRELLAS; devuelto = Math.floor(COFRES[cofre].precio * DEVOLUCION_REPETIDO); }
+        else estrellas = yaLo.estrellas + 1;
+    }
+    const piedad = sinEpica >= PIEDAD - 1;
+    return { id, rareza, nuevo, estrellas, devuelto, piedad, sinEpica: RAREZAS[rareza].orden >= 2 ? 0 : sinEpica + 1 };
+}
+
+// Ventajas del compañero equipado (cada estrella de más suma un 20 % de lo base).
+function ventajas(id, estrellas = 1) {
+    const c = COMPANEROS[id];
+    if (!c) return { xp: 0, diario: 0, vuelta: 0 };
+    const r = RAREZAS[c.rareza];
+    const k = 1 + 0.2 * (Math.max(1, Math.min(MAX_ESTRELLAS, estrellas)) - 1);
+    const red = (v) => Math.round(v * k * 1000) / 1000;
+    return { xp: red(r.xp), diario: red(r.diario), vuelta: red(r.vuelta) };
+}
+
+module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas };

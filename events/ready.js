@@ -46,6 +46,8 @@ module.exports = {
             require('../utils/mensajesFijos.js').cargar(),
             require('../utils/grupos.js').cargarSalas(),
             require('../utils/mascota.js').cargarCache(),
+            // Casino: lo apostado en partidas que quedaron a medias al reiniciar se devuelve.
+            require('../utils/casino.js').devolverPendientes(),
         ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
 
         // Mensaje de entrada (panel → Propietario): se tiene a mano para /setup y el botón de idioma.
