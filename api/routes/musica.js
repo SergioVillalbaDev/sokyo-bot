@@ -2,8 +2,9 @@
 // Rutas de la API de MÚSICA.
 //   • /portal/musica/*  → las usa el usuario desde su panel (portalAuth).
 //   • /config/:id/musica → configuración y control desde el panel de ADMIN
-//     (el middleware global de server.js ya acota por servidor).
-// Recibe portalAuth y el cliente de Discord desde server.js.
+//     (el middleware global de server.js ya acota por servidor; guardar exige
+//     además el área «musica», con tieneAreaAcceso).
+// Recibe portalAuth, el cliente de Discord y tieneAreaAcceso desde server.js.
 // ============================================================================
 const express = require('express');
 const ServidorConfig = require('../../models/ServidorConfig.js');
@@ -12,7 +13,7 @@ const {
     fuenteDe, limitarEncolado, nodoMusica,
 } = require('../../utils/musica.js');
 
-module.exports = ({ portalAuth, client }) => {
+module.exports = ({ portalAuth, client, tieneAreaAcceso }) => {
     const router = express.Router();
 
     // --- Helpers internos ---------------------------------------------------
@@ -179,6 +180,10 @@ module.exports = ({ portalAuth, client }) => {
     // Guardar configuración de música. Devuelve el documento de config completo.
     router.put('/config/:guildId/musica', async (req, res) => {
         try {
+            // Como el resto de ajustes: hace falta el área «Música» de «Acceso al panel».
+            if (!(await tieneAreaAcceso(req, req.params.guildId, 'musica'))) {
+                return res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
+            }
             const b = req.body || {};
             const clamp = (n, min, max, def) => {
                 const v = Number(n);

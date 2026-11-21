@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.16.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.9.17.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -103,6 +103,13 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
 - **Menú**: `components/dashboard/navConfig.js` (bloques, grupos e ítems con `tab`,
   `icon`, `area`, `premium`, `kw`). `area` = área de permisos de «Acceso al
   panel»; las mismas claves que `AREAS` y el middleware `exigeArea` de `api/server.js`.
+  Toda ruta que GUARDA algo de una sección con `area` tiene que comprobarla: con `exigeArea`
+  si el servidor viene en la petición, o con `sinArea(req, res, guildId, area)` si solo se
+  sabe después de buscarlo (anuncios por id, emojis/stickers con el servidor por defecto). Los
+  routers aparte lo reciben de `server.js` (`musica.js` recibe `tieneAreaAcceso`). Desde 1.9.17
+  lo cumplen también Música, Anuncios programados y Emojis/stickers. Las plantillas
+  (`/api/anuncios/presets`) NO llevan área: las comparten Bienvenida, Verificación, Mi cuenta,
+  Mensajes y Anuncios, y con un área concreta se romperían en las demás secciones.
 - **Añadir una sección**: vista en `components/dashboard/views/`, entrada en
   `CARGAR_VISTA` y en `renderView` (`Dashboard.jsx`; las vistas se cargan bajo
   demanda y se precargan en segundo plano), ítem en `navConfig.js` y textos
