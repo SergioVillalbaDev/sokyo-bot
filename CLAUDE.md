@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.16.1.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.17.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -727,4 +727,15 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
 - 1.16.1 Guía del casino: `/casino ayuda` (`utils/casinoAyuda.js`: pasos, comandos con ejemplo, menú `cas_guia` con cada
   juego y botón «Probar» que reutiliza `cas_rep`), tarjeta «Cómo se juega» en el panel y `POST …/modulos/casino/guia`
   para publicar la guía en el canal del casino.
+- 1.17.0 **Configurar en 1 minuto**:
+  - `utils/setupRapido.js`: 16 módulos (antes 8: + sugerencias, salón, contadores, mascota, casino, bromas, liga, clanes),
+    con sus canales (`CANALES`/`NOMBRES`) y lo que toca hacer (huevo de la mascota, guía del casino, contador de voz).
+    `uno: true` = activar una sola cosa sin tocar idioma ni staff (freno de 3 s por cosa, `puedePasar(g, ahora, modulo)`).
+    Tests en `test/setupRapido.test.js`.
+  - Panel: el setup rápido (`SetupRapido.jsx`) tiene «⚡ Dejarlo listo ahora» en el paso 1 (lo recomendado del tipo, canales
+    automáticos), módulos por grupos y progreso animado; la lista del Inicio (`AsistenteInicio.jsx`) tiene «⚡ Activar» en lo
+    que el setup sabe hacer (`ACTIVABLE`) y «Activar todo lo que falta». `estadoModulos` (useDashboard) incluye las secciones
+    nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`GRUPOS`/`CANALES` en `SetupRapido.jsx` y `ACTIVABLE`.
+  - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
+    (`utils/onboarding.js`) lleva al setup en 1 minuto.
 

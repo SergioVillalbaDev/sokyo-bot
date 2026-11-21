@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.17.0': [
+        { tab: 'inicio', es: '⚡ Deja Sokyo listo en 1 minuto: eliges el tipo de servidor y con un botón se configura todo (16 funciones con sus canales, en unos segundos).', en: '⚡ Get Sokyo ready in 1 minute: pick the kind of server and one button sets everything up (16 features with their channels, in a few seconds).' },
+        { tab: 'inicio', es: '✅ En la lista de puesta en marcha del inicio, cada cosa pendiente tiene «⚡ Activar» y hay un botón para activar todo lo que falta.', en: '✅ In the home setup list, every pending item has “⚡ Turn on” and there’s a button to turn on everything missing.' },
+        { es: '🤖 /setup-rapido incluye ya sugerencias, salón de la fama, contador de miembros, mascota, casino, bromas, Liga y clanes.', en: '🤖 /quicksetup now includes suggestions, hall of fame, member counter, pet, casino, pranks, League and clans.' },
+    ],
     '1.16.1': [
         { tab: 'com-casino', es: '📖 /casino ayuda: cómo se juega a cada juego, lo que paga y un botón para probarlo. En el panel, «Cómo se juega» y un botón para publicar la guía en el canal del casino.', en: '📖 /casino help: how to play each game, what it pays and a button to try it. In the panel, “How to play” and a button to post the guide in the casino channel.' },
     ],

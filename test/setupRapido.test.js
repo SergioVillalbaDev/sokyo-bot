@@ -104,7 +104,7 @@ describe('setup rápido · aplicar', () => {
 
     it('deja un servidor de soporte funcionando: idioma, registro privado, bienvenidas, automod y tickets', async () => {
         const guild = servidor();
-        const { respuestas } = setup.validar({ idioma: 'es', tipo: 'soporte', rolStaffId: '700000000000000001' }, guild);
+        const { respuestas } = setup.validar({ idioma: 'es', tipo: 'soporte', rolStaffId: '700000000000000001', modulos: ['bienvenidas', 'registro', 'automod', 'tickets'] }, guild);
         const r = await setup.aplicar({}, guild, respuestas);
         assert.deepStrictEqual(r.pasos.map((p) => `${p.id}:${p.estado}`), ['idioma:ok', 'staff:ok', 'registro:ok', 'bienvenidas:ok', 'automod:ok', 'tickets:ok']);
         assert.strictEqual(cambios.idioma, 'es');
@@ -122,6 +122,40 @@ describe('setup rápido · aplicar', () => {
         const r = await setup.aplicar({}, guild, respuestas);
         assert.strictEqual(r.pasos.find((p) => p.id === 'automod').estado, 'omitido');
         assert.strictEqual(cambios['automod.spam.accion'], undefined);
+    });
+    it('1.17.0: sugerencias, salón de la fama, bromas y clanes de una vez', async () => {
+        const guild = servidor();
+        const { respuestas } = setup.validar({ idioma: 'es', tipo: 'comunidad', modulos: ['sugerencias', 'salon', 'bromas', 'clanes'] }, guild);
+        const r = await setup.aplicar({}, guild, respuestas);
+        assert.deepStrictEqual(r.pasos.map((p) => `${p.id}:${p.estado}`), ['idioma:ok', 'sugerencias:ok', 'salon:ok', 'bromas:ok', 'clanes:ok']);
+        assert.ok(cambios.canalSugerencias);
+        assert.strictEqual(cambios['salonFama.activo'], true);
+        assert.strictEqual(cambios['bromas.activo'], true);
+        assert.strictEqual(cambios['bromas.tipos.payaso.activo'], false, 'sin rol de payaso, esa broma se queda apagada');
+        assert.strictEqual(cambios['clanes.activo'], true);
+        assert.deepStrictEqual(r.creados.map((c) => c.nombre), ['💡・sugerencias', '⭐・salon-de-la-fama']);
+    });
+    it('«Activar» una sola cosa no toca el idioma', async () => {
+        const guild = servidor();
+        const v = setup.validar({ uno: true, modulos: ['bromas'] }, guild);
+        assert.ok(v.respuestas.uno);
+        const r = await setup.aplicar({}, guild, v.respuestas);
+        assert.deepStrictEqual(r.pasos.map((p) => p.id), ['bromas']);
+        assert.strictEqual(cambios.idioma, undefined);
+        assert.ok(setup.validar({ uno: true, modulos: ['bromas', 'clanes'] }, guild).error, 'solo una cosa');
+        assert.ok(setup.validar({ uno: true, modulos: ['nada'] }, guild).error);
+    });
+    it('el freno de «uno» es de 3 s por cosa y no bloquea el setup completo', () => {
+        setup._reiniciarLimite();
+        assert.strictEqual(setup.puedePasar('A', 1000, 'bromas'), true);
+        assert.strictEqual(setup.puedePasar('A', 2000, 'bromas'), false);
+        assert.strictEqual(setup.puedePasar('A', 2000, 'clanes'), true);
+        assert.strictEqual(setup.puedePasar('A', 5000, 'bromas'), true);
+        assert.strictEqual(setup.puedePasar('A', 5000), true);
+    });
+    it('cada tipo recomienda cosas que existen', () => {
+        for (const lista of Object.values(setup.TIPOS)) for (const m of lista) assert.ok(setup.MODULOS.includes(m), m);
+        for (const m of setup.MODULOS) assert.ok(setup.NOMBRE_PASO[m], m);
     });
     it('un fallo en un paso no para los demás', async () => {
         const guild = servidor();

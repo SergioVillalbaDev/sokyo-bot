@@ -14,10 +14,10 @@ const TEXTOS_BIENVENIDA = {
         title: '👋 Hi! I’m Sokyo',
         descPlantilla: 'I just joined **{server}**. You only need **3 quick steps** to get started.',
         trial: (d) => `\n> 🎁 **Pro trial active** — ${d} day${d !== 1 ? 's' : ''} left`,
-        stepsTitle: '⚡ Setup steps',
-        step1: '**Staff role** — who can manage tickets',
-        step2: '**Ticket category** — where the channels are created',
-        step3: '**Publish the panel** — the button your users will see',
+        stepsTitle: '⚡ Ready in 1 minute',
+        step1: '**`/quicksetup`** — pick the kind of server and everything gets set up (or press **⚡ Get Sokyo ready** on the panel home)',
+        step2: '**Fine-tune it** in the panel: each section has **⚡ Turn on** with the recommended setup',
+        step3: '**Tell your members**: `/help` shows everything they can do',
         step3Ready: '3️⃣ (you’re ready!)',
         panelTitle: '🌐 Control panel',
         panelValue: (url) => `Set up steps 1 and 2 in the web panel:\n${url}`,
@@ -32,10 +32,10 @@ const TEXTOS_BIENVENIDA = {
         title: '👋 ¡Hola! Soy Sokyo',
         descPlantilla: 'Me acabo de unir a **{server}**. Solo necesitas **3 pasos rápidos** para empezar.',
         trial: (d) => `\n> 🎁 **Prueba Pro activa** — quedan ${d} día${d !== 1 ? 's' : ''}`,
-        stepsTitle: '⚡ Pasos de configuración',
-        step1: '**Rol de staff** — quién puede gestionar los tickets',
-        step2: '**Categoría de tickets** — dónde se crean los canales',
-        step3: '**Publica el panel** — el botón que verán tus usuarios',
+        stepsTitle: '⚡ Listo en 1 minuto',
+        step1: '**`/setup-rapido`** — eliges el tipo de servidor y se configura todo (o pulsa **⚡ Deja Sokyo listo** en el inicio del panel)',
+        step2: '**Afínalo** en el panel: cada cosa tiene **⚡ Activar** con lo recomendado',
+        step3: '**Cuéntaselo a tus miembros**: `/ayuda` enseña todo lo que pueden hacer',
         step3Ready: '3️⃣ (¡todo listo!)',
         panelTitle: '🌐 Panel de control',
         panelValue: (url) => `Configura los pasos 1 y 2 en el panel web:\n${url}`,
@@ -119,12 +119,10 @@ function construirBienvenida(guild, config, lang = (config && config.idioma) || 
     const url = process.env.FRONTEND_URL || 'http://localhost:5173';
     const guildId = guild.id;
 
-    const tieneRol = !!config?.rolStaffId;
-    const tieneCategoria = !!config?.categoriaTicketsId;
-
-    const paso1 = tieneRol ? '✅' : '1️⃣';
-    const paso2 = tieneCategoria ? '✅' : '2️⃣';
-    const paso3 = (tieneRol && tieneCategoria) ? t.step3Ready : '3️⃣';
+    // 1.17.0: los pasos llevan al setup en 1 minuto (antes eran solo los de tickets).
+    const paso1 = '1️⃣';
+    const paso2 = '2️⃣';
+    const paso3 = '3️⃣';
 
     // Plan / trial
     let planLinea = '';

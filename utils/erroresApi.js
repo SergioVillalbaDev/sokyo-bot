@@ -305,6 +305,7 @@ const EN = {
     'La mascota ya ha nacido': 'The pet has already hatched',
     'Todavía no lo tiene': 'It doesn’t have it yet',
     'Elige un canal donde publicarlo': 'Pick a channel to post it in',
+    'Espera un par de segundos': 'Wait a couple of seconds',
     'Todavía no hay mascota': 'There’s no pet yet',
 };
 
