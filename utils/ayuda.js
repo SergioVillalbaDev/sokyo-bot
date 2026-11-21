@@ -46,10 +46,13 @@ const CATEGORIAS = [
     { id: 'niveles', emoji: '📈', titulo: ['Niveles', 'Levels'], tab: 'config-niveles', cmds: [
         ['level', 's', 'nivel', 'Tu nivel y tu tarjeta (o los de otra persona).', 'Your level and card (or someone else’s).'],
         ['ranking', 's', null, 'Los que más XP tienen.', 'Who has the most XP.'],
+        ['season', 's', 'temporada', 'El ranking del mes (o la semana): premios para los 3 primeros.', 'The month’s (or week’s) ranking: prizes for the top 3.'],
         ['xp', 's', null, '(Admin) Sumar XP, poner un nivel o reiniciar a alguien.', '(Admin) Add XP, set a level or reset someone.'],
     ] },
     { id: 'crecimiento', emoji: '🚀', titulo: ['Invitaciones', 'Invites'], tab: 'crec-invitaciones', cmds: [
         ['invites', 's', 'invitaciones', 'A cuánta gente has invitado y el top.', 'How many people you invited and the top.'],
+        ['vote', 's', 'votar', 'Vota por el bot en top.gg y gana oro (cada 12 h).', 'Vote for the bot on top.gg and earn gold (every 12 h).'],
+        ['referrals', 's', 'referidos', 'Recomienda Sokyo y gana días de Premium.', 'Recommend Sokyo and earn Premium days.'],
     ] },
     { id: 'moderacion', emoji: '🛡️', titulo: ['Moderación', 'Moderation'], tab: 'mod-miembros', cmds: [
         ['Sancionar / Sanction', 'c', null, 'Clic derecho en alguien → Apps: avisar, aislar, expulsar o banear.', 'Right-click someone → Apps: warn, time out, kick or ban.'],

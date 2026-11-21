@@ -308,4 +308,83 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             res.json({ success: true });
         } catch (e) { res.status(400).json({ error: e.message || 'No se pudo enviar' }); }
     });
+    // ============================ VOTOS (top.gg, 1.10.0) ============================
+    // El oro del voto es global; aquí se configura lo que da ESTE servidor (rol, XP, gracias).
+    app.get(ruta('votos'), area, async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            const v = cfg.crecimiento.votos;
+            const votos = require('../utils/votos.js');
+            res.json({
+                config: { activo: v.activo, canalId: v.canalId, rolId: v.rolId, horasRol: v.horasRol, xp: v.xp, mensaje: v.mensaje },
+                urlVoto: client.user ? votos.urlVoto(client.user.id) : null,
+                urlFicha: client.user ? votos.urlFicha(client.user.id) : null,
+                oroPorVoto: votos.ORO_POR_VOTO(),
+                configurado: votos.webhookConfigurado(),
+                nivelesActivo: !!cfg.nivelesActivo,
+                ...(await votos.resumenServidor(guild)),
+            });
+        } catch (e) { console.error('GET votos:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
+    app.put(ruta('votos'), area, async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            const cfg = await cfgDe(guild.id);
+            const actual = cfg.crecimiento.votos;
+            const set = {};
+            if (b.activo !== undefined) set['crecimiento.votos.activo'] = !!b.activo;
+            const canal = canalDe(guild, b.canalId);
+            if (canal === false) return res.status(400).json({ error: 'Ese canal no existe o no es de texto' });
+            if (canal !== undefined) set['crecimiento.votos.canalId'] = canal;
+            const rol = rolDe(guild, b.rolId);
+            if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede dar' });
+            if (rol !== undefined && rol !== actual.rolId) {
+                if (rol) {
+                    // El bot no reparte roles por encima de quien lo configura (utils/permisos.js).
+                    const err = await errorRolesNuevos(client, req.staff, guild.id, [rol], [actual.rolId]);
+                    if (err) return res.status(403).json({ error: err });
+                }
+                set['crecimiento.votos.rolId'] = rol;
+            }
+            if (b.horasRol !== undefined) set['crecimiento.votos.horasRol'] = entero(b.horasRol, 1, 168, 12);
+            if (b.xp !== undefined) set['crecimiento.votos.xp'] = entero(b.xp, 0, 100000, 0);
+            if (b.mensaje !== undefined) set['crecimiento.votos.mensaje'] = texto(b.mensaje, 800).trim() || actual.mensaje;
+            const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after' });
+            res.json({ success: true, config: nueva.crecimiento.votos });
+        } catch (e) { console.error('PUT votos:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+
+    // ============================ RED SOKYO (1.10.0) ============================
+    app.get(ruta('red'), area, async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            const r = cfg.crecimiento.red;
+            const redSokyo = require('../utils/redSokyo.js');
+            res.json({
+                config: { activo: r.activo, canalId: r.canalId, cadaHoras: r.cadaHoras, mismoIdioma: r.mismoIdioma },
+                ...(await redSokyo.estadoRed(client, cfg.toObject())),
+            });
+        } catch (e) { console.error('GET red:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
+    app.put(ruta('red'), area, async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            const set = {};
+            if (b.activo !== undefined) set['crecimiento.red.activo'] = !!b.activo;
+            const canal = canalDe(guild, b.canalId);
+            if (canal === false) return res.status(400).json({ error: 'Ese canal no existe o no es de texto' });
+            if (canal !== undefined) set['crecimiento.red.canalId'] = canal;
+            if (b.cadaHoras !== undefined) set['crecimiento.red.cadaHoras'] = [6, 12, 24, 48, 72, 168].includes(Number(b.cadaHoras)) ? Number(b.cadaHoras) : 24;
+            if (b.mismoIdioma !== undefined) set['crecimiento.red.mismoIdioma'] = !!b.mismoIdioma;
+            const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after', upsert: true });
+            const r = nueva.crecimiento.red;
+            res.json({ success: true, config: { activo: r.activo, canalId: r.canalId, cadaHoras: r.cadaHoras, mismoIdioma: r.mismoIdioma } });
+        } catch (e) { console.error('PUT red:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
 };

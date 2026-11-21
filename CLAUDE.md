@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.9.17.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.10.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -597,3 +597,27 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   `test/grupos.test.js`.
 - Ofrecido pero sin hacer: comando `/categoria crear` en Discord (hoy las
   categorías se crean desde el panel).
+- 1.10.0 **Crecimiento**. Cinco funciones nuevas, todas con tests en `test/crecimiento110.test.js`:
+  - **Votos en top.gg** (`utils/votos.js`, `/votar`, panel Crecimiento → Votos, `crecimiento.votos`): top.gg llama a
+    `POST /api/topgg/voto` (público; lo protege `TOPGG_WEBHOOK_AUTH` en Authorization, comparado en tiempo constante).
+    Oro global por voto (`ORO_POR_VOTO`, 300; el doble en fin de semana) y, en cada servidor con la sección activa
+    donde esté quien vota, rol temporal (`RolTemporal`), XP y gracias. Los reintentos de top.gg no premian dos veces
+    (modelo `Voto`, 11 h). Con `TOPGG_TOKEN` se publica el número de servidores cada 30 min. **Para que funcione hay que
+    poner en top.gg la URL del webhook y las dos variables en el `.env` de la Pi** (sin ellas el panel avisa).
+  - **Red Sokyo** (`utils/redSokyo.js`, Crecimiento → Red Sokyo, `crecimiento.red`): cada `cadaHoras` publica otro
+    servidor de la red en el canal. Solo sale en los demás quien publica (red activa con canal) y tiene la página
+    pública listada; nunca servidores NSFW. Se elige el que menos ha salido (`mostrado`), sin repetir los últimos
+    (`vistos`) y del mismo idioma si se pide (`elegirCandidato`, pura).
+  - **Temporadas** (`utils/temporadas.js`, `/temporada`, Diversión → Temporadas, `temporadas`): XP de temporada en
+    `ActividadUsuario.xpTemporada` (se suma en `niveles.aplicarXp`). Al cerrar (día 1 o lunes, UTC): podio, oro al
+    top 3 y rol de campeón (se quita al anterior). El cierre se «reserva» cambiando `fin` antes de premiar.
+  - **Referidos** (`utils/referidos.js`, `/referidos ver|canjear|destino`, modelo `Referido`): el servidor nuevo canjea
+    el código en sus 14 primeros días (quien pueda «Gestionar servidor», nunca el propio código ni el del dueño). A los
+    7 días, si el bot sigue y hay 10+ miembros, 7 días de Premium al servidor `destino` (sin tocar Stripe ni Premium
+    de por vida: entonces 2000 de oro). Máximo 10 premios al mes por persona. Se resuelve cada hora.
+  - **Eventos de Discord** (`utils/eventosDiscord.js`): `Evento.enDiscord` crea/edita/borra el evento nativo
+    (voz/escenario con `canalVozId`, externo con `lugar` y `duracionMin`; el bot necesita «Gestionar eventos»; si
+    Discord lo rechaza, el evento del bot se crea igual y la API devuelve `errorDiscord`). Premio por asistir
+    (`premioOro`/`premioXp`) a los 15 min de empezar a quien esté en el canal, una vez. `GET /api/servidor/canales-voz?escenarios=1`.
+  - Todo lo periódico va en su propio temporizador de 5 min (`tickCrecimiento` en `utils/scheduler.js`), aparte del principal.
+

@@ -17,6 +17,7 @@ import {
   Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
   Stethoscope, FileClock, Cake, ClipboardCheck, Star, Shield, MessageSquareHeart, Moon, Pin, Hash, Dices,
+  Vote, Handshake, Trophy,
 } from 'lucide-react';
 
 export const navSections = [
@@ -94,6 +95,7 @@ export const navGroups = [
       { tab: 'com-clanes', icon: Shield, kw: 'clanes clan equipos competicion semanal puntos ranking teams' },
       { tab: 'com-salon', icon: Star, kw: 'salon de la fama estrellas destacados mejores mensajes starboard hall of fame' },
       { tab: 'com-confesiones', icon: MessageSquareHeart, kw: 'confesiones anonimo anonimas secretos confess confessions anonymous' },
+      { tab: 'com-temporadas', icon: Trophy, kw: 'temporadas temporada ranking mensual semanal premios podio campeon season leaderboard monthly' },
     ],
   },
   {
@@ -106,6 +108,8 @@ export const navGroups = [
       { tab: 'crec-pagina', icon: Globe2, area: 'crecimiento', kw: 'pagina publica web directorio servidores landing public page' },
       { tab: 'crec-directos', icon: Radio, area: 'crecimiento', kw: 'directos twitch youtube kick reddit rss noticias blog streams videos alertas live feed' },
       { tab: 'crec-contadores', icon: Hash, area: 'crecimiento', kw: 'contadores estadisticas canal nombre miembros cuantos somos counter stats channel member count' },
+      { tab: 'crec-votos', icon: Vote, area: 'crecimiento', kw: 'votos votar top.gg topgg lista de bots recompensa vote votes bot list' },
+      { tab: 'crec-red', icon: Handshake, area: 'crecimiento', kw: 'red sokyo alianzas partners promocion otros servidores network partnership cross promotion' },
     ],
   },
   {

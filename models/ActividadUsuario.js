@@ -21,6 +21,7 @@ const ActividadUsuarioSchema = new mongoose.Schema({
     xp: { type: Number, default: 0 },
     nivel: { type: Number, default: 0 },
     ultimoXp: { type: Date, default: null }, // cooldown para no farmear XP con spam
+    xpTemporada: { type: Number, default: 0 }, // XP de la temporada en curso (utils/temporadas.js)
 
     // Dinámicas · Reto diario / racha (lo actualiza utils/dinamicas.js).
     retoDia: { type: String, default: '' },      // 'YYYY-MM-DD' del reto en curso
@@ -35,6 +36,7 @@ const ActividadUsuarioSchema = new mongoose.Schema({
 
 ActividadUsuarioSchema.index({ guildId: 1, userId: 1 }, { unique: true });
 ActividadUsuarioSchema.index({ guildId: 1, xp: -1 }); // para el ranking
+ActividadUsuarioSchema.index({ guildId: 1, xpTemporada: -1 }); // ranking de la temporada
 ActividadUsuarioSchema.index({ userId: 1 }); // "Mi cuenta": los servidores de un usuario
 
 module.exports = mongoose.model('ActividadUsuario', ActividadUsuarioSchema);

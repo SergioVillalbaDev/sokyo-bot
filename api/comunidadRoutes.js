@@ -161,6 +161,21 @@ module.exports = function montarRutasComunidad(app, client) {
     });
 
     // ===================== EVENTOS =====================
+    // Opciones de 1.10.0: evento nativo de Discord y premio por asistir (utils/eventosDiscord.js).
+    const extrasEvento = (b, guild) => {
+        const out = {};
+        if (b.enDiscord !== undefined) out.enDiscord = !!b.enDiscord;
+        if (b.canalVozId !== undefined) {
+            const c = b.canalVozId ? guild.channels.cache.get(String(b.canalVozId)) : null;
+            out.canalVozId = c && (c.type === 2 || c.type === 13) ? c.id : null; // 2 voz, 13 escenario
+        }
+        if (b.lugar !== undefined) out.lugar = String(b.lugar || '').slice(0, 100);
+        if (b.duracionMin !== undefined) out.duracionMin = Math.max(15, Math.min(1440, parseInt(b.duracionMin, 10) || 60));
+        if (b.premioOro !== undefined) out.premioOro = Math.max(0, Math.min(100000, parseInt(b.premioOro, 10) || 0));
+        if (b.premioXp !== undefined) out.premioXp = Math.max(0, Math.min(100000, parseInt(b.premioXp, 10) || 0));
+        return out;
+    };
+    const eventosDiscord = require('../utils/eventosDiscord.js');
     app.get('/api/eventos', async (req, res) => {
         try { res.json(await Evento.find(filtroGuild(req)).sort({ fechaInicio: 1 }).limit(100)); }
         catch (e) { console.error('GET eventos:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
@@ -187,9 +202,12 @@ module.exports = function montarRutasComunidad(app, client) {
                 fechaInicio: fecha,
                 recordatorio: Math.max(0, parseInt(b.recordatorio, 10) || 0),
                 creadoPor: (req.staff && req.staff.username) || 'Panel Web',
+                ...extrasEvento(b, guild),
             });
             await comunidad.publicarEvento(client, doc);
-            res.json({ success: true, evento: doc });
+            // El evento del bot ya está; si Discord rechaza el suyo, se avisa sin deshacer nada.
+            const errorDiscord = doc.enDiscord ? await eventosDiscord.sincronizar(client, doc) : null;
+            res.json({ success: true, evento: doc, errorDiscord });
         } catch (e) { console.error('POST evento:', e.message); res.status(400).json({ error: 'No se pudo crear' }); }
     });
 
@@ -211,10 +229,14 @@ module.exports = function montarRutasComunidad(app, client) {
                 // Otra hora: los avisos vuelven a salir a su hora nueva.
                 if (+f !== +ev.fechaInicio) { ev.recordatorioEnviado = false; ev.avisoInteresadosEnviado = false; }
                 ev.fechaInicio = f;
+                ev.premioDado = false; // con otra hora, el premio por asistir vuelve a contar
             }
+            const guildEv = client.guilds.cache.get(ev.guildId);
+            if (guildEv) Object.assign(ev, extrasEvento(b, guildEv));
             await ev.save();
             const enDiscord = await comunidad.refrescarPublicado(client, 'evento', ev);
-            res.json({ success: true, evento: ev, enDiscord });
+            const errorDiscord = (ev.enDiscord || ev.discordEventId) ? await eventosDiscord.sincronizar(client, ev) : null;
+            res.json({ success: true, evento: ev, enDiscord, errorDiscord });
         } catch (e) { console.error('PUT evento:', e.message); res.status(400).json({ error: 'No se pudo guardar' }); }
     });
 
@@ -223,6 +245,7 @@ module.exports = function montarRutasComunidad(app, client) {
             const e = await Evento.findById(req.params.id);
             if (!e) return res.status(404).json({ error: 'No encontrado' });
             if (!puedeGestionar(req, e.guildId)) return res.status(403).json({ error: 'Sin permiso' });
+            await eventosDiscord.borrar(client, e); // también de la pestaña «Eventos» de Discord
             await e.deleteOne();
             res.json({ success: true });
         } catch (e) { console.error('DELETE evento:', e.message); res.status(500).json({ error: 'Fallo interno' }); }

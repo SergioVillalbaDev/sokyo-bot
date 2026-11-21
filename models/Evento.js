@@ -18,6 +18,17 @@ const EventoSchema = new mongoose.Schema({
     // Quien pulsó «🔔 Avisarme» en el anuncio: recibe un privado antes de empezar.
     interesados: { type: [String], default: [] },
     avisoInteresadosEnviado: { type: Boolean, default: false },
+    // Evento nativo de Discord (1.10.0, utils/eventosDiscord.js): sale en la pestaña
+    // «Eventos» del servidor. Voz/escenario necesitan el canal; externo, un lugar.
+    enDiscord: { type: Boolean, default: false },
+    canalVozId: { type: String, default: null },
+    lugar: { type: String, default: '' },
+    duracionMin: { type: Number, default: 60 },
+    discordEventId: { type: String, default: null },
+    // Premio por asistir (solo voz/escenario): a los 15 min de empezar, a quien esté en el canal.
+    premioOro: { type: Number, default: 0 },
+    premioXp: { type: Number, default: 0 },
+    premioDado: { type: Boolean, default: false },
     creadoPor: { type: String, default: 'Panel Web' },
     creadoFecha: { type: Date, default: Date.now },
 });

@@ -1,7 +1,8 @@
 // Comunidad · Eventos — crea y gestiona eventos del servidor de Discord.
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic, Pencil, X } from 'lucide-react';
+import { CalendarDays, Trash2, Info, Clock, Users, MapPin, Radio, Mic, Pencil, X, Gift, CalendarCheck } from 'lucide-react';
+import { Toggle } from '../../ui/primitives';
 import { FechaPicker, SubirImagen } from './comunidadShared.jsx';
 import { OpcionCrear } from '../CrearAlVuelo';
 import VistaDiscord from '../VistaDiscord';
@@ -20,7 +21,7 @@ const EMOJI_TIPO = { voz: '🔊', escenario: '🎤', externo: '📍' };
 export default function EventosView({ dash }) {
   const { t, i18n } = useTranslation();
   const relativo = useRelativo();
-  const { canales, configServidor, eventos = [], crearEvento, eliminarEvento, subirImagen, editarCreado } = dash;
+  const { canales, canalesVoz = [], configServidor, eventos = [], crearEvento, eliminarEvento, subirImagen, editarCreado } = dash;
   const [editando, setEditando] = useState(null); // id del evento que se edita (1.9.12)
 
   const [titulo, setTitulo] = useState('');
@@ -30,7 +31,15 @@ export default function EventosView({ dash }) {
   const [tipo, setTipo] = useState('voz');
   const [recordatorio, setRecordatorio] = useState('15');
   const [portada, setPortada] = useState('');
+  // 1.10.0: evento nativo de Discord (pestaña «Eventos» del servidor) y premio por asistir.
+  const [enDiscord, setEnDiscord] = useState(true);
+  const [canalVozId, setCanalVozId] = useState('');
+  const [lugar, setLugar] = useState('');
+  const [duracionMin, setDuracionMin] = useState('60');
+  const [premioOro, setPremioOro] = useState('0');
+  const [premioXp, setPremioXp] = useState('0');
   const [estado, setEstado] = useState('');
+  const [avisoDiscord, setAvisoDiscord] = useState('');
 
   // Hora actual, refrescada cada minuto: un evento pasa solo a "pasados" al empezar.
   const [ahora, setAhora] = useState(() => Date.now());
@@ -45,18 +54,25 @@ export default function EventosView({ dash }) {
   const pasados = eventos.filter((e) => new Date(e.fechaInicio) <= ahora);
 
   // Borrador: lo que se está escribiendo vuelve tras recargar (useBorrador).
-  const borrador = useBorrador('eventos', { titulo, descripcion, canalId, fechaInicio, tipo, recordatorio, portada },
+  const borrador = useBorrador('eventos', { titulo, descripcion, canalId, fechaInicio, tipo, recordatorio, portada, enDiscord, canalVozId, lugar, duracionMin, premioOro, premioXp },
     !titulo.trim() && !descripcion.trim() && !portada,
-    (v) => { setTitulo(v?.titulo || ''); setDescripcion(v?.descripcion || ''); setCanalId(v?.canalId || ''); setFechaInicio(v?.fechaInicio || ''); setTipo(v?.tipo || 'voz'); setRecordatorio(v?.recordatorio || '15'); setPortada(v?.portada || ''); });
+    (v) => { setTitulo(v?.titulo || ''); setDescripcion(v?.descripcion || ''); setCanalId(v?.canalId || ''); setFechaInicio(v?.fechaInicio || ''); setTipo(v?.tipo || 'voz'); setRecordatorio(v?.recordatorio || '15'); setPortada(v?.portada || ''); setEnDiscord(v?.enDiscord !== false); setCanalVozId(v?.canalVozId || ''); setLugar(v?.lugar || ''); setDuracionMin(v?.duracionMin || '60'); setPremioOro(v?.premioOro || '0'); setPremioXp(v?.premioXp || '0'); });
 
   const vaciar = () => {
     setTitulo(''); setDescripcion(''); setCanalId(''); setFechaInicio('');
     setTipo('voz'); setRecordatorio('15'); setPortada(''); setEditando(null);
+    setEnDiscord(true); setCanalVozId(''); setLugar(''); setDuracionMin('60'); setPremioOro('0'); setPremioXp('0');
   };
   const crear = async () => {
     setEstado('creando');
-    const datos = { titulo, descripcion, canalId, fechaInicio, tipo, recordatorio: Number(recordatorio), portada: portada || null };
+    const datos = {
+      titulo, descripcion, canalId, fechaInicio, tipo, recordatorio: Number(recordatorio), portada: portada || null,
+      enDiscord, canalVozId: tipo === 'externo' ? null : canalVozId || null, lugar, duracionMin: Number(duracionMin) || 60,
+      premioOro: tipo === 'externo' ? 0 : Number(premioOro) || 0, premioXp: tipo === 'externo' ? 0 : Number(premioXp) || 0,
+    };
     const r = editando ? await editarCreado('eventos', editando, datos) : await crearEvento(datos);
+    // El evento del bot se crea igual aunque Discord rechace el suyo: se explica por qué.
+    setAvisoDiscord(r?.errorDiscord || '');
     setEstado(r?.error ? `error:${r.error}` : editando ? (r.enDiscord === false ? 'editado-sin-discord' : 'editado') : 'ok');
     if (!r?.error) vaciar();
   };
@@ -65,6 +81,8 @@ export default function EventosView({ dash }) {
     setEstado(''); setEditando(e._id);
     setTitulo(e.titulo || ''); setDescripcion(e.descripcion || ''); setCanalId(e.canalId); setFechaInicio(e.fechaInicio);
     setTipo(e.tipo || 'voz'); setRecordatorio(String(e.recordatorio ?? 15)); setPortada(e.portada || '');
+    setEnDiscord(!!e.enDiscord); setCanalVozId(e.canalVozId || ''); setLugar(e.lugar || ''); setDuracionMin(String(e.duracionMin ?? 60));
+    setPremioOro(String(e.premioOro ?? 0)); setPremioXp(String(e.premioXp ?? 0)); setAvisoDiscord('');
     document.querySelector('[data-help="eventos-crear"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -220,6 +238,50 @@ export default function EventosView({ dash }) {
               <option value="1440">1 {t('dashboard.eventos_v.dia')}</option>
             </select>
           </label>
+          {/* 1.10.0: dónde es (canal de voz/escenario o lugar) — lo usan el evento de Discord y el premio */}
+          {tipo === 'externo' ? (
+            <>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.eventos_v.place')}</span>
+                <input value={lugar} onChange={(e) => setLugar(e.target.value)} maxLength={100} className={input} placeholder={t('dashboard.eventos_v.placePh')} />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-fg">{t('dashboard.eventos_v.duration')}</span>
+                <select value={duracionMin} onChange={(e) => setDuracionMin(e.target.value)} className={input}>
+                  {[30, 60, 90, 120, 180, 240, 480].map((m) => <option key={m} value={String(m)}>{m < 60 ? `${m} ${t('dashboard.eventos_v.min')}` : `${m / 60} h`}</option>)}
+                </select>
+              </label>
+            </>
+          ) : (
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-sm font-semibold text-fg">{t(tipo === 'escenario' ? 'dashboard.eventos_v.stageChannel' : 'dashboard.eventos_v.voiceChannel')}</span>
+              <select value={canalVozId} onChange={(e) => setCanalVozId(e.target.value)} className={input}>
+                <option value="">{t('dashboard.eventos_v.voiceChannelPh')}</option>
+                {canalesVoz.filter((c) => (c.tipo || 'voz') === (tipo === 'escenario' ? 'escenario' : 'voz'))
+                  .map((c) => <option key={c.id} value={c.id}>{tipo === 'escenario' ? '🎤' : '🔊'} {c.nombre}</option>)}
+              </select>
+            </label>
+          )}
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-bg px-4 py-3 sm:col-span-2">
+            <span className="min-w-0">
+              <span className="flex items-center gap-2 text-sm font-semibold text-fg"><CalendarCheck size={15} className="text-brand" /> {t('dashboard.eventos_v.inDiscord')}</span>
+              <span className="block text-xs text-muted">{t('dashboard.eventos_v.inDiscordHint')}</span>
+            </span>
+            <Toggle checked={enDiscord} onChange={setEnDiscord} />
+          </div>
+          {tipo !== 'externo' && (
+            <div className="rounded-2xl border border-line bg-bg px-4 py-3 sm:col-span-2">
+              <span className="flex items-center gap-2 text-sm font-semibold text-fg"><Gift size={15} className="text-brand" /> {t('dashboard.eventos_v.prize')}</span>
+              <span className="block text-xs text-muted">{t('dashboard.eventos_v.prizeHint')}</span>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="block"><span className="mb-1 block text-xs text-muted">{t('dashboard.eventos_v.prizeGold')}</span>
+                  <input type="number" min={0} max={100000} value={premioOro} onChange={(e) => setPremioOro(e.target.value)} className={input} /></label>
+                <label className="block"><span className="mb-1 block text-xs text-muted">{t('dashboard.eventos_v.prizeXp')}</span>
+                  <input type="number" min={0} max={100000} value={premioXp} onChange={(e) => setPremioXp(e.target.value)} className={input} /></label>
+              </div>
+              {(Number(premioOro) > 0 || Number(premioXp) > 0) && !canalVozId && <p className="mt-2 text-xs font-semibold text-warning">{t('dashboard.eventos_v.prizeNeedsChannel')}</p>}
+            </div>
+          )}
           <div className="block sm:col-span-2">
             <SubirImagen value={portada} onChange={setPortada} subirImagen={subirImagen} titulo={t('dashboard.eventos_v.coverUrl')} />
           </div>
@@ -258,6 +320,7 @@ export default function EventosView({ dash }) {
           {!estado && <EstadoAutoguardado estado={borrador} />}
           {estado === 'ok' && <span className="text-sm font-semibold text-success">{t('dashboard.eventos_v.createOk')}</span>}
           {estado.startsWith('error:') && <span className="text-sm font-semibold text-danger">{estado.slice(6)}</span>}
+          {avisoDiscord && <span className="text-sm font-semibold text-warning">{t('dashboard.eventos_v.discordFailed', { motivo: avisoDiscord })}</span>}
         </div>
       </div>
     </div>

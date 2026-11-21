@@ -551,5 +551,74 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
         } catch (e) { console.error('DELETE contador:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 
+    // ============================== TEMPORADAS (1.10.0) ==============================
+    const datosTemporada = async (guild, cfg) => {
+        const temporadas = require('../../utils/temporadas.js');
+        const lista = await temporadas.ranking(guild.id, 10);
+        return {
+            config: {
+                activo: cfg.temporadas.activo, canalId: cfg.temporadas.canalId, duracion: cfg.temporadas.duracion,
+                oro: temporadas.oroPodio(cfg.temporadas.oro), rolCampeonId: cfg.temporadas.rolCampeonId,
+            },
+            numero: cfg.temporadas.numero || 0,
+            inicio: cfg.temporadas.inicio,
+            fin: cfg.temporadas.fin,
+            nivelesActivo: !!cfg.nivelesActivo,
+            campeon: cfg.temporadas.campeonId ? await usuario(guild, cfg.temporadas.campeonId) : null,
+            ranking: await Promise.all(lista.map(async (r) => ({ ...(await usuario(guild, r.userId)), xp: r.xpTemporada }))),
+        };
+    };
+    router.get(ruta('temporadas'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            res.json(await datosTemporada(guild, await cfgDe(guild.id)));
+        } catch (e) { console.error('GET temporadas:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    router.put(ruta('temporadas'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            const cfg = await cfgDe(guild.id);
+            const tp = cfg.temporadas;
+            const set = {};
+            if (b.activo !== undefined) set['temporadas.activo'] = !!b.activo;
+            if (!ponerCanal(set, 'temporadas.canalId', guild, b.canalId, res)) return;
+            if (b.duracion !== undefined) {
+                const d = b.duracion === 'semanal' ? 'semanal' : 'mensual';
+                // Cambiar la duración mueve el final de la temporada en curso.
+                if (d !== tp.duracion && tp.inicio) set['temporadas.fin'] = require('../../utils/temporadas.js').finDeTemporada(new Date(), d);
+                set['temporadas.duracion'] = d;
+            }
+            if (b.oro !== undefined) set['temporadas.oro'] = require('../../utils/temporadas.js').oroPodio(b.oro);
+            const rol = rolDe(guild, b.rolCampeonId);
+            if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede dar' });
+            if (rol !== undefined && rol !== tp.rolCampeonId) {
+                if (rol) {
+                    if (!(await tieneAreaAcceso(req, guild.id, 'roles'))) return res.status(403).json({ error: 'Para elegir el rol hace falta acceso a la sección de roles del panel' });
+                    const err = await errorRolesNuevos(client, req.staff, guild.id, [rol], [tp.rolCampeonId]);
+                    if (err) return res.status(403).json({ error: err });
+                }
+                set['temporadas.rolCampeonId'] = rol;
+            }
+            let nueva = await guardar(guild.id, set);
+            // Al activarla por primera vez empieza la temporada 1 (o la siguiente).
+            if (nueva.temporadas.activo && !nueva.temporadas.fin) {
+                nueva = await require('../../utils/temporadas.js').iniciarTemporada(guild.id, nueva.temporadas.duracion, Math.max(1, nueva.temporadas.numero || 1));
+            }
+            res.json({ success: true, ...(await datosTemporada(guild, nueva)) });
+        } catch (e) { console.error('PUT temporadas:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+    // Cerrar la temporada ya (reparte premios y empieza la siguiente).
+    router.post(ruta('temporadas/cerrar'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            if (!cfg.temporadas.activo || !cfg.temporadas.fin) return res.status(400).json({ error: 'Activa antes las temporadas' });
+            const r = await require('../../utils/temporadas.js').cerrarTemporada(client, guild, cfg);
+            if (!r) return res.status(409).json({ error: 'La temporada se acaba de cerrar' });
+            res.json({ success: true, ...(await datosTemporada(guild, await cfgDe(guild.id))) });
+        } catch (e) { console.error('POST temporadas/cerrar:', e.message); res.status(500).json({ error: 'No se pudo cerrar' }); }
+    });
+
     return router;
 };
