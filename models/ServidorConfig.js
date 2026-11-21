@@ -26,6 +26,12 @@ const ServidorConfigSchema = new mongoose.Schema({
     mensajeSoporteDescripcion: { type: String, default: 'Haz clic en el botón de abajo para abrir un ticket de soporte.' },
     footerPersonalizado: { type: String, default: 'Sistema de Gestión Sokyo' },
     
+    // --- CRECIMIENTO ---
+    canalBienvenidaId: { type: String, default: null },
+    mensajeBienvenida: { type: String, default: '¡Bienvenido/a {usuario} a **{servidor}**! Ya somos {miembros} miembros 🎉' },
+    rolAutomaticoId: { type: String, default: null },
+    xpActivo: { type: Boolean, default: true },
+
     esPremium: { type: Boolean, default: false },
     premiumHasta: { type: Date, default: null }
 });
