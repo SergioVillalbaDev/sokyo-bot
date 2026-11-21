@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.10.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.11.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -620,4 +620,26 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     Discord lo rechaza, el evento del bot se crea igual y la API devuelve `errorDiscord`). Premio por asistir
     (`premioOro`/`premioXp`) a los 15 min de empezar a quien esté en el canal, una vez. `GET /api/servidor/canales-voz?escenarios=1`.
   - Todo lo periódico va en su propio temporizador de 5 min (`tickCrecimiento` en `utils/scheduler.js`), aparte del principal.
+- 1.11.0 **Setup rápido, más opciones y el panel bien en inglés**:
+  - **Setup rápido** (`utils/setupRapido.js`; panel: tarjeta en el Inicio + `components/dashboard/SetupRapido.jsx`,
+    `POST /api/config/:guildId/setup-rapido` con `exigeAdmin`; Discord: `/setup-rapido` = `slash/quicksetup.js`, las
+    preguntas son las opciones del comando). Idioma, tipo de servidor (mismos tipos que el Asistente), módulos y canales
+    (`auto` = el configurado, uno con el mismo nombre o uno nuevo; `nuevo`; o un id). Nunca pisa lo hecho a mano (automod
+    ya activo → «omitido»), reutiliza canales, crea el registro privado con permisos explícitos, el automod solo borra,
+    una pasada por servidor y minuto (`puedePasar`) y mira antes los permisos del bot. Los detalles del resultado van en el
+    idioma del panel (`idiomaTextos`) y los errores con `codigo` (el panel los traduce). El historial lo apunta todo.
+  - **Seguridad**: `errorRolPeligroso` (`utils/permisos.js`): los roles que el bot reparte solo a cualquiera (votar,
+    campeón) no pueden tener permisos de staff (al guardar y también al repartir). `rolesQueDaElBot` incluye ya
+    `crecimiento.votos.rolId` y `temporadas.rolCampeonId`.
+  - **Votos**: `oroExtra` y `mencionar` por servidor; `/votar recordar:sí|no` (modelo `RecordatorioVoto`, aviso por
+    privado a las 12 h, `avisarRecordatorios` en `tickCrecimiento`). El mensaje de gracias está en `textosPorDefecto`.
+  - **Red Sokyo**: `bloqueados` (en los dos sentidos), `minMiembros` y `etiquetas`; el panel enseña los últimos
+    publicados con «Bloquear».
+  - **Temporadas**: `excluirRoles` (no compiten ni cobran; tampoco quien se fue), `mencionar`, `anunciarInicio`.
+  - **Idioma del panel**: (1) la API traduce el `error` de sus respuestas si `X-Sokyo-Lang: en` (`utils/erroresApi.js`;
+    `test/erroresApi.test.js` falla si un `error: '…'` fijo no tiene traducción: añádela ahí); (2) al cambiar de idioma
+    se vuelve a pedir lo de la sección abierta (`useDashboard`, `useModulo`, vistas de Crecimiento, Diagnóstico,
+    Novedades, Mensajes fijos); (3) textos de ejemplo que se enseñan sin guardarse (Presentaciones: `preguntasPropias`
+    = `null` mientras sean las de ejemplo, así el autoguardado no las guarda al cambiar de idioma). Al añadir una vista
+    que pide datos con textos de la API o con errores, ponle el idioma en las dependencias de la carga.
 

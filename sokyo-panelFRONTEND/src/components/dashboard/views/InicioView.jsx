@@ -13,6 +13,7 @@ import { CircularGauge } from '../../ui/CircularGauge';
 import { gruposVisibles, navSections, bloqueadoPorPlan, ubicacion, itemVisible } from '../navConfig';
 import { getStaffSession, apiFetch, procesarRespuesta } from '../../../lib/api';
 import AsistenteInicio from '../AsistenteInicio';
+import SetupRapido, { TarjetaSetupRapido } from '../SetupRapido';
 import AvisoIdiomaBot from '../AvisoIdiomaBot';
 import { cn } from '../../../lib/cn';
 
@@ -63,6 +64,7 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
   // ¿Algo no funciona? El diagnóstico se mira al abrir el Inicio y, si hay
   // errores, sale un aviso arriba con el botón para verlos y arreglarlos.
   const [fallos, setFallos] = useState(0);
+  const [setupAbierto, setSetupAbierto] = useState(false);
   useEffect(() => {
     if (!guildId) return undefined;
     let vivo = true;
@@ -134,6 +136,13 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
 
       {/* El bot escribe en otro idioma que el panel: sus mensajes de fábrica salían en inglés (1.9.14) */}
       <AvisoIdiomaBot key={guildId} dash={dash} ocultable />
+
+      {/* Setup rápido (1.11.0): deja el bot funcionando con unas preguntas */}
+      <TarjetaSetupRapido onAbrir={() => { dash.cargarCanales?.(); dash.cargarRoles?.(); setSetupAbierto(true); }} />
+      {setupAbierto && (
+        <SetupRapido guildId={guildId} canales={dash.canales} roles={dash.roles} irA={setActiveTab}
+          onCerrar={() => setSetupAbierto(false)} onHecho={() => dash.recargarSeccion?.({ soloDatos: true })} />
+      )}
 
       <AsistenteInicio
         guildId={guildId} estadoModulos={estadoModulos} configServidor={configServidor} setActiveTab={setActiveTab}

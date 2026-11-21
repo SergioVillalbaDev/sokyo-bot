@@ -26,6 +26,7 @@ function PreviaCanal({ t, plantilla, tipo, idioma }) {
 
 export default function ContadoresView({ dash }) {
   const { t, i18n } = useTranslation();
+  const idiomaPanel = i18n.language;
   const { categorias = [], configServidor, cargarModulo, accionModulo } = dash;
   // La cifra lleva el formato del idioma del servidor (como la escribe el bot), no el del panel.
   const idiomaServidor = configServidor?.idioma || i18n.language;
@@ -38,8 +39,9 @@ export default function ContadoresView({ dash }) {
   const cargar = useCallback(async () => {
     const r = await cargarModulo('contadores');
     setDatos(r);
+    // Con el idioma nuevo se vuelve a pedir (los errores de la API vienen en el idioma del panel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idiomaPanel]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 

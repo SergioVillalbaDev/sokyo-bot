@@ -39,6 +39,7 @@ function PreviaAviso({ t, tipo, plantilla, rol, fuentes = [] }) {
 
 export default function CrecDirectosView({ dash }) {
   const { t, i18n } = useTranslation();
+  const idiomaPanel = i18n.language;
   const { canales, roles, cargarCrecimiento, guardarCrecimiento, anadirFuenteDirecto, eliminarFuenteDirecto, probarFuenteDirecto } = dash;
 
   const [datos, setDatos] = useState(null);
@@ -56,8 +57,9 @@ export default function CrecDirectosView({ dash }) {
     if (r.error) { setDatos({ error: r.error }); return; }
     setDatos(r);
     setForm(r.config);
+    // Con el idioma nuevo se vuelve a pedir (los errores de la API vienen en el idioma del panel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idiomaPanel]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 

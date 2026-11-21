@@ -45,9 +45,9 @@ const recomendados = (tipo) => [...(TIPOS[tipo] || TIPOS.comunidad)];
 function validar(body, guild) {
     const b = body || {};
     const idioma = b.idioma === 'es' ? 'es' : b.idioma === 'en' ? 'en' : null;
-    if (!idioma) return { error: 'Elige el idioma del bot' };
+    if (!idioma) return { error: 'Elige el idioma del bot', codigo: 'idioma' };
     const tipo = TIPOS[b.tipo] ? b.tipo : null;
-    if (!tipo) return { error: 'Elige el tipo de servidor' };
+    if (!tipo) return { error: 'Elige el tipo de servidor', codigo: 'tipo' };
     const modulos = Array.isArray(b.modulos) ? [...new Set(b.modulos.filter((m) => MODULOS.includes(m)))] : recomendados(tipo);
     const canales = {};
     for (const clave of Object.keys(CANALES)) {
@@ -56,13 +56,13 @@ function validar(body, guild) {
         const v = b.canales && b.canales[clave];
         if (!v || v === 'auto' || v === 'nuevo') { canales[clave] = v === 'nuevo' ? 'nuevo' : 'auto'; continue; }
         const c = SNOWFLAKE.test(String(v)) ? guild.channels.cache.get(String(v)) : null;
-        if (!c || c.type !== ChannelType.GuildText) return { error: `El canal elegido para «${clave}» no existe o no es de texto` };
+        if (!c || c.type !== ChannelType.GuildText) return { error: `El canal elegido para «${clave}» no existe o no es de texto`, codigo: 'canal' };
         canales[clave] = c.id;
     }
     let rolStaffId = null;
     if (b.rolStaffId) {
         const r = SNOWFLAKE.test(String(b.rolStaffId)) ? guild.roles.cache.get(String(b.rolStaffId)) : null;
-        if (!r || r.id === guild.id || r.managed) return { error: 'Ese rol de staff no existe o no se puede usar' };
+        if (!r || r.id === guild.id || r.managed) return { error: 'Ese rol de staff no existe o no se puede usar', codigo: 'rol' };
         rolStaffId = r.id;
     }
     return { respuestas: { idioma, tipo, modulos, canales, rolStaffId } };
@@ -115,9 +115,11 @@ async function canalDe(guild, clave, idioma, { configurado = null, privado = fal
 }
 
 // Aplica el setup. Devuelve { pasos: [{ id, estado: 'ok'|'omitido'|'error', detalle, tab }], creados }.
-async function aplicar(client, guild, respuestas) {
+// `idiomaTextos`: idioma de los detalles del resultado (el del panel que lo pide; en Discord,
+// el elegido). Los canales nuevos se llaman en el idioma del bot.
+async function aplicar(client, guild, respuestas, { idiomaTextos = respuestas.idioma } = {}) {
     const { idioma } = respuestas;
-    const tx = (es, en) => t(idioma, es, en);
+    const tx = (es, en) => t(idiomaTextos, es, en);
     const pasos = [];
     const creados = [];
     const paso = async (id, tab, fn) => {

@@ -10,6 +10,9 @@ const REFRESCO_MS = 5000;
 // Carga /modulos/<ruta> y deja `form` con su config, que se guarda sola al dejar de tocarla.
 export function useModulo(dash, ruta) {
   const { cargarModulo, guardarModulo } = dash;
+  // Con el idioma nuevo se vuelve a pedir (los errores de la API vienen en el idioma del panel).
+  const { i18n } = useTranslation();
+  const idiomaPanel = i18n.language;
   const [datos, setDatos] = useState(null);
   const [form, setForm] = useState(null);
   const [estado, setEstado] = useState('');
@@ -20,7 +23,7 @@ export function useModulo(dash, ruta) {
     setDatos(r);
     setForm(r.config || null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ruta]);
+  }, [ruta, idiomaPanel]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { recargar(); }, [recargar]);
 

@@ -23,7 +23,8 @@ function Opcion({ etiqueta, ayuda, checked, onChange, disabled }) {
 }
 
 export default function CrecPaginaView({ dash }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const idiomaPanel = i18n.language;
   const { canales, configServidor, cargarCrecimiento, guardarCrecimiento } = dash;
 
   const [datos, setDatos] = useState(null);
@@ -38,8 +39,9 @@ export default function CrecPaginaView({ dash }) {
     const r = await cargarCrecimiento('pagina');
     if (r.error) { setDatos({ error: r.error }); return; }
     aplicar(r);
+    // Con el idioma nuevo se vuelve a pedir (los errores de la API vienen en el idioma del panel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idiomaPanel]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 
