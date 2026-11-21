@@ -280,6 +280,7 @@ module.exports = (client) => {
         if (req.path.startsWith('/auth')) return next();    // flujo OAuth (público)
         if (req.path.startsWith('/portal')) return next();  // portal: su propio middleware
         if (req.path.startsWith('/spotify')) return next(); // callback OAuth de Spotify (verificado por state)
+        if (req.path === '/topgg/voto') return next();     // webhook de top.gg (verificado por TOPGG_WEBHOOK_AUTH)
 
         // (1) ¿Sesión de staff por JWT?
         const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -324,6 +325,19 @@ module.exports = (client) => {
             });
         }
         next();
+    });
+
+    // --- Votos de top.gg (1.10.0, utils/votos.js) ---
+    // top.gg llama aquí con cada voto, con la clave TOPGG_WEBHOOK_AUTH en Authorization.
+    // Se contesta enseguida: si tardamos, top.gg lo reintenta (los repetidos no premian).
+    app.post('/api/topgg/voto', async (req, res) => {
+        const votos = require('../utils/votos.js');
+        if (!votos.webhookConfigurado()) return res.status(503).json({ error: 'Votos no configurados' });
+        if (!votos.autorizacionValida(req.headers.authorization)) return res.status(401).json({ error: 'No autorizado' });
+        const voto = votos.leerVoto(req.body);
+        if (!voto) return res.status(400).json({ error: 'Voto no válido' });
+        res.json({ ok: true });
+        votos.procesarVoto(client, voto).catch((e) => console.error('top.gg · voto:', e.message));
     });
 
     // --- Historial de cambios del panel: apunta lo que cambia cada guardado ---

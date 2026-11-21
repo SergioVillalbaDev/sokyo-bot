@@ -751,6 +751,20 @@ const ServidorConfigSchema = new mongoose.Schema({
     },
     // Cumpleaños: felicitación el día del cumpleaños de cada miembro (el día y el
     // mes los guarda cada uno con /cumple o en «Mi cuenta»). Lógica en utils/cumpleanos.js.
+    // Temporadas (1.10.0): ranking de XP que se reinicia cada mes (o semana) sin tocar
+    // los niveles. Al cerrar, premios de oro al podio y rol de campeón al primero.
+    // Lógica en utils/temporadas.js; la XP de temporada está en ActividadUsuario.xpTemporada.
+    temporadas: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },             // dónde anunciar el podio
+        duracion: { type: String, enum: ['mensual', 'semanal'], default: 'mensual' },
+        oro: { type: [Number], default: [1000, 500, 250] },   // premio del 1.º, 2.º y 3.º
+        rolCampeonId: { type: String, default: null },        // rol del ganador hasta la siguiente temporada
+        numero: { type: Number, default: 0 },                 // (interno) temporada en curso
+        inicio: { type: Date, default: null },
+        fin: { type: Date, default: null },
+        campeonId: { type: String, default: null },           // (interno) quien lleva el rol ahora
+    },
     cumpleanos: {
         activo: { type: Boolean, default: false },
         canalId: { type: String, default: null },
@@ -879,7 +893,30 @@ const ServidorConfigSchema = new mongoose.Schema({
             ultimoBumpPor: { type: String, default: null },
             ultimoBumpFecha: { type: Date, default: null },
         },
-        // Página pública del servidor (/s/<slug>) y aparición en el directorio (/servidores).
+        // Votos en top.gg (1.10.0): al votar por el bot, quien sea miembro de este
+        // servidor recibe aquí un rol temporal, XP y un mensaje de gracias. El oro del
+        // voto es global (economía) y lo da utils/votos.js. Lógica en utils/votos.js.
+        votos: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },         // dónde dar las gracias (null = sin mensaje)
+            rolId: { type: String, default: null },           // rol «Votante» durante `horasRol` horas
+            horasRol: { type: Number, default: 12 },
+            xp: { type: Number, default: 0 },                 // XP por voto (si los niveles están activos)
+            mensaje: { type: String, default: '🗳️ Thanks for voting for Sokyo, {mention}! You got **{gold} gold**{extra}. You can vote again {next}.' },
+        },
+        // Red Sokyo (1.10.0): los servidores que la activan se promocionan entre sí. Cada
+        // `cadaHoras` el bot publica en `canalId` otro servidor de la red (y el tuyo sale en
+        // los de los demás). Solo entran servidores con página pública en el directorio.
+        // Lógica en utils/redSokyo.js.
+        red: {
+            activo: { type: Boolean, default: false },
+            canalId: { type: String, default: null },
+            cadaHoras: { type: Number, default: 24 },
+            mismoIdioma: { type: Boolean, default: true },    // solo servidores en tu idioma
+            ultimaPublicacion: { type: Date, default: null },
+            mostrado: { type: Number, default: 0 },           // veces que ESTE servidor ha salido en otros
+            vistos: { type: [String], default: [] },          // últimos servidores publicados aquí (no repetir)
+        },
         pagina: {
             activo: { type: Boolean, default: false },
             slug: { type: String, default: null },

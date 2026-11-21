@@ -167,6 +167,24 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     setTimeout(tickContadores, 50 * 1000);
     setInterval(tickContadores, 10 * 60 * 1000 + 15 * 1000);
 
+    // Crecimiento 1.10.0, cada 5 min y aparte del barrido principal (que ya va cargado):
+    // temporadas, Red Sokyo, referidos (se resuelven cada hora) y premio por asistir a eventos.
+    const tickCrecimiento = conGuardiaDeReentrancia('crecimiento', async () => {
+        try { await require('./temporadas.js').barrerTemporadas(client); } catch (e) { console.error('Programador (temporadas):', e.message); }
+        try { await require('./redSokyo.js').barrerRed(client); } catch (e) { console.error('Programador (Red Sokyo):', e.message); }
+        try { await require('./referidos.js').barrerReferidos(client); } catch (e) { console.error('Programador (referidos):', e.message); }
+        try { await require('./eventosDiscord.js').premiarAsistencia(client); } catch (e) { console.error('Programador (premio eventos):', e.message); }
+    });
+    setTimeout(tickCrecimiento, 70 * 1000);
+    setInterval(tickCrecimiento, 5 * 60 * 1000);
+
+    // top.gg: número de servidores en la ficha del bot (solo con TOPGG_TOKEN), cada 30 min.
+    const tickTopgg = conGuardiaDeReentrancia('topgg', async () => {
+        try { await require('./votos.js').publicarEstadisticas(client); } catch (e) { console.error('Programador (top.gg):', e.message); }
+    });
+    setTimeout(tickTopgg, 90 * 1000);
+    setInterval(tickTopgg, 30 * 60 * 1000);
+
     // Red de seguridad: devuelve a Free los servidores con premium caducado (cada hora).
     const tickPremium = conGuardiaDeReentrancia('premium', async () => {
         try {

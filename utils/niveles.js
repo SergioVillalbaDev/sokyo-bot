@@ -118,7 +118,8 @@ async function aplicarXp(guild, member, ganada, cfg, canalFallback) {
 
     await ActividadUsuario.updateOne(
         { guildId: guild.id, userId: member.id },
-        { $set: { xp: xpNueva, nivel: nivelNuevo, usuarioTag: member.user.username } },
+        // xpTemporada: lo mismo, para el ranking de la temporada (utils/temporadas.js).
+        { $set: { xp: xpNueva, nivel: nivelNuevo, usuarioTag: member.user.username }, $inc: { xpTemporada: ganada } },
         { upsert: true },
     );
 
