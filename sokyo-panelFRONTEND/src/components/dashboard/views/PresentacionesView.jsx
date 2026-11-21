@@ -1,6 +1,6 @@
 // Comunidad · Presentaciones — formulario de presentación para nuevos miembros
 // con preguntas configurables y filtros automáticos de descarte.
-import {useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Info, Filter, Check, AlertTriangle, Bell, ChevronDown, ChevronUp, ShieldCheck, X } from 'lucide-react';
 import { Toggle } from '../../ui/primitives';
@@ -52,7 +52,11 @@ export default function PresentacionesView({ dash }) {
   const [canalStaff, setCanalStaff] = useState('');
   const [modo, setModo] = useState('preguntas');
   const [plantilla, setPlantilla] = useState(() => PLANTILLA_FABRICA[configServidor?.idioma] || PLANTILLA_FABRICA.en);
-  const [preguntas, setPreguntas] = useState(() => preguntasDefecto(t));
+  // `null` = las preguntas de ejemplo: se enseñan en el idioma del panel (si cambia, cambian)
+  // y no cuentan como cambio para el autoguardado hasta que alguien las toca.
+  const [preguntasPropias, setPreguntasPropias] = useState(null);
+  const preguntas = preguntasPropias ?? preguntasDefecto(t);
+  const setPreguntas = (v) => setPreguntasPropias((prev) => (typeof v === 'function' ? v(prev ?? preguntasDefecto(t)) : v));
   const [filtros, setFiltros] = useState([]);
   // Aprobación del staff (1.9.12)
   const [aprobacion, setAprobacion] = useState(true);
@@ -139,7 +143,7 @@ export default function PresentacionesView({ dash }) {
     return ok; // el autoguardado reintenta si falla
   };
   // Se guarda solo al dejar de tocar algo (hooks/useAutoguardado.js).
-  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntas, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId, panel], guardar, {
+  const autoguardado = useAutoguardado([canalIntro, canalStaff, modo, plantilla, preguntasPropias, filtros, aprobacion, canalPublico, mensajeRechazo, mensajeAceptada, rolAceptadaId, panel], guardar, {
     listo: !!configServidor, borrador: 'presentaciones',
     restaurar: ([ci, cs, m, p, q, fl, ap = true, cp = '', mr = '', ma = '', ra = '', pn = PANEL_VACIO]) => {
       setCanalIntro(ci); setCanalStaff(cs); setModo(m); setPlantilla(p); setPreguntas(q); setFiltros(fl);

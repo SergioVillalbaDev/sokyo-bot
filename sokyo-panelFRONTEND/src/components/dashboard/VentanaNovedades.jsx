@@ -9,7 +9,7 @@ import { apiFetch, procesarRespuesta } from '../../lib/api';
 import { ubicacion } from './navConfig';
 
 export default function VentanaNovedades({ onCerrar, irA, puedeVer = () => true }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [datos, setDatos] = useState(null);
   const [verAnteriores, setVerAnteriores] = useState(false);
 
@@ -21,7 +21,8 @@ export default function VentanaNovedades({ onCerrar, irA, puedeVer = () => true 
       setDatos(d);
     }).catch(() => { if (vivo) onCerrar(); });
     return () => { vivo = false; };
-  }, [onCerrar]);
+    // Las novedades vienen en el idioma del panel: al cambiarlo, se vuelven a pedir.
+  }, [onCerrar, i18n.language]);
 
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onCerrar(); };

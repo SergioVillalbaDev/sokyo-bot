@@ -7,6 +7,7 @@
 // cambiar el comportamiento. NO se ha alterado ninguna llamada a la API.
 // ============================================================================
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiFetch, API_URL, procesarRespuesta, getStaffSession } from '../lib/api';
 import { isValidTheme, isPremiumTheme } from '../lib/themes';
 import { temaEfectivo, suscribirAspecto } from '../lib/aspecto';
@@ -20,6 +21,8 @@ export function useDashboard() {
   });
   // Pestaña inicial: la de la URL (#dashboard/<pestaña>: enlaces directos y
   // recargas) o la que se pidió antes de pasar por el login de Discord.
+  const { i18n: i18nPanel } = useTranslation();
+  const idiomaPanel = i18nPanel.language;
   const [activeTab, setActiveTab] = useState(() => {
     const enUrl = window.location.hash.match(/^#dashboard\/([\w-]+)/);
     return (enUrl && enUrl[1]) || sessionStorage.getItem('sokyoPestanaTrasLogin') || 'inicio';
@@ -1704,8 +1707,10 @@ export function useDashboard() {
     else if (activeTab.startsWith('logs-')) cargarLogs();
     else if (activeTab === 'config-cambios') { cargarCanales(); cargarRoles(); }
     else if (activeTab === 'mod-miembros') cargarRoles(); // filtro por rol y «Dar rol» en grupo
+    // `idiomaPanel`: al cambiar de idioma se vuelve a pedir lo de la sección abierta, porque la
+    // API genera algunos textos en el idioma del panel (recomendaciones, informes…).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, guildId, recarga]);
+  }, [activeTab, guildId, recarga, idiomaPanel]);
 
   // Vuelve a traer la configuración y monta de nuevo la sección abierta (con
   // { soloDatos: true }, solo los datos: la vista que lo pide se queda como está).
