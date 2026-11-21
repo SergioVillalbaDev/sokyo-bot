@@ -1790,6 +1790,7 @@ export function useDashboard() {
       'com-bromas': b(c.bromas && c.bromas.activo),
       'crec-liga': b(c.liga && c.liga.activo),
       'logs-todos': b(c.canalLogsId),
+      'tickets-config': b(c.categoriaTicketsId),
     };
   })();
 

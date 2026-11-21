@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.17.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.18.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,4 +738,11 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`GRUPOS`/`CANALES` en `SetupRapido.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.18.0 **«Esto está apagado» en cada sección** (`components/dashboard/AvisoApagado.jsx`, montado en `Dashboard.jsx` encima
+  de la vista): si `estadoModulos[tab]` es false sale una tarjeta grande con qué hace (`asistente.porque`), qué hará al
+  activarla (`dashboard.activar.que.<modulo>`) y «⚡ Activarlo ahora» (`lib/activar.js`: `ACTIVABLE` + `activarSeccion`, el
+  setup rápido con `uno`). Si la sección no es activable, el botón lleva al primer `[role=switch]` de la vista
+  (`data-vista-seccion`) y lo resalta (`sk-resaltado`). Al terminar recarga la sección (`recargarSeccion()`). Si una
+  sección nueva tiene interruptor, añádela a `estadoModulos` (useDashboard) y, si el setup sabe activarla, a `ACTIVABLE` y a
+  `activar.que`.
 

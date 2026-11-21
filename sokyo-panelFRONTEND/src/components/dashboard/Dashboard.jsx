@@ -1,5 +1,6 @@
 // Contenedor del Dashboard — une el layout (Sidebar + Header) con las vistas.
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
+import AvisoApagado from './AvisoApagado';
 import { useState, useEffect, useRef, useCallback, useSyncExternalStore, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -447,8 +448,11 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
             </div>
           )}
 
+          {/* «Esto está apagado» con «⚡ Activarlo ahora» (1.17.1) */}
+          <AvisoApagado key={`${guildId}:${activeTab}`} tab={activeTab} dash={dash} />
           <AnimatePresence mode="wait">
             <motion.div
+              data-vista-seccion
               key={viewKey}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
