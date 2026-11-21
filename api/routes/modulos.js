@@ -776,5 +776,41 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
         } catch (e) { console.error('POST mascota/reiniciar:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 
+    // ============================ CASINO Y COFRES (1.16.0) ============================
+    router.get(ruta('casino'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            const [casino, cofres] = await Promise.all([
+                require('../../utils/casino.js').resumenServidor(client, guild.id),
+                require('../../utils/cofres.js').resumenServidor(client, guild.id),
+            ]);
+            res.json({ config: cfg.casino, ...casino, cofres });
+        } catch (e) { console.error('GET casino:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    router.put(ruta('casino'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            await cfgDe(guild.id);
+            const set = {};
+            if (b.activo !== undefined) set['casino.activo'] = !!b.activo;
+            if (!ponerCanal(set, 'casino.canalId', guild, b.canalId, res)) return;
+            if (!ponerCanal(set, 'casino.anunciosId', guild, b.anunciosId, res)) return;
+            if (b.apuestaMin !== undefined) set['casino.apuestaMin'] = entero(b.apuestaMin, 1, 1000000, 10);
+            if (b.apuestaMax !== undefined) set['casino.apuestaMax'] = entero(b.apuestaMax, 1, 10000000, 5000);
+            if (b.limiteDiario !== undefined) set['casino.limiteDiario'] = entero(b.limiteDiario, 0, 100000000, 20000);
+            if (b.cofres !== undefined) set['casino.cofres'] = !!b.cofres;
+            if (b.juegos && typeof b.juegos === 'object') {
+                for (const j of ['tragaperras', 'ruleta', 'blackjack', 'crash', 'minas', 'moneda', 'duelo', 'carrera']) {
+                    if (b.juegos[j] !== undefined) set[`casino.juegos.${j}`] = !!b.juegos[j];
+                }
+            }
+            if (set['casino.apuestaMax'] !== undefined && set['casino.apuestaMin'] !== undefined && set['casino.apuestaMax'] < set['casino.apuestaMin']) set['casino.apuestaMax'] = set['casino.apuestaMin'];
+            const nueva = await guardar(guild.id, set);
+            res.json({ success: true, config: nueva.casino });
+        } catch (e) { console.error('PUT casino:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+
     return router;
 };

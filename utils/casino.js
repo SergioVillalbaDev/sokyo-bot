@@ -85,7 +85,7 @@ async function cobrarJugada(client, cfg, jugada, premio, detalle = null) {
         $set: { dia: hoy, perdidoHoy: Math.max(0, perdidoHoy), ...(premio > (p?.mayorPremio || 0) ? { mayorPremio: premio, mayorJuego: jugada.juego } : {}) },
         $inc: { jugadas: 1, apostado: jugada.apuesta, ganado: premio },
     }, { upsert: true });
-    if (premio >= GRAN_PREMIO && premio >= jugada.apuesta * 10) await anunciarGranPremio(client, cfg, jugada, premio).catch(() => {});
+    if (client && premio >= GRAN_PREMIO && premio >= jugada.apuesta * 10) await anunciarGranPremio(client, cfg, jugada, premio).catch(() => {});
     return { premio, vuelta };
 }
 
@@ -221,7 +221,23 @@ async function moneda({ interaction, client, cfg, idioma, cantidad, lado }) {
 // 🃏 Blackjack (con botones)
 // ---------------------------------------------------------------------------
 const partidas = new Map(); // id -> estado de blackjack / crash / minas
-function limpiarPartidas() { const ahora = Date.now(); for (const [k, v] of partidas) if (v.caduca < ahora) partidas.delete(k); }
+// Partidas abandonadas: el blackjack se resuelve como si se plantara y las minas cobran
+// lo que llevaban (así nadie las deja a medias esperando un reinicio para recuperar la apuesta).
+function limpiarPartidas(client = null) {
+    const ahora = Date.now();
+    for (const [k, p] of partidas) {
+        if (p.caduca >= ahora) continue;
+        partidas.delete(k);
+        if (p.tipo === 'bj') {
+            const banca = C.jugarBanca(p.banca, p.mazo);
+            const apuesta = p.apuesta * (p.doblada ? 2 : 1);
+            cobrarJugada(client, p.cfg, { ...p.jugada.toObject(), apuesta }, Math.floor(apuesta * C.resultadoBlackjack(p.jugador, banca).mult), { abandonada: true }).catch(() => {});
+        } else if (p.tipo === 'minas') {
+            cobrarJugada(client, p.cfg, p.jugada, Math.floor(p.apuesta * C.multMinas(p.minas, p.abiertas.length)), { abandonada: true }).catch(() => {});
+        }
+    }
+}
+const barrerPartidas = (client) => limpiarPartidas(client);
 
 function vistaBlackjack(p, idioma, { fin = null, ocultar = true } = {}) {
     const png = A.mesaBlackjack({ jugador: p.jugador, banca: p.banca, ocultar, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You'), lema: t(idioma, 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', 'BLACKJACK PAYS 3 TO 2 · DEALER STANDS ON 17') } });
@@ -240,7 +256,7 @@ function vistaBlackjack(p, idioma, { fin = null, ocultar = true } = {}) {
 async function blackjack({ interaction, client, cfg, idioma, cantidad }) {
     const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'blackjack', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
-    limpiarPartidas();
+    limpiarPartidas(client);
     const mazo = C.baraja();
     const p = { id: nuevoId(), tipo: 'bj', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, mazo, jugador: [mazo.pop(), mazo.pop()], banca: [mazo.pop(), mazo.pop()], doblada: false, caduca: Date.now() + 10 * 60000, cfg, idioma };
     partidas.set(p.id, p);
@@ -321,11 +337,11 @@ function vistaCrash(p, idioma, mult, estado) {
     const cielo = `${'▰'.repeat(llenas)}${'▱'.repeat(12 - llenas)}`;
     const cohete = estado === 'boom' ? '💥' : estado === 'cobrado' ? '🪂' : '🚀';
     const color = estado === 'boom' ? '#7f1d1d' : estado === 'cobrado' ? '#16a34a' : mult >= 5 ? '#f59e0b' : '#2563eb';
-    const texto = {
-        vuela: t(idioma, `**×${mult.toFixed(2)}** ${cohete}\n${cielo}\nCobras ahora: **🪙 ${fmt(p.apuesta * mult, idioma)}**${p.auto ? ` · retiro automático en ×${p.auto}` : ''}`, `**×${mult.toFixed(2)}** ${cohete}\n${cielo}\nCash out now: **🪙 ${fmt(p.apuesta * mult, idioma)}**${p.auto ? ` · auto cash-out at ×${p.auto}` : ''}`),
-        cobrado: t(idioma, `🪂 ¡Te has retirado a tiempo en **×${p.cobradoEn.toFixed(2)}**! Ganas **🪙 ${fmt(p.premio, idioma)}**.\nEl cohete explotó en ×${p.punto.toFixed(2)}.`, `🪂 You cashed out in time at **×${p.cobradoEn.toFixed(2)}**! You win **🪙 ${fmt(p.premio, idioma)}**.\nThe rocket blew up at ×${p.punto.toFixed(2)}.`),
-        boom: t(idioma, `💥 **¡BOOM!** Ha explotado en **×${p.punto.toFixed(2)}**. Pierdes **🪙 ${fmt(p.apuesta, idioma)}**.`, `💥 **BOOM!** It blew up at **×${p.punto.toFixed(2)}**. You lose **🪙 ${fmt(p.apuesta, idioma)}**.`),
-    }[estado];
+    const texto = ({
+        vuela: () => t(idioma, `**×${mult.toFixed(2)}** ${cohete}\n${cielo}\nCobras ahora: **🪙 ${fmt(p.apuesta * mult, idioma)}**${p.auto ? ` · retiro automático en ×${p.auto}` : ''}`, `**×${mult.toFixed(2)}** ${cohete}\n${cielo}\nCash out now: **🪙 ${fmt(p.apuesta * mult, idioma)}**${p.auto ? ` · auto cash-out at ×${p.auto}` : ''}`),
+        cobrado: () => t(idioma, `🪂 ¡Te has retirado a tiempo en **×${p.cobradoEn.toFixed(2)}**! Ganas **🪙 ${fmt(p.premio, idioma)}**.\nEl cohete explotó en ×${p.punto.toFixed(2)}.`, `🪂 You cashed out in time at **×${p.cobradoEn.toFixed(2)}**! You win **🪙 ${fmt(p.premio, idioma)}**.\nThe rocket blew up at ×${p.punto.toFixed(2)}.`),
+        boom: () => t(idioma, `💥 **¡BOOM!** Ha explotado en **×${p.punto.toFixed(2)}**. Pierdes **🪙 ${fmt(p.apuesta, idioma)}**.`, `💥 **BOOM!** It blew up at **×${p.punto.toFixed(2)}**. You lose **🪙 ${fmt(p.apuesta, idioma)}**.`),
+    })[estado]();
     const e = new EmbedBuilder().setColor(color).setTitle(t(idioma, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`)).setDescription(texto);
     const comps = estado === 'vuela' ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_crash:${p.id}`).setStyle(ButtonStyle.Success).setEmoji('🪂').setLabel(t(idioma, `Retirarme (🪙 ${fmt(p.apuesta * mult, idioma)})`, `Cash out (🪙 ${fmt(p.apuesta * mult, idioma)})`)))] : [filaOtraVez('crash', p.apuesta, idioma, p.auto ? String(p.auto) : '')];
     return { embeds: [e], components: comps };
@@ -333,7 +349,7 @@ function vistaCrash(p, idioma, mult, estado) {
 async function crash({ interaction, client, cfg, idioma, cantidad, auto = null }) {
     const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'crash', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
-    limpiarPartidas();
+    limpiarPartidas(client);
     const p = { id: nuevoId(), tipo: 'crash', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, punto: C.puntoCrash(), inicio: Date.now() + 1500, auto: auto && auto >= 1.01 ? Math.round(auto * 100) / 100 : null, terminado: false, caduca: Date.now() + 5 * 60000, cfg, idioma, interaction };
     partidas.set(p.id, p);
     await interaction.editReply(vistaCrash(p, idioma, 1, 'vuela'));
@@ -423,7 +439,7 @@ async function minas({ interaction, client, cfg, idioma, cantidad, numMinas = 3 
     numMinas = Math.max(1, Math.min(10, parseInt(numMinas, 10) || 3));
     const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'minas', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
-    limpiarPartidas();
+    limpiarPartidas(client);
     const p = { id: nuevoId(), tipo: 'minas', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, minas: numMinas, posMinas: C.colocarMinas(numMinas), abiertas: [], caduca: Date.now() + 15 * 60000, cfg, idioma };
     partidas.set(p.id, p);
     await interaction.editReply(vistaMinas(p, idioma));
@@ -708,7 +724,7 @@ async function resumenServidor(client, guildId) {
 }
 
 module.exports = {
-    JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverPendientes, textoFallo,
+    JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverPendientes, textoFallo, barrerPartidas,
     tragaperras, ruleta, moneda, blackjack, crash, minas, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor,
-    _partidas: partidas, _carreras: carreras, _duelos: duelos, retirarCrash,
+    _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash,
 };

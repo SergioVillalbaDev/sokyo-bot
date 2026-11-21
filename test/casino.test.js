@@ -132,3 +132,14 @@ describe('Cofres de mascotas', () => {
         assert.deepEqual(K.ventajas('nada'), { xp: 0, diario: 0, vuelta: 0 });
     });
 });
+
+describe('Panel y bot con los mismos datos', () => {
+    test('src/lib/casino.js coincide con el bot', async () => {
+        const L = await import('../sokyo-panelFRONTEND/src/lib/casino.js');
+        assert.deepEqual(L.SIMBOLOS.map((s) => [s.id, s.paga3]), C.SIMBOLOS.map((s) => [s.id, s.paga3]));
+        for (const [id, c] of Object.entries(K.COFRES)) assert.deepEqual([L.COFRES[id].precio, L.COFRES[id].prob], [c.precio, c.prob], id);
+        assert.deepEqual(Object.keys(L.COMPANEROS), Object.keys(K.COMPANEROS));
+        for (const [r, v] of Object.entries(K.RAREZAS)) assert.deepEqual([L.RAREZAS[r].xp, L.RAREZAS[r].diario, L.RAREZAS[r].vuelta], [v.xp, v.diario, v.vuelta], r);
+        assert.equal(L.PIEDAD, K.PIEDAD);
+    });
+});

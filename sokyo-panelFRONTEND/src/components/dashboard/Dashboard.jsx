@@ -92,6 +92,7 @@ const CARGAR_VISTA = {
   TemporadasView: () => import('./views/TemporadasView'),
   MascotaView: () => import('./views/MascotaView'),
   BromasView: () => import('./views/BromasView'),
+  CasinoView: () => import('./views/CasinoView'),
   CrecLigaView: () => import('./views/CrecLigaView'),
   StaffActividadView: () => import('./views/StaffActividadView'),
 };
@@ -386,6 +387,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'com-temporadas') return <V.TemporadasView dash={dash} />;
     if (activeTab === 'com-mascota') return <V.MascotaView dash={dash} />;
     if (activeTab === 'com-bromas') return <V.BromasView dash={dash} />;
+    if (activeTab === 'com-casino') return <V.CasinoView dash={dash} />;
     if (activeTab === 'crec-liga') return <V.CrecLigaView dash={dash} />;
     if (activeTab === 'datos-staff') return <V.StaffActividadView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
