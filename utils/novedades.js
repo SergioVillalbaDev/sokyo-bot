@@ -7,7 +7,7 @@
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
     '1.18.0': [
-        { es: '⚡ Al entrar en una sección que está apagada, sale arriba en grande qué hace, qué va a pasar y un botón «Activarlo ahora» que la deja funcionando en un clic.', en: '⚡ When you open a section that’s off, a big card at the top shows what it does, what will happen and a “Turn it on now” button that gets it working in one click.' },
+        { tab: 'com-sugerencias', es: '⚡ Al entrar en una sección que está apagada, sale arriba en grande qué hace, qué va a pasar y un botón «Activarlo ahora» que la deja funcionando en un clic.', en: '⚡ When you open a section that’s off, a big card at the top shows what it does, what will happen and a “Turn it on now” button that gets it working in one click.' },
         { es: '🔦 Si una sección se enciende a mano, el botón te lleva a su interruptor y lo hace brillar.', en: '🔦 If a section is turned on by hand, the button takes you to its switch and makes it glow.' },
     ],
     '1.17.0': [
