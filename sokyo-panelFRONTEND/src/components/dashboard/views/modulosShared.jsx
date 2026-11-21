@@ -26,3 +26,24 @@ export function FilaInterruptor({ titulo, desc, children }) {
     </div>
   );
 }
+
+// Fichas para elegir varios elementos de una lista (roles, servidores…).
+// `items`: [{ id, nombre }]; `seleccion`: ids marcados.
+export function Fichas({ items = [], seleccion = [], onCambio, prefijo = '', vacio = '' }) {
+  if (!items.length) return vacio ? <p className="text-sm italic text-muted">{vacio}</p> : null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((it) => {
+        const activo = seleccion.includes(it.id);
+        return (
+          <button key={it.id} type="button" aria-pressed={activo}
+            onClick={() => onCambio(activo ? seleccion.filter((x) => x !== it.id) : [...seleccion, it.id])}
+            className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${activo ? 'border-brand bg-brand/10 text-fg' : 'border-line text-muted hover:text-fg'}`}>
+            {prefijo}{it.nombre}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+

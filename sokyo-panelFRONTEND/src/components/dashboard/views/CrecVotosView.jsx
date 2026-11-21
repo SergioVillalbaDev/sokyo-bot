@@ -3,16 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Vote, Trophy, ExternalLink } from 'lucide-react';
-import { Avatar } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
-import { Vacio } from './modulosShared';
+import { Vacio, FilaInterruptor } from './modulosShared';
+import { Avatar, Toggle } from '../../ui/primitives';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
 import VistaDiscord from '../VistaDiscord';
 
 const VARIABLES = ['{mention}', '{user}', '{gold}', '{extra}', '{next}', '{server}'];
 
 export default function CrecVotosView({ dash }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const idiomaPanel = i18n.language;
   const { canales, roles, cargarCrecimiento, guardarCrecimiento } = dash;
   const [datos, setDatos] = useState(null);
   const [form, setForm] = useState(null);
@@ -23,8 +24,9 @@ export default function CrecVotosView({ dash }) {
     if (r.error) { setDatos({ error: r.error }); return; }
     setDatos(r);
     setForm(r.config);
+    // Con el idioma nuevo se vuelve a pedir (los errores de la API vienen en el idioma del panel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idiomaPanel]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -42,11 +44,12 @@ export default function CrecVotosView({ dash }) {
   if (!form) return null;
   const set = (k) => (v) => { setForm((f) => ({ ...f, [k]: v })); setEstado(''); };
   const rol = roles.find((r) => r.id === form.rolId);
-  const extras = [rol ? t('dashboard.votos_v.exRole', { rol: rol.name, horas: form.horasRol || 12 }) : '', form.xp > 0 && datos.nivelesActivo ? `${form.xp} XP` : ''].filter(Boolean);
+  const extras = [rol ? t('dashboard.votos_v.exRole', { rol: rol.nombre || rol.name, horas: form.horasRol || 12 }) : '', form.xp > 0 && datos.nivelesActivo ? `${form.xp} XP` : ''].filter(Boolean);
 
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted">{t('dashboard.votos_v.intro', { oro: datos.oroPorVoto })}</p>
+      <p className="text-xs text-muted">{t('dashboard.votos_v.remindTip')}</p>
       {!datos.configurado && <Aviso tipo="alerta">{t('dashboard.votos_v.notConfigured')}</Aviso>}
       {datos.urlVoto && (
         <a href={datos.urlVoto} target="_blank" rel="noreferrer"
@@ -67,13 +70,19 @@ export default function CrecVotosView({ dash }) {
           </Campo>
           <Campo etiqueta={t('dashboard.votos_v.hours')}><Numero value={form.horasRol ?? 12} onChange={set('horasRol')} min={1} max={168} /></Campo>
           <Campo etiqueta={t('dashboard.votos_v.xp')}><Numero value={form.xp ?? 0} onChange={set('xp')} max={100000} disabled={!datos.nivelesActivo} /></Campo>
+          <Campo etiqueta={t('dashboard.votos_v.extraGold')} ayuda={t('dashboard.votos_v.extraGoldHint')}><Numero value={form.oroExtra ?? 0} onChange={set('oroExtra')} max={100000} /></Campo>
+          <div className="self-end">
+            <FilaInterruptor titulo={t('dashboard.votos_v.mention')} desc={t('dashboard.votos_v.mentionHint')}>
+              <Toggle checked={form.mencionar !== false} onChange={set('mencionar')} />
+            </FilaInterruptor>
+          </div>
           <Campo etiqueta={t('dashboard.votos_v.message')} ayuda={t('dashboard.votos_v.messageHint', { vars: VARIABLES.join(' ') })} className="sm:col-span-2">
             <textarea rows={2} maxLength={800} value={form.mensaje || ''} onChange={(e) => set('mensaje')(e.target.value)} className={`${campo} resize-y`} />
           </Campo>
           <div className="sm:col-span-2">
             {/* Mismo formato que utils/votos.js (rellenar): {extra} = « y el rol … y 50 XP». */}
             <VistaDiscord texto={form.mensaje || ''} variables={{
-              mention: '@Alex', user: 'Alex', gold: String(datos.oroPorVoto), server: 'Nébula Gaming', next: t('dashboard.votos_v.exNext'),
+              mention: form.mencionar === false ? 'Alex' : '@Alex', user: 'Alex', gold: String(datos.oroPorVoto + (Number(form.oroExtra) || 0)), server: 'Nébula Gaming', next: t('dashboard.votos_v.exNext'),
               extra: extras.length ? ` ${t('dashboard.votos_v.and')} ${extras.join(` ${t('dashboard.votos_v.and')} `)}` : '',
             }} />
           </div>

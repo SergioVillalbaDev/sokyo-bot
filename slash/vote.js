@@ -11,10 +11,16 @@ module.exports = {
         .setName('vote')
         .setNameLocalizations(ES('votar'))
         .setDescription('Vote for Sokyo on top.gg and earn gold (and rewards on this server)')
-        .setDescriptionLocalizations(ES('Vota por Sokyo en top.gg y gana oro (y premios en este servidor)')),
+        .setDescriptionLocalizations(ES('Vota por Sokyo en top.gg y gana oro (y premios en este servidor)'))
+        .addBooleanOption((o) => o.setName('remind').setNameLocalizations(ES('recordar'))
+            .setDescription('Get a DM when you can vote again (every 12 h)')
+            .setDescriptionLocalizations(ES('Recibe un privado cuando puedas volver a votar (cada 12 h)'))),
 
     async execute(interaction, client, cfg) {
         const idioma = await idiomaInteraccion(interaction, cfg);
+        const recordar = interaction.options.getBoolean('remind');
+        if (recordar !== null) await votos.ponerRecordatorio(interaction.user.id, recordar);
+        const conAviso = await votos.tieneRecordatorio(interaction.user.id);
         const { proximo, total } = await votos.estadoVoto(interaction.user.id);
         const oro = votos.ORO_POR_VOTO();
         const v = cfg?.crecimiento?.votos;
@@ -35,6 +41,9 @@ module.exports = {
                     ? t(idioma, `⏳ Ya has votado: puedes volver a votar <t:${Math.floor(proximo.getTime() / 1000)}:R>.`, `⏳ You’ve already voted: you can vote again <t:${Math.floor(proximo.getTime() / 1000)}:R>.`)
                     : t(idioma, '✅ ¡Ya puedes votar!', '✅ You can vote now!'),
                 total ? t(idioma, `Llevas ${total} ${total === 1 ? 'voto' : 'votos'}. ¡Gracias!`, `You’ve voted ${total} ${total === 1 ? 'time' : 'times'}. Thank you!`) : '',
+                conAviso
+                    ? t(idioma, '🔔 Te avisaremos por privado cuando puedas volver a votar (quítalo con `/votar recordar:no`).', '🔔 We’ll DM you when you can vote again (turn it off with `/vote remind:no`).')
+                    : t(idioma, '-# ¿Quieres un aviso cada 12 h? Usa `/votar recordar:sí`.', '-# Want a reminder every 12 h? Use `/vote remind:true`.'),
             ].filter((l) => l !== null).join('\n'));
         const fila = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(votos.urlVoto(client.user.id)).setLabel(t(idioma, 'Votar en top.gg', 'Vote on top.gg')).setEmoji('🗳️'),

@@ -554,11 +554,13 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
     // ============================== TEMPORADAS (1.10.0) ==============================
     const datosTemporada = async (guild, cfg) => {
         const temporadas = require('../../utils/temporadas.js');
-        const lista = await temporadas.ranking(guild.id, 10);
+        const lista = await temporadas.ranking(guild.id, 10, { guild, excluir: cfg.temporadas.excluirRoles });
         return {
             config: {
                 activo: cfg.temporadas.activo, canalId: cfg.temporadas.canalId, duracion: cfg.temporadas.duracion,
                 oro: temporadas.oroPodio(cfg.temporadas.oro), rolCampeonId: cfg.temporadas.rolCampeonId,
+                excluirRoles: cfg.temporadas.excluirRoles || [], mencionar: cfg.temporadas.mencionar !== false,
+                anunciarInicio: cfg.temporadas.anunciarInicio !== false,
             },
             numero: cfg.temporadas.numero || 0,
             inicio: cfg.temporadas.inicio,
@@ -590,11 +592,19 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
                 set['temporadas.duracion'] = d;
             }
             if (b.oro !== undefined) set['temporadas.oro'] = require('../../utils/temporadas.js').oroPodio(b.oro);
+            if (b.mencionar !== undefined) set['temporadas.mencionar'] = !!b.mencionar;
+            if (b.anunciarInicio !== undefined) set['temporadas.anunciarInicio'] = !!b.anunciarInicio;
+            if (b.excluirRoles !== undefined) {
+                const lista = Array.isArray(b.excluirRoles) ? b.excluirRoles : [];
+                set['temporadas.excluirRoles'] = [...new Set(lista.map(String))].filter((id) => guild.roles.cache.has(id)).slice(0, 25);
+            }
             const rol = rolDe(guild, b.rolCampeonId);
             if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede dar' });
             if (rol !== undefined && rol !== tp.rolCampeonId) {
                 if (rol) {
                     if (!(await tieneAreaAcceso(req, guild.id, 'roles'))) return res.status(403).json({ error: 'Para elegir el rol hace falta acceso a la sección de roles del panel' });
+                    const peligro = require('../../utils/permisos.js').errorRolPeligroso(guild.roles.cache.get(rol));
+                    if (peligro) return res.status(400).json({ error: peligro });
                     const err = await errorRolesNuevos(client, req.staff, guild.id, [rol], [tp.rolCampeonId]);
                     if (err) return res.status(403).json({ error: err });
                 }
@@ -603,7 +613,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             let nueva = await guardar(guild.id, set);
             // Al activarla por primera vez empieza la temporada 1 (o la siguiente).
             if (nueva.temporadas.activo && !nueva.temporadas.fin) {
-                nueva = await require('../../utils/temporadas.js').iniciarTemporada(guild.id, nueva.temporadas.duracion, Math.max(1, nueva.temporadas.numero || 1));
+                nueva = await require('../../utils/temporadas.js').iniciarTemporada(guild.id, nueva.temporadas.duracion, Math.max(1, nueva.temporadas.numero || 1), { guild });
             }
             res.json({ success: true, ...(await datosTemporada(guild, nueva)) });
         } catch (e) { console.error('PUT temporadas:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }

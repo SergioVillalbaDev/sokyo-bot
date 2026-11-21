@@ -317,7 +317,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             const v = cfg.crecimiento.votos;
             const votos = require('../utils/votos.js');
             res.json({
-                config: { activo: v.activo, canalId: v.canalId, rolId: v.rolId, horasRol: v.horasRol, xp: v.xp, mensaje: v.mensaje },
+                config: { activo: v.activo, canalId: v.canalId, rolId: v.rolId, horasRol: v.horasRol, xp: v.xp, mensaje: v.mensaje, oroExtra: v.oroExtra || 0, mencionar: v.mencionar !== false },
                 urlVoto: client.user ? votos.urlVoto(client.user.id) : null,
                 urlFicha: client.user ? votos.urlFicha(client.user.id) : null,
                 oroPorVoto: votos.ORO_POR_VOTO(),
@@ -343,6 +343,9 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede dar' });
             if (rol !== undefined && rol !== actual.rolId) {
                 if (rol) {
+                    // Nunca un rol con permisos de staff: lo recibiría cualquiera que vote.
+                    const peligro = require('../utils/permisos.js').errorRolPeligroso(guild.roles.cache.get(rol));
+                    if (peligro) return res.status(400).json({ error: peligro });
                     // El bot no reparte roles por encima de quien lo configura (utils/permisos.js).
                     const err = await errorRolesNuevos(client, req.staff, guild.id, [rol], [actual.rolId]);
                     if (err) return res.status(403).json({ error: err });
@@ -352,6 +355,8 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             if (b.horasRol !== undefined) set['crecimiento.votos.horasRol'] = entero(b.horasRol, 1, 168, 12);
             if (b.xp !== undefined) set['crecimiento.votos.xp'] = entero(b.xp, 0, 100000, 0);
             if (b.mensaje !== undefined) set['crecimiento.votos.mensaje'] = texto(b.mensaje, 800).trim() || actual.mensaje;
+            if (b.oroExtra !== undefined) set['crecimiento.votos.oroExtra'] = entero(b.oroExtra, 0, 100000, 0);
+            if (b.mencionar !== undefined) set['crecimiento.votos.mencionar'] = !!b.mencionar;
             const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after' });
             res.json({ success: true, config: nueva.crecimiento.votos });
         } catch (e) { console.error('PUT votos:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
@@ -365,7 +370,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             const r = cfg.crecimiento.red;
             const redSokyo = require('../utils/redSokyo.js');
             res.json({
-                config: { activo: r.activo, canalId: r.canalId, cadaHoras: r.cadaHoras, mismoIdioma: r.mismoIdioma },
+                config: { activo: r.activo, canalId: r.canalId, cadaHoras: r.cadaHoras, mismoIdioma: r.mismoIdioma, minMiembros: r.minMiembros || 0, etiquetas: r.etiquetas || [], bloqueados: r.bloqueados || [] },
                 ...(await redSokyo.estadoRed(client, cfg.toObject())),
             });
         } catch (e) { console.error('GET red:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
@@ -382,9 +387,15 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             if (canal !== undefined) set['crecimiento.red.canalId'] = canal;
             if (b.cadaHoras !== undefined) set['crecimiento.red.cadaHoras'] = [6, 12, 24, 48, 72, 168].includes(Number(b.cadaHoras)) ? Number(b.cadaHoras) : 24;
             if (b.mismoIdioma !== undefined) set['crecimiento.red.mismoIdioma'] = !!b.mismoIdioma;
+            if (b.minMiembros !== undefined) set['crecimiento.red.minMiembros'] = entero(b.minMiembros, 0, 1000000, 0);
+            if (b.etiquetas !== undefined) set['crecimiento.red.etiquetas'] = pagina.limpiarEtiquetas(Array.isArray(b.etiquetas) ? b.etiquetas : []);
+            if (b.bloqueados !== undefined) {
+                const lista = Array.isArray(b.bloqueados) ? b.bloqueados : [];
+                set['crecimiento.red.bloqueados'] = [...new Set(lista.map(String))].filter((id) => /^\d{17,20}$/.test(id) && id !== guild.id).slice(0, 200);
+            }
             const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after', upsert: true });
             const r = nueva.crecimiento.red;
-            res.json({ success: true, config: { activo: r.activo, canalId: r.canalId, cadaHoras: r.cadaHoras, mismoIdioma: r.mismoIdioma } });
+            res.json({ success: true, config: { activo: r.activo, canalId: r.canalId, cadaHoras: r.cadaHoras, mismoIdioma: r.mismoIdioma, minMiembros: r.minMiembros || 0, etiquetas: r.etiquetas || [], bloqueados: r.bloqueados || [] } });
         } catch (e) { console.error('PUT red:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
 };

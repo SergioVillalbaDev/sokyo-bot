@@ -3,9 +3,9 @@
 // de los demás (solo si tienes página pública en el directorio). Lógica en utils/redSokyo.js.
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Handshake, Globe2 } from 'lucide-react';
-import { Toggle } from '../../ui/primitives';
-import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, Aviso, BotonGuardar } from './crecimientoShared';
+import { Handshake, Globe2, Ban, Undo2, Filter } from 'lucide-react';
+import { Toggle, Avatar } from '../../ui/primitives';
+import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { FilaInterruptor } from './modulosShared';
 import { relativo } from './crecimientoUtils';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
@@ -15,6 +15,7 @@ const HORAS = [6, 12, 24, 48, 72, 168];
 
 export default function CrecRedView({ dash }) {
   const { t, i18n } = useTranslation();
+  const idiomaPanel = i18n.language;
   const { canales, cargarCrecimiento, guardarCrecimiento, setActiveTab } = dash;
   const [datos, setDatos] = useState(null);
   const [form, setForm] = useState(null);
@@ -25,8 +26,9 @@ export default function CrecRedView({ dash }) {
     if (r.error) { setDatos({ error: r.error }); return; }
     setDatos(r);
     setForm(r.config);
+    // Con el idioma nuevo se vuelve a pedir (los errores de la API vienen en el idioma del panel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idiomaPanel]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -45,6 +47,10 @@ export default function CrecRedView({ dash }) {
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
   if (!form) return null;
   const set = (k) => (v) => { setForm((f) => ({ ...f, [k]: v })); setEstado(''); };
+  const bloqueados = form.bloqueados || [];
+  const bloquear = (id) => set('bloqueados')(bloqueados.includes(id) ? bloqueados.filter((x) => x !== id) : [...bloqueados, id]);
+  // Temas: se escriben separados por comas (los mismos que las etiquetas de la página pública).
+  const temasTexto = (form.etiquetas || []).join(', ');
 
   return (
     <div className="space-y-5">
@@ -81,6 +87,49 @@ export default function CrecRedView({ dash }) {
           </div>
         </div>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
+      </div>
+
+      <div data-help="red-filtros" className={tarjeta}>
+        <CabeceraTarjeta icono={Filter} titulo={t('dashboard.red_v.filters')} />
+        <p className="mt-1 text-xs text-muted">{t('dashboard.red_v.filtersHint')}</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Campo etiqueta={t('dashboard.red_v.minMembers')} ayuda={t('dashboard.red_v.minMembersHint')}>
+            <Numero value={form.minMiembros ?? 0} onChange={set('minMiembros')} max={1000000} />
+          </Campo>
+          <Campo etiqueta={t('dashboard.red_v.topics')} ayuda={t('dashboard.red_v.topicsHint')}>
+            <input defaultValue={temasTexto} key={temasTexto} placeholder={t('dashboard.red_v.topicsPh')} className={campo}
+              onBlur={(e) => set('etiquetas')(e.target.value.split(',').map((x) => x.trim()).filter(Boolean).slice(0, 8))} />
+          </Campo>
+        </div>
+        <h4 className="mt-5 text-sm font-semibold text-fg">{t('dashboard.red_v.recent')}</h4>
+        {datos.recientes?.length ? (
+          <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+            {datos.recientes.map((g) => (
+              <li key={g.id} className="flex items-center gap-3 rounded-2xl border border-line bg-bg px-3 py-2.5">
+                <Avatar src={g.icono} name={g.nombre} size={30} />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">{g.nombre}</span>
+                <button type="button" onClick={() => bloquear(g.id)}
+                  className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ${bloqueados.includes(g.id) ? 'text-muted hover:text-fg' : 'text-danger hover:bg-danger/10'}`}>
+                  {bloqueados.includes(g.id) ? <><Undo2 size={12} /> {t('dashboard.red_v.unblock')}</> : <><Ban size={12} /> {t('dashboard.red_v.block')}</>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="mt-2 text-xs italic text-muted">{t('dashboard.red_v.noRecent')}</p>}
+        {datos.bloqueados?.length > 0 && (
+          <>
+            <h4 className="mt-5 text-sm font-semibold text-fg">{t('dashboard.red_v.blocked', { n: bloqueados.length })}</h4>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {datos.bloqueados.filter((g) => bloqueados.includes(g.id)).map((g) => (
+                <li key={g.id}>
+                  <button type="button" onClick={() => bloquear(g.id)} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-muted hover:text-fg">
+                    <Ban size={12} /> {g.nombre} · {t('dashboard.red_v.unblock')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <div data-help="red-estado" className={tarjeta}>

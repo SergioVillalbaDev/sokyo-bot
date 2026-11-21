@@ -28,9 +28,22 @@ function oroPodio(oro) {
     return [0, 1, 2].map((i) => Math.max(0, Math.min(10000000, parseInt(lista[i], 10) || 0)));
 }
 
-async function ranking(guildId, limite = 10) {
-    return ActividadUsuario.find({ guildId, xpTemporada: { $gt: 0 } })
-        .sort({ xpTemporada: -1 }).limit(limite).select('userId usuarioTag xpTemporada').lean();
+// Ranking de la temporada. Con `guild`, solo cuenta quien sigue en el servidor y no tiene
+// ninguno de los roles excluidos (p. ej. el staff): esos no compiten ni cobran premios.
+async function ranking(guildId, limite = 10, { guild = null, excluir = [] } = {}) {
+    const filas = await ActividadUsuario.find({ guildId, xpTemporada: { $gt: 0 } })
+        .sort({ xpTemporada: -1 }).limit(guild ? Math.min(60, limite * 3) : limite).select('userId usuarioTag xpTemporada').lean();
+    if (!guild) return filas;
+    const fuera = new Set(excluir || []);
+    const validos = [];
+    for (const f of filas) {
+        if (validos.length >= limite) break;
+        const m = guild.members.cache.get(f.userId) || await guild.members.fetch(f.userId).catch(() => null);
+        if (!m || m.user?.bot) continue;
+        if (fuera.size && m.roles?.cache?.some((r) => fuera.has(r.id))) continue;
+        validos.push(f);
+    }
+    return validos;
 }
 
 // Posición (1, 2…) de un usuario en la temporada; null si aún no tiene XP de temporada.
@@ -41,15 +54,27 @@ async function posicion(guildId, userId) {
     return { puesto: delante + 1, xp: yo.xpTemporada };
 }
 
-// Empieza una temporada nueva (la XP de temporada vuelve a 0).
-async function iniciarTemporada(guildId, duracion, numero) {
+// Empieza una temporada nueva (la XP de temporada vuelve a 0). Con `guild`, la anuncia
+// en el canal si está activado «Avisar cuando empieza».
+async function iniciarTemporada(guildId, duracion, numero, { guild = null } = {}) {
     const ahora = new Date();
     await ActividadUsuario.updateMany({ guildId, xpTemporada: { $ne: 0 } }, { $set: { xpTemporada: 0 } });
-    return ServidorConfig.findOneAndUpdate(
+    const cfg = await ServidorConfig.findOneAndUpdate(
         { guildId },
         { $set: { 'temporadas.inicio': ahora, 'temporadas.fin': finDeTemporada(ahora, duracion), 'temporadas.numero': numero } },
         { returnDocument: 'after' },
     );
+    const tp = cfg?.temporadas;
+    const canal = guild && tp?.anunciarInicio !== false && tp.canalId ? guild.channels.cache.get(tp.canalId) : null;
+    if (canal?.isTextBased()) {
+        const fin = Math.floor(tp.fin.getTime() / 1000);
+        await canal.send({
+            content: t(cfg, `🏁 ¡Empieza la **temporada ${numero}**! Todos empezáis de cero: el que más XP gane hasta <t:${fin}:D> se lleva el premio. Mira el ranking con \`/temporada\`.`,
+                `🏁 **Season ${numero}** starts now! Everyone starts from zero: whoever earns the most XP until <t:${fin}:D> wins. Check the ranking with \`/season\`.`),
+            allowedMentions: { parse: [] },
+        }).catch(() => {});
+    }
+    return cfg;
 }
 
 function embedPodio(cfg, guild, lista, numero) {
@@ -83,7 +108,7 @@ async function cerrarTemporada(client, guild, cfg) {
     );
     if (!reservado) return null;
 
-    const lista = await ranking(guild.id, 10);
+    const lista = await ranking(guild.id, 10, { guild, excluir: tp.excluirRoles });
     const oro = oroPodio(tp.oro);
     const { darOro } = require('./economia.js');
     for (let i = 0; i < Math.min(3, lista.length); i++) {
@@ -92,7 +117,8 @@ async function cerrarTemporada(client, guild, cfg) {
 
     // Rol de campeón: se le quita al anterior y se le da al nuevo.
     let campeonId = tp.campeonId || null;
-    if (tp.rolCampeonId && guild.roles.cache.has(tp.rolCampeonId)) {
+    const rolCampeon = tp.rolCampeonId ? guild.roles.cache.get(tp.rolCampeonId) : null;
+    if (rolCampeon && !require('./permisos.js').errorRolPeligroso(rolCampeon)) {
         if (campeonId && campeonId !== lista[0]?.userId) {
             const anterior = await guild.members.fetch(campeonId).catch(() => null);
             if (anterior) await anterior.roles.remove(tp.rolCampeonId, 'Fin de temporada').catch(() => {});
@@ -106,7 +132,8 @@ async function cerrarTemporada(client, guild, cfg) {
 
     const canal = tp.canalId ? guild.channels.cache.get(tp.canalId) : null;
     if (canal?.isTextBased()) {
-        await canal.send({ embeds: [embedPodio(cfg, guild, lista, numero)], allowedMentions: { users: lista.slice(0, 3).map((r) => r.userId) } })
+        const menciones = tp.mencionar === false ? [] : lista.slice(0, 3).map((r) => r.userId);
+        await canal.send({ embeds: [embedPodio(cfg, guild, lista, numero)], allowedMentions: { users: menciones } })
             .catch((e) => console.error('Temporadas · anuncio:', e.message));
     }
 
@@ -124,7 +151,7 @@ async function barrerTemporadas(client) {
         if (!guild) continue;
         try {
             const tp = cfg.temporadas;
-            if (!tp.fin) await iniciarTemporada(guild.id, tp.duracion, Math.max(1, tp.numero || 1));
+            if (!tp.fin) await iniciarTemporada(guild.id, tp.duracion, Math.max(1, tp.numero || 1), { guild });
             else if (tp.fin <= ahora) await cerrarTemporada(client, guild, cfg);
         } catch (e) { console.error('Temporadas:', guild.id, e.message); }
     }

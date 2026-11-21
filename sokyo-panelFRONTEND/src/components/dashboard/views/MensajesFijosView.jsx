@@ -19,7 +19,8 @@ function Previa({ f }) {
 }
 
 export default function MensajesFijosView({ dash }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const idiomaPanel = i18n.language;
   const { canales, cargarModulo, accionModulo } = dash;
   const [datos, setDatos] = useState(null);
   const [edicion, setEdicion] = useState(null); // { ...fijo } o NUEVO
@@ -28,8 +29,9 @@ export default function MensajesFijosView({ dash }) {
   const cargar = useCallback(async () => {
     const r = await cargarModulo('fijos');
     setDatos(r);
+    // Con el idioma nuevo se vuelve a pedir (los errores de la API vienen en el idioma del panel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idiomaPanel]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 

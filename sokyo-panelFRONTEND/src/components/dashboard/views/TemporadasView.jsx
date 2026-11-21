@@ -4,9 +4,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Medal, Flag, Loader2 } from 'lucide-react';
-import { Avatar } from '../../ui/primitives';
+import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso, BotonGuardar } from './crecimientoShared';
-import { Vacio } from './modulosShared';
+import { Vacio, FilaInterruptor, Fichas } from './modulosShared';
 import { useModulo, useRelativo } from '../../../hooks/useModulo';
 import VistaDiscord from '../VistaDiscord';
 
@@ -60,13 +60,22 @@ export default function TemporadasView({ dash }) {
           <Campo etiqueta={t('dashboard.temp_v.role')} ayuda={t('dashboard.temp_v.roleHint')} className="sm:col-span-2">
             <SelectRol roles={roles} value={form.rolCampeonId} onChange={set('rolCampeonId')} vacio={t('dashboard.temp_v.noRole')} />
           </Campo>
+          <Campo etiqueta={t('dashboard.temp_v.exclude')} ayuda={t('dashboard.temp_v.excludeHint')} className="sm:col-span-2">
+            <Fichas items={roles.filter((r) => r.nombre !== '@everyone')} seleccion={form.excluirRoles || []} onCambio={set('excluirRoles')} prefijo="@" vacio={t('dashboard.temp_v.noRoles')} />
+          </Campo>
+          <FilaInterruptor titulo={t('dashboard.temp_v.mention')} desc={t('dashboard.temp_v.mentionHint')}>
+            <Toggle checked={form.mencionar !== false} onChange={set('mencionar')} />
+          </FilaInterruptor>
+          <FilaInterruptor titulo={t('dashboard.temp_v.announceStart')} desc={t('dashboard.temp_v.announceStartHint')}>
+            <Toggle checked={form.anunciarInicio !== false} onChange={set('anunciarInicio')} />
+          </FilaInterruptor>
           <div className="sm:col-span-2">
             {/* Mismo formato que utils/temporadas.js (embedPodio). */}
             <VistaDiscord embed={{
               titulo: `🏆 ${t('dashboard.temp_v.exTitle', { n: Math.max(1, datos.numero || 1) })}`, color: '#f1c40f',
               descripcion: [`🥇 @Alex · 4.210 XP`, `🥈 @Laura · 3.980 XP`, `🥉 @Marco · 2.115 XP`, '',
                 `${t('dashboard.temp_v.prizes')}: ${oro.map((o, i) => (o > 0 ? `${MEDALLAS[i]} ${o} 🪙` : null)).filter(Boolean).join(' · ')}`,
-                rolCampeon ? t('dashboard.temp_v.exRole', { rol: rolCampeon.name }) : '',
+                rolCampeon ? t('dashboard.temp_v.exRole', { rol: rolCampeon.nombre || rolCampeon.name }) : '',
                 t('dashboard.temp_v.exNext', { n: Math.max(1, datos.numero || 1) + 1 })].filter((l) => l !== null).join('\n'),
             }} />
           </div>

@@ -6,6 +6,14 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.11.0': [
+        { es: '⚡ Setup rápido: con un botón y unas preguntas el bot queda funcionando en tu servidor (bienvenidas, registro, automod, tickets, temporadas…). En el panel (Inicio) o con /setup-rapido. No toca lo que ya tengas.', en: '⚡ Quick setup: one button and a few questions and the bot is up and running on your server (welcomes, log, automod, tickets, seasons…). In the panel (Home) or with /quicksetup. It won’t touch what you already have.' },
+        { tab: 'crec-red', es: '🤝 Red Sokyo con filtros: bloquea servidores, pide un mínimo de miembros o elige los temas que quieres ver.', en: '🤝 Sokyo Network with filters: block servers, require a minimum of members or pick the topics you want.' },
+        { tab: 'com-temporadas', es: '🏆 Temporadas: elige roles que no compiten (como el staff), si se menciona al podio y si se avisa al empezar.', en: '🏆 Seasons: choose roles that don’t compete (like the staff), whether the podium is mentioned and whether the start is announced.' },
+        { tab: 'crec-votos', es: '🗳️ Votos: oro extra de tu servidor y /votar recordar para que el bot te avise cuando puedas volver a votar.', en: '🗳️ Votes: extra gold from your server and /vote remind so the bot tells you when you can vote again.' },
+        { es: '🌐 El panel en inglés ya sale entero en inglés: los avisos y errores, las recomendaciones y los textos de ejemplo cambian al cambiar de idioma.', en: '🌐 The panel in English is now fully in English: notices, errors, recommendations and sample texts change when you switch language.' },
+        { es: '🔒 Más seguridad: el bot nunca reparte automáticamente un rol con permisos de staff (por votar o por ganar una temporada).', en: '🔒 More security: the bot never automatically hands out a role with staff permissions (for voting or winning a season).' },
+    ],
     '1.10.0': [
         { tab: 'crec-votos', es: '🗳️ /votar: vota por el bot en top.gg cada 12 horas y gana oro (el doble el fin de semana). Cada servidor puede dar además un rol, XP y un mensaje de gracias.', en: '🗳️ /vote: vote for the bot on top.gg every 12 hours and earn gold (double on weekends). Each server can also give a role, XP and a thank-you message.' },
         { tab: 'com-temporadas', es: '🏆 Temporadas: un ranking que vuelve a empezar cada mes (o semana) sin tocar los niveles. Premios de oro para el podio y rol de campeón para el ganador. Míralo con /temporada.', en: '🏆 Seasons: a ranking that starts over every month (or week) without touching levels. Gold for the podium and a champion role for the winner. Check it with /season.' },

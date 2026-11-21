@@ -11,7 +11,7 @@ import { cn } from '../../../lib/cn';
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
 
 export default function DiagnosticoView({ dash }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { guildId, setActiveTab } = dash;
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState(false);
@@ -27,7 +27,9 @@ export default function DiagnosticoView({ dash }) {
       setDatos(d); setError(false);
     } catch { setError(true); }
     setCargando(false);
-  }, [guildId]);
+    // El diagnóstico lo escribe la API en el idioma del panel: al cambiarlo, se vuelve a pedir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guildId, i18n.language]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial de la sección
   useEffect(() => { comprobar(); }, [comprobar]);
 
