@@ -556,7 +556,9 @@ module.exports = (client) => {
             if (error) return res.status(400).json({ error, codigo });
             const faltan = setup.permisosQueFaltan(guild, respuestas);
             if (faltan.length) return res.status(400).json({ error: 'Al bot le faltan permisos en el servidor', codigo: 'permisos_bot', permisos: faltan });
-            if (!setup.puedePasar(guild.id)) return res.status(429).json({ error: 'Espera un minuto antes de volver a pasar el setup rápido', codigo: 'espera' });
+            if (!setup.puedePasar(guild.id, Date.now(), respuestas.uno ? respuestas.modulos[0] : null)) {
+                return res.status(429).json(respuestas.uno ? { error: 'Espera un par de segundos', codigo: 'esperaUno' } : { error: 'Espera un minuto antes de volver a pasar el setup rápido', codigo: 'espera' });
+            }
             // Los detalles del resultado, en el idioma del panel que lo pide.
             const resultado = await setup.aplicar(client, guild, respuestas, { idiomaTextos: idiomaPanel(req, null) });
             res.json({ success: true, ...resultado });

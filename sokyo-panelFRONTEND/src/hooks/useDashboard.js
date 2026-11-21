@@ -1782,6 +1782,14 @@ export function useDashboard() {
       'com-confesiones': b(c.confesiones && c.confesiones.activo),
       'prod-ausente': b(!c.ausente || c.ausente.activo !== false),
       'crec-contadores': b(c.contadoresCanal && c.contadoresCanal.length),
+      // 1.17.0: para la lista del Inicio y sus botones «Activar».
+      'com-temporadas': b(c.temporadas && c.temporadas.activo),
+      'crec-votos': b(c.crecimiento && c.crecimiento.votos && c.crecimiento.votos.activo),
+      'com-mascota': b(c.mascota && c.mascota.activo),
+      'com-casino': b(c.casino && c.casino.activo),
+      'com-bromas': b(c.bromas && c.bromas.activo),
+      'crec-liga': b(c.liga && c.liga.activo),
+      'logs-todos': b(c.canalLogsId),
     };
   })();
 

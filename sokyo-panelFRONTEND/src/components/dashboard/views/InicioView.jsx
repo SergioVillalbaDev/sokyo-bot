@@ -147,6 +147,7 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
       <AsistenteInicio
         guildId={guildId} estadoModulos={estadoModulos} configServidor={configServidor} setActiveTab={setActiveTab}
         permitido={(tab) => { const u = ubicacion(tab); return !!u && itemVisible(u.item, misPermisos) && !bloqueadoPorPlan(u.item, esPremium, esOwner); }}
+        onActivado={() => dash.recargarSeccion?.({ soloDatos: true })}
       />
 
       {/* 1 · Cifras */}

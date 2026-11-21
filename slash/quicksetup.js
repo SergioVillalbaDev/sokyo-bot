@@ -35,7 +35,9 @@ module.exports = {
         .addBooleanOption((o) => o.setName('levels').setNameLocalizations(ES('niveles')).setDescription('Levels, XP and monthly seasons (yes/no)')
             .setDescriptionLocalizations(ES('Niveles, XP y temporadas mensuales (sí/no)')))
         .addBooleanOption((o) => o.setName('automod').setDescription('Basic automod: spam, invites, mass mentions, scams (yes/no)')
-            .setDescriptionLocalizations(ES('Automod básico: spam, invitaciones, menciones masivas, estafas (sí/no)'))),
+            .setDescriptionLocalizations(ES('Automod básico: spam, invitaciones, menciones masivas, estafas (sí/no)')))
+        .addBooleanOption((o) => o.setName('fun').setNameLocalizations(ES('diversion')).setDescription('Pet, casino, pranks, League and clans (yes/no)')
+            .setDescriptionLocalizations(ES('Mascota, casino, bromas, Liga y clanes (sí/no)'))),
 
     async execute(interaction, client) {
         const idioma = interaction.options.getString('language') === 'es' ? 'es' : 'en';
@@ -52,6 +54,7 @@ module.exports = {
         elegir('tickets', ['tickets']);
         elegir('levels', ['niveles', 'temporadas']);
         elegir('automod', ['automod']);
+        elegir('fun', ['mascota', 'casino', 'bromas', 'liga', 'clanes']);
         const rol = interaction.options.getRole('staff_role');
         const { respuestas, error } = setup.validar({ idioma, tipo, modulos: [...modulos], rolStaffId: rol ? rol.id : null }, interaction.guild);
         if (error) return interaction.reply({ content: `❌ ${error}`, flags: 64 });
