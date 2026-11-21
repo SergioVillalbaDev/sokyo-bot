@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.18.0': [
+        { tab: 'com-sugerencias', es: '⚡ Al entrar en una sección que está apagada, sale arriba en grande qué hace, qué va a pasar y un botón «Activarlo ahora» que la deja funcionando en un clic.', en: '⚡ When you open a section that’s off, a big card at the top shows what it does, what will happen and a “Turn it on now” button that gets it working in one click.' },
+        { es: '🔦 Si una sección se enciende a mano, el botón te lleva a su interruptor y lo hace brillar.', en: '🔦 If a section is turned on by hand, the button takes you to its switch and makes it glow.' },
+    ],
     '1.17.0': [
         { tab: 'inicio', es: '⚡ Deja Sokyo listo en 1 minuto: eliges el tipo de servidor y con un botón se configura todo (16 funciones con sus canales, en unos segundos).', en: '⚡ Get Sokyo ready in 1 minute: pick the kind of server and one button sets everything up (16 features with their channels, in a few seconds).' },
         { tab: 'inicio', es: '✅ En la lista de puesta en marcha del inicio, cada cosa pendiente tiene «⚡ Activar» y hay un botón para activar todo lo que falta.', en: '✅ In the home setup list, every pending item has “⚡ Turn on” and there’s a button to turn on everything missing.' },

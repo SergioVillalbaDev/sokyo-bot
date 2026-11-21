@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Wand2, X, CheckCircle2, Circle, ChevronRight, RotateCcw, Zap, Loader2 } from 'lucide-react';
 import { ubicacion } from './navConfig';
 import { cn } from '../../lib/cn';
-import { apiFetch } from '../../lib/api';
+import { ACTIVABLE, activarSeccion } from '../../lib/activar';
 
 const TIPOS = {
   gaming: { emoji: '🎮', items: ['prod-bienvenidas', 'mod-automod', 'logs-todos', 'config-niveles', 'seg-verificacion', 'roles-paneles', 'com-mascota', 'com-casino', 'crec-liga', 'com-bromas', 'com-clanes', 'com-temporadas', 'com-salon', 'crec-contadores', 'com-grupos', 'musica', 'voz-temporal', 'com-sorteos', 'tickets-config'] },
@@ -17,13 +17,6 @@ const TIPOS = {
   creador: { emoji: '📺', items: ['prod-bienvenidas', 'mod-automod', 'logs-todos', 'crec-directos', 'config-niveles', 'roles-paneles', 'com-mascota', 'crec-liga', 'com-sugerencias', 'com-salon', 'crec-contadores', 'com-sorteos', 'crec-invitaciones'] },
   estudio: { emoji: '📚', items: ['prod-bienvenidas', 'mod-automod', 'logs-todos', 'roles-paneles', 'com-cumpleanos', 'com-sugerencias', 'crec-contadores', 'prod-anuncios', 'com-eventos', 'voz-temporal', 'tickets-config'] },
   soporte: { emoji: '🛟', items: ['tickets-config', 'prod-bienvenidas', 'mod-automod', 'logs-todos', 'seg-verificacion', 'prod-autorespuestas', 'com-sugerencias', 'crec-contadores', 'prod-anuncios', 'mod-reportes'] },
-};
-// Sección → lo que el setup rápido activa solo (MODULOS en utils/setupRapido.js).
-const ACTIVABLE = {
-  'prod-bienvenidas': 'bienvenidas', 'logs-todos': 'registro', 'config-niveles': 'niveles', 'mod-automod': 'automod',
-  'tickets-config': 'tickets', 'com-temporadas': 'temporadas', 'com-cumpleanos': 'cumpleanos', 'crec-votos': 'votos',
-  'com-sugerencias': 'sugerencias', 'com-salon': 'salon', 'crec-contadores': 'contadores', 'com-mascota': 'mascota',
-  'com-casino': 'casino', 'com-bromas': 'bromas', 'crec-liga': 'liga', 'com-clanes': 'clanes',
 };
 
 const clave = (guildId) => `sokyoAsistente:${guildId}`;
@@ -119,16 +112,11 @@ export default function AsistenteInicio({ guildId, estadoModulos = {}, configSer
 
   // Activa una sección con lo recomendado. Devuelve true si ha ido bien.
   const activarUno = async (tab) => {
-    const res = await apiFetch(`/api/config/${guildId}/setup-rapido`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uno: true, modulos: [ACTIVABLE[tab]], idioma: configServidor?.idioma === 'es' ? 'es' : 'en', tipo: datos.tipo }),
-    }).catch(() => null);
-    const d = res ? await res.json().catch(() => ({})) : {};
-    const fallo = !res || !res.ok || (d.pasos || []).some((p) => p.estado === 'error');
-    if (fallo) {
-      setAviso(res?.status === 403 ? t('dashboard.setup.errAdmin')
-        : d.codigo === 'permisos_bot' ? t('dashboard.setup.errPerms', { lista: (d.permisos || []).map((p) => t(`dashboard.setup.perm.${p}`, { defaultValue: p })).join(', ') })
-          : (d.pasos || []).find((p) => p.estado === 'error')?.detalle || d.error || t('dashboard.setup.errGeneric'));
+    const r = await activarSeccion(guildId, tab, { idioma: configServidor?.idioma, tipo: datos.tipo });
+    if (!r.ok) {
+      setAviso(r.motivo === 'admin' ? t('dashboard.setup.errAdmin')
+        : r.motivo === 'permisos' ? t('dashboard.setup.errPerms', { lista: r.permisos.map((p) => t(`dashboard.setup.perm.${p}`, { defaultValue: p })).join(', ') })
+          : r.detalle || t('dashboard.setup.errGeneric'));
       return false;
     }
     setRecienActivados((l) => [...l, tab]);
