@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.12.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.13.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -652,4 +652,22 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   Las reglas (`calcularAcceso`) están DOS veces: `utils/accesoPanel.js` y `src/lib/accesoPanel.js` (el panel
   recalcula al momento con los roles sin guardar). Si cambian las reglas de acceso de la API (guildsDelStaff,
   tieneAreaAcceso, puedeModerar), cámbialas en los dos. Test en `test/accesoPanel.test.js`.
+- 1.13.0 **Staff avanzado**:
+  - **Acceso por persona** (`models/AccesoPersona.js`, `views/AccesosPersona.jsx`, `GET/PUT/DELETE
+    /api/config/:guildId/acceso/personas[/:userId]`; ver: área config; dar/quitar: `exigeAdmin`): áreas, moderar y
+    `expiraEn` (null = sin fecha). Lo aplican `guildsDelStaff`, `tieneAreaAcceso`, `/api/mis-permisos`, `puedeModerar`
+    y `puedeSancionar` (`concesionDe` en api/server.js) y `calcularAcceso(m, cfg, concesion)` (las dos copias).
+    `barrerConcesiones` (tickCrecimiento) borra los caducados y lo apunta.
+  - **Alertas de seguridad** (`alertaSeguridad` en utils/accesoPanel.js → Log categoría «Seguridad» + canal de registro):
+    acceso dado/quitado/caducado, cambios de roles que entran o moderan, y quien gana o pierde el acceso por sus roles
+    (`events/guildMemberUpdate.js`, `avisarCambioDeAcceso`).
+  - **Ver el panel como…** (solo visual): `verComo` en useDashboard sustituye `misPermisos`; aviso fijo en Dashboard.jsx.
+    La API sigue usando los permisos reales.
+  - **Actividad del staff** (`utils/actividadStaff.js`, `views/StaffActividadView.jsx`, tab `datos-staff`, área datos):
+    atendidos (`asignadoA`), mensajes y primera respuesta (Mensaje de alguien que no abrió el ticket), valoración y
+    sanciones (`moderadorId`). Las respuestas desde el panel guardan ya el id de quien responde (antes `sokyo-web`).
+  - **Confirmación doble** (`utils/confirmacionPanel.js`, `ConfirmacionAccion.jsx`, `registrarConfirmacion` en
+    lib/api.js): borrar rol, canal o categoría y sanción masiva responden 428 hasta mandar `X-Sokyo-Confirmacion` con el
+    código del privado (o el nombre del servidor si no hay privados). 10 min, 5 intentos, un solo uso; la API key no lo
+    pide. Para proteger otra ruta: `exigeConfirmacion('<accion>')` (+ texto en `ACCIONES` y en `dashboard.confirmar`).
 

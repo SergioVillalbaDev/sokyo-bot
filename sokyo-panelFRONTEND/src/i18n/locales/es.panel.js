@@ -135,6 +135,7 @@ export default {
         'crec-contadores': 'Contadores en canales',
         'crec-votos': 'Votos en top.gg',
         'crec-red': 'Red Sokyo',
+        'datos-staff': 'Actividad del staff',
         'config-textos': 'Comandos y prefijo',
         'config-diagnostico': '¿Algo no funciona?',
         'config-cambios': 'Historial de cambios',
@@ -201,6 +202,7 @@ export default {
       'crec-contadores': { title: 'Contadores en canales', subtitle: 'Canales con una cifra en el nombre («👥 Miembros: 1.234») que se pone al día sola.' },
       'crec-votos': { title: 'Votos en top.gg', subtitle: 'Quien vota por el bot gana oro y, aquí, un rol y XP. Más votos, más servidores conocen el bot.' },
       'crec-red': { title: 'Red Sokyo', subtitle: 'Servidores que se promocionan entre sí: el tuyo sale en los demás y los demás en el tuyo.' },
+      'datos-staff': { title: 'Actividad del staff', subtitle: 'Quién atiende más, cuánto tarda en responder, qué valoración recibe y cuántas sanciones pone.' },
       logs: { title: 'Registro de actividad', subtitle: 'Supervisa el funcionamiento interno y eventos clave del servidor.' },
     },
     sidebar: {
@@ -603,6 +605,10 @@ export default {
         title: '🤝 Red Sokyo',
         desc: 'Los servidores que activan la Red se promocionan entre sí. Cada cierto tiempo el bot publica en tu canal otro servidor de la red (de tu idioma, el que menos veces ha salido) y tu servidor sale en los de los demás. Para salir en los demás hace falta tener la página pública en el directorio.',
       },
+      'datos-staff': {
+        title: '🏅 Actividad del staff',
+        desc: 'Un ranking de tu equipo con fotos: tickets atendidos, mensajes, tiempo hasta la primera respuesta, valoración media y sanciones, en los últimos 7, 30 o 90 días. Sirve para reconocer a quien más ayuda y ver si a alguien le cuesta responder a tiempo.',
+      },
       'voz-temporal': {
         title: '🔊 Canales de voz temporales',
         desc: 'Cuando alguien entra a un canal generador, el bot le crea su propia sala de voz privada con controles para gestionarla.',
@@ -1001,6 +1007,7 @@ export default {
         soporte: { nombre: 'Soporte o tienda', desc: 'Ayudar a clientes de un producto, una marca o una tienda.' },
       },
       porque: {
+        'datos-staff': 'Reconoce a tu staff y mira quién responde más rápido.',
         'crec-votos': 'Que la gente vote por el bot cada día a cambio de premios.',
         'crec-red': 'Que otros servidores te recomienden, gratis y sin hacer nada.',
         'com-temporadas': 'Un ranking mensual con premios: todos pueden ganar.',
@@ -1562,13 +1569,23 @@ export default {
       },
     },
     acceso_v: {
+      personas: {
+        title: 'Acceso por persona', desc: 'Da el panel a alguien sin crearle un rol: elige qué secciones, si puede moderar y hasta cuándo. Al caducar se quita solo. Solo los administradores pueden darlo y quitarlo, y queda en el registro.',
+        give: 'Dar acceso a alguien', search: 'Busca a la persona por su nombre…', change: 'Elegir a otra persona', which: '¿A qué partes del panel?',
+        until: '¿Hasta cuándo?', days_one: '{{count}} día', days_other: '{{count}} días', forever: 'Sin fecha (hasta que lo quites)',
+        note: 'Nota (opcional)', notePh: 'Ej.: ayuda con el torneo del sábado', mod: 'Puede moderar (sancionar, aislar, expulsar…)',
+        cancel: 'Cancelar', confirm: 'Dar acceso', empty: 'Nadie tiene acceso por persona. Lo normal es dar acceso con roles; esto es para casos concretos.',
+        ends: 'Caduca {{cuando}}', noEnd: 'Sin fecha de fin', by: 'lo dio {{nombre}}', remove: 'Quitar', confirmRemove: '¿Quitar el acceso al panel a {{nombre}}?',
+        onlyAdmin: 'Solo un administrador del servidor puede dar o quitar accesos.', error: 'No se pudo guardar. Inténtalo otra vez.',
+      },
       quien: {
+        viewAs: 'Ver el panel como {{nombre}}', grantEnds: 'Su acceso caduca el {{fecha}}.',
         title: 'Quién puede entrar al panel', desc: 'Cada persona de este servidor que entra al panel y a qué partes llega. Pulsa una para ver su ficha. Se actualiza al momento con los roles que elijas abajo.',
         search: 'Buscar por nombre…', all: 'Todos', loading: 'Cargando quién tiene acceso…', partial: 'Discord no ha dado la lista completa a tiempo: puede faltar alguien. Recarga en un momento.',
         empty: 'Nadie más que los administradores tiene acceso. Elige abajo los roles que pueden entrar.', noMatch: 'Nadie coincide con la búsqueda.',
         can: 'puede entrar', cannot: 'no puede entrar', close: 'Cerrar',
         modYes: 'Puede moderar (sancionar, aislar, expulsar…)', modNo: 'No puede moderar',
-        motivos: { propietarioBot: 'Propietario del bot', duenoServidor: 'Dueño del servidor', admin: 'Administrador', gestionarCanales: 'Gestionar canales', rolStaff: 'Rol del staff: {{rol}}', rolAcceso: 'Rol de acceso: {{rol}}' },
+        motivos: { concedido: 'Acceso dado a esta persona', propietarioBot: 'Propietario del bot', duenoServidor: 'Dueño del servidor', admin: 'Administrador', gestionarCanales: 'Gestionar canales', rolStaff: 'Rol del staff: {{rol}}', rolAcceso: 'Rol de acceso: {{rol}}' },
       },
       areaNames: { tickets: 'Tickets', moderacion: 'Moderación', entrada: 'Llegada de miembros y niveles', roles: 'Roles', crecimiento: 'Crecimiento', musica: 'Reproductor de música', mensajes: 'Anuncios y respuestas automáticas', datos: 'Analítica y parte diario', logs: 'Registro de actividad', config: 'Servidor y ajustes', cuenta: 'Plan y facturación' },
       opens: 'Abre:',
@@ -2570,6 +2587,20 @@ export default {
       err: { espera: 'Espera un minuto antes de volver a pasar el setup rápido.', idioma: 'Elige el idioma del bot.', tipo: 'Elige el tipo de servidor.', canal: 'Uno de los canales elegidos ya no existe: elige otro.', rol: 'Ese rol de staff no existe o no se puede usar.' },
       perm: { ManageChannels: 'Gestionar canales', ManageMessages: 'Gestionar mensajes', ModerateMembers: 'Aislar temporalmente a miembros' },
     },
+    staff_v: {
+      intro: 'Cómo trabaja tu equipo: tickets atendidos, rapidez en responder, valoraciones y sanciones.', lastDays: '{{n}} días',
+      min: '{{n}} min', hours: '{{n}} h', days: '{{n}} d',
+      totTickets: 'Tickets en el periodo', totUnanswered: 'Sin ninguna respuesta del staff', totSanctions: 'Sanciones puestas',
+      emptyTitle: 'Todavía no hay actividad del staff', emptySub: 'Cuando tu equipo atienda tickets o ponga sanciones, aparecerá aquí.',
+      podium: 'Los que más ayudan', points: '{{n}} puntos', left: 'ya no está en el servidor',
+      handled: 'Atendidos', replies: 'Mensajes', firstReply: '1.ª respuesta', rating: 'Valoración', sanctions: 'Sanciones', closed: 'Cerrados',
+    },
+    confirmar: {
+      title: 'Confirma esta acción', acciones: { 'borrar-rol': 'Vas a borrar un rol.', 'borrar-canal': 'Vas a borrar un canal.', 'borrar-categoria': 'Vas a borrar una categoría.', 'sancion-masiva': 'Vas a sancionar a varias personas a la vez.', otra: 'Es una acción que no se puede deshacer.' },
+      byDm: 'Te hemos mandado un código de 6 cifras por privado en Discord. Escríbelo aquí:', byName: 'No hemos podido escribirte por privado. Para confirmar, escribe el nombre del servidor: {{servidor}}',
+      wrong: 'No es correcto. Revísalo e inténtalo otra vez.', why: 'Lo pedimos para que nadie pueda hacer algo así con tu sesión sin que te enteres.', cancel: 'Cancelar', confirm: 'Confirmar',
+    },
+    verComo: { viendo: 'Viendo el panel como {{nombre}}', nota: 'Solo cambia lo que ves: tus permisos siguen siendo los tuyos.', salir: 'Salir' },
     votos_v: {
       extraGold: 'Oro extra de este servidor', extraGoldHint: 'Además del oro de cada voto. 0 = nada más.',
       mention: 'Mencionar a quien vota', mentionHint: 'Si lo quitas, sale su nombre sin aviso.',

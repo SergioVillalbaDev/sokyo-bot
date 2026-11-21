@@ -6,6 +6,13 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.13.0': [
+        { tab: 'datos-staff', es: '🏅 Actividad del staff: un podio y un ranking con fotos de quién atiende más tickets, cuánto tarda en responder, qué valoración recibe y cuántas sanciones pone.', en: '🏅 Staff activity: a podium and ranking with photos of who handles the most tickets, how fast they reply, what rating they get and how many sanctions they give.' },
+        { tab: 'config-acceso', es: '🔑 Acceso por persona: da el panel a alguien sin crearle un rol, solo a las secciones que quieras y, si quieres, durante unos días (se quita solo).', en: '🔑 Per-person access: give someone the panel without creating a role, only to the sections you choose and, if you like, for a few days (it’s removed automatically).' },
+        { tab: 'config-acceso', es: '👁️ «Ver el panel como…»: mira exactamente lo que ve cada persona de tu staff.', en: '👁️ “View the panel as…”: see exactly what each member of your staff sees.' },
+        { tab: 'logs-todos', es: '🚨 Alertas de seguridad en el registro: cuando alguien gana o pierde el acceso al panel, o cambian los permisos.', en: '🚨 Security alerts in the log: when someone gains or loses panel access, or permissions change.' },
+        { es: '🔐 Confirmación doble: borrar roles, canales o categorías y sancionar a muchos a la vez pide un código que te llega por privado.', en: '🔐 Double confirmation: deleting roles, channels or categories and mass sanctions ask for a code sent to you by DM.' },
+    ],
     '1.12.0': [
         { tab: 'config-acceso', es: '👥 «Quién puede entrar al panel»: cada persona de tu staff con su foto, su apodo, su rol y a qué partes del panel llega. Pulsa una para ver su ficha con todo lo que puede abrir. Se actualiza al momento mientras cambias los permisos.', en: '👥 “Who can access the panel”: each member of your staff with their photo, nickname, role and which parts of the panel they reach. Click someone to see their card with everything they can open. It updates instantly as you change permissions.' },
     ],

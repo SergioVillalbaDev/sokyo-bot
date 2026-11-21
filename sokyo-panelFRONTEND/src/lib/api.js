@@ -51,9 +51,25 @@ export const apiFetch = (path, options = {}) => {
     // Un guardado que cambió la configuración: el panel ofrece «Deshacer» un momento.
     const cambio = res.headers.get('X-Sokyo-Cambio');
     if (cambio) window.dispatchEvent(new CustomEvent('sokyo-cambio', { detail: { id: cambio } }));
+    // Acción peligrosa (1.13.0): la API pide confirmarla con un código (o el nombre del
+    // servidor). Se pide en una ventana y se repite la petición con él. Si nadie la
+    // confirma (o se cancela), se devuelve la respuesta tal cual: sale como un error más.
+    if (res.status === 428 && manejadorConfirmacion) {
+      return res.clone().json().catch(() => null).then(async (datos) => {
+        if (!datos || datos.codigo !== 'confirmar') return res;
+        const valor = await manejadorConfirmacion(datos);
+        if (!valor) return res;
+        return apiFetch(path, { ...options, headers: { ...(options.headers || {}), 'X-Sokyo-Confirmacion': valor } });
+      });
+    }
     return res;
   });
 };
+
+// Quien pide la confirmación (components/dashboard/ConfirmacionAccion.jsx se registra
+// aquí al montarse): recibe lo que dijo la API y devuelve el código o null.
+let manejadorConfirmacion = null;
+export const registrarConfirmacion = (fn) => { manejadorConfirmacion = fn; return () => { if (manejadorConfirmacion === fn) manejadorConfirmacion = null; }; };
 
 // Comprueba la respuesta y lanza un error legible si algo va mal.
 // Para el 401 distinguimos el motivo (lo manda el servidor en `code`):

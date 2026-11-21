@@ -6,7 +6,7 @@
 // API: GET /api/config/:guildId/acceso/miembros (utils/accesoPanel.js).
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Search, Crown, ShieldCheck, Shield, X, Check, Minus, AlertTriangle, Loader2, Gavel } from 'lucide-react';
+import { Users, Search, Crown, ShieldCheck, Shield, X, Check, Minus, AlertTriangle, Loader2, Gavel, KeyRound, Eye } from 'lucide-react';
 import { Avatar } from '../../ui/primitives';
 import { navGroups } from '../navConfig';
 import { apiFetch, procesarRespuesta } from '../../../lib/api';
@@ -42,7 +42,7 @@ function Insignias({ p, t, roles, cfg }) {
   const lista = [];
   if (p.propietarioBot) lista.push(['propietarioBot', Crown, '#f59e0b']);
   if (p.duenoServidor) lista.push(['duenoServidor', Crown, '#fbbf24']);
-  for (const m of p.calc.motivos) if (m !== 'propietarioBot') lista.push([m, m === 'admin' ? ShieldCheck : Shield, m === 'admin' ? '#f87171' : '#818cf8']);
+  for (const m of p.calc.motivos) if (m !== 'propietarioBot') lista.push([m, m === 'admin' ? ShieldCheck : m === 'concedido' ? KeyRound : Shield, m === 'admin' ? '#f87171' : m === 'concedido' ? '#22c55e' : '#818cf8']);
   return (
     <div className="flex flex-wrap gap-1.5">
       {lista.map(([clave, Icono, color]) => (
@@ -55,7 +55,7 @@ function Insignias({ p, t, roles, cfg }) {
 }
 
 // Ficha de una persona: el menú entero del panel con lo que puede abrir.
-function Ficha({ p, onCerrar, t, roles, cfg }) {
+function Ficha({ p, onCerrar, t, roles, cfg, onVerComo }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onCerrar(); };
     document.addEventListener('keydown', esc);
@@ -80,6 +80,12 @@ function Ficha({ p, onCerrar, t, roles, cfg }) {
         <div className={`mt-4 flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-semibold ${p.calc.moderar ? 'border-success/40 bg-success/10 text-success' : 'border-line bg-bg text-muted'}`}>
           <Gavel size={15} /> {p.calc.moderar ? t('dashboard.acceso_v.quien.modYes') : t('dashboard.acceso_v.quien.modNo')}
         </div>
+        {p.concesion?.expiraEn && <p className="mt-2 text-xs text-muted">{t('dashboard.acceso_v.quien.grantEnds', { fecha: new Date(p.concesion.expiraEn).toLocaleString() })}</p>}
+        {onVerComo && (
+          <button type="button" onClick={() => onVerComo(p)} className="sk-foco mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-brand/50 bg-brand/10 px-3 py-2.5 text-sm font-semibold text-fg hover:bg-brand/20">
+            <Eye size={15} className="text-brand" /> {t('dashboard.acceso_v.quien.viewAs', { nombre: p.nombre })}
+          </button>
+        )}
         <div className="mt-4 space-y-3">
           {grupos.map((g) => {
             const IconoG = g.icon;
@@ -107,7 +113,7 @@ function Ficha({ p, onCerrar, t, roles, cfg }) {
   );
 }
 
-export default function QuienAccede({ guildId, roles = [], cfgVivo, recarga }) {
+export default function QuienAccede({ guildId, roles = [], cfgVivo, recarga, onVerComo }) {
   const { t, i18n } = useTranslation();
   const [datos, setDatos] = useState(null);
   const [buscar, setBuscar] = useState('');
@@ -126,7 +132,7 @@ export default function QuienAccede({ guildId, roles = [], cfgVivo, recarga }) {
 
   // Se recalcula con los roles que se están eligiendo ahora mismo (aún sin guardar).
   const personas = useMemo(() => (datos?.miembros || [])
-    .map((p) => ({ ...p, calc: calcularAcceso(p, cfgVivo) }))
+    .map((p) => ({ ...p, calc: calcularAcceso(p, cfgVivo, p.concesion) }))
     .filter((p) => p.calc.acceso), [datos, cfgVivo]);
   const visibles = personas.filter((p) => (!filtroArea || p.calc.areas[filtroArea])
     && (!buscar || `${p.nombre} ${p.usuario}`.toLowerCase().includes(buscar.toLowerCase())));
@@ -216,7 +222,7 @@ export default function QuienAccede({ guildId, roles = [], cfgVivo, recarga }) {
           ))}
         </ul>
       )}
-      {elegido && <Ficha p={elegido} t={t} roles={roles} cfg={cfgVivo} onCerrar={() => setAbierto(null)} />}
+      {elegido && <Ficha p={elegido} t={t} roles={roles} cfg={cfgVivo} onVerComo={onVerComo} onCerrar={() => setAbierto(null)} />}
     </div>
   );
 }
