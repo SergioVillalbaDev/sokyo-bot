@@ -297,6 +297,9 @@ const EN = {
     'Activa antes las temporadas': 'Turn on seasons first',
     'Acción no válida': 'Invalid action',
     'Acción desconocida.': 'Unknown action.',
+    'Marca al menos una sección del panel': 'Mark at least one section of the panel',
+    'Confirma esta acción': 'Confirm this action',
+    'Código incorrecto': 'Wrong code',
 };
 
 // Códigos internos (el panel los interpreta) y mensajes que ya están en inglés: no se tocan.

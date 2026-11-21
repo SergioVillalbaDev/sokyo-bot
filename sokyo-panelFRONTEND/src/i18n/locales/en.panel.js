@@ -135,6 +135,7 @@ export default {
         'crec-contadores': 'Channel counters',
         'crec-votos': 'top.gg votes',
         'crec-red': 'Sokyo Network',
+        'datos-staff': 'Staff activity',
         'config-textos': 'Commands & prefix',
         'config-diagnostico': 'Something not working?',
         'config-cambios': 'Change history',
@@ -201,6 +202,7 @@ export default {
       'crec-contadores': { title: 'Channel counters', subtitle: 'Channels with a number in their name (“👥 Members: 1,234”) that keeps itself up to date.' },
       'crec-votos': { title: 'top.gg votes', subtitle: 'Whoever votes for the bot gets gold and, here, a role and XP. More votes, more servers discover the bot.' },
       'crec-red': { title: 'Sokyo Network', subtitle: 'Servers that promote each other: yours shows up in theirs and theirs in yours.' },
+      'datos-staff': { title: 'Staff activity', subtitle: 'Who helps the most, how fast they reply, what rating they get and how many sanctions they give.' },
       logs: { title: 'Activity log', subtitle: 'Monitor key internal events of your server.' },
     },
     sidebar: {
@@ -603,6 +605,10 @@ export default {
         title: '🤝 Sokyo Network',
         desc: 'Servers that join the Network promote each other. Every so often the bot posts another server from the network in your channel (in your language, the one shown the least) and your server shows up in theirs. To show up in others you need your public page listed in the directory.',
       },
+      'datos-staff': {
+        title: '🏅 Staff activity',
+        desc: 'A ranking of your team with photos: tickets handled, messages, time to first reply, average rating and sanctions, over the last 7, 30 or 90 days. Use it to recognize who helps the most and spot anyone struggling to reply on time.',
+      },
       'voz-temporal': {
         title: '🔊 Temporary voice channels',
         desc: 'When someone joins a generator channel, the bot creates their own private voice room with controls to manage it.',
@@ -1001,6 +1007,7 @@ export default {
         soporte: { nombre: 'Support or shop', desc: 'Helping customers of a product, a brand or a shop.' },
       },
       porque: {
+        'datos-staff': 'Recognize your staff and see who replies fastest.',
         'crec-votos': 'Get people voting for the bot every day in exchange for rewards.',
         'crec-red': 'Have other servers recommend you, for free and hands-off.',
         'com-temporadas': 'A monthly ranking with prizes: anyone can win.',
@@ -1562,13 +1569,23 @@ export default {
       },
     },
     acceso_v: {
+      personas: {
+        title: 'Per-person access', desc: 'Give someone the panel without creating a role: choose which sections, whether they can moderate and until when. It’s removed automatically when it expires. Only administrators can give and remove it, and it’s logged.',
+        give: 'Give someone access', search: 'Search the person by name…', change: 'Pick someone else', which: 'Which parts of the panel?',
+        until: 'Until when?', days_one: '{{count}} day', days_other: '{{count}} days', forever: 'No end date (until you remove it)',
+        note: 'Note (optional)', notePh: 'E.g.: helping with Saturday’s tournament', mod: 'Can moderate (sanction, timeout, kick…)',
+        cancel: 'Cancel', confirm: 'Give access', empty: 'Nobody has per-person access. Normally access is given with roles; this is for specific cases.',
+        ends: 'Expires {{cuando}}', noEnd: 'No end date', by: 'given by {{nombre}}', remove: 'Remove', confirmRemove: 'Remove {{nombre}}’s access to the panel?',
+        onlyAdmin: 'Only a server administrator can give or remove access.', error: 'Couldn’t save. Try again.',
+      },
       quien: {
+        viewAs: 'View the panel as {{nombre}}', grantEnds: 'Their access expires on {{fecha}}.',
         title: 'Who can access the panel', desc: 'Everyone on this server who can enter the panel and which parts they reach. Click someone to see their card. It updates instantly with the roles you choose below.',
         search: 'Search by name…', all: 'Everyone', loading: 'Loading who has access…', partial: 'Discord didn’t send the full list in time: someone may be missing. Reload in a moment.',
         empty: 'Nobody but the administrators has access. Choose below which roles can enter.', noMatch: 'Nobody matches the search.',
         can: 'can access', cannot: 'can’t access', close: 'Close',
         modYes: 'Can moderate (sanction, timeout, kick…)', modNo: 'Can’t moderate',
-        motivos: { propietarioBot: 'Bot owner', duenoServidor: 'Server owner', admin: 'Administrator', gestionarCanales: 'Manage Channels', rolStaff: 'Staff role: {{rol}}', rolAcceso: 'Access role: {{rol}}' },
+        motivos: { concedido: 'Access given to this person', propietarioBot: 'Bot owner', duenoServidor: 'Server owner', admin: 'Administrator', gestionarCanales: 'Manage Channels', rolStaff: 'Staff role: {{rol}}', rolAcceso: 'Access role: {{rol}}' },
       },
       areaNames: { tickets: 'Tickets', moderacion: 'Moderation', entrada: 'New members and levels', roles: 'Roles', crecimiento: 'Growth', musica: 'Music player', mensajes: 'Announcements and auto-replies', datos: 'Analytics and daily report', logs: 'Activity log', config: 'Server and settings', cuenta: 'Plan and billing' },
       opens: 'Opens:',
@@ -2565,6 +2582,20 @@ export default {
       err: { espera: 'Wait a minute before running the quick setup again.', idioma: 'Pick the bot language.', tipo: 'Pick the server type.', canal: 'One of the chosen channels no longer exists: pick another.', rol: 'That staff role doesn’t exist or can’t be used.' },
       perm: { ManageChannels: 'Manage Channels', ManageMessages: 'Manage Messages', ModerateMembers: 'Timeout Members' },
     },
+    staff_v: {
+      intro: 'How your team works: tickets handled, reply speed, ratings and sanctions.', lastDays: '{{n}} days',
+      min: '{{n}} min', hours: '{{n}} h', days: '{{n}} d',
+      totTickets: 'Tickets in the period', totUnanswered: 'With no staff reply', totSanctions: 'Sanctions given',
+      emptyTitle: 'No staff activity yet', emptySub: 'When your team handles tickets or gives sanctions, it will show up here.',
+      podium: 'Top helpers', points: '{{n}} points', left: 'no longer on the server',
+      handled: 'Handled', replies: 'Messages', firstReply: '1st reply', rating: 'Rating', sanctions: 'Sanctions', closed: 'Closed',
+    },
+    confirmar: {
+      title: 'Confirm this action', acciones: { 'borrar-rol': 'You’re about to delete a role.', 'borrar-canal': 'You’re about to delete a channel.', 'borrar-categoria': 'You’re about to delete a category.', 'sancion-masiva': 'You’re about to sanction several people at once.', otra: 'This action can’t be undone.' },
+      byDm: 'We’ve sent you a 6-digit code by DM on Discord. Type it here:', byName: 'We couldn’t DM you. To confirm, type the server name: {{servidor}}',
+      wrong: 'That’s not right. Check it and try again.', why: 'We ask so nobody can do something like this with your session without you knowing.', cancel: 'Cancel', confirm: 'Confirm',
+    },
+    verComo: { viendo: 'Viewing the panel as {{nombre}}', nota: 'Only what you see changes: your permissions are still yours.', salir: 'Exit' },
     votos_v: {
       extraGold: 'Extra gold from this server', extraGoldHint: 'On top of each vote’s gold. 0 = nothing more.',
       mention: 'Mention the voter', mentionHint: 'If off, their name shows without a ping.',

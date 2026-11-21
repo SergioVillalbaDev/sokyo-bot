@@ -146,6 +146,11 @@ export function useDashboard() {
 
   // Secciones del panel que el usuario actual puede ver (según su rol en el servidor).
   const [misPermisos, setMisPermisos] = useState(null);
+  // «Ver el panel como…» (1.13.0): el menú y las secciones se ven con los permisos de otra
+  // persona. Solo cambia lo que se ve: la API sigue usando los permisos reales de quien mira.
+  const [verComo, setVerComo] = useState(null); // { nombre, avatar, areas }
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- otro servidor: se deja de «ver como»
+  useEffect(() => { setVerComo(null); }, [guildId]);
 
   // Servidor sobre el que actúan las acciones: el elegido en el panel (o, si aún
   // no hay, el de la configuración cargada). Antes dependían solo de la
@@ -1842,7 +1847,7 @@ export function useDashboard() {
     esBroadcaster, servidoresBot, difundir,
     subirImagen: subirImagenPanel, // subida genérica de imágenes a /uploads
     // acceso y permisos
-    guardarAcceso, misPermisos, ordenarTickets, editarCreado, publicarPanelTickets, cargarMensajeCuentaDefecto, guardarMensajeCuenta,
+    guardarAcceso, misPermisos: verComo ? verComo.areas : misPermisos, misPermisosReales: misPermisos, verComo, setVerComo, ordenarTickets, editarCreado, publicarPanelTickets, cargarMensajeCuentaDefecto, guardarMensajeCuenta,
     guardarPreguntasEntrada, estadoCierre, cambiarCierre, cargarVerificaciones, revisarVerificacion, guardarOpcionesEntrada, cargarRegistroVerificacion, verificarAMano,
     // emojis y stickers
     stickers, crearEmoji, eliminarEmoji, renombrarEmoji, cargarLimiteEmojis, crearSticker, eliminarSticker,

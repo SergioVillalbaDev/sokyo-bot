@@ -19,6 +19,8 @@ import AvisoBorrador from './AvisoBorrador';
 import CrearAlVuelo from './CrearAlVuelo';
 import BuscadorSelects from './BuscadorSelects';
 import VentanaNovedades from './VentanaNovedades';
+import ConfirmacionAccion from './ConfirmacionAccion';
+import { Eye } from 'lucide-react';
 import { itemVisible, ubicacion as ubicacionTab } from './navConfig';
 import { apiFetch } from '../../lib/api';
 import { avisar } from '../../lib/avisosNavegador';
@@ -88,6 +90,7 @@ const CARGAR_VISTA = {
   CrecVotosView: () => import('./views/CrecVotosView'),
   CrecRedView: () => import('./views/CrecRedView'),
   TemporadasView: () => import('./views/TemporadasView'),
+  StaffActividadView: () => import('./views/StaffActividadView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
 
@@ -378,6 +381,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'crec-votos') return <V.CrecVotosView dash={dash} />;
     if (activeTab === 'crec-red') return <V.CrecRedView dash={dash} />;
     if (activeTab === 'com-temporadas') return <V.TemporadasView dash={dash} />;
+    if (activeTab === 'datos-staff') return <V.StaffActividadView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };
@@ -490,6 +494,23 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
 
       {/* «Hemos recuperado lo que no se había guardado» al volver a una sección. */}
       <AvisoBorrador />
+
+      {/* Confirmación doble de acciones peligrosas (la abre lib/api.js cuando la API la pide). */}
+      <ConfirmacionAccion />
+
+      {/* «Ver el panel como…» (1.13.0): aviso fijo mientras se ve con los permisos de otra persona. */}
+      {dash.verComo && (
+        <div className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center gap-3 rounded-2xl border border-brand/50 bg-card/95 px-4 py-3 shadow-xl backdrop-blur" role="status">
+          <Eye size={18} className="shrink-0 text-brand" />
+          {dash.verComo.avatar && <img src={dash.verComo.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />}
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="block truncate font-bold text-fg">{t('dashboard.verComo.viendo', { nombre: dash.verComo.nombre })}</span>
+            <span className="block text-xs text-muted">{t('dashboard.verComo.nota')}</span>
+          </span>
+          <button type="button" onClick={() => { dash.setVerComo(null); navigate('config-acceso'); }}
+            className="sk-foco shrink-0 rounded-xl bg-gradient-brand px-3 py-1.5 text-sm font-semibold text-on-brand">{t('dashboard.verComo.salir')}</button>
+        </div>
+      )}
 
       {/* «Guardado · Deshacer» tras cada cambio (solo quien puede deshacerlo). */}
       {misPermisos?.config !== false && (

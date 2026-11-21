@@ -17,7 +17,7 @@ import {
   Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
   Stethoscope, FileClock, Cake, ClipboardCheck, Star, Shield, MessageSquareHeart, Moon, Pin, Hash, Dices,
-  Vote, Handshake, Trophy,
+  Vote, Handshake, Trophy, Award,
 } from 'lucide-react';
 
 export const navSections = [
@@ -140,6 +140,7 @@ export const navGroups = [
     items: [
       { tab: 'datos-analitica', icon: BarChart3, area: 'datos', premium: true, kw: 'analitica estadisticas graficas metricas analytics stats' },
       { tab: 'datos-resumen', icon: Mail, area: 'datos', premium: true, kw: 'resumen diario parte informe md daily report' },
+      { tab: 'datos-staff', icon: Award, area: 'datos', kw: 'actividad staff equipo moderadores ranking tickets atendidos tiempo respuesta valoracion sanciones staff activity team leaderboard' },
       { tab: 'logs-todos', icon: ScrollText, area: 'logs', kw: 'logs registro eventos mensajes borrados editados entradas salidas auditoria audit' },
     ],
   },

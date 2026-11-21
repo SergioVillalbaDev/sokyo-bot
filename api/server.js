@@ -225,10 +225,16 @@ module.exports = (client) => {
     app.use('/api/auth', limitadorAuth);   // primero el específico del login
     app.use('/api', limitadorGeneral);     // y el general para el resto de la API
 
+    // Accesos al panel dados a una persona (1.13.0, models/AccesoPersona.js), en vigor.
+    const AccesoPersona = require('../models/AccesoPersona.js');
+    const vigentes = () => ({ $or: [{ expiraEn: null }, { expiraEn: { $gt: new Date() } }] });
+    const concesionDe = (guildId, userId) => AccesoPersona.findOne({ guildId, userId, ...vigentes() }).lean().catch(() => null);
+
     // Calcula en qué servidores (de los que tiene el bot) el usuario es staff:
     // tiene el rol de soporte configurado, o permiso de gestionar canales / admin.
     async function guildsDelStaff(userId) {
         const out = [];
+        const concedidos = new Set((await AccesoPersona.find({ userId, ...vigentes() }).select('guildId').lean().catch(() => [])).map((c) => c.guildId));
         for (const [, g] of client.guilds.cache) {
             try {
                 const member = await g.members.fetch(userId);
@@ -237,7 +243,7 @@ module.exports = (client) => {
                 const tieneAcceso = cfg && Array.isArray(cfg.rolesPanelAcceso) && cfg.rolesPanelAcceso.some((id) => member.roles.cache.has(id));
                 const esAdmin = member.permissions.has(PermissionsBitField.Flags.ManageChannels)
                     || member.permissions.has(PermissionsBitField.Flags.Administrator);
-                if (tieneRol || tieneAcceso || esAdmin) out.push({ id: g.id, nombre: g.name, icono: g.iconURL({ size: 128 }) || null });
+                if (tieneRol || tieneAcceso || esAdmin || concedidos.has(g.id)) out.push({ id: g.id, nombre: g.name, icono: g.iconURL({ size: 128 }) || null });
             } catch { /* el usuario no es miembro de ese servidor */ }
         }
         return out;
@@ -436,7 +442,8 @@ module.exports = (client) => {
             // Roles de moderación configurados en el panel.
             const cfg = await ServidorConfig.findOne({ guildId });
             const rolesMod = (cfg && cfg.rolesModeracion) || [];
-            return rolesMod.some((id) => member.roles.cache.has(id));
+            if (rolesMod.some((id) => member.roles.cache.has(id))) return true;
+            return !!(await concesionDe(guildId, req.staff.id))?.moderar;
         } catch { return false; }
     }
 
@@ -482,7 +489,9 @@ module.exports = (client) => {
             if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
             const cfg = await ServidorConfig.findOne({ guildId });
             const lista = (cfg && cfg.accesoAreas && cfg.accesoAreas[area]) || [];
-            return lista.length === 0 || lista.some((id) => member.roles.cache.has(id));
+            if (lista.length === 0 || lista.some((id) => member.roles.cache.has(id))) return true;
+            const dada = await concesionDe(guildId, req.staff.id); // acceso dado a esta persona
+            return !!(dada && (dada.areas || []).includes(area));
         } catch { return false; }
     }
 
@@ -507,8 +516,11 @@ module.exports = (client) => {
         return res.status(403).json({ error: 'No tienes acceso a esta sección del panel' });
     };
 
+    // Confirmación doble de acciones peligrosas (1.13.0, utils/confirmacionPanel.js).
+    const exigeConfirmacion = require('../utils/confirmacionPanel.js').crearExigeConfirmacion(client);
+
     // Categorías y canales del servidor (los cambios piden el área "config").
-    app.use('/api', require('./routes/canales.js')({ client, exigeArea }));
+    app.use('/api', require('./routes/canales.js')({ client, exigeArea, exigeConfirmacion }));
     // Diagnóstico «¿Algo no funciona?» e historial de cambios con «Deshacer».
     app.use('/api', require('./routes/panelExtra.js')({ client, exigeArea, tieneAreaAcceso, idiomaPanel }));
     // Cumpleaños, salón de la fama, grupos, clanes, confesiones, solicitudes, ausente,
@@ -1063,10 +1075,11 @@ module.exports = (client) => {
             if (member && member.permissions.has(PermissionsBitField.Flags.Administrator)) return todo();
 
             const cfg = guildId ? await ServidorConfig.findOne({ guildId }) : null;
+            const dada = guildId ? await concesionDe(guildId, req.staff.id) : null;
             const areas = {};
             for (const a of AREAS) {
                 const lista = (cfg && cfg.accesoAreas && cfg.accesoAreas[a]) || [];
-                areas[a] = lista.length === 0 || !!(member && lista.some((id) => member.roles.cache.has(id)));
+                areas[a] = lista.length === 0 || !!(member && lista.some((id) => member.roles.cache.has(id))) || !!(dada && (dada.areas || []).includes(a));
             }
             res.json({ areas });
         } catch (error) {
@@ -1316,7 +1329,8 @@ app.get('/api/stats/uso', async (req, res) => {
 
             const nuevoMsg = await Mensaje.create({
                 ticketId: ticketId,
-                usuarioId: 'sokyo-web',
+                // Quién respondió (para «Actividad del staff»); 'sokyo-web' si es la API key.
+                usuarioId: (req.staff && req.staff.id) || 'sokyo-web',
                 usuario: usuario,
                 contenido: contenido
             });
@@ -2930,13 +2944,16 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
             const acceso = require('../utils/accesoPanel.js');
             const cfg = (await ServidorConfig.findOne({ guildId: guild.id }).lean()) || {};
+            const concesiones = new Map((await AccesoPersona.find({ guildId: guild.id, ...vigentes() }).lean()).map((c) => [c.userId, c]));
             const miembros = await miembrosCompletos(guild);
             const lista = [];
             for (const m of miembros.values()) {
                 if (m.user.bot) continue;
                 const d = acceso.datosMiembro(m, { ownerIds: OWNER_IDS });
-                if (!acceso.esCandidato(d, cfg)) continue;
-                lista.push({ ...d, ...acceso.calcularAcceso(d, cfg) });
+                const c = concesiones.get(m.id) || null;
+                if (!acceso.esCandidato(d, cfg, c)) continue;
+                const concesion = c ? { areas: c.areas, moderar: c.moderar, expiraEn: c.expiraEn, creadoPorNombre: c.creadoPorNombre } : null;
+                lista.push({ ...d, concesion, ...acceso.calcularAcceso(d, cfg, concesion) });
             }
             const peso = (x) => (x.propietarioBot ? 0 : x.duenoServidor ? 1 : x.admin ? 2 : x.acceso ? 3 : 4);
             lista.sort((a, b) => peso(a) - peso(b) || a.nombre.localeCompare(b.nombre));
@@ -2952,6 +2969,90 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
+    // --- ACTIVIDAD DEL STAFF (1.13.0, utils/actividadStaff.js): área «datos» ---
+    app.get('/api/config/:guildId/staff/actividad', exigeArea('datos'), async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const dias = [7, 30, 90].includes(Number(req.query.dias)) ? Number(req.query.dias) : 30;
+            res.json(await require('../utils/actividadStaff.js').calcular(guild, dias));
+        } catch (error) {
+            console.error('Error en la actividad del staff:', error);
+            res.status(500).json({ error: 'No se pudo cargar la lista.' });
+        }
+    });
+
+    // --- ACCESO POR PERSONA (1.13.0): dar el panel a alguien sin crearle un rol, con
+    // fecha de caducidad si se quiere. Ver y listar: área config. Dar y quitar: solo admins.
+    // Cada cambio queda en el registro (categoría Seguridad) y en el canal de registro.
+    const DIAS_ACCESO = [0, 1, 3, 7, 14, 30, 90];
+    const nombreStaff = (req) => (req.staff && req.staff.username) || 'API';
+    app.get('/api/config/:guildId/acceso/personas', exigeArea('config'), async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const lista = await AccesoPersona.find({ guildId: guild.id, ...vigentes() }).sort({ createdAt: -1 }).lean();
+            res.json(await Promise.all(lista.map(async (c) => {
+                const m = guild.members.cache.get(c.userId) || await guild.members.fetch(c.userId).catch(() => null);
+                return {
+                    userId: c.userId, areas: c.areas, moderar: c.moderar, expiraEn: c.expiraEn, nota: c.nota, creadoPorNombre: c.creadoPorNombre, desde: c.createdAt,
+                    nombre: m ? m.displayName : c.userId, usuario: m ? m.user.username : '', avatar: m ? m.displayAvatarURL({ size: 64, extension: 'png' }) : null, enServidor: !!m,
+                };
+            })));
+        } catch (error) {
+            console.error('Error al listar accesos por persona:', error);
+            res.status(500).json({ error: 'No se pudo cargar la lista.' });
+        }
+    });
+    app.put('/api/config/:guildId/acceso/personas/:userId', exigeAdmin, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const userId = String(req.params.userId);
+            const miembro = /^\d{17,20}$/.test(userId) ? await guild.members.fetch(userId).catch(() => null) : null;
+            if (!miembro || miembro.user.bot) return res.status(400).json({ error: 'No está en el servidor' });
+            const b = req.body || {};
+            const areas = [...new Set((Array.isArray(b.areas) ? b.areas : []).filter((a) => AREAS.includes(a)))];
+            if (!areas.length) return res.status(400).json({ error: 'Marca al menos una sección del panel' });
+            const dias = DIAS_ACCESO.includes(Number(b.dias)) ? Number(b.dias) : 0;
+            const expiraEn = dias ? new Date(Date.now() + dias * 24 * 3600 * 1000) : null;
+            await AccesoPersona.findOneAndUpdate(
+                { guildId: guild.id, userId },
+                { $set: { areas, moderar: !!b.moderar, expiraEn, nota: String(b.nota || '').slice(0, 200), creadoPor: req.staff ? req.staff.id : null, creadoPorNombre: nombreStaff(req) } },
+                { upsert: true },
+            );
+            accesoStaff.delete(userId); // que se note ya, sin esperar a la caché
+            await require('../utils/accesoPanel.js').alertaSeguridad(client, guild.id, {
+                accion: '🔑 Acceso al panel dado', usuario: miembro.user.username,
+                detalles: `<@${userId}> puede entrar al panel (${areas.join(', ')})${b.moderar ? ' y moderar' : ''}${expiraEn ? ` hasta <t:${Math.floor(expiraEn.getTime() / 1000)}:f>` : ' sin fecha de fin'}. Lo dio ${nombreStaff(req)}.`,
+                color: '#22c55e',
+            });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al dar acceso:', error);
+            res.status(500).json({ error: 'No se pudo guardar' });
+        }
+    });
+    app.delete('/api/config/:guildId/acceso/personas/:userId', exigeAdmin, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
+            const userId = String(req.params.userId);
+            const borrado = await AccesoPersona.deleteOne({ guildId: guild.id, userId });
+            if (!borrado.deletedCount) return res.status(404).json({ error: 'No encontrado' });
+            accesoStaff.delete(userId);
+            const m = guild.members.cache.get(userId);
+            await require('../utils/accesoPanel.js').alertaSeguridad(client, guild.id, {
+                accion: '🚫 Acceso al panel retirado', usuario: m ? m.user.username : userId,
+                detalles: `<@${userId}> ya no puede entrar al panel con el acceso que tenía. Lo quitó ${nombreStaff(req)}.`, color: '#ef4444',
+            });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Error al quitar acceso:', error);
+            res.status(500).json({ error: 'No se pudo borrar.' });
+        }
+    });
+
     // --- ACCESO Y PERMISOS: roles que entran al panel + roles de moderación ---
     app.put('/api/config/:guildId/acceso', exigeAdmin, async (req, res) => {
         try {
@@ -2963,11 +3064,24 @@ app.get('/api/stats/uso', async (req, res) => {
                     if (Array.isArray(req.body.accesoAreas[a])) cambios[`accesoAreas.${a}`] = req.body.accesoAreas[a].filter(Boolean);
                 });
             }
+            const antes = await ServidorConfig.findOne({ guildId: req.params.guildId }).select('rolesPanelAcceso rolesModeracion accesoAreas').lean();
             const config = await ServidorConfig.findOneAndUpdate(
                 { guildId: req.params.guildId },
                 { $set: cambios },
                 { returnDocument: 'after', upsert: true },
             );
+            // Alerta de seguridad si cambian los roles que entran al panel o moderan (1.13.0).
+            const guildA = client.guilds.cache.get(req.params.guildId);
+            const nombres = (ids) => (ids || []).map((id) => guildA?.roles.cache.get(id)?.name || id).join(', ') || '—';
+            const igual = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
+            const cambiado = [];
+            if (cambios.rolesPanelAcceso && !igual(antes?.rolesPanelAcceso, cambios.rolesPanelAcceso)) cambiado.push(`Entran al panel: ${nombres(cambios.rolesPanelAcceso)}`);
+            if (cambios.rolesModeracion && !igual(antes?.rolesModeracion, cambios.rolesModeracion)) cambiado.push(`Moderan: ${nombres(cambios.rolesModeracion)}`);
+            if (cambiado.length) {
+                await require('../utils/accesoPanel.js').alertaSeguridad(client, req.params.guildId, {
+                    accion: '🛡️ Permisos del panel cambiados', usuario: nombreStaff(req), detalles: `${cambiado.join('\n')}\nLo cambió ${nombreStaff(req)}.`,
+                });
+            }
             res.json({ success: true, config });
         } catch (error) {
             console.error('Error al guardar acceso y permisos:', error);
@@ -3256,7 +3370,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // Eliminar un rol.
-    app.delete('/api/roles/:roleId', exigeArea('roles'), async (req, res) => {
+    app.delete('/api/roles/:roleId', exigeArea('roles'), exigeConfirmacion('borrar-rol'), async (req, res) => {
         try {
             const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.status(404).json({ error: 'Servidor no encontrado' });
@@ -3753,7 +3867,8 @@ app.get('/api/stats/uso', async (req, res) => {
         const requerido = { timeout: P.ModerateMembers, expulsion: P.KickMembers, ban: P.BanMembers, aviso: P.ModerateMembers }[accion] || P.BanMembers;
         if (member.permissions.has(P.Administrator) || member.permissions.has(requerido)) return true;
         const cfgMod = await ServidorConfig.findOne({ guildId });
-        return (cfgMod?.rolesModeracion || []).some((id) => member.roles.cache.has(id));
+        if ((cfgMod?.rolesModeracion || []).some((id) => member.roles.cache.has(id))) return true;
+        return !!(await concesionDe(guildId, req.staff.id))?.moderar;
     }
 
     // --- Tipos de sanción (plantillas) ---
@@ -3852,7 +3967,7 @@ app.get('/api/stats/uso', async (req, res) => {
     });
 
     // --- Sanción MASIVA: misma acción a varios usuarios (limpieza de raids) ---
-    app.post('/api/sanciones/aplicar-masiva', async (req, res) => {
+    app.post('/api/sanciones/aplicar-masiva', exigeConfirmacion('sancion-masiva'), async (req, res) => {
         try {
             const { guildId, usuarioIds, tipoId, accion, duracionMin, borrarMensajesHoras, motivo } = req.body;
             if (!guildId || !Array.isArray(usuarioIds) || usuarioIds.length === 0) {

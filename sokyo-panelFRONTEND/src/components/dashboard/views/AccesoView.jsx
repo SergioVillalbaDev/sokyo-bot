@@ -2,6 +2,7 @@
 // qué roles pueden moderar (panel de moderación + comandos).
 import { useState, useEffect, useMemo } from 'react';
 import QuienAccede from './QuienAccede';
+import AccesosPersona from './AccesosPersona';
 import { useTranslation } from 'react-i18next';
 import { navGroups } from '../navConfig';
 import { MonitorSmartphone, ShieldAlert, Save, Check, Info, LayoutList } from 'lucide-react';
@@ -101,7 +102,9 @@ export default function AccesoView({ dash }) {
     <div className="space-y-5">
       <p className="text-sm text-muted">{t('dashboard.acceso_v.intro')}</p>
 
-      <QuienAccede guildId={guildId} roles={roles} cfgVivo={cfgVivo} recarga={recargaQuien} />
+      <QuienAccede guildId={guildId} roles={roles} cfgVivo={cfgVivo} recarga={recargaQuien}
+        onVerComo={(p) => { dash.setVerComo({ nombre: p.nombre, avatar: p.avatar, areas: p.calc.areas }); dash.setActiveTab('inicio'); }} />
+      <AccesosPersona guildId={guildId} onCambio={() => setRecargaQuien((n) => n + 1)} />
 
       <div className="flex items-start gap-2.5 rounded-2xl border border-line bg-elevated px-4 py-3">
         <Info size={16} className="mt-0.5 shrink-0 text-brand" />
