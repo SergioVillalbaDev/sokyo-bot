@@ -83,11 +83,22 @@ function embedMascota(m, idioma, extra = {}) {
             name: t(idioma, '🎁 Ventajas para todo el servidor', '🎁 Perks for the whole server'),
             value: N.VENTAJAS.map((v) => `${ventajas.includes(v.id) ? '✅' : (m.nivel >= v.nivel ? '⏸️' : '🔒')} **${t(idioma, 'Nv', 'Lv')} ${v.nivel}** · ${v.emoji} ${t(idioma, v.es, v.en)}`).join('\n'),
         });
+    const X = require('./mascotaExtras.js');
+    const per = X.PERSONALIDADES[m.personalidad];
+    const st = m.stats || {};
+    if (per) e.addFields({ name: t(idioma, '🧬 Personalidad', '🧬 Personality'), value: `${per.emoji} **${t(idioma, per.es, per.en)}** — ${t(idioma, per.desc.es, per.desc.en)}` });
+    e.addFields({ name: t(idioma, '🏋️ Entrenamiento', '🏋️ Training'), value: `${Object.entries(X.STATS).map(([k, v]) => `${v.emoji} ${st[k] || 5}`).join(' · ')} · ⚡ ${m.energia ?? 100}%`, inline: true });
+    if (m.accesorio || (m.habitat && m.habitat !== 'prado')) {
+        const acc = m.accesorio && X.ACCESORIOS[m.accesorio];
+        const hab = X.HABITATS[m.habitat || 'prado'];
+        e.addFields({ name: t(idioma, '🎨 Aspecto', '🎨 Look'), value: [acc ? `${acc.emoji} ${t(idioma, acc.es, acc.en)}` : '', hab ? `🏞️ ${t(idioma, hab.es, hab.en)}` : ''].filter(Boolean).join(' · '), inline: true });
+    }
+    if ((m.logros || []).length) e.addFields({ name: t(idioma, '🏆 Logros', '🏆 Achievements'), value: `${(m.logros || []).map((id) => (X.LOGROS.find((l) => l.id === id) || {}).emoji || '').join(' ')} (${m.logros.length}/${X.LOGROS.length})`, inline: true });
     const c = m.contadores || {};
     if (c.victorias || c.derrotas) e.addFields({ name: t(idioma, '⚔️ Combates', '⚔️ Battles'), value: `${c.victorias || 0} ✅ · ${c.derrotas || 0} ❌${c.racha > 1 ? ` · 🔥 ${c.racha}` : ''}`, inline: true });
     if (m.cuidadorId) e.addFields({ name: t(idioma, '🏅 Cuidador del mes', '🏅 Carer of the month'), value: `<@${m.cuidadorId}>`, inline: true });
     if (extra.imagen) e.setImage('attachment://mascota.png');
-    e.setFooter({ text: t(idioma, '/mascota alimentar · acariciar · jugar · cuidadores', '/pet feed · pet · play · carers') });
+    e.setFooter({ text: t(idioma, '/mascota alimentar · acariciar · jugar · entrenar · tienda · hablar · diario', '/pet feed · pet · play · train · shop · talk · diary') });
     return e;
 }
 
@@ -162,11 +173,12 @@ async function eclosionar(client, cfg, m) {
     const ahora = new Date();
     const hecho = await Mascota.findOneAndUpdate(
         { _id: m._id, estado: 'huevo' },
-        { $set: { estado: 'viva', especie: r.especie, nombre: r.nombre, nacida: ahora, ultimoTick: ahora, nivel: 1, xp: 0, hambre: 80, alegria: 85, salud: 100 } },
+        { $set: { estado: 'viva', especie: r.especie, nombre: r.nombre, nacida: ahora, ultimoTick: ahora, nivel: 1, xp: 0, hambre: 80, alegria: 85, salud: 100, energia: 100, personalidad: require('./mascotaExtras.js').personalidadAlAzar() } },
         { returnDocument: 'after' },
     );
     if (!hecho) return null;
     ponerCache(hecho);
+    await require('./mascotaVida.js').recordar(hecho.guildId, 'nacio', { nombre: hecho.nombre, especie: hecho.especie });
     // El mensaje de la votación se queda sin botones.
     const guild = client.guilds.cache.get(m.guildId);
     const canal = guild && m.votacion?.canalId ? guild.channels.cache.get(m.votacion.canalId) : null;
@@ -174,10 +186,11 @@ async function eclosionar(client, cfg, m) {
     if (msg) await msg.edit({ components: [] }).catch(() => {});
     const adj = await tarjeta(hecho, cfg);
     const esp = N.ESPECIES[hecho.especie];
+    const per = require('./mascotaExtras.js').PERSONALIDADES[hecho.personalidad];
     await enviarAlCanal(client, cfg, {
         content: t(cfg,
-            `🎉 **¡El huevo se ha abierto!** Ha nacido **${hecho.nombre}**, un ${esp.emoji} **${esp.es.toLowerCase()}**. Cuidadla entre todos: \`/mascota alimentar\`, \`/mascota acariciar\` y \`/mascota jugar\`. Cuanto más viva esté el servidor, más rápido crecerá.`,
-            `🎉 **The egg has hatched!** Meet **${hecho.nombre}**, a ${esp.emoji} **${esp.en.toLowerCase()}**. Look after it together: \`/pet feed\`, \`/pet pet\` and \`/pet play\`. The livelier the server, the faster it grows.`),
+            `🎉 **¡El huevo se ha abierto!** Ha nacido **${hecho.nombre}**, un ${esp.emoji} **${esp.es.toLowerCase()}** ${per.emoji} **${per.es.toLowerCase()}** (${per.desc.es.charAt(0).toLowerCase()}${per.desc.es.slice(1, -1)}). Cuidadla entre todos: \`/mascota alimentar\`, \`/mascota acariciar\`, \`/mascota jugar\` y \`/mascota entrenar\`. Cuanto más viva esté el servidor, más rápido crecerá.`,
+            `🎉 **The egg has hatched!** Meet **${hecho.nombre}**, a ${per.emoji} **${per.en.toLowerCase()}** ${esp.emoji} **${esp.en.toLowerCase()}** (${per.desc.en.charAt(0).toLowerCase()}${per.desc.en.slice(1, -1)}). Look after it together: \`/pet feed\`, \`/pet pet\`, \`/pet play\` and \`/pet train\`. The livelier the server, the faster it grows.`),
         embeds: [embedMascota(hecho, cfg, { imagen: !!adj })],
         files: adj ? [adj] : [],
     });
@@ -197,7 +210,25 @@ function miembrosEnVoz(guild) {
     return n;
 }
 
+// Lo importante queda en su diario (aunque los avisos estén apagados).
+async function apuntarAvisos(m, avisos) {
+    const { recordar } = require('./mascotaVida.js');
+    for (const a of avisos) {
+        if (a.tipo === 'nivel') {
+            const antes = N.faseDe({ estado: 'viva', nivel: a.antes });
+            const ahora = N.faseDe(m);
+            if (antes.id !== ahora.id) await recordar(m.guildId, 'fase', { fase_es: ahora.es.toLowerCase(), fase_en: ahora.en.toLowerCase() });
+            else if (Math.floor(a.nivel / 5) > Math.floor(a.antes / 5)) await recordar(m.guildId, 'nivel', { nivel: a.nivel });
+        } else if (a.tipo === 'forma') {
+            await recordar(m.guildId, 'forma', { forma_es: N.FORMAS[a.forma].es, forma_en: N.FORMAS[a.forma].en });
+        } else if (a.tipo === 'hiberna') {
+            await recordar(m.guildId, 'hiberna');
+        }
+    }
+}
+
 async function anunciarAvisos(client, cfg, m, avisos) {
+    await apuntarAvisos(m, avisos).catch(() => {});
     if (cfg.mascota?.avisos === false) return;
     for (const a of avisos) {
         if (a.tipo === 'nivel') {
@@ -256,6 +287,8 @@ async function cerrarCuidadorDelMes(client, cfg, m) {
         if (nuevo) await nuevo.roles.add(rol, 'Cuidador del mes de la mascota').catch(() => {});
     }
     await Mascota.updateOne({ _id: m._id }, { $set: { cuidadorId: top.userId } });
+    const quien = guild ? (await guild.members.fetch(top.userId).catch(() => null))?.displayName : null;
+    await require('./mascotaVida.js').recordar(m.guildId, 'cuidador', { quien: quien || top.userId });
     await enviarAlCanal(client, cfg, {
         content: t(cfg, `🏅 **Cuidador del mes:** <@${top.userId}> ha cuidado de **${m.nombre}** más que nadie (${top.puntos} puntos). ¡Gracias!`, `🏅 **Carer of the month:** <@${top.userId}> looked after **${m.nombre}** more than anyone (${top.puntos} points). Thank you!`),
         allowedMentions: { users: [top.userId] },
@@ -272,6 +305,16 @@ async function pasadaServidor(client, cfg) {
         return;
     }
     ponerCache(m);
+    // Las que nacieron antes de 1.15.0 no tienen personalidad: les toca una ahora.
+    if (!m.personalidad) {
+        const X = require('./mascotaExtras.js');
+        const p = X.personalidadAlAzar();
+        m = (await Mascota.findOneAndUpdate({ _id: m._id, personalidad: null }, { $set: { personalidad: p } }, { returnDocument: 'after' })) || m;
+        if (m.personalidad === p && cfg.mascota?.avisos !== false) {
+            const per = X.PERSONALIDADES[p];
+            await enviarAlCanal(client, cfg, { content: t(cfg, `🧬 **${m.nombre}** ha descubierto quién es: es **${per.es.toLowerCase()}** ${per.emoji}. ${per.desc.es} Ahora también puede entrenar (\`/mascota entrenar\`), tiene tienda (\`/mascota tienda\`) y diario (\`/mascota diario\`).`, `🧬 **${m.nombre}** found out who it is: it’s **${per.en.toLowerCase()}** ${per.emoji}. ${per.desc.en} It can now train (\`/pet train\`), has a shop (\`/pet shop\`) and a diary (\`/pet diary\`).`) });
+        }
+    }
     const ahora = new Date();
     const horas = (ahora - new Date(m.ultimoTick || ahora)) / 3600000;
     if (horas >= 1) {
@@ -304,6 +347,9 @@ async function pasadaServidor(client, cfg) {
         }
     }
     await cerrarCuidadorDelMes(client, cfg, m);
+    const vida = require('./mascotaVida.js');
+    await vida.comprobarLogros(client, cfg, m);
+    await vida.pasadaEventos(client, cfg, await Mascota.findOne({ _id: m._id }), ahora);
 }
 
 async function barrerMascotas(client) {
@@ -331,10 +377,11 @@ async function cuidado(guildId, userId, set = {}, inc = {}) {
 }
 const viva = async (guildId) => Mascota.findOne({ guildId, estado: 'viva' });
 
-async function alimentar(guildId, userId, oro, idioma) {
+async function alimentar(guildId, userId, oro, idioma, quien = null) {
     const m = await viva(guildId);
     if (!m) return { error: t(idioma, 'Todavía no hay mascota (o sigue en el huevo).', 'There’s no pet yet (or it’s still an egg).') };
     const c = N.comida(m, oro);
+    c.xp = Math.round(c.xp * (require('./mascotaExtras.js').pers(m).xpComida || 1));
     if (c.usado <= 0) return { error: t(idioma, `**${m.nombre}** está llena: no le cabe nada más ahora.`, `**${m.nombre}** is full: it can’t eat anything else right now.`) };
     const economia = require('./economia.js');
     const saldo = await economia.cobrar(userId, c.usado);
@@ -344,11 +391,12 @@ async function alimentar(guildId, userId, oro, idioma) {
     // $inc del hambre real (otro puede haber comido a la vez): se calcula en la BD con un tope de 100.
     const nuevo = await Mascota.findOneAndUpdate(
         { _id: m._id },
-        [{ $set: { hambre: { $min: [100, { $add: ['$hambre', c.usado / 10] }] }, nivel: r.nivel, xp: r.xp, ...(desperto ? { hibernando: false, hibernaDesde: null } : {}), 'contadores.comida': { $add: [{ $ifNull: ['$contadores.comida', 0] }, c.usado] } } }],
+        [{ $set: { hambre: { $min: [100, { $add: ['$hambre', c.usado / 10] }] }, nivel: r.nivel, xp: r.xp, ...(desperto ? { hibernando: false, hibernaDesde: null, 'contadores.despertares': { $add: [{ $ifNull: ['$contadores.despertares', 0] }, 1] } } : {}), 'contadores.comida': { $add: [{ $ifNull: ['$contadores.comida', 0] }, c.usado] } } }],
         { returnDocument: 'after', updatePipeline: true },
     );
     await cuidado(guildId, userId, {}, { puntos: c.cuidado, oro: c.usado });
     ponerCache(nuevo);
+    if (desperto) await require('./mascotaVida.js').recordar(guildId, 'despierta', { quien: quien || null });
     return { ok: true, m: nuevo, usado: c.usado, saldo, subio: r.subidos > 0, desperto };
 }
 
@@ -369,7 +417,7 @@ async function acariciar(guildId, userId, idioma) {
         return { error: t(idioma, `Ya la has acariciado hace poco. Vuelve <t:${Math.floor(vuelve.getTime() / 1000)}:R>.`, `You petted it recently. Come back <t:${Math.floor(vuelve.getTime() / 1000)}:R>.`) };
     }
     const r = N.sumarXp(m.nivel, m.xp, 10);
-    const nuevo = await Mascota.findOneAndUpdate({ _id: m._id }, [{ $set: { alegria: { $min: [100, { $add: ['$alegria', 4] }] }, nivel: r.nivel, xp: r.xp } }], { returnDocument: 'after', updatePipeline: true });
+    const nuevo = await Mascota.findOneAndUpdate({ _id: m._id }, [{ $set: { alegria: { $min: [100, { $add: ['$alegria', 4 * (require('./mascotaExtras.js').pers(m).caricia || 1)] }] }, nivel: r.nivel, xp: r.xp, 'contadores.caricias': { $add: [{ $ifNull: ['$contadores.caricias', 0] }, 1] } } }], { returnDocument: 'after', updatePipeline: true });
     let oro = 0;
     if (N.ventajasDe(m).includes('caricia')) { oro = ORO_CARICIA; await require('./economia.js').darOro(userId, oro); }
     ponerCache(nuevo);
@@ -411,7 +459,7 @@ async function resolverJuego(interaction, clave, eleccion, idioma) {
     if (!m) return interaction.update({ content: '?', components: [] });
     const acierto = eleccion === j.premio;
     const r = N.sumarXp(m.nivel, m.xp, acierto ? 15 : 5);
-    const nuevo = await Mascota.findOneAndUpdate({ _id: m._id }, [{ $set: { alegria: { $min: [100, { $add: ['$alegria', acierto ? 7 : 3] }] }, nivel: r.nivel, xp: r.xp } }], { returnDocument: 'after', updatePipeline: true });
+    const nuevo = await Mascota.findOneAndUpdate({ _id: m._id }, [{ $set: { alegria: { $min: [100, { $add: ['$alegria', (acierto ? 7 : 3) * (require('./mascotaExtras.js').pers(m).juego || 1)] }] }, nivel: r.nivel, xp: r.xp } }], { returnDocument: 'after', updatePipeline: true });
     await cuidado(j.guildId, j.userId, {}, { puntos: acierto ? 6 : 3 });
     if (acierto) await require('./economia.js').darOro(j.userId, ORO_JUEGO);
     ponerCache(nuevo);
@@ -480,6 +528,23 @@ async function manejar(interaction, client) {
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
 
+    if (interaction.isButton() && id.startsWith('mas_ev:')) {
+        await require('./mascotaVida.js').responderEvento(interaction, client, cfg, idioma);
+        return true;
+    }
+    if (interaction.isStringSelectMenu() && id === 'mas_comprar') {
+        const vida = require('./mascotaVida.js');
+        const r = await vida.comprar(client, cfg, interaction.guildId, interaction.user.id, interaction.values[0], idioma, interaction.member?.displayName || interaction.user.username);
+        if (r.error) { await interaction.reply({ content: `❌ ${r.error}`, flags: 64 }); return true; }
+        const a = r.articulo;
+        await interaction.reply({
+            content: a.tipo === 'comida'
+                ? t(idioma, `${a.emoji} <@${interaction.user.id}> le ha dado **${a.es}** a **${r.m.nombre}** (🪙 ${a.precio}).${r.desperto ? ' ¡Y se ha despertado! ☀️' : ''}`, `${a.emoji} <@${interaction.user.id}> gave **${r.m.nombre}** some **${a.en}** (🪙 ${a.precio}).${r.desperto ? ' And it woke up! ☀️' : ''}`)
+                : t(idioma, `🎁 <@${interaction.user.id}> le ha regalado ${a.emoji || '🏞️'} **${a.es}** a **${r.m.nombre}** (🪙 ${a.precio}). ¡Ya lo lleva puesto!`, `🎁 <@${interaction.user.id}> gave **${r.m.nombre}** ${a.emoji || '🏞️'} **${a.en}** (🪙 ${a.precio}). It’s wearing it now!`),
+            allowedMentions: { parse: [] },
+        });
+        return true;
+    }
     if (interaction.isButton() && id.startsWith('mas_vaso:')) {
         const [, clave, i] = id.split(':');
         await resolverJuego(interaction, clave, parseInt(i, 10), idioma);
@@ -558,6 +623,9 @@ async function resumen(client, guildId) {
             hambre: m.hambre, alegria: m.alegria, salud: m.salud, forma: m.forma, hibernando: m.hibernando,
             fase: N.faseDe(m).id, animo: N.animoDe(m), ventajas: N.ventajasDe(m), poder: N.poderDe(m),
             nacida: m.nacida, contadores: m.contadores, cuidador: m.cuidadorId ? persona(m.cuidadorId) : null,
+            personalidad: m.personalidad, energia: m.energia ?? 100, stats: m.stats || {}, accesorio: m.accesorio, accesorios: m.accesorios || [],
+            habitat: m.habitat || 'prado', habitats: m.habitats || ['prado'], logros: m.logros || [],
+            diario: [...(m.diario || [])].reverse().slice(0, 30).map((r) => ({ tipo: r.tipo, fecha: r.fecha, es: require('./mascotaExtras.js').textoRecuerdo(r, 'es'), en: require('./mascotaExtras.js').textoRecuerdo(r, 'en') })),
             votacion: m.estado === 'huevo' ? { fin: m.votacion?.fin, especies: votos, nombres: (m.votacion?.nombres || []).map((x) => ({ nombre: x.nombre, votos: x.votos.length })) } : null,
         },
         cuidadores,
@@ -565,6 +633,7 @@ async function resumen(client, guildId) {
 }
 
 module.exports = {
+    enviarAlCanal,
     registrarMensaje, registrarIncidente, registrarCancion, tomarActividad,
     bonusXpServidor, descuentoBromasServidor, ponerCache, cargarCache,
     iniciarHuevo, eclosionar, barrerMascotas, pasadaServidor, mensajeVotacion,

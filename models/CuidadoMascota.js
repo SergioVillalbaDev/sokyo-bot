@@ -10,6 +10,8 @@ const CuidadoMascotaSchema = new mongoose.Schema({
     oro: { type: Number, default: 0 },                // oro dado de comer este mes
     ultimaCaricia: { type: Date, default: null },
     ultimoJuego: { type: Date, default: null },
+    ultimoEntreno: { type: Date, default: null },
+    ultimaCharla: { type: Date, default: null },
 });
 
 CuidadoMascotaSchema.index({ guildId: 1, userId: 1, mes: 1 }, { unique: true });

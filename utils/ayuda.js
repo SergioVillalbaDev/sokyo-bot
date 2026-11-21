@@ -45,7 +45,7 @@ const CATEGORIAS = [
         ['givegold', 's', 'daroro', '(Admin) Dar o quitar oro.', '(Admin) Give or take gold.'],
     ] },
     { id: 'oro', emoji: '🐾', titulo: ['Mascota, bromas y Liga', 'Pet, pranks and League'], tab: 'com-mascota', cmds: [
-        ['pet', 's', 'mascota', 'La mascota del servidor: dale de comer, acaríciala, juega con ella y mira qué desbloquea.', 'The server pet: feed it, pet it, play with it and see what it unlocks.'],
+        ['pet', 's', 'mascota', 'La mascota del servidor: dale de comer, acaríciala, juega, entrénala, cómprale cosas en su tienda, habla con ella y mira su diario.', 'The server pet: feed it, pet it, play, train it, buy it things in its shop, talk to it and read its diary.'],
         ['prank', 's', 'broma', 'Gasta oro en bromas: cambiar un apodo, payaso del día, reacciones o loro. Y escudos.', 'Spend gold on pranks: change a nickname, clown of the day, reactions or a parrot. And shields.'],
         ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
     ] },

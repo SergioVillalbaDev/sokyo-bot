@@ -303,6 +303,8 @@ const EN = {
     'Esa broma ya ha terminado': 'That prank has already ended',
     'Todavía no hay huevo': 'There’s no egg yet',
     'La mascota ya ha nacido': 'The pet has already hatched',
+    'Todavía no lo tiene': 'It doesn’t have it yet',
+    'Todavía no hay mascota': 'There’s no pet yet',
 };
 
 // Códigos internos (el panel los interpreta) y mensajes que ya están en inglés: no se tocan.

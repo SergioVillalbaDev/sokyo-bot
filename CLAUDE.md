@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.14.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.15.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -692,4 +692,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     cierra el mes una sola vez (`LigaMes`) y el podio queda destacado un mes: primero en `/servidores` y más a menudo en la
     Red Sokyo (`elegirCandidato`, `destacado`).
   - `economia.cobrar(id, n)`: cobro atómico (null si no llega).
+- 1.15.0 **Mascota mucho más completa** (tests en `test/mascotaPlus.test.js`):
+  - Reglas puras nuevas en `utils/mascotaExtras.js`: personalidad (al nacer; cambia hambre, aburrimiento, energía,
+    XP, caricias, juego, toxicidad y combate), atributos fuerza/defensa/agilidad + energía (`entrenar`), tienda
+    (`COMIDAS`, `ACCESORIOS` con su sitio `slot` y `POSICIONES` por especie, `HABITATS` con fondo y decoración), logros,
+    textos del diario (`textoRecuerdo`), frases (`frase`) y sorpresas (`tocaEvento`, `eventoAlAzar`). **Los mismos datos
+    están en `sokyo-panelFRONTEND/src/lib/mascota.js`** (un test comprueba que coinciden).
+  - Discord en `utils/mascotaVida.js`: `entrenar`, `comprar` (con el oro de quien compra; comida al momento, accesorio y
+    hábitat para siempre y puestos), `vestir`, `hablar`, diario (`recordar`, últimos 60) y logros (`comprobarLogros`; el de
+    «Leyenda» regala la corona), sorpresas (`pasadaEventos`, botones `mas_ev:*`; el menú de la tienda es `mas_comprar`).
+    `/mascota entrenar · tienda · vestir (staff) · hablar · diario`.
+  - Combates (`N.combatir`): críticos y esquivas por agilidad, defensa (hasta −25 %) y habilidad especial de cada
+    especie una vez por combate cuando va perdiendo (`ESPECIALES`). Las rondas guardan `eventoA/eventoB` y el relato de la
+    Liga los cuenta. Pelear gasta energía.
+  - Imagen (`utils/tarjetaMascota.js`, 960×400): hábitat, accesorio, personalidad, logros, 4 barras y atributos.
+  - Panel: Diversión → Mascota con pestañas Estado, Aspecto (probar y comprar con tu oro: `POST …/mascota/comprar`,
+    `PUT …/mascota/vestir`), Combate, Diario y Ajustes (sorpresas: `mascota.eventos`, `eventosPorDia`).
 

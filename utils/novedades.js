@@ -6,6 +6,13 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.15.0': [
+        { tab: 'com-mascota', es: '🧬 Cada mascota nace con su personalidad (glotona, dormilona, valiente, presumida…) y eso cambia cómo vive.', en: '🧬 Each pet is born with its own personality (greedy, sleepy, brave, vain…) and it changes how it lives.' },
+        { tab: 'com-mascota', es: '🏋️ /mascota entrenar: fuerza, defensa y agilidad. En los combates hay golpes críticos, esquivas y una habilidad especial por especie.', en: '🏋️ /pet train: strength, defense and agility. Battles now have critical hits, dodges and a special skill per species.' },
+        { tab: 'com-mascota', es: '🛍️ /mascota tienda: comida especial, accesorios (chistera, gafas, bufanda…) y hábitats (volcán, océano, castillo…) que se ven en su imagen.', en: '🛍️ /pet shop: special food, accessories (top hat, sunglasses, scarf…) and habitats (volcano, ocean, castle…) shown in its picture.' },
+        { tab: 'com-mascota', es: '📖 /mascota diario y /mascota hablar: sus recuerdos, 12 logros (con corona legendaria) y lo que piensa.', en: '📖 /pet diary and /pet talk: its memories, 12 achievements (with a legendary crown) and what it’s thinking.' },
+        { tab: 'com-mascota', es: '🎲 Sorpresas en su canal: tesoros, la mascota perdida y adivinanzas con premio para el más rápido.', en: '🎲 Surprises in its channel: treasures, the lost pet and guessing games with a prize for the fastest.' },
+    ],
     '1.14.0': [
         { tab: 'com-mascota', es: '🐾 Mascota del servidor: sale un huevo, votáis entre todos qué será y cómo se llama, y crece si la cuidáis (/mascota). Al subir de nivel da ventajas a todo el servidor: más XP, bromas más baratas…', en: '🐾 Server pet: an egg appears, you all vote on what it’ll be and its name, and it grows if you look after it (/pet). As it levels up it gives the whole server perks: more XP, cheaper pranks…' },
         { tab: 'com-bromas', es: '🃏 Bromas de oro: cámbiale el apodo a un amigo, hazle el payaso del día, ponle un loro o reacciones a todo (/broma). Se pueden devolver pagando el doble o evitar con un escudo.', en: '🃏 Gold pranks: change a friend’s nickname, make them clown of the day, give them a parrot or reactions on everything (/prank). You can get revenge by paying double or avoid them with a shield.' },

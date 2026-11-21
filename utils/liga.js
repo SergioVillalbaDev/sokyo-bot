@@ -208,7 +208,7 @@ async function prepararCombates(client, ahora = new Date()) {
     const mascotas = await Mascota.find({ guildId: { $in: cfgs.map((c) => c.guildId) }, estado: 'viva', hibernando: { $ne: true } }).lean();
     const lista = mascotas.filter((m) => client.guilds.cache.has(m.guildId)).map((m) => ({ guildId: m.guildId, poder: N.poderDe(m), m }));
     const hora = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate(), HORA_COMBATE));
-    const lado = (x) => ({ guildId: x.guildId, nombre: x.m.nombre, especie: x.m.especie, nivel: x.m.nivel, poder: x.poder, animos: [] });
+    const lado = (x) => ({ guildId: x.guildId, nombre: x.m.nombre, especie: x.m.especie, nivel: x.m.nivel, poder: x.poder, animos: [], stats: x.m.stats || {}, accesorio: x.m.accesorio || null });
     let n = 0;
     for (const [x, y] of N.emparejar(lista)) {
         const b = y ? lado(y) : { guildId: null, nombre: null, especie: null, nivel: null, poder: N.salvajePara(x.poder).poder, animos: [] };
@@ -245,35 +245,53 @@ async function animar(interaction) {
     return true;
 }
 
+// Cuenta el combate ronda a ronda desde el lado de cada servidor: quién gana la ronda,
+// con qué ataque, y los golpes críticos, esquivas y habilidades especiales.
 function relato(combate, lado, idioma) {
     const yo = combate[lado];
     const otro = combate[lado === 'a' ? 'b' : 'a'];
+    const { ESPECIALES } = require('./mascotaExtras.js');
+    const nombreDe = (l) => (l === yo ? yo.nombre : nombreLado(otro, idioma));
+    const especial = (l) => { const e = ESPECIALES[l.especie]; return e ? t(idioma, e.es, e.en) : ''; };
+    const detalle = (l, ev) => {
+        if (ev === 'critico') return t(idioma, `💥 ¡golpe crítico de ${nombreDe(l)}!`, `💥 critical hit by ${nombreDe(l)}!`);
+        if (ev === 'esquiva') return t(idioma, `💨 ${nombreDe(l)} esquiva`, `💨 ${nombreDe(l)} dodges`);
+        if (ev === 'especial') return t(idioma, `🌟 ${nombreDe(l)} usa su habilidad: *${especial(l)}*`, `🌟 ${nombreDe(l)} uses its skill: *${especial(l)}*`);
+        return '';
+    };
     return combate.rondas.map((r, i) => {
-        const quien = (r.a >= r.b ? 'a' : 'b') === lado ? yo : otro;
-        const nombre = quien === yo ? yo.nombre : nombreLado(otro, idioma);
+        const ganaA = r.a >= r.b;
+        const quien = (ganaA ? 'a' : 'b') === lado ? yo : otro;
         const alto = Math.max(r.a, r.b); const bajo = Math.min(r.a, r.b);
-        return t(idioma,
-            `**Ronda ${i + 1}:** ${emojiLado(quien)} ${nombre} usa *${ataqueDe(quien, idioma)}* (${alto} contra ${bajo})`,
-            `**Round ${i + 1}:** ${emojiLado(quien)} ${nombre} uses *${ataqueDe(quien, idioma)}* (${alto} vs ${bajo})`);
+        const extras = [detalle(combate.a, r.eventoA), detalle(combate.b, r.eventoB)].filter(Boolean);
+        const base = t(idioma,
+            `**Ronda ${i + 1}:** ${emojiLado(quien)} ${nombreDe(quien)} gana con *${ataqueDe(quien, idioma)}* (${alto} contra ${bajo})`,
+            `**Round ${i + 1}:** ${emojiLado(quien)} ${nombreDe(quien)} wins with *${ataqueDe(quien, idioma)}* (${alto} vs ${bajo})`);
+        return extras.length ? `${base}\n-# ${extras.join(' · ')}` : base;
     }).join('\n');
 }
 
-async function premiarMascota(guildId, gana) {
+async function premiarMascota(guildId, gana, rival = '?') {
     const m = await Mascota.findOne({ guildId, estado: 'viva' });
     if (!m) return null;
     const r = N.sumarXp(m.nivel, m.xp, gana ? 40 : 15);
+    const racha = gana ? (m.contadores?.racha || 0) + 1 : 0;
     const nuevo = await Mascota.findOneAndUpdate({ _id: m._id }, {
-        $set: { nivel: r.nivel, xp: r.xp, 'contadores.racha': gana ? (m.contadores?.racha || 0) + 1 : 0 },
+        // Pelear cansa: gasta energía (más si pierde).
+        $set: { nivel: r.nivel, xp: r.xp, 'contadores.racha': racha, 'contadores.mejorRacha': Math.max(racha, m.contadores?.mejorRacha || 0), energia: Math.max(0, (m.energia ?? 100) - (gana ? 10 : 20)) },
         $inc: gana ? { 'contadores.victorias': 1 } : { 'contadores.derrotas': 1 },
     }, { returnDocument: 'after' });
     require('./mascota.js').ponerCache(nuevo);
+    const vida = require('./mascotaVida.js');
+    await vida.recordar(guildId, 'combate', { gana, rival });
+    if (gana && [3, 5, 10, 20].includes(racha)) await vida.recordar(guildId, 'racha', { n: racha });
     return nuevo;
 }
 
 async function resolverCombates(client, ahora = new Date()) {
     const pendientes = await CombateMascota.find({ estado: 'pendiente', hora: { $lte: ahora } }).limit(200);
     for (const c of pendientes) {
-        const fuerza = (l) => ({ poder: c[l].poder, animos: (c[l].animos || []).length });
+        const fuerza = (l) => ({ poder: c[l].poder, animos: (c[l].animos || []).length, stats: c[l].stats || {}, especie: c[l].especie });
         const r = N.combatir(fuerza('a'), fuerza('b'), N.azarCon(String(c._id)));
         const hecho = await CombateMascota.findOneAndUpdate({ _id: c._id, estado: 'pendiente' }, { $set: { estado: 'hecho', ganador: r.ganador, rondas: r.rondas } }, { returnDocument: 'after' });
         if (!hecho) continue;
@@ -282,7 +300,8 @@ async function resolverCombates(client, ahora = new Date()) {
             if (!gid) continue;
             const gana = hecho.ganador === l;
             await sumarPuntos(gid, 'combates', gana ? PUNTOS_VICTORIA : PUNTOS_DERROTA).catch(() => {});
-            await premiarMascota(gid, gana).catch(() => {});
+            const rivalLado = hecho[l === 'a' ? 'b' : 'a'];
+            await premiarMascota(gid, gana, rivalLado.guildId ? rivalLado.nombre : (N.SALVAJE.es)).catch(() => {});
             const cfg = await ServidorConfig.findOne({ guildId: gid }).select('guildId idioma liga mascota').lean();
             const canal = cfg ? await canalLiga(client, cfg) : null;
             if (canal && hecho[l].mensajeId) {

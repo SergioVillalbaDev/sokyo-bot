@@ -9,6 +9,8 @@ const LadoSchema = new mongoose.Schema({
     especie: String,
     nivel: Number,
     poder: Number,
+    stats: { fuerza: Number, defensa: Number, agilidad: Number },
+    accesorio: String,
     animos: { type: [String], default: [] },   // quién ha animado
     canalId: { type: String, default: null },
     mensajeId: { type: String, default: null },
@@ -21,7 +23,7 @@ const CombateMascotaSchema = new mongoose.Schema({
     b: { type: LadoSchema, required: true },
     estado: { type: String, enum: ['pendiente', 'hecho'], default: 'pendiente' },
     ganador: { type: String, default: null },  // 'a' | 'b'
-    rondas: { type: [{ a: Number, b: Number, ataqueA: String, ataqueB: String, _id: false }], default: [] },
+    rondas: { type: [{ a: Number, b: Number, ataqueA: String, ataqueB: String, eventoA: String, eventoB: String, _id: false }], default: [] },
 });
 
 CombateMascotaSchema.index({ dia: 1, 'a.guildId': 1 });
