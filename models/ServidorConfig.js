@@ -826,6 +826,26 @@ const ServidorConfigSchema = new mongoose.Schema({
         devolver: { type: Boolean, default: true },         // «Devolvérsela» pagando el doble
         inmunes: { type: [String], default: [] },           // roles a los que no se les puede gastar (p. ej. el staff)
     },
+    // Casino de oro y cofres de mascotas (1.16.0). Lógica en utils/casino.js y utils/cofres.js.
+    casino: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },           // solo se juega aquí (vacío = en cualquier canal)
+        anunciosId: { type: String, default: null },        // grandes premios y cofres raros (vacío = donde se juega)
+        apuestaMin: { type: Number, default: 10 },
+        apuestaMax: { type: Number, default: 5000 },
+        limiteDiario: { type: Number, default: 20000 },     // pérdida máxima por persona y día (0 = sin tope)
+        juegos: {
+            tragaperras: { type: Boolean, default: true },
+            ruleta: { type: Boolean, default: true },
+            blackjack: { type: Boolean, default: true },
+            crash: { type: Boolean, default: true },
+            minas: { type: Boolean, default: true },
+            moneda: { type: Boolean, default: true },
+            duelo: { type: Boolean, default: true },
+            carrera: { type: Boolean, default: true },
+        },
+        cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
+    },
     // Mascota del servidor (1.14.0). El estado de la mascota está en models/Mascota.js.
     mascota: {
         activo: { type: Boolean, default: false },

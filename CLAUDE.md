@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.15.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.16.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -708,4 +708,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   - Imagen (`utils/tarjetaMascota.js`, 960×400): hábitat, accesorio, personalidad, logros, 4 barras y atributos.
   - Panel: Diversión → Mascota con pestañas Estado, Aspecto (probar y comprar con tu oro: `POST …/mascota/comprar`,
     `PUT …/mascota/vestir`), Combate, Diario y Ajustes (sorpresas: `mascota.eventos`, `eventosPorDia`).
+- 1.16.0 **Casino de oro y cofres de mascotas** (tests en `test/casino.test.js`, incluido lo que devuelve cada juego):
+  - El oro es virtual: no se compra con dinero ni se cambia por dinero (comprobado: Stripe solo vende planes).
+  - Reglas puras: `utils/casinoNucleo.js` (tragaperras ~95 %, ruleta europea 97,3 %, blackjack 6 mazos, crash 97 %, minas
+    97 %, moneda ×1,94, duelo −3 %, carrera 94 %; `comprobarApuesta` con mínimo, máximo, tope diario y pausa) y
+    `utils/cofresNucleo.js` (6 rarezas, 22 compañeros, 3 cofres con probabilidades, piedad cada 10, estrellas hasta 5,
+    `ventajas`). La divina («celestial») sale con un 0,01-0,2 %. El azar es `crypto`.
+  - Animaciones en `utils/casinoArte.js` (GIF que no se repiten: tragaperras, ruleta, moneda y cofre; PNG de la mesa de
+    blackjack y de la colección). Dibujos de Twemoji en `assets/mascota` (y `public/mascota`).
+  - Discord: `utils/casino.js` (`/casino`: apostar → `cobrarJugada`, botones `cas_*`; blackjack, crash en directo con
+    ediciones cada 1,5 s, minas con cuadrícula de botones, duelos con aceptar, carrera de 45 s con ventana para la cantidad,
+    bote por servidor `CasinoBote`) y `utils/cofres.js` (`/cofre`, botones `cof_*`, `ventajasUsuario` en caché 60 s: la leen
+    `niveles.aplicarXp`, `economia.reclamarDaily` y el casino). Al arrancar, `devolverPendientes` devuelve lo apostado en
+    jugadas `en_curso` (las partidas viven en memoria).
+  - Modelos: `PerfilCasino`, `JugadaCasino` (90 días), `CasinoBote`, `ColeccionMascotas` (global por persona), `AperturaCofre`.
+  - Panel: Diversión → Casino y cofres (`CasinoView.jsx`, `src/lib/casino.js` con los mismos datos; un test lo comprueba),
+    `GET/PUT /api/config/:g/modulos/casino`. Config en `ServidorConfig.casino` (apagado por defecto).
 

@@ -47,6 +47,8 @@ const CATEGORIAS = [
     { id: 'oro', emoji: '🐾', titulo: ['Mascota, bromas y Liga', 'Pet, pranks and League'], tab: 'com-mascota', cmds: [
         ['pet', 's', 'mascota', 'La mascota del servidor: dale de comer, acaríciala, juega, entrénala, cómprale cosas en su tienda, habla con ella y mira su diario.', 'The server pet: feed it, pet it, play, train it, buy it things in its shop, talk to it and read its diary.'],
         ['prank', 's', 'broma', 'Gasta oro en bromas: cambiar un apodo, payaso del día, reacciones o loro. Y escudos.', 'Spend gold on pranks: change a nickname, clown of the day, reactions or a parrot. And shields.'],
+        ['casino', 's', null, 'Tragaperras con bote, ruleta, blackjack, crash, minas, cara o cruz, duelos y carreras con oro.', 'Slots with a jackpot, roulette, blackjack, crash, mines, coin flip, duels and races with gold.'],
+        ['chest', 's', 'cofre', 'Abre cofres con oro y colecciona compañeros (hay uno divino rarísimo).', 'Open chests with gold and collect companions (there’s an ultra-rare divine one).'],
         ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
     ] },
     { id: 'niveles', emoji: '📈', titulo: ['Niveles', 'Levels'], tab: 'config-niveles', cmds: [

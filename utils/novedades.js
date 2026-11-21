@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.16.0': [
+        { tab: 'com-casino', es: '🎰 Casino de oro con animaciones: tragaperras con bote, ruleta, blackjack, crash en directo, minas, cara o cruz, duelos y carreras (/casino).', en: '🎰 Gold casino with animations: slots with a jackpot, roulette, blackjack, live crash, mines, coin flip, duels and races (/casino).' },
+        { tab: 'com-casino', es: '🎁 Cofres de mascotas (/cofre): compañeros de 6 rarezas que te dan más XP, más oro en el diario y vuelta en el casino. Y una DIVINA rarísima: Sokyo, el Dragón Celestial.', en: '🎁 Pet chests (/chest): companions of 6 rarities that give you more XP, more daily gold and casino cashback. And one ultra-rare DIVINE: Sokyo, the Celestial Dragon.' },
+        { tab: 'com-casino', es: '🧘 Con cabeza: apuesta mínima y máxima, tope de pérdidas al día, /casino pausa y tirada gratis diaria (/casino diaria).', en: '🧘 Play smart: min and max bets, daily loss limit, /casino pause and a free daily spin (/casino daily).' },
+    ],
     '1.15.0': [
         { tab: 'com-mascota', es: '🧬 Cada mascota nace con su personalidad (glotona, dormilona, valiente, presumida…) y eso cambia cómo vive.', en: '🧬 Each pet is born with its own personality (greedy, sleepy, brave, vain…) and it changes how it lives.' },
         { tab: 'com-mascota', es: '🏋️ /mascota entrenar: fuerza, defensa y agilidad. En los combates hay golpes críticos, esquivas y una habilidad especial por especie.', en: '🏋️ /pet train: strength, defense and agility. Battles now have critical hits, dodges and a special skill per species.' },

@@ -27,8 +27,8 @@ module.exports = {
             .setColor('#f5b942')
             .setTitle(t(cfg, '🪙 ¡Recompensa diaria reclamada!', '🪙 Daily reward claimed!'))
             .setDescription(t(cfg,
-                `Has recibido **${r.total}** de oro.${r.jackpot ? `\n🎉 ¡Bonus de racha! **+${r.jackpot}** extra por llegar a ${r.racha} días.` : ''}`,
-                `You received **${r.total}** gold.${r.jackpot ? `\n🎉 Streak bonus! **+${r.jackpot}** extra for reaching ${r.racha} days.` : ''}`))
+                `Has recibido **${r.total}** de oro.${r.jackpot ? `\n🎉 ¡Bonus de racha! **+${r.jackpot}** extra por llegar a ${r.racha} días.` : ''}${r.extraCompa ? `\n🐾 Tu compañero te trae **+${r.extraCompa}** más.` : ''}`,
+                `You received **${r.total}** gold.${r.jackpot ? `\n🎉 Streak bonus! **+${r.jackpot}** extra for reaching ${r.racha} days.` : ''}${r.extraCompa ? `\n🐾 Your companion brings you **+${r.extraCompa}** more.` : ''}`))
             .addFields(
                 { name: t(cfg, 'Racha', 'Streak'), value: t(cfg, `🔥 **${r.racha}** día(s) seguidos`, `🔥 **${r.racha}** day(s) in a row`), inline: true },
                 { name: t(cfg, 'Saldo', 'Balance'), value: `🪙 **${r.balance.toLocaleString('en-US')}**`, inline: true },

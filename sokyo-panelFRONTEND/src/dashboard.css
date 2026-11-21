@@ -243,3 +243,15 @@ html.sk-compacto .sk-dash nav .py-2 { padding-top: .3rem; padding-bottom: .3rem;
 @keyframes sk-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045) translateY(-3px); } }
 @keyframes sk-balancea { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-7deg); } 86% { transform: rotate(6deg); } 94% { transform: rotate(-3deg); } }
 @media (prefers-reduced-motion: reduce) { .sk-dash .sk-mascota, .sk-dash .sk-mascota-huevo, .sk-dash .sk-mascota-dormida { animation: none; } }
+
+/* Casino (1.16.0): los rodillos de la tragaperras de la cabecera giran sin parar y el bote brilla. */
+.sk-dash .sk-rodillo { animation: sk-rodillo 1.6s linear infinite; }
+.sk-dash .sk-rodillo-2 { animation-duration: 1.25s; }
+.sk-dash .sk-rodillo-3 { animation-duration: 1.9s; }
+@keyframes sk-rodillo { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+.sk-dash .sk-bote { background: linear-gradient(90deg, #fde68a, #f59e0b, #fde68a); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sk-bote 3s linear infinite; }
+@keyframes sk-bote { from { background-position: 0 0; } to { background-position: 200% 0; } }
+.sk-dash .sk-divina { background: linear-gradient(90deg, #f87171, #fb923c, #facc15, #4ade80, #60a5fa, #a78bfa, #f472b6, #f87171); background-size: 300% 100%; animation: sk-bote 4s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .sk-dash .sk-rodillo, .sk-dash .sk-bote, .sk-dash .sk-divina { animation: none; } }
+.sk-dash .sk-divina-texto { background-image: linear-gradient(90deg, #f87171, #fb923c, #facc15, #4ade80, #60a5fa, #a78bfa, #f472b6, #f87171); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sk-bote 4s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .sk-dash .sk-divina-texto { animation: none; } }

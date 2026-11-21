@@ -113,6 +113,9 @@ async function aplicarXp(guild, member, ganada, cfg, canalFallback) {
     // Ventaja de la mascota del servidor (+5 % / +10 % / +15 % para todos).
     const extraMascota = cfg.mascota?.activo ? require('./mascota.js').bonusXpServidor(guild.id) : 0;
     if (extraMascota > 0) ganada = Math.round(ganada * (1 + extraMascota));
+    // Compañero equipado de los cofres (1.16.0): más XP para quien lo lleva.
+    const compa = await require('./cofres.js').ventajasUsuario(member.id).catch(() => null);
+    if (compa?.xp > 0) ganada = Math.round(ganada * (1 + compa.xp));
     const doc = await ActividadUsuario.findOne({ guildId: guild.id, userId: member.id }).select('xp');
     const xpVieja = doc?.xp || 0;
     const xpNueva = xpVieja + ganada;
