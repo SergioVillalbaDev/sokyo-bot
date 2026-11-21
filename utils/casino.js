@@ -44,7 +44,7 @@ function textoFallo(f, idioma, cfgC = {}) {
         case 'min': return t(idioma, `La apuesta mínima es 🪙 ${f.min}.`, `The minimum bet is 🪙 ${f.min}.`);
         case 'max': return t(idioma, `La apuesta máxima es 🪙 ${f.max}.`, `The maximum bet is 🪙 ${f.max}.`);
         case 'limite': return t(idioma, `🛑 Has llegado a tu tope de pérdidas de hoy. Te quedan 🪙 ${f.queda}. Mañana más.`, `🛑 You’ve hit today’s loss limit. You have 🪙 ${f.queda} left. More tomorrow.`);
-        case 'oro': return t(idioma, `No tienes 🪙 ${f.cantidad}.`, `You don’t have 🪙 ${f.cantidad}.`);
+        case 'oro': return t(idioma, `No tienes 🪙 ${f.cantidad}. Consigue oro con \`/diario\`, votando (\`/votar\`) o con tu tirada gratis (\`/casino diaria\`).`, `You don’t have 🪙 ${f.cantidad}. Get gold with \`/daily\`, by voting (\`/vote\`) or with your free spin (\`/casino daily\`).`);
         default: return '❌';
     }
 }
@@ -670,6 +670,13 @@ async function pausa(guildId, userId, dias) {
 async function manejar(interaction, client) {
     const id = interaction.customId || '';
     if (!id.startsWith('cas_')) return false;
+    if (interaction.isStringSelectMenu() && id === 'cas_guia') {
+        const { getConfigCached } = require('./config.js');
+        const { idiomaInteraccion } = require('./preferencias.js');
+        const cfg = await getConfigCached(interaction.guildId).catch(() => null);
+        await interaction.update(require('./casinoAyuda.js').guiaJuego(interaction.values[0], await idiomaInteraccion(interaction, cfg), cfg));
+        return true;
+    }
     if (interaction.isButton() && id.startsWith('cas_bj:')) { await botonBlackjack(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_crash:')) { await botonCrash(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_min:')) { await botonMinas(interaction, client); return true; }

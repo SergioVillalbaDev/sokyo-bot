@@ -788,6 +788,17 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             res.json({ config: cfg.casino, ...casino, cofres });
         } catch (e) { console.error('GET casino:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
+    // Publica la guía «Cómo se juega» en el canal del casino (o en el que se diga).
+    router.post(ruta('casino/guia'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = (await cfgDe(guild.id)).toObject();
+            const canal = guild.channels.cache.get(String((req.body && req.body.canalId) || cfg.casino.canalId || ''));
+            if (!canal || !canal.isTextBased()) return res.status(400).json({ error: 'Elige un canal donde publicarlo' });
+            await canal.send({ ...require('../../utils/casinoAyuda.js').guiaGeneral(cfg, cfg), allowedMentions: { parse: [] } });
+            res.json({ success: true });
+        } catch (e) { console.error('POST casino/guia:', e.message); res.status(400).json({ error: e.message || 'No se pudo publicar el mensaje' }); }
+    });
     router.put(ruta('casino'), async (req, res) => {
         try {
             const guild = guildDe(req, res); if (!guild) return;

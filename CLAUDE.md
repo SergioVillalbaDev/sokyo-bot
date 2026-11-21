@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.16.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.16.1.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -724,4 +724,7 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   - Modelos: `PerfilCasino`, `JugadaCasino` (90 días), `CasinoBote`, `ColeccionMascotas` (global por persona), `AperturaCofre`.
   - Panel: Diversión → Casino y cofres (`CasinoView.jsx`, `src/lib/casino.js` con los mismos datos; un test lo comprueba),
     `GET/PUT /api/config/:g/modulos/casino`. Config en `ServidorConfig.casino` (apagado por defecto).
+- 1.16.1 Guía del casino: `/casino ayuda` (`utils/casinoAyuda.js`: pasos, comandos con ejemplo, menú `cas_guia` con cada
+  juego y botón «Probar» que reutiliza `cas_rep`), tarjeta «Cómo se juega» en el panel y `POST …/modulos/casino/guia`
+  para publicar la guía en el canal del casino.
 

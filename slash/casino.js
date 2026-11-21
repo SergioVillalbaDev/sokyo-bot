@@ -6,7 +6,7 @@ const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 const cantidad = (o) => o.setName('bet').setNameLocalizations(ES('apuesta')).setDescription('How much gold').setDescriptionLocalizations(ES('Cuánto oro')).setRequired(true).setMinValue(1).setMaxValue(10000000);
 
-// /casino tragaperras · ruleta · blackjack · crash · minas · moneda · duelo · carrera · diaria · bote · pausa
+// /casino ayuda · tragaperras · ruleta · blackjack · crash · minas · moneda · duelo · carrera · diaria · bote · pausa
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('casino')
@@ -36,6 +36,7 @@ module.exports = {
             .addUserOption((o) => o.setName('rival').setDescription('Who').setDescriptionLocalizations(ES('A quién')).setRequired(true)).addIntegerOption(cantidad))
         .addSubcommand((s) => s.setName('race').setNameLocalizations(ES('carrera')).setDescription('🏇 Start a race: everyone in the channel can bet').setDescriptionLocalizations(ES('🏇 Empieza una carrera: todo el canal puede apostar')))
         .addSubcommand((s) => s.setName('daily').setNameLocalizations(ES('diaria')).setDescription('🎁 Your free slots spin of the day').setDescriptionLocalizations(ES('🎁 Tu tirada gratis del día en la tragaperras')))
+        .addSubcommand((s) => s.setName('help').setNameLocalizations(ES('ayuda')).setDescription('📖 How to play each game (with a button to try it)').setDescriptionLocalizations(ES('📖 Cómo se juega a cada juego (con un botón para probarlo)')))
         .addSubcommand((s) => s.setName('jackpot').setNameLocalizations(ES('bote')).setDescription('💎 The jackpot, the biggest winners and your stats').setDescriptionLocalizations(ES('💎 El bote, los que más ganan y tus números')))
         .addSubcommand((s) => s.setName('pause').setNameLocalizations(ES('pausa')).setDescription('🧘 Take a break from the casino (can’t be undone early)').setDescriptionLocalizations(ES('🧘 Tómate un descanso del casino (no se puede quitar antes)'))
             .addIntegerOption((o) => o.setName('days').setNameLocalizations(ES('dias')).setDescription('How many days').setDescriptionLocalizations(ES('Cuántos días')).setRequired(true)
@@ -45,6 +46,7 @@ module.exports = {
         const idioma = await idiomaInteraccion(interaction, cfg);
         const sub = interaction.options.getSubcommand();
         const privado = (content) => interaction.reply({ content, flags: 64 });
+        if (sub === 'help') return interaction.reply({ ...require('../utils/casinoAyuda.js').guiaGeneral(idioma, cfg), flags: 64 });
         if (sub === 'pause') {
             const hasta = await casino.pausa(interaction.guildId, interaction.user.id, interaction.options.getInteger('days'));
             return privado(t(idioma, `🧘 Hecho. No podrás jugar en el casino hasta <t:${Math.floor(hasta / 1000)}:F>. Cuídate 💛`, `🧘 Done. You can’t play at the casino until <t:${Math.floor(hasta / 1000)}:F>. Take care 💛`));

@@ -2752,6 +2752,20 @@ export default {
       fights: 'Combates diarios', fightsHint: 'La mascota lucha cada día contra otra de fuerza parecida.',
     },
     casino_v: {
+      howTitle: 'Cómo se juega',
+      how: {
+        p1: 'Consigue oro: /diario cada día, votando por el bot, hablando… (y una tirada gratis al día con /casino diaria).',
+        p2: 'Escribe /casino en Discord y elige un juego de la lista.',
+        p3: 'Pon cuánto apuestas (entre 🪙 {{min}} y 🪙 {{max}}) y mira la animación.',
+        p4: 'Al acabar, «🔁 Otra vez» repite con un toque. /casino ayuda lo explica todo en Discord.',
+      },
+      ej: {
+        tragaperras: '/casino tragaperras apuesta:100', ruleta: '/casino ruleta a:Rojo apuesta:100', blackjack: '/casino blackjack apuesta:100',
+        crash: '/casino crash apuesta:100 auto:2', minas: '/casino minas apuesta:100 minas:3', moneda: '/casino moneda lado:Cara apuesta:100',
+        duelo: '/casino duelo rival:@alguien apuesta:500', carrera: '/casino carrera',
+      },
+      postGuide: 'Publicar la guía en el canal del casino', postGuideHint: 'Un mensaje con los pasos, los comandos y un menú para ver cada juego.', postGuideNeed: 'Elige antes el canal del casino (abajo, en «Dónde y cuánto»).',
+      guidePosted: '¡Publicada! Fíjala en el canal para que todos la vean.',
       intro: 'Un casino con el oro del bot: tragaperras con bote, ruleta, blackjack, crash, minas, cara o cruz, duelos entre miembros y carreras con apuestas de todo el canal. Todo con animaciones. Y cofres para coleccionar compañeros. En Discord: /casino y /cofre.',
       virtual: 'El oro es virtual: no se compra con dinero ni se cambia por dinero. Los juegos devuelven entre el 94 % y el 97 % a la larga, así que el oro sale poco a poco de la economía.',
       jackpot: 'Bote de la tragaperras', jackpotHint: 'Crece con un 2 % de cada tirada. Se lo lleva quien saque 💎💎💎.', lastJackpot: 'Último bote: {{n}} (🪙 {{p}})',

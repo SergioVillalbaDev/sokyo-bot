@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.16.1': [
+        { tab: 'com-casino', es: '📖 /casino ayuda: cómo se juega a cada juego, lo que paga y un botón para probarlo. En el panel, «Cómo se juega» y un botón para publicar la guía en el canal del casino.', en: '📖 /casino help: how to play each game, what it pays and a button to try it. In the panel, “How to play” and a button to post the guide in the casino channel.' },
+    ],
     '1.16.0': [
         { tab: 'com-casino', es: '🎰 Casino de oro con animaciones: tragaperras con bote, ruleta, blackjack, crash en directo, minas, cara o cruz, duelos y carreras (/casino).', en: '🎰 Gold casino with animations: slots with a jackpot, roulette, blackjack, live crash, mines, coin flip, duels and races (/casino).' },
         { tab: 'com-casino', es: '🎁 Cofres de mascotas (/cofre): compañeros de 6 rarezas que te dan más XP, más oro en el diario y vuelta en el casino. Y una DIVINA rarísima: Sokyo, el Dragón Celestial.', en: '🎁 Pet chests (/chest): companions of 6 rarities that give you more XP, more daily gold and casino cashback. And one ultra-rare DIVINE: Sokyo, the Celestial Dragon.' },
