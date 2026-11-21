@@ -5,7 +5,7 @@
     "**/build": true
   },
   "eslint.workingDirectories": [
-    "./sokyo-bot",
-    "./sokyo-panel"
+    "./",
+    "./sokyo-panelFRONTEND"
   ]
 }

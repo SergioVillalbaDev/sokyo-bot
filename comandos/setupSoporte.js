@@ -4,14 +4,23 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 module.exports = {
     name: 'sokyo', // O el nombre que uses en tu gestor de comandos
     description: 'Lanza el panel de soporte personalizado de marca blanca',
-    async execute(message, args) { // Si usas comandos por mensaje (!sokyo)
+    async execute(message, args = []) { // Si usas comandos por mensaje (!sokyo)
         
         // 1. Verificación de seguridad básica (Solo administradores)
+        if (!message.guild) return;
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return message.reply('❌ Necesitas permisos de Administrador para ejecutar este comando.');
         }
 
         try {
+            // Subcomando: !sokyo staff @rol  -> ese rol podrá ver y atender todos los tickets
+            if ((args[0] || '').toLowerCase() === 'staff') {
+                const rol = message.mentions.roles.first();
+                if (!rol) return message.reply('Menciona un rol: `!sokyo staff @rol`');
+                await ServidorConfig.updateOne({ guildId: message.guild.id }, { $set: { rolStaffId: rol.id } }, { upsert: true });
+                return message.reply({ content: `✅ El rol **${rol.name}** es ahora el staff de soporte. Se aplica a los tickets nuevos.`, allowedMentions: { parse: [] } });
+            }
+
             // 2. Buscamos la configuración en la base de datos de la Raspberry
             let config = await ServidorConfig.findOne({ guildId: message.guild.id });
 

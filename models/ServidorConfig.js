@@ -26,6 +26,10 @@ const ServidorConfigSchema = new mongoose.Schema({
     mensajeSoporteDescripcion: { type: String, default: 'Haz clic en el botón de abajo para abrir un ticket de soporte.' },
     footerPersonalizado: { type: String, default: 'Sistema de Gestión Sokyo' },
     
+    // Rol que puede ver y gestionar los tickets (además de Administrador / Gestionar canales)
+    rolStaffId: { type: String, default: null },
+    maxTicketsPorUsuario: { type: Number, default: 3, min: 1, max: 20 },
+
     esPremium: { type: Boolean, default: false },
     premiumHasta: { type: Date, default: null }
 });

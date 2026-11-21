@@ -1,60 +1,38 @@
 const { Events } = require('discord.js');
 const Mensaje = require('../models/Mensaje.js');
+const ticketCache = require('../utils/ticketCache.js');
 
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
-        if (message.author.bot) return;
+        if (message.author.bot || !message.guild) return;
 
-        // 1. Guardar mensajes de los tickets en la BD
-        if (message.channel.name && message.channel.name.startsWith('ticket-')) {
-            console.log(`\n--- 📩 NUEVO MENSAJE EN TICKET ---`);
-            console.log(`👤 Usuario: ${message.author.username}`);
-            console.log(`📝 Texto: "${message.content}"`);
-            console.log(`📎 Adjuntos: ${message.attachments.size}`);
-
-            try {
-                let imagenesAdjuntas = [];
-                
-                if (message.attachments.size > 0) {
-                    // Extraemos las URLs de forma segura
-                    message.attachments.forEach(adjunto => {
-                        imagenesAdjuntas.push(adjunto.url);
-                    });
-                }
-
-                console.log(`🔗 URLs a guardar:`, imagenesAdjuntas);
-
-                // Guardamos en MongoDB
-                const msgGuardado = await Mensaje.create({
+        // 1. Guardar mensajes de los tickets abiertos (se identifican por la base de datos, no por el nombre del canal)
+        try {
+            if (await ticketCache.esTicketAbierto(message.channel.id)) {
+                await Mensaje.create({
                     ticketId: message.channel.id,
                     usuario: message.author.username,
                     usuarioId: message.author.id,
                     contenido: message.content,
-                    imagenes: imagenesAdjuntas
+                    imagenes: [...message.attachments.values()].map(a => a.url)
                 });
-                
-                console.log(`✅ Guardado en BD exitosamente con ${msgGuardado.imagenes.length} imágenes.`);
-
-            } catch (error) {
-                console.error('❌ Error al guardar mensaje en la BD:', error);
-            } 
+            }
+        } catch (error) {
+            console.error('Error al guardar mensaje de ticket:', error.message);
         }
 
-        // 2. Ejecutar comandos (Si empieza por !)
+        // 2. Comandos con prefijo "!"
         if (!message.content.startsWith('!')) return;
-
         const args = message.content.slice(1).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-
-        const command = client.commands.get(commandName);
+        const command = client.commands.get(args.shift().toLowerCase());
         if (!command) return;
 
         try {
             await command.execute(message, args, client);
         } catch (error) {
-            console.error(error);
-            message.reply('❌ Hubo un error al intentar ejecutar ese comando.');
+            console.error(`Error en el comando !${command.name}:`, error);
+            message.reply('❌ Hubo un error al intentar ejecutar ese comando.').catch(() => {});
         }
     },
 };

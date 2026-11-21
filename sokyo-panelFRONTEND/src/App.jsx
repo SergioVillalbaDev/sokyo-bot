@@ -6,16 +6,27 @@ import './index.css';
 // para apuntar al servidor donde corre el bot, p. ej. 'http://192.168.1.168:3000'.
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// Clave de la API: debe coincidir con API_KEY del .env del bot. Se define en VITE_API_KEY.
-const API_KEY = import.meta.env.VITE_API_KEY || '';
+// Sesión de staff: el panel pide la clave UNA vez, el bot devuelve un token de 12 h y solo ese token
+// se guarda (sessionStorage: se borra al cerrar la pestaña). La clave ya no va compilada en el JavaScript.
+const TOKEN_KEY = 'sokyoStaffToken';
+const GUILD_KEY = 'sokyoGuildActivo';
+const leer = (k) => { try { return sessionStorage.getItem(k) || ''; } catch { return ''; } };
+const guardar = (k, v) => { try { v ? sessionStorage.setItem(k, v) : sessionStorage.removeItem(k); } catch { /* sin storage */ } };
 
-// Wrapper de fetch que añade la cabecera de autenticación a todas las llamadas.
-const apiFetch = (path, options = {}) => fetch(`${API_URL}${path}`, {
-  ...options,
-  headers: { ...(options.headers || {}), 'x-api-key': API_KEY }
-});
+// Wrapper de fetch: añade el token y el servidor activo; si la sesión caduca (401) avisa para volver al login.
+const apiFetch = (path, options = {}) => {
+  const guild = leer(GUILD_KEY);
+  const url = guild ? `${path}${path.includes('?') ? '&' : '?'}guildId=${encodeURIComponent(guild)}` : path;
+  return fetch(`${API_URL}${url}`, {
+    ...options,
+    headers: { ...(options.headers || {}), Authorization: `Bearer ${leer(TOKEN_KEY)}` }
+  }).then((res) => {
+    if (res.status === 401) { guardar(TOKEN_KEY, ''); window.dispatchEvent(new Event('sokyo-logout')); }
+    return res;
+  });
+};
 
-function App() {
+function Panel({ onLogout }) {
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState('tickets-gestion'); 
   
@@ -57,9 +68,13 @@ function App() {
   // Mensaje de error de conexión con la API (se muestra como banner)
   const [errorConexion, setErrorConexion] = useState('');
 
+  // Varios servidores: selector. `guildListo` evita cargar datos antes de saber qué servidor consultar.
+  const [servidores, setServidores] = useState([]);
+  const [guildListo, setGuildListo] = useState(false);
+
   // Comprueba la respuesta y lanza un error legible si algo va mal
   const procesarRespuesta = async (res) => {
-    if (res.status === 401) throw new Error('401 No autorizado: la VITE_API_KEY del panel no coincide con la API_KEY del bot.');
+    if (res.status === 401) throw new Error('Sesión caducada: vuelve a iniciar sesión.');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   };
@@ -69,19 +84,29 @@ function App() {
   }, [isDark]);
 
   useEffect(() => {
+    apiFetch('/api/servidores').then(r => r.ok ? r.json() : []).then(lista => {
+      const guilds = Array.isArray(lista) ? lista : [];
+      setServidores(guilds);
+      if (guilds.length > 1 && !guilds.some(g => g.guildId === leer(GUILD_KEY))) guardar(GUILD_KEY, guilds[0].guildId);
+      if (guilds.length <= 1) guardar(GUILD_KEY, ''); // un solo servidor: el bot lo elige solo
+    }).catch(() => {}).finally(() => setGuildListo(true));
+  }, []);
+
+  useEffect(() => {
+    if (!guildListo) return;
     if (activeTab === 'tickets-gestion') cargarTickets();
     else if (activeTab === 'tickets-config' || activeTab === 'config' || activeTab === 'config-textos') cargarConfiguracion();
     else if (activeTab === 'tickets-usuarios') cargarUsuariosStats();
     else if (activeTab.startsWith('logs-')) cargarLogs();
-  }, [activeTab]);
+  }, [activeTab, guildListo]);
 
   useEffect(() => {
     let intervalo;
     if (ticketSeleccionado && activeTab === 'tickets-gestion') {
       intervalo = setInterval(() => {
         apiFetch(`/api/mensajes/${ticketSeleccionado.canalId}`)
-          .then(res => res.json())
-          .then(datos => setMensajes(datos))
+          .then(res => res.ok ? res.json() : null)
+          .then(datos => { if (Array.isArray(datos)) setMensajes(datos); })
           .catch(err => console.error(err));
       }, 3000); 
     }
@@ -109,7 +134,7 @@ function App() {
   };
 
   const verMensajes = (ticket) => {
-    apiFetch(`/api/mensajes/${ticket.canalId}`).then(res => res.json()).then(datos => { setMensajes(datos); setTicketSeleccionado(ticket); });
+    apiFetch(`/api/mensajes/${ticket.canalId}`).then(res => res.ok ? res.json() : []).then(datos => { setMensajes(Array.isArray(datos) ? datos : []); setTicketSeleccionado(ticket); }).catch(reportarError('cargando mensajes'));
   };
 
   const cerrarMensajes = () => { setTicketSeleccionado(null); setMensajes([]); cargarTickets(); };
@@ -159,9 +184,10 @@ function App() {
     apiFetch(`/api/servidores`).then(procesarRespuesta).then(datos => {
         setErrorConexion('');
         if (datos && datos.length > 0) {
-          setConfigServidor(datos[0]); setMotivos(datos[0].motivos || []);
-          setUrgencias(datos[0].urgencias || [{ nombre: 'Urgente', color: '#e74c3c', nivel: 4 }, { nombre: 'Alta', color: '#e67e22', nivel: 3 }, { nombre: 'Normal', color: '#3498db', nivel: 2 }, { nombre: 'Baja', color: '#95a5a6', nivel: 1 }]);
-          setTituloMensaje(datos[0].mensajeSoporteTitulo || '🎫 Soporte Técnico Activo'); setDescripcionMensaje(datos[0].mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.'); setFooterMensaje(datos[0].footerPersonalizado || 'Sistema de Gestión Sokyo');
+          const cfg = datos.find(d => d.guildId === leer(GUILD_KEY)) || datos[0];
+          setConfigServidor(cfg); setMotivos(cfg.motivos || []);
+          setUrgencias(cfg.urgencias || [{ nombre: 'Urgente', color: '#e74c3c', nivel: 4 }, { nombre: 'Alta', color: '#e67e22', nivel: 3 }, { nombre: 'Normal', color: '#3498db', nivel: 2 }, { nombre: 'Baja', color: '#95a5a6', nivel: 1 }]);
+          setTituloMensaje(cfg.mensajeSoporteTitulo || '🎫 Soporte Técnico Activo'); setDescripcionMensaje(cfg.mensajeSoporteDescripcion || 'Haz clic en el botón de abajo para abrir un ticket de soporte.'); setFooterMensaje(cfg.footerPersonalizado || 'Sistema de Gestión Sokyo');
         }
     }).catch(reportarError('cargando configuración'));
   };
@@ -174,8 +200,10 @@ function App() {
   const guardarCambiosConfig = async () => {
     if (!configServidor) return;
     const motivosFormateados = motivos.map(m => typeof m === 'string' ? { nombre: m, urgencia: 'Normal' } : m);
-    await apiFetch(`/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
-    await apiFetch(`/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
+    const r1 = await apiFetch(`/api/config/${configServidor.guildId}/motivos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivos: motivosFormateados }) });
+    if (!r1.ok) return alert('❌ ' + ((await r1.json().catch(() => ({}))).error || 'No se pudieron guardar los motivos.'));
+    const r2 = await apiFetch(`/api/config/${configServidor.guildId}/urgencias`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urgencias: urgencias }) });
+    if (!r2.ok) return alert('❌ ' + ((await r2.json().catch(() => ({}))).error || 'No se pudieron guardar las urgencias.'));
     alert('✅ ¡Sistema de Tickets actualizado en Discord exitosamente!'); setMotivos(motivosFormateados);
   };
 
@@ -183,6 +211,7 @@ function App() {
     if (!configServidor) return;
     const res = await apiFetch(`/api/config/${configServidor.guildId}/textos`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo: tituloMensaje, descripcion: descripcionMensaje, footer: footerMensaje }) });
     if (res.ok) alert('✅ Textos actualizados!');
+    else alert('❌ ' + ((await res.json().catch(() => ({}))).error || 'No se pudieron guardar los textos.'));
   };
 
   const getTicketsOrdenados = () => [...ticketsReales].sort((a, b) => (urgencias.find(u => u.nombre === b.prioridad)?.nivel || 0) - (urgencias.find(u => u.nombre === a.prioridad)?.nivel || 0));
@@ -279,14 +308,22 @@ function App() {
                'Administra las solicitudes activas de tu servidor.'}
             </p>
           </div>
-          <button className="theme-toggle" onClick={() => setIsDark(!isDark)}>{isDark ? '☀️ Claro' : '🌙 Oscuro'}</button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {servidores.length > 1 && (
+              <select className="theme-toggle" value={leer(GUILD_KEY)} onChange={(e) => { guardar(GUILD_KEY, e.target.value); window.location.reload(); }}>
+                {servidores.map(sv => <option key={sv.guildId} value={sv.guildId}>Servidor {sv.guildId}</option>)}
+              </select>
+            )}
+            <button className="theme-toggle" onClick={() => setIsDark(!isDark)}>{isDark ? '☀️ Claro' : '🌙 Oscuro'}</button>
+            <button className="theme-toggle" onClick={onLogout}>🚪 Salir</button>
+          </div>
         </header>
 
         {errorConexion && (
           <div style={{ backgroundColor: 'rgba(231, 76, 60, 0.12)', border: '1px solid #e74c3c', color: '#e74c3c', padding: '15px 20px', borderRadius: '10px', marginBottom: '20px', fontWeight: '600' }}>
             ⚠️ {errorConexion}
             <div style={{ fontWeight: '400', fontSize: '0.85em', marginTop: '6px', opacity: 0.85 }}>
-              Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que las claves coincidan. (Abre la consola con F12 para más detalles.)
+              Revisa que el bot esté encendido, que VITE_API_URL apunte a la dirección correcta y que el origen del panel esté en CORS_ORIGINS del bot. (Abre la consola con F12 para más detalles.)
             </div>
           </div>
         )}
@@ -544,6 +581,49 @@ function App() {
       </main>
     </div>
   );
+}
+
+// Pantalla de acceso: pide la clave de staff y la cambia por un token de sesión.
+function Login({ onEntrar }) {
+  const [clave, setClave] = useState('');
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
+
+  const entrar = async (e) => {
+    e.preventDefault();
+    setError(''); setCargando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/staff/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clave }) });
+      const datos = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(datos.error || `Error ${res.status}`);
+      guardar(TOKEN_KEY, datos.token);
+      onEntrar();
+    } catch (err) {
+      setError(err.message === 'Failed to fetch' ? `No se pudo conectar con la API en ${API_URL}` : err.message);
+    } finally { setCargando(false); }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <form onSubmit={entrar} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '320px' }}>
+        <h2>🤖 Sokyo Bot · Panel de staff</h2>
+        <input type="password" autoFocus placeholder="Clave de acceso" value={clave} onChange={(e) => setClave(e.target.value)} style={{ padding: '12px', borderRadius: '8px' }} />
+        <button type="submit" disabled={cargando || !clave} className="theme-toggle">{cargando ? 'Entrando…' : 'Entrar'}</button>
+        {error && <div style={{ color: '#e74c3c', fontWeight: 600 }}>⚠️ {error}</div>}
+      </form>
+    </div>
+  );
+}
+
+function App() {
+  const [sesion, setSesion] = useState(!!leer(TOKEN_KEY));
+  useEffect(() => {
+    const alCaducar = () => setSesion(false);
+    window.addEventListener('sokyo-logout', alCaducar);
+    return () => window.removeEventListener('sokyo-logout', alCaducar);
+  }, []);
+  const salir = () => { guardar(TOKEN_KEY, ''); guardar(GUILD_KEY, ''); setSesion(false); };
+  return sesion ? <Panel onLogout={salir} /> : <Login onEntrar={() => setSesion(true)} />;
 }
 
 export default App;

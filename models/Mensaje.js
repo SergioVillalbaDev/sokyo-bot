@@ -9,4 +9,6 @@ const mensajeSchema = new mongoose.Schema({
     fecha: { type: Date, default: Date.now }
 });
 
+mensajeSchema.index({ ticketId: 1, fecha: 1 });
+
 module.exports = mongoose.model('Mensaje', mensajeSchema);

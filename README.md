@@ -68,20 +68,23 @@ copy sokyo-panelFRONTEND\.env.example sokyo-panelFRONTEND\.env   # Windows
 MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/SokyoDB
 DISCORD_TOKEN=tu_token_de_discord
 PORT=3000
-API_KEY=una-clave-larga-y-aleatoria
+API_KEY=una-clave-larga-y-aleatoria        # contraseña de acceso al panel (mín. 16 caracteres)
+JWT_SECRET=otro-secreto-largo-y-distinto   # firma las sesiones (mín. 16 caracteres, distinto de API_KEY)
 ```
 
-**`sokyo-panelFRONTEND/.env`** — la clave debe ser **la misma** que `API_KEY`:
+**`sokyo-panelFRONTEND/.env`** — solo la dirección de la API:
 ```env
 VITE_API_URL=http://localhost:3000
-VITE_API_KEY=una-clave-larga-y-aleatoria
 ```
 
-> 🔑 `API_KEY` (bot) y `VITE_API_KEY` (panel) **deben coincidir exactamente**. Es la que
-> protege la API. Puedes generar una con:
+> 🔑 **El bot no arranca** si `API_KEY` o `JWT_SECRET` faltan, son cortas, iguales entre sí o siguen con
+> el valor de ejemplo. La `API_KEY` **ya no se pone en el frontend** (antes quedaba visible dentro del
+> JavaScript del panel): al abrir el panel escribes la clave en la pantalla de acceso y el bot te da una
+> sesión de 12 h. Genera claves con:
 > ```bash
 > node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 > ```
+> Si el panel está en otro dominio (p. ej. Vercel), añádelo a `CORS_ORIGINS` en el `.env` del bot.
 > Si el panel se abre desde **otro dispositivo** de la red, pon en `VITE_API_URL` la IP del
 > PC donde corre el bot (p. ej. `http://192.168.1.50:3000`). Si es el **mismo PC**, deja `localhost`.
 
@@ -128,12 +131,29 @@ Abre la URL que indica Vite (normalmente <http://localhost:5173>).
 - Desde el panel web puedes ver conversaciones, responder, añadir notas internas,
   cerrar/reabrir tickets, ver logs y estadísticas, y personalizar textos y categorías.
 
-Otros comandos: `!user [@usuario]` (estadísticas de tickets), `!dado`, `!moneda`.
+- **`!sokyo staff @rol`** (admin): ese rol podrá ver y atender todos los tickets nuevos. Sin él, solo los
+  ven quienes tengan Administrador o «Gestionar canales».
+- Cada usuario puede tener como máximo **3 tickets abiertos** a la vez.
+- Cerrar un ticket puede hacerlo quien lo abrió o el staff.
+
+Otros comandos: `!user [@usuario]` (estadísticas de tickets; ver a otros requiere «Gestionar mensajes»), `!dado`, `!moneda`.
+
+### 🔒 Privacidad de los logs
+
+Los logs de mensajes editados/borrados **solo se guardan de canales públicos** (los privados, como los
+tickets, no). Se borran solos a los 90 días (`LOG_RETENTION_DAYS`).
+
+### 🧪 Tests
+
+```bash
+npm test
+```
 
 ---
 
 ## 🛠️ Notas
 
 - **Build de producción del panel:** `cd sokyo-panelFRONTEND && npm run build` (genera `dist/`).
+- El bot necesita en el servidor los permisos **Gestionar canales** (crear tickets) y **Ver canales / Enviar mensajes**.
 - Los archivos `.env` están en `.gitignore`: cada persona crea el suyo a partir de `.env.example`.
 - Si cambias un `.env`, **reinicia** el proceso correspondiente (Vite no recarga variables en caliente).

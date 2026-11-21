@@ -26,4 +26,9 @@ const ticketSchema = new mongoose.Schema({
     valoracionCSAT: { type: Number, default: null } 
 });
 
+ticketSchema.index({ guildId: 1, visibleWeb: 1, fechaCreacion: -1 });
+ticketSchema.index({ guildId: 1, creadorId: 1, estado: 1 });
+ticketSchema.index({ creadorId: 1, fechaCreacion: -1 });
+ticketSchema.index({ asignadoA: 1 });
+
 module.exports = mongoose.model('Ticket', ticketSchema);

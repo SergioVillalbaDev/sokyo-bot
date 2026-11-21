@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const Log = require('../models/Log.js');
+const { esCanalPublico, recortar } = require('../utils/privacidad.js');
 
 module.exports = {
     name: Events.MessageUpdate,
@@ -10,14 +11,15 @@ module.exports = {
                 try { newMessage = await newMessage.fetch(); } catch { return; }
             }
 
-            if (newMessage.author?.bot) return;
+            if (!newMessage.guildId || newMessage.author?.bot) return;
+            if (!esCanalPublico(newMessage)) return; // canales privados: no se registra su contenido
 
             // Evita registrar cuando solo se carga un enlace/imagen (mismo contenido).
             // Si el mensaje viejo era partial no tenemos su contenido, así que dejamos pasar.
             if (!oldMessage.partial && oldMessage.content === newMessage.content) return;
 
-            const viejo = oldMessage.partial ? '*(Sin caché)*' : (oldMessage.content || '*(Vacío)*');
-            const nuevo = newMessage.content || '*(Vacío)*';
+            const viejo = oldMessage.partial ? '*(Sin caché)*' : recortar(oldMessage.content || '*(Vacío)*');
+            const nuevo = recortar(newMessage.content || '*(Vacío)*');
             const nombreCanal = newMessage.channel?.name ? `#${newMessage.channel.name}` : `Canal ${newMessage.channelId}`;
 
             await Log.create({

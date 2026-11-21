@@ -5,6 +5,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBu
 const Ticket = require('../models/Ticket.js');
 const Mensaje = require('../models/Mensaje.js');
 const Log = require('../models/Log.js');
+const ticketCache = require('./ticketCache.js');
 
 const CATEGORIA_ARCHIVO = '🗄️ Tickets Archivados';
 
@@ -41,6 +42,13 @@ async function generarTranscript(canalId, ticket) {
     return new AttachmentBuilder(Buffer.from(txt, 'utf-8'), { name: `transcript-${ticket.creadorNombre}.txt` });
 }
 
+// Creador e invitados (todos menos el staff que reclamó) — los que pierden/recuperan escritura al cerrar/reabrir.
+function idsNoStaff(ticket) {
+    const ids = new Set([ticket.creadorId]);
+    (ticket.participantes || []).forEach(p => { if (p?.id && p.rol !== 'Staff') ids.add(p.id); });
+    return ids;
+}
+
 // Mueve el canal a la categoría de archivados y lo deja en modo solo lectura.
 async function archivarCanal(canal, ticket) {
     try {
@@ -50,7 +58,9 @@ async function archivarCanal(canal, ticket) {
             categoria = await guild.channels.create({ name: CATEGORIA_ARCHIVO, type: ChannelType.GuildCategory });
         }
         await canal.setParent(categoria.id, { lockPermissions: false }).catch(() => {});
-        await canal.permissionOverwrites.edit(ticket.creadorId, { SendMessages: false }).catch(() => {});
+        for (const id of idsNoStaff(ticket)) {
+            await canal.permissionOverwrites.edit(id, { SendMessages: false }).catch(() => {});
+        }
         if (!canal.name.startsWith('cerrado-')) {
             await canal.setName(`cerrado-${ticket.creadorNombre}`).catch(() => {});
         }
@@ -60,12 +70,19 @@ async function archivarCanal(canal, ticket) {
 // Cierra un ticket: transcript + encuesta CSAT por DM + log + archivado del canal.
 // Devuelve { ok, ticket } o { ok: false, error }.
 async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = false } = {}) {
+    // Solo cierra si NO estaba ya cerrado: evita transcripts/encuestas/logs duplicados por doble clic.
     const ticket = await Ticket.findOneAndUpdate(
-        { canalId },
+        { canalId, estado: { $ne: 'Cerrado' } },
         { estado: 'Cerrado', fechaCierre: new Date() },
         { new: true }
     );
-    if (!ticket) return { ok: false, error: 'Ticket no encontrado' };
+    if (!ticket) {
+        const existe = await Ticket.exists({ canalId });
+        return existe
+            ? { ok: false, codigo: 'YA_CERRADO', error: 'Este ticket ya está cerrado' }
+            : { ok: false, codigo: 'NO_ENCONTRADO', error: 'Ticket no encontrado' };
+    }
+    ticketCache.quitar(canalId);
 
     // Transcript + encuesta de satisfacción por DM al creador.
     try {
@@ -100,15 +117,23 @@ async function cerrarTicket(client, canalId, { autor = 'Sistema', avisarCanal = 
 // Reabre un ticket archivado: restaura permisos y lo saca de la categoría de archivo.
 async function reabrirTicket(client, canalId, { autor = 'Sistema' } = {}) {
     const ticket = await Ticket.findOneAndUpdate(
-        { canalId },
+        { canalId, estado: 'Cerrado' },
         { estado: 'Abierto', fechaCierre: null },
         { new: true }
     );
-    if (!ticket) return { ok: false, error: 'Ticket no encontrado' };
+    if (!ticket) {
+        const existe = await Ticket.exists({ canalId });
+        return existe
+            ? { ok: false, codigo: 'YA_ABIERTO', error: 'Este ticket ya está abierto' }
+            : { ok: false, codigo: 'NO_ENCONTRADO', error: 'Ticket no encontrado' };
+    }
+    ticketCache.agregar(canalId);
 
     const canal = client.channels.cache.get(canalId);
     if (canal) {
-        await canal.permissionOverwrites.edit(ticket.creadorId, { ViewChannel: true, SendMessages: true }).catch(() => {});
+        for (const id of idsNoStaff(ticket)) {
+            await canal.permissionOverwrites.edit(id, { ViewChannel: true, SendMessages: true }).catch(() => {});
+        }
         await canal.setParent(null).catch(() => {});
         await canal.setName(`ticket-${ticket.creadorNombre}`).catch(() => {});
         await canal.send('🔓 **Este ticket ha sido reabierto.** Ya puedes volver a escribir.').catch(() => {});

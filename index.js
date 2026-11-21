@@ -1,4 +1,14 @@
 require('dotenv').config();
+
+// Fail-fast: sin claves seguras el bot no arranca (antes la API quedaba abierta si faltaba API_KEY).
+const { validarEntorno } = require('./utils/entorno.js');
+const erroresEntorno = validarEntorno();
+if (erroresEntorno.length) {
+    console.error('🔴 Configuración del .env no válida:\n - ' + erroresEntorno.join('\n - '));
+    console.error('Genera claves con: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+    process.exit(1);
+}
+
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -14,6 +24,11 @@ const client = new Client({
     // Permite que los eventos de editar/borrar se disparen también con mensajes que no están en caché
     partials: [Partials.Message, Partials.Channel]
 });
+
+// Un error suelto (p. ej. una promesa rechazada) no debe tumbar el bot en silencio.
+client.on('error', (error) => console.error('Error del cliente de Discord:', error));
+process.on('unhandledRejection', (motivo) => console.error('Promesa rechazada sin capturar:', motivo));
+process.on('uncaughtException', (error) => { console.error('Excepción sin capturar:', error); process.exit(1); });
 
 // 1. Cargador de Comandos
 client.commands = new Collection();
@@ -46,11 +61,26 @@ for (const file of eventFiles) {
 }
 
 // 3. Arrancamos la API pasándole el cliente de Discord
-require('./api/server.js')(client);
+const servidorApi = require('./api/server.js')(client);
 
-// 4. Conexión a Base de Datos y Login
+// 4. Conexión a Base de Datos y Login (sin base de datos el bot no sirve: salimos para que el gestor de procesos lo reinicie)
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('🟢 Conectado a MongoDB'))
-    .catch(err => console.error('🔴 Error de MongoDB:', err));
+    .then(() => {
+        console.log('🟢 Conectado a MongoDB');
+        return client.login(process.env.DISCORD_TOKEN);
+    })
+    .catch(err => { console.error('🔴 Error al iniciar (MongoDB/Discord):', err.message); process.exit(1); });
 
-client.login(process.env.DISCORD_TOKEN);
+// 5. Apagado ordenado
+let cerrando = false;
+async function apagar(senal) {
+    if (cerrando) return;
+    cerrando = true;
+    console.log(`\n${senal} recibido: cerrando...`);
+    servidorApi.close();
+    await client.destroy();
+    await mongoose.disconnect();
+    process.exit(0);
+}
+process.on('SIGINT', () => apagar('SIGINT'));
+process.on('SIGTERM', () => apagar('SIGTERM'));

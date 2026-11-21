@@ -20,9 +20,10 @@ function Portal() {
   // Al cargar: capturar token de la URL (vuelta del login) o errores
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const t = params.get('token');
+    // El token llega en el fragmento (#token=...): no se envía a servidores ni queda en referrers.
+    const t = new URLSearchParams(window.location.hash.slice(1)).get('token');
     const err = params.get('error');
-    if (err) setError(err === 'denegado' ? 'Has cancelado el inicio de sesión.' : 'No se pudo iniciar sesión con Discord.');
+    if (err) setError(err === 'denegado' ? 'Has cancelado el inicio de sesión.' : err === 'estado' ? 'El inicio de sesión expiró o no es válido. Inténtalo de nuevo.' : 'No se pudo iniciar sesión con Discord.');
     if (t) {
       localStorage.setItem('portalToken', t);
       setToken(t);
