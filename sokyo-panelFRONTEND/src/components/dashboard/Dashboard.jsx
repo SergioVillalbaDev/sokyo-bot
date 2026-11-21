@@ -90,6 +90,9 @@ const CARGAR_VISTA = {
   CrecVotosView: () => import('./views/CrecVotosView'),
   CrecRedView: () => import('./views/CrecRedView'),
   TemporadasView: () => import('./views/TemporadasView'),
+  MascotaView: () => import('./views/MascotaView'),
+  BromasView: () => import('./views/BromasView'),
+  CrecLigaView: () => import('./views/CrecLigaView'),
   StaffActividadView: () => import('./views/StaffActividadView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
@@ -381,6 +384,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'crec-votos') return <V.CrecVotosView dash={dash} />;
     if (activeTab === 'crec-red') return <V.CrecRedView dash={dash} />;
     if (activeTab === 'com-temporadas') return <V.TemporadasView dash={dash} />;
+    if (activeTab === 'com-mascota') return <V.MascotaView dash={dash} />;
+    if (activeTab === 'com-bromas') return <V.BromasView dash={dash} />;
+    if (activeTab === 'crec-liga') return <V.CrecLigaView dash={dash} />;
     if (activeTab === 'datos-staff') return <V.StaffActividadView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;

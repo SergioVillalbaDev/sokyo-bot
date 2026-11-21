@@ -235,3 +235,11 @@ html.sk-compacto .sk-dash nav .py-2 { padding-top: .3rem; padding-bottom: .3rem;
 .sk-dash .sk-escribiendo i:nth-child(3) { animation-delay: .3s; }
 @keyframes sk-escribiendo { 0%, 60%, 100% { opacity: .35; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .sk-dash .sk-escribiendo i { animation: none; } }
+
+/* Mascota del servidor (1.14.0): respira, y en huevo se balancea. Quieta con reducir movimiento. */
+.sk-dash .sk-mascota { animation: sk-respira 3.4s ease-in-out infinite; transform-origin: 50% 85%; }
+.sk-dash .sk-mascota-huevo { animation: sk-balancea 2.6s ease-in-out infinite; transform-origin: 50% 90%; }
+.sk-dash .sk-mascota-dormida { animation: sk-respira 6s ease-in-out infinite; filter: grayscale(.6); opacity: .55; }
+@keyframes sk-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045) translateY(-3px); } }
+@keyframes sk-balancea { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-7deg); } 86% { transform: rotate(6deg); } 94% { transform: rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .sk-dash .sk-mascota, .sk-dash .sk-mascota-huevo, .sk-dash .sk-mascota-dormida { animation: none; } }

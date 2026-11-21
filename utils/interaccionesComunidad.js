@@ -21,6 +21,10 @@ async function manejar(interaction, client) {
             await require('./solicitudes.js').manejarBoton(interaction, client);
             return true;
         }
+        // 1.14.0: mascota (votación del huevo, juego), bromas (devolver, escudo) y Liga (animar).
+        if (id.startsWith('mas_')) return await require('./mascota.js').manejar(interaction, client);
+        if (id.startsWith('brm_')) return await require('./bromas.js').manejar(interaction, client);
+        if (interaction.isButton() && id.startsWith('liga_animar:')) { await require('./liga.js').animar(interaction); return true; }
         if (interaction.isButton() && /^tkayuda_(si|no):/.test(id)) {
             await manejarAyudaPrevia(interaction, client);
             return true;

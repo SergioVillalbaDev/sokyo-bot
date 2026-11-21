@@ -110,6 +110,9 @@ async function aplicarXp(guild, member, ganada, cfg, canalFallback) {
     // Boost de XP comprado en la tienda (objeto con efecto xpBoost). Global por usuario.
     const boost = await economia.multiplicadorBoost(member.id);
     if (boost > 1) ganada = Math.round(ganada * boost);
+    // Ventaja de la mascota del servidor (+5 % / +10 % / +15 % para todos).
+    const extraMascota = cfg.mascota?.activo ? require('./mascota.js').bonusXpServidor(guild.id) : 0;
+    if (extraMascota > 0) ganada = Math.round(ganada * (1 + extraMascota));
     const doc = await ActividadUsuario.findOne({ guildId: guild.id, userId: member.id }).select('xp');
     const xpVieja = doc?.xp || 0;
     const xpNueva = xpVieja + ganada;

@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.14.0': [
+        { tab: 'com-mascota', es: '🐾 Mascota del servidor: sale un huevo, votáis entre todos qué será y cómo se llama, y crece si la cuidáis (/mascota). Al subir de nivel da ventajas a todo el servidor: más XP, bromas más baratas…', en: '🐾 Server pet: an egg appears, you all vote on what it’ll be and its name, and it grows if you look after it (/pet). As it levels up it gives the whole server perks: more XP, cheaper pranks…' },
+        { tab: 'com-bromas', es: '🃏 Bromas de oro: cámbiale el apodo a un amigo, hazle el payaso del día, ponle un loro o reacciones a todo (/broma). Se pueden devolver pagando el doble o evitar con un escudo.', en: '🃏 Gold pranks: change a friend’s nickname, make them clown of the day, give them a parrot or reactions on everything (/prank). You can get revenge by paying double or avoid them with a shield.' },
+        { tab: 'crec-liga', es: '🏆 Liga Sokyo: los servidores compiten cada mes con los votos, el oro que gastan en impulsarse (/liga) y los combates diarios de su mascota. El podio sale destacado el mes siguiente.', en: '🏆 Sokyo League: servers compete every month with votes, the gold they spend boosting themselves (/league) and their pet’s daily battles. The podium gets featured the next month.' },
+    ],
     '1.13.0': [
         { tab: 'datos-staff', es: '🏅 Actividad del staff: un podio y un ranking con fotos de quién atiende más tickets, cuánto tarda en responder, qué valoración recibe y cuántas sanciones pone.', en: '🏅 Staff activity: a podium and ranking with photos of who handles the most tickets, how fast they reply, what rating they get and how many sanctions they give.' },
         { tab: 'config-acceso', es: '🔑 Acceso por persona: da el panel a alguien sin crearle un rol, solo a las secciones que quieras y, si quieres, durante unos días (se quita solo).', en: '🔑 Per-person access: give someone the panel without creating a role, only to the sections you choose and, if you like, for a few days (it’s removed automatically).' },

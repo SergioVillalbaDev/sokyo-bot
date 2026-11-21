@@ -64,6 +64,9 @@ module.exports = {
                 // Modo ausente: quien vuelve a escribir deja de estar ausente, y se avisa
                 // de quién está ausente entre los mencionados.
                 await require('../utils/ausente.js').alMensaje(message, cfgAct).catch((e) => console.error('Ausente:', e.message));
+                // Mascota (lo vivo que está el servidor) y bromas que actúan al escribir (reacción, loro).
+                if (cfgAct?.mascota?.activo && !message.author.bot) require('../utils/mascota.js').registrarMensaje(message.guildId, message.createdAt);
+                if (cfgAct?.bromas?.activo) require('../utils/bromas.js').alMensaje(message, cfgAct).catch((e) => console.error('Bromas:', e.message));
             } catch (e) { console.error('Error registrando actividad de mensaje:', e.message); }
 
             // 0.5. Comunidad · Sugerencias: si el mensaje cae en el canal de

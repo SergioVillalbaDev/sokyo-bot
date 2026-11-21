@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.13.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.14.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -670,4 +670,26 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     lib/api.js): borrar rol, canal o categoría y sanción masiva responden 428 hasta mandar `X-Sokyo-Confirmacion` con el
     código del privado (o el nombre del servidor si no hay privados). 10 min, 5 intentos, un solo uso; la API key no lo
     pide. Para proteger otra ruta: `exigeConfirmacion('<accion>')` (+ texto en `ACCIONES` y en `dashboard.confirmar`).
+- 1.14.0 **Para qué sirve el oro** (tests en `test/oroSocial.test.js`):
+  - **Mascota del servidor** (`utils/mascota.js`; reglas puras en `utils/mascotaNucleo.js`; imagen en
+    `utils/tarjetaMascota.js` con los dibujos de Twemoji de `assets/mascota` (también en `public/mascota` para el panel);
+    modelos `Mascota` y `CuidadoMascota`; `/mascota` = `slash/pet.js`; panel Diversión → Mascota, `MascotaView.jsx`;
+    API `/api/config/:g/modulos/mascota[/eclosionar|/reiniciar]`). Huevo con votación de especie y nombre (24 h, botones
+    `mas_*`), barras de comida/alegría/salud que cambian cada hora (`pasarTiempo`: mensajes y voz la alegran, automod y
+    sanciones le bajan la salud vía `registrarIncidente`), hiberna sin comida ni alegría (pierde un nivel al día), forma
+    de adulta al nivel 15 según el servidor, ventajas por nivel (`bonusXpServidor` lo lee `niveles.aplicarXp`;
+    `descuentoBromasServidor` las bromas; solo con la mascota activa), buenos días, saludo a quien entra, susto en un
+    raid, «Cuidador del mes» con rol. Pasada en `tickCrecimiento` (`barrerMascotas`).
+  - **Bromas de oro** (`utils/bromas.js`, modelos `Broma` y `PerfilBroma`, `/broma` = `slash/prank.js`, panel Diversión →
+    Bromas, `BromasView.jsx`): apodo, payaso (rol elegido, nunca con permisos de staff), reacción y loro (los dos últimos
+    en `messageCreate` → `alMensaje`). Una broma a la vez por persona, espera entre bromas, escudo, «Devolvérsela» una vez
+    pagando el doble (botones `brm_*`), roles intocables y `/broma salir`. Al acabar (`barrerBromas`, cada 30 s) vuelve el
+    apodo de antes y se quita el rol. Si Discord falla, se devuelve el oro.
+  - **Liga Sokyo** (`utils/liga.js`, modelos `LigaServidor`, `LigaMes`, `ImpulsoLiga`, `CombateMascota`; `/liga` =
+    `slash/league.js`; panel Crecimiento → Liga Sokyo, `CrecLigaView.jsx`; API `/api/config/:g/crecimiento/liga`).
+    Puntos por votos (`alVotar` desde `votos.procesarVoto`), impulsos con oro (tope diario por persona) y combates diarios
+    de mascotas (17:00 UTC se emparejan y se anuncian con «Animar», 19:00 UTC se resuelven, `liga_animar:*`). El día 1 se
+    cierra el mes una sola vez (`LigaMes`) y el podio queda destacado un mes: primero en `/servidores` y más a menudo en la
+    Red Sokyo (`elegirCandidato`, `destacado`).
+  - `economia.cobrar(id, n)`: cobro atómico (null si no llega).
 

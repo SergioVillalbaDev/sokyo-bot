@@ -41,6 +41,9 @@ function elegirCandidato(receptor, candidatos, azar = Math.random) {
     let frescos = lista.filter((c) => !vistos.includes(c.guildId));
     // Si ya salieron todos, vale cualquiera menos el último publicado.
     if (!frescos.length) frescos = lista.length > 1 ? lista.filter((c) => c.guildId !== vistos[vistos.length - 1]) : lista;
+    // Podio de la Liga Sokyo del mes pasado (1.14.0): sale más a menudo (la mitad de las veces, si está entre los posibles).
+    const podio = frescos.filter((c) => c.destacado);
+    if (podio.length && podio.length < frescos.length && azar() < 0.5) frescos = podio;
     const menos = Math.min(...frescos.map((c) => c.mostrado || 0));
     const empatados = frescos.filter((c) => (c.mostrado || 0) === menos);
     return empatados[Math.floor(azar() * empatados.length) % empatados.length];
@@ -70,8 +73,10 @@ function mensajeRed(receptorCfg, guild, cfg) {
 async function barrerRed(client) {
     const cfgs = await ServidorConfig.find({ 'crecimiento.red.activo': true })
         .select('guildId idioma crecimiento.red crecimiento.pagina').lean();
+    const podio = await require('./liga.js').destacados().catch(() => new Map());
     const visibles = cfgs.filter((c) => esVisible(c) && apto(client, c.guildId))
         .map((c) => ({
+            destacado: podio.has(c.guildId),
             guildId: c.guildId, idioma: c.idioma, mostrado: c.crecimiento.red.mostrado || 0, cfg: c,
             miembros: client.guilds.cache.get(c.guildId).memberCount || 0,
             etiquetas: c.crecimiento.pagina.etiquetas || [], bloqueados: c.crecimiento.red.bloqueados || [],

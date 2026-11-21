@@ -123,6 +123,19 @@ async function darOro(discordId, cantidad) {
     return u.balance;
 }
 
+// Cobra oro solo si hay bastante (puerta atómica: dos cobros a la vez no dejan el saldo
+// en negativo). Devuelve el saldo que queda, o null si no llega.
+async function cobrar(discordId, cantidad) {
+    cantidad = Math.max(0, Math.floor(cantidad || 0));
+    if (!cantidad) { const u = await obtenerUsuario(discordId); return u.balance; }
+    const u = await Usuario.findOneAndUpdate(
+        { discordId, balance: { $gte: cantidad } },
+        { $inc: { balance: -cantidad } },
+        { returnDocument: 'after' },
+    );
+    return u ? u.balance : null;
+}
+
 // Recompensa diaria con racha. Se puede reclamar cada ~20h; si pasan más de 48h
 // sin reclamar, la racha se reinicia. Cada 7 días seguidos hay premio gordo.
 // (La web de "Mi cuenta" usa las mismas horas para su cuenta atrás.)
@@ -255,4 +268,4 @@ async function multiplicadorBoost(discordId) {
     return 1;
 }
 
-module.exports = { obtenerUsuario, comprarItem, darOro, reclamarDaily, topRicos, usarItem, multiplicadorBoost, precioEfectivo, ponerOferta, HORAS_DAILY, HORAS_RACHA };
+module.exports = { obtenerUsuario, comprarItem, darOro, cobrar, reclamarDaily, topRicos, usarItem, multiplicadorBoost, precioEfectivo, ponerOferta, HORAS_DAILY, HORAS_RACHA };

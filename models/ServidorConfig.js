@@ -807,6 +807,41 @@ const ServidorConfigSchema = new mongoose.Schema({
         premioXp: { type: Number, default: 0 },
         lastSemana: { type: String, default: '' },          // (interno) semana ISO ya cerrada
     },
+    // Bromas de oro (1.14.0): los miembros pagan oro para gastarse bromas durante un
+    // rato. Lógica en utils/bromas.js; el estado de cada broma, en models/Broma.js.
+    bromas: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },           // dónde se anuncian (vacío = donde se usa el comando)
+        tipos: {
+            apodo: { activo: { type: Boolean, default: true }, precio: { type: Number, default: 300 } },
+            payaso: { activo: { type: Boolean, default: true }, precio: { type: Number, default: 500 } },
+            reaccion: { activo: { type: Boolean, default: true }, precio: { type: Number, default: 250 } },
+            loro: { activo: { type: Boolean, default: true }, precio: { type: Number, default: 400 } },
+        },
+        rolPayasoId: { type: String, default: null },       // el rol «🤡 Payaso del día» (lo eliges tú)
+        duracionMin: { type: Number, default: 60 },         // cuánto dura cada broma
+        escudoPrecio: { type: Number, default: 400 },
+        escudoHoras: { type: Number, default: 12 },
+        esperaMin: { type: Number, default: 10 },           // entre dos bromas de la misma persona
+        devolver: { type: Boolean, default: true },         // «Devolvérsela» pagando el doble
+        inmunes: { type: [String], default: [] },           // roles a los que no se les puede gastar (p. ej. el staff)
+    },
+    // Mascota del servidor (1.14.0). El estado de la mascota está en models/Mascota.js.
+    mascota: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },           // donde vive: votación, avisos, saludos y combates
+        horaSaludo: { type: Number, default: 10 },          // hora UTC del «buenos días»
+        saludarNuevos: { type: Boolean, default: true },
+        avisos: { type: Boolean, default: true },           // avisos de hambre, subidas de nivel y sustos
+        rolCuidadorId: { type: String, default: null },     // rol para el «Cuidador del mes»
+    },
+    // Liga Sokyo (1.14.0): clasificación mensual de servidores. Los puntos están en
+    // models/LigaServidor.js; lógica en utils/liga.js.
+    liga: {
+        activo: { type: Boolean, default: false },
+        canalId: { type: String, default: null },           // anuncios: combates y cierre del mes
+        combates: { type: Boolean, default: true },         // combate diario de la mascota
+    },
     // Confesiones anónimas (/confesar), con revisión del staff opcional.
     // Lógica en utils/confesiones.js.
     confesiones: {

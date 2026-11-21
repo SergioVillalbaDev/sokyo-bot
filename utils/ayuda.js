@@ -44,6 +44,11 @@ const CATEGORIAS = [
         ['rich', 's', 'ricos', 'Quién tiene más oro.', 'Who has the most gold.'],
         ['givegold', 's', 'daroro', '(Admin) Dar o quitar oro.', '(Admin) Give or take gold.'],
     ] },
+    { id: 'oro', emoji: '🐾', titulo: ['Mascota, bromas y Liga', 'Pet, pranks and League'], tab: 'com-mascota', cmds: [
+        ['pet', 's', 'mascota', 'La mascota del servidor: dale de comer, acaríciala, juega con ella y mira qué desbloquea.', 'The server pet: feed it, pet it, play with it and see what it unlocks.'],
+        ['prank', 's', 'broma', 'Gasta oro en bromas: cambiar un apodo, payaso del día, reacciones o loro. Y escudos.', 'Spend gold on pranks: change a nickname, clown of the day, reactions or a parrot. And shields.'],
+        ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
+    ] },
     { id: 'niveles', emoji: '📈', titulo: ['Niveles', 'Levels'], tab: 'config-niveles', cmds: [
         ['level', 's', 'nivel', 'Tu nivel y tu tarjeta (o los de otra persona).', 'Your level and card (or someone else’s).'],
         ['ranking', 's', null, 'Los que más XP tienen.', 'Who has the most XP.'],

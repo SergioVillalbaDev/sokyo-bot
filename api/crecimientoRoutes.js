@@ -398,4 +398,35 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             res.json({ success: true, config: { activo: r.activo, canalId: r.canalId, cadaHoras: r.cadaHoras, mismoIdioma: r.mismoIdioma, minMiembros: r.minMiembros || 0, etiquetas: r.etiquetas || [], bloqueados: r.bloqueados || [] } });
         } catch (e) { console.error('PUT red:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
+
+    // ============================ LIGA SOKYO (1.14.0) ============================
+    app.get(ruta('liga'), area, async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            const Mascota = require('../models/Mascota.js');
+            const m = await Mascota.findOne({ guildId: guild.id }).select('estado nombre especie nivel hibernando').lean();
+            res.json({
+                config: cfg.liga,
+                mascota: m ? { estado: m.estado, nombre: m.nombre, especie: m.especie, nivel: m.nivel, hibernando: !!m.hibernando } : null,
+                mascotaActiva: !!cfg.mascota?.activo,
+                ...(await require('../utils/liga.js').estado(client, guild.id)),
+            });
+        } catch (e) { console.error('GET liga:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    app.put(ruta('liga'), area, async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            await cfgDe(guild.id);
+            const set = {};
+            if (b.activo !== undefined) set['liga.activo'] = !!b.activo;
+            const canal = canalDe(guild, b.canalId);
+            if (canal === false) return res.status(400).json({ error: 'Ese canal no existe o no es de texto' });
+            if (canal !== undefined) set['liga.canalId'] = canal;
+            if (b.combates !== undefined) set['liga.combates'] = !!b.combates;
+            const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after' });
+            res.json({ success: true, config: nueva.liga });
+        } catch (e) { console.error('PUT liga:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
 };
