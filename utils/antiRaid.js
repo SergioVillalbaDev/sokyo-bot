@@ -87,6 +87,7 @@ async function revisarEntrada(member, cfg, client) {
                     `**${lista.length}** accounts joined in ~${r.enSegundos}s.\nLockdown enabled for **${r.lockdownMin} min** (action: ${r.accion}).`))
                 .setTimestamp();
             await enviarAlerta(client, guild, am, { embeds: [embed] });
+            require('./mascota.js').susto(client, guild.id).catch(() => {});
             // Webhook saliente (Pro): avisa del raid a un endpoint externo.
             enviarWebhook(cfg, 'raid', {
                 text: `🚨 Possible RAID in ${guild.name}: ${lista.length} accounts in ~${r.enSegundos}s. Lockdown ${r.lockdownMin} min.`,

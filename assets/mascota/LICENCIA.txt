@@ -1,0 +1,2 @@
+Dibujos de Twemoji (https://github.com/jdecked/twemoji), licencia CC-BY 4.0.
+Se usan en la tarjeta de la mascota (utils/tarjetaMascota.js) y en el panel.

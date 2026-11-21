@@ -148,6 +148,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await require('./cumpleanos.js').barrerCumpleanos(client); } catch (e) { console.error('Programador (cumpleaños):', e.message); }
         try { await require('./clanes.js').barrerClanes(client); } catch (e) { console.error('Programador (clanes):', e.message); }
         try { await require('./grupos.js').barrerGrupos(client); } catch (e) { console.error('Programador (grupos):', e.message); }
+        try { await require('./bromas.js').barrerBromas(client); } catch (e) { console.error('Programador (bromas):', e.message); }
     });
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
@@ -176,6 +177,9 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await require('./eventosDiscord.js').premiarAsistencia(client); } catch (e) { console.error('Programador (premio eventos):', e.message); }
         try { await require('./votos.js').avisarRecordatorios(client); } catch (e) { console.error('Programador (recordar votar):', e.message); }
         try { await require('./accesoPanel.js').barrerConcesiones(client); } catch (e) { console.error('Programador (accesos caducados):', e.message); }
+        // 1.14.0: mascota del servidor y Liga Sokyo (cierre del mes y combates).
+        try { await require('./mascota.js').barrerMascotas(client); } catch (e) { console.error('Programador (mascota):', e.message); }
+        try { await require('./liga.js').barrerLiga(client); } catch (e) { console.error('Programador (Liga):', e.message); }
     });
     setTimeout(tickCrecimiento, 70 * 1000);
     setInterval(tickCrecimiento, 5 * 60 * 1000);

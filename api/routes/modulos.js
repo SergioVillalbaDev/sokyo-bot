@@ -630,5 +630,126 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
         } catch (e) { console.error('POST temporadas/cerrar:', e.message); res.status(500).json({ error: 'No se pudo cerrar' }); }
     });
 
+    // ============================ BROMAS (1.14.0) ============================
+    router.get(ruta('bromas'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            res.json({ config: cfg.bromas, ...(await require('../../utils/bromas.js').resumen(client, guild.id)) });
+        } catch (e) { console.error('GET bromas:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    router.put(ruta('bromas'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            const cfg = await cfgDe(guild.id);
+            const set = {};
+            if (b.activo !== undefined) set['bromas.activo'] = !!b.activo;
+            if (!ponerCanal(set, 'bromas.canalId', guild, b.canalId, res)) return;
+            if (b.tipos && typeof b.tipos === 'object') {
+                for (const tipo of ['apodo', 'payaso', 'reaccion', 'loro']) {
+                    const x = b.tipos[tipo];
+                    if (!x || typeof x !== 'object') continue;
+                    if (x.activo !== undefined) set[`bromas.tipos.${tipo}.activo`] = !!x.activo;
+                    if (x.precio !== undefined) set[`bromas.tipos.${tipo}.precio`] = entero(x.precio, 0, 1000000, 300);
+                }
+            }
+            const rol = rolDe(guild, b.rolPayasoId);
+            if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede dar' });
+            if (rol !== undefined && rol !== cfg.bromas.rolPayasoId) {
+                if (rol) {
+                    if (!(await tieneAreaAcceso(req, guild.id, 'roles'))) return res.status(403).json({ error: 'Para elegir el rol hace falta acceso a la sección de roles del panel' });
+                    // Lo recibe cualquiera al que le gasten una broma: nunca con permisos de staff.
+                    const peligro = require('../../utils/permisos.js').errorRolPeligroso(guild.roles.cache.get(rol));
+                    if (peligro) return res.status(400).json({ error: peligro });
+                    const err = await errorRolesNuevos(client, req.staff, guild.id, [rol], [cfg.bromas.rolPayasoId]);
+                    if (err) return res.status(403).json({ error: err });
+                }
+                set['bromas.rolPayasoId'] = rol;
+            }
+            if (b.duracionMin !== undefined) set['bromas.duracionMin'] = entero(b.duracionMin, 5, 1440, 60);
+            if (b.escudoPrecio !== undefined) set['bromas.escudoPrecio'] = entero(b.escudoPrecio, 0, 1000000, 400);
+            if (b.escudoHoras !== undefined) set['bromas.escudoHoras'] = entero(b.escudoHoras, 1, 168, 12);
+            if (b.esperaMin !== undefined) set['bromas.esperaMin'] = entero(b.esperaMin, 0, 1440, 10);
+            if (b.devolver !== undefined) set['bromas.devolver'] = !!b.devolver;
+            if (Array.isArray(b.inmunes)) set['bromas.inmunes'] = b.inmunes.map(String).filter((id) => guild.roles.cache.has(id)).slice(0, 25);
+            const nueva = await guardar(guild.id, set);
+            res.json({ success: true, config: nueva.bromas });
+        } catch (e) { console.error('PUT bromas:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+    // Quitar una broma que está en marcha (deja el apodo o el rol como estaban).
+    router.delete(ruta('bromas/:id'), exigeArea('moderacion'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const ok = await require('../../utils/bromas.js').cancelar(client, guild.id, req.params.id);
+            if (!ok) return res.status(404).json({ error: 'Esa broma ya ha terminado' });
+            res.json({ success: true });
+        } catch (e) { console.error('DELETE broma:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
+    // ============================ MASCOTA (1.14.0) ============================
+    router.get(ruta('mascota'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            res.json({ config: cfg.mascota, ...(await require('../../utils/mascota.js').resumen(client, guild.id)) });
+        } catch (e) { console.error('GET mascota:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    router.put(ruta('mascota'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            const cfg = await cfgDe(guild.id);
+            const set = {};
+            if (b.activo !== undefined) set['mascota.activo'] = !!b.activo;
+            if (!ponerCanal(set, 'mascota.canalId', guild, b.canalId, res)) return;
+            if (b.horaSaludo !== undefined) set['mascota.horaSaludo'] = entero(b.horaSaludo, 0, 23, 10);
+            if (b.saludarNuevos !== undefined) set['mascota.saludarNuevos'] = !!b.saludarNuevos;
+            if (b.avisos !== undefined) set['mascota.avisos'] = !!b.avisos;
+            const rol = rolDe(guild, b.rolCuidadorId);
+            if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede dar' });
+            if (rol !== undefined && rol !== cfg.mascota.rolCuidadorId) {
+                if (rol) {
+                    if (!(await tieneAreaAcceso(req, guild.id, 'roles'))) return res.status(403).json({ error: 'Para elegir el rol hace falta acceso a la sección de roles del panel' });
+                    const peligro = require('../../utils/permisos.js').errorRolPeligroso(guild.roles.cache.get(rol));
+                    if (peligro) return res.status(400).json({ error: peligro });
+                    const err = await errorRolesNuevos(client, req.staff, guild.id, [rol], [cfg.mascota.rolCuidadorId]);
+                    if (err) return res.status(403).json({ error: err });
+                }
+                set['mascota.rolCuidadorId'] = rol;
+            }
+            const nueva = await guardar(guild.id, set);
+            // Recién activada con canal: el huevo sale ya (sin esperar a la siguiente pasada).
+            if (nueva.mascota.activo && nueva.mascota.canalId && !(await require('../../models/Mascota.js').exists({ guildId: guild.id }))) {
+                await require('../../utils/mascota.js').iniciarHuevo(client, nueva.toObject()).catch((e) => console.error('Mascota · huevo:', e.message));
+            }
+            res.json({ success: true, config: nueva.mascota });
+        } catch (e) { console.error('PUT mascota:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+    // Abrir el huevo ya (sin esperar a que acabe la votación).
+    router.post(ruta('mascota/eclosionar'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const Mascota = require('../../models/Mascota.js');
+            const m = await Mascota.findOne({ guildId: guild.id });
+            if (!m) return res.status(400).json({ error: 'Todavía no hay huevo' });
+            if (m.estado !== 'huevo') return res.status(400).json({ error: 'La mascota ya ha nacido' });
+            const cfg = await cfgDe(guild.id);
+            const nueva = await require('../../utils/mascota.js').eclosionar(client, cfg.toObject(), m);
+            res.json({ success: true, nombre: nueva ? nueva.nombre : null });
+        } catch (e) { console.error('POST mascota/eclosionar:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    // Empezar de cero (otro huevo). Borra la mascota y los cuidados.
+    router.post(ruta('mascota/reiniciar'), exigeArea('config'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            await require('../../models/Mascota.js').deleteOne({ guildId: guild.id });
+            await require('../../models/CuidadoMascota.js').deleteMany({ guildId: guild.id });
+            require('../../utils/mascota.js').ponerCache({ guildId: guild.id, estado: 'huevo' });
+            await Log.create({ guildId: guild.id, categoria: 'Configuración', accion: '🥚 Mascota reiniciada', usuario: (req.staff && req.staff.username) || 'API', detalles: 'Se ha borrado la mascota: saldrá un huevo nuevo.' }).catch(() => {});
+            res.json({ success: true });
+        } catch (e) { console.error('POST mascota/reiniciar:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
     return router;
 };

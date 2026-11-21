@@ -85,6 +85,9 @@ module.exports = {
                     if (r && r.error) await apuntarFallo(client, member, cfg, { categoria: 'Entradas', accion: t(cfg, `⚠️ No se pudo mandar la bienvenida «${conf.nombre || '?'}»`, `⚠️ The “${conf.nombre || '?'}” welcome failed`), error: r.error });
                 }
             } catch (error) { console.error('Error en bienvenidas extra:', error.message); }
+
+            // La mascota del servidor saluda a quien llega.
+            require('../utils/mascota.js').saludarNuevo(client, member, cfg).catch((e) => console.error('Mascota · saludo:', e.message));
         }
 
         // --- Log de entrada (comportamiento existente) ---

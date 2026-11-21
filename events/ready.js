@@ -45,6 +45,7 @@ module.exports = {
             require('../utils/ausente.js').cargar(),
             require('../utils/mensajesFijos.js').cargar(),
             require('../utils/grupos.js').cargarSalas(),
+            require('../utils/mascota.js').cargarCache(),
         ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
 
         // Mensaje de entrada (panel → Propietario): se tiene a mano para /setup y el botón de idioma.

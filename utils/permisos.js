@@ -77,6 +77,9 @@ function rolesQueDaElBot(c = {}) {
         // 1.10.0: rol de quien vota y rol de campeón de la temporada.
         c.crecimiento && c.crecimiento.votos && c.crecimiento.votos.rolId,
         c.temporadas && c.temporadas.rolCampeonId,
+        // 1.14.0: rol de payaso de las bromas y el del «Cuidador del mes» de la mascota.
+        c.bromas && c.bromas.rolPayasoId,
+        c.mascota && c.mascota.rolCuidadorId,
     ].filter((x) => typeof x === 'string' && x);
 }
 

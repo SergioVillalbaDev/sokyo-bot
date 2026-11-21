@@ -55,6 +55,8 @@ function exento(member, am, cfg) {
 // Borra el mensaje infractor y, según la acción del filtro, aplica una sanción.
 async function castigar(message, client, regla, am, motivo) {
     await message.delete().catch(() => {});
+    // La toxicidad pone mala a la mascota del servidor.
+    try { require('./mascota.js').registrarIncidente(message.guild.id); } catch { /* opcional */ }
 
     // Aviso efímero al usuario en el canal (se autoborra a los 6s).
     if (am.avisarEnCanal) {

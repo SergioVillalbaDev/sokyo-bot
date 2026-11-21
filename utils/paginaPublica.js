@@ -150,11 +150,14 @@ async function datosDirectorio(client) {
     const cfgs = await ServidorConfig.find({ 'crecimiento.pagina.activo': true, 'crecimiento.pagina.listado': true, 'crecimiento.pagina.slug': { $type: 'string' } })
         .select('guildId idioma crecimiento.pagina').lean();
     const lista = [];
+    // Podio de la Liga Sokyo del mes pasado (1.14.0): van primero y con su medalla.
+    const podio = await require('./liga.js').destacados().catch(() => new Map());
     for (const cfg of cfgs) {
         const guild = client.guilds.cache.get(cfg.guildId);
         if (!guild) continue;
         const p = cfg.crecimiento.pagina;
         lista.push({
+            liga: podio.get(cfg.guildId) || null,
             slug: p.slug,
             nombre: guild.name,
             icono: guild.iconURL({ size: 128, extension: 'png' }),
@@ -164,7 +167,7 @@ async function datosDirectorio(client) {
             idioma: cfg.idioma === 'es' ? 'es' : 'en',
         });
     }
-    lista.sort((a, b) => b.miembros - a.miembros);
+    lista.sort((a, b) => ((a.liga || 99) - (b.liga || 99)) || (b.miembros - a.miembros));
     cacheDirectorio = { lista, t: Date.now() };
     return lista;
 }
@@ -310,6 +313,7 @@ h1{margin:12px 0 4px;font-size:clamp(26px,5vw,36px);line-height:1.15;letter-spac
 .srv-cab{display:flex;align-items:center;gap:12px;min-width:0}
 .srv-cab img,.srv-cab .icono{width:52px;height:52px;border-radius:14px;border:0;font-size:22px;flex-shrink:0}
 .srv-cab b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srv-cab span.tenue{display:block}
 .srv p{margin:0;color:#c3c6e0;font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .titulo{font-size:clamp(28px,6vw,44px);letter-spacing:-.035em;line-height:1.1;margin:20px 0 8px}
 .grad{background:linear-gradient(135deg,var(--from),var(--to));-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -449,7 +453,7 @@ function paginaDirectorio(lista, { lang, base, q = '', etiqueta = '' }) {
     const tarjetas = filtrados.length
         ? `<div class="rejilla">${filtrados.slice(0, 120).map((s) => `
 <a class="srv" href="/s/${esc(s.slug)}">
-<div class="srv-cab">${icono(s.icono, s.nombre)}<div style="min-width:0"><b>${esc(s.nombre)}</b><span class="tenue">👥 ${esc(TEXTO[lang].miembros(s.miembros))}</span></div></div>
+<div class="srv-cab">${icono(s.icono, s.nombre)}<div style="min-width:0"><b>${esc(s.nombre)}</b><span class="tenue">👥 ${esc(TEXTO[lang].miembros(s.miembros))}</span>${s.liga ? `<span class="tenue">${['🥇', '🥈', '🥉'][s.liga - 1] || '🏆'} ${esc(lang === 'es' ? 'Podio de la Liga Sokyo' : 'Sokyo League podium')}</span>` : ''}</div></div>
 ${s.descripcion ? `<p>${esc(s.descripcion)}</p>` : ''}
 ${s.etiquetas.length ? `<div class="etiquetas" style="margin-top:0">${s.etiquetas.map((e) => `<span class="etiqueta">#${esc(e)}</span>`).join('')}</div>` : ''}
 </a>`).join('')}</div>`

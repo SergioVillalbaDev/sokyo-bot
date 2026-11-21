@@ -114,6 +114,8 @@ async function procesarVoto(client, { userId, finde, prueba }) {
     for (const cfg of cfgs) {
         if (await premiarEnServidor(client, cfg, userId, oro, proximo).catch((e) => { console.error('Votos · servidor:', e.message); return false; })) servidores++;
     }
+    // Liga Sokyo: cada voto suma puntos a los servidores de la Liga donde esté quien vota.
+    await require('./liga.js').alVotar(client, userId).catch((e) => console.error('Votos · Liga:', e.message));
     // «Recordarme votar»: el aviso sale cuando se pueda volver a votar.
     await RecordatorioVoto.updateOne({ userId, activo: true }, { $set: { proximoAviso: proximo } }).catch(() => {});
     return { estado: 'ok', oro, servidores };

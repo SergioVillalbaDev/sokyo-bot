@@ -94,6 +94,7 @@ async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', p
     }
     // 'aviso' no hace nada en Discord: solo registro + DM.
 
+    try { require('./mascota.js').registrarIncidente(guildId); } catch { /* opcional */ }
     const sancion = await Sancion.create({
         guildId,
         usuarioId,

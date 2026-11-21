@@ -300,6 +300,9 @@ const EN = {
     'Marca al menos una sección del panel': 'Mark at least one section of the panel',
     'Confirma esta acción': 'Confirm this action',
     'Código incorrecto': 'Wrong code',
+    'Esa broma ya ha terminado': 'That prank has already ended',
+    'Todavía no hay huevo': 'There’s no egg yet',
+    'La mascota ya ha nacido': 'The pet has already hatched',
 };
 
 // Códigos internos (el panel los interpreta) y mensajes que ya están en inglés: no se tocan.

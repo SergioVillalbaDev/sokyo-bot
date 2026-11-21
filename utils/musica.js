@@ -636,6 +636,8 @@ function initMusica(client) {
         // cola; lo guardamos en el player para pintar el badge del panel.
         const modo = await modoAutoplay(player.guildId);
         player.setData('sokyoAutoplay', modo);
+        // Mascota: un servidor con mucha música la hace «musical» de adulta.
+        try { require('./mascota.js').registrarCancion(player.guildId); } catch { /* opcional */ }
         const objetivo = modo === 'repetir' ? 'queue' : 'off';
         if (player.repeatMode !== objetivo) await player.setRepeatMode(objetivo).catch(() => {});
 
