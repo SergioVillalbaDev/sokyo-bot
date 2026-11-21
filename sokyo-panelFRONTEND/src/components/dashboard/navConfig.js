@@ -17,7 +17,7 @@ import {
   Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
   Stethoscope, FileClock, Cake, ClipboardCheck, Star, Shield, MessageSquareHeart, Moon, Pin, Hash, Dices,
-  Vote, Handshake, Trophy, Award,
+  Vote, Handshake, Trophy, Award, Laugh, PawPrint, Medal,
 } from 'lucide-react';
 
 export const navSections = [
@@ -96,6 +96,8 @@ export const navGroups = [
       { tab: 'com-salon', icon: Star, kw: 'salon de la fama estrellas destacados mejores mensajes starboard hall of fame' },
       { tab: 'com-confesiones', icon: MessageSquareHeart, kw: 'confesiones anonimo anonimas secretos confess confessions anonymous' },
       { tab: 'com-temporadas', icon: Trophy, kw: 'temporadas temporada ranking mensual semanal premios podio campeon season leaderboard monthly' },
+      { tab: 'com-mascota', icon: PawPrint, kw: 'mascota pet tamagotchi huevo dragon zorro cuidar alimentar oro combates criatura egg creature feed' },
+      { tab: 'com-bromas', icon: Laugh, kw: 'bromas broma apodo payaso loro reaccion escudo oro gastar pranks prank nickname clown parrot shield gold' },
     ],
   },
   {
@@ -110,6 +112,7 @@ export const navGroups = [
       { tab: 'crec-contadores', icon: Hash, area: 'crecimiento', kw: 'contadores estadisticas canal nombre miembros cuantos somos counter stats channel member count' },
       { tab: 'crec-votos', icon: Vote, area: 'crecimiento', kw: 'votos votar top.gg topgg lista de bots recompensa vote votes bot list' },
       { tab: 'crec-red', icon: Handshake, area: 'crecimiento', kw: 'red sokyo alianzas partners promocion otros servidores network partnership cross promotion' },
+      { tab: 'crec-liga', icon: Medal, area: 'crecimiento', kw: 'liga sokyo clasificacion ranking servidores divisiones impulsar combates podio destacado league ranking divisions boost battles podium' },
     ],
   },
   {

@@ -115,7 +115,7 @@ function pasarTiempo(m, act = {}, horas = 1, ahora = new Date()) {
     const mensajes = Math.max(0, act.mensajes || 0);
     const vozMin = Math.max(0, act.vozMin || 0);
     const incidentes = Math.max(0, act.incidentes || 0);
-    let hambre = (m.hambre ?? 80) - 4 * h;
+    let hambre = (m.hambre ?? 80) - 3 * h;
     // El servidor vivo la alegra; si está callado, se aburre.
     const animacion = Math.min(15 * Math.max(1, h), mensajes / 4 + vozMin / 15);
     let alegria = (m.alegria ?? 70) + animacion - 3 * h;

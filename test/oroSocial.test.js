@@ -53,7 +53,7 @@ describe('Mascota · ventajas', () => {
 describe('Mascota · el paso del tiempo', () => {
     test('pierde comida con las horas y el servidor callado la aburre', () => {
         const { cambio } = N.pasarTiempo(viva({ hambre: 80, alegria: 70 }), {}, 5);
-        assert.equal(cambio.hambre, 60);
+        assert.equal(cambio.hambre, 65);
         assert.equal(cambio.alegria, 55);
     });
     test('un servidor vivo la alegra y le da XP', () => {

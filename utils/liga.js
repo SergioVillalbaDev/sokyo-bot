@@ -323,7 +323,7 @@ async function estado(client, guildId) {
     const d = divisionDe(mio.puntos);
     const sig = siguienteDivision(mio.puntos);
     return {
-        mes, fin: finDeMes(), total,
+        mes, fin: finDeMes(), diasRestantes: Math.max(0, Math.ceil((finDeMes() - Date.now()) / 86400000)), total,
         puntos: mio.puntos, posicion: mio.puntos > 0 ? mio.posicion : null,
         desglose: { votos: mio.doc?.votos || 0, impulsos: mio.doc?.impulsos || 0, combates: mio.doc?.combates || 0 },
         division: d.id, siguiente: sig ? { id: sig.id, faltan: sig.desde - mio.puntos } : null,
