@@ -706,6 +706,8 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (b.horaSaludo !== undefined) set['mascota.horaSaludo'] = entero(b.horaSaludo, 0, 23, 10);
             if (b.saludarNuevos !== undefined) set['mascota.saludarNuevos'] = !!b.saludarNuevos;
             if (b.avisos !== undefined) set['mascota.avisos'] = !!b.avisos;
+            if (b.eventos !== undefined) set['mascota.eventos'] = !!b.eventos;
+            if (b.eventosPorDia !== undefined) set['mascota.eventosPorDia'] = entero(b.eventosPorDia, 1, 4, 2);
             const rol = rolDe(guild, b.rolCuidadorId);
             if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede dar' });
             if (rol !== undefined && rol !== cfg.mascota.rolCuidadorId) {
@@ -738,6 +740,29 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             const nueva = await require('../../utils/mascota.js').eclosionar(client, cfg.toObject(), m);
             res.json({ success: true, nombre: nueva ? nueva.nombre : null });
         } catch (e) { console.error('POST mascota/eclosionar:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    // Comprarle algo con el oro de quien está en el panel.
+    router.post(ruta('mascota/comprar'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            if (!req.staff || !req.staff.id) return res.status(400).json({ error: 'Esta sesión no tiene un usuario de Discord' });
+            const cfg = await cfgDe(guild.id);
+            const idioma = req.get('X-Sokyo-Lang') === 'en' ? 'en' : 'es';
+            const mem = guild.members.cache.get(req.staff.id);
+            const r = await require('../../utils/mascotaVida.js').comprar(client, cfg.toObject(), guild.id, req.staff.id, String(req.body?.id || ''), idioma, (mem && mem.displayName) || req.staff.username);
+            if (r.error) return res.status(400).json({ error: r.error });
+            res.json({ success: true, saldo: r.saldo });
+        } catch (e) { console.error('POST mascota/comprar:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    // Ponerle un accesorio o un hábitat que ya tiene (o quitarle el accesorio).
+    router.put(ruta('mascota/vestir'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const tipo = req.body?.tipo === 'habitat' ? 'habitat' : 'accesorio';
+            const r = await require('../../utils/mascotaVida.js').vestir(guild.id, tipo, req.body?.id || null);
+            if (r.fallo) return res.status(400).json({ error: r.fallo === 'noTiene' ? 'Todavía no lo tiene' : 'Todavía no hay mascota' });
+            res.json({ success: true });
+        } catch (e) { console.error('PUT mascota/vestir:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
     // Empezar de cero (otro huevo). Borra la mascota y los cuidados.
     router.post(ruta('mascota/reiniciar'), exigeArea('config'), async (req, res) => {

@@ -14,7 +14,33 @@ const MascotaSchema = new mongoose.Schema({
     hambre: { type: Number, default: 80 },     // 0 = muerta de hambre · 100 = llena
     alegria: { type: Number, default: 70 },
     salud: { type: Number, default: 100 },
-    forma: { type: String, default: null },    // al hacerse adulta: nocturna, musical, guerrera o social
+    forma: { type: String, default: null },
+    // 1.15.0: personalidad, energía y atributos de combate, aspecto, logros, diario y sorpresas.
+    personalidad: { type: String, default: null },
+    energia: { type: Number, default: 100 },
+    stats: {
+        fuerza: { type: Number, default: 5 },
+        defensa: { type: Number, default: 5 },
+        agilidad: { type: Number, default: 5 },
+    },
+    accesorio: { type: String, default: null },        // el que lleva puesto
+    accesorios: { type: [String], default: [] },       // los que tiene
+    habitat: { type: String, default: 'prado' },
+    habitats: { type: [String], default: ['prado'] },
+    logros: { type: [String], default: [] },
+    diario: { type: [{ tipo: String, fecha: Date, datos: mongoose.Schema.Types.Mixed, _id: false }], default: [] },
+    evento: {
+        id: { type: String, default: null },
+        tipo: { type: String, default: null },
+        premio: { type: Number, default: 0 },
+        respuesta: { type: Number, default: null },
+        expira: { type: Date, default: null },
+        resuelto: { type: Boolean, default: false },
+        canalId: { type: String, default: null },
+        mensajeId: { type: String, default: null },
+        fallos: { type: [String], default: [] },
+    },
+    ultimoEvento: { type: Date, default: null },    // al hacerse adulta: nocturna, musical, guerrera o social
     hibernando: { type: Boolean, default: false },
     hibernaDesde: { type: Date, default: null },
     nacida: { type: Date, default: null },
@@ -33,6 +59,11 @@ const MascotaSchema = new mongoose.Schema({
         derrotas: { type: Number, default: 0 },
         racha: { type: Number, default: 0 },
         comida: { type: Number, default: 0 },    // oro que se ha comido en total
+        caricias: { type: Number, default: 0 },
+        entrenos: { type: Number, default: 0 },
+        eventos: { type: Number, default: 0 },   // sorpresas resueltas
+        despertares: { type: Number, default: 0 },
+        mejorRacha: { type: Number, default: 0 },
     },
     // Votación del huevo.
     votacion: {

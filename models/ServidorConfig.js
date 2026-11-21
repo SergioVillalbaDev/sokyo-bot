@@ -834,6 +834,8 @@ const ServidorConfigSchema = new mongoose.Schema({
         saludarNuevos: { type: Boolean, default: true },
         avisos: { type: Boolean, default: true },           // avisos de hambre, subidas de nivel y sustos
         rolCuidadorId: { type: String, default: null },     // rol para el «Cuidador del mes»
+        eventos: { type: Boolean, default: true },          // sorpresas en el canal (tesoro, perdida, adivinanza)
+        eventosPorDia: { type: Number, default: 2 },        // 1-4
     },
     // Liga Sokyo (1.14.0): clasificación mensual de servidores. Los puntos están en
     // models/LigaServidor.js; lógica en utils/liga.js.

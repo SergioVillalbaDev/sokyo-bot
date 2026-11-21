@@ -115,21 +115,25 @@ function pasarTiempo(m, act = {}, horas = 1, ahora = new Date()) {
     const mensajes = Math.max(0, act.mensajes || 0);
     const vozMin = Math.max(0, act.vozMin || 0);
     const incidentes = Math.max(0, act.incidentes || 0);
-    let hambre = (m.hambre ?? 80) - 3 * h;
+    const P = require('./mascotaExtras.js').pers(m); // personalidad (1.15.0)
+    let hambre = (m.hambre ?? 80) - 3 * h * (P.hambre || 1);
     // El servidor vivo la alegra; si está callado, se aburre.
     const animacion = Math.min(15 * Math.max(1, h), mensajes / 4 + vozMin / 15);
-    let alegria = (m.alegria ?? 70) + animacion - 3 * h;
+    let alegria = (m.alegria ?? 70) + animacion - 3 * h * (P.aburre || 1);
+    if (P.accesorio && m.accesorio) alegria += (P.accesorio / 8) * h; // presumida y arreglada
     // Toxicidad (automod, sanciones) la pone mala; bien comida se recupera.
-    let salud = (m.salud ?? 100) - incidentes * 4;
+    let salud = (m.salud ?? 100) - incidentes * 4 * (P.toxicidad || 1);
     if (hambre > 30) salud += 2 * h;
     if (hambre <= 0) salud -= 3 * h;
+    // Energía para entrenar: se recupera sola (más rápido si es dormilona).
+    const energia = clamp((m.energia ?? 100) + 6 * h * (P.energia || 1));
     hambre = clamp(hambre); alegria = clamp(alegria); salud = clamp(salud);
 
-    const cambio = { hambre, alegria, salud };
+    const cambio = { hambre, alegria, salud, energia };
     const avisos = [];
     // XP por lo vivo que está el servidor (no si hiberna).
     if (!m.hibernando) {
-        const xp = Math.min(25 * Math.max(1, h), mensajes / 8 + vozMin / 30);
+        const xp = Math.min(25 * Math.max(1, h), mensajes / 8 + vozMin / 30) * (P.xp || 1);
         const r = sumarXp(m.nivel, m.xp, xp);
         cambio.nivel = r.nivel; cambio.xp = r.xp;
         if (r.subidos) avisos.push({ tipo: 'nivel', nivel: r.nivel, antes: m.nivel });
@@ -170,12 +174,16 @@ function comida(m, oro) {
 // Despierta al comer si ya tiene algo en el estómago.
 const despierta = (m, hambreNueva) => !!m.hibernando && hambreNueva >= 30;
 
-// Fuerza en combate: nivel, cómo está y su forma. Los ánimos suman hasta un 30 %.
+// Fuerza en combate: nivel, cómo está, lo entrenada que está, su forma y su
+// personalidad. Los ánimos suman hasta un 30 % (en combatir).
 function poderDe(m) {
     if (!m) return 0;
-    let p = (m.nivel || 1) * 10 + (m.salud ?? 100) / 2 + (m.alegria ?? 70) / 2 + (m.hambre ?? 80) / 4;
+    const st = m.stats || {};
+    let p = (m.nivel || 1) * 10 + (m.salud ?? 100) / 2 + (m.alegria ?? 70) / 2 + (m.hambre ?? 80) / 4
+        + (m.energia ?? 100) / 5 + (st.fuerza || 5) * 2 + (st.defensa || 5) + (st.agilidad || 5);
     if (m.forma === 'guerrera') p *= 1.15;
     if (ventajasDe(m).includes('leyenda')) p *= 1.10;
+    p *= require('./mascotaExtras.js').pers(m).combate || 1;
     return Math.round(p);
 }
 const extraAnimos = (n) => Math.min(0.3, Math.max(0, n || 0) * 0.02);
@@ -193,15 +201,38 @@ function azarCon(semilla) {
     };
 }
 
-// Al mejor de 3 rondas. a/b: { poder, animos }. Devuelve { ganador: 'a'|'b', rondas }.
+// Al mejor de 3 rondas. a/b: { poder, animos, stats?, especie? }.
+// En cada ronda: la agilidad da golpes críticos (×1,5) y esquivas (el golpe del otro
+// se queda en ×0,6), la defensa quita hasta un 25 % del golpe del otro, y cada especie
+// usa una vez su habilidad especial cuando va perdiendo (mascotaExtras.ESPECIALES).
+// Devuelve { ganador: 'a'|'b', rondas: [{ a, b, eventoA, eventoB }] }.
 function combatir(a, b, azar = Math.random) {
-    const fuerza = (l) => l.poder * (1 + extraAnimos(l.animos));
+    const { ESPECIALES } = require('./mascotaExtras.js');
+    const st = (l, k) => (l.stats && l.stats[k]) || 5;
+    const base = (l) => l.poder * (1 + extraAnimos(l.animos));
+    const usada = { a: false, b: false };
     const rondas = [];
     let va = 0; let vb = 0;
     while (va < 2 && vb < 2) {
-        const ra = Math.round(fuerza(a) * (0.7 + azar() * 0.6));
-        const rb = Math.round(fuerza(b) * (0.7 + azar() * 0.6));
-        rondas.push({ a: ra, b: rb });
+        const tirada = (yo, lado, perdiendo) => {
+            let v = base(yo) * (0.7 + azar() * 0.6);
+            let ev = null;
+            if (azar() < st(yo, 'agilidad') / 250) { v *= 1.5; ev = 'critico'; }
+            const esp = ESPECIALES[yo.especie];
+            if (esp && !usada[lado] && perdiendo) { usada[lado] = true; v *= esp.mult || 1; ev = 'especial'; }
+            return { v, ev };
+        };
+        const ta = tirada(a, 'a', vb > va);
+        const tb = tirada(b, 'b', va > vb);
+        let ra = ta.v * (1 - Math.min(0.25, st(b, 'defensa') / 400));
+        let rb = tb.v * (1 - Math.min(0.25, st(a, 'defensa') / 400));
+        if (ta.ev === 'especial' && ESPECIALES[a.especie]?.reduceRival) rb *= ESPECIALES[a.especie].reduceRival;
+        if (tb.ev === 'especial' && ESPECIALES[b.especie]?.reduceRival) ra *= ESPECIALES[b.especie].reduceRival;
+        let eventoA = ta.ev; let eventoB = tb.ev;
+        if (azar() < st(b, 'agilidad') / 350) { ra *= 0.6; eventoB = eventoB || 'esquiva'; }
+        if (azar() < st(a, 'agilidad') / 350) { rb *= 0.6; eventoA = eventoA || 'esquiva'; }
+        ra = Math.round(ra); rb = Math.round(rb);
+        rondas.push({ a: ra, b: rb, eventoA, eventoB });
         if (ra >= rb) va++; else vb++;
     }
     return { ganador: va > vb ? 'a' : 'b', rondas };
