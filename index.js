@@ -8,7 +8,6 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildInvites,   // Seguimiento de invitaciones (no privilegiado)
         GatewayIntentBits.GuildMembers,   // Necesario para logs de entradas/salidas (intent privilegiado)
         GatewayIntentBits.MessageContent
     ],

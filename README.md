@@ -128,14 +128,6 @@ Abre la URL que indica Vite (normalmente <http://localhost:5173>).
 - Desde el panel web puedes ver conversaciones, responder, añadir notas internas,
   cerrar/reabrir tickets, ver logs y estadísticas, y personalizar textos y categorías.
 
-### 📈 Crecimiento de la comunidad
-
-- **Bienvenida + rol automático** (admins): `!crecimiento` muestra la ayuda
-  (`bienvenida #canal`, `mensaje <texto>`, `rol @rol`, `xp on|off`).
-- **Invitaciones**: el bot detecta qué invitación usó cada nuevo miembro (necesita el permiso
-  *Gestionar servidor*). `!invitaciones [@usuario]` y `!top invitaciones`. Las salidas se restan.
-- **Niveles/XP** por mensajes (cooldown de 60 s): `!nivel [@usuario]` y `!top`.
-
 Otros comandos: `!user [@usuario]` (estadísticas de tickets), `!dado`, `!moneda`.
 
 ---
