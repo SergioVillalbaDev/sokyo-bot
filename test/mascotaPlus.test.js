@@ -137,3 +137,16 @@ describe('Combates con atributos y habilidades', () => {
         assert.ok(gana > 120, `gana ${gana}/200`);
     });
 });
+
+describe('Panel y bot con los mismos datos', () => {
+    test('src/lib/mascota.js coincide con utils/mascotaExtras.js', async () => {
+        const L = await import('../sokyo-panelFRONTEND/src/lib/mascota.js');
+        for (const [id, a] of Object.entries(X.ACCESORIOS)) assert.deepEqual([L.ACCESORIOS[id].svg, L.ACCESORIOS[id].precio, L.ACCESORIOS[id].slot], [a.svg, a.precio, a.slot], id);
+        for (const [id, h] of Object.entries(X.HABITATS)) assert.deepEqual([L.HABITATS[id].precio, L.HABITATS[id].fondo, L.HABITATS[id].decor], [h.precio, h.fondo, h.decor], id);
+        for (const [id, c] of Object.entries(X.COMIDAS)) assert.deepEqual([L.COMIDAS[id].precio, L.COMIDAS[id].efecto], [c.precio, c.efecto], id);
+        assert.deepEqual(Object.keys(L.PERSONALIDADES), Object.keys(X.PERSONALIDADES));
+        assert.deepEqual(L.POSICIONES, X.POSICIONES);
+        assert.deepEqual(L.LOGROS.map((l) => l.id), X.LOGROS.map((l) => l.id));
+        assert.equal(L.ENERGIA_ENTRENO, X.ENERGIA_ENTRENO);
+    });
+});

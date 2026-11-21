@@ -156,7 +156,7 @@ function textoRecuerdo(r, idioma) {
         accesorio: [`🛍️ ${d.quien} le regaló: ${d.es}.`, `🛍️ ${d.quien} gave it: ${d.en}.`],
         habitat: [`🏞️ Se mudó a: ${d.es}.`, `🏞️ Moved to: ${d.en}.`],
         logro: [`🏆 Logro: ${d.es}.`, `🏆 Achievement: ${d.en}.`],
-        evento: [`🎲 ${d.es}`, `🎲 ${d.en}`],
+        evento: [`${d.es}`, `${d.en}`],
     };
     const x = T[r.tipo];
     return x ? (es ? x[0] : x[1]) : '';

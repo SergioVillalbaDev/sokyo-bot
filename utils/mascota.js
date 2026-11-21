@@ -305,6 +305,16 @@ async function pasadaServidor(client, cfg) {
         return;
     }
     ponerCache(m);
+    // Las que nacieron antes de 1.15.0 no tienen personalidad: les toca una ahora.
+    if (!m.personalidad) {
+        const X = require('./mascotaExtras.js');
+        const p = X.personalidadAlAzar();
+        m = (await Mascota.findOneAndUpdate({ _id: m._id, personalidad: null }, { $set: { personalidad: p } }, { returnDocument: 'after' })) || m;
+        if (m.personalidad === p && cfg.mascota?.avisos !== false) {
+            const per = X.PERSONALIDADES[p];
+            await enviarAlCanal(client, cfg, { content: t(cfg, `🧬 **${m.nombre}** ha descubierto quién es: es **${per.es.toLowerCase()}** ${per.emoji}. ${per.desc.es} Ahora también puede entrenar (\`/mascota entrenar\`), tiene tienda (\`/mascota tienda\`) y diario (\`/mascota diario\`).`, `🧬 **${m.nombre}** found out who it is: it’s **${per.en.toLowerCase()}** ${per.emoji}. ${per.desc.en} It can now train (\`/pet train\`), has a shop (\`/pet shop\`) and a diary (\`/pet diary\`).`) });
+        }
+    }
     const ahora = new Date();
     const horas = (ahora - new Date(m.ultimoTick || ahora)) / 3600000;
     if (horas >= 1) {
