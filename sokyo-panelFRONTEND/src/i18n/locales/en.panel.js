@@ -2747,6 +2747,20 @@ export default {
       fights: 'Daily battles', fightsHint: 'The pet fights another one of similar strength every day.',
     },
     casino_v: {
+      howTitle: 'How to play',
+      how: {
+        p1: 'Get gold: /daily every day, voting for the bot, chatting… (plus a free spin a day with /casino daily).',
+        p2: 'Type /casino on Discord and pick a game from the list.',
+        p3: 'Set how much you bet (between 🪙 {{min}} and 🪙 {{max}}) and watch the animation.',
+        p4: 'When it ends, “🔁 Again” replays with one tap. /casino help explains everything on Discord.',
+      },
+      ej: {
+        tragaperras: '/casino slots bet:100', ruleta: '/casino roulette on:Red bet:100', blackjack: '/casino blackjack bet:100',
+        crash: '/casino crash bet:100 auto:2', minas: '/casino mines bet:100 mines:3', moneda: '/casino coinflip side:Heads bet:100',
+        duelo: '/casino duel rival:@someone bet:500', carrera: '/casino race',
+      },
+      postGuide: 'Post the guide in the casino channel', postGuideHint: 'A message with the steps, the commands and a menu to see each game.', postGuideNeed: 'Pick the casino channel first (below, in “Where and how much”).',
+      guidePosted: 'Posted! Pin it in the channel so everyone sees it.',
       intro: 'A casino with the bot’s gold: slots with a jackpot, roulette, blackjack, crash, mines, coin flip, duels between members and races the whole channel can bet on. All animated. Plus chests to collect companions. On Discord: /casino and /chest.',
       virtual: 'Gold is virtual: it can’t be bought or exchanged for money. Games return 94–97% in the long run, so gold slowly leaves the economy.',
       jackpot: 'Slots jackpot', jackpotHint: 'Grows with 2% of every spin. Whoever hits 💎💎💎 takes it.', lastJackpot: 'Last jackpot: {{n}} (🪙 {{p}})',

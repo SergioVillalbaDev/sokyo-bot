@@ -4,7 +4,7 @@
 // pérdidas al día) y se ven los números. Lógica del bot en utils/casino.js y utils/cofres.js.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dices, ShieldCheck, Trophy, Sparkles, Gift, TrendingUp, Settings2 } from 'lucide-react';
+import { Dices, ShieldCheck, Trophy, Sparkles, Gift, TrendingUp, Settings2, BookOpen, Pin } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, CabeceraTarjeta, Campo, SelectCanal, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
@@ -42,9 +42,10 @@ function Cifra({ etiqueta, valor, color }) {
 
 export default function CasinoView({ dash }) {
   const { t, i18n } = useTranslation();
-  const { canales } = dash;
+  const { canales, accionModulo } = dash;
   const { datos, form, set, guardar, estado, autoguardado } = useModulo(dash, 'casino');
   const [cofre, setCofre] = useState('basico');
+  const [guia, setGuia] = useState(null);
 
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
@@ -60,6 +61,33 @@ export default function CasinoView({ dash }) {
     <div className="space-y-5">
       <p className="text-sm text-muted">{t('dashboard.casino_v.intro')}</p>
       <Aviso>{t('dashboard.casino_v.virtual')}</Aviso>
+
+      {/* Cómo se juega */}
+      <div data-help="casino-como" className={tarjeta}>
+        <CabeceraTarjeta icono={BookOpen} titulo={t('dashboard.casino_v.howTitle')} />
+        <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((p) => (
+            <li key={p} className="rounded-2xl border border-line bg-bg p-3">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-amber-400/15 text-sm font-black text-amber-300">{p}</span>
+              <p className="mt-2 text-sm text-fg">{t(`dashboard.casino_v.how.p${p}`, { min: form.apuestaMin ?? 10, max: form.apuestaMax ?? 5000 })}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-4 grid gap-1.5 text-xs sm:grid-cols-2">
+          {JUEGOS.filter((j) => juegos[j] !== false).map((j) => (
+            <code key={j} className="truncate rounded-xl border border-line bg-bg px-3 py-1.5 text-fg">{EMOJI_JUEGO[j]} {t(`dashboard.casino_v.ej.${j}`)}</code>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button type="button" disabled={!form.canalId}
+            onClick={async () => { const r = await accionModulo('casino/guia', 'POST', {}); setGuia(r.error ? { tipo: 'alerta', texto: r.error } : { tipo: 'info', texto: t('dashboard.casino_v.guidePosted') }); }}
+            className="inline-flex items-center gap-2 rounded-2xl bg-brand px-4 py-2 text-sm font-bold text-white shadow-soft hover:opacity-90 disabled:opacity-50">
+            <Pin size={14} /> {t('dashboard.casino_v.postGuide')}
+          </button>
+          <span className="text-xs text-muted">{form.canalId ? t('dashboard.casino_v.postGuideHint') : t('dashboard.casino_v.postGuideNeed')}</span>
+        </div>
+        {guia && <div className="mt-3"><Aviso tipo={guia.tipo}>{guia.texto}</Aviso></div>}
+      </div>
 
       {/* Cabecera: la máquina y el bote */}
       <div data-help="casino-bote" className={`${tarjeta} relative overflow-hidden`}>
