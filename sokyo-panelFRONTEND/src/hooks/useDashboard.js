@@ -513,7 +513,8 @@ export function useDashboard() {
   };
 
   // --- VOZ TEMPORAL (canales de voz Join-to-Create) ---
-  const cargarCanalesVoz = () => apiFetch(`/api/servidor/canales-voz${gp()}`).then(procesarRespuesta).then((datos) => setCanalesVoz(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando canales de voz'));
+  // conEscenarios: también los canales de escenario (para los eventos de Discord).
+  const cargarCanalesVoz = (conEscenarios = false) => apiFetch(`/api/servidor/canales-voz${gp()}${conEscenarios === true ? `${gp() ? '&' : '?'}escenarios=1` : ''}`).then(procesarRespuesta).then((datos) => setCanalesVoz(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando canales de voz'));
   const cargarVozActivos = () => { if (!guildId) return; apiFetch(`/api/config/${guildId}/voztemporal/activos`).then(procesarRespuesta).then((datos) => setVozActivos(Array.isArray(datos) ? datos : [])).catch(reportarError('cargando salas activas')); };
 
   // Guarda la configuración de voz temporal.
@@ -1144,7 +1145,7 @@ export function useDashboard() {
       const res = await apiFetch(`/api/${tipo}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json().catch(() => ({}));
       const recargar = { anuncios: cargarAnuncios, sorteos: cargarSorteos, eventos: cargarEventos, encuestas: cargarEncuestas }[tipo];
-      if (data.success) { if (recargar) await recargar(); return { ok: true, enDiscord: data.enDiscord }; }
+      if (data.success) { if (recargar) await recargar(); return { ok: true, enDiscord: data.enDiscord, errorDiscord: data.errorDiscord || null }; }
       return { error: data.error || 'No se pudo guardar' };
     } catch (error) { console.error(`Error editando ${tipo}:`, error); return { error: 'Network error' }; }
   };
@@ -1679,7 +1680,7 @@ export function useDashboard() {
     else if (activeTab === 'datos-analitica') { cargarConfiguracion(); cargarAnalitica(); }
     else if (activeTab === 'datos-resumen') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'com-sorteos') { cargarSorteos(); cargarCanales(); cargarRoles(); cargarConfiguracion(); }
-    else if (activeTab === 'com-eventos') { cargarEventos(); cargarCanales(); }
+    else if (activeTab === 'com-eventos') { cargarEventos(); cargarCanales(); cargarCanalesVoz(true); }
     else if (activeTab === 'com-encuestas') { cargarEncuestas(); cargarCanales(); }
     else if (activeTab === 'com-sugerencias') { cargarSugerencias(); cargarCanales(); cargarConfiguracion(); }
     else if (activeTab === 'com-presentaciones') { cargarPresentaciones(); cargarCanales(); cargarRoles(); cargarConfiguracion(); }

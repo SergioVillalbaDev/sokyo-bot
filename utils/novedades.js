@@ -6,6 +6,13 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.10.0': [
+        { tab: 'crec-votos', es: '🗳️ /votar: vota por el bot en top.gg cada 12 horas y gana oro (el doble el fin de semana). Cada servidor puede dar además un rol, XP y un mensaje de gracias.', en: '🗳️ /vote: vote for the bot on top.gg every 12 hours and earn gold (double on weekends). Each server can also give a role, XP and a thank-you message.' },
+        { tab: 'com-temporadas', es: '🏆 Temporadas: un ranking que vuelve a empezar cada mes (o semana) sin tocar los niveles. Premios de oro para el podio y rol de campeón para el ganador. Míralo con /temporada.', en: '🏆 Seasons: a ranking that starts over every month (or week) without touching levels. Gold for the podium and a champion role for the winner. Check it with /season.' },
+        { tab: 'crec-red', es: '🤝 Red Sokyo: los servidores que la activan se recomiendan entre sí. El tuyo sale en los demás y ellos en el tuyo, por turnos justos.', en: '🤝 Sokyo Network: servers that turn it on recommend each other. Yours shows up in theirs and theirs in yours, in fair turns.' },
+        { tab: 'com-eventos', es: '📅 Los eventos salen también en la pestaña «Eventos» de Discord, y puedes dar oro o XP a quien esté en el canal cuando empiece.', en: '📅 Events also show up in Discord’s “Events” tab, and you can give gold or XP to whoever is in the channel when it starts.' },
+        { es: '🤝 /referidos: recomienda Sokyo a otros servidores y gana días de Premium para el tuyo.', en: '🤝 /referrals: recommend Sokyo to other servers and earn Premium days for yours.' },
+    ],
     '1.9.17': [
         { tab: 'config-acceso', es: '🔒 «Acceso al panel» se cumple también en Música, Anuncios programados y Emojis y stickers: quien no tenga esa sección permitida ya no puede cambiarla.', en: '🔒 “Panel access” now also applies to Music, Scheduled announcements and Emojis & stickers: anyone without that section allowed can no longer change it.' },
     ],

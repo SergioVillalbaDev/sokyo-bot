@@ -9,6 +9,8 @@ const ServidorConfig = require('../models/ServidorConfig.js');
 const { t } = require('./i18n.js');
 
 const MAX_VISTOS = 20;
+// El bot está en el servidor y Discord no lo marca para adultos (nsfwLevel 1 explícito, 3 con edad).
+const apto = (client, id) => { const g = client.guilds.cache.get(id); return !!g && ![1, 3].includes(g.nsfwLevel); };
 const horasEntre = (n) => Math.max(6, Math.min(168, parseInt(n, 10) || 24));
 
 // ¿Puede salir en los demás? Red activa con canal + página pública listada en el directorio.
@@ -59,7 +61,7 @@ function mensajeRed(receptorCfg, guild, cfg) {
 async function barrerRed(client) {
     const cfgs = await ServidorConfig.find({ 'crecimiento.red.activo': true })
         .select('guildId idioma crecimiento.red crecimiento.pagina').lean();
-    const visibles = cfgs.filter((c) => esVisible(c) && client.guilds.cache.has(c.guildId))
+    const visibles = cfgs.filter((c) => esVisible(c) && apto(client, c.guildId))
         .map((c) => ({ guildId: c.guildId, idioma: c.idioma, mostrado: c.crecimiento.red.mostrado || 0, cfg: c }));
     const ahora = Date.now();
     for (const receptor of cfgs) {
@@ -92,7 +94,7 @@ async function barrerRed(client) {
 // Para el panel: cuántos hay en la red y si este servidor sale en los demás.
 async function estadoRed(client, cfg) {
     const cfgs = await ServidorConfig.find({ 'crecimiento.red.activo': true }).select('guildId idioma crecimiento.red crecimiento.pagina').lean();
-    const visibles = cfgs.filter((c) => esVisible(c) && client.guilds.cache.has(c.guildId));
+    const visibles = cfgs.filter((c) => esVisible(c) && apto(client, c.guildId));
     const p = cfg.crecimiento?.pagina || {};
     return {
         enLaRed: visibles.length,

@@ -1701,10 +1701,12 @@ app.get('/api/stats/uso', async (req, res) => {
         try {
             const guild = await resolverGuild(req.query.guildId, req.staff);
             if (!guild) return res.json([]);
+            // ?escenarios=1 (eventos de Discord, 1.10.0): también los de escenario, con su tipo.
+            const conEscenarios = req.query.escenarios === '1';
             const canales = guild.channels.cache
-                .filter((c) => c.type === ChannelType.GuildVoice)
+                .filter((c) => c.type === ChannelType.GuildVoice || (conEscenarios && c.type === ChannelType.GuildStageVoice))
                 .sort((a, b) => a.position - b.position)
-                .map((c) => ({ id: c.id, nombre: c.name }));
+                .map((c) => (conEscenarios ? { id: c.id, nombre: c.name, tipo: c.type === ChannelType.GuildStageVoice ? 'escenario' : 'voz' } : { id: c.id, nombre: c.name }));
             res.json(canales);
         } catch (error) {
             console.error('Error al obtener canales de voz:', error);

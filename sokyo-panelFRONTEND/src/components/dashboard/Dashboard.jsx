@@ -85,6 +85,9 @@ const CARGAR_VISTA = {
   AusenteView: () => import('./views/AusenteView'),
   MensajesFijosView: () => import('./views/MensajesFijosView'),
   ContadoresView: () => import('./views/ContadoresView'),
+  CrecVotosView: () => import('./views/CrecVotosView'),
+  CrecRedView: () => import('./views/CrecRedView'),
+  TemporadasView: () => import('./views/TemporadasView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
 
@@ -372,6 +375,9 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'prod-ausente') return <V.AusenteView dash={dash} />;
     if (activeTab === 'prod-fijos') return <V.MensajesFijosView dash={dash} />;
     if (activeTab === 'crec-contadores') return <V.ContadoresView dash={dash} />;
+    if (activeTab === 'crec-votos') return <V.CrecVotosView dash={dash} />;
+    if (activeTab === 'crec-red') return <V.CrecRedView dash={dash} />;
+    if (activeTab === 'com-temporadas') return <V.TemporadasView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };
