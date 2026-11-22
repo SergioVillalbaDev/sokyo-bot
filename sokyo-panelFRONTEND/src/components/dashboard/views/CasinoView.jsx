@@ -252,7 +252,7 @@ export default function CasinoView({ dash }) {
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <Avatar src={a.avatar} name={a.nombre} size={22} />
                     <span className="min-w-0 flex-1 truncate text-fg"><b>{a.nombre}</b> <span className="text-muted">→</span> {a.custom ? a.custom.nombre : t(`dashboard.casino_v.comp.${a.companero}`)}</span>
-                    <img src={a.custom ? `${API_URL}${a.custom.imagen}` : svgMascota(COMPANEROS[a.companero]?.svg)} alt="" className={`h-6 w-6 ${a.custom ? 'rounded-full object-cover' : ''}`} />
+                    <img src={a.custom ? (/^https?:/.test(a.custom.imagen || '') ? a.custom.imagen : `${API_URL}${a.custom.imagen}`) : svgMascota(COMPANEROS[a.companero]?.svg)} alt="" className={`h-6 w-6 ${a.custom ? 'rounded-full object-cover object-top' : ''}`} />
                     <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${RAREZAS[a.rareza].color}22`, color: RAREZAS[a.rareza].color }}>{t(`dashboard.casino_v.rareza.${a.rareza}`)}</span>
                   </li>
                 ))}

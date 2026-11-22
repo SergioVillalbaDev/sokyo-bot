@@ -120,7 +120,8 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
                 colSet.poderUsado = new Date(ahora);
                 efecto = 'nivel';
                 frase = P.frase(m, 'poder', { idioma, dueno, ahora });
-                if (r.oro) { oro += r.oro; mensajes.push(t(idioma, `${r.emoji} **Olfato:** ha encontrado 🪙 ${r.oro}.`, `${r.emoji} **Sniff:** found 🪙 ${r.oro}.`)); }
+                if (r.nombre) mensajes.push(`${r.emoji} **${t(idioma, r.nombre.es, r.nombre.en)}**`);
+                if (r.oro) { oro += r.oro; mensajes.push(r.nombre ? t(idioma, `🪙 Consigue ${r.oro} de oro.`, `🪙 Gets ${r.oro} gold.`) : t(idioma, `${r.emoji} **Olfato:** ha encontrado 🪙 ${r.oro}.`, `${r.emoji} **Sniff:** found 🪙 ${r.oro}.`)); }
                 if (r.buff) {
                     colSet.buff = r.buff;
                     mensajes.push(t(idioma, `${r.emoji} **+${Math.round(r.buff.xp * 100)} % de XP** hasta <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`, `${r.emoji} **+${Math.round(r.buff.xp * 100)}% XP** until <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`));
@@ -139,7 +140,18 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
                     recoger();
                 }
                 if (r.lleno) { Object.assign(m, { hambre: 100, alegria: 100, energia: 100, actualizado: new Date(ahora) }); mensajes.push(t(idioma, `${r.emoji} Barriga, alegría y energía al 100.`, `${r.emoji} Tummy, joy and energy at 100.`)); }
-                if (!r.oro && !r.buff && !r.escudoHasta && !r.volver && !r.lleno) mensajes.push(`${def.emoji} ${t(idioma, def.es, def.en)}`);
+                else if (r.energia || r.alegria) {
+                    const e = P.estado(m, ahora);
+                    Object.assign(m, e, r.energia ? { energia: 100 } : {}, r.alegria ? { alegria: 100 } : {}, { actualizado: new Date(ahora) });
+                    mensajes.push(r.energia && r.alegria ? t(idioma, '⚡💖 Energía y alegría al 100.', '⚡💖 Energy and joy at 100.') : r.energia ? t(idioma, '⚡ Energía al 100.', '⚡ Energy at 100.') : t(idioma, '💖 Alegría al 100.', '💖 Joy at 100.'));
+                }
+                if (r.afinidad) { m.afinidad = (m.afinidad || 0) + r.afinidad; mensajes.push(t(idioma, `💞 +${r.afinidad} de afinidad.`, `💞 +${r.afinidad} affinity.`)); }
+                if (r.recuerdo !== undefined && r.recuerdo !== null) {
+                    const rec = P.RECUERDOS[r.recuerdo];
+                    if (!(m.recuerdos || []).includes(r.recuerdo)) m.recuerdos = [...(m.recuerdos || []), r.recuerdo];
+                    mensajes.push(t(idioma, `🎒 Encuentra un recuerdo: ${rec[0]} ${rec[1]}`, `🎒 Finds a souvenir: ${rec[0]} ${rec[2]}`));
+                }
+                if (!r.oro && !r.buff && !r.escudoHasta && !r.volver && !r.lleno && !r.energia && !r.alegria && !r.afinidad && r.recuerdo === undefined) mensajes.push(`${def.emoji} ${t(idioma, def.es, def.en)}`);
             }
         } else if (que.startsWith('exp:')) {
             const r = P.salir(m, que.slice(4), col.expHoy, dia, ahora);
@@ -254,6 +266,8 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
             ...(res.mensajes || []),
             res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin)}` : '',
             def.desc ? `*${def.desc}*` : '',
+            def.serie ? `📺 ${def.serie}` : '',
+            poder.nombre && !(res.mensajes || []).some((x) => x.includes(t(idioma, poder.nombre.es, poder.nombre.en))) ? t(idioma, `${poder.emoji} **${poder.nombre.es}** — ${P.textoEfecto(poder.efecto, 'es')}`, `${poder.emoji} **${poder.nombre.en}** — ${P.textoEfecto(poder.efecto, 'en')}`) : '',
         ].filter(Boolean).join('\n') || null)
         .addFields(
             { name: t(idioma, '📋 Misiones de hoy', '📋 Today’s missions'), value: misiones, inline: true },
@@ -282,7 +296,8 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         new ButtonBuilder().setCustomId(cid('mimar')).setEmoji('🤗').setLabel(t(idioma, 'Mimar', 'Cuddle')).setStyle(ButtonStyle.Primary).setDisabled(fuera),
         new ButtonBuilder().setCustomId(cid('hablar')).setEmoji('💬').setLabel(t(idioma, 'Hablar', 'Talk')).setStyle(ButtonStyle.Secondary).setDisabled(fuera),
         new ButtonBuilder().setCustomId(cid('poder')).setEmoji(poder.emoji).setStyle(faltaP ? ButtonStyle.Secondary : ButtonStyle.Danger).setDisabled(!!faltaP)
-            .setLabel(faltaP ? t(idioma, `Poder en ${tiempo(faltaP * 60000, idioma)}`, `Power in ${tiempo(faltaP * 60000, idioma)}`) : t(idioma, '¡Poder!', 'Power!')),
+            .setLabel(faltaP ? t(idioma, `Poder en ${tiempo(faltaP * 60000, idioma)}`, `Power in ${tiempo(faltaP * 60000, idioma)}`)
+                : poder.nombre ? t(idioma, poder.nombre.es, poder.nombre.en).split(':')[0].slice(0, 40) : t(idioma, '¡Poder!', 'Power!')),
     )];
     if (!fuera) {
         filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_exp:${ownerId}:${m.id}`)

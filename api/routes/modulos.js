@@ -870,7 +870,9 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             ]);
             const ColeccionMascotas = require('../../models/ColeccionMascotas.js');
             const duenos = await Promise.all(lista.map((c) => ColeccionMascotas.countDocuments({ 'mascotas.id': `s:${guild.id}:${c.cid}` })));
-            res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: MAX_COMPIS, ...resumen });
+            const cfg = await cfgDe(guild.id);
+            res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: MAX_COMPIS, ...resumen,
+                anime: { activo: !!cfg.compis?.anime, fuera: cfg.compis?.animeFuera || [], total: KC.ANIME.size, cofres: cfg.casino?.activo && cfg.casino?.cofres !== false } });
         } catch (e) { console.error('GET compis:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
     router.post(ruta('compis'), async (req, res) => {
@@ -887,6 +889,32 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             KC.registrarPersonalizado({ ...c.toObject(), id: `s:${guild.id}:${cid}` });
             res.json({ success: true, compi: formaCompi(c) });
         } catch (e) { console.error('POST compis:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+    // Pack anime (1.22.0): la lista entera (para la galería) y activarlo / quitar series.
+    router.get(ruta('compis/anime'), async (req, res) => {
+        const guild = guildDe(req, res); if (!guild) return;
+        const P = require('../../utils/compisNucleo.js');
+        const en = String(req.get('X-Sokyo-Lang') || req.get('Accept-Language') || '').toLowerCase().startsWith('en');
+        res.json({ personajes: [...KC.ANIME.entries()].map(([id, c]) => {
+            const e = P.efectoAnime({ id });
+            return { id, nombre: c.es, serie: c.serie, rareza: c.rareza, imagen: c.imagen,
+                poder: c.poder ? { tipo: c.poder.tipo, emoji: P.ARQUETIPOS[c.poder.tipo]?.emoji, nombre: en ? c.poder.en : c.poder.es, efecto: e ? P.textoEfecto(e, en ? 'en' : 'es') : '' } : null };
+        }) });
+    });
+    router.put(ruta('compis/anime'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            await cfgDe(guild.id);
+            const set = {};
+            if (b.activo !== undefined) set['compis.anime'] = !!b.activo;
+            if (b.fuera !== undefined) {
+                const series = new Set([...KC.ANIME.values()].map((c) => c.serie));
+                set['compis.animeFuera'] = [...new Set((Array.isArray(b.fuera) ? b.fuera : []).map(String))].filter((x) => series.has(x)).slice(0, 400);
+            }
+            const nueva = await guardar(guild.id, set);
+            res.json({ success: true, anime: { activo: !!nueva.compis?.anime, fuera: nueva.compis?.animeFuera || [] } });
+        } catch (e) { console.error('PUT compis/anime:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
     router.put(ruta('compis/:cid'), async (req, res) => {
         try {

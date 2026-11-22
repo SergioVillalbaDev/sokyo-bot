@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.21.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.22.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.22.0 **Pack anime**: `data/animePack.json` (643 personajes de AniList: `id`, `n` nombre, `s` serie, `r` rareza por
+  popularidad, `v` voz, `i` archivo de la foto en `s4.anilist.co/.../character/large/`). Se regenera con un script que pide a
+  la API GraphQL de AniList los personajes por `FAVOURITES_DESC` (no está en el repo; las fotos no se guardan en git).
+  En `utils/cofresNucleo.js`: `ANIME` (id `a:<idAniList>`), `K.def` lo incluye, `idsAnime(fuera)`, `esAnime`, `esExtra`
+  (servidor o anime). Kurumi Tokisaki (`KURUMI`) es la única divina del pack (con `frases` [es, en] y `titulo`). Solo sale en
+  los cofres de los servidores con `cfg.compis.anime` y sin sus `cfg.compis.animeFuera` (`cofres.extrasDe`). Las fotos se
+  bajan al usarse a `cache/anime` (`casinoArte.imagenAnime`, solo de s4.anilist.co). API `GET/PUT /modulos/compis/anime`
+  (antes que `compis/:cid`). Panel: tarjeta «Pack anime» en `CompisView.jsx` (`dashboard.compis_v.anime.*`). Va gratis
+  para todos (las condiciones de la API de AniList son para uso no comercial): no lo pongas detrás de Premium.
+  **Poder de cada personaje**: `data/animePoderes.txt` (`idAniList|tipo|nombre es|nombre en|# nombre`), lo lee
+  `cofresNucleo` (`PODERES_ANIME`, `def(id).poder`). `compisNucleo.ARQUETIPOS` dice qué hace cada tipo (oro, XP con
+  duración, escudo, volver de expedición, llenar, energía, alegría, afinidad, recuerdo; `caos` = uno al azar) y `FUERZA`
+  lo escala por rareza (`efectoAnime`, `textoEfecto`); la divina suma la Bendición. Si se regenera el pack, añade aquí
+  los nuevos (el test exige que no falte ninguno).
 - 1.21.0 **Más compañeros por rareza**: `RAREZAS` tiene también `bromas` (descuento, tope 60 %), `liga` (puntos extra al
   impulsar) y `expedicion` (más oro); `K.ventajas` los devuelve y se aplican en `bromas.gastar` (no en devoluciones),
   `liga.impulsar` y `compisNucleo.botin`. `compisNucleo`: `INTERACCIONES` (se desbloquean por `rareza` = orden mínimo, con

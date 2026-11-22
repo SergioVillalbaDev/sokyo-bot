@@ -109,14 +109,52 @@ function rarezaAlAzar(cofre, azar, sinEpica = 0) {
 const PERSONALIZADOS = new Map();
 const RAREZAS_PERSONALIZADAS = ['comun', 'rara', 'epica', 'legendaria', 'mitica'];
 const esPersonalizado = (id) => typeof id === 'string' && id.startsWith('s:');
+// Fuera del catálogo fijo (de un servidor o del Pack anime).
+const esExtra = (id) => typeof id === 'string' && (id.startsWith('s:') || id.startsWith('a:'));
 function registrarPersonalizado(c) {
     if (!c || !c.id || !RAREZAS_PERSONALIZADAS.includes(c.rareza)) return;
     PERSONALIZADOS.set(c.id, { rareza: c.rareza, svg: null, imagen: c.imagen || null, emoji: c.emoji || '⭐', es: c.nombre, en: c.nombre, tipo: 'servidor', voz: c.voz || 'tierno', frases: c.frases || [], guildId: c.guildId, desc: c.desc || '', activo: c.activo !== false });
 }
 const olvidarPersonalizado = (id) => PERSONALIZADOS.delete(id);
+
+// Pack anime (1.22.0): personajes de anime populares sacados de AniList (data/animePack.json:
+// id de AniList, nombre, serie, rareza por popularidad, voz e imagen). Las fotos se cargan
+// de AniList al usarse (no van en el repo). Solo salen en los cofres de los servidores que
+// lo activan (cfg.compis.anime). Su id es «a:<idAniList>». Kurumi Tokisaki es DIVINA.
+const ANILIST_IMG = 'https://s4.anilist.co/file/anilistcdn/character/large/';
+const KURUMI = 70069;
+const FRASES_KURUMI = [
+    ['Ara ara… ¿vienes a visitarme, {d}? Qué detalle.', 'Ara ara… coming to visit me, {d}? How sweet.'],
+    ['El tiempo es lo más valioso que tengo. Hoy te regalo un poco.', 'Time is the most precious thing I have. Today I’ll give you some.'],
+    ['*el reloj de su ojo marca las doce*', '*the clock in her eye strikes twelve*'],
+    ['Tic, tac… ¿lo oyes? Es el sonido de pasar el rato contigo.', 'Tick, tock… hear that? That’s the sound of spending time with you.'],
+    ['Podría parar el tiempo… pero prefiero que dure esto.', 'I could stop time… but I’d rather this lasted.'],
+    ['Qué suerte tienes. Muy pocos llegan a conocerme.', 'How lucky you are. Very few ever get to meet me.'],
+];
+// Poder de cada personaje según su personalidad (data/animePoderes.txt: id|tipo|es|en).
+const PODERES_ANIME = new Map();
+for (const l of require('fs').readFileSync(require('path').join(__dirname, '..', 'data', 'animePoderes.txt'), 'utf8').split('\n')) {
+    if (!l.trim() || l.startsWith('#')) continue;
+    const [id, tipo, es, en] = l.split('|');
+    PODERES_ANIME.set(Number(id), { tipo: tipo.trim(), es: es.trim(), en: (en && !en.startsWith('#') ? en : es).trim() });
+}
+const ANIME = new Map();
+for (const c of require('../data/animePack.json')) {
+    ANIME.set(`a:${c.id}`, {
+        rareza: c.r, svg: null, imagen: ANILIST_IMG + c.i, emoji: c.id === KURUMI ? '🕰️' : '🌸', es: c.n, en: c.n,
+        tipo: 'anime', serie: c.s, voz: c.v, anilist: c.id, poder: PODERES_ANIME.get(c.id) || null,
+        ...(c.id === KURUMI ? { titulo: { es: '🕰️ Dueño del tiempo', en: '🕰️ Master of time' }, frases: FRASES_KURUMI } : {}),
+    });
+}
+const esAnime = (id) => typeof id === 'string' && id.startsWith('a:');
+// Ids del pack que pueden salir aquí (sin las series que el servidor ha quitado).
+function idsAnime(fuera = []) {
+    const quitar = new Set(fuera);
+    return [...ANIME.entries()].filter(([, c]) => !quitar.has(c.serie)).map(([id]) => id);
+}
 // Datos de un compañero (del catálogo o de un servidor). Nunca devuelve undefined.
 function def(id) {
-    return COMPANEROS[id] || PERSONALIZADOS.get(id) || { rareza: 'comun', svg: null, emoji: '❔', es: 'Compañero perdido', en: 'Lost companion', perdido: true };
+    return COMPANEROS[id] || PERSONALIZADOS.get(id) || ANIME.get(id) || { rareza: 'comun', svg: null, emoji: '❔', es: 'Compañero perdido', en: 'Lost companion', perdido: true };
 }
 function companeroAlAzar(rareza, azar, extra = []) {
     const lista = [...Object.keys(COMPANEROS).filter((id) => COMPANEROS[id].rareza === rareza), ...extra.filter((id) => def(id).rareza === rareza)];
@@ -151,4 +189,4 @@ function ventajas(id, estrellas = 1, extra = 0) {
     return { xp: red(r.xp), diario: red(r.diario), vuelta: red(r.vuelta), bromas: Math.min(0.6, red(r.bromas)), liga: red(r.liga), expedicion: red(r.expedicion) };
 }
 
-module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado };
+module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado, esExtra, ANIME, esAnime, idsAnime, KURUMI, PODERES_ANIME };
