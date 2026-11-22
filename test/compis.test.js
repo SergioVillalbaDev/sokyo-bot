@@ -78,7 +78,7 @@ describe('Necesidades', () => {
 
 describe('Expediciones, misiones y racha', () => {
     test('salir gasta energía, tiene tope diario y luego trae botín', () => {
-        const m = { id: 'kaede', hambre: 80, alegria: 80, energia: 70, actualizado: new Date(T0) };
+        const m = { id: 'ren', hambre: 80, alegria: 80, energia: 70, actualizado: new Date(T0) };
         const s = P.salir(m, 'aventura', { dia: '2026-11-22', n: 0 }, '2026-11-22', T0);
         assert.equal(s.energia, 30); assert.equal(s.usadas, 1);
         assert.equal(P.salir({ ...m, energia: 10 }, 'aventura', null, '2026-11-22', T0).fallo, 'energia');
@@ -162,104 +162,123 @@ describe('1.21.0: interacciones por rareza, poderes y ventajas', () => {
     });
 });
 
-describe('1.22.0: Pack anime', () => {
+describe('Pack anime: los personajes', () => {
     test('más de 500 personajes, con serie, foto de AniList y rareza válida', () => {
         assert.ok(K.ANIME.size >= 500);
         for (const [id, c] of K.ANIME) {
             assert.ok(/^a:\d+$/.test(id) && c.es && c.serie, id);
             assert.ok(c.imagen.startsWith('https://s4.anilist.co/'), id);
             assert.ok(K.RAREZAS[c.rareza], id);
-            assert.ok(VOCES[c.voz], `${id} voz ${c.voz}`);
         }
         const r = {}; for (const c of K.ANIME.values()) r[c.rareza] = (r[c.rareza] || 0) + 1;
         assert.ok(r.comun > r.rara && r.rara > r.epica && r.epica > r.legendaria && r.legendaria > r.mitica);
     });
-    test('Kurumi Tokisaki es la única divina del pack y tiene frases propias', () => {
+    test('Kurumi Tokisaki es la única carta divina', () => {
         const divinas = [...K.ANIME.entries()].filter(([, c]) => c.rareza === 'divina');
         assert.deepEqual(divinas.map(([id]) => id), [`a:${K.KURUMI}`]);
-        const f = P.frase({ id: `a:${K.KURUMI}` }, 'hablar', { idioma: 'en', dueno: 'Ana', azar: () => 0 });
-        assert.ok(f.includes('Ana'), f);
     });
-    test('solo sale en los servidores que lo activan y sin las series quitadas', () => {
-        const cofres = require('../utils/cofres.js');
-        assert.equal(cofres.extrasDe('1', { compis: { anime: false } }).length, 0);
-        const todos = cofres.extrasDe('1', { compis: { anime: true } });
-        assert.equal(todos.length, K.ANIME.size);
-        const cfgDAL = { compis: { anime: true, animeFuera: ['Date A Live'] } };
-        const quitados = cofres.quitadosDe(cfgDAL);
-        assert.ok(quitados.has(`a:${K.KURUMI}`));
-        for (let i = 0; i < 300; i++) assert.notEqual(K.companeroAlAzar('divina', Math.random, cofres.extrasDe('1', cfgDAL), quitados), `a:${K.KURUMI}`);
-        // Con el pack, una tirada divina puede dar el dragón o Kurumi.
-        const salen = new Set();
-        for (let i = 0; i < 50; i++) salen.add(K.companeroAlAzar('divina', Math.random, todos));
-        assert.deepEqual([...salen].sort(), [`a:${K.KURUMI}`, 'celestial']);
-        assert.ok(K.ventajas(`a:${K.KURUMI}`, 1).xp === K.RAREZAS.divina.xp);
-    });
-});
-
-describe('1.22.0: un poder para cada personaje del Pack anime', () => {
-    test('todos tienen poder propio, con nombre en los dos idiomas y un tipo que existe', () => {
+    test('todos tienen su poder, con nombre en los dos idiomas y un tipo que existe', () => {
         const tipos = new Set();
         for (const [id, c] of K.ANIME) {
-            assert.ok(c.poder, `${id} ${c.es} sin poder`);
-            assert.ok(P.ARQUETIPOS[c.poder.tipo], `${id} tipo ${c.poder.tipo}`);
-            assert.ok(c.poder.es && c.poder.en, id);
+            assert.ok(c.poder && P.ARQUETIPOS[c.poder.tipo] && c.poder.es && c.poder.en, id);
             tipos.add(c.poder.tipo);
         }
-        assert.ok(tipos.size >= 20, `solo ${tipos.size} tipos`);
+        assert.ok(tipos.size >= 20);
         assert.equal(K.PODERES_ANIME.size, K.ANIME.size);
     });
-    test('la rareza decide la fuerza y la divina además bendice', () => {
-        const comun = [...K.ANIME.entries()].find(([, c]) => c.rareza === 'comun' && c.poder.tipo === 'espada')[0];
-        const mitica = [...K.ANIME.entries()].find(([, c]) => c.rareza === 'mitica' && c.poder.tipo === 'espada')[0]; // Levi
-        assert.ok(P.efectoAnime({ id: mitica }).xp > P.efectoAnime({ id: comun }).xp);
-        const k = P.efectoAnime({ id: `a:${K.KURUMI}` });
-        assert.ok(k.volver && k.lleno && k.xp === 1);
-        assert.ok(P.poderDe({ id: `a:${K.KURUMI}` }).nombre.es.startsWith('Zafkiel'));
-    });
-    test('usar el poder de un personaje del pack', () => {
-        const base = { hambre: 50, alegria: 50, energia: 50, actualizado: new Date(T0) };
-        for (const [id] of [...K.ANIME.entries()].slice(0, 120)) {
-            const r = P.usarPoder({ id, ...base }, {}, { ahora: T0, bromas: true, azar: () => 0.5 });
-            assert.equal(r.id, 'anime', id);
-            assert.ok(r.oro || r.buff || r.escudoHasta || r.lleno || r.energia || r.alegria || r.afinidad || r.recuerdo !== undefined, `${id} no hace nada`);
-        }
-        // Sin bromas, el escudo se cambia por XP.
-        const sombra = [...K.ANIME.entries()].find(([, c]) => c.poder.tipo === 'defensa')[0];
-        const sin = P.usarPoder({ id: sombra, ...base }, {}, { ahora: T0, bromas: false });
-        assert.ok(!sin.escudoHasta && sin.buff);
-        // Kurumi devuelve la expedición al momento.
-        const fuera = P.usarPoder({ id: `a:${K.KURUMI}`, ...base, exp: { tipo: 'viaje', hasta: new Date(T0 + 5 * H) } }, {}, { ahora: T0 });
-        assert.ok(fuera.volver && fuera.lleno && fuera.buff.xp === 1);
-        assert.ok(P.textoEfecto(P.efectoAnime({ id: `a:${K.KURUMI}` }), 'en').includes('XP'));
+    test('ya no salen en los cofres de mascotas', () => {
+        const cofres = require('../utils/cofres.js');
+        assert.equal(cofres.extrasDe('1', { compis: { anime: true } }).length, 0);
+        for (let i = 0; i < 300; i++) assert.ok(!K.esAnime(K.companeroAlAzar('divina', Math.random, cofres.extrasDe('1', { compis: { anime: true } }))));
     });
 });
 
-describe('1.22.1: quitar series no hace trampa', () => {
+describe('1.24.0: cartas de anime', () => {
+    const S = require('../utils/cartasNucleo.js');
     const cofres = require('../utils/cofres.js');
-    test('quitarlo todo menos una serie no sube la probabilidad de sus personajes', () => {
-        const series = [...new Set([...K.ANIME.values()].map((c) => c.serie))];
-        const cfg = { compis: { anime: true, animeFuera: series.filter((s) => s !== 'JUJUTSU KAISEN') } };
-        const extra = cofres.extrasDe('1', cfg); const quitados = cofres.quitadosDe(cfg);
-        // Con el mismo número al azar, o sale lo mismo que sin quitar nada, o uno del catálogo (nunca otro anime).
-        for (const rareza of ['comun', 'rara', 'epica', 'legendaria', 'mitica']) {
-            for (let i = 0; i < 400; i++) {
-                const a = Math.random(); const b = Math.random();
-                const seq = (x) => { let n = 0; return () => (n++ === 0 ? a : x); };
-                const conTodo = K.companeroAlAzar(rareza, seq(b), extra);
-                const conTrampa = K.companeroAlAzar(rareza, seq(b), extra, quitados);
-                if (K.esAnime(conTrampa)) assert.equal(conTrampa, conTodo, rareza);
-                else assert.ok(K.COMPANEROS[conTrampa], conTrampa);
-            }
+    const T = Date.UTC(2026, 10, 22, 12);
+    test('los sobres suman 100 y traen 3 cartas, con su garantía', () => {
+        for (const [id, x] of Object.entries(S.SOBRES)) assert.ok(Math.abs(Object.values(x.prob).reduce((a, b) => a + b, 0) - 100) < 1e-9, id);
+        for (let i = 0; i < 200; i++) {
+            const r = S.abrirSobre({}, 'legendario', Math.random);
+            assert.equal(r.cartas.length, 3);
+            assert.ok(K.RAREZAS[r.cartas[2].rareza].orden >= 3);
+            const b = S.abrirSobre({}, 'brillante', Math.random);
+            assert.ok(K.RAREZAS[b.cartas[2].rareza].orden >= 2);
         }
-        // Gojo (mítico) sale lo mismo con o sin quitar las demás series.
-        let gojoTodo = 0; let gojoTrampa = 0; const N = 20000;
-        for (let i = 0; i < N; i++) {
-            const a = Math.random(); const b = Math.random();
-            const seq = () => { let n = 0; return () => (n++ === 0 ? a : b); };
-            if (K.companeroAlAzar('mitica', seq(), extra) === 'a:127691') gojoTodo++;
-            if (K.companeroAlAzar('mitica', seq(), extra, quitados) === 'a:127691') gojoTrampa++;
+        // La divina no sale en el sobre normal
+        assert.equal(S.SOBRES.normal.prob.divina, 0);
+    });
+    test('piedad y repetidas', () => {
+        const r = S.abrirSobre({ sinEpicaCartas: S.PIEDAD - 1 }, 'normal', () => 0.01);
+        assert.ok(r.piedad && r.cartas.some((c) => K.RAREZAS[c.rareza].orden >= 2));
+        const ya = r.cartas[0].id;
+        const otra = S.abrirSobre({ cartas: [{ id: ya, estrellas: 5 }] }, 'normal', () => 0.01);
+        const misma = otra.cartas.find((c) => c.id === ya);
+        if (misma) { assert.equal(misma.estrellas, 5); assert.ok(misma.devuelto > 0); }
+    });
+    test('quitar series no sube la probabilidad de ninguna carta (y da oro a cambio)', () => {
+        const series = [...new Set([...K.ANIME.values()].map((c) => c.serie))];
+        const cfg = { compis: { anime: true, animeFuera: series.filter((x) => x !== 'JUJUTSU KAISEN') } };
+        const quitados = cofres.quitadosDe(cfg);
+        let gojoTodo = 0; let gojoTrampa = 0; let oro = 0;
+        for (let i = 0; i < 4000; i++) {
+            const a = Math.random(); const b = Math.random(); const c = Math.random();
+            const seq = () => { const v = [a, b, c, a, b, c, a, b, c, a]; let n = 0; return () => v[n++ % v.length]; };
+            const x = S.abrirSobre({}, 'legendario', seq());
+            const y = S.abrirSobre({}, 'legendario', seq(), quitados);
+            gojoTodo += x.cartas.filter((k) => k.id === 'a:127691').length;
+            gojoTrampa += y.cartas.filter((k) => k.id === 'a:127691').length;
+            oro += y.devuelto;
         }
         assert.equal(gojoTrampa, gojoTodo);
+        assert.ok(oro > 0);
+    });
+    test('usar una carta: recarga de 20 h y tope al día', () => {
+        const m = { id: 'gato', hambre: 50, alegria: 50, energia: 50, actualizado: new Date(T) };
+        const col = { cartas: [{ id: 'a:40', estrellas: 1 }, { id: 'a:45627' }, { id: 'a:127691' }, { id: 'a:70069' }] };
+        const r = S.usarCarta(col, 'a:40', m, { ahora: T, dia: '2026-11-22' });
+        assert.ok(r.lleno && r.afinidad > 0 && r.potencia);
+        assert.equal(S.usarCarta({ cartas: [{ id: 'a:40', usada: new Date(T - 3600000) }] }, 'a:40', m, { ahora: T, dia: '2026-11-22' }).fallo, 'recargando');
+        assert.equal(S.usarCarta({ ...col, cartasHoy: { dia: '2026-11-22', n: 3 } }, 'a:45627', m, { ahora: T, dia: '2026-11-22' }).fallo, 'topeCartas');
+        assert.ok(!S.usarCarta({ ...col, cartasHoy: { dia: '2026-11-22', n: 3 } }, 'a:45627', { ...m, id: 'pixel' }, { ahora: T, dia: '2026-11-22', equipada: 'pixel' }).fallo); // Overclock: 4 al día
+        assert.equal(S.usarCarta(col, 'a:999', m, { ahora: T, dia: '2026-11-22' }).fallo, 'sinCarta');
+        const k = S.usarCarta(col, 'a:70069', { ...m, exp: { tipo: 'viaje', hasta: new Date(T + 3600000) } }, { ahora: T, dia: '2026-11-22' });
+        assert.ok(k.volver && k.lleno && k.buff.xp === 1 && k.potencia.valor === 1);
+    });
+    test('las estrellas y la habilidad de la mascota hacen la carta más fuerte', () => {
+        const base = P.efectoCarta('a:45627', 1, 'gato').potencia;
+        assert.ok(P.efectoCarta('a:45627', 5, 'gato').potencia > base);
+        assert.ok(P.efectoCarta('a:45627', 1, 'aurora').potencia > base); // «Bendición estelar»
+        for (const [id] of [...K.ANIME.entries()].slice(0, 200)) {
+            const r = P.aplicarEfecto(P.efectoCarta(id, 1, 'gato'), { id: 'gato', hambre: 50, alegria: 50, energia: 50 }, { ahora: T, bromas: true, azar: () => 0.5 });
+            assert.ok(Object.keys(r).length > 0, `${id} no hace nada`);
+        }
+    });
+});
+
+describe('1.24.0: habilidades exclusivas de las mascotas', () => {
+    const T = Date.UTC(2026, 10, 22, 12);
+    test('todas las mascotas del catálogo tienen la suya, con texto en los dos idiomas', () => {
+        for (const id of Object.keys(K.COMPANEROS)) {
+            const h = K.HABILIDADES[id];
+            assert.ok(h && h.es && h.en && h.valor > 0, id);
+        }
+        assert.ok(new Set(Object.values(K.HABILIDADES).map((h) => h.tipo)).size >= 12);
+    });
+    test('hacen lo que dicen', () => {
+        const base = { hambre: 80, alegria: 80, energia: 20, actualizado: new Date(T) };
+        assert.equal(P.estado({ id: 'hamster', ...base }, T + 10 * H).hambre, 65); // la mitad que un gato (50)
+        assert.equal(P.estado({ id: 'gato', ...base }, T + 10 * H).hambre, 50);
+        assert.equal(P.estado({ id: 'oso', ...base }, T + 10 * H).alegria, 70);
+        assert.equal(P.estado({ id: 'fenix', ...base }, T + 5 * H).energia, 80); // 20 + 6·2·5
+        const s = P.salir({ id: 'conejo', ...base, energia: 90 }, 'viaje', null, '2026-11-22', T);
+        assert.equal(new Date(s.exp.hasta).getTime() - T, 6 * H);
+        assert.notEqual(P.botin({ id: 'cerdito', exp: { tipo: 'paseo' } }, () => 0.99).recuerdo, null);
+        assert.equal(P.botin({ id: 'gato', exp: { tipo: 'paseo' } }, () => 0.99).recuerdo, null);
+        assert.equal(P.cuidar({ id: 'perro', ...base, hambre: 30 }, 'comer', T).afinidad, 8); // 5 × 1,5
+        assert.equal(K.ventajas('sylva', 1).expedicion, K.RAREZAS.legendaria.expedicion + 0.25);
+        const doble = P.botin({ id: 'gato', exp: { tipo: 'paseo' }, botinX: 2 }, () => 0.5).oro;
+        assert.equal(doble, 2 * P.botin({ id: 'gato', exp: { tipo: 'paseo' } }, () => 0.5).oro);
     });
 });

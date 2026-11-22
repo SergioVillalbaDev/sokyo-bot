@@ -14,6 +14,7 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         recuerdos: { type: [Number], default: [] },
         cuidados: { type: Number, default: 0 },
         cds: { type: Object, default: undefined }, // 1.21.0: cuándo se hizo cada interacción (para su espera)
+        botinX: { type: Number, default: undefined }, // 1.24.0: una carta multiplicó el oro de su próxima expedición
         _id: false,
     }], default: [] },
     equipada: { type: String, default: null },
@@ -31,6 +32,14 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     // 1.21.0: poder del día (uno cada 20 h) y su efecto activo de XP.
     poderUsado: { type: Date, default: null },
     buff: { xp: Number, hasta: Date },
+    // Cartas de anime (1.24.0, utils/cartas.js): las que tienes, con sus estrellas y cuándo se usó
+    // cada una; los sobres abiertos, la piedad, las usadas hoy y el empujón activo de una carta.
+    cartas: { type: [{ id: String, estrellas: { type: Number, default: 1 }, primera: { type: Date, default: Date.now }, usada: Date, _id: false }], default: [] },
+    sobresAbiertos: { type: Number, default: 0 },
+    sinEpicaCartas: { type: Number, default: 0 },
+    gastadoSobres: { type: Number, default: 0 },
+    cartasHoy: { dia: String, n: Number },
+    potencia: { valor: Number, hasta: Date, mascota: String },
 }, { minimize: false });
 
 module.exports = mongoose.model('ColeccionMascotas', ColeccionMascotasSchema);

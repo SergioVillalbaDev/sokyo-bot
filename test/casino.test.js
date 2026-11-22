@@ -127,8 +127,8 @@ describe('Cofres de mascotas', () => {
     });
     test('ventajas: la divina está muy chetada y las estrellas suman', () => {
         assert.deepEqual(K.ventajas('celestial', 1), { xp: 0.5, diario: 1, vuelta: 0.1, bromas: 0.4, liga: 0.5, expedicion: 1 });
-        assert.deepEqual(K.ventajas('gato', 1), { xp: 0.02, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 });
-        assert.deepEqual(K.ventajas('dragon', 5), { xp: 0.18, diario: 0.36, vuelta: 0.036, bromas: 0.27, liga: 0.36, expedicion: 0.63 });
+        assert.deepEqual(K.ventajas('gato', 1), { xp: 0.02, diario: 0, vuelta: 0.02, bromas: 0, liga: 0, expedicion: 0 }); // + «Siete vidas»
+        assert.deepEqual(K.ventajas('dragon', 5), { xp: 0.324, diario: 0.36, vuelta: 0.036, bromas: 0.27, liga: 0.36, expedicion: 0.63 }); // + «Aliento de fuego»
         assert.deepEqual(K.ventajas('nada'), { xp: 0, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 });
         assert.equal(K.ventajas('celestial', 5, 0.5).bromas, 0.6); // tope
     });

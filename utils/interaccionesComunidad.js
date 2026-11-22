@@ -29,6 +29,8 @@ async function manejar(interaction, client) {
         if (id.startsWith('cof_')) return await require('./cofres.js').manejar(interaction, client);
         // 1.20.0: compañeros tipo tamagotchi (/compi).
         if (id.startsWith('cmp')) return await require('./compis.js').manejar(interaction, client);
+        // 1.24.0: cartas de anime (sobres, álbum).
+        if (id.startsWith('crt_')) return await require('./cartas.js').manejar(interaction, client);
         if (interaction.isButton() && id.startsWith('liga_animar:')) { await require('./liga.js').animar(interaction); return true; }
         if (interaction.isButton() && /^tkayuda_(si|no):/.test(id)) {
             await manejarAyudaPrevia(interaction, client);

@@ -1,8 +1,8 @@
-// 1.23.0: acceso de Claude a la configuración (sin base de datos).
+// 1.23.0: acceso de soporte a la configuración (sin base de datos).
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { rutaValida } = require('../api/routes/claude.js');
-const A = require('../utils/accesoClaude.js');
+const { rutaValida } = require('../api/routes/soporte.js');
+const A = require('../utils/accesoSoporte.js');
 
 test('solo deja tocar rutas que existen y no son internas ni de cobros', () => {
     assert.equal(rutaValida('casino.activo'), null);
