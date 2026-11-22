@@ -322,6 +322,30 @@ function mesaBlackjack({ jugador, banca, ocultar = true, textos = {} }) {
     return c.toBuffer('image/png');
 }
 
+// 🃏 Mesa de «Mayor o menor» (1.25.0): la carta actual grande, las anteriores pequeñas y lo que llevas.
+function mesaHilo({ actual, historial = [], mult = 1, estado = 'juega', textos = {} }) {
+    if (!canvasLib) return null;
+    const W = 640; const H = 300;
+    const { c, ctx } = lienzo(W, H);
+    const g = ctx.createRadialGradient(W / 2, H / 2, 30, W / 2, H / 2, W / 1.3);
+    g.addColorStop(0, estado === 'pierde' ? '#7f1d1d' : '#1d4ed8'); g.addColorStop(1, '#0b1026');
+    redondeado(ctx, 0, 0, W, H, 26); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = '#a16207'; ctx.lineWidth = 8; redondeado(ctx, 4, 4, W - 8, H - 8, 22); ctx.stroke();
+    // Las anteriores (las 6 últimas), pequeñas a la izquierda
+    const prev = historial.slice(-6);
+    prev.forEach((cc, i) => { ctx.save(); ctx.translate(28 + i * 40, 168); ctx.scale(0.6, 0.6); ctx.globalAlpha = 0.55 + i * 0.07; carta(ctx, 0, 0, cc); ctx.restore(); });
+    // La actual, grande en el centro
+    ctx.save(); ctx.translate(W / 2 - 54, 40); ctx.scale(1.5, 1.5); carta(ctx, 0, 0, actual); ctx.restore();
+    // Multiplicador
+    ctx.textAlign = 'right'; ctx.fillStyle = '#fde68a'; ctx.font = `bold 16px ${FUENTE}`;
+    ctx.fillText(textos.llevas || 'Llevas', W - 30, 120);
+    ctx.font = `900 44px ${FUENTE}`; ctx.fillStyle = estado === 'pierde' ? '#fca5a5' : '#ffffff';
+    ctx.fillText(`×${mult}`, W - 30, 168);
+    ctx.textAlign = 'center'; ctx.font = `bold 13px ${FUENTE}`; ctx.fillStyle = 'rgba(253,230,138,0.7)';
+    ctx.fillText('⬆️  MAYOR  ·  MENOR  ⬇️   ·   A=1 · J=11 · Q=12 · K=13', W / 2, H - 22);
+    return c.toBuffer('image/png');
+}
+
 // ---------------------------------------------------------------------------
 // 🎁 Cofre de mascotas
 // ---------------------------------------------------------------------------
@@ -541,4 +565,4 @@ async function bannerCasino({ titulo = 'CASINO', subtitulo = '', boteTexto = '',
     return Buffer.from(gif.bytes());
 }
 
-module.exports = { bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+module.exports = { mesaHilo, bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

@@ -30,6 +30,8 @@ const JUEGOS = {
     moneda: { emoji: '🪙', es: 'Cara o cruz', en: 'Coin flip' },
     duelo: { emoji: '⚔️', es: 'Duelo', en: 'Duel' },
     carrera: { emoji: '🏇', es: 'Carrera', en: 'Race' },
+    hilo: { emoji: '🔼', es: 'Mayor o menor', en: 'Higher or lower' },
+    rasca: { emoji: '🎟️', es: 'Rasca y gana', en: 'Scratch card' },
 };
 
 // ---------------------------------------------------------------------------
@@ -234,6 +236,10 @@ function limpiarPartidas(client = null) {
             cobrarJugada(client, p.cfg, { ...p.jugada.toObject(), apuesta }, Math.floor(apuesta * C.resultadoBlackjack(p.jugador, banca).mult), { abandonada: true }).catch(() => {});
         } else if (p.tipo === 'minas') {
             cobrarJugada(client, p.cfg, p.jugada, Math.floor(p.apuesta * C.multMinas(p.minas, p.abiertas.length)), { abandonada: true }).catch(() => {});
+        } else if (p.tipo === 'hilo') {
+            cobrarJugada(client, p.cfg, p.jugada, Math.floor(p.apuesta * p.mult), { abandonada: true }).catch(() => {});
+        } else if (p.tipo === 'rasca') {
+            cobrarJugada(client, p.cfg, p.jugada, p.boleto.premio ? Math.floor(p.apuesta * p.boleto.premio.mult) : 0, { abandonada: true }).catch(() => {});
         }
     }
 }
@@ -485,6 +491,127 @@ async function botonMinas(interaction, client) {
 }
 
 // ---------------------------------------------------------------------------
+// 🃏 Mayor o menor (1.25.0)
+// ---------------------------------------------------------------------------
+function vistaHilo(p, idioma, estado = 'juega', ultimo = null) {
+    const pMayor = C.pagoHilo(p.actual, 'mayor'); const pMenor = C.pagoHilo(p.actual, 'menor');
+    const x = (n) => (t(idioma, 'es', 'en') === 'es' ? String(n).replace('.', ',') : String(n));
+    const png = A.mesaHilo ? A.mesaHilo({ actual: p.actual, historial: p.historial, mult: p.mult, estado, textos: { racha: t(idioma, 'Racha', 'Streak'), llevas: t(idioma, 'Llevas', 'You have') } }) : null;
+    const texto = {
+        juega: t(idioma, `¿La siguiente carta será **mayor** o **menor** que **${p.actual}**?\nLlevas **×${x(p.mult)}** (🪙 ${fmt(Math.floor(p.apuesta * p.mult), idioma)}) · aciertos: ${p.aciertos}`, `Will the next card be **higher** or **lower** than **${p.actual}**?\nYou have **×${p.mult}** (🪙 ${fmt(Math.floor(p.apuesta * p.mult), idioma)}) · correct: ${p.aciertos}`),
+        pierde: t(idioma, `💥 Ha salido **${p.actual}**… ¡fallaste! Pierdes **🪙 ${fmt(p.apuesta, idioma)}**.`, `💥 It was **${p.actual}**… wrong! You lose **🪙 ${fmt(p.apuesta, idioma)}**.`),
+        cobrado: t(idioma, `💰 Te retiras con **×${x(p.mult)}**: ganas **🪙 ${fmt(Math.floor(p.apuesta * p.mult), idioma)}**.`, `💰 You cash out at **×${p.mult}**: you win **🪙 ${fmt(Math.floor(p.apuesta * p.mult), idioma)}**.`),
+    }[estado];
+    const previo = ultimo === 'empate' ? t(idioma, '🤝 ¡Empate! Misma carta: sigues igual.\n', '🤝 Tie! Same card: nothing changes.\n') : ultimo === 'gana' ? t(idioma, '✅ ¡Acertaste!\n', '✅ Correct!\n') : '';
+    const e = new EmbedBuilder().setColor(estado === 'pierde' ? '#7f1d1d' : estado === 'cobrado' ? '#16a34a' : '#1e3a8a')
+        .setTitle(t(idioma, `🃏 Mayor o menor · 🪙 ${fmt(p.apuesta, idioma)}`, `🃏 Higher or lower · 🪙 ${fmt(p.apuesta, idioma)}`)).setDescription(previo + texto);
+    if (png) e.setImage('attachment://hilo.png');
+    const comps = estado === 'juega' ? [new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`cas_hl:${p.id}:mayor`).setEmoji('⬆️').setStyle(ButtonStyle.Primary).setDisabled(!pMayor).setLabel(pMayor ? t(idioma, `Mayor ×${x(pMayor)}`, `Higher ×${pMayor}`) : t(idioma, 'Mayor', 'Higher')),
+        new ButtonBuilder().setCustomId(`cas_hl:${p.id}:menor`).setEmoji('⬇️').setStyle(ButtonStyle.Primary).setDisabled(!pMenor).setLabel(pMenor ? t(idioma, `Menor ×${x(pMenor)}`, `Lower ×${pMenor}`) : t(idioma, 'Menor', 'Lower')),
+        new ButtonBuilder().setCustomId(`cas_hl:${p.id}:cobrar`).setEmoji('💰').setStyle(ButtonStyle.Success).setDisabled(!p.aciertos).setLabel(t(idioma, `Retirarme (🪙 ${fmt(Math.floor(p.apuesta * p.mult), idioma)})`, `Cash out (🪙 ${fmt(Math.floor(p.apuesta * p.mult), idioma)})`)),
+    )] : [filaOtraVez('hilo', p.apuesta, idioma)];
+    return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'hilo.png' })] : [], attachments: [] };
+}
+async function hilo({ interaction, client, cfg, idioma, cantidad }) {
+    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'hilo', cantidad });
+    if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
+    limpiarPartidas(client);
+    const p = { id: nuevoId(), tipo: 'hilo', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, actual: C.cartaHilo(), historial: [], mult: 1, aciertos: 0, caduca: Date.now() + 15 * 60000, cfg, idioma };
+    partidas.set(p.id, p);
+    await interaction.editReply(vistaHilo(p, idioma));
+    return { ok: true };
+}
+async function botonHilo(interaction, client) {
+    const [, id, que] = interaction.customId.split(':');
+    const p = partidas.get(id);
+    if (!p) return interaction.reply({ content: '⌛', flags: 64 });
+    if (p.userId !== interaction.user.id) return interaction.reply({ content: t(p.idioma, 'Esta partida es de otra persona 🃏', 'This game belongs to someone else 🃏'), flags: 64 });
+    if (p.ocupada) return interaction.deferUpdate().catch(() => {});
+    p.ocupada = true;
+    try {
+        const fin = async (estado, premio) => {
+            partidas.delete(p.id);
+            const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, premio, { aciertos: p.aciertos, mult: p.mult });
+            const v = vistaHilo(p, p.idioma, estado);
+            v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.userId), vuelta) });
+            return interaction.update(v);
+        };
+        if (que === 'cobrar') return p.aciertos ? fin('cobrado', Math.floor(p.apuesta * p.mult)) : interaction.deferUpdate();
+        const pago = C.pagoHilo(p.actual, que);
+        if (!pago) return interaction.deferUpdate();
+        const siguiente = C.cartaHilo();
+        const r = C.resultadoHilo(p.actual, siguiente, que);
+        p.historial.push(p.actual);
+        p.actual = siguiente;
+        if (r === 'pierde') return fin('pierde', 0);
+        if (r === 'gana') {
+            p.aciertos += 1;
+            p.mult = Math.min(C.HILO_MAX_MULT, Math.floor(p.mult * pago * 100) / 100);
+            // Tope: con ×100 o 12 aciertos cobra solo.
+            if (p.mult >= C.HILO_MAX_MULT || p.aciertos >= 12) return fin('cobrado', Math.floor(p.apuesta * p.mult));
+        }
+        return interaction.update(vistaHilo(p, p.idioma, 'juega', r));
+    } finally { p.ocupada = false; }
+}
+
+// ---------------------------------------------------------------------------
+// 🎟️ Rasca y gana (1.25.0)
+// ---------------------------------------------------------------------------
+function vistaRasca(p, idioma, fin = false) {
+    const filas = [];
+    for (let fi = 0; fi < 3; fi++) {
+        const fila = new ActionRowBuilder();
+        for (let co = 0; co < 3; co++) {
+            const i = fi * 3 + co;
+            const visto = fin || p.rascadas.includes(i);
+            const ganadora = fin && p.boleto.premio && p.boleto.casillas[i] === p.boleto.premio.simbolo;
+            fila.addComponents(new ButtonBuilder().setCustomId(`cas_ras:${p.id}:${i}`).setDisabled(visto)
+                .setEmoji(visto ? p.boleto.casillas[i] : '🪙').setStyle(ganadora ? ButtonStyle.Success : visto ? ButtonStyle.Secondary : ButtonStyle.Primary));
+        }
+        filas.push(fila);
+    }
+    if (!fin) filas.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_ras:${p.id}:todo`).setEmoji('✨').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Rascar todo', 'Scratch all'))));
+    else filas.push(filaOtraVez('rasca', p.apuesta, idioma));
+    const tabla = C.RASCA_PREMIOS.map((x) => `${x.simbolo}×3 → ×${x.mult}`).join(' · ');
+    const premio = p.boleto.premio ? Math.floor(p.apuesta * p.boleto.premio.mult) : 0;
+    const e = new EmbedBuilder().setColor(fin ? (premio > p.apuesta ? '#16a34a' : premio ? '#ca8a04' : '#7f1d1d') : '#7c3aed')
+        .setTitle(t(idioma, `🎟️ Rasca y gana · 🪙 ${fmt(p.apuesta, idioma)}`, `🎟️ Scratch card · 🪙 ${fmt(p.apuesta, idioma)}`))
+        .setDescription(fin
+            ? (p.boleto.premio ? t(idioma, `🎉 ¡Tres ${p.boleto.premio.simbolo}! Ganas **🪙 ${fmt(premio, idioma)}** (×${p.boleto.premio.mult}).`, `🎉 Three ${p.boleto.premio.simbolo}! You win **🪙 ${fmt(premio, idioma)}** (×${p.boleto.premio.mult}).`) : t(idioma, '💨 Sin premio esta vez.', '💨 No prize this time.'))
+            : t(idioma, `Rasca las casillas: si salen **3 iguales**, ganas.\n${tabla}`, `Scratch the tiles: get **3 of a kind** and you win.\n${tabla}`));
+    return { embeds: [e], components: filas };
+}
+async function rasca({ interaction, client, cfg, idioma, cantidad }) {
+    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'rasca', cantidad });
+    if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
+    limpiarPartidas(client);
+    const p = { id: nuevoId(), tipo: 'rasca', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, boleto: C.boletoRasca(), rascadas: [], caduca: Date.now() + 15 * 60000, cfg, idioma };
+    partidas.set(p.id, p);
+    await interaction.editReply(vistaRasca(p, idioma));
+    return { ok: true };
+}
+async function botonRasca(interaction, client) {
+    const [, id, que] = interaction.customId.split(':');
+    const p = partidas.get(id);
+    if (!p) return interaction.reply({ content: '⌛', flags: 64 });
+    if (p.userId !== interaction.user.id) return interaction.reply({ content: t(p.idioma, 'Este boleto es de otra persona 🎟️', 'This ticket belongs to someone else 🎟️'), flags: 64 });
+    if (p.ocupada) return interaction.deferUpdate().catch(() => {});
+    p.ocupada = true;
+    try {
+        if (que === 'todo') p.rascadas = [...Array(9).keys()];
+        else { const i = parseInt(que, 10); if (!p.rascadas.includes(i)) p.rascadas.push(i); }
+        if (p.rascadas.length < 9) return interaction.update(vistaRasca(p, p.idioma));
+        partidas.delete(p.id);
+        const premio = p.boleto.premio ? Math.floor(p.apuesta * p.boleto.premio.mult) : 0;
+        const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, premio, { boleto: p.boleto.casillas });
+        const v = vistaRasca(p, p.idioma, true);
+        v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.userId), vuelta) });
+        return interaction.update(v);
+    } finally { p.ocupada = false; }
+}
+
+// ---------------------------------------------------------------------------
 // ⚔️ Duelo entre dos miembros (cara o cruz; el ganador se lo lleva casi todo)
 // ---------------------------------------------------------------------------
 const duelos = new Map();
@@ -680,6 +807,8 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_bj:')) { await botonBlackjack(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_crash:')) { await botonCrash(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_min:')) { await botonMinas(interaction, client); return true; }
+    if (interaction.isButton() && id.startsWith('cas_hl:')) { await botonHilo(interaction, client); return true; }
+    if (interaction.isButton() && id.startsWith('cas_ras:')) { await botonRasca(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_duelo:')) { await botonDuelo(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_car:')) { await botonCarrera(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_carm:')) { await modalCarrera(interaction, client); return true; }
@@ -708,6 +837,8 @@ async function jugarRepetir(interaction, client, cfg, idioma, juego, cantidad, e
     else if (juego === 'blackjack') r = await blackjack(base);
     else if (juego === 'crash') r = await crash({ ...base, auto: extra ? parseFloat(extra) : null });
     else if (juego === 'minas') r = await minas({ ...base, numMinas: parseInt(extra, 10) || 3 });
+    else if (juego === 'hilo') r = await hilo(base);
+    else if (juego === 'rasca') r = await rasca(base);
     else r = { error: t(idioma, 'Ese juego no se puede repetir así.', 'That game can’t be replayed like this.') };
     if (r?.error) {
         // El error solo lo ve quien juega (no ensucia el canal).
@@ -744,6 +875,6 @@ async function resumenServidor(client, guildId) {
 
 module.exports = {
     JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverPendientes, textoFallo, barrerPartidas,
-    tragaperras, ruleta, moneda, blackjack, crash, minas, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor, jugarRepetir,
+    tragaperras, ruleta, moneda, blackjack, crash, minas, hilo, rasca, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor, jugarRepetir,
     _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash,
 };

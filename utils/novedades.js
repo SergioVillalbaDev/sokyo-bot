@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.25.0': [
+        { tab: 'com-casino', es: '🔼 Nuevo juego: **Mayor o menor**. ¿La siguiente carta será mayor o menor? Encadena aciertos (cada uno multiplica) y retírate a tiempo.', en: '🔼 New game: **Higher or lower**. Will the next card be higher or lower? Chain correct guesses (each one multiplies) and cash out in time.' },
+        { tab: 'com-casino', es: '🎟️ Nuevo juego: **Rasca y gana**. Rasca 9 casillas: con 3 símbolos iguales ganas, hasta ×500.', en: '🎟️ New game: **Scratch card**. Scratch 9 tiles: 3 matching symbols win, up to ×500.' },
+        { tab: 'com-compis', es: '📚 **Colecciones de series**: completa todas las cartas de una serie y ganas oro, y además sus cartas son un 25 % más fuertes para siempre.', en: '📚 **Series collections**: complete every card of a series to win gold, and its cards become 25% stronger forever.' },
+        { tab: 'com-compis', es: '🎁 `/carta regalar` para regalar una carta a alguien y `/carta mostrar` para enseñarla en el canal.', en: '🎁 `/card gift` to give a card to someone and `/card show` to show it off in the channel.' },
+    ],
     '1.24.0': [
         { tab: 'com-compis', es: '🐾 Cada mascota tiene ahora su **habilidad exclusiva**: «Siete vidas», «Mofletes llenos», «Tres deseos», «Dragón del cielo»… Cada una cambia algo distinto (XP, oro, expediciones más cortas, recuerdos seguros, cartas más fuertes…).', en: '🐾 Every pet now has its own **exclusive ability**: “Nine lives”, “Stuffed cheeks”, “Three wishes”, “Sky dragon”… Each one changes something different (XP, gold, shorter expeditions, guaranteed souvenirs, stronger cards…).' },
         { tab: 'com-compis', es: '🃏 Los personajes de anime ahora son **cartas**: salen en sobres de 3 (`/carta abrir`) con animación y se usan sobre tu mascota para potenciarla, cada una con su poder. Hasta 3 al día; las repetidas suben estrellas.', en: '🃏 Anime characters are now **cards**: they come in packs of 3 (`/card open`) with an animation and are used on your pet to power it up, each with its own power. Up to 3 a day; duplicates add stars.' },

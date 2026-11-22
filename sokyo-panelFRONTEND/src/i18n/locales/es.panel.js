@@ -2860,7 +2860,7 @@ export default {
       ej: {
         tragaperras: '/casino tragaperras apuesta:100', ruleta: '/casino ruleta a:Rojo apuesta:100', blackjack: '/casino blackjack apuesta:100',
         crash: '/casino crash apuesta:100 auto:2', minas: '/casino minas apuesta:100 minas:3', moneda: '/casino moneda lado:Cara apuesta:100',
-        duelo: '/casino duelo rival:@alguien apuesta:500', carrera: '/casino carrera',
+        duelo: '/casino duelo rival:@alguien apuesta:500', carrera: '/casino carrera', hilo: '/casino mayormenor apuesta:100', rasca: '/casino rasca apuesta:100',
       },
       lobbyTitle: 'Lobby del casino', lobbySub: 'Un mensaje fijo en el canal del casino con un cartel animado, el bote, los premios gordos y un desplegable con todos los juegos. Al elegir uno se abre una mesa (solo para quien la abre) con fichas para apostar de un toque. Se pone al día solo cada 5 minutos.', lobbyPost: 'Publicar el lobby', lobbyRepost: 'Volver a publicar el lobby', lobbySending: 'Publicando…', lobbyDone: '¡Listo! El lobby está fijado en el canal del casino.', lobbyNeed: 'Activa el casino y elige su canal (abajo, en «Dónde y cuánto»).',
       postGuide: 'Publicar la guía en el canal del casino', postGuideHint: 'Un mensaje con los pasos, los comandos y un menú para ver cada juego.', postGuideNeed: 'Elige antes el canal del casino (abajo, en «Dónde y cuánto»).',
@@ -2880,6 +2880,8 @@ export default {
         moneda: { n: 'Cara o cruz', d: 'La moneda gira en el aire (×1,94).' },
         duelo: { n: 'Duelos', d: 'Reta a otro miembro: el ganador se lo lleva casi todo.' },
         carrera: { n: 'Carreras', d: 'Todo el canal apuesta 45 s y la carrera se ve en directo.' },
+        hilo: { n: 'Mayor o menor', d: 'Adivina si la carta siguiente es mayor o menor; encadena aciertos y retírate.' },
+        rasca: { n: 'Rasca y gana', d: 'Un boleto de 9 casillas: 3 símbolos iguales y ganas (hasta ×500).' },
       },
       limits: 'Dónde y cuánto', limitsHint: 'Para que sea divertido sin pasarse.',
       channel: 'Canal del casino', channelHint: 'Si eliges uno, solo se juega ahí.', anyChannel: 'En cualquier canal',

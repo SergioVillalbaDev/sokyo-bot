@@ -52,6 +52,18 @@ const GUIA = {
         como: ['Retas a otra persona: tiene 60 s para pulsar **⚔️ Aceptar**. Los dos ponen lo mismo y se lanza una moneda (tú eres cara). Si no acepta, se te devuelve el oro.', 'Challenge someone: they have 60 s to press **⚔️ Accept**. You both put in the same and a coin is flipped (you’re heads). If they don’t accept, your gold is refunded.'],
         paga: () => [`El ganador se lleva el doble menos un ${Math.round(C.DUELO_COMISION * 100)} %.`, `The winner takes double minus ${Math.round(C.DUELO_COMISION * 100)}%.`],
     },
+    hilo: {
+        emoji: '🔼', probar: '',
+        ej: ['/casino mayormenor apuesta:100', '/casino higherlower bet:100'],
+        como: ['Sale una carta. Di si la siguiente será **⬆️ mayor** o **⬇️ menor** (A=1, J=11, Q=12, K=13). Cada acierto multiplica lo que llevas; si es igual, empate y sigues. Pulsa **💰 Retirarme** cuando quieras: si fallas, lo pierdes.', 'A card is shown. Say whether the next one will be **⬆️ higher** or **⬇️ lower** (A=1, J=11, Q=12, K=13). Each correct guess multiplies what you have; a tie changes nothing. Press **💰 Cash out** whenever you want: miss and you lose it.'],
+        paga: () => ['Cada botón dice lo que paga ese acierto: lo difícil paga más (p. ej. «mayor» desde un 10 paga ×3,88). Hasta ×100.', 'Each button shows what that guess pays: harder guesses pay more (e.g. “higher” from a 10 pays ×3.88). Up to ×100.'],
+    },
+    rasca: {
+        emoji: '🎟️', probar: '',
+        ej: ['/casino rasca apuesta:100', '/casino scratch bet:100'],
+        como: ['Compras un boleto con 9 casillas. Ráscalas una a una (o **✨ Rascar todo**): si salen **3 símbolos iguales**, ganas lo que paga ese símbolo.', 'You buy a ticket with 9 tiles. Scratch them one by one (or **✨ Scratch all**): if you get **3 of the same symbol**, you win what it pays.'],
+        paga: () => [C.RASCA_PREMIOS.map((x) => `${x.simbolo}×3 → ×${x.mult}`).join(' · '), C.RASCA_PREMIOS.map((x) => `${x.simbolo}×3 → ×${x.mult}`).join(' · ')],
+    },
     carrera: {
         emoji: '🏇', probar: null,
         ej: ['/casino carrera', '/casino race'],

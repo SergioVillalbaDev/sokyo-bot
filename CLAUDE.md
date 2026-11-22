@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.24.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.25.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,13 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.25.0 **Casino**: juegos `hilo` (Mayor o menor: `C.pagoHilo`/`resultadoHilo`, 3 % para la casa por paso, tope ×100 o 12
+  aciertos; botones `cas_hl:<id>:mayor|menor|cobrar`, mesa PNG `casinoArte.mesaHilo`) y `rasca` (Rasca y gana: `C.boletoRasca`
+  con `RASCA_PREMIOS`, RTP 95,5 %; botones `cas_ras:<id>:<i>|todo`). Están en `JUEGOS`, `cfg.casino.juegos`, `/casino mayormenor`
+  y `/casino rasca`, el lobby y la guía. **Cartas**: colecciones (`cartasNucleo.series()` = series con 2+ cartas; completar una
+  da `PREMIO_SERIE`×cartas una vez y `SINERGIA` +25 % a sus cartas: `col.seriesCompletas`), `/carta regalar` (una copia, 5 al día,
+  `col.regalosHoy`) y `/carta mostrar`. **Soporte**: `POST /api/soporte/:guildId/setup` (setup completo, todos los módulos por
+  defecto), `POST /api/soporte/:guildId/rol` (sin permisos peligrosos) y `POST /api/soporte/:guildId/casino/lobby`.
 - 1.24.0 **Mascotas y cartas**. Las MASCOTAS son el catálogo de `cofresNucleo.COMPANEROS` (+ las propias del servidor) y
   salen en los cofres; cada una tiene su habilidad exclusiva (`HABILIDADES`, `K.habilidad(id)`: tipos xp/diario/vuelta/bromas/
   liga/expedicion suman en `K.ventajas`; gloton/alegre/incansable en `compisNucleo.estado`; rapido en `salir`; tesoro en `botin`;

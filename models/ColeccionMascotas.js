@@ -40,6 +40,9 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     gastadoSobres: { type: Number, default: 0 },
     cartasHoy: { dia: String, n: Number },
     potencia: { valor: Number, hasta: Date, mascota: String },
+    // 1.25.0: series del Pack anime completadas (ya premiadas) y regalos de cartas de hoy.
+    seriesCompletas: { type: [String], default: [] },
+    regalosHoy: { dia: String, n: Number },
 }, { minimize: false });
 
 module.exports = mongoose.model('ColeccionMascotas', ColeccionMascotasSchema);

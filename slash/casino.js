@@ -32,6 +32,8 @@ module.exports = {
             .addStringOption((o) => o.setName('side').setNameLocalizations(ES('lado')).setDescription('Heads or tails').setDescriptionLocalizations(ES('Cara o cruz')).setRequired(true)
                 .addChoices({ name: '👑 Heads', name_localizations: ES('👑 Cara'), value: 'cara' }, { name: '⭐ Tails', name_localizations: ES('⭐ Cruz'), value: 'cruz' }))
             .addIntegerOption(cantidad))
+        .addSubcommand((s) => s.setName('higherlower').setNameLocalizations(ES('mayormenor')).setDescription('🃏 Higher or lower: chain guesses and cash out').setDescriptionLocalizations(ES('🃏 Mayor o menor: encadena aciertos y retírate')).addIntegerOption(cantidad))
+        .addSubcommand((s) => s.setName('scratch').setNameLocalizations(ES('rasca')).setDescription('🎟️ Scratch card: 3 of a kind wins').setDescriptionLocalizations(ES('🎟️ Rasca y gana: 3 iguales y ganas')).addIntegerOption(cantidad))
         .addSubcommand((s) => s.setName('duel').setNameLocalizations(ES('duelo')).setDescription('⚔️ Challenge someone to a coin flip for gold').setDescriptionLocalizations(ES('⚔️ Reta a alguien a cara o cruz por oro'))
             .addUserOption((o) => o.setName('rival').setDescription('Who').setDescriptionLocalizations(ES('A quién')).setRequired(true)).addIntegerOption(cantidad))
         .addSubcommand((s) => s.setName('race').setNameLocalizations(ES('carrera')).setDescription('🏇 Start a race: everyone in the channel can bet').setDescriptionLocalizations(ES('🏇 Empieza una carrera: todo el canal puede apostar')))
@@ -67,6 +69,8 @@ module.exports = {
         else if (sub === 'crash') r = await casino.crash({ ...base, auto: interaction.options.getNumber('auto') });
         else if (sub === 'mines') r = await casino.minas({ ...base, numMinas: interaction.options.getInteger('mines') || 3 });
         else if (sub === 'coinflip') r = await casino.moneda({ ...base, lado: interaction.options.getString('side') });
+        else if (sub === 'higherlower') r = await casino.hilo(base);
+        else if (sub === 'scratch') r = await casino.rasca(base);
         else if (sub === 'duel') r = await casino.duelo({ ...base, rival: interaction.options.getUser('rival') });
         else if (sub === 'race') r = await casino.carrera(base);
         else if (sub === 'daily') r = await casino.diaria(base);

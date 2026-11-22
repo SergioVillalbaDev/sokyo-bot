@@ -26,6 +26,11 @@ module.exports = {
             .addStringOption((o) => o.setName('card').setNameLocalizations(ES('carta')).setDescription('Which card').setDescriptionLocalizations(ES('Qué carta')).setRequired(true).setAutocomplete(true)))
         .addSubcommand((s) => s.setName('use').setNameLocalizations(ES('usar')).setDescription('Use a card on your equipped pet').setDescriptionLocalizations(ES('Usa una carta en tu mascota equipada'))
             .addStringOption((o) => o.setName('card').setNameLocalizations(ES('carta')).setDescription('Which card').setDescriptionLocalizations(ES('Qué carta')).setRequired(true).setAutocomplete(true)))
+        .addSubcommand((s) => s.setName('show').setNameLocalizations(ES('mostrar')).setDescription('Show one of your cards in the channel').setDescriptionLocalizations(ES('Enseña una de tus cartas en el canal'))
+            .addStringOption((o) => o.setName('card').setNameLocalizations(ES('carta')).setDescription('Which card').setDescriptionLocalizations(ES('Qué carta')).setRequired(true).setAutocomplete(true)))
+        .addSubcommand((s) => s.setName('gift').setNameLocalizations(ES('regalar')).setDescription('Gift a copy of a card to someone').setDescriptionLocalizations(ES('Regala una copia de una carta a alguien'))
+            .addUserOption((o) => o.setName('member').setNameLocalizations(ES('miembro')).setDescription('Who').setDescriptionLocalizations(ES('A quién')).setRequired(true))
+            .addStringOption((o) => o.setName('card').setNameLocalizations(ES('carta')).setDescription('Which card').setDescriptionLocalizations(ES('Qué carta')).setRequired(true).setAutocomplete(true)))
         .addSubcommand((s) => s.setName('odds').setNameLocalizations(ES('probabilidades')).setDescription('What can come out of each pack').setDescriptionLocalizations(ES('Qué puede salir en cada sobre'))),
 
     async autocomplete(interaction) {
@@ -52,7 +57,16 @@ module.exports = {
             await interaction.deferReply({ flags: 64 });
             return interaction.editReply(await cartas.verCarta(interaction.user.id, interaction.options.getString('card'), idioma));
         }
+        if (sub === 'show') {
+            await interaction.deferReply();
+            return interaction.editReply(await cartas.mostrar(interaction, interaction.options.getString('card'), idioma));
+        }
         if (!cartas.activas(cfg)) return interaction.reply({ content: cartas.textoApagadas(idioma), flags: 64 });
+        if (sub === 'gift') {
+            const r = await cartas.regalar(interaction, idioma, interaction.options.getUser('member'), interaction.options.getString('card'));
+            if (r.error) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
+            return interaction.reply({ content: r.texto, allowedMentions: { users: [r.destino] } });
+        }
         if (sub === 'use') {
             await interaction.deferReply();
             const compis = require('../utils/compis.js');

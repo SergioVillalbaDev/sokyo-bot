@@ -282,3 +282,30 @@ describe('1.24.0: habilidades exclusivas de las mascotas', () => {
         assert.equal(doble, 2 * P.botin({ id: 'gato', exp: { tipo: 'paseo' } }, () => 0.5).oro);
     });
 });
+
+describe('1.25.0: colecciones de series y regalos', () => {
+    const S = require('../utils/cartasNucleo.js');
+    test('completar una serie da premio una vez y sinergia', () => {
+        const ids = S.series().get('Date A Live') || [...S.series().values()][0];
+        const serie = K.def(ids[0]).serie;
+        const casi = ids.slice(1).map((id) => ({ id }));
+        assert.deepEqual(S.nuevasSeries(casi, []), []);
+        const todas = ids.map((id) => ({ id }));
+        const n = S.nuevasSeries(todas, []);
+        assert.equal(n.length, 1); assert.equal(n[0].serie, serie); assert.equal(n[0].oro, S.PREMIO_SERIE * ids.length);
+        assert.deepEqual(S.nuevasSeries(todas, [serie]), []);
+        const sin = P.efectoCarta(ids[0], 1, 'gato', 0); const con = P.efectoCarta(ids[0], 1, 'gato', S.SINERGIA);
+        const k = Object.keys(sin).find((x) => typeof sin[x] === 'number' && x !== 'min' && x !== 'escudo' && x !== 'f');
+        if (k) assert.ok(con[k] >= sin[k]);
+        assert.ok(S.progresoSeries(casi).some((x) => x.serie === serie));
+    });
+    test('regalar: das una copia y la otra persona la recibe', () => {
+        let r = S.regalar([{ id: 'a:40', estrellas: 3 }], [], 'a:40');
+        assert.deepEqual(r.de, [{ id: 'a:40', estrellas: 2 }]); assert.equal(r.a[0].id, 'a:40'); assert.ok(r.nueva);
+        r = S.regalar([{ id: 'a:40', estrellas: 1 }], [{ id: 'a:40', estrellas: 2 }], 'a:40');
+        assert.deepEqual(r.de, []); assert.equal(r.a[0].estrellas, 3);
+        r = S.regalar([{ id: 'a:40', estrellas: 1 }], [{ id: 'a:40', estrellas: 5 }], 'a:40');
+        assert.equal(r.devuelto, 100);
+        assert.equal(S.regalar([], [], 'a:40').fallo, 'sinCarta');
+    });
+});
