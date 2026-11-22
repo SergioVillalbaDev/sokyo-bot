@@ -293,14 +293,15 @@ module.exports = (client) => {
         // (1) ¿Sesión de staff por JWT?
         const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
 
-        // (0) Clave de Claude (1.23.0, utils/accesoClaude.js): solo para /api/claude/…
-        const accesoClaude = require('../utils/accesoClaude.js');
-        if (accesoClaude.pareceClave(bearer)) {
-            const a = await accesoClaude.verificar(bearer).catch(() => null);
-            if (!a) return res.status(401).json({ error: 'La clave de Claude no es válida o ha caducado' });
-            if (!req.path.startsWith('/claude/')) return res.status(403).json({ error: 'Esta clave solo vale para /api/claude' });
-            if (a.modo !== 'completo' && req.method !== 'GET') return res.status(403).json({ error: 'Esta clave de Claude es solo para mirar' });
-            req.staff = { id: 'claude', username: 'Claude (IA)', staff: true, owner: false, claude: true, guilds: client.guilds.cache.map((g) => g.id) };
+        // (0) Clave de soporte (1.23.0, utils/accesoSoporte.js): solo para /api/soporte/…
+        // En el historial de cambios sale como «Equipo de Sokyo».
+        const accesoSoporte = require('../utils/accesoSoporte.js');
+        if (accesoSoporte.pareceClave(bearer)) {
+            const a = await accesoSoporte.verificar(bearer).catch(() => null);
+            if (!a) return res.status(401).json({ error: 'La clave de soporte no es válida o ha caducado' });
+            if (!req.path.startsWith('/soporte/')) return res.status(403).json({ error: 'Esta clave solo vale para /api/soporte' });
+            if (a.modo !== 'completo' && req.method !== 'GET') return res.status(403).json({ error: 'Esta clave de soporte es solo para mirar' });
+            req.staff = { id: 'soporte', username: 'Equipo de Sokyo', staff: true, owner: false, soporte: true, guilds: client.guilds.cache.map((g) => g.id) };
             return next();
         }
         const sesion = bearer ? verificarToken(bearer, JWT_SECRET) : null;
@@ -537,9 +538,9 @@ module.exports = (client) => {
     // Cumpleaños, salón de la fama, grupos, clanes, confesiones, solicitudes, ausente,
     // mensajes fijos y canales con contadores (1.9.0).
     app.use('/api', require('./routes/modulos.js')({ client, exigeArea, tieneAreaAcceso }));
-    // Acceso de Claude (1.23.0): solo con su clave o un propietario del bot.
-    app.use('/api/claude', (req, res, next) => (req.staff?.claude || req.staff?.owner ? next() : res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' })));
-    app.use('/api', require('./routes/claude.js')({ client }));
+    // Acceso de soporte (1.23.0): solo con su clave o un propietario del bot.
+    app.use('/api/soporte', (req, res, next) => (req.staff?.soporte || req.staff?.owner ? next() : res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' })));
+    app.use('/api', require('./routes/soporte.js')({ client }));
 
     // Middleware: exige ser Administrator de Discord en el guild (o dueño/API key).
     // Reservado para operaciones que OTORGAN permisos a otros (quién modera, quién
@@ -1797,20 +1798,20 @@ app.get('/api/stats/uso', async (req, res) => {
         }
     });
 
-    // Acceso de Claude (1.23.0): crear (se enseña una vez), ver, cambiar de modo y revocar.
-    app.get('/api/owner/claude', exigeOwner, async (req, res) => {
-        res.json({ acceso: await require('../utils/accesoClaude.js').estado() });
+    // Acceso de soporte (1.23.0): crear (se enseña una vez), ver, cambiar de modo y revocar.
+    app.get('/api/owner/soporte', exigeOwner, async (req, res) => {
+        res.json({ acceso: await require('../utils/accesoSoporte.js').estado() });
     });
-    app.post('/api/owner/claude', exigeOwner, async (req, res) => {
-        const clave = await require('../utils/accesoClaude.js').crear({ modo: req.body?.modo, dias: Number(req.body?.dias) || 0, por: req.staff?.id });
-        res.json({ success: true, clave, acceso: await require('../utils/accesoClaude.js').estado() });
+    app.post('/api/owner/soporte', exigeOwner, async (req, res) => {
+        const clave = await require('../utils/accesoSoporte.js').crear({ modo: req.body?.modo, dias: Number(req.body?.dias) || 0, por: req.staff?.id });
+        res.json({ success: true, clave, acceso: await require('../utils/accesoSoporte.js').estado() });
     });
-    app.put('/api/owner/claude', exigeOwner, async (req, res) => {
-        await require('../utils/accesoClaude.js').cambiarModo(req.body?.modo);
-        res.json({ success: true, acceso: await require('../utils/accesoClaude.js').estado() });
+    app.put('/api/owner/soporte', exigeOwner, async (req, res) => {
+        await require('../utils/accesoSoporte.js').cambiarModo(req.body?.modo);
+        res.json({ success: true, acceso: await require('../utils/accesoSoporte.js').estado() });
     });
-    app.delete('/api/owner/claude', exigeOwner, async (req, res) => {
-        await require('../utils/accesoClaude.js').revocar();
+    app.delete('/api/owner/soporte', exigeOwner, async (req, res) => {
+        await require('../utils/accesoSoporte.js').revocar();
         res.json({ success: true, acceso: null });
     });
 

@@ -19,10 +19,12 @@ const cache = new Map();
 async function ventajasUsuario(userId) {
     const c = cache.get(userId);
     if (c && c.hasta > Date.now()) return c.v;
-    const col = await ColeccionMascotas.findOne({ userId }).select('equipada mascotas buff').lean();
+    const col = await ColeccionMascotas.findOne({ userId }).select('equipada mascotas buff potencia').lean();
     const eq = col?.equipada ? (col.mascotas || []).find((m) => m.id === col.equipada) : null;
     const P = require('./compisNucleo.js');
-    const v = eq ? K.ventajas(eq.id, eq.estrellas, P.extraCuidado(eq)) : { xp: 0, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 };
+    // Una carta usada en tu mascota equipada (1.24.0) le da un empujón a todas sus ventajas un rato.
+    const pot = col?.potencia && eq && col.potencia.mascota === eq.id && new Date(col.potencia.hasta) > new Date() ? col.potencia.valor || 0 : 0;
+    const v = eq ? K.ventajas(eq.id, eq.estrellas, P.extraCuidado(eq) + pot) : { xp: 0, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 };
     // Poder activo (Inspiración, Bendición): suma XP mientras dura. La caché dura poco para que se note al acabar.
     const extra = P.buffXp(col);
     if (extra) v.xp = Math.round((v.xp + extra) * 1000) / 1000;
@@ -32,12 +34,13 @@ async function ventajasUsuario(userId) {
 const olvidar = (userId) => cache.delete(userId);
 // Compañeros que pueden salir en los cofres de este servidor además del catálogo: los propios
 // del servidor (1.20.0) y, si lo tiene activado, el Pack anime sin las series quitadas (1.22.0).
-// Con el pack se pasa SIEMPRE entero; las series quitadas van aparte (`quitadosDe`) y, si tocan,
-// se cambian por uno del catálogo: quitar series no sube la probabilidad de ningún personaje.
+// Mascotas que pueden salir aquí además del catálogo: las propias del servidor. `quitadosDe`
+// (series del Pack anime quitadas) lo usan los sobres de cartas.
 function extrasDe(guildId, cfg) {
     if (!guildId) return [];
     const propios = [...K.PERSONALIZADOS.entries()].filter(([, c]) => c.guildId === guildId && c.activo !== false).map(([id]) => id);
-    return cfg?.compis?.anime ? [...propios, ...K.ANIME.keys()] : propios;
+    // 1.24.0: el Pack anime ya no sale en los cofres de mascotas: son cartas (utils/cartas.js).
+    return propios;
 }
 function quitadosDe(cfg) {
     const fuera = cfg?.compis?.anime ? cfg.compis.animeFuera || [] : [];
@@ -106,13 +109,14 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
             `${comp.emoji} **${nombre(r.id, idioma)}** · ${rarezaTxt(r.rareza, idioma)}${comp.serie ? `\n📺 ${comp.serie}` : ''}`,
             estado,
             r.piedad ? t(idioma, '🍀 ¡La suerte del décimo cofre! (épica asegurada)', '🍀 Tenth-chest luck! (epic guaranteed)') : '',
-            t(idioma, `Si lo equipas: ${textoVentajas(v, idioma)}`, `If equipped: ${textoVentajas(v, idioma)}`),
+            K.habilidad(r.id) ? t(idioma, `🌟 Habilidad exclusiva: **${K.habilidad(r.id).es}**`, `🌟 Exclusive ability: **${K.habilidad(r.id).en}**`) : '',
+            t(idioma, `Si la equipas: ${textoVentajas(v, idioma)}`, `If equipped: ${textoVentajas(v, idioma)}`),
         ].filter(Boolean).join('\n'))
         .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${col.abiertos + 1} cofres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${col.abiertos + 1} chests opened`) });
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cof_otro:${cofre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
         new ButtonBuilder().setCustomId(`cof_eq:${r.id}`).setEmoji('✅').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Equipar', 'Equip')),
-        new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${r.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Cuidarlo', 'Look after it')),
+        new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${r.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Cuidarla', 'Look after it')),
     );
     await interaction.editReply({ embeds: [fin], components: [fila] });
     // Las legendarias o mejores se anuncian (y la divina, a lo grande).
@@ -167,7 +171,7 @@ function embedProbabilidades(idioma, cfg = null) {
     }
     if (cfg?.compis?.anime) {
         const n = K.idsAnime(cfg.compis.animeFuera || []).length;
-        e.addFields({ name: t(idioma, '🌸 Pack anime activado', '🌸 Anime pack on'), value: t(idioma, `Aquí también pueden salir ${n} personajes de anime (cuanto más populares, más raros). Y hay una divina secreta… 🕰️`, `${n} anime characters can also drop here (the more popular, the rarer). And there’s a secret divine one… 🕰️`) });
+        e.addFields({ name: t(idioma, '🃏 Cartas de anime', '🃏 Anime cards'), value: t(idioma, `Los personajes de anime (${n} aquí) no salen en los cofres: son **cartas** que potencian a tu mascota. Se consiguen en sobres con \`/carta abrir\`.`, `Anime characters (${n} here) don’t drop from chests: they’re **cards** that power up your pet. Get them in packs with \`/card open\`.`) });
     }
     e.addFields({ name: t(idioma, '✨ Ventajas por rareza', '✨ Perks by rarity'), value: Object.keys(K.RAREZAS).map((r) => `${rarezaTxt(r, idioma)}: ${textoVentajas({ xp: K.RAREZAS[r].xp, diario: K.RAREZAS[r].diario, vuelta: K.RAREZAS[r].vuelta }, idioma)}`).join('\n') });
     return e;

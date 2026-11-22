@@ -64,6 +64,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         const recoger = () => {
             if (!P.expedicionLista(m, ahora)) return;
             const b = P.botin(m);
+            if (m.botinX) m.botinX = null; // el ×N de una carta solo vale una vez
             const x = P.EXPEDICIONES[m.exp.tipo];
             oro += b.oro; m.afinidad = (m.afinidad || 0) + b.afinidad;
             // Mientras está fuera no gasta: se cuenta desde que volvió.
@@ -112,46 +113,70 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
                 }
                 if (r.humor === 'feliz') sumarMision('feliz');
             }
-        } else if (que === 'poder') {
-            const r = P.usarPoder(m, col, { ahora, bromas: bromas && !!guildId });
-            if (r.fallo) { fallo = r.fallo; falloMin = r.min; }
+        } else if (que === 'poder' || que.startsWith('carta:')) {
+            // Poder del día de la mascota o una carta de anime usada en ella (1.24.0).
+            const esCarta = que.startsWith('carta:');
+            const r = esCarta
+                ? require('./cartasNucleo.js').usarCarta(col, que.slice(6), m, { ahora, dia, bromas: bromas && !!guildId, equipada: col.equipada })
+                : P.usarPoder(m, col, { ahora, bromas: bromas && !!guildId });
+            if (r.fallo) { fallo = r.fallo; falloMin = r.min || 0; if (r.limite) falloRareza = r.limite; }
             else {
                 const def = P.poderDe(m);
-                colSet.poderUsado = new Date(ahora);
-                efecto = 'nivel';
-                frase = P.frase(m, 'poder', { idioma, dueno, ahora });
-                if (r.nombre) mensajes.push(`${r.emoji} **${t(idioma, r.nombre.es, r.nombre.en)}**`);
+                if (esCarta) {
+                    const carta = K.def(r.carta);
+                    colSet.cartas = (col.cartas || []).map((c) => (c.id === r.carta ? { ...c, usada: new Date(ahora) } : c));
+                    colSet.cartasHoy = { dia, n: r.usadas };
+                    mensajes.push(t(idioma, `🃏 **${carta.es}** usa ${r.emoji} **${r.nombre.es}** sobre ${corto(m, idioma)}`, `🃏 **${carta.en}** uses ${r.emoji} **${r.nombre.en}** on ${corto(m, idioma)}`));
+                    efecto = 'vuelta';
+                    frase = P.frase(m, 'mimar', { idioma, dueno, ahora });
+                } else {
+                    colSet.poderUsado = new Date(ahora);
+                    efecto = 'nivel';
+                    frase = P.frase(m, 'poder', { idioma, dueno, ahora });
+                    if (r.nombre) mensajes.push(`${r.emoji} **${t(idioma, r.nombre.es, r.nombre.en)}**`);
+                }
                 if (r.oro) { oro += r.oro; mensajes.push(r.nombre ? t(idioma, `🪙 Consigue ${r.oro} de oro.`, `🪙 Gets ${r.oro} gold.`) : t(idioma, `${r.emoji} **Olfato:** ha encontrado 🪙 ${r.oro}.`, `${r.emoji} **Sniff:** found 🪙 ${r.oro}.`)); }
                 if (r.buff) {
-                    colSet.buff = r.buff;
-                    mensajes.push(t(idioma, `${r.emoji} **+${Math.round(r.buff.xp * 100)} % de XP** hasta <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`, `${r.emoji} **+${Math.round(r.buff.xp * 100)}% XP** until <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`));
+                    // No se acumulan: se queda el más fuerte.
+                    const actual = P.buffXp(col, ahora);
+                    if (r.buff.xp >= actual) {
+                        colSet.buff = r.buff;
+                        mensajes.push(t(idioma, `${r.emoji} **+${Math.round(r.buff.xp * 100)} % de XP** hasta <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`, `${r.emoji} **+${Math.round(r.buff.xp * 100)}% XP** until <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`));
+                    } else mensajes.push(t(idioma, `✨ Ya tienes un +${Math.round(actual * 100)} % de XP más fuerte activo: se queda ese.`, `✨ You already have a stronger +${Math.round(actual * 100)}% XP active: that one stays.`));
                 }
+                if (r.potencia) {
+                    const act = col.potencia && new Date(col.potencia.hasta) > new Date(ahora) && col.potencia.mascota === m.id ? col.potencia.valor || 0 : 0;
+                    if (r.potencia.valor < act) mensajes.push(t(idioma, `💥 Ya está potenciada un +${Math.round(act * 100)} %: se queda ese.`, `💥 Already boosted +${Math.round(act * 100)}%: that one stays.`));
+                    else colSet.potencia = r.potencia;
+                    if (r.potencia.valor >= act) mensajes.push(t(idioma, `💥 **${corto(m, idioma)} +${Math.round(r.potencia.valor * 100)} %**: sus ventajas suben hasta <t:${Math.floor(r.potencia.hasta.getTime() / 1000)}:t>${col.equipada === m.id ? '' : ' (si la llevas equipada)'}.`, `💥 **${corto(m, idioma)} +${Math.round(r.potencia.valor * 100)}%**: its perks go up until <t:${Math.floor(r.potencia.hasta.getTime() / 1000)}:t>${col.equipada === m.id ? '' : ' (while equipped)'}.`));
+                }
+                if (r.botinX) { m.botinX = Math.max(m.botinX || 1, r.botinX); mensajes.push(t(idioma, `🍀 Su próxima expedición traerá **×${String(m.botinX).replace('.', ',')}** de oro.`, `🍀 Its next expedition will bring **×${m.botinX}** gold.`)); }
                 if (r.escudoHasta) {
                     const PerfilBroma = require('../models/PerfilBroma.js');
                     const p0 = await PerfilBroma.findOne({ guildId, userId }).lean();
                     const desde = p0?.escudoHasta && new Date(p0.escudoHasta) > new Date(ahora) ? new Date(p0.escudoHasta) : new Date(ahora);
                     const hasta = new Date(Math.max(desde.getTime(), r.escudoHasta.getTime()));
                     await PerfilBroma.updateOne({ guildId, userId }, { $set: { escudoHasta: hasta } }, { upsert: true });
-                    mensajes.push(t(idioma, `${r.emoji} **Escudo:** nadie te puede gastar bromas aquí hasta <t:${Math.floor(hasta.getTime() / 1000)}:t>.`, `${r.emoji} **Shield:** nobody can prank you here until <t:${Math.floor(hasta.getTime() / 1000)}:t>.`));
+                    mensajes.push(t(idioma, `🛡️ **Escudo:** nadie te puede gastar bromas aquí hasta <t:${Math.floor(hasta.getTime() / 1000)}:t>.`, `🛡️ **Shield:** nobody can prank you here until <t:${Math.floor(hasta.getTime() / 1000)}:t>.`));
                 }
                 if (r.volver) {
                     m.exp = { ...m.exp, hasta: new Date(ahora - 1) };
-                    mensajes.push(t(idioma, `${r.emoji} **Prisa:** vuelve corriendo de la expedición.`, `${r.emoji} **Rush:** it rushes back from the expedition.`));
+                    mensajes.push(t(idioma, `⚡ Vuelve corriendo de la expedición.`, `⚡ It rushes back from the expedition.`));
                     recoger();
                 }
-                if (r.lleno) { Object.assign(m, { hambre: 100, alegria: 100, energia: 100, actualizado: new Date(ahora) }); mensajes.push(t(idioma, `${r.emoji} Barriga, alegría y energía al 100.`, `${r.emoji} Tummy, joy and energy at 100.`)); }
+                if (r.lleno) { Object.assign(m, { hambre: 100, alegria: 100, energia: 100, actualizado: new Date(ahora) }); mensajes.push(t(idioma, '✨ Barriga, alegría y energía al 100.', '✨ Tummy, joy and energy at 100.')); }
                 else if (r.energia || r.alegria) {
                     const e = P.estado(m, ahora);
                     Object.assign(m, e, r.energia ? { energia: 100 } : {}, r.alegria ? { alegria: 100 } : {}, { actualizado: new Date(ahora) });
                     mensajes.push(r.energia && r.alegria ? t(idioma, '⚡💖 Energía y alegría al 100.', '⚡💖 Energy and joy at 100.') : r.energia ? t(idioma, '⚡ Energía al 100.', '⚡ Energy at 100.') : t(idioma, '💖 Alegría al 100.', '💖 Joy at 100.'));
                 }
-                if (r.afinidad) { m.afinidad = (m.afinidad || 0) + r.afinidad; mensajes.push(t(idioma, `💞 +${r.afinidad} de afinidad.`, `💞 +${r.afinidad} affinity.`)); }
+                if (r.afinidad) { const a = P.conAfinidad(m, r.afinidad); m.afinidad = (m.afinidad || 0) + a; mensajes.push(t(idioma, `💞 +${a} de afinidad.`, `💞 +${a} affinity.`)); }
                 if (r.recuerdo !== undefined && r.recuerdo !== null) {
                     const rec = P.RECUERDOS[r.recuerdo];
                     if (!(m.recuerdos || []).includes(r.recuerdo)) m.recuerdos = [...(m.recuerdos || []), r.recuerdo];
                     mensajes.push(t(idioma, `🎒 Encuentra un recuerdo: ${rec[0]} ${rec[1]}`, `🎒 Finds a souvenir: ${rec[0]} ${rec[2]}`));
                 }
-                if (!r.oro && !r.buff && !r.escudoHasta && !r.volver && !r.lleno && !r.energia && !r.alegria && !r.afinidad && r.recuerdo === undefined) mensajes.push(`${def.emoji} ${t(idioma, def.es, def.en)}`);
+                if (!esCarta && mensajes.length === 0) mensajes.push(`${def.emoji} ${t(idioma, def.es, def.en)}`);
             }
         } else if (que.startsWith('exp:')) {
             const r = P.salir(m, que.slice(4), col.expHoy, dia, ahora);
@@ -177,7 +202,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         const nivelDespues = P.nivel(m.afinidad || 0);
         if (nivelDespues > nivelAntes) { mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel'; }
         // Guardar (solo lo que cambia).
-        for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados', 'cds']) {
+        for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados', 'cds', 'botinX']) {
             if (m[k] !== m0[k]) set[`mascotas.$[m].${k}`] = m[k];
         }
         if (mis !== col.misiones) colSet.misiones = mis;
@@ -200,10 +225,14 @@ const FALLOS = {
     recoger: ['Ya ha vuelto: entra a verlo para recoger lo que trae.', 'It’s back: open it to collect what it brought.'],
     tipo: ['Esa expedición no existe.', 'That expedition doesn’t exist.'],
     espera: ['Aún no: podrás repetirlo en {min}.', 'Not yet: you can do it again in {min}.'],
-    rareza: ['Eso solo lo hacen los compañeros más raros.', 'Only rarer companions can do that.'],
+    rareza: ['Eso solo lo hacen las mascotas más raras.', 'Only rarer pets can do that.'],
+    sinCarta: ['No tienes esa carta. Consigue cartas con `/carta abrir`.', 'You don’t have that card. Get cards with `/card open`.'],
+    sinMascota: ['Necesitas una mascota para usar cartas. Consíguela con `/cofre abrir`.', 'You need a pet to use cards. Get one with `/chest open`.'],
+    recargando: ['Esa carta se está recargando: lista en {min}.', 'That card is recharging: ready in {min}.'],
+    topeCartas: ['Ya has usado tus {n} cartas de hoy. Mañana más.', 'You’ve used your {n} cards for today. More tomorrow.'],
     accion: ['No sé hacer eso.', 'I can’t do that.'],
 };
-const textoFallo = (f, idioma, min = 0) => { const x = FALLOS[f] || FALLOS.accion; return t(idioma, x[0], x[1]).replace('{min}', tiempo(min * 60000, idioma)); };
+const textoFallo = (f, idioma, min = 0, n = 0) => { const x = FALLOS[f] || FALLOS.accion; return t(idioma, x[0], x[1]).replace('{min}', tiempo(min * 60000, idioma)).replace('{n}', n); };
 
 function tiempo(ms, idioma) {
     const min = Math.max(1, Math.ceil(ms / 60000));
@@ -255,7 +284,8 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         const d = P.MISIONES[id]; const hecha = (mis.hechas || []).includes(id);
         return `${hecha ? '✅' : '⬜'} ${d.emoji} ${t(idioma, d.es, d.en)}${hecha ? '' : ` (${Math.min(d.n, (mis.prog || {})[id] || 0)}/${d.n})`}`;
     }).join('\n');
-    const v = K.ventajas(m.id, m.estrellas, P.extraCuidado(m, ahora));
+    const potActiva = col.potencia && col.potencia.mascota === m.id && new Date(col.potencia.hasta) > new Date(ahora) ? col.potencia.valor || 0 : 0;
+    const v = K.ventajas(m.id, m.estrellas, P.extraCuidado(m, ahora) + potActiva);
     const poder = P.poderDe(m);
     const faltaP = P.faltaPoder(col, ahora);
     const recs = (m.recuerdos || []).map((i) => P.RECUERDOS[i]?.[0]).filter(Boolean);
@@ -264,9 +294,12 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         .setTitle(`${def.emoji} ${nombreDe(m, idioma)}`)
         .setDescription([
             ...(res.mensajes || []),
-            res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin)}` : '',
+            res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin, res.falloRareza)}` : '',
             def.desc ? `*${def.desc}*` : '',
             def.serie ? `📺 ${def.serie}` : '',
+            K.habilidad(m.id) ? t(idioma, `🌟 **Habilidad exclusiva:** ${K.habilidad(m.id).es}`, `🌟 **Exclusive ability:** ${K.habilidad(m.id).en}`) : '',
+            col.potencia && col.potencia.mascota === m.id && new Date(col.potencia.hasta) > new Date(ahora) ? t(idioma, `💥 **Potenciada +${Math.round(col.potencia.valor * 100)} %** por una carta hasta <t:${Math.floor(new Date(col.potencia.hasta).getTime() / 1000)}:t>`, `💥 **Boosted +${Math.round(col.potencia.valor * 100)}%** by a card until <t:${Math.floor(new Date(col.potencia.hasta).getTime() / 1000)}:t>`) : '',
+            m.botinX ? t(idioma, `🍀 Su próxima expedición trae ×${String(m.botinX).replace('.', ',')} de oro`, `🍀 Its next expedition brings ×${m.botinX} gold`) : '',
             poder.nombre && !(res.mensajes || []).some((x) => x.includes(t(idioma, poder.nombre.es, poder.nombre.en))) ? t(idioma, `${poder.emoji} **${poder.nombre.es}** — ${P.textoEfecto(poder.efecto, 'es')}`, `${poder.emoji} **${poder.nombre.en}** — ${P.textoEfecto(poder.efecto, 'en')}`) : '',
         ].filter(Boolean).join('\n') || null)
         .addFields(
@@ -330,11 +363,41 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         new ButtonBuilder().setCustomId(cid('equipar')).setEmoji('✅').setLabel(equipado ? t(idioma, 'Equipado', 'Equipped') : t(idioma, 'Equipar', 'Equip')).setStyle(ButtonStyle.Secondary).setDisabled(equipado),
         new ButtonBuilder().setCustomId(cid('apodo')).setEmoji('✏️').setLabel(t(idioma, 'Ponerle apodo', 'Nickname')).setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(cid('ver')).setEmoji('🔄').setLabel(t(idioma, 'Actualizar', 'Refresh')).setStyle(ButtonStyle.Secondary),
+        ...(cfg?.compis?.anime ? [new ButtonBuilder().setCustomId(cid('cartas')).setEmoji('🃏').setLabel(t(idioma, `Cartas (${(col.cartas || []).length})`, `Cards (${(col.cartas || []).length})`)).setStyle(ButtonStyle.Primary)] : []),
     ));
     return { embeds: [emb], files, components: filas, attachments: [], allowedMentions: { parse: [] } };
 }
 
-// Botones y menús (cmp:…, cmp_exp:…, cmp_sel:…, cmp_apodo:…).
+// Elegir qué carta usar en la mascota (1.24.0). Lo ve solo su dueño.
+function selectorCartas(col, m, ownerId, msgId, idioma) {
+    const S = require('./cartasNucleo.js');
+    const ahora = Date.now();
+    const dia = P.diaDe(ahora);
+    const usadas = col.cartasHoy && col.cartasHoy.dia === dia ? col.cartasHoy.n || 0 : 0;
+    const limite = S.limiteDia(col.equipada || m.id);
+    const lista = (col.cartas || []).map((c) => ({ c, d: K.def(c.id), f: S.faltaCarta(c, ahora) }))
+        .sort((a, b) => (a.f > 0) - (b.f > 0) || K.RAREZAS[b.d.rareza].orden - K.RAREZAS[a.d.rareza].orden || (b.c.estrellas || 1) - (a.c.estrellas || 1));
+    const listas = lista.filter((x) => !x.f).length;
+    const e = new EmbedBuilder().setColor('#8b5cf6').setTitle(t(idioma, `🃏 Usar una carta en ${corto(m, idioma)}`, `🃏 Use a card on ${corto(m, idioma)}`))
+        .setDescription([
+            t(idioma, `Hoy: **${usadas}/${limite}** cartas usadas · ${listas} listas · cada carta se recarga en ${S.ESPERA_CARTA_H} h.`, `Today: **${usadas}/${limite}** cards used · ${listas} ready · each card recharges in ${S.ESPERA_CARTA_H} h.`),
+            K.habilidad(m.id) && ['cartas', 'divino'].includes(K.habilidad(m.id).tipo) ? t(idioma, `🌟 ${corto(m, idioma)} hace las cartas más fuertes: ${K.habilidad(m.id).es}`, `🌟 ${corto(m, idioma)} makes cards stronger: ${K.habilidad(m.id).en}`) : '',
+            lista.length ? '' : t(idioma, 'No tienes cartas. Consíguelas con `/carta abrir`.', 'You have no cards. Get them with `/card open`.'),
+        ].filter(Boolean).join('\n'));
+    const comps = [];
+    if (lista.length) {
+        comps.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_crt:${ownerId}:${msgId || '0'}:${m.id}`)
+            .setPlaceholder(t(idioma, '🃏 Elige una carta…', '🃏 Pick a card…')).setDisabled(usadas >= limite || !listas)
+            .addOptions(lista.slice(0, 25).map(({ c, d, f }) => {
+                const ef = P.efectoCarta(c.id, c.estrellas || 1, m.id);
+                return { value: c.id, emoji: f ? '⏳' : (P.ARQUETIPOS[d.poder.tipo]?.emoji || '🃏'), label: `${d.es} ${'★'.repeat(c.estrellas || 1)} · ${t(idioma, d.poder.es, d.poder.en)}`.slice(0, 100),
+                    description: (f ? t(idioma, `Se recarga en ${tiempo(f * 60000, idioma)}`, `Recharges in ${tiempo(f * 60000, idioma)}`) : P.textoEfecto(ef, idioma)).slice(0, 100) };
+            }))));
+    }
+    return { embeds: [e], components: comps, flags: 64 };
+}
+
+// Botones y menús (cmp:…, cmp_exp:…, cmp_sel:…, cmp_apodo:…, cmp_crt:…).
 async function manejar(interaction) {
     const id = interaction.customId || '';
     if (!id.startsWith('cmp')) return false;
@@ -347,11 +410,41 @@ async function manejar(interaction) {
     if (partes[0] === 'cmp') { que = partes[1]; owner = partes[2]; comp = partes.slice(3).join(':'); }
     else if (partes[0] === 'cmp_exp') { owner = partes[1]; comp = partes.slice(2).join(':'); que = `exp:${interaction.values[0]}`; }
     else if (partes[0] === 'cmp_sel') { owner = partes[1]; comp = interaction.values[0]; que = 'ver'; }
+    else if (partes[0] === 'cmp_crt') { owner = partes[1]; comp = partes.slice(3).join(':'); que = `carta:${interaction.values[0]}`; }
     else if (partes[0] === 'cmp_int') { owner = partes[1]; comp = partes.slice(2).join(':'); que = `int:${interaction.values[0]}`; }
     else if (partes[0] === 'cmp_apodo') { owner = partes[1]; comp = partes.slice(2).join(':'); que = 'apodo_guardar'; }
     else return false;
     if (interaction.user.id !== owner) {
         await interaction.reply({ content: t(idioma, '🐾 Este compañero no es tuyo. Mira el tuyo con `/compi`.', '🐾 This companion isn’t yours. See yours with `/companion`.'), flags: 64 });
+        return true;
+    }
+    if (que === 'cartas') {
+        const col = await ColeccionMascotas.findOne({ userId: owner }).lean();
+        const m = elegir(col, comp);
+        if (!m) { await interaction.reply({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
+        await interaction.reply(selectorCartas(col, m, owner, interaction.message?.id, idioma));
+        return true;
+    }
+    if (partes[0] === 'cmp_crt') {
+        // Se usa la carta, se pone al día la tarjeta pública de /compi y aquí se ve qué ha pasado.
+        await interaction.deferUpdate();
+        const nombre = interaction.user.displayName || interaction.user.username;
+        const res = await accion(owner, comp, que, { idioma, dueno: nombre, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
+        const msgId = partes[2];
+        let editado = false;
+        if (!res.fallo && msgId && msgId !== '0') {
+            const original = await interaction.channel?.messages.fetch(msgId).catch(() => null);
+            if (original) editado = !!(await original.edit(await vista({ ownerId: owner, duenoNombre: nombre, idioma, res, cfg })).catch(() => null));
+        }
+        const col = await ColeccionMascotas.findOne({ userId: owner }).lean();
+        const sel = selectorCartas(col, elegir(col, comp) || res.m, owner, msgId, idioma);
+        const resumen = res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin, res.falloRareza)}` : (res.mensajes || []).join('\n');
+        if (!res.fallo && !editado) {
+            await interaction.editReply({ ...(await vista({ ownerId: owner, duenoNombre: nombre, idioma, res, cfg })), flags: undefined });
+            return true;
+        }
+        sel.embeds[0].setDescription(`${resumen}\n\n${sel.embeds[0].data.description || ''}`.slice(0, 4000));
+        await interaction.editReply({ embeds: sel.embeds, components: sel.components });
         return true;
     }
     if (que === 'apodo') {

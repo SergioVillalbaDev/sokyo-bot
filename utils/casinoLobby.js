@@ -89,7 +89,8 @@ async function mensajeLobby(guild, cfg, { conCartel = true } = {}) {
     const menu = new StringSelectMenuBuilder().setCustomId('cas_lob').setPlaceholder(t(idioma, '🎲 Elige un juego…', '🎲 Pick a game…'))
         .addOptions([
             ...activos.map((j) => ({ value: j, emoji: J[j].emoji, label: t(idioma, J[j].es, J[j].en), description: t(idioma, ...RESUMEN[j]) })),
-            ...(c.cofres !== false ? [{ value: 'cofres', emoji: '🎁', label: t(idioma, 'Cofres de compañeros', 'Companion chests'), description: t(idioma, 'Consigue compañeros (hay uno divino)', 'Get companions (there’s a divine one)') }] : []),
+            ...(c.cofres !== false ? [{ value: 'cofres', emoji: '🎁', label: t(idioma, 'Cofres de mascotas', 'Pet chests'), description: t(idioma, 'Mascotas con habilidades exclusivas (hay una divina)', 'Pets with exclusive abilities (there’s a divine one)') }] : []),
+            ...(cfg?.compis?.anime ? [{ value: 'cartas', emoji: '🃏', label: t(idioma, 'Sobres de cartas de anime', 'Anime card packs'), description: t(idioma, '3 cartas por sobre que potencian a tu mascota', '3 cards per pack that power up your pet') }] : []),
         ]);
     const botones = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('cas_lb:diaria').setEmoji('🎁').setLabel(t(idioma, 'Tirada gratis', 'Free spin')).setStyle(ButtonStyle.Success),
@@ -150,9 +151,20 @@ async function mesa(juego, { cfg, idioma, userId, cantidad = null, extra = null 
     const min = c.apuestaMin ?? 10; const max = c.apuestaMax ?? 5000;
     const saldo = (await require('./economia.js').obtenerUsuario(userId)).balance;
     const J = casino().JUEGOS;
+    if (juego === 'cartas') {
+        const S = require('./cartasNucleo.js');
+        const e = new EmbedBuilder().setColor('#8b5cf6').setTitle(t(idioma, '🃏 Sobres de cartas de anime', '🃏 Anime card packs'))
+            .setDescription(t(idioma, `Cada sobre trae **3 cartas** de personajes de anime. Cada carta tiene su poder y se usa sobre tu mascota para potenciarla (\`/compi\` → 🃏). Hasta ${S.CARTAS_DIA} al día.`, `Each pack has **3 cards** of anime characters. Each card has its power and is used on your pet to power it up (\`/companion\` → 🃏). Up to ${S.CARTAS_DIA} a day.`))
+            .addFields(Object.entries(S.SOBRES).map(([, x]) => ({ name: `${x.emoji} ${t(idioma, x.es, x.en)} · 🪙 ${fmt(x.precio, idioma)}`, value: Object.entries(x.prob).filter(([, p]) => p > 0).map(([r, p]) => `${K.RAREZAS[r].emoji} ${p} %`).join(' · '), inline: false })))
+            .setFooter({ text: t(idioma, `Tu oro: 🪙 ${fmt(saldo, idioma)}`, `Your gold: 🪙 ${fmt(saldo, idioma)}`) });
+        return { embeds: [e], components: [
+            new ActionRowBuilder().addComponents(Object.entries(S.SOBRES).map(([id, x]) => new ButtonBuilder().setCustomId(`crt_otro:${id}`).setEmoji(x.emoji).setStyle(ButtonStyle.Primary).setLabel(`${t(idioma, x.es, x.en)} · 🪙 ${fmt(x.precio, idioma)}`).setDisabled(saldo < x.precio))),
+            new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('crt_album').setEmoji('📚').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi álbum', 'My album'))),
+        ] };
+    }
     if (juego === 'cofres') {
-        const e = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, '🎁 Cofres de compañeros', '🎁 Companion chests'))
-            .setDescription(t(idioma, 'Abre un cofre y sale un compañero al azar. Llévalo equipado para sus ventajas y cuídalo con `/compi`. Cuanto más caro el cofre, más fácil que salga algo raro.', 'Open a chest and get a random companion. Equip it for its perks and look after it with `/companion`. The pricier the chest, the likelier something rare.'))
+        const e = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, '🎁 Cofres de mascotas', '🎁 Pet chests'))
+            .setDescription(t(idioma, 'Abre un cofre y sale una mascota al azar, cada una con su **habilidad exclusiva**. Llévala equipada para sus ventajas y cuídala con `/compi`. Cuanto más caro el cofre, más fácil que salga algo raro.', 'Open a chest and get a random pet, each with its own **exclusive ability**. Equip it for its perks and look after it with `/companion`. The pricier the chest, the likelier something rare.'))
             .addFields(Object.entries(K.COFRES).map(([id, x]) => ({ name: `${x.emoji} ${t(idioma, x.es, x.en)} · 🪙 ${fmt(x.precio, idioma)}`, value: Object.entries(x.prob).filter(([, p]) => p > 0).map(([r, p]) => `${K.RAREZAS[r].emoji} ${p} %`).join(' · '), inline: false })))
             .setFooter({ text: t(idioma, `Tu oro: 🪙 ${fmt(saldo, idioma)}`, `Your gold: 🪙 ${fmt(saldo, idioma)}`) });
         return { embeds: [e], components: [

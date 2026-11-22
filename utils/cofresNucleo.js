@@ -80,6 +80,75 @@ const COMPANEROS = {
     celestial: { rareza: 'divina', svg: '1f432', emoji: '🐲', es: 'Sokyo, el Dragón Celestial', en: 'Sokyo, the Celestial Dragon', titulo: { es: '👑 Elegido de Sokyo', en: '👑 Chosen by Sokyo' } },
 };
 
+// Habilidad EXCLUSIVA de cada mascota (1.24.0), además de las ventajas de su rareza y su poder
+// del día. Tipos (compisNucleo/compis/cartas las aplican):
+//   xp · diario · vuelta · bromas · liga · expedicion → suma `valor` a esa ventaja
+//   gloton (el hambre baja a la mitad) · alegre (la alegría baja a la mitad) · incansable (energía ×1,5)
+//   rapido (expediciones un 25 % más cortas) · tesoro (siempre traen recuerdo) · afin (afinidad ×1,5)
+//   cartas (las cartas usadas en ella, +valor de fuerza) · recarga (+valor cartas al día) · divino (cartas +50 % y +1 al día)
+const H = (tipo, valor, es, en) => ({ tipo, valor, es, en });
+const HABILIDADES = {
+    gato: H('vuelta', 0.02, 'Siete vidas: un 2 % más de vuelta en el casino', 'Nine lives: 2% more casino cashback'),
+    perro: H('afin', 0.5, 'Leal hasta el final: gana afinidad un 50 % más rápido', 'Loyal to the end: gains affinity 50% faster'),
+    conejo: H('rapido', 0.25, 'Saltos dobles: sus expediciones duran un 25 % menos', 'Double hops: its expeditions are 25% shorter'),
+    hamster: H('gloton', 0.5, 'Mofletes llenos: el hambre le baja a la mitad', 'Stuffed cheeks: gets hungry half as fast'),
+    rana: H('diario', 0.05, 'Croar de la suerte: +5 % de oro en /diario', 'Lucky croak: +5% gold on /daily'),
+    pollito: H('xp', 0.02, 'Pío madrugador: +2 % de XP', 'Early chirp: +2% XP'),
+    tortuga: H('bromas', 0.05, 'Caparazón: bromas un 5 % más baratas', 'Shell: pranks 5% cheaper'),
+    cerdito: H('tesoro', 1, 'Hocico trufero: sus expediciones siempre traen un recuerdo', 'Truffle snout: its expeditions always bring a souvenir'),
+    oso: H('alegre', 0.5, 'Abrazo de oso: la alegría le baja a la mitad', 'Bear hug: its joy drops half as fast'),
+    mono: H('bromas', 0.08, 'Travesura: bromas un 8 % más baratas', 'Mischief: pranks 8% cheaper'),
+    raton: H('rapido', 0.25, 'Escurridizo: sus expediciones duran un 25 % menos', 'Slippery: its expeditions are 25% shorter'),
+    erizo: H('bromas', 0.06, 'Púas: bromas un 6 % más baratas', 'Spikes: pranks 6% cheaper'),
+    pato: H('diario', 0.05, 'Cuac de oro: +5 % de oro en /diario', 'Golden quack: +5% gold on /daily'),
+    pixel: H('recarga', 1, 'Overclock: puedes usar 1 carta más al día', 'Overclock: you can use 1 more card a day'),
+    boo: H('cartas', 0.3, 'Susto amistoso: las cartas en él son un 30 % más fuertes', 'Friendly scare: cards on it are 30% stronger'),
+    zorro: H('vuelta', 0.03, 'Astucia: un 3 % más de vuelta en el casino', 'Cunning: 3% more casino cashback'),
+    panda: H('incansable', 0.5, 'Siesta de bambú: recupera energía un 50 % más rápido', 'Bamboo nap: recovers energy 50% faster'),
+    koala: H('alegre', 0.5, 'Abrazo de eucalipto: la alegría le baja a la mitad', 'Eucalyptus hug: its joy drops half as fast'),
+    buho: H('xp', 0.04, 'Sabiduría nocturna: +4 % de XP', 'Night wisdom: +4% XP'),
+    pinguino: H('rapido', 0.25, 'Tobogán de hielo: sus expediciones duran un 25 % menos', 'Ice slide: its expeditions are 25% shorter'),
+    mapache: H('tesoro', 1, 'Manos rápidas: sus expediciones siempre traen un recuerdo', 'Quick hands: its expeditions always bring a souvenir'),
+    nutria: H('afin', 0.5, 'De la manita: gana afinidad un 50 % más rápido', 'Holding hands: gains affinity 50% faster'),
+    perezoso: H('gloton', 0.5, 'Modo ahorro: el hambre le baja a la mitad', 'Power saving: gets hungry half as fast'),
+    flamenco: H('liga', 0.05, 'Equilibrio: +5 % de puntos de Liga', 'Balance: +5% League points'),
+    mariposa: H('cartas', 0.3, 'Efecto mariposa: las cartas en ella son un 30 % más fuertes', 'Butterfly effect: cards on it are 30% stronger'),
+    zim: H('recarga', 1, 'Tecnología alien: 1 carta más al día', 'Alien tech: 1 more card a day'),
+    kuro: H('gloton', 0.5, 'No-muerto: el hambre le baja a la mitad', 'Undead: gets hungry half as fast'),
+    tomo: H('diario', 0.08, 'Banquete: +8 % de oro en /diario', 'Feast: +8% gold on /daily'),
+    leon: H('liga', 0.10, 'Rugido del rey: +10 % de puntos de Liga', 'King’s roar: +10% League points'),
+    tigre: H('xp', 0.05, 'Garra feroz: +5 % de XP', 'Fierce claw: +5% XP'),
+    unicornio: H('cartas', 0.35, 'Arcoíris: las cartas en él son un 35 % más fuertes', 'Rainbow: cards on it are 35% stronger'),
+    lobo: H('afin', 0.6, 'Llamada de la manada: gana afinidad un 60 % más rápido', 'Pack call: gains affinity 60% faster'),
+    pavo: H('liga', 0.08, 'Plumaje deslumbrante: +8 % de puntos de Liga', 'Dazzling plumage: +8% League points'),
+    leopardo: H('rapido', 0.3, 'Sprint: sus expediciones duran un 30 % menos', 'Sprint: its expeditions are 30% shorter'),
+    loro: H('bromas', 0.10, 'Repetir y repetir: bromas un 10 % más baratas', 'Repeat and repeat: pranks 10% cheaper'),
+    kaede: H('tesoro', 1, 'Sombra lunar: sus expediciones siempre traen un recuerdo', 'Moon shadow: its expeditions always bring a souvenir'),
+    lumi: H('cartas', 0.35, 'Polvo de hada: las cartas en ella son un 35 % más fuertes', 'Fairy dust: cards on her are 35% stronger'),
+    ren: H('xp', 0.06, 'Corte del viento: +6 % de XP', 'Wind slash: +6% XP'),
+    mika: H('recarga', 1, 'Grimorio: 1 carta más al día', 'Grimoire: 1 more card a day'),
+    nova: H('rapido', 0.35, 'Propulsores: sus expediciones duran un 35 % menos', 'Thrusters: its expeditions are 35% shorter'),
+    yuki: H('alegre', 0.6, 'Concierto: la alegría casi no le baja', 'Concert: its joy barely drops'),
+    dragon: H('xp', 0.08, 'Aliento de fuego: +8 % de XP', 'Fire breath: +8% XP'),
+    aguila: H('tesoro', 1, 'Vista de águila: sus expediciones siempre traen un recuerdo', 'Eagle eye: its expeditions always bring a souvenir'),
+    tiburon: H('vuelta', 0.04, 'Frenesí: un 4 % más de vuelta en el casino', 'Frenzy: 4% more casino cashback'),
+    vlad: H('incansable', 0.8, 'Noche eterna: recupera energía casi al doble', 'Eternal night: recovers energy almost twice as fast'),
+    marina: H('liga', 0.12, 'Canto de sirena: +12 % de puntos de Liga', 'Siren song: +12% League points'),
+    sylva: H('expedicion', 0.25, 'Flecha certera: +25 % de oro en expediciones', 'True arrow: +25% expedition gold'),
+    hikari: H('bromas', 0.15, 'Justicia: bromas un 15 % más baratas', 'Justice: pranks 15% cheaper'),
+    oni: H('xp', 0.08, 'Furia oni: +8 % de XP', 'Oni fury: +8% XP'),
+    fenix: H('incansable', 1, 'Renacer de las cenizas: recupera energía al doble', 'Rise from the ashes: recovers energy twice as fast'),
+    trex: H('liga', 0.15, 'Rugido jurásico: +15 % de puntos de Liga', 'Jurassic roar: +15% League points'),
+    ballena: H('tesoro', 1, 'Canto abisal: sus expediciones siempre traen un recuerdo', 'Abyssal song: its expeditions always bring a souvenir'),
+    kraken: H('expedicion', 0.4, 'Tentáculos: +40 % de oro en expediciones', 'Tentacles: +40% expedition gold'),
+    djinn: H('recarga', 2, 'Tres deseos: 2 cartas más al día', 'Three wishes: 2 more cards a day'),
+    nyx: H('bromas', 0.2, 'Manto de sombras: bromas un 20 % más baratas', 'Cloak of shadows: pranks 20% cheaper'),
+    aurora: H('cartas', 0.5, 'Bendición estelar: las cartas en ella son un 50 % más fuertes', 'Star blessing: cards on her are 50% stronger'),
+    celestial: H('divino', 0.5, 'Dragón del cielo: cartas un 50 % más fuertes y 1 carta más al día', 'Sky dragon: cards 50% stronger and 1 more card a day'),
+};
+const habilidad = (id) => HABILIDADES[id] || null;
+const AREAS_HABILIDAD = ['xp', 'diario', 'vuelta', 'bromas', 'liga', 'expedicion'];
+
 // Probabilidades (en %) de cada rareza por cofre.
 const COFRES = {
     basico: { precio: 500, emoji: '📦', es: 'Cofre básico', en: 'Basic chest', color: '#a16207', prob: { comun: 70, rara: 22, epica: 6.5, legendaria: 1.3, mitica: 0.19, divina: 0.01 } },
@@ -191,8 +260,13 @@ function ventajas(id, estrellas = 1, extra = 0) {
     const r = RAREZAS[c.rareza];
     const k = (1 + 0.2 * (Math.max(1, Math.min(MAX_ESTRELLAS, estrellas)) - 1)) * (1 + Math.max(0, extra));
     const red = (v) => Math.round(v * k * 1000) / 1000;
+    const v = { xp: red(r.xp), diario: red(r.diario), vuelta: red(r.vuelta), bromas: red(r.bromas), liga: red(r.liga), expedicion: red(r.expedicion) };
+    // Su habilidad exclusiva suma a esa ventaja (también crece con estrellas y cuidado).
+    const h = habilidad(id);
+    if (h && AREAS_HABILIDAD.includes(h.tipo)) v[h.tipo] = red(r[h.tipo] + h.valor);
     // Descuento en bromas: tope del 60 % (con todas las estrellas y nivel).
-    return { xp: red(r.xp), diario: red(r.diario), vuelta: red(r.vuelta), bromas: Math.min(0.6, red(r.bromas)), liga: red(r.liga), expedicion: red(r.expedicion) };
+    v.bromas = Math.min(0.6, v.bromas);
+    return v;
 }
 
-module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado, esExtra, ANIME, esAnime, idsAnime, KURUMI, PODERES_ANIME };
+module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado, esExtra, ANIME, esAnime, idsAnime, KURUMI, PODERES_ANIME, HABILIDADES, habilidad, AREAS_HABILIDAD };

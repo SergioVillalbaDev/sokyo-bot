@@ -1,13 +1,13 @@
-// API para Claude (1.23.0): ver, comprobar y cambiar la configuración de cualquier
-// servidor donde está el bot. Solo entra la clave de utils/accesoClaude.js (la crea
-// un propietario en Panel → Propietario → Acceso de Claude). En modo «lectura» solo
+// API de soporte (1.23.0; la usa Claude, el asistente que programa Sokyo): ver, comprobar y cambiar la configuración de cualquier
+// servidor donde está el bot. Solo entra la clave de utils/accesoSoporte.js (la crea
+// un propietario en Panel → Propietario → Acceso de soporte). En modo «lectura» solo
 // GET. Los cambios pasan por el historial (utils/historialCambios.js) y se deshacen.
 //
-//   GET    /api/claude/servidores              → todos, con lo que tienen activado
-//   GET    /api/claude/:guildId                → configuración, canales, roles y diagnóstico
-//   GET    /api/claude/:guildId/cambios        → últimos cambios (de cualquiera)
-//   PATCH  /api/claude/:guildId                → { set: { 'ruta.con.puntos': valor }, unset: ['ruta'] }
-//   POST   /api/claude/:guildId/deshacer/:id   → deshace un cambio del historial
+//   GET    /api/soporte/servidores              → todos, con lo que tienen activado
+//   GET    /api/soporte/:guildId                → configuración, canales, roles y diagnóstico
+//   GET    /api/soporte/:guildId/cambios        → últimos cambios (de cualquiera)
+//   PATCH  /api/soporte/:guildId                → { set: { 'ruta.con.puntos': valor }, unset: ['ruta'] }
+//   POST   /api/soporte/:guildId/deshacer/:id   → deshace un cambio del historial
 const express = require('express');
 const ServidorConfig = require('../../models/ServidorConfig.js');
 const { esInterno, aplanar, leerRuta } = require('../../utils/camposInternos.js');
@@ -45,7 +45,7 @@ module.exports = ({ client }) => {
         return guild;
     };
 
-    router.get('/claude/servidores', async (req, res) => {
+    router.get('/soporte/servidores', async (req, res) => {
         const cfgs = new Map((await ServidorConfig.find({}).lean()).map((c) => [c.guildId, c]));
         const lista = client.guilds.cache.map((g) => {
             const c = cfgs.get(g.id) || {};
@@ -58,7 +58,7 @@ module.exports = ({ client }) => {
         res.json({ total: lista.length, servidores: lista });
     });
 
-    router.get('/claude/:guildId', async (req, res) => {
+    router.get('/soporte/:guildId', async (req, res) => {
         try {
             const guild = guildDe(req, res); if (!guild) return;
             const cfg = await ServidorConfig.findOne({ guildId: guild.id }).lean();
@@ -71,16 +71,16 @@ module.exports = ({ client }) => {
                 activos: cfg ? Object.entries(MODULOS).filter(([, f]) => { try { return f(cfg); } catch { return false; } }).map(([k]) => k) : [],
                 configuracion: cfg ? aplanar(cfg) : null, canales, roles, diagnostico,
             });
-        } catch (e) { console.error('claude GET:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+        } catch (e) { console.error('soporte GET:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
 
-    router.get('/claude/:guildId/cambios', async (req, res) => {
+    router.get('/soporte/:guildId/cambios', async (req, res) => {
         const guild = guildDe(req, res); if (!guild) return;
         const { listarCambios } = require('../../utils/historialCambios.js');
         res.json(await listarCambios(guild.id, { limite: Math.min(100, parseInt(req.query.limite, 10) || 20) }));
     });
 
-    router.patch('/claude/:guildId', async (req, res) => {
+    router.patch('/soporte/:guildId', async (req, res) => {
         try {
             const guild = guildDe(req, res); if (!guild) return;
             const set = req.body?.set && typeof req.body.set === 'object' ? req.body.set : {};
@@ -98,12 +98,12 @@ module.exports = ({ client }) => {
             require('../../utils/config.js').invalidateConfig?.(guild.id);
             res.json({ success: true, cambios: rutas.map((r) => ({ ruta: r, antes: leerRuta(antes || {}, r) ?? null, ahora: leerRuta(despues, r) ?? null })) });
         } catch (e) {
-            console.error('claude PATCH:', e.message);
+            console.error('soporte PATCH:', e.message);
             res.status(400).json({ error: 'No se pudo guardar', detalle: e.message });
         }
     });
 
-    router.post('/claude/:guildId/deshacer/:id', async (req, res) => {
+    router.post('/soporte/:guildId/deshacer/:id', async (req, res) => {
         const guild = guildDe(req, res); if (!guild) return;
         const { deshacerCambio } = require('../../utils/historialCambios.js');
         const CambioPanel = require('../../models/CambioPanel.js');

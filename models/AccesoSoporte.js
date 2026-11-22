@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
-// Clave para que Claude (el asistente que programa Sokyo) pueda ver, comprobar y, si
-// se le deja, cambiar la configuración de los servidores por la API (/api/claude/…).
-// La crea un propietario del bot en el panel (Propietario → Acceso de Claude); aquí
-// solo se guarda su huella (sha256), nunca la clave. Lógica en utils/accesoClaude.js.
-const AccesoClaudeSchema = new mongoose.Schema({
+// Clave de soporte (la usa Claude, el asistente que programa Sokyo) para ver, comprobar
+// y, si se le deja, cambiar la configuración de los servidores por la API (/api/soporte/…).
+// La crea un propietario del bot en el panel (Propietario → Acceso de soporte); aquí
+// solo se guarda su huella (sha256), nunca la clave. Lógica en utils/accesoSoporte.js.
+const AccesoSoporteSchema = new mongoose.Schema({
     hash: { type: String, required: true, unique: true },
     pista: { type: String, default: '' },              // últimos 4 caracteres, para reconocerla
     modo: { type: String, enum: ['lectura', 'completo'], default: 'lectura' },
@@ -15,4 +15,4 @@ const AccesoClaudeSchema = new mongoose.Schema({
     usos: { type: Number, default: 0 },
 });
 
-module.exports = mongoose.model('AccesoClaude', AccesoClaudeSchema);
+module.exports = mongoose.model('AccesoSoporte', AccesoSoporteSchema);

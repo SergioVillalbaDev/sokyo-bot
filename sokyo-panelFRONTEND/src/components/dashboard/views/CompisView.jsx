@@ -42,15 +42,16 @@ function leerFoto(archivo) {
   });
 }
 
-function Ficha({ src, foto, rareza, titulo, sub, apagado }) {
+function Ficha({ src, foto, rareza, titulo, sub, apagado, hab }) {
   const R = RAREZAS[rareza] || RAREZAS.comun;
   return (
-    <div className={`group flex w-[92px] flex-col items-center rounded-2xl border bg-bg p-2 text-center transition-transform hover:-translate-y-1 ${apagado ? 'opacity-50' : ''}`} style={{ borderColor: `${R.color}66` }} title={titulo}>
+    <div className={`group flex ${hab ? 'w-[132px]' : 'w-[92px]'} flex-col items-center rounded-2xl border bg-bg p-2 text-center transition-transform hover:-translate-y-1 ${apagado ? 'opacity-50' : ''}`} style={{ borderColor: `${R.color}66` }} title={hab ? `${titulo}\n🌟 ${hab}` : titulo}>
       <span className="grid h-14 w-14 place-items-center">
         <img src={src} alt="" className={`h-12 w-12 transition-transform group-hover:scale-110 ${foto ? 'rounded-full object-cover ring-2' : ''}`} style={foto ? { '--tw-ring-color': R.color } : undefined} />
       </span>
       <span className="mt-1 line-clamp-2 text-[11px] font-bold leading-tight text-fg">{String(titulo).split(',')[0]}</span>
       {sub && <span className="mt-0.5 text-[10px] font-semibold" style={{ color: R.color }}>{sub}</span>}
+      {hab && <span className="mt-1 line-clamp-2 text-[10px] font-semibold leading-tight text-amber-300">🌟 {hab.split(':')[0]}</span>}
     </div>
   );
 }
@@ -111,7 +112,6 @@ function PackAnime({ dash, info, onCambio }) {
           <span className="text-sm font-bold text-fg">{info.activo ? t('dashboard.compis_v.anime.on') : t('dashboard.compis_v.anime.off')}</span>
         </label>
       </div>
-      {info.activo && !info.cofres && <div className="relative mt-3"><Aviso tipo="alerta">{t('dashboard.compis_v.anime.sinCofres')}</Aviso></div>}
 
       {kurumi && (
         <div className="relative mt-4 flex items-center gap-4 rounded-2xl border border-transparent bg-gradient-to-r from-fuchsia-500/20 via-rose-500/15 to-amber-400/20 p-3">
@@ -432,7 +432,7 @@ export default function CompisView({ dash }) {
                   {r === 'divina' ? <span className="sk-divina-texto">{t('dashboard.casino_v.rareza.divina')}</span> : t(`dashboard.casino_v.rareza.${r}`)} · {deEsta.length}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {deEsta.map(([id, c]) => <Ficha key={id} src={svgMascota(c.svg)} rareza={c.rareza} titulo={nombreDe(id)} sub={c.tipo === 'personaje' ? t('dashboard.compis_v.personaje') : null} />)}
+                  {deEsta.map(([id, c]) => <Ficha key={id} src={svgMascota(c.svg)} rareza={c.rareza} titulo={nombreDe(id)} sub={c.tipo === 'personaje' ? t('dashboard.compis_v.personaje') : null} hab={c.hab ? (i18n.language.startsWith('en') ? c.hab.en : c.hab.es) : null} />)}
                   {r !== 'divina' && lista.filter((c) => c.rareza === r && filtro !== 'animales').map((c) => <Ficha key={c.cid} foto src={foto(c.imagen)} rareza={r} titulo={c.nombre} sub={t('dashboard.compis_v.deAqui')} apagado={!c.activo} />)}
                 </div>
               </div>

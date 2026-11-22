@@ -18,11 +18,19 @@ function estado(m, ahora = Date.now()) {
     const h = Math.max(0, (ahora - desde) / HORA);
     const base = (k) => (typeof m[k] === 'number' ? m[k] : LLENO);
     const fuera = expedicionActiva(m, ahora);
+    // Habilidades exclusivas (1.24.0): comer menos, alegrarse más, descansar más rápido.
+    const hab = K.habilidad(m.id);
+    const k = (tipo) => (hab && hab.tipo === tipo ? hab.valor : 0);
     return {
-        hambre: lim(base('hambre') + (fuera ? 0 : RITMO.hambre * h)),
-        alegria: lim(base('alegria') + (fuera ? 0 : RITMO.alegria * h)),
-        energia: lim(base('energia') + (fuera ? 0 : RITMO.energia * h)),
+        hambre: lim(base('hambre') + (fuera ? 0 : RITMO.hambre * (1 - k('gloton')) * h)),
+        alegria: lim(base('alegria') + (fuera ? 0 : RITMO.alegria * (1 - k('alegre')) * h)),
+        energia: lim(base('energia') + (fuera ? 0 : RITMO.energia * (1 + k('incansable')) * h)),
     };
+}
+// Afinidad que gana de verdad (con la habilidad «afin», más).
+function conAfinidad(m, n) {
+    const hab = K.habilidad(m.id);
+    return Math.round(n * (1 + (hab && hab.tipo === 'afin' ? hab.valor : 0)));
 }
 // Qué le pasa, de lo más urgente a lo mejor.
 function humor(e) {
@@ -77,7 +85,7 @@ function cuidar(m, accion, ahora = Date.now()) {
     if (accion === 'comer' && e.hambre >= 95) return { fallo: 'lleno', e };
     const hacia = e[c.siHaceFalta] < 90;
     const esperaMimo = c.espera && m.ultMimo && ahora - new Date(m.ultMimo).getTime() < c.espera;
-    const gana = hacia && !esperaMimo ? c.afinidad : 0;
+    const gana = hacia && !esperaMimo ? conAfinidad(m, c.afinidad) : 0;
     const nuevo = { ...e };
     for (const [k, v] of Object.entries(c.sube)) nuevo[k] = lim(nuevo[k] + v);
     return { ...nuevo, afinidad: gana, antes: e, humor: humor(nuevo) };
@@ -115,7 +123,9 @@ function salir(m, tipo, hoy, dia, ahora = Date.now()) {
     if (usadas >= EXPEDICIONES_DIA) return { fallo: 'tope' };
     const e = estado(m, ahora);
     if (e.energia < x.energia) return { fallo: 'energia', e };
-    return { ...e, energia: lim(e.energia - x.energia), exp: { tipo, desde: new Date(ahora), hasta: new Date(ahora + x.horas * HORA) }, usadas: usadas + 1 };
+    const hab = K.habilidad(m.id);
+    const horas = x.horas * (1 - (hab && hab.tipo === 'rapido' ? hab.valor : 0));
+    return { ...e, energia: lim(e.energia - x.energia), exp: { tipo, desde: new Date(ahora), hasta: new Date(ahora + horas * HORA) }, usadas: usadas + 1 };
 }
 // Lo que trae al volver. Más rareza y más nivel → algo más de oro.
 function botin(m, azar = Math.random) {
@@ -123,9 +133,12 @@ function botin(m, azar = Math.random) {
     if (!x) return { oro: 0, afinidad: 0, recuerdo: null };
     // Más oro según su rareza y estrellas (ventaja «expedicion») y su nivel de afinidad.
     const k = 1 + K.ventajas(m.id, m.estrellas || 1).expedicion + 0.01 * (nivel(m.afinidad || 0) - 1);
-    const oro = Math.round((x.oro[0] + azar() * (x.oro[1] - x.oro[0])) * k);
-    const recuerdo = azar() < x.recuerdo ? Math.floor(azar() * RECUERDOS.length) : null;
-    return { oro, afinidad: x.afinidad, recuerdo };
+    // Una carta (p. ej. 🍀 suerte) puede haber dejado el botín multiplicado (m.botinX).
+    const oro = Math.round((x.oro[0] + azar() * (x.oro[1] - x.oro[0])) * k * Math.max(1, m.botinX || 1));
+    const hab = K.habilidad(m.id);
+    const tesoro = hab && hab.tipo === 'tesoro';
+    const recuerdo = tesoro || azar() < x.recuerdo ? Math.floor(azar() * RECUERDOS.length) : null;
+    return { oro, afinidad: conAfinidad(m, x.afinidad), recuerdo };
 }
 
 // Interacciones que se desbloquean con la rareza (1.21.0). `rareza` = orden mínimo
@@ -163,7 +176,7 @@ function interactuar(m, id, ahora = Date.now(), azar = Math.random) {
     for (const [k, v] of Object.entries(x.cambia)) nuevo[k] = lim(nuevo[k] + v);
     const oro = x.oro ? Math.round(x.oro[0] + azar() * (x.oro[1] - x.oro[0])) : 0;
     const recuerdo = x.recuerdo && azar() < x.recuerdo ? Math.floor(azar() * RECUERDOS.length) : null;
-    return { ...nuevo, afinidad: x.afinidad, oro, recuerdo, cds: { ...(m.cds || {}), [id]: new Date(ahora) }, humor: humor(nuevo) };
+    return { ...nuevo, afinidad: conAfinidad(m, x.afinidad), oro, recuerdo, cds: { ...(m.cds || {}), [id]: new Date(ahora) }, humor: humor(nuevo) };
 }
 
 // Poder del día: uno por persona cada 20 h, según la rareza del compañero.
@@ -176,58 +189,95 @@ const PODERES = [
     { id: 'prisa', emoji: '⚡', es: 'Prisa: vuelve ya de la expedición (o lo deja todo al 100)', en: 'Rush: comes back from the expedition now (or fills everything to 100)' },
     { id: 'bendicion', emoji: '🌈', xp: 1, horas: 2, es: 'Bendición: +100 % de XP 2 h y todo al 100', en: 'Blessing: +100% XP for 2 h and everything to 100' },
 ];
-// Pack anime (1.22.0): cada personaje tiene su poder según su personalidad (data/animePoderes.txt).
-// El tipo decide qué hace; la rareza, cuánto (FUERZA). La divina (Kurumi) además da la Bendición.
+// Cartas de anime (1.24.0): cada personaje del Pack anime es una CARTA con su poder según su
+// personalidad (data/animePoderes.txt). Al usarla sobre tu mascota hace lo de su tipo; la fuerza
+// la dan la rareza de la carta (FUERZA), sus estrellas (+10 % cada una) y la habilidad de la
+// mascota («cartas»/«divino»). Efectos: potencia (+% a las ventajas de ESA mascota un rato),
+// botin (su próxima expedición trae ×N oro), volver, lleno, energia, alegria, afinidad, recuerdo,
+// xp (para ti), oro, escudo (anti-bromas), caos (uno al azar).
 const ARQUETIPOS = {
     tiempo: { emoji: '🕰️', efecto: { volver: true, lleno: true } },
-    fuerza: { emoji: '💪', efecto: { xp: 0.25, min: 60 } },
+    fuerza: { emoji: '💪', efecto: { potencia: 0.40, min: 60, energia: true } },
     velocidad: { emoji: '⚡', efecto: { volver: true, energia: true, xp: 0.10, min: 60 } },
-    fuego: { emoji: '🔥', efecto: { xp: 0.35, min: 45 } },
-    hielo: { emoji: '❄️', efecto: { escudo: 4, xp: 0.10, min: 60 } },
+    fuego: { emoji: '🔥', efecto: { xp: 0.35, min: 45, potencia: 0.15 } },
+    hielo: { emoji: '❄️', efecto: { escudo: 4, alegria: true } },
     mente: { emoji: '🧠', efecto: { oro: [40, 90], xp: 0.10, min: 60 } },
     curar: { emoji: '💚', efecto: { lleno: true, afinidad: 10 } },
     sombra: { emoji: '🥷', efecto: { escudo: 3, oro: [20, 40] } },
-    suerte: { emoji: '🍀', efecto: { oro: [50, 120] } },
-    lider: { emoji: '👑', efecto: { xp: 0.20, min: 120 } },
-    espada: { emoji: '⚔️', efecto: { xp: 0.30, min: 60 } },
-    magia: { emoji: '🔮', efecto: { xp: 0.20, min: 60, lleno: true } },
-    comida: { emoji: '🍙', efecto: { lleno: true, afinidad: 8, oro: [15, 30] } },
-    musica: { emoji: '🎤', efecto: { afinidad: 15, alegria: true } },
+    suerte: { emoji: '🍀', efecto: { botin: 2, oro: [30, 60] } },
+    lider: { emoji: '👑', efecto: { potencia: 0.60, min: 120 } },
+    espada: { emoji: '⚔️', efecto: { potencia: 0.35, min: 60, xp: 0.15 } },
+    magia: { emoji: '🔮', efecto: { potencia: 0.30, min: 60, lleno: true } },
+    comida: { emoji: '🍙', efecto: { lleno: true, afinidad: 8 } },
+    musica: { emoji: '🎤', efecto: { afinidad: 15, alegria: true, potencia: 0.15, min: 60 } },
     defensa: { emoji: '🛡️', efecto: { escudo: 6, energia: true } },
     oscuro: { emoji: '🌑', efecto: { xp: 0.40, min: 30, escudo: 2 } },
-    tecno: { emoji: '🤖', efecto: { oro: [60, 110] } },
-    bestia: { emoji: '🐾', efecto: { xp: 0.30, min: 60, energia: true } },
-    detective: { emoji: '🔍', efecto: { oro: [30, 70], recuerdo: true } },
+    tecno: { emoji: '🤖', efecto: { oro: [60, 110], botin: 1.5 } },
+    bestia: { emoji: '🐾', efecto: { potencia: 0.45, min: 45, energia: true } },
+    detective: { emoji: '🔍', efecto: { recuerdo: true, botin: 1.5, oro: [20, 40] } },
     vago: { emoji: '😴', efecto: { energia: true, lleno: true, xp: 0.10, min: 120 } },
-    amistad: { emoji: '🤝', efecto: { afinidad: 20, lleno: true } },
+    amistad: { emoji: '🤝', efecto: { afinidad: 20, lleno: true, potencia: 0.20, min: 60 } },
     caos: { emoji: '🃏', efecto: { caos: true } },
     deporte: { emoji: '🏐', efecto: { xp: 0.20, min: 90, energia: true } },
     amor: { emoji: '💘', efecto: { afinidad: 25, alegria: true } },
     vampiro: { emoji: '🦇', efecto: { xp: 0.30, min: 60, escudo: 2 } },
 };
 const FUERZA = [0.6, 0.8, 1, 1.25, 1.6, 2.2];
-// Qué hace exactamente el poder de este compañero (con la fuerza ya aplicada). null si no es del pack.
-function efectoAnime(m) {
-    const d = K.def(m.id);
+// Lo que hace la carta `cartaId` con `estrellas`, usada en la mascota `mascotaId` (o null).
+function efectoCarta(cartaId, estrellas = 1, mascotaId = null) {
+    const d = K.def(cartaId);
     if (!d.poder || !ARQUETIPOS[d.poder.tipo]) return null;
-    const f = FUERZA[ordenDe(m)] || 1;
+    const orden = K.RAREZAS[d.rareza]?.orden || 0;
+    const hab = mascotaId ? K.habilidad(mascotaId) : null;
+    const extraMascota = hab && (hab.tipo === 'cartas' || hab.tipo === 'divino') ? hab.valor : 0;
+    const f = (FUERZA[orden] || 1) * (1 + 0.1 * (Math.max(1, Math.min(5, estrellas)) - 1)) * (1 + extraMascota);
     const e = { ...ARQUETIPOS[d.poder.tipo].efecto };
     if (e.oro) e.oro = e.oro.map((x) => Math.round(x * f));
     if (e.xp) e.xp = Math.min(1.5, Math.round(e.xp * f * 100) / 100);
+    if (e.potencia) e.potencia = Math.min(2, Math.round(e.potencia * f * 100) / 100);
+    if (e.botin) e.botin = Math.min(4, Math.round(e.botin * Math.sqrt(f) * 10) / 10);
     if (e.escudo) e.escudo = Math.round(e.escudo * f * 10) / 10;
     if (e.afinidad) e.afinidad = Math.round(e.afinidad * f);
-    if (ordenDe(m) >= 5) { e.xp = 1; e.min = 120; e.lleno = true; } // divina: también la Bendición
+    if (e.caos) e.f = f;
+    if (orden >= 5) { e.xp = 1; e.min = 120; e.lleno = true; e.potencia = 1; } // la divina (Kurumi): todo
     return e;
 }
-// Texto corto de lo que hace (para la tarjeta, el pie y el panel).
+const efectoAnime = (m) => efectoCarta(m.id, m.estrellas || 1, null);
+// Convierte un efecto en lo que pasa (sin guardar nada). `m` = la mascota que lo recibe.
+function aplicarEfecto(e, m, { ahora = Date.now(), bromas = false, azar = Math.random } = {}) {
+    const r = {};
+    if (e.caos) { // 🃏 caos: una de tres cosas, a la suerte
+        const f = e.f || 1; const x = azar();
+        e = x < 0.34 ? { oro: [Math.round(40 * f), Math.round(140 * f)] } : x < 0.67 ? { xp: Math.min(1.5, Math.round(0.4 * f * 100) / 100), min: 45 } : { potencia: Math.min(2, Math.round(0.5 * f * 100) / 100), min: 60 };
+    }
+    if (e.oro) r.oro = Math.round(e.oro[0] + azar() * (e.oro[1] - e.oro[0]));
+    if (e.xp) r.buff = { xp: e.xp, hasta: new Date(ahora + (e.min || 60) * MIN) };
+    if (e.potencia) r.potencia = { valor: e.potencia, hasta: new Date(ahora + (e.min || 60) * MIN), mascota: m.id };
+    if (e.botin) r.botinX = e.botin;
+    if (e.escudo) {
+        if (bromas) r.escudoHasta = new Date(ahora + e.escudo * HORA);
+        else if (!r.buff) r.buff = { xp: Math.round(0.05 * e.escudo * 100) / 100, hasta: new Date(ahora + HORA) };
+    }
+    if (e.volver && expedicionActiva(m, ahora)) r.volver = true;
+    else if (e.volver && !e.lleno) r.energia = true;
+    if (e.lleno) r.lleno = true;
+    if (e.energia) r.energia = true;
+    if (e.alegria) r.alegria = true;
+    if (e.afinidad) r.afinidad = e.afinidad;
+    if (e.recuerdo) r.recuerdo = Math.floor(azar() * RECUERDOS.length);
+    return r;
+}
+// Texto corto de lo que hace (para la carta, el pie y el panel).
 function textoEfecto(e, idioma = 'es') {
     const es = idioma !== 'en'; const l = [];
     const dur = (min) => (min >= 60 ? `${Math.round(min / 6) / 10} h` : `${min} min`);
-    if (e.caos) l.push(es ? 'algo al azar: oro, +XP o escudo' : 'something random: gold, +XP or shield');
+    if (e.caos) l.push(es ? 'algo al azar: oro, +XP o potencia' : 'something random: gold, +XP or power');
+    if (e.potencia) l.push(es ? `mascota +${Math.round(e.potencia * 100)} % ${dur(e.min || 60)}` : `pet +${Math.round(e.potencia * 100)}% ${dur(e.min || 60)}`);
     if (e.volver) l.push(es ? 'vuelve ya de la expedición' : 'back from the expedition now');
-    if (e.xp) l.push(es ? `+${Math.round(e.xp * 100)} % XP ${dur(e.min)}` : `+${Math.round(e.xp * 100)}% XP ${dur(e.min)}`);
+    if (e.botin) l.push(es ? `próxima expedición ×${String(e.botin).replace('.', ',')} oro` : `next expedition ×${e.botin} gold`);
+    if (e.xp) l.push(es ? `+${Math.round(e.xp * 100)} % XP ${dur(e.min || 60)}` : `+${Math.round(e.xp * 100)}% XP ${dur(e.min || 60)}`);
     if (e.oro) l.push(`🪙 ${e.oro[0]}-${e.oro[1]}`);
-    if (e.escudo) l.push(es ? `escudo anti-bromas ${e.escudo} h` : `prank shield ${e.escudo} h`);
+    if (e.escudo) l.push(es ? `escudo anti-bromas ${String(e.escudo).replace('.', ',')} h` : `prank shield ${e.escudo} h`);
     if (e.lleno) l.push(es ? 'todo al 100' : 'everything to 100');
     else {
         if (e.energia) l.push(es ? 'energía al 100' : 'energy to 100');
@@ -253,28 +303,7 @@ function usarPoder(m, col, { ahora = Date.now(), bromas = false, azar = Math.ran
     if (f) return { fallo: 'espera', min: f };
     const p = poderDe(m);
     const r = { id: p.id, emoji: p.emoji };
-    if (p.id === 'anime') {
-        let e = p.efecto;
-        r.nombre = p.nombre;
-        if (e.caos) { // 🃏 caos: una de tres cosas, a la suerte
-            const f = FUERZA[ordenDe(m)] || 1; const x = azar();
-            e = x < 0.34 ? { oro: [Math.round(40 * f), Math.round(140 * f)] } : x < 0.67 ? { xp: Math.min(1.5, Math.round(0.4 * f * 100) / 100), min: 45 } : { escudo: Math.round(4 * f * 10) / 10 };
-        }
-        if (e.oro) r.oro = Math.round(e.oro[0] + azar() * (e.oro[1] - e.oro[0]));
-        if (e.xp) r.buff = { xp: e.xp, hasta: new Date(ahora + e.min * MIN) };
-        if (e.escudo) {
-            if (bromas) r.escudoHasta = new Date(ahora + e.escudo * HORA);
-            else if (!r.buff) r.buff = { xp: Math.round(0.15 * (FUERZA[ordenDe(m)] || 1) * 100) / 100, hasta: new Date(ahora + HORA) };
-        }
-        if (e.volver && expedicionActiva(m, ahora)) r.volver = true;
-        else if (e.volver && !e.lleno) r.energia = true;
-        if (e.lleno) r.lleno = true;
-        if (e.energia) r.energia = true;
-        if (e.alegria) r.alegria = true;
-        if (e.afinidad) r.afinidad = e.afinidad;
-        if (e.recuerdo) r.recuerdo = Math.floor(azar() * RECUERDOS.length);
-        return r;
-    }
+    if (p.id === 'anime') return { ...r, ...aplicarEfecto(p.efecto, m, { ahora, bromas, azar }), nombre: p.nombre };
     if (p.id === 'olfato') r.oro = Math.round(p.oro[0] + azar() * (p.oro[1] - p.oro[0]));
     else if (p.id === 'inspiracion') r.buff = { xp: p.xp, hasta: new Date(ahora + p.horas * HORA) };
     else if (p.id === 'escudo') {
@@ -360,7 +389,7 @@ const totalFrases = () => [GENERAL, VOCES, EXTRA].reduce((t, g) => t + Object.va
 
 module.exports = {
     LLENO, RITMO, HUMOR, NIVEL_MAX, CUIDADOS, EXPEDICIONES, EXPEDICIONES_DIA, RECUERDOS, MISIONES, PREMIO_MISION, PREMIO_TODAS, PREMIOS_RACHA,
-    estado, humor, nivel, umbral, progresoNivel, extraCuidado, cuidar, expedicionActiva, expedicionLista, salir, botin,
-    ARQUETIPOS, FUERZA, efectoAnime, textoEfecto, INTERACCIONES, interaccionesDe, falta, interactuar, PODERES, PODER_ESPERA_H, poderDe, faltaPoder, usarPoder, buffXp, ordenDe,
+    conAfinidad, estado, humor, nivel, umbral, progresoNivel, extraCuidado, cuidar, expedicionActiva, expedicionLista, salir, botin,
+    ARQUETIPOS, FUERZA, efectoAnime, efectoCarta, aplicarEfecto, textoEfecto, INTERACCIONES, interaccionesDe, falta, interactuar, PODERES, PODER_ESPERA_H, poderDe, faltaPoder, usarPoder, buffXp, ordenDe,
     diaDe, misionesDelDia, avanzarMision, avanzarRacha, frase, totalFrases,
 };
