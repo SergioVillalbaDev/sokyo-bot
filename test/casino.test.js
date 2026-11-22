@@ -149,6 +149,9 @@ describe('Panel y bot con los mismos datos', () => {
         assert.deepEqual([L.GRANJA.produccion, L.GRANJA.topeH, L.GRANJA.huecos, L.GRANJA.porEstrella, L.GRANJA.porNivel, L.GRANJA.hitos, L.GRANJA.premioSemana, L.GRANJA.premioTodas],
             [G.PRODUCCION, G.TOPE_H, G.HUECOS_BASE, G.POR_ESTRELLA, G.POR_NIVEL, G.HITOS, G.PREMIO_SEMANA, G.PREMIO_SEMANA_TODAS]);
         assert.deepEqual(Object.fromEntries(Object.entries(L.GRANJA.semana).map(([k, v]) => [k, v.n])), Object.fromEntries(Object.entries(G.MISIONES_SEMANA).map(([k, v]) => [k, v.n])));
+        const X = require('../utils/paseNucleo.js');
+        assert.deepEqual([L.PASE.xpNivel, L.PASE.nivelMax, L.PASE.xp, L.PASE.topeCasino], [X.XP_NIVEL, X.NIVEL_MAX, X.XP, X.TOPE_CASINO_DIA]);
+        assert.deepEqual(L.PASE.logros.map((l) => [l.id, l.oro]), X.LOGROS.map((l) => [l.id, l.oro]));
     });
 });
 

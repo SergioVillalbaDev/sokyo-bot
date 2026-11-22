@@ -63,13 +63,16 @@ function textoVentajas(v, idioma) {
 }
 
 // Abre un cofre. Cobra, decide qué sale (con piedad), lo guarda y lo anima.
-async function abrir({ interaction, client, cfg, idioma, cofre }) {
+async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null }) {
     if (cfg && (cfg.casino?.cofres === false || !cfg.casino?.activo)) return { error: t(idioma, '🎁 Los cofres no están activados en este servidor (panel → Diversión → Casino).', '🎁 Chests aren’t turned on on this server (panel → Fun → Casino).') };
     const def = K.COFRES[cofre];
     if (!def) return { error: t(idioma, 'Ese cofre no existe.', 'That chest doesn’t exist.') };
     const userId = interaction.user.id;
     const economia = require('./economia.js');
-    const saldo = await economia.cobrar(userId, def.precio);
+    // 1.29.0: con un ticket del pase el cofre sale gratis.
+    const Pase = require('./pase.js');
+    if (ticket && !(await Pase.usarTicket(userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
+    const saldo = ticket ? (await economia.obtenerUsuario(userId)).balance : await economia.cobrar(userId, def.precio);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${fmt(def.precio, idioma)} para el ${def.es.toLowerCase()}.`, `You don’t have 🪙 ${fmt(def.precio, idioma)} for the ${def.en.toLowerCase()}.`) };
     // Se calcula sobre la colección y se guarda solo si nadie la ha tocado a la vez.
     let r; let col;
@@ -86,7 +89,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
         if (hecho.modifiedCount) break;
         r = null;
     }
-    if (!r) { await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
+    if (!r) { if (ticket) await Pase.devolverTicket(userId, ticket); else await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
     if (r.devuelto) await economia.darOro(userId, r.devuelto);
     olvidar(userId);
     await AperturaCofre.create({ guildId: interaction.guildId || null, userId, cofre, companero: r.id, rareza: r.rareza }).catch(() => {});
@@ -101,6 +104,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     const v = K.ventajas(r.id, r.estrellas);
     const G = require('./granja.js');
     const hitos = r.nuevo ? await G.premiarHitos(userId).catch(() => []) : [];
+    const delPase = await Pase.registrar(userId, 'cofre', { idioma }).catch(() => []);
     const estado = r.nuevo
         ? t(idioma, '🆕 ¡Nuevo en tu colección!', '🆕 New in your collection!')
         : r.devuelto ? t(idioma, `Ya lo tenías con 5 ★: te devolvemos 🪙 ${fmt(r.devuelto, idioma)}.`, `You already had it at 5 ★: you get 🪙 ${fmt(r.devuelto, idioma)} back.`)
@@ -114,6 +118,8 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
             K.habilidad(r.id) ? t(idioma, `🌟 Habilidad exclusiva: **${K.habilidad(r.id).es}**`, `🌟 Exclusive ability: **${K.habilidad(r.id).en}**`) : '',
             t(idioma, `Si la equipas: ${textoVentajas(v, idioma)}`, `If equipped: ${textoVentajas(v, idioma)}`),
             ...G.textoHitos(hitos, idioma),
+            ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '',
+            ...delPase,
         ].filter(Boolean).join('\n'))
         .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${col.abiertos + 1} cofres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${col.abiertos + 1} chests opened`) });
     const fila = new ActionRowBuilder().addComponents(

@@ -88,6 +88,8 @@ async function cobrarJugada(client, cfg, jugada, premio, detalle = null) {
         $inc: { jugadas: 1, apostado: jugada.apuesta, ganado: premio },
     }, { upsert: true });
     if (client && premio >= GRAN_PREMIO && premio >= jugada.apuesta * 10) await anunciarGranPremio(client, cfg, jugada, premio).catch(() => {});
+    // 1.29.0: cada partida da un poco de XP del pase (con tope diario y sin importar la apuesta).
+    await require('./pase.js').registrar(jugada.userId, 'casino').catch(() => {});
     return { premio, vuelta };
 }
 

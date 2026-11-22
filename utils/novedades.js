@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.29.0': [
+        { tab: 'com-compis', es: '👋 Nuevo **/empezar**: si no sabes por dónde empezar, te dice qué hacer ahora con un botón y te explica mascotas, cartas, oro y casino en sencillo. También en el casino: «¿Nuevo? Empieza aquí».', en: '👋 New **/start**: if you don’t know where to begin, it tells you what to do now with a button and explains pets, cards, gold and the casino simply. Also in the casino: “New? Start here”.' },
+        { tab: 'com-compis', es: '🎟️ **Pase de temporada gratis** (`/pase`): casi todo lo que haces da XP. Cada nivel da oro, cada 5 un sobre gratis y cada 10 un cofre épico gratis. Se renueva cada mes.', en: '🎟️ **Free season pass** (`/pass`): almost everything you do gives XP. Each level gives gold, every 5 a free pack and every 10 a free epic chest. Renews every month.' },
+        { tab: 'com-compis', es: '🏅 **24 logros** con premio: la divina, 10 series completas, una mascota a nivel 30, rachas de 30 días…', en: '🏅 **24 achievements** with rewards: the divine pet, 10 complete series, a level-30 pet, 30-day streaks…' },
+    ],
     '1.28.0': [
         { tab: 'com-compis', es: '🧺 **Granja**: tus mejores mascotas producen oro solas mientras no estás. Más raras, con más ★, más nivel y bien cuidadas = más oro. Recógelo con `/granja` o el botón 🧺 de `/compi`.', en: '🧺 **Farm**: your best pets make gold on their own while you’re away. Rarer, more ★, higher level and well cared for = more gold. Collect it with `/farm` or the 🧺 button in `/companion`.' },
         { tab: 'com-compis', es: '📖 **Álbum de mascotas** con hitos: 3, 5, 10… hasta las 57. Cada hito da oro y algunos, un hueco más en la granja.', en: '📖 **Pet album** with milestones: 3, 5, 10… up to all 57. Each one gives gold and some unlock one more farm slot.' },

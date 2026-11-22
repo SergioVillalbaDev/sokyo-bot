@@ -15,13 +15,16 @@ const rz = (r, idioma) => `${K.RAREZAS[r].emoji} ${t(idioma, K.RAREZAS[r].es, K.
 const activas = (cfg) => !!cfg?.compis?.anime;
 const textoApagadas = (idioma) => t(idioma, '🃏 Las cartas de anime no están activadas en este servidor (panel → Diversión → Compañeros → Cartas de anime).', '🃏 Anime cards aren’t turned on on this server (panel → Fun → Companions → Anime cards).');
 
-async function abrir({ interaction, cfg, idioma, sobre }) {
+async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
     if (!activas(cfg)) return { error: textoApagadas(idioma) };
     const def = S.SOBRES[sobre];
     if (!def) return { error: t(idioma, 'Ese sobre no existe.', 'That pack doesn’t exist.') };
     const userId = interaction.user.id;
     const economia = require('./economia.js');
-    const saldo = await economia.cobrar(userId, def.precio);
+    // 1.29.0: con un ticket del pase el sobre sale gratis.
+    const Pase = require('./pase.js');
+    if (ticket && !(await Pase.usarTicket(userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
+    const saldo = ticket ? (await economia.obtenerUsuario(userId)).balance : await economia.cobrar(userId, def.precio);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${fmt(def.precio, idioma)} para el ${def.es.toLowerCase()}.`, `You don’t have 🪙 ${fmt(def.precio, idioma)} for the ${def.en.toLowerCase()}.`) };
     const quitados = require('./cofres.js').quitadosDe(cfg);
     let r = null; let col;
@@ -40,7 +43,8 @@ async function abrir({ interaction, cfg, idioma, sobre }) {
             { $set: { cartas, sinEpicaCartas: x.sinEpica, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { sobresAbiertos: 1, gastadoSobres: def.precio } });
         if (hecho.modifiedCount) r = { ...x, series: nuevas };
     }
-    if (!r) { await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
+    if (!r) { if (ticket) await Pase.devolverTicket(userId, ticket); else await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
+    const delPase = await Pase.registrar(userId, [['sobre', 1], ['serie', r.series.length]], { idioma }).catch(() => []);
     if (r.devuelto) await economia.darOro(userId, r.devuelto);
     const oroSeries = r.series.reduce((a, n) => a + n.oro, 0);
     if (oroSeries) await economia.darOro(userId, oroSeries);
@@ -68,6 +72,8 @@ async function abrir({ interaction, cfg, idioma, sobre }) {
             r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
             ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
             t(idioma, 'Úsalas sobre tu mascota con `/compi` → 🃏 o `/carta usar`.', 'Use them on your pet with `/companion` → 🃏 or `/card use`.'),
+            ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '',
+            ...delPase,
         ].filter(Boolean).join('\n'))
         .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
     const fila = new ActionRowBuilder().addComponents(

@@ -10,7 +10,7 @@ import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users, Images, Ge
 import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, Aviso } from './crecimientoShared';
 import { useModulo } from '../../../hooks/useModulo';
-import { RAREZAS, COMPANEROS, INTERACCIONES, PODERES, GRANJA } from '../../../lib/casino';
+import { RAREZAS, COMPANEROS, INTERACCIONES, PODERES, GRANJA, PASE } from '../../../lib/casino';
 import { svgMascota } from '../../../lib/mascota';
 import { API_URL } from '../../../lib/api';
 
@@ -338,6 +338,32 @@ export default function CompisView({ dash }) {
             </div>
           </div>
           <p className="mt-4 text-xs text-muted">{t('dashboard.compis_v.granja.comandos')}</p>
+        </div>
+      </Plegable>
+
+      <Plegable id="compis-pase" emoji="🎟️" titulo={t('dashboard.compis_v.pase.titulo')} sub={t('dashboard.compis_v.pase.sub')}>
+        <div className={tarjeta}>
+          <p className="text-sm text-fg">{t('dashboard.compis_v.pase.intro', { max: PASE.nivelMax, xp: PASE.xpNivel })}</p>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-line bg-bg p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.compis_v.pase.xpTitulo')}</p>
+              <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+                {Object.entries(PASE.xp).map(([k, v]) => (
+                  <li key={k} className="flex items-center justify-between gap-2"><span className="text-fg">{t(`dashboard.compis_v.pase.accion.${k}`)}</span><b className="text-fg">+{v}</b></li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[11px] text-muted">{t('dashboard.compis_v.pase.tope', { n: PASE.topeCasino })}</p>
+            </div>
+            <div className="rounded-2xl border border-line bg-bg p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.compis_v.pase.logros', { n: PASE.logros.length })}</p>
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {PASE.logros.map((l) => (
+                  <li key={l.id} className="rounded-full border border-line px-2 py-0.5 text-xs text-fg" title={`🪙 ${n(l.oro)}`}>{l.emoji} {i18n.language.startsWith('en') ? l.en : l.es}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-muted">{t('dashboard.compis_v.pase.empezar')}</p>
         </div>
       </Plegable>
 

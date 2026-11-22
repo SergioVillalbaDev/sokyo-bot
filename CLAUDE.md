@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.28.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.29.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.29.0 **Pase de temporada, logros, tickets gratis y /empezar**. Reglas puras en `utils/paseNucleo.js` (test/pase.test.js):
+  pase mensual (UTC) de 50 niveles de 100 XP; `XP` por acción; el casino da `XP.casino` por partida con
+  `TOPE_CASINO_DIA` y sin mirar la apuesta (no premiar apostar más). `premio(n)`: oro siempre, sobre normal cada 5,
+  cofre épico cada 10, extras en 15/25/35/40 y el 50 (legendarios + título); por encima de 50, `ORO_EXTRA`. `LOGROS`
+  (24, una vez, con oro). Discord en `utils/pase.js`: `registrar(userId, acciones)` suma XP con versión optimista
+  (`paseV`), paga niveles (oro + `tickets.<clave>`) y revisa logros; devuelve mensajes para enseñar. Se llama desde
+  `compis.accion` (cuidar/expedición/carta + misiones), `granja.recoger` y `premiarHitos`, `cofres.abrir`,
+  `cartas.abrir` (sobre + series) y `casino.cobrarJugada`. Tickets: `cofres.abrir`/`cartas.abrir` aceptan
+  `ticket` (gasta el ticket en vez de oro; si falla, lo devuelve). `/pase` (`slash/pass.js`, botones
+  `pse:ver|log|abrir|tk:<clave>:<owner>`). **`/empezar`** (`slash/start.js`, `utils/empezar.js`, botones `emp:…`): guía
+  para quien no tiene ni idea, con `siguientePaso()` (pura: diario → primer cofre → tickets → granja → cuidar →
+  misiones → primer sobre → expedición → pase) y temas explicados en sencillo. Está en `/ayuda`, en el lobby del
+  casino («¿Nuevo? Empieza aquí») y en los avisos de «aún no tienes mascotas». Copia de números para el panel en
+  `lib/casino.js` (`PASE`, comprobado en test/casino.test.js). Si cambias lo que dice la guía, que sea verdad en el bot.
 - 1.28.0 **Granja, álbum y misiones semanales** (cada persona, global como el oro). Reglas puras en `utils/granjaNucleo.js`
   (test/granja.test.js); Discord en `utils/granja.js` (botones `grj:ver|rec|alb|abrir:<owner>`; sin dueño o de otra persona
   → se abre la suya en privado) y `/granja` (`slash/farm.js`). Granja: las mejores mascotas (huecos = 3 + hitos con hueco)

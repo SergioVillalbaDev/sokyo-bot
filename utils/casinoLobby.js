@@ -99,6 +99,7 @@ async function mensajeLobby(guild, cfg, { conCartel = true } = {}) {
         new ButtonBuilder().setCustomId('cas_lb:mio').setEmoji('💰').setLabel(t(idioma, 'Mi oro', 'My gold')).setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('cas_lb:ranking').setEmoji('🏆').setLabel(t(idioma, 'Ranking', 'Leaderboard')).setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('cas_lb:guia').setEmoji('📖').setLabel(t(idioma, 'Cómo se juega', 'How to play')).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('emp:abrir').setEmoji('👋').setLabel(t(idioma, '¿Nuevo? Empieza aquí', 'New? Start here')).setStyle(ButtonStyle.Success),
     );
     return { embeds: [e], files, components: [new ActionRowBuilder().addComponents(menu), botones], allowedMentions: { parse: [] } };
 }

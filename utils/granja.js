@@ -21,6 +21,7 @@ async function premiarHitos(userId, col = null) {
         const r = await ColeccionMascotas.updateOne({ userId, hitosAlbum: { $ne: String(h.n) } }, { $addToSet: { hitosAlbum: String(h.n) } });
         if (r.modifiedCount) { await require('./economia.js').darOro(userId, h.oro); dados.push(h); }
     }
+    if (dados.length) await require('./pase.js').registrar(userId, 'hito', { n: dados.length }).catch(() => {});
     return dados;
 }
 const textoHitos = (hitos, idioma) => hitos.map((h) => t(idioma,
@@ -66,13 +67,14 @@ async function recoger(userId, idioma = 'es', ahora = Date.now()) {
         if (!r.modifiedCount) continue; // alguien recogió a la vez: se recalcula
         const total = a.oro + sem.oro;
         await require('./economia.js').darOro(userId, total);
-        return { oro: a.oro, mensajes: [t(idioma, `🧺 Recoges **🪙 ${fmt(a.oro, idioma)}** de la granja (${dec(a.horas, idioma)} h).`, `🧺 You collect **🪙 ${fmt(a.oro, idioma)}** from the farm (${dec(a.horas, idioma)} h).`), ...sem.mensajes] };
+        const delPase = await require('./pase.js').registrar(userId, [['granja', 1], ['misionSemanal', sem.oro ? 1 : 0]], { idioma }).catch(() => []);
+        return { oro: a.oro, mensajes: [...delPase, t(idioma, `🧺 Recoges **🪙 ${fmt(a.oro, idioma)}** de la granja (${dec(a.horas, idioma)} h).`, `🧺 You collect **🪙 ${fmt(a.oro, idioma)}** from the farm (${dec(a.horas, idioma)} h).`), ...sem.mensajes] };
     }
     return { fallo: 'ocupado' };
 }
 
 const FALLOS = {
-    sin: ['Aún no tienes mascotas. Consigue la primera con `/cofre abrir`.', 'You don’t have pets yet. Get your first one with `/chest open`.'],
+    sin: ['Aún no tienes mascotas. Consigue la primera con `/cofre abrir`. ¿Perdido? `/empezar` te guía.', 'You don’t have pets yet. Get your first one with `/chest open`. Lost? `/start` guides you.'],
     vacia: ['Aún no hay nada que recoger: espera un poco.', 'Nothing to collect yet: wait a bit.'],
     ocupado: ['Prueba otra vez.', 'Try again.'],
 };
