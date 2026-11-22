@@ -49,6 +49,13 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     oroGranja: { type: Number, default: 0 },
     hitosAlbum: { type: [String], default: [] },
     semana: { id: String, prog: { type: Object, default: {} }, hechas: { type: [String], default: [] }, todas: Boolean },
+    // 1.29.0 (utils/pase.js): pase de temporada (mes UTC), su versión (para no pisarse), tickets de
+    // sobres/cofres gratis, logros conseguidos y título de pase completo.
+    pase: { temp: String, xp: Number, max: Number, casinoHoy: { dia: String, n: Number } },
+    paseV: { type: Number, default: 0 },
+    tickets: { type: Object, default: {} },
+    logros: { type: [String], default: [] },
+    tituloPase: { type: String, default: null },
 }, { minimize: false });
 
 module.exports = mongoose.model('ColeccionMascotas', ColeccionMascotasSchema);

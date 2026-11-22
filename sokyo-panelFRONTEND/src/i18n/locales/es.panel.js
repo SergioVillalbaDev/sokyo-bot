@@ -2950,6 +2950,15 @@ export default {
       nada: 'No hay funciones con ese nombre. Prueba con otra palabra.',
     },
     compis_v: {
+      pase: {
+        titulo: 'Pase de temporada, logros y guía', sub: 'Lo que hace que la gente vuelva cada día, gratis.',
+        intro: 'Cada mes hay un pase nuevo de {{max}} niveles ({{xp}} XP cada uno). Todo lo que hacen con sus mascotas, cartas y la granja da XP; cada nivel da oro, cada 5 un sobre gratis y cada 10 un cofre épico gratis. No se compra nada.',
+        xpTitulo: 'XP por cada cosa',
+        accion: { cuidar: '🤗 Cuidar', expedicion: '🧭 Expedición', carta: '🃏 Usar carta', granja: '🧺 Recoger granja', cofre: '📦 Abrir cofre', sobre: '🎴 Abrir sobre', casino: '🎰 Partida de casino', mision: '📋 Misión del día', misionSemanal: '📅 Misión semanal', hito: '📖 Hito del álbum', serie: '📺 Serie completa', logro: '🏅 Logro' },
+        tope: 'El casino solo da XP en las primeras {{n}} partidas del día, y lo mismo si apuestas 1 que 5000: no premia apostar más.',
+        logros: 'Logros ({{n}})',
+        empezar: 'Para quien no sabe por dónde empezar: /empezar en Discord le dice qué hacer ahora (y hay un botón «¿Nuevo? Empieza aquí» en el casino). /pase enseña su nivel, sus tickets gratis y sus logros.',
+      },
       comoTit: 'Cómo funciona', comoSub: 'Lo que puede hacer cada persona con sus mascotas, en 6 pasos.',
       propiosPlegable: 'Sube fotos y crea mascotas que solo salen en los cofres de tu servidor.',
       granja: {

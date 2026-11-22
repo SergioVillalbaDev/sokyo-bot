@@ -2945,6 +2945,15 @@ export default {
       nada: 'No features with that name. Try another word.',
     },
     compis_v: {
+      pase: {
+        titulo: 'Season pass, achievements and guide', sub: 'What brings people back every day, for free.',
+        intro: 'Every month there’s a new {{max}}-level pass ({{xp}} XP each). Everything they do with their pets, cards and farm gives XP; each level gives gold, every 5 a free pack and every 10 a free epic chest. Nothing is bought.',
+        xpTitulo: 'XP for each thing',
+        accion: { cuidar: '🤗 Care', expedicion: '🧭 Expedition', carta: '🃏 Use a card', granja: '🧺 Collect farm', cofre: '📦 Open chest', sobre: '🎴 Open pack', casino: '🎰 Casino game', mision: '📋 Daily mission', misionSemanal: '📅 Weekly mission', hito: '📖 Album milestone', serie: '📺 Complete series', logro: '🏅 Achievement' },
+        tope: 'The casino only gives XP for the first {{n}} games a day, and the same whether you bet 1 or 5000: betting more isn’t rewarded.',
+        logros: 'Achievements ({{n}})',
+        empezar: 'For people who don’t know where to start: /start on Discord tells them what to do now (and there’s a “New? Start here” button in the casino). /pass shows their level, free tickets and achievements.',
+      },
       comoTit: 'How it works', comoSub: 'What each person can do with their pets, in 6 steps.',
       propiosPlegable: 'Upload pictures and create pets that only drop from your server’s chests.',
       granja: {

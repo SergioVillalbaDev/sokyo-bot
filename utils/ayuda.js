@@ -9,6 +9,7 @@ const { t } = require('./i18n.js');
 // [nombre, tipo, nombre en español (si cambia), qué hace (es), qué hace (en)]
 const CATEGORIAS = [
     { id: 'empezar', emoji: '✨', titulo: ['Lo básico', 'The basics'], tab: null, cmds: [
+        ['start', 's', 'empezar', '¿Nuevo? Te dice qué hacer ahora y te explica mascotas, cartas, oro y casino paso a paso.', 'New? Tells you what to do now and explains pets, cards, gold and the casino step by step.'],
         ['help', 's', 'ayuda', 'Esta ayuda.', 'This help.'],
         ['quicksetup', 's', 'setup-rapido', 'Deja el bot funcionando con unas preguntas (admins).', 'Get the bot working with a few questions (admins).'],
         ['account', 's', 'cuenta', 'Tu web personal: tickets, oro, tienda, música y tarjeta.', 'Your personal web: tickets, gold, shop, music and card.'],
@@ -51,6 +52,7 @@ const CATEGORIAS = [
         ['chest', 's', 'cofre', 'Abre cofres con oro y colecciona mascotas, cada una con su habilidad exclusiva (hay una divina rarísima).', 'Open chests with gold and collect pets, each with its own exclusive ability (there’s an ultra-rare divine one).'],
         ['companion', 's', 'compi', 'Tu mascota: dale de comer, juega, habla con ella, mándala de expedición, usa cartas en ella y cumple las misiones del día.', 'Your pet: feed it, play, talk, send it on expeditions, use cards on it and do the daily missions.'],
         ['farm', 's', 'granja', 'Tus mascotas producen oro solas: recógelo, mira tu álbum (con premios por coleccionar) y las misiones de la semana.', 'Your pets make gold on their own: collect it, see your album (with collecting rewards) and the weekly missions.'],
+        ['pass', 's', 'pase', 'Tu pase de temporada gratis: sube de nivel jugando y gana oro, sobres y cofres gratis. Y tus logros.', 'Your free season pass: level up by playing and win gold, free packs and chests. And your achievements.'],
         ['card', 's', 'carta', 'Cartas de anime: abre sobres, mira tu álbum y úsalas para potenciar a tu mascota.', 'Anime cards: open packs, see your album and use them to power up your pet.'],
         ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
     ] },
@@ -109,8 +111,8 @@ function mensajeAyuda(idioma, prefijo = '!', { categoria = null } = {}) {
     if (!cat) {
         embed.setTitle(t(idioma, '📖 ¿Qué puedo hacer?', '📖 What can I do?'))
             .setDescription(t(idioma,
-                `Elige una categoría en el menú de abajo y te explico sus comandos.\n\n• Escribe **/** y Discord te enseña los comandos y te ayuda a rellenarlos.\n• También funcionan con **${prefijo}** delante, como siempre (p. ej. \`${prefijo}ping\`).\n• 🖱️ Los de **clic derecho**: sobre una persona o un mensaje → **Apps**.\n\n✨ Todo lo tuyo (tickets, oro, tienda, tarjeta) está también en tu web: \`/cuenta\`.`,
-                `Pick a category in the menu below and I’ll explain its commands.\n\n• Type **/** and Discord shows the commands and helps you fill them in.\n• They also work with **${prefijo}** in front, as always (e.g. \`${prefijo}ping\`).\n• 🖱️ The **right-click** ones: on a person or a message → **Apps**.\n\n✨ All your stuff (tickets, gold, shop, card) is also on your web: \`/account\`.`))
+                `👋 **¿Primera vez?** Escribe **/empezar**: te digo qué hacer paso a paso.\n\nElige una categoría en el menú de abajo y te explico sus comandos.\n\n• Escribe **/** y Discord te enseña los comandos y te ayuda a rellenarlos.\n• También funcionan con **${prefijo}** delante, como siempre (p. ej. \`${prefijo}ping\`).\n• 🖱️ Los de **clic derecho**: sobre una persona o un mensaje → **Apps**.\n\n✨ Todo lo tuyo (tickets, oro, tienda, tarjeta) está también en tu web: \`/cuenta\`.`,
+                `👋 **First time?** Type **/start**: I’ll tell you what to do step by step.\n\nPick a category in the menu below and I’ll explain its commands.\n\n• Type **/** and Discord shows the commands and helps you fill them in.\n• They also work with **${prefijo}** in front, as always (e.g. \`${prefijo}ping\`).\n• 🖱️ The **right-click** ones: on a person or a message → **Apps**.\n\n✨ All your stuff (tickets, gold, shop, card) is also on your web: \`/account\`.`))
             .addFields(CATEGORIAS.map((c) => ({ name: `${c.emoji} ${t(idioma, c.titulo[0], c.titulo[1])}`, value: c.cmds.slice(0, 4).map((x) => nombreComando(x, idioma, prefijo)).join(' · ') + (c.cmds.length > 4 ? ' …' : ''), inline: false })));
     } else {
         embed.setTitle(`${cat.emoji} ${t(idioma, cat.titulo[0], cat.titulo[1])}`)

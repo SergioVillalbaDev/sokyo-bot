@@ -50,10 +50,12 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         const nivelAntes = P.nivel(m.afinidad || 0);
         const dia = P.diaDe(ahora);
         let mis = col.misiones; let colSet = {};
+        let misCumplidas = 0; let semCumplidas = 0; // para el pase (1.29.0)
         const sumarMision = (a) => {
             const r = P.avanzarMision(mis, a, dia);
             mis = r.mis;
             if (r.cumplida) {
+                misCumplidas++;
                 const def = P.MISIONES[r.cumplida];
                 oro += P.PREMIO_MISION.oro; m.afinidad = (m.afinidad || 0) + P.PREMIO_MISION.afinidad;
                 mensajes.push(t(idioma, `✅ Misión cumplida: ${def.emoji} ${def.es} → 🪙 ${P.PREMIO_MISION.oro}`, `✅ Mission done: ${def.emoji} ${def.en} → 🪙 ${P.PREMIO_MISION.oro}`));
@@ -207,6 +209,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         if (semAcc) {
             const s = require('./granja.js').semanal(col, semAcc, 1, idioma, ahora);
             colSet.semana = s.sem; oro += s.oro; mensajes.push(...s.mensajes);
+            if (s.oro) semCumplidas = 1;
         }
         const nivelDespues = P.nivel(m.afinidad || 0);
         if (nivelDespues > nivelAntes) { mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel'; }
@@ -221,12 +224,13 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         }
         if (oro) await require('./economia.js').darOro(userId, oro);
         if (cuida) require('./cofres.js').olvidar(userId);
+        if (semAcc || misCumplidas) mensajes.push(...await require('./pase.js').registrar(userId, [[semAcc, semAcc ? 1 : 0], ['mision', misCumplidas], ['misionSemanal', semCumplidas]], { idioma, ahora }).catch(() => []));
         return { col: { ...col, ...colSet }, m, mensajes, efecto, frase, fallo, falloMin, falloRareza, oro };
     });
 }
 
 const FALLOS = {
-    sin: ['Aún no tienes compañeros. Consigue el primero abriendo un cofre con `/cofre abrir`.', 'You don’t have companions yet. Get your first one by opening a chest with `/chest open`.'],
+    sin: ['Aún no tienes compañeros. Consigue el primero abriendo un cofre con `/cofre abrir`. ¿Perdido? `/empezar` te guía paso a paso.', 'You don’t have companions yet. Get your first one by opening a chest with `/chest open`. Lost? `/start` guides you step by step.'],
     fuera: ['Está de expedición. Vuelve cuando termine.', 'It’s on an expedition. Come back when it’s done.'],
     energia: ['Está muy cansado para eso. Deja que descanse un rato (la energía se recupera sola).', 'Too tired for that. Let it rest a while (energy comes back on its own).'],
     lleno: ['¡Está llenísimo! Prueba a jugar con él.', 'It’s completely full! Try playing with it.'],
