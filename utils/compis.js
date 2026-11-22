@@ -40,7 +40,7 @@ const elegir = (col, compId) => {
 
 // Hace una acción (ver, comer, jugar, mimar, hablar, exp:<tipo>) y lo guarda todo.
 // Devuelve { col, m, mensajes, efecto, frase, fallo }.
-async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = Date.now() } = {}) {
+async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = Date.now(), guildId = null, bromas = false } = {}) {
     return enCola(userId, async () => {
         const col = await ColeccionMascotas.findOne({ userId }).lean();
         const m0 = elegir(col, compId);
@@ -61,18 +61,21 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
             if (r.todas) { oro += P.PREMIO_TODAS; mensajes.push(t(idioma, `🏆 ¡Todas las misiones de hoy! +🪙 ${P.PREMIO_TODAS}`, `🏆 All of today’s missions! +🪙 ${P.PREMIO_TODAS}`)); }
         };
         // Si volvió de una expedición, recoge lo que trae.
-        if (P.expedicionLista(m, ahora)) {
+        const recoger = () => {
+            if (!P.expedicionLista(m, ahora)) return;
             const b = P.botin(m);
             const x = P.EXPEDICIONES[m.exp.tipo];
             oro += b.oro; m.afinidad = (m.afinidad || 0) + b.afinidad;
-            const e = P.estado({ ...m, exp: null }, ahora);
+            // Mientras está fuera no gasta: se cuenta desde que volvió.
+            const e = P.estado({ ...m, exp: null, actualizado: m.exp.hasta }, ahora);
             Object.assign(m, e, { actualizado: new Date(ahora), exp: null });
             if (b.recuerdo !== null && !(m.recuerdos || []).includes(b.recuerdo)) m.recuerdos = [...(m.recuerdos || []), b.recuerdo];
             const rec = b.recuerdo !== null ? P.RECUERDOS[b.recuerdo] : null;
             mensajes.push(t(idioma, `${x.emoji} **¡Ha vuelto de «${x.es}»!** Trae 🪙 ${b.oro}${rec ? ` y un recuerdo: ${rec[0]} ${rec[1]}` : ''}.`, `${x.emoji} **Back from “${x.en}”!** Brought 🪙 ${b.oro}${rec ? ` and a souvenir: ${rec[0]} ${rec[2]}` : ''}.`));
             efecto = 'vuelta';
-        }
-        let frase = null; let fallo = null;
+        };
+        recoger();
+        let frase = null; let fallo = null; let falloMin = 0; let falloRareza = 0;
         if (que === 'comer' || que === 'jugar' || que === 'mimar') {
             const r = P.cuidar(m, que, ahora);
             if (r.fallo) fallo = r.fallo;
@@ -89,6 +92,55 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         } else if (que === 'hablar') {
             if (P.expedicionActiva(m, ahora)) fallo = 'fuera';
             else { frase = P.frase(m, 'hablar', { idioma, dueno, ahora }); efecto = 'hablar'; sumarMision('hablar'); }
+        } else if (que.startsWith('int:')) {
+            // Interacciones que da la rareza (baño, foto, entrenar, regalo, meditar, milagro…).
+            const id = que.slice(4);
+            const r = P.interactuar(m, id, ahora);
+            if (r.fallo) { fallo = r.fallo; if (r.fallo === 'espera') falloMin = r.min; if (r.fallo === 'rareza') falloRareza = r.rareza; }
+            else {
+                Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora), cds: r.cds });
+                m.afinidad = (m.afinidad || 0) + r.afinidad;
+                m.cuidados = (m.cuidados || 0) + 1;
+                frase = P.frase(m, id, { idioma, dueno, ahora });
+                efecto = id === 'regalo' || id === 'milagro' ? 'vuelta' : 'mimar';
+                const x = P.INTERACCIONES[id];
+                if (r.oro) { oro += r.oro; mensajes.push(t(idioma, `${x.emoji} Te regala 🪙 ${r.oro}.`, `${x.emoji} It gives you 🪙 ${r.oro}.`)); }
+                if (r.recuerdo !== null && r.recuerdo !== undefined && !(m.recuerdos || []).includes(r.recuerdo)) {
+                    m.recuerdos = [...(m.recuerdos || []), r.recuerdo];
+                    const rec = P.RECUERDOS[r.recuerdo];
+                    mensajes.push(t(idioma, `🎒 Y un recuerdo: ${rec[0]} ${rec[1]}`, `🎒 And a souvenir: ${rec[0]} ${rec[2]}`));
+                }
+                if (r.humor === 'feliz') sumarMision('feliz');
+            }
+        } else if (que === 'poder') {
+            const r = P.usarPoder(m, col, { ahora, bromas: bromas && !!guildId });
+            if (r.fallo) { fallo = r.fallo; falloMin = r.min; }
+            else {
+                const def = P.poderDe(m);
+                colSet.poderUsado = new Date(ahora);
+                efecto = 'nivel';
+                frase = P.frase(m, 'poder', { idioma, dueno, ahora });
+                if (r.oro) { oro += r.oro; mensajes.push(t(idioma, `${r.emoji} **Olfato:** ha encontrado 🪙 ${r.oro}.`, `${r.emoji} **Sniff:** found 🪙 ${r.oro}.`)); }
+                if (r.buff) {
+                    colSet.buff = r.buff;
+                    mensajes.push(t(idioma, `${r.emoji} **+${Math.round(r.buff.xp * 100)} % de XP** hasta <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`, `${r.emoji} **+${Math.round(r.buff.xp * 100)}% XP** until <t:${Math.floor(r.buff.hasta.getTime() / 1000)}:t>.`));
+                }
+                if (r.escudoHasta) {
+                    const PerfilBroma = require('../models/PerfilBroma.js');
+                    const p0 = await PerfilBroma.findOne({ guildId, userId }).lean();
+                    const desde = p0?.escudoHasta && new Date(p0.escudoHasta) > new Date(ahora) ? new Date(p0.escudoHasta) : new Date(ahora);
+                    const hasta = new Date(Math.max(desde.getTime(), r.escudoHasta.getTime()));
+                    await PerfilBroma.updateOne({ guildId, userId }, { $set: { escudoHasta: hasta } }, { upsert: true });
+                    mensajes.push(t(idioma, `${r.emoji} **Escudo:** nadie te puede gastar bromas aquí hasta <t:${Math.floor(hasta.getTime() / 1000)}:t>.`, `${r.emoji} **Shield:** nobody can prank you here until <t:${Math.floor(hasta.getTime() / 1000)}:t>.`));
+                }
+                if (r.volver) {
+                    m.exp = { ...m.exp, hasta: new Date(ahora - 1) };
+                    mensajes.push(t(idioma, `${r.emoji} **Prisa:** vuelve corriendo de la expedición.`, `${r.emoji} **Rush:** it rushes back from the expedition.`));
+                    recoger();
+                }
+                if (r.lleno) { Object.assign(m, { hambre: 100, alegria: 100, energia: 100, actualizado: new Date(ahora) }); mensajes.push(t(idioma, `${r.emoji} Barriga, alegría y energía al 100.`, `${r.emoji} Tummy, joy and energy at 100.`)); }
+                if (!r.oro && !r.buff && !r.escudoHasta && !r.volver && !r.lleno) mensajes.push(`${def.emoji} ${t(idioma, def.es, def.en)}`);
+            }
         } else if (que.startsWith('exp:')) {
             const r = P.salir(m, que.slice(4), col.expHoy, dia, ahora);
             if (r.fallo) fallo = r.fallo;
@@ -113,7 +165,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         const nivelDespues = P.nivel(m.afinidad || 0);
         if (nivelDespues > nivelAntes) { mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel'; }
         // Guardar (solo lo que cambia).
-        for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados']) {
+        for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados', 'cds']) {
             if (m[k] !== m0[k]) set[`mascotas.$[m].${k}`] = m[k];
         }
         if (mis !== col.misiones) colSet.misiones = mis;
@@ -123,7 +175,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         }
         if (oro) await require('./economia.js').darOro(userId, oro);
         if (cuida) require('./cofres.js').olvidar(userId);
-        return { col: { ...col, ...colSet }, m, mensajes, efecto, frase, fallo, oro };
+        return { col: { ...col, ...colSet }, m, mensajes, efecto, frase, fallo, falloMin, falloRareza, oro };
     });
 }
 
@@ -135,9 +187,11 @@ const FALLOS = {
     tope: [`Ya ha hecho ${P.EXPEDICIONES_DIA} expediciones hoy. Mañana más.`, `It already went on ${P.EXPEDICIONES_DIA} expeditions today. More tomorrow.`],
     recoger: ['Ya ha vuelto: entra a verlo para recoger lo que trae.', 'It’s back: open it to collect what it brought.'],
     tipo: ['Esa expedición no existe.', 'That expedition doesn’t exist.'],
+    espera: ['Aún no: podrás repetirlo en {min}.', 'Not yet: you can do it again in {min}.'],
+    rareza: ['Eso solo lo hacen los compañeros más raros.', 'Only rarer companions can do that.'],
     accion: ['No sé hacer eso.', 'I can’t do that.'],
 };
-const textoFallo = (f, idioma) => { const x = FALLOS[f] || FALLOS.accion; return t(idioma, x[0], x[1]); };
+const textoFallo = (f, idioma, min = 0) => { const x = FALLOS[f] || FALLOS.accion; return t(idioma, x[0], x[1]).replace('{min}', tiempo(min * 60000, idioma)); };
 
 function tiempo(ms, idioma) {
     const min = Math.max(1, Math.ceil(ms / 60000));
@@ -146,7 +200,20 @@ function tiempo(ms, idioma) {
 }
 
 // Mensaje completo de /compi (tarjeta + botones). `ajeno`: se mira el de otra persona (sin botones).
-async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false }) {
+// Ventajas que se notan en ESTE servidor (según lo que tenga activado).
+function ventajasAqui(v, cfg, idioma) {
+    const pct = (x) => `+${Math.round(x * 1000) / 10} %`;
+    const l = [];
+    if (v.xp && cfg?.niveles?.activo !== false) l.push(t(idioma, `✨ ${pct(v.xp)} de XP al hablar`, `✨ ${pct(v.xp)} XP when chatting`));
+    if (v.diario) l.push(t(idioma, `🪙 ${pct(v.diario)} de oro en /diario`, `🪙 ${pct(v.diario)} gold on /daily`));
+    if (v.vuelta && cfg?.casino?.activo) l.push(t(idioma, `🎰 ${pct(v.vuelta)} de lo perdido en el casino vuelve`, `🎰 ${pct(v.vuelta)} of casino losses back`));
+    if (v.bromas && cfg?.bromas?.activo) l.push(t(idioma, `🃏 Bromas un ${Math.round(v.bromas * 100)} % más baratas`, `🃏 Pranks ${Math.round(v.bromas * 100)}% cheaper`));
+    if (v.liga && cfg?.liga?.activo) l.push(t(idioma, `🏆 ${pct(v.liga)} de puntos al impulsar la Liga`, `🏆 ${pct(v.liga)} points when boosting the League`));
+    if (v.expedicion) l.push(t(idioma, `🧭 ${pct(v.expedicion)} de oro en expediciones`, `🧭 ${pct(v.expedicion)} expedition gold`));
+    return l;
+}
+
+async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = null }) {
     const { col, m } = res;
     const ahora = Date.now();
     const def = K.def(m.id);
@@ -177,13 +244,15 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false }) {
         return `${hecha ? '✅' : '⬜'} ${d.emoji} ${t(idioma, d.es, d.en)}${hecha ? '' : ` (${Math.min(d.n, (mis.prog || {})[id] || 0)}/${d.n})`}`;
     }).join('\n');
     const v = K.ventajas(m.id, m.estrellas, P.extraCuidado(m, ahora));
+    const poder = P.poderDe(m);
+    const faltaP = P.faltaPoder(col, ahora);
     const recs = (m.recuerdos || []).map((i) => P.RECUERDOS[i]?.[0]).filter(Boolean);
     const racha = col.ultimoDiaCuidado === dia || col.ultimoDiaCuidado === new Date(Date.parse(`${dia}T00:00:00Z`) - 86400000).toISOString().slice(0, 10) ? (col.racha || 0) : 0;
     const emb = new EmbedBuilder().setColor(rz.color)
         .setTitle(`${def.emoji} ${nombreDe(m, idioma)}`)
         .setDescription([
             ...(res.mensajes || []),
-            res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma)}` : '',
+            res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin)}` : '',
             def.desc ? `*${def.desc}*` : '',
         ].filter(Boolean).join('\n') || null)
         .addFields(
@@ -191,7 +260,18 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false }) {
             { name: t(idioma, '🔥 Racha', '🔥 Streak'), value: t(idioma, `${racha} día${racha === 1 ? '' : 's'}\n🧭 Expediciones: ${col.expHoy?.dia === dia ? col.expHoy.n : 0}/${P.EXPEDICIONES_DIA}`, `${racha} day${racha === 1 ? '' : 's'}\n🧭 Expeditions: ${col.expHoy?.dia === dia ? col.expHoy.n : 0}/${P.EXPEDICIONES_DIA}`), inline: true },
             { name: t(idioma, `🎒 Recuerdos (${recs.length}/${P.RECUERDOS.length})`, `🎒 Souvenirs (${recs.length}/${P.RECUERDOS.length})`), value: recs.join(' ') || t(idioma, 'Tráelos de las expediciones.', 'Bring them back from expeditions.'), inline: false },
         )
-        .setFooter({ text: t(idioma, `${equipado ? 'Equipado' : 'Si lo equipas'}: ${require('./cofres.js').textoVentajas(v, idioma)}`, `${equipado ? 'Equipped' : 'If equipped'}: ${require('./cofres.js').textoVentajas(v, idioma)}`).slice(0, 2000) });
+        .setFooter({ text: t(idioma, `✨ Poder: ${poder.es}${faltaP ? ` · listo en ${tiempo(faltaP * 60000, idioma)}` : ' · ¡listo!'}`, `✨ Power: ${poder.en}${faltaP ? ` · ready in ${tiempo(faltaP * 60000, idioma)}` : ' · ready!'}`).slice(0, 2000) });
+    // Ventajas aquí y lo que sabe hacer (y lo que harían los más raros).
+    const aqui = ventajasAqui(v, cfg, idioma);
+    emb.addFields({ name: equipado ? t(idioma, '💎 Te da en este servidor', '💎 What it gives you here') : t(idioma, '💎 Si lo equipas, aquí te daría', '💎 If equipped, here it would give'), value: aqui.join('\n') || '—', inline: false });
+    const sabe = P.interaccionesDe(m);
+    const siguiente = Object.entries(P.INTERACCIONES).filter(([, x]) => x.rareza > P.ordenDe(m));
+    const proxR = siguiente.length ? Math.min(...siguiente.map(([, x]) => x.rareza)) : null;
+    const RZ = Object.values(K.RAREZAS).find((r) => r.orden === proxR);
+    emb.addFields({ name: t(idioma, `🎀 Sabe hacer (${4 + sabe.length})`, `🎀 Can do (${4 + sabe.length})`), value: [
+        `🍖 🎾 🤗 💬${sabe.length ? ` · ${sabe.map((id) => P.INTERACCIONES[id].emoji).join(' ')}` : ''}`,
+        RZ ? t(idioma, `🔒 Uno ${RZ.es.toLowerCase()} además: ${siguiente.filter(([, x]) => x.rareza === proxR).map(([, x]) => `${x.emoji} ${x.es}`).join(', ')}`, `🔒 A ${RZ.en.toLowerCase()} one also: ${siguiente.filter(([, x]) => x.rareza === proxR).map(([, x]) => `${x.emoji} ${x.en}`).join(', ')}`) : '',
+    ].filter(Boolean).join('\n'), inline: false });
     if (img) emb.setImage(`attachment://${img.nombre}`);
     const files = img ? [new AttachmentBuilder(img.buffer, { name: img.nombre })] : [];
     if (ajeno) return { embeds: [emb], files, components: [], attachments: [], allowedMentions: { parse: [] } };
@@ -201,6 +281,8 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false }) {
         new ButtonBuilder().setCustomId(cid('jugar')).setEmoji('🎾').setLabel(t(idioma, 'Jugar', 'Play')).setStyle(ButtonStyle.Primary).setDisabled(fuera),
         new ButtonBuilder().setCustomId(cid('mimar')).setEmoji('🤗').setLabel(t(idioma, 'Mimar', 'Cuddle')).setStyle(ButtonStyle.Primary).setDisabled(fuera),
         new ButtonBuilder().setCustomId(cid('hablar')).setEmoji('💬').setLabel(t(idioma, 'Hablar', 'Talk')).setStyle(ButtonStyle.Secondary).setDisabled(fuera),
+        new ButtonBuilder().setCustomId(cid('poder')).setEmoji(poder.emoji).setStyle(faltaP ? ButtonStyle.Secondary : ButtonStyle.Danger).setDisabled(!!faltaP)
+            .setLabel(faltaP ? t(idioma, `Poder en ${tiempo(faltaP * 60000, idioma)}`, `Power in ${tiempo(faltaP * 60000, idioma)}`) : t(idioma, '¡Poder!', 'Power!')),
     )];
     if (!fuera) {
         filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_exp:${ownerId}:${m.id}`)
@@ -209,6 +291,16 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false }) {
                 value: id, emoji: ex.emoji, label: `${t(idioma, ex.es, ex.en)} · ${ex.horas} h`.slice(0, 100),
                 description: t(idioma, `Gasta ⚡${ex.energia} · trae 🪙 ${ex.oro[0]}-${ex.oro[1]}+ y quizá un recuerdo`, `Uses ⚡${ex.energia} · brings 🪙 ${ex.oro[0]}-${ex.oro[1]}+ and maybe a souvenir`).slice(0, 100),
             })))));
+    }
+    const extras = P.interaccionesDe(m);
+    if (!fuera && extras.length) {
+        filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_int:${ownerId}:${m.id}`)
+            .setPlaceholder(t(idioma, `🎀 Más cosas que hacer (${extras.length})…`, `🎀 More things to do (${extras.length})…`))
+            .addOptions(extras.map((id) => {
+                const x = P.INTERACCIONES[id]; const f = P.falta(m, id, ahora);
+                return { value: id, emoji: x.emoji, label: t(idioma, x.es, x.en).slice(0, 100),
+                    description: (f ? t(idioma, `⏳ Podrás en ${tiempo(f * 60000, idioma)}`, `⏳ Available in ${tiempo(f * 60000, idioma)}`) : t(idioma, `Listo · +${x.afinidad} de afinidad${x.oro ? ' · trae oro' : ''}`, `Ready · +${x.afinidad} affinity${x.oro ? ' · brings gold' : ''}`)).slice(0, 100) };
+            }))));
     }
     const lista = [...(col.mascotas || [])].sort((a, b) => (b.id === col.equipada) - (a.id === col.equipada) || K.RAREZAS[K.def(b.id).rareza].orden - K.RAREZAS[K.def(a.id).rareza].orden).slice(0, 25);
     if (lista.length > 1) {
@@ -240,6 +332,7 @@ async function manejar(interaction) {
     if (partes[0] === 'cmp') { que = partes[1]; owner = partes[2]; comp = partes.slice(3).join(':'); }
     else if (partes[0] === 'cmp_exp') { owner = partes[1]; comp = partes.slice(2).join(':'); que = `exp:${interaction.values[0]}`; }
     else if (partes[0] === 'cmp_sel') { owner = partes[1]; comp = interaction.values[0]; que = 'ver'; }
+    else if (partes[0] === 'cmp_int') { owner = partes[1]; comp = partes.slice(2).join(':'); que = `int:${interaction.values[0]}`; }
     else if (partes[0] === 'cmp_apodo') { owner = partes[1]; comp = partes.slice(2).join(':'); que = 'apodo_guardar'; }
     else return false;
     if (interaction.user.id !== owner) {
@@ -256,18 +349,18 @@ async function manejar(interaction) {
     let res;
     if (que === 'equipar') {
         await require('./cofres.js').equipar(owner, comp);
-        res = await accion(owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username });
+        res = await accion(owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
         if (!res.fallo) res.mensajes.unshift(t(idioma, `✅ Ahora te acompaña ${K.def(comp).emoji} **${corto(res.m, idioma)}**: sus ventajas ya cuentan.`, `✅ ${K.def(comp).emoji} **${corto(res.m, idioma)}** is now with you: its perks are active.`));
     } else if (que === 'apodo_guardar') {
         const apodo = String(interaction.fields.getTextInputValue('apodo') || '').replace(/[\n\r@#<>`*_~|]/g, '').trim().slice(0, 24);
         await ColeccionMascotas.updateOne({ userId: owner }, apodo ? { $set: { 'mascotas.$[m].apodo': apodo } } : { $unset: { 'mascotas.$[m].apodo': 1 } }, { arrayFilters: [{ 'm.id': comp }] });
-        res = await accion(owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username });
+        res = await accion(owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
         if (!res.fallo) res.mensajes.unshift(apodo ? t(idioma, `✏️ Ahora se llama **${apodo}**.`, `✏️ It’s now called **${apodo}**.`) : t(idioma, '✏️ Apodo quitado.', '✏️ Nickname removed.'));
     } else {
-        res = await accion(owner, comp, que, { idioma, dueno: interaction.user.displayName || interaction.user.username });
+        res = await accion(owner, comp, que, { idioma, dueno: interaction.user.displayName || interaction.user.username, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
     }
     if (res.fallo === 'sin') { await interaction.followUp({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
-    await interaction.editReply(await vista({ ownerId: owner, duenoNombre: interaction.user.displayName || interaction.user.username, idioma, res }));
+    await interaction.editReply(await vista({ ownerId: owner, duenoNombre: interaction.user.displayName || interaction.user.username, idioma, res, cfg }));
     return true;
 }
 

@@ -75,6 +75,7 @@ module.exports = {
             canal: interaction.channel, idioma,
         });
         if (r.error) return interaction.editReply(`❌ ${r.error}`);
-        return interaction.editReply(t(idioma, `🃏 ¡Hecho! (🪙 ${r.coste}). Te quedan 🪙 ${r.saldo}.`, `🃏 Done! (🪙 ${r.coste}). You have 🪙 ${r.saldo} left.`));
+        const rebaja = r.descuentoCompa ? t(idioma, ` · −${Math.round(r.descuentoCompa * 100)} % por tu compañero`, ` · −${Math.round(r.descuentoCompa * 100)}% from your companion`) : '';
+        return interaction.editReply(t(idioma, `🃏 ¡Hecho! (🪙 ${r.coste}${rebaja}). Te quedan 🪙 ${r.saldo}.`, `🃏 Done! (🪙 ${r.coste}${rebaja}). You have 🪙 ${r.saldo} left.`));
     },
 };

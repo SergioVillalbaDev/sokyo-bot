@@ -83,9 +83,13 @@ async function impulsar(guildId, userId, cfg, oro, idioma) {
         await ImpulsoLiga.updateOne({ userId, dia }, { $inc: { oro: -cantidad } });
         return { error: t(idioma, `No tienes 🪙 ${cantidad}.`, `You don’t have 🪙 ${cantidad}.`) };
     }
-    const puntos = cantidad / ORO_POR_PUNTO;
+    // Compañero equipado (1.21.0): sus puntos extra (redondeando hacia abajo).
+    const v = await require('./cofres.js').ventajasUsuario(userId).catch(() => null);
+    const base = cantidad / ORO_POR_PUNTO;
+    const extraCompa = v?.liga > 0 ? Math.floor(base * v.liga) : 0;
+    const puntos = base + extraCompa;
     const doc = await sumarPuntos(guildId, 'impulsos', puntos);
-    return { ok: true, puntos, cantidad, saldo, total: doc?.puntos || puntos };
+    return { ok: true, puntos, cantidad, saldo, extraCompa, total: doc?.puntos || puntos };
 }
 
 async function posicionDe(guildId, mes = N.mesClave()) {

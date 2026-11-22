@@ -43,6 +43,6 @@ module.exports = {
         if (res.fallo === 'sin') {
             return interaction.editReply({ content: otro ? t(idioma, `${nombre} aún no tiene compañeros.`, `${nombre} has no companions yet.`) : compis.textoFallo('sin', idioma), allowedMentions: { parse: [] } });
         }
-        return interaction.editReply(await compis.vista({ ownerId: quien.id, duenoNombre: nombre, idioma, res, ajeno: quien.id !== interaction.user.id }));
+        return interaction.editReply(await compis.vista({ ownerId: quien.id, duenoNombre: nombre, idioma, res, ajeno: quien.id !== interaction.user.id, cfg }));
     },
 };

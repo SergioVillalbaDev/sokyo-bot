@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.21.0': [
+        { tab: 'com-compis', es: '🎀 Cuanto más raro es tu compañero, más cosas sabe hacer en /compi: baño, fotos, entrenar, bailar, regalo del día, historias, meditar, secretos… y la divina, milagros.', en: '🎀 The rarer your companion, the more it can do in /companion: bath, photos, training, dancing, daily gift, stories, meditation, secrets… and the divine one, miracles.' },
+        { tab: 'com-compis', es: '✨ Cada compañero tiene un poder al día: Olfato (oro), Inspiración (+XP), Escudo contra bromas, Prisa (vuelve ya de la expedición) o Bendición.', en: '✨ Every companion has a daily power: Sniff (gold), Inspiration (+XP), Prank shield, Rush (back from the expedition now) or Blessing.' },
+        { tab: 'com-compis', es: '💎 Ventajas nuevas del compañero equipado: bromas más baratas, más puntos al impulsar la Liga y más oro en las expediciones.', en: '💎 New perks from your equipped companion: cheaper pranks, more points when boosting the League and more expedition gold.' },
+        { tab: 'com-compis', es: '📸 Estilo Mudae: los admins pueden subir muchas fotos de golpe y crear hasta 100 personajes propios del servidor.', en: '📸 Mudae style: admins can upload many pictures at once and create up to 100 server characters.' },
+    ],
     '1.20.0': [
         { tab: 'com-compis', es: '💖 /compi: tu compañero ahora es como un tamagotchi. Dale de comer, juega, mímalo y habla con él (cientos de frases). Tiene hambre, alegría y energía, y sube de nivel de afinidad.', en: '💖 /companion: your companion is now like a tamagotchi. Feed it, play, cuddle and talk to it (hundreds of lines). It gets hungry, happy and tired, and levels up its affinity.' },
         { tab: 'com-compis', es: '🧭 Expediciones de 1, 4 u 8 horas: vuelven con oro y recuerdos para coleccionar. Y cada día, 3 misiones nuevas y racha con premios.', en: '🧭 1, 4 or 8-hour expeditions: they come back with gold and souvenirs to collect. Plus 3 new missions every day and a streak with rewards.' },

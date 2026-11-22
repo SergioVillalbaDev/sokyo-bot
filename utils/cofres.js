@@ -19,9 +19,13 @@ const cache = new Map();
 async function ventajasUsuario(userId) {
     const c = cache.get(userId);
     if (c && c.hasta > Date.now()) return c.v;
-    const col = await ColeccionMascotas.findOne({ userId }).select('equipada mascotas').lean();
+    const col = await ColeccionMascotas.findOne({ userId }).select('equipada mascotas buff').lean();
     const eq = col?.equipada ? (col.mascotas || []).find((m) => m.id === col.equipada) : null;
-    const v = eq ? K.ventajas(eq.id, eq.estrellas, require('./compisNucleo.js').extraCuidado(eq)) : { xp: 0, diario: 0, vuelta: 0 };
+    const P = require('./compisNucleo.js');
+    const v = eq ? K.ventajas(eq.id, eq.estrellas, P.extraCuidado(eq)) : { xp: 0, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 };
+    // Poder activo (Inspiración, Bendición): suma XP mientras dura. La caché dura poco para que se note al acabar.
+    const extra = P.buffXp(col);
+    if (extra) v.xp = Math.round((v.xp + extra) * 1000) / 1000;
     cache.set(userId, { v, hasta: Date.now() + 60000 });
     return v;
 }
@@ -35,6 +39,9 @@ function textoVentajas(v, idioma) {
     if (v.xp) partes.push(t(idioma, `✨ ${pct(v.xp)} de XP`, `✨ ${pct(v.xp)} XP`));
     if (v.diario) partes.push(t(idioma, `🪙 ${pct(v.diario)} en /diario`, `🪙 ${pct(v.diario)} on /daily`));
     if (v.vuelta) partes.push(t(idioma, `🎰 ${pct(v.vuelta)} de vuelta en el casino`, `🎰 ${pct(v.vuelta)} casino cashback`));
+    if (v.bromas) partes.push(t(idioma, `🃏 bromas −${Math.round(v.bromas * 100)} %`, `🃏 pranks −${Math.round(v.bromas * 100)}%`));
+    if (v.liga) partes.push(t(idioma, `🏆 ${pct(v.liga)} en la Liga`, `🏆 ${pct(v.liga)} League`));
+    if (v.expedicion) partes.push(t(idioma, `🧭 ${pct(v.expedicion)} en expediciones`, `🧭 ${pct(v.expedicion)} expeditions`));
     return partes.join(' · ') || '—';
 }
 
@@ -56,7 +63,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
         const upd = {
             $inc: { abiertos: 1, gastado: def.precio, ...(r.rareza === 'divina' ? { divinas: 1 } : {}) },
             $set: { sinEpica: r.sinEpica, ...(tiene ? { 'mascotas.$[m].estrellas': r.estrellas } : {}), ...(!col.equipada ? { equipada: r.id } : {}) },
-            ...(tiene ? {} : { $push: { mascotas: { id: r.id, estrellas: 1, primera: new Date() } } }),
+            ...(tiene ? {} : { $push: { mascotas: { id: r.id, estrellas: 1, primera: new Date(), actualizado: new Date() } } }),
         };
         const hecho = await ColeccionMascotas.updateOne({ _id: col._id, abiertos: col.abiertos }, upd, tiene ? { arrayFilters: [{ 'm.id': r.id }] } : {});
         if (hecho.modifiedCount) break;

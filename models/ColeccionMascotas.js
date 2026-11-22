@@ -13,6 +13,7 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         exp: { tipo: String, desde: Date, hasta: Date },
         recuerdos: { type: [Number], default: [] },
         cuidados: { type: Number, default: 0 },
+        cds: { type: Object, default: undefined }, // 1.21.0: cuándo se hizo cada interacción (para su espera)
         _id: false,
     }], default: [] },
     equipada: { type: String, default: null },
@@ -27,6 +28,9 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     misiones: { dia: String, prog: { type: Object, default: {} }, hechas: { type: [String], default: [] }, todas: Boolean },
     expHoy: { dia: String, n: Number },
     oroCompis: { type: Number, default: 0 },
+    // 1.21.0: poder del día (uno cada 20 h) y su efecto activo de XP.
+    poderUsado: { type: Date, default: null },
+    buff: { xp: Number, hasta: Date },
 }, { minimize: false });
 
 module.exports = mongoose.model('ColeccionMascotas', ColeccionMascotasSchema);

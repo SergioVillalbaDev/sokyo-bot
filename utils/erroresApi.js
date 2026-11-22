@@ -7,7 +7,7 @@ const EN = {
     'Ponle un nombre': 'Give it a name',
     'Esa rareza no vale': 'That rarity isn’t valid',
     'La imagen supera 3 MB': 'The image is over 3 MB',
-    'Ya tienes 20 compañeros propios: borra alguno antes': 'You already have 20 custom companions: delete one first',
+    'Ya tienes 100 compañeros propios: borra alguno antes': 'You already have 100 custom companions: delete one first',
     'Sube una foto para tu compañero': 'Upload a picture for your companion',
     'Fallo interno': 'Internal error',
     'Servidor no encontrado': 'Server not found',

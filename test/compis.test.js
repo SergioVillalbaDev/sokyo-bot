@@ -115,3 +115,49 @@ describe('Expediciones, misiones y racha', () => {
         assert.ok(VOCES.vampiro.some(([, e]) => e.replace('{d}', 'Ana') === en), en);
     });
 });
+
+describe('1.21.0: interacciones por rareza, poderes y ventajas', () => {
+    const base = { hambre: 60, alegria: 50, energia: 70, actualizado: new Date(T0) };
+    test('cada rareza desbloquea más interacciones', () => {
+        const n = (id) => P.interaccionesDe({ id }).length;
+        assert.equal(n('gato'), 0);
+        assert.ok(n('zorro') > 0 && n('kaede') > n('zorro') && n('vlad') > n('kaede') && n('djinn') > n('vlad') && n('celestial') > n('djinn'));
+        assert.equal(n('celestial'), Object.keys(P.INTERACCIONES).length);
+        for (const id of Object.keys(P.INTERACCIONES)) assert.ok(require('../utils/compisFrases.js').EXTRA[id], id);
+    });
+    test('interactuar: rareza, espera, energía y premio', () => {
+        assert.equal(P.interactuar({ id: 'gato', ...base }, 'banar', T0).fallo, 'rareza');
+        const r = P.interactuar({ id: 'zorro', ...base }, 'banar', T0);
+        assert.equal(r.alegria, 58); assert.equal(r.afinidad, 3);
+        const tras = { id: 'zorro', ...base, cds: r.cds };
+        assert.equal(P.interactuar(tras, 'banar', T0 + 60000).fallo, 'espera');
+        assert.equal(P.interactuar(tras, 'banar', T0 + 31 * 60000).fallo, undefined);
+        assert.equal(P.interactuar({ id: 'kaede', ...base, energia: 5 }, 'entrenar', T0).fallo, 'energia');
+        const g = P.interactuar({ id: 'vlad', ...base }, 'regalo', T0, () => 0.1);
+        assert.ok(g.oro >= 60 && g.oro <= 150); assert.notEqual(g.recuerdo, null);
+        const fuera = { id: 'vlad', ...base, exp: { tipo: 'paseo', hasta: new Date(T0 + H) } };
+        assert.equal(P.interactuar(fuera, 'historia', T0).fallo, 'fuera');
+    });
+    test('poder del día según la rareza, cada 20 h', () => {
+        assert.ok(P.usarPoder({ id: 'gato', ...base }, {}, { ahora: T0, azar: () => 0.5 }).oro > 0);
+        const ins = P.usarPoder({ id: 'kaede', ...base }, {}, { ahora: T0 });
+        assert.equal(ins.buff.xp, 0.3);
+        assert.ok(P.usarPoder({ id: 'vlad', ...base }, {}, { ahora: T0, bromas: true }).escudoHasta);
+        assert.equal(P.usarPoder({ id: 'vlad', ...base }, {}, { ahora: T0, bromas: false }).id, 'inspiracion');
+        assert.ok(P.usarPoder({ id: 'djinn', ...base, exp: { tipo: 'viaje', hasta: new Date(T0 + 5 * H) } }, {}, { ahora: T0 }).volver);
+        assert.ok(P.usarPoder({ id: 'djinn', ...base }, {}, { ahora: T0 }).lleno);
+        const b = P.usarPoder({ id: 'celestial', ...base }, {}, { ahora: T0 });
+        assert.ok(b.lleno && b.buff.xp === 1);
+        assert.equal(P.usarPoder({ id: 'gato', ...base }, { poderUsado: new Date(T0 - H) }, { ahora: T0 }).fallo, 'espera');
+        assert.equal(P.faltaPoder({ poderUsado: new Date(T0 - 21 * H) }, T0), 0);
+        assert.equal(P.buffXp({ buff: { xp: 0.3, hasta: new Date(T0 + 1) } }, T0), 0.3);
+        assert.equal(P.buffXp({ buff: { xp: 0.3, hasta: new Date(T0 - 1) } }, T0), 0);
+    });
+    test('las rarezas dan más en bromas, Liga y expediciones', () => {
+        const orden = ['gato', 'zorro', 'kaede', 'vlad', 'djinn', 'celestial'].map((id) => K.ventajas(id, 1));
+        for (const k of ['bromas', 'liga', 'expedicion']) for (let i = 1; i < orden.length; i++) assert.ok(orden[i][k] >= orden[i - 1][k], k);
+        const pobre = P.botin({ id: 'gato', exp: { tipo: 'viaje' } }, () => 0.5).oro;
+        const rico = P.botin({ id: 'celestial', exp: { tipo: 'viaje' } }, () => 0.5).oro;
+        assert.equal(rico, pobre * 2);
+    });
+});
