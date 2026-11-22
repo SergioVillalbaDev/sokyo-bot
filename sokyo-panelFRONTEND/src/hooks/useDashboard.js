@@ -1787,6 +1787,7 @@ export function useDashboard() {
       'crec-votos': b(c.crecimiento && c.crecimiento.votos && c.crecimiento.votos.activo),
       'com-mascota': b(c.mascota && c.mascota.activo),
       'com-casino': b(c.casino && c.casino.activo),
+      'com-compis': b(c.casino && c.casino.activo && c.casino.cofres !== false),
       'com-bromas': b(c.bromas && c.bromas.activo),
       'crec-liga': b(c.liga && c.liga.activo),
       'logs-todos': b(c.canalLogsId),

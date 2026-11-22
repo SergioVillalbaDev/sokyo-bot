@@ -1,0 +1,271 @@
+// Diversión · Compañeros (1.20.0) — compañeros tipo tamagotchi. Cada miembro los
+// consigue en los cofres y los cuida con /compi (comer, jugar, mimos, hablar,
+// expediciones, misiones del día y racha). Aquí se ve el catálogo, quién los cuida
+// mejor y se crean los compañeros propios del servidor con su foto (solo salen en
+// los cofres de aquí). Bot: utils/compis.js, utils/compisNucleo.js; API: modulos/compis.
+import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users } from 'lucide-react';
+import { Avatar, Toggle } from '../../ui/primitives';
+import { tarjeta, campo, CabeceraTarjeta, Campo, Aviso } from './crecimientoShared';
+import { useModulo } from '../../../hooks/useModulo';
+import { RAREZAS, COMPANEROS } from '../../../lib/casino';
+import { svgMascota } from '../../../lib/mascota';
+import { API_URL } from '../../../lib/api';
+
+const ORDEN_R = ['comun', 'rara', 'epica', 'legendaria', 'mitica', 'divina'];
+const RAREZAS_PROPIAS = ['comun', 'rara', 'epica', 'legendaria', 'mitica'];
+const VOCES = ['tierno', 'sabio', 'bromista', 'timido', 'glotón', 'dormilon', 'orgulloso', 'sonador', 'energico', 'robot', 'alien', 'ninja', 'guerrero', 'maga', 'idol', 'vampiro', 'heroe', 'misterioso', 'genio', 'princesa'];
+const PASOS = [['🎁', 'p1'], ['🍖', 'p2'], ['🧭', 'p3'], ['🔥', 'p4']];
+// Las fotos subidas vienen como «/uploads/…»: se les pone delante la dirección de la API.
+const foto = (p) => (p && p.startsWith('/uploads/') ? `${API_URL}${p}` : p);
+const VACIO = { nombre: '', rareza: 'rara', voz: 'tierno', desc: '', frases: '', activo: true, imagen: null, vista: null };
+
+// Lee una foto y la deja en 512 px como mucho (pesa menos y se ve igual en la tarjeta).
+function leerFoto(archivo) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onerror = reject;
+    lector.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const k = Math.min(1, 512 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/png'));
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
+function Ficha({ src, foto, rareza, titulo, sub, apagado }) {
+  const R = RAREZAS[rareza] || RAREZAS.comun;
+  return (
+    <div className={`group flex w-[92px] flex-col items-center rounded-2xl border bg-bg p-2 text-center transition-transform hover:-translate-y-1 ${apagado ? 'opacity-50' : ''}`} style={{ borderColor: `${R.color}66` }} title={titulo}>
+      <span className="grid h-14 w-14 place-items-center">
+        <img src={src} alt="" className={`h-12 w-12 transition-transform group-hover:scale-110 ${foto ? 'rounded-full object-cover ring-2' : ''}`} style={foto ? { '--tw-ring-color': R.color } : undefined} />
+      </span>
+      <span className="mt-1 line-clamp-2 text-[11px] font-bold leading-tight text-fg">{String(titulo).split(',')[0]}</span>
+      {sub && <span className="mt-0.5 text-[10px] font-semibold" style={{ color: R.color }}>{sub}</span>}
+    </div>
+  );
+}
+
+export default function CompisView({ dash }) {
+  const { t, i18n } = useTranslation();
+  const { accionModulo } = dash;
+  const { datos, recargar } = useModulo(dash, 'compis');
+  const [form, setForm] = useState(null);      // null = cerrado; { …VACIO, cid? }
+  const [estado, setEstado] = useState('');
+  const [error, setError] = useState('');
+  const [filtro, setFiltro] = useState('todos');
+  const archivo = useRef(null);
+
+  if (!datos) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
+  if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
+  const lista = datos.lista || [];
+  const n = (v) => Math.round(Number(v || 0)).toLocaleString(i18n.language);
+  const nombreDe = (id) => t(`dashboard.casino_v.comp.${id}`);
+  const catalogo = Object.entries(COMPANEROS).filter(([, c]) => filtro === 'todos' || (filtro === 'personajes' ? c.tipo === 'personaje' : c.tipo !== 'personaje'));
+  const setF = (k) => (v) => setForm((f) => ({ ...f, [k]: v && v.target ? v.target.value : v }));
+
+  const elegirFoto = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setError('');
+    try { const url = await leerFoto(f); setForm((x) => ({ ...x, imagen: url, vista: url })); }
+    catch { setError(t('dashboard.compis_v.errFoto')); }
+  };
+  const guardar = async () => {
+    setEstado('guardando'); setError('');
+    const cuerpo = {
+      nombre: form.nombre, rareza: form.rareza, voz: form.voz, desc: form.desc, activo: form.activo,
+      frases: String(form.frases || '').split('\n').map((x) => x.trim()).filter(Boolean),
+      ...(form.imagen ? { imagen: form.imagen } : {}),
+    };
+    const r = await accionModulo(form.cid ? `compis/${form.cid}` : 'compis', form.cid ? 'PUT' : 'POST', cuerpo);
+    setEstado('');
+    if (r.error) { setError(r.error); return; }
+    setForm(null);
+    recargar();
+  };
+  const borrar = async (c) => {
+    if (!window.confirm(t('dashboard.compis_v.confirmBorrar', { n: c.nombre }))) return;
+    const r = await accionModulo(`compis/${c.cid}`, 'DELETE');
+    if (r.error) { setError(r.error); return; }
+    if (r.retirado) setError(t('dashboard.compis_v.retirado', { n: c.nombre }));
+    recargar();
+  };
+  const activar = async (c, v) => { await accionModulo(`compis/${c.cid}`, 'PUT', { activo: v }); recargar(); };
+
+  return (
+    <div className="space-y-5">
+      {/* Portada */}
+      <div className={`${tarjeta} relative overflow-hidden`}>
+        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-pink-500/20 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex -space-x-3">
+            {['kaede', 'mika', 'vlad', 'marina', 'pixel'].map((id, i) => (
+              <span key={id} className="grid h-14 w-14 place-items-center rounded-full border-2 border-card bg-elevated shadow-soft" style={{ zIndex: 5 - i }}>
+                <img src={svgMascota(COMPANEROS[id].svg)} alt="" className="h-10 w-10" />
+              </span>
+            ))}
+          </div>
+          <div className="min-w-0">
+            <p className="text-lg font-extrabold text-fg">{t('dashboard.compis_v.titulo', { n: Object.keys(COMPANEROS).length + lista.length })}</p>
+            <p className="text-sm text-muted">{t('dashboard.compis_v.intro')}</p>
+          </div>
+        </div>
+        <ol className="relative mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PASOS.map(([emoji, p], i) => (
+            <li key={p} className="rounded-2xl border border-line bg-bg p-3">
+              <div className="flex items-center gap-2">
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-pink-500/15 text-sm font-black text-pink-300">{i + 1}</span>
+                <span className="text-xl" aria-hidden>{emoji}</span>
+              </div>
+              <p className="mt-2 text-sm font-bold text-fg">{t(`dashboard.compis_v.paso.${p}.t`)}</p>
+              <p className="mt-0.5 text-xs text-muted">{t(`dashboard.compis_v.paso.${p}.d`)}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="relative mt-4 text-xs text-muted">{t('dashboard.compis_v.sano')}</p>
+      </div>
+
+      {/* Los de tu servidor */}
+      <div className={tarjeta}>
+        <CabeceraTarjeta icono={Crown} titulo={t('dashboard.compis_v.propiosTitulo')}
+          extra={!form && lista.length < (datos.max || 20) && (
+            <button type="button" onClick={() => { setError(''); setForm({ ...VACIO }); }} className="sk-foco flex items-center gap-1.5 rounded-xl bg-gradient-brand px-3 py-2 text-sm font-bold text-on-brand">
+              <Plus size={16} /> {t('dashboard.compis_v.crear')}
+            </button>
+          )} />
+        <p className="mt-1 text-xs text-muted">{t('dashboard.compis_v.propiosSub', { n: lista.length, max: datos.max || 20 })}</p>
+        {error && <div className="mt-3"><Aviso tipo="alerta">{error}</Aviso></div>}
+
+        {form && (
+          <div className="mt-4 grid gap-4 rounded-2xl border border-brand/40 bg-brand/5 p-4 md:grid-cols-[180px_1fr]">
+            <div className="flex flex-col items-center gap-2">
+              <button type="button" onClick={() => archivo.current?.click()} className="sk-foco grid h-36 w-36 place-items-center overflow-hidden rounded-full border-4 border-dashed bg-bg text-muted hover:text-fg" style={{ borderColor: RAREZAS[form.rareza].color }}>
+                {form.vista ? <img src={form.vista} alt="" className="h-full w-full object-cover" /> : <span className="flex flex-col items-center gap-1 text-xs font-semibold"><Upload size={22} />{t('dashboard.compis_v.subirFoto')}</span>}
+              </button>
+              <input ref={archivo} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={elegirFoto} />
+              <p className="text-center text-[11px] text-muted">{t('dashboard.compis_v.fotoAyuda')}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Campo etiqueta={t('dashboard.compis_v.nombre')}><input className={campo} value={form.nombre} maxLength={32} onChange={setF('nombre')} placeholder={t('dashboard.compis_v.nombreEj')} /></Campo>
+              <Campo etiqueta={t('dashboard.compis_v.rareza')} ayuda={t('dashboard.compis_v.rarezaAyuda')}>
+                <select className={campo} value={form.rareza} onChange={setF('rareza')}>
+                  {RAREZAS_PROPIAS.map((r) => <option key={r} value={r}>{t(`dashboard.casino_v.rareza.${r}`)}</option>)}
+                </select>
+              </Campo>
+              <Campo etiqueta={t('dashboard.compis_v.voz')} ayuda={t('dashboard.compis_v.vozAyuda')}>
+                <select className={campo} value={form.voz} onChange={setF('voz')}>
+                  {VOCES.map((v) => <option key={v} value={v}>{t(`dashboard.compis_v.voces.${v}`)}</option>)}
+                </select>
+              </Campo>
+              <Campo etiqueta={t('dashboard.compis_v.desc')}><input className={campo} value={form.desc} maxLength={140} onChange={setF('desc')} placeholder={t('dashboard.compis_v.descEj')} /></Campo>
+              <Campo className="sm:col-span-2" etiqueta={t('dashboard.compis_v.frases')} ayuda={t('dashboard.compis_v.frasesAyuda')}>
+                <textarea className={`${campo} min-h-[90px]`} value={form.frases} onChange={setF('frases')} placeholder={t('dashboard.compis_v.frasesEj')} />
+              </Campo>
+              <label className="flex items-center gap-3 sm:col-span-2">
+                <Toggle checked={form.activo} onChange={setF('activo')} />
+                <span className="text-sm text-fg">{t('dashboard.compis_v.enCofres')}</span>
+              </label>
+              <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">
+                <button type="button" onClick={() => setForm(null)} className="sk-foco rounded-xl px-4 py-2 text-sm font-semibold text-muted hover:text-fg">{t('dashboard.setup.cancel')}</button>
+                <button type="button" disabled={estado === 'guardando' || !form.nombre.trim() || (!form.cid && !form.imagen)} onClick={guardar}
+                  className="sk-foco rounded-xl bg-gradient-brand px-5 py-2 text-sm font-extrabold text-on-brand disabled:opacity-40">
+                  {estado === 'guardando' ? t('dashboard.compis_v.guardando') : form.cid ? t('dashboard.compis_v.guardar') : t('dashboard.compis_v.crearlo')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {lista.length === 0 && !form ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-line p-6 text-center">
+            <p className="text-3xl" aria-hidden>📸</p>
+            <p className="mt-2 text-sm font-bold text-fg">{t('dashboard.compis_v.vacio')}</p>
+            <p className="mt-1 text-xs text-muted">{t('dashboard.compis_v.vacioSub')}</p>
+          </div>
+        ) : (
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {lista.map((c) => (
+              <li key={c.cid} className="flex items-center gap-3 rounded-2xl border bg-bg p-3" style={{ borderColor: `${RAREZAS[c.rareza].color}66` }}>
+                <img src={foto(c.imagen)} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover ring-2" style={{ '--tw-ring-color': RAREZAS[c.rareza].color }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-fg">{c.nombre}</p>
+                  <p className="text-xs font-semibold" style={{ color: RAREZAS[c.rareza].color }}>{t(`dashboard.casino_v.rareza.${c.rareza}`)} · <span className="text-muted">{t('dashboard.compis_v.duenos', { count: c.duenos, n: n(c.duenos) })}</span></p>
+                  <label className="mt-1 flex items-center gap-2 text-xs text-muted"><Toggle checked={c.activo} onChange={(v) => activar(c, v)} /> {t('dashboard.compis_v.enCofresCorto')}</label>
+                </div>
+                <button type="button" onClick={() => { setError(''); setForm({ ...VACIO, ...c, frases: (c.frases || []).join('\n'), imagen: null, vista: foto(c.imagen) }); }} className="sk-boton-icono" aria-label={t('dashboard.compis_v.editar')}><Pencil size={15} /></button>
+                <button type="button" onClick={() => borrar(c)} className="sk-boton-icono" aria-label={t('dashboard.compis_v.borrar')}><Trash2 size={15} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Catálogo */}
+      <div className={tarjeta}>
+        <CabeceraTarjeta icono={Sparkles} titulo={t('dashboard.compis_v.catalogo', { n: Object.keys(COMPANEROS).length })} />
+        <div className="mt-3 flex flex-wrap gap-2">
+          {['todos', 'personajes', 'animales'].map((f) => (
+            <button key={f} type="button" onClick={() => setFiltro(f)} aria-pressed={filtro === f}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold ${filtro === f ? 'border-brand bg-brand/10 text-fg' : 'border-line text-muted hover:text-fg'}`}>
+              {t(`dashboard.compis_v.filtro.${f}`)}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 space-y-4">
+          {ORDEN_R.map((r) => {
+            const deEsta = catalogo.filter(([, c]) => c.rareza === r);
+            if (!deEsta.length) return null;
+            return (
+              <div key={r}>
+                <p className="text-xs font-black uppercase tracking-wide" style={{ color: RAREZAS[r].color }}>
+                  {r === 'divina' ? <span className="sk-divina-texto">{t('dashboard.casino_v.rareza.divina')}</span> : t(`dashboard.casino_v.rareza.${r}`)} · {deEsta.length}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {deEsta.map(([id, c]) => <Ficha key={id} src={svgMascota(c.svg)} rareza={c.rareza} titulo={nombreDe(id)} sub={c.tipo === 'personaje' ? t('dashboard.compis_v.personaje') : null} />)}
+                  {r !== 'divina' && lista.filter((c) => c.rareza === r && filtro !== 'animales').map((c) => <Ficha key={c.cid} foto src={foto(c.imagen)} rareza={r} titulo={c.nombre} sub={t('dashboard.compis_v.deAqui')} apagado={!c.activo} />)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Quién los cuida mejor */}
+      <div className={tarjeta}>
+        <CabeceraTarjeta icono={Heart} titulo={t('dashboard.compis_v.cuidadores')} />
+        <p className="mt-1 text-xs text-muted">{t('dashboard.compis_v.cuidadoresSub', { n: n(datos.personas) })}</p>
+        {(datos.top || []).length === 0 ? (
+          <p className="mt-3 flex items-center gap-2 text-sm italic text-muted"><Users size={16} /> {t('dashboard.compis_v.nadie')}</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {datos.top.map((p, i) => {
+              const propio = lista.find((c) => c.id === p.companero);
+              return (
+                <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-line bg-bg px-3 py-2">
+                  <span className="w-5 text-center text-sm font-black text-muted">{i + 1}</span>
+                  <Avatar src={p.avatar} name={p.nombre} size={28} />
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg"><b>{p.nombre}</b> <span className="text-muted">·</span> {p.apodo || (propio ? propio.nombre : nombreDe(p.companero))}</span>
+                  <img src={propio ? foto(propio.imagen) : svgMascota(COMPANEROS[p.companero]?.svg)} alt="" className={`h-7 w-7 ${propio ? 'rounded-full object-cover' : ''}`} />
+                  <span className="shrink-0 rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-300">{t('dashboard.compis_v.nivel', { n: p.nivel })}</span>
+                  {p.racha > 0 && <span className="shrink-0 text-xs font-bold text-orange-300">🔥 {p.racha}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="mt-4 text-xs text-muted">{t('dashboard.compis_v.comandos')}</p>
+      </div>
+    </div>
+  );
+}

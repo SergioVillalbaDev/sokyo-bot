@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.20.0': [
+        { tab: 'com-compis', es: '💖 /compi: tu compañero ahora es como un tamagotchi. Dale de comer, juega, mímalo y habla con él (cientos de frases). Tiene hambre, alegría y energía, y sube de nivel de afinidad.', en: '💖 /companion: your companion is now like a tamagotchi. Feed it, play, cuddle and talk to it (hundreds of lines). It gets hungry, happy and tired, and levels up its affinity.' },
+        { tab: 'com-compis', es: '🧭 Expediciones de 1, 4 u 8 horas: vuelven con oro y recuerdos para coleccionar. Y cada día, 3 misiones nuevas y racha con premios.', en: '🧭 1, 4 or 8-hour expeditions: they come back with gold and souvenirs to collect. Plus 3 new missions every day and a streak with rewards.' },
+        { tab: 'com-compis', es: '🥷 35 compañeros nuevos en los cofres: 57 en total, con personajes de estilo anime (ninja, maga, vampiro, sirena, idol, genio…).', en: '🥷 35 new companions in chests: 57 in total, with anime-style characters (ninja, mage, vampire, mermaid, idol, genie…).' },
+        { tab: 'com-compis', es: '📸 Los admins pueden crear compañeros propios del servidor con su foto, desde el panel: solo salen en los cofres de ese servidor.', en: '📸 Admins can create the server’s own companions with a picture from the panel: they only drop from that server’s chests.' },
+    ],
     '1.19.0': [
         { tab: 'inicio', es: '🧭 Instalación guiada nueva: te pregunta en qué idioma hablar, qué tipo de servidor tienes, qué quieres que haga y dónde va cada cosa («¿Dónde saludo a los que llegan?»). Eliges un canal tuyo o dejas que Sokyo lo cree.', en: '🧭 New guided setup: it asks which language to speak, what kind of server you have, what you want it to do and where each thing goes (“Where do I greet newcomers?”). Pick one of your channels or let Sokyo create it.' },
         { tab: 'inicio', es: '📝 Antes de tocar nada te enseña en frases sencillas todo lo que va a hacer, y al acabar te dice qué hacer después.', en: '📝 Before touching anything it shows in plain sentences everything it will do, and when it’s done it tells you what to do next.' },

@@ -11,6 +11,7 @@ import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo } from '../../../hooks/useModulo';
 import { SIMBOLOS, JUEGOS, RAREZAS, COMPANEROS, COFRES, PIEDAD } from '../../../lib/casino';
 import { svgMascota } from '../../../lib/mascota';
+import { API_URL } from '../../../lib/api';
 
 const EMOJI_JUEGO = { tragaperras: '🎰', ruleta: '🎡', blackjack: '🃏', crash: '🚀', minas: '💣', moneda: '🪙', duelo: '⚔️', carrera: '🏇' };
 const ORDEN_R = ['comun', 'rara', 'epica', 'legendaria', 'mitica', 'divina'];
@@ -250,8 +251,8 @@ export default function CasinoView({ dash }) {
                 {cof.ultimas.map((a, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <Avatar src={a.avatar} name={a.nombre} size={22} />
-                    <span className="min-w-0 flex-1 truncate text-fg"><b>{a.nombre}</b> <span className="text-muted">→</span> {t(`dashboard.casino_v.comp.${a.companero}`)}</span>
-                    <img src={svgMascota(COMPANEROS[a.companero]?.svg)} alt="" className="h-6 w-6" />
+                    <span className="min-w-0 flex-1 truncate text-fg"><b>{a.nombre}</b> <span className="text-muted">→</span> {a.custom ? a.custom.nombre : t(`dashboard.casino_v.comp.${a.companero}`)}</span>
+                    <img src={a.custom ? `${API_URL}${a.custom.imagen}` : svgMascota(COMPANEROS[a.companero]?.svg)} alt="" className={`h-6 w-6 ${a.custom ? 'rounded-full object-cover' : ''}`} />
                     <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${RAREZAS[a.rareza].color}22`, color: RAREZAS[a.rareza].color }}>{t(`dashboard.casino_v.rareza.${a.rareza}`)}</span>
                   </li>
                 ))}

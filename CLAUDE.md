@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.19.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.20.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.20.0 **Compañeros tipo tamagotchi** (`/compi` = `slash/companion.js`). Catálogo ampliado a 57 en `utils/cofresNucleo.js`
+  (`tipo: 'personaje'` = personajes originales de estilo anime con Twemoji; `voz` = su forma de hablar). Reglas puras en
+  `utils/compisNucleo.js` (hambre/alegría/energía que cambian por hora, `cuidar`, afinidad → `nivel` 1-30, `extraCuidado` que
+  suma a `K.ventajas(id, estrellas, extra)`, `EXPEDICIONES` con tope `EXPEDICIONES_DIA`, `RECUERDOS`, `misionesDelDia`, racha con
+  `PREMIOS_RACHA`; sin castigos). Frases en `utils/compisFrases.js` (`GENERAL` por humor/acción, `VOCES` por personaje; [es, en],
+  `{d}` = dueño). `utils/compis.js`: `accion()` (en cola por usuario; recoge la expedición al volver), `vista()` (tarjeta de
+  `utils/compisArte.js`: PNG o GIF con efecto) y `manejar()` (`cmp:<acción>:<dueño>:<id>`, `cmp_exp`, `cmp_sel`, `cmp_apodo`).
+  Estado en el subdocumento de `ColeccionMascotas.mascotas` (+ `racha`, `misiones`, `expHoy` en la colección).
+  **Compañeros del servidor**: `models/CompaneroServidor.js`, id `s:<guildId>:<cid>`, registrados en memoria con
+  `K.registrarPersonalizado` (al arrancar: `compis.cargarPersonalizados`); usa siempre `K.def(id)` (nunca `K.COMPANEROS[id]`).
+  Solo salen en los cofres de su servidor (`personalizadosDe` en `utils/cofres.js`); foto en `/uploads` (`casinoArte.imagenCompanero`).
+  API `GET/POST /modulos/compis`, `PUT/DELETE /modulos/compis/:cid` (si alguien lo tiene, DELETE solo lo quita de los cofres).
+  Panel: Diversión → Compañeros (`views/CompisView.jsx`, textos `dashboard.compis_v.*`; nombres en `casino_v.comp.*`).
+  Al añadir compañeros: dibujo en `assets/mascota` y `public/mascota`, `src/lib/casino.js` (test) y `casino_v.comp`.
 - 1.19.0 **Instalación guiada** (`components/dashboard/InstalacionGuiada.jsx`, sustituye a `SetupRapido.jsx`): asistente por
   preguntas (`PASOS`: hola, idioma, tipo, qué — `PACKS` de módulos con «Elegir qué incluye» —, dónde — cada canal de `CANALES`
   «Que Sokyo lo prepare» o un `<select>` con los canales del usuario —, staff, resumen en frases). Manda
