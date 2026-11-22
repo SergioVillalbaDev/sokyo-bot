@@ -47,6 +47,7 @@ export default function CasinoView({ dash }) {
   const { datos, form, set, guardar, estado, autoguardado } = useModulo(dash, 'casino');
   const [cofre, setCofre] = useState('basico');
   const [guia, setGuia] = useState(null);
+  const [lobby, setLobby] = useState(null);
 
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
@@ -79,10 +80,24 @@ export default function CasinoView({ dash }) {
             <code key={j} className="truncate rounded-xl border border-line bg-bg px-3 py-1.5 text-fg">{EMOJI_JUEGO[j]} {t(`dashboard.casino_v.ej.${j}`)}</code>
           ))}
         </div>
+        {/* Lobby (1.23.0): el mensaje fijo con el desplegable de todos los juegos */}
+        <div className="mt-4 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-red-900/30 via-fuchsia-900/20 to-amber-700/20 p-4">
+          <p className="text-sm font-extrabold text-fg">🎰 {t('dashboard.casino_v.lobbyTitle')}</p>
+          <p className="mt-1 text-xs text-muted">{t('dashboard.casino_v.lobbySub')}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button type="button" disabled={!form.canalId || !form.activo || lobby === 'enviando'}
+              onClick={async () => { setLobby('enviando'); const r = await accionModulo('casino/lobby', 'POST', {}); setLobby(r.error ? { tipo: 'alerta', texto: r.error } : { tipo: 'info', texto: t('dashboard.casino_v.lobbyDone') }); }}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2 text-sm font-extrabold text-on-brand shadow-soft disabled:opacity-50">
+              <Pin size={14} /> {lobby === 'enviando' ? t('dashboard.casino_v.lobbySending') : datos.config?.lobby?.mensajeId ? t('dashboard.casino_v.lobbyRepost') : t('dashboard.casino_v.lobbyPost')}
+            </button>
+            {(!form.canalId || !form.activo) && <span className="text-xs text-muted">{t('dashboard.casino_v.lobbyNeed')}</span>}
+          </div>
+          {lobby && lobby !== 'enviando' && <div className="mt-3"><Aviso tipo={lobby.tipo}>{lobby.texto}</Aviso></div>}
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="button" disabled={!form.canalId}
             onClick={async () => { const r = await accionModulo('casino/guia', 'POST', {}); setGuia(r.error ? { tipo: 'alerta', texto: r.error } : { tipo: 'info', texto: t('dashboard.casino_v.guidePosted') }); }}
-            className="inline-flex items-center gap-2 rounded-2xl bg-brand px-4 py-2 text-sm font-bold text-white shadow-soft hover:opacity-90 disabled:opacity-50">
+            className="inline-flex items-center gap-2 rounded-2xl border border-line px-4 py-2 text-sm font-bold text-fg hover:border-brand disabled:opacity-50">
             <Pin size={14} /> {t('dashboard.casino_v.postGuide')}
           </button>
           <span className="text-xs text-muted">{form.canalId ? t('dashboard.casino_v.postGuideHint') : t('dashboard.casino_v.postGuideNeed')}</span>

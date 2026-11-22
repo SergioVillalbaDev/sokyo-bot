@@ -799,6 +799,15 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             res.json({ success: true });
         } catch (e) { console.error('POST casino/guia:', e.message); res.status(400).json({ error: e.message || 'No se pudo publicar el mensaje' }); }
     });
+    // Lobby del casino (1.23.0): publicarlo (o volver a publicarlo) en su canal.
+    router.post(ruta('casino/lobby'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const r = await require('../../utils/casinoLobby.js').publicar(client, guild.id, (req.body && req.body.canalId) || null);
+            if (r.error) return res.status(400).json({ error: r.error });
+            res.json({ success: true, ...r });
+        } catch (e) { console.error('POST casino/lobby:', e.message); res.status(400).json({ error: 'No se pudo publicar el mensaje' }); }
+    });
     router.put(ruta('casino'), async (req, res) => {
         try {
             const guild = guildDe(req, res); if (!guild) return;

@@ -146,6 +146,7 @@ export default {
         'config-cambios': 'Historial de cambios',
         'owner-subs': 'Suscripciones',
         'owner-entrada': 'Mensaje de entrada',
+        'owner-claude': 'Acceso de Claude',
       },
     },
     meta: {
@@ -157,6 +158,7 @@ export default {
       musica: { title: 'Reproductor de música', subtitle: 'Configura el reproductor y controla en directo lo que suena.' },
       'voz-temporal': { title: 'Salas de voz temporales', subtitle: 'Cuando alguien entra a un canal generador, el bot le crea su propia sala de voz.' },
       'owner-subs': { title: 'Suscripciones', subtitle: 'Controla el plan y la caducidad de cada servidor. Solo para propietarios del bot.' },
+      'owner-claude': { title: 'Acceso de Claude', subtitle: 'Una clave para que Claude pueda revisar y arreglar la configuración de los servidores. Solo para propietarios del bot.' },
       'owner-entrada': { title: 'Mensaje de entrada', subtitle: 'Lo que manda el bot al entrar en un servidor nuevo. Solo para propietarios del bot.' },
       'tickets-gestion': { title: 'Bandeja de tickets', subtitle: 'Administra las solicitudes activas de tu servidor.' },
       'tickets-usuarios': { title: 'Usuarios y valoraciones', subtitle: 'Estadísticas y recuento global de los usuarios en tu servidor.' },
@@ -646,6 +648,10 @@ export default {
       'owner-subs': {
         title: '👑 Suscripciones',
         desc: 'Solo para propietarios del bot: controla el plan y la caducidad de cada servidor a mano. Útil para corregir errores de cobro o activar pruebas.',
+      },
+      'owner-claude': {
+        title: '🤖 Acceso de Claude',
+        desc: 'Solo para propietarios del bot: crea la clave con la que Claude puede ver la configuración de todos los servidores, comprobar si algo falla y, si se lo permites, cambiarla. Todo queda en el historial de cada servidor y se puede deshacer.',
       },
       'owner-entrada': {
         title: '💌 Mensaje de entrada',
@@ -2847,7 +2853,7 @@ export default {
       howTitle: 'Cómo se juega',
       how: {
         p1: 'Consigue oro: /diario cada día, votando por el bot, hablando… (y una tirada gratis al día con /casino diaria).',
-        p2: 'Escribe /casino en Discord y elige un juego de la lista.',
+        p2: 'En el canal del casino elige un juego en el desplegable del lobby (o escribe /casino menu).',
         p3: 'Pon cuánto apuestas (entre 🪙 {{min}} y 🪙 {{max}}) y mira la animación.',
         p4: 'Al acabar, «🔁 Otra vez» repite con un toque. /casino ayuda lo explica todo en Discord.',
       },
@@ -2856,6 +2862,7 @@ export default {
         crash: '/casino crash apuesta:100 auto:2', minas: '/casino minas apuesta:100 minas:3', moneda: '/casino moneda lado:Cara apuesta:100',
         duelo: '/casino duelo rival:@alguien apuesta:500', carrera: '/casino carrera',
       },
+      lobbyTitle: 'Lobby del casino', lobbySub: 'Un mensaje fijo en el canal del casino con un cartel animado, el bote, los premios gordos y un desplegable con todos los juegos. Al elegir uno se abre una mesa (solo para quien la abre) con fichas para apostar de un toque. Se pone al día solo cada 5 minutos.', lobbyPost: 'Publicar el lobby', lobbyRepost: 'Volver a publicar el lobby', lobbySending: 'Publicando…', lobbyDone: '¡Listo! El lobby está fijado en el canal del casino.', lobbyNeed: 'Activa el casino y elige su canal (abajo, en «Dónde y cuánto»).',
       postGuide: 'Publicar la guía en el canal del casino', postGuideHint: 'Un mensaje con los pasos, los comandos y un menú para ver cada juego.', postGuideNeed: 'Elige antes el canal del casino (abajo, en «Dónde y cuánto»).',
       guidePosted: '¡Publicada! Fíjala en el canal para que todos la vean.',
       intro: 'Un casino con el oro del bot: tragaperras con bote, ruleta, blackjack, crash, minas, cara o cruz, duelos entre miembros y carreras con apuestas de todo el canal. Todo con animaciones. Y cofres para coleccionar compañeros. En Discord: /casino y /cofre.',
@@ -2903,6 +2910,16 @@ export default {
         tortuga: 'Tortuga', cerdito: 'Cerdito', oso: 'Osito', mono: 'Monito', raton: 'Ratoncito', erizo: 'Erizo', pato: 'Pato', pixel: 'Pixel, el robot ayudante', boo: 'Boo, el fantasma tímido', mapache: 'Mapache', nutria: 'Nutria', perezoso: 'Perezoso', flamenco: 'Flamenco', mariposa: 'Mariposa', zim: 'Zim, la alienígena curiosa', kuro: 'Kuro, el zombi dormilón', tomo: 'Tomo, el chef', pavo: 'Pavo real', leopardo: 'Leopardo', loro: 'Loro parlanchín', kaede: 'Kaede, la ninja de la luna', lumi: 'Lumi, el hada traviesa', ren: 'Ren, el espadachín errante', mika: 'Mika, la maga aprendiz', nova: 'Nova, la astronauta', yuki: 'Yuki, la idol', vlad: 'Vlad, el vampiro elegante', marina: 'Marina, la sirena cantora', sylva: 'Sylva, la elfa arquera', hikari: 'Hikari, la heroína', oni: 'Oni, el guardián rojo', kraken: 'Kraken', djinn: 'Djinn, el genio del farol', nyx: 'Nyx, la reina de las sombras', aurora: 'Aurora, la princesa estelar' },
       lastPulls: 'Últimos cofres buenos aquí', noPulls: 'Nadie ha sacado nada épico todavía.', pullsHere: 'Cofres abiertos aquí: {{n}}',
       commands: 'En Discord: /casino tragaperras · ruleta · blackjack · crash · minas · moneda · duelo · carrera · diaria · bote · pausa, y /cofre abrir · coleccion · probabilidades.',
+    },
+    owner_claude: {
+      titulo: 'Deja que Claude revise los servidores', intro: 'Con esta clave, cuando se lo pidas, Claude puede ver cómo está configurado cada servidor donde está Sokyo, decirte qué falla y arreglarlo.',
+      p1: '👀 Ve la configuración, canales, roles y los problemas que detecta el diagnóstico.', p2: '✏️ Si eliges «Mirar y cambiar», puede cambiar ajustes. Nunca planes, cobros ni datos internos.', p3: '↩️ Cada cambio sale en «Historial de cambios» del servidor como «Claude (IA)», con «Deshacer».',
+      err: 'No se ha podido hacer.', sinClave: 'Todavía no hay ninguna clave.', crear: 'Crear la clave', otra: 'Crear otra (anula esta)', revocar: 'Quitar el acceso',
+      confirmRevocar: '¿Quitar el acceso de Claude? La clave dejará de funcionar.', duracion: 'Que funcione durante:', dias_one: '{{count}} día', dias_other: '{{count}} días', nunca: 'Siempre',
+      modo: { lectura: { t: 'Solo mirar', d: 'Puede ver y comprobar, pero no cambiar nada. Lo más seguro.' }, completo: { t: 'Mirar y cambiar', d: 'También puede cambiar ajustes de los servidores cuando se lo pidas.' } },
+      nuevaTitulo: 'Tu clave nueva (solo se enseña ahora)', nuevaSub: 'Cópiala y guárdala: si la pierdes, crea otra.', copiar: 'Copiar', copiada: '¡Copiada!',
+      comoDar: 'Cuando Claude te la pida, te saldrá una ventana segura para pegarla («Authorization: Bearer» para dashboard.sokyo.studio). No la pegues en el chat.',
+      activa: 'Activa', caducada: 'Caducada', termina: 'Clave que termina en …{{pista}}', creada: 'Creada', caduca: 'Caduca', ultimoUso: 'Último uso', usos: 'Veces usada', quepuede: 'Qué puede hacer',
     },
     compis_v: {
       titulo: '{{n}} compañeros para coleccionar y cuidar', intro: 'Cada miembro consigue compañeros en los cofres y los cuida como un tamagotchi con /compi. Cuanto mejor los cuida, más le ayudan.',

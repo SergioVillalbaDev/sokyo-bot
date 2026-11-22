@@ -21,6 +21,8 @@ const RUTAS_INTERNAS = new Set([
     'sugerenciasPanel.bloqueado', 'sugerenciasPanel.pendiente', 'presentaciones.panelPendiente',
     // Verificación (1.9.15): desde cuándo cuenta la expulsión de quien no se verifica.
     'opcionesEntrada.expulsarDesde',
+    // Lobby del casino (1.23.0): dónde está publicado lo lleva el bot.
+    'casino.lobby.canalId', 'casino.lobby.fecha',
 ]);
 
 // ruta = 'dinamicas.qotd.lastDia' (o una lista de partes)

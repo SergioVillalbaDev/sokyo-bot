@@ -173,6 +173,7 @@ export const navGroups = [
     owner: true,
     items: [
       { tab: 'owner-subs', icon: Crown, kw: 'suscripciones servidores propietario owner' },
+      { tab: 'owner-claude', icon: Bot, kw: 'claude ia asistente acceso clave token api configuracion servidores propietario owner access key' },
       { tab: 'owner-entrada', icon: MessageSquareHeart, kw: 'mensaje de entrada bienvenida al entrar el bot servidor nuevo onboarding propietario owner entry message welcome join' },
     ],
   },

@@ -65,6 +65,7 @@ const CARGAR_VISTA = {
   VozTemporalView: () => import('./views/VozTemporalView'),
   OwnerSubsView: () => import('./views/OwnerSubsView'),
   OwnerEntradaView: () => import('./views/OwnerEntradaView'),
+  OwnerClaudeView: () => import('./views/OwnerClaudeView'),
   SorteosView: () => import('./views/SorteosView'),
   EventosView: () => import('./views/EventosView'),
   EncuestasView: () => import('./views/EncuestasView'),
@@ -370,6 +371,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'voz-temporal') return <V.VozTemporalView dash={dash} />;
     if (activeTab === 'owner-subs') return <V.OwnerSubsView dash={dash} />;
     if (activeTab === 'owner-entrada') return <V.OwnerEntradaView dash={dash} />;
+    if (activeTab === 'owner-claude') return <V.OwnerClaudeView dash={dash} />;
     if (activeTab === 'datos-analitica') return <V.AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <V.ResumenView dash={dash} />;
     if (activeTab === 'config-app') return <V.AppMovilView />;

@@ -4,6 +4,15 @@
 // test/erroresApi.test.js comprueba que TODOS los errores fijos del código tienen aquí su
 // traducción: si añades un `error: '…'` nuevo, añádelo también aquí.
 const EN = {
+    'El casino no está activado': 'The casino isn’t turned on',
+    'Elige primero el canal del casino': 'Pick the casino channel first',
+    'El bot no está en ese servidor': 'The bot isn’t on that server',
+    'No hay nada que cambiar': 'There’s nothing to change',
+    'Demasiados cambios de una vez': 'Too many changes at once',
+    'Rutas no válidas': 'Invalid paths',
+    'La clave de Claude no es válida o ha caducado': 'The Claude key is invalid or has expired',
+    'Esta clave solo vale para /api/claude': 'This key only works for /api/claude',
+    'Esta clave de Claude es solo para mirar': 'This Claude key is read-only',
     'Ponle un nombre': 'Give it a name',
     'Esa rareza no vale': 'That rarity isn’t valid',
     'La imagen supera 3 MB': 'The image is over 3 MB',

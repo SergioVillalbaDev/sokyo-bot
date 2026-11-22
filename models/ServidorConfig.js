@@ -845,6 +845,8 @@ const ServidorConfigSchema = new mongoose.Schema({
             carrera: { type: Boolean, default: true },
         },
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
+        // Lobby (1.23.0, utils/casinoLobby.js): el mensaje fijo con el desplegable de juegos (interno).
+        lobby: { canalId: { type: String, default: null }, mensajeId: { type: String, default: null }, fecha: { type: Date, default: null } },
     },
     // Compañeros (1.22.0): Pack anime (personajes de AniList; las fotos se cargan de AniList, no se guardan).
     compis: {

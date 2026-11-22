@@ -291,14 +291,14 @@ async function aplicar(client, guild, respuestas, { idiomaTextos = respuestas.id
         return { detalle: `#${canalMascota.name}` };
     });
 
-    // 16. Casino: su canal (los juegos solo ahí) y la guía «Cómo se juega» publicada.
+    // 16. Casino: su canal (los juegos solo ahí) y el lobby con todos los juegos publicado y fijado.
     if (mods.has('casino')) await paso('casino', 'com-casino', async () => {
         const yaActivo = !!cfg.casino?.activo;
         const canal = await usar('casino', { configurado: cfg.casino?.canalId });
         await set({ 'casino.activo': true, 'casino.canalId': canal.id, ...(cfg.casino?.anunciosId ? {} : { 'casino.anunciosId': canal.id }) });
-        if (!yaActivo) {
-            const fresco = (await ServidorConfig.findOne({ guildId: guild.id })).toObject();
-            await canal.send({ ...require('./casinoAyuda.js').guiaGeneral(fresco, fresco), allowedMentions: { parse: [] } }).catch(() => {});
+        // 1.23.0: el lobby (desplegable con todos los juegos, bote y premios) fijado en el canal.
+        if (!yaActivo || !cfg.casino?.lobby?.mensajeId) {
+            await require('./casinoLobby.js').publicar(guild.client, guild.id, canal.id).catch(() => {});
         }
         return { detalle: `#${canal.name}` };
     });

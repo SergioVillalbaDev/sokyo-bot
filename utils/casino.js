@@ -684,25 +684,37 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_car:')) { await botonCarrera(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_carm:')) { await modalCarrera(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_rep:')) {
-        // «Otra vez»: el mismo juego y la misma apuesta, para quien lo pulsa (mensaje nuevo).
+        // «Otra vez» y las fichas del lobby: ese juego y esa apuesta, para quien lo pulsa (mensaje nuevo).
         const [, juego, cant, extra] = id.split(':');
         const { getConfigCached } = require('./config.js');
         const { idiomaInteraccion } = require('./preferencias.js');
         const cfg = await getConfigCached(interaction.guildId).catch(() => null);
         const idioma = await idiomaInteraccion(interaction, cfg);
-        await interaction.deferReply();
-        const base = { interaction, client, cfg, idioma, cantidad: parseInt(cant, 10) };
-        let r;
-        if (juego === 'tragaperras') r = await tragaperras(base);
-        else if (juego === 'ruleta') { const [ap, num] = String(extra || '').split('-'); r = await ruleta({ ...base, apuesta: ap, numero: num !== undefined ? parseInt(num, 10) : null }); }
-        else if (juego === 'moneda') r = await moneda({ ...base, lado: extra === 'cruz' ? 'cruz' : 'cara' });
-        else if (juego === 'blackjack') r = await blackjack(base);
-        else if (juego === 'crash') r = await crash({ ...base, auto: extra ? parseFloat(extra) : null });
-        else if (juego === 'minas') r = await minas({ ...base, numMinas: parseInt(extra, 10) || 3 });
-        if (r?.error) await interaction.editReply({ content: `❌ ${r.error}` });
+        await jugarRepetir(interaction, client, cfg, idioma, juego, parseInt(cant, 10), extra);
         return true;
     }
-    return false;
+    // Lobby del casino (1.23.0): desplegable, mesas, mi oro, pausa…
+    return require('./casinoLobby.js').manejar(interaction, client);
+}
+
+// Juega `juego` con `cantidad` (y su opción) en un mensaje nuevo en el canal.
+async function jugarRepetir(interaction, client, cfg, idioma, juego, cantidad, extra = '') {
+    await interaction.deferReply();
+    const base = { interaction, client, cfg, idioma, cantidad };
+    let r;
+    if (juego === 'tragaperras') r = await tragaperras(base);
+    else if (juego === 'ruleta') { const [ap, num] = String(extra || 'rojo').split('-'); r = await ruleta({ ...base, apuesta: ap, numero: num !== undefined ? parseInt(num, 10) : null }); }
+    else if (juego === 'moneda') r = await moneda({ ...base, lado: extra === 'cruz' ? 'cruz' : 'cara' });
+    else if (juego === 'blackjack') r = await blackjack(base);
+    else if (juego === 'crash') r = await crash({ ...base, auto: extra ? parseFloat(extra) : null });
+    else if (juego === 'minas') r = await minas({ ...base, numMinas: parseInt(extra, 10) || 3 });
+    else r = { error: t(idioma, 'Ese juego no se puede repetir así.', 'That game can’t be replayed like this.') };
+    if (r?.error) {
+        // El error solo lo ve quien juega (no ensucia el canal).
+        await interaction.deleteReply().catch(() => {});
+        await interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }).catch(() => {});
+    }
+    return r;
 }
 
 // Para el panel.
@@ -732,6 +744,6 @@ async function resumenServidor(client, guildId) {
 
 module.exports = {
     JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverPendientes, textoFallo, barrerPartidas,
-    tragaperras, ruleta, moneda, blackjack, crash, minas, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor,
+    tragaperras, ruleta, moneda, blackjack, crash, minas, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor, jugarRepetir,
     _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash,
 };
