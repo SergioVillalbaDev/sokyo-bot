@@ -473,4 +473,72 @@ async function tarjetaColeccion(coleccion, { titulo = '' } = {}) {
     return c.toBuffer('image/png');
 }
 
-module.exports = { gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+// Cartel de la entrada del casino (lobby, 1.23.0): GIF con las bombillas del marco
+// encendiéndose en ola, el título de neón, los símbolos de la tragaperras y el bote.
+async function bannerCasino({ titulo = 'CASINO', subtitulo = '', boteTexto = '', boteEtiqueta = 'BOTE' } = {}) {
+    if (!listo()) return null;
+    const W = 900; const H = 300;
+    const iconos = await Promise.all(C.SIMBOLOS.map((x) => imagen(x.svg)));
+    const NEON = ['#f472b6', '#facc15', '#38bdf8', '#a78bfa', '#4ade80'];
+    const frames = [];
+    const TOTAL = 12;
+    for (let f = 0; f < TOTAL; f++) {
+        const { ctx } = lienzo(W, H);
+        const g = ctx.createLinearGradient(0, 0, W, H);
+        g.addColorStop(0, '#3b0710'); g.addColorStop(0.5, '#1c0a24'); g.addColorStop(1, '#0b1026');
+        redondeado(ctx, 0, 0, W, H, 28); ctx.fillStyle = g; ctx.fill();
+        // Focos de luz que se mueven
+        for (let i = 0; i < 3; i++) {
+            const x = (W / 4) * (i + 1) + Math.sin((f / TOTAL) * Math.PI * 2 + i) * 40;
+            const luz = ctx.createRadialGradient(x, 40, 5, x, 40, 220);
+            luz.addColorStop(0, `${NEON[(i + f) % NEON.length]}44`); luz.addColorStop(1, '#00000000');
+            ctx.fillStyle = luz; ctx.fillRect(0, 0, W, H);
+        }
+        // Marco dorado con bombillas que se encienden en ola
+        ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 6; redondeado(ctx, 10, 10, W - 20, H - 20, 22); ctx.stroke();
+        const bombillas = [];
+        for (let x = 30; x <= W - 30; x += 30) { bombillas.push([x, 10]); bombillas.push([x, H - 10]); }
+        for (let y = 40; y <= H - 40; y += 30) { bombillas.push([10, y]); bombillas.push([W - 10, y]); }
+        bombillas.forEach(([x, y], i) => {
+            const on = (i + f) % 3 === 0;
+            ctx.beginPath(); ctx.arc(x, y, on ? 6 : 4.5, 0, Math.PI * 2);
+            ctx.fillStyle = on ? '#fff7cc' : '#92400e'; ctx.shadowColor = '#fde047'; ctx.shadowBlur = on ? 14 : 0; ctx.fill();
+        });
+        ctx.shadowBlur = 0;
+        // Título de neón (parpadea un poco)
+        ctx.textAlign = 'center';
+        ctx.font = `900 76px ${FUENTE}`;
+        const brillo = f % 6 === 3 ? 8 : 26;
+        ctx.shadowColor = '#f472b6'; ctx.shadowBlur = brillo; ctx.fillStyle = '#ffe4f1';
+        ctx.fillText(String(titulo).slice(0, 18), W / 2, 112);
+        ctx.shadowBlur = 0;
+        if (subtitulo) { ctx.font = `bold 20px ${FUENTE}`; ctx.fillStyle = '#fcd34d'; ctx.fillText(String(subtitulo).slice(0, 60), W / 2, 146); }
+        // Símbolos de la tragaperras que saltan por turnos
+        const n = iconos.length; const paso = 64; const x0 = W / 2 - ((n - 1) * paso) / 2;
+        iconos.forEach((im, i) => {
+            if (!im) return;
+            const salto = (f % n) === i ? -10 : 0;
+            ctx.drawImage(im, x0 + i * paso - 24, 168 + salto, 48, 48);
+        });
+        // Placa del bote
+        if (boteTexto) {
+            redondeado(ctx, W / 2 - 190, 228, 380, 52, 26); ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fill();
+            ctx.strokeStyle = NEON[f % NEON.length]; ctx.lineWidth = 3; ctx.stroke();
+            ctx.font = `bold 15px ${FUENTE}`; ctx.fillStyle = '#fde68a'; ctx.fillText(`💎 ${boteEtiqueta}`, W / 2, 249);
+            ctx.font = `900 22px ${FUENTE}`; ctx.fillStyle = '#ffffff'; ctx.fillText(String(boteTexto), W / 2, 273);
+        }
+        frames.push({ ctx, delay: 140 });
+    }
+    // Este GIF sí se repite: es un cartel.
+    const { GIFEncoder, quantize, applyPalette } = gifLib;
+    const gif = GIFEncoder();
+    frames.forEach((fr) => {
+        const data = fr.ctx.getImageData(0, 0, W, H).data;
+        const palette = quantize(data, 256);
+        gif.writeFrame(applyPalette(data, palette), W, H, { palette, delay: fr.delay });
+    });
+    gif.finish();
+    return Buffer.from(gif.bytes());
+}
+
+module.exports = { bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

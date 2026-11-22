@@ -36,6 +36,7 @@ module.exports = {
             .addUserOption((o) => o.setName('rival').setDescription('Who').setDescriptionLocalizations(ES('A quién')).setRequired(true)).addIntegerOption(cantidad))
         .addSubcommand((s) => s.setName('race').setNameLocalizations(ES('carrera')).setDescription('🏇 Start a race: everyone in the channel can bet').setDescriptionLocalizations(ES('🏇 Empieza una carrera: todo el canal puede apostar')))
         .addSubcommand((s) => s.setName('daily').setNameLocalizations(ES('diaria')).setDescription('🎁 Your free slots spin of the day').setDescriptionLocalizations(ES('🎁 Tu tirada gratis del día en la tragaperras')))
+        .addSubcommand((s) => s.setName('menu').setDescription('🎲 Open the casino: every game, your gold and the jackpot').setDescriptionLocalizations(ES('🎲 Abre el casino: todos los juegos, tu oro y el bote')))
         .addSubcommand((s) => s.setName('help').setNameLocalizations(ES('ayuda')).setDescription('📖 How to play each game (with a button to try it)').setDescriptionLocalizations(ES('📖 Cómo se juega a cada juego (con un botón para probarlo)')))
         .addSubcommand((s) => s.setName('jackpot').setNameLocalizations(ES('bote')).setDescription('💎 The jackpot, the biggest winners and your stats').setDescriptionLocalizations(ES('💎 El bote, los que más ganan y tus números')))
         .addSubcommand((s) => s.setName('pause').setNameLocalizations(ES('pausa')).setDescription('🧘 Take a break from the casino (can’t be undone early)').setDescriptionLocalizations(ES('🧘 Tómate un descanso del casino (no se puede quitar antes)'))
@@ -52,6 +53,10 @@ module.exports = {
             return privado(t(idioma, `🧘 Hecho. No podrás jugar en el casino hasta <t:${Math.floor(hasta / 1000)}:F>. Cuídate 💛`, `🧘 Done. You can’t play at the casino until <t:${Math.floor(hasta / 1000)}:F>. Take care 💛`));
         }
         if (!cfg?.casino?.activo) return privado(casino.textoFallo({ fallo: 'apagado' }, idioma));
+        if (sub === 'menu') {
+            await interaction.deferReply({ flags: 64 });
+            return interaction.editReply(await require('../utils/casinoLobby.js').mensajeLobby(interaction.guild, { ...cfg, idioma }, { conCartel: true }));
+        }
         if (sub === 'jackpot') return interaction.reply({ embeds: [await casino.embedBote(interaction.guild, idioma, interaction.user.id)], allowedMentions: { parse: [] } });
         await interaction.deferReply();
         const base = { interaction, client, cfg, idioma, cantidad: interaction.options.getInteger('bet') };

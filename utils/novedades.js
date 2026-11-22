@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.23.0': [
+        { tab: 'com-casino', es: '🎰 Lobby del casino: un mensaje fijo en su canal con un cartel animado, el bote, los premios gordos de la semana y un desplegable con todos los juegos.', en: '🎰 Casino lobby: a pinned message in its channel with an animated sign, the jackpot, the week’s big wins and a menu with every game.' },
+        { tab: 'com-casino', es: '🪙 Al elegir un juego se abre tu mesa (solo la ves tú): cómo se juega, lo que paga y fichas para apostar de un toque. La partida sale en el canal para que todos la vean.', en: '🪙 Pick a game and your table opens (only you see it): how to play, payouts and chips to bet in one tap. The game shows in the channel for everyone.' },
+        { tab: 'com-casino', es: '💰 «Mi oro» con lo que llevas perdido hoy y botones para tomarte un descanso. Y /casino menu para abrir el casino desde cualquier canal.', en: '💰 “My gold” with what you’ve lost today and buttons to take a break. Plus /casino menu to open the casino from any channel.' },
+    ],
     '1.22.1': [
         { tab: 'com-compis', es: '⚖️ Quitar series del Pack anime ya no hace trampa: si toca un personaje quitado, sale un compañero normal, así nadie sale más a menudo por quitar los demás.', en: '⚖️ Removing Anime pack series is no longer a loophole: if a removed character is rolled, a regular companion drops instead, so nobody drops more often.' },
     ],

@@ -192,6 +192,15 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     setTimeout(tickTopgg, 90 * 1000);
     setInterval(tickTopgg, 30 * 60 * 1000);
 
+    // Lobby del casino (1.23.0): bote, premios gordos y ranking al día cada 5 min.
+    let lobbyEnCurso = false;
+    setInterval(async () => {
+        if (lobbyEnCurso) return;
+        lobbyEnCurso = true;
+        try { await require('./casinoLobby.js').refrescar(client); } catch (e) { console.error('Programador (lobby del casino):', e.message); }
+        lobbyEnCurso = false;
+    }, 5 * 60 * 1000 + 30 * 1000);
+
     // Red de seguridad: devuelve a Free los servidores con premium caducado (cada hora).
     const tickPremium = conGuardiaDeReentrancia('premium', async () => {
         try {

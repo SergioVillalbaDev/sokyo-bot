@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.22.1.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.23.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.23.0 **Lobby del casino** (`utils/casinoLobby.js`): mensaje fijo (cartel GIF `casinoArte.bannerCasino`, bote, premios gordos,
+  ranking) con el desplegable `cas_lob` → «mesa» efímera de cada juego (`mesa()`: opciones `cas_lx:<juego>:extra|cantidad`, fichas
+  que son `cas_rep:<juego>:<cantidad>[:extra]`, «Otra cantidad» `cas_lm`, duelo con `cas_ldu:<cantidad>`), botones `cas_lb:*`
+  (diaria, mio, ranking, guia, carrera, coleccion) y pausa `cas_lp:<días>`. `casino.manejar` le pasa lo que no es suyo.
+  `casino.jugarRepetir` juega en un mensaje nuevo (errores solo para quien juega). Se publica con `POST /modulos/casino/lobby`
+  (botón en el panel) y al activar el casino con el setup; `cfg.casino.lobby` (interno) dice dónde está; el programador lo
+  refresca cada 5 min (`refrescar`, rehace el GIF solo si cambia el bote). `/casino menu` lo abre en efímero.
+- 1.23.0 **Acceso de Claude** (`utils/accesoClaude.js`, `models/AccesoClaude.js`, `api/routes/claude.js`): un propietario crea
+  una clave en Panel → Propietario → Acceso de Claude (`OwnerClaudeView.jsx`; se guarda solo su sha256, `sokyo_claude_…`).
+  Con ella la API solo deja entrar a `/api/claude/…` (modo `lectura` = solo GET; `completo` = también PATCH y deshacer):
+  `GET /claude/servidores`, `GET /claude/:guildId` (config aplanada, canales, roles, diagnóstico), `GET /claude/:guildId/cambios`,
+  `PATCH /claude/:guildId {set, unset}` (solo rutas del esquema y no internas ni de cobros: `rutaValida`) y
+  `POST /claude/:guildId/deshacer/:id`. Los cambios salen en el historial como «Claude (IA)». Para usarla, Claude pide la clave
+  con request_credential (host dashboard.sokyo.studio, cabecera Authorization: Bearer).
 - 1.22.0 **Pack anime**: `data/animePack.json` (643 personajes de AniList: `id`, `n` nombre, `s` serie, `r` rareza por
   popularidad, `v` voz, `i` archivo de la foto en `s4.anilist.co/.../character/large/`). Se regenera con un script que pide a
   la API GraphQL de AniList los personajes por `FAVOURITES_DESC` (no está en el repo; las fotos no se guardan en git).

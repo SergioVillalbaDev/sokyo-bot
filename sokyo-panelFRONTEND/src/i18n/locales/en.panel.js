@@ -146,6 +146,7 @@ export default {
         'config-cambios': 'Change history',
         'owner-subs': 'Subscriptions',
         'owner-entrada': 'Entry message',
+        'owner-claude': 'Claude access',
       },
     },
     meta: {
@@ -157,6 +158,7 @@ export default {
       musica: { title: 'Music player', subtitle: 'Configure the player and control what is playing live.' },
       'voz-temporal': { title: 'Temporary voice rooms', subtitle: 'When someone joins a generator channel, the bot creates their own voice room.' },
       'owner-subs': { title: 'Subscriptions', subtitle: 'Control each server\'s plan and expiry. Bot owners only.' },
+      'owner-claude': { title: 'Claude access', subtitle: 'A key so Claude can review and fix the servers’ configuration. Bot owners only.' },
       'owner-entrada': { title: 'Entry message', subtitle: 'What the bot sends when it joins a new server. Bot owners only.' },
       'tickets-gestion': { title: 'Ticket inbox', subtitle: 'Manage your server’s active requests.' },
       'tickets-usuarios': { title: 'Users & ratings', subtitle: 'Stats and global count of users in your server.' },
@@ -646,6 +648,10 @@ export default {
       'owner-subs': {
         title: '👑 Subscriptions',
         desc: 'Bot owners only: manually control each server’s plan and expiry. Handy for fixing billing issues or granting trials.',
+      },
+      'owner-claude': {
+        title: '🤖 Claude access',
+        desc: 'Bot owners only: create the key Claude uses to see the configuration of every server, check whether something is wrong and, if you allow it, change it. Everything goes to each server’s history and can be undone.',
       },
       'owner-entrada': {
         title: '💌 Entry message',
@@ -2842,7 +2848,7 @@ export default {
       howTitle: 'How to play',
       how: {
         p1: 'Get gold: /daily every day, voting for the bot, chatting… (plus a free spin a day with /casino daily).',
-        p2: 'Type /casino on Discord and pick a game from the list.',
+        p2: 'In the casino channel pick a game from the lobby menu (or type /casino menu).',
         p3: 'Set how much you bet (between 🪙 {{min}} and 🪙 {{max}}) and watch the animation.',
         p4: 'When it ends, “🔁 Again” replays with one tap. /casino help explains everything on Discord.',
       },
@@ -2851,6 +2857,7 @@ export default {
         crash: '/casino crash bet:100 auto:2', minas: '/casino mines bet:100 mines:3', moneda: '/casino coinflip side:Heads bet:100',
         duelo: '/casino duel rival:@someone bet:500', carrera: '/casino race',
       },
+      lobbyTitle: 'Casino lobby', lobbySub: 'A pinned message in the casino channel with an animated sign, the jackpot, big wins and a menu with every game. Picking one opens a table (only for whoever opens it) with chips to bet in one tap. It updates itself every 5 minutes.', lobbyPost: 'Post the lobby', lobbyRepost: 'Post the lobby again', lobbySending: 'Posting…', lobbyDone: 'Done! The lobby is pinned in the casino channel.', lobbyNeed: 'Turn on the casino and pick its channel (below, in “Where and how much”).',
       postGuide: 'Post the guide in the casino channel', postGuideHint: 'A message with the steps, the commands and a menu to see each game.', postGuideNeed: 'Pick the casino channel first (below, in “Where and how much”).',
       guidePosted: 'Posted! Pin it in the channel so everyone sees it.',
       intro: 'A casino with the bot’s gold: slots with a jackpot, roulette, blackjack, crash, mines, coin flip, duels between members and races the whole channel can bet on. All animated. Plus chests to collect companions. On Discord: /casino and /chest.',
@@ -2898,6 +2905,16 @@ export default {
         tortuga: 'Turtle', cerdito: 'Piglet', oso: 'Teddy bear', mono: 'Monkey', raton: 'Mouse', erizo: 'Hedgehog', pato: 'Duck', pixel: 'Pixel, the helper robot', boo: 'Boo, the shy ghost', mapache: 'Raccoon', nutria: 'Otter', perezoso: 'Sloth', flamenco: 'Flamingo', mariposa: 'Butterfly', zim: 'Zim, the curious alien', kuro: 'Kuro, the sleepy zombie', tomo: 'Tomo, the chef', pavo: 'Peacock', leopardo: 'Leopard', loro: 'Chatty parrot', kaede: 'Kaede, the moon ninja', lumi: 'Lumi, the mischievous fairy', ren: 'Ren, the wandering swordsman', mika: 'Mika, the apprentice mage', nova: 'Nova, the astronaut', yuki: 'Yuki, the idol', vlad: 'Vlad, the elegant vampire', marina: 'Marina, the singing mermaid', sylva: 'Sylva, the elf archer', hikari: 'Hikari, the heroine', oni: 'Oni, the red guardian', kraken: 'Kraken', djinn: 'Djinn, the lantern genie', nyx: 'Nyx, the queen of shadows', aurora: 'Aurora, the star princess' },
       lastPulls: 'Latest good pulls here', noPulls: 'Nobody has pulled anything epic yet.', pullsHere: 'Chests opened here: {{n}}',
       commands: 'On Discord: /casino slots · roulette · blackjack · crash · mines · coinflip · duel · race · daily · jackpot · pause, and /chest open · collection · odds.',
+    },
+    owner_claude: {
+      titulo: 'Let Claude review the servers', intro: 'With this key, whenever you ask, Claude can see how each server with Sokyo is set up, tell you what’s wrong and fix it.',
+      p1: '👀 Sees the configuration, channels, roles and the problems the diagnosis finds.', p2: '✏️ If you choose “View and change”, it can change settings. Never plans, billing or internal data.', p3: '↩️ Every change shows in the server’s “Change history” as “Claude (IA)”, with “Undo”.',
+      err: 'Couldn’t do it.', sinClave: 'There’s no key yet.', crear: 'Create the key', otra: 'Create another (cancels this one)', revocar: 'Remove access',
+      confirmRevocar: 'Remove Claude’s access? The key will stop working.', duracion: 'Valid for:', dias_one: '{{count}} day', dias_other: '{{count}} days', nunca: 'Forever',
+      modo: { lectura: { t: 'View only', d: 'Can look and check, but not change anything. The safest.' }, completo: { t: 'View and change', d: 'Can also change server settings when you ask.' } },
+      nuevaTitulo: 'Your new key (only shown now)', nuevaSub: 'Copy it and keep it: if you lose it, create another.', copiar: 'Copy', copiada: 'Copied!',
+      comoDar: 'When Claude asks for it, a secure window will appear to paste it (“Authorization: Bearer” for dashboard.sokyo.studio). Don’t paste it in the chat.',
+      activa: 'Active', caducada: 'Expired', termina: 'Key ending in …{{pista}}', creada: 'Created', caduca: 'Expires', ultimoUso: 'Last used', usos: 'Times used', quepuede: 'What it can do',
     },
     compis_v: {
       titulo: '{{n}} companions to collect and look after', intro: 'Members get companions from chests and look after them like a tamagotchi with /companion. The better they look after them, the more they help.',
