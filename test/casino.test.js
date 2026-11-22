@@ -147,3 +147,31 @@ describe('Panel y bot con los mismos datos', () => {
         assert.equal(L.PIEDAD, K.PIEDAD);
     });
 });
+
+describe('1.25.0: mayor o menor y rasca y gana', () => {
+    test('rasca y gana devuelve entre el 94 % y el 97 %, y los boletos son coherentes', () => {
+        assert.ok(C.rtpRasca() > 0.94 && C.rtpRasca() < 0.97, String(C.rtpRasca()));
+        const az = N.azarCon('rasca');
+        for (let i = 0; i < 5000; i++) {
+            const b = C.boletoRasca(az);
+            assert.equal(b.casillas.length, 9);
+            const cuenta = {}; b.casillas.forEach((x) => { cuenta[x] = (cuenta[x] || 0) + 1; });
+            const trios = Object.entries(cuenta).filter(([, n]) => n >= 3);
+            if (b.premio) assert.deepEqual(trios, [[b.premio.simbolo, 3]]); else assert.equal(trios.length, 0);
+        }
+    });
+    test('mayor o menor: paga lo justo menos un 3 % en cada carta', () => {
+        for (const v of ['A', '2', '5', '7', '10', 'K']) {
+            for (const el of ['mayor', 'menor']) {
+                const c = `${v}♠`; const pago = C.pagoHilo(c, el);
+                const casos = el === 'mayor' ? 13 - C.valorHilo(c) : C.valorHilo(c) - 1;
+                if (!casos) { assert.equal(pago, 0); continue; }
+                const rtp = (casos / 12) * pago; // los empates no cuentan
+                assert.ok(rtp <= 0.97 + 1e-9 && rtp > 0.95, `${c} ${el}: ${rtp}`);
+            }
+        }
+        assert.equal(C.resultadoHilo('7♠', '7♥', 'mayor'), 'empate');
+        assert.equal(C.resultadoHilo('7♠', '9♥', 'mayor'), 'gana');
+        assert.equal(C.resultadoHilo('7♠', '9♥', 'menor'), 'pierde');
+    });
+});

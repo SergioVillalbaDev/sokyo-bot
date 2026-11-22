@@ -114,6 +114,44 @@ module.exports = ({ client }) => {
         } catch (e) { res.status(400).json({ error: 'No se pudo guardar', detalle: e.message }); }
     });
 
+    // Instalación completa (1.25.0): lo mismo que la instalación guiada del panel, con todos
+    // los módulos por defecto. Crea los canales que falten y no pisa lo que ya esté puesto.
+    router.post('/soporte/:guildId/setup', async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const setup = require('../../utils/setupRapido.js');
+            const b = req.body || {};
+            const cuerpo = { idioma: b.idioma || 'es', tipo: b.tipo || 'comunidad', modulos: Array.isArray(b.modulos) && b.modulos.length ? b.modulos : setup.MODULOS, ...(b.canales ? { canales: b.canales } : {}), ...(b.rolStaffId ? { rolStaffId: b.rolStaffId } : {}) };
+            const { respuestas, error, codigo } = setup.validar(cuerpo, guild);
+            if (error) return res.status(400).json({ error, codigo });
+            const faltan = setup.permisosQueFaltan(guild, respuestas);
+            if (faltan.length) return res.status(400).json({ error: 'Al bot le faltan permisos en el servidor', codigo: 'permisos_bot', permisos: faltan });
+            res.json({ success: true, ...(await setup.aplicar(client, guild, respuestas, { idiomaTextos: 'es' })) });
+        } catch (e) { console.error('soporte setup:', e); res.status(500).json({ error: 'No se pudo completar el setup rápido' }); }
+    });
+    // Crear un rol (sin permisos peligrosos: nunca Administrador ni gestionar servidor/roles/canales).
+    const PERMISOS_ROL = new Set(['ManageMessages', 'KickMembers', 'BanMembers', 'ModerateMembers', 'ManageNicknames', 'MuteMembers', 'DeafenMembers', 'MoveMembers', 'ViewAuditLog', 'ManageThreads', 'MentionEveryone', 'PrioritySpeaker']);
+    router.post('/soporte/:guildId/rol', async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            const nombre = String(b.nombre || '').trim().slice(0, 100);
+            if (!nombre) return res.status(400).json({ error: 'Ponle un nombre' });
+            const ya = guild.roles.cache.find((r) => r.name.toLowerCase() === nombre.toLowerCase());
+            if (ya) return res.json({ success: true, rol: { id: ya.id, nombre: ya.name }, yaExistia: true });
+            const permisos = (Array.isArray(b.permisos) ? b.permisos : []).filter((x) => PERMISOS_ROL.has(x));
+            const rol = await guild.roles.create({ name: nombre, color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : undefined, hoist: !!b.separado, mentionable: !!b.mencionable, permissions: permisos, reason: 'Sokyo · soporte' });
+            res.json({ success: true, rol: { id: rol.id, nombre: rol.name } });
+        } catch (e) { console.error('soporte rol:', e.message); res.status(400).json({ error: 'No se pudo guardar', detalle: e.message }); }
+    });
+    // Publicar el lobby del casino en su canal.
+    router.post('/soporte/:guildId/casino/lobby', async (req, res) => {
+        const guild = guildDe(req, res); if (!guild) return;
+        const r = await require('../../utils/casinoLobby.js').publicar(client, guild.id, req.body?.canalId || null).catch((e) => ({ error: e.message }));
+        if (r.error) return res.status(400).json({ error: r.error });
+        res.json({ success: true, ...r });
+    });
+
     return router;
 };
 

@@ -194,7 +194,61 @@ function comprobarApuesta(cantidad, cfgCasino = {}, perfil = {}, ahora = new Dat
     return { ok: true, cantidad: n };
 }
 
+// ---------------------------------------------------------------------------
+// 🃏 Mayor o menor (1.25.0): sale una carta (A=1 … K=13) y dices si la siguiente será
+// mayor o menor. Si es igual, empate: no pasa nada y sigues. Cada acierto multiplica lo que
+// llevas por lo que paga esa jugada (con un 3 % para la casa); puedes retirarte cuando quieras.
+// ---------------------------------------------------------------------------
+const HILO_VENTAJA = 0.97;
+const HILO_MAX_MULT = 100;
+const valorHilo = (c) => VALORES.indexOf(String(c).slice(0, -1)) + 1;
+const cartaHilo = (azar = azarSeguro) => `${VALORES[Math.floor(azar() * 13)]}${PALOS[Math.floor(azar() * 4)]}`;
+// Lo que paga acertar «mayor» o «menor» desde la carta `c` (0 si no se puede).
+function pagoHilo(c, eleccion) {
+    const v = valorHilo(c);
+    const casos = eleccion === 'mayor' ? 13 - v : v - 1;
+    if (casos <= 0) return 0;
+    return Math.floor((HILO_VENTAJA * 12 / casos) * 100) / 100;
+}
+// 'gana' | 'pierde' | 'empate'
+function resultadoHilo(actual, siguiente, eleccion) {
+    const a = valorHilo(actual); const b = valorHilo(siguiente);
+    if (a === b) return 'empate';
+    return (eleccion === 'mayor' ? b > a : b < a) ? 'gana' : 'pierde';
+}
+
+// ---------------------------------------------------------------------------
+// 🎟️ Rasca y gana (1.25.0): 9 casillas; si salen 3 símbolos iguales, ganas lo que paga ese
+// símbolo. El premio se decide al comprar el boleto (RASCA_PREMIOS) y luego se rasca.
+// ---------------------------------------------------------------------------
+const RASCA_PREMIOS = [
+    { simbolo: '7️⃣', mult: 500, p: 0.00005 }, { simbolo: '💎', mult: 100, p: 0.0006 }, { simbolo: '⭐', mult: 25, p: 0.004 },
+    { simbolo: '🔔', mult: 10, p: 0.015 }, { simbolo: '🍇', mult: 4, p: 0.05 }, { simbolo: '🍋', mult: 2, p: 0.10 }, { simbolo: '🍒', mult: 1, p: 0.22 },
+];
+const RASCA_SIMBOLOS = RASCA_PREMIOS.map((x) => x.simbolo);
+const rtpRasca = () => RASCA_PREMIOS.reduce((a, x) => a + x.mult * x.p, 0);
+// Devuelve { casillas: [9 símbolos], premio: {simbolo, mult} | null }. Nunca hay dos tríos, y si
+// no toca nada, ningún símbolo sale 3 veces.
+function boletoRasca(azar = azarSeguro) {
+    let x = azar(); let premio = null;
+    for (const pz of RASCA_PREMIOS) { x -= pz.p; if (x < 0) { premio = pz; break; } }
+    const casillas = [];
+    const cuenta = {};
+    if (premio) { for (let i = 0; i < 3; i++) casillas.push(premio.simbolo); cuenta[premio.simbolo] = 3; }
+    while (casillas.length < 9) {
+        const s = RASCA_SIMBOLOS[Math.floor(azar() * RASCA_SIMBOLOS.length)];
+        if ((cuenta[s] || 0) >= 2 && s !== premio?.simbolo) continue;
+        if (s === premio?.simbolo) continue;
+        cuenta[s] = (cuenta[s] || 0) + 1;
+        casillas.push(s);
+    }
+    for (let i = casillas.length - 1; i > 0; i--) { const j = Math.floor(azar() * (i + 1)); [casillas[i], casillas[j]] = [casillas[j], casillas[i]]; }
+    return { casillas, premio: premio ? { simbolo: premio.simbolo, mult: premio.mult } : null };
+}
+
 module.exports = {
+    HILO_VENTAJA, HILO_MAX_MULT, valorHilo, cartaHilo, pagoHilo, resultadoHilo,
+    RASCA_PREMIOS, RASCA_SIMBOLOS, rtpRasca, boletoRasca,
     azarSeguro,
     SIMBOLOS, simbolo, simboloAlAzar, pagoTragaperras, tirarTragaperras,
     ROJOS, ORDEN_RUEDA, colorNumero, APUESTAS_RULETA, pagoRuleta, girarRuleta,

@@ -13,7 +13,7 @@ import { SIMBOLOS, JUEGOS, RAREZAS, COMPANEROS, COFRES, PIEDAD } from '../../../
 import { svgMascota } from '../../../lib/mascota';
 import { API_URL } from '../../../lib/api';
 
-const EMOJI_JUEGO = { tragaperras: '🎰', ruleta: '🎡', blackjack: '🃏', crash: '🚀', minas: '💣', moneda: '🪙', duelo: '⚔️', carrera: '🏇' };
+const EMOJI_JUEGO = { tragaperras: '🎰', ruleta: '🎡', blackjack: '🃏', crash: '🚀', minas: '💣', moneda: '🪙', hilo: '🔼', rasca: '🎟️', duelo: '⚔️', carrera: '🏇' };
 const ORDEN_R = ['comun', 'rara', 'epica', 'legendaria', 'mitica', 'divina'];
 
 // Tragaperras de adorno: tres rodillos que giran sin parar.

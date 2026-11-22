@@ -2855,7 +2855,7 @@ export default {
       ej: {
         tragaperras: '/casino slots bet:100', ruleta: '/casino roulette on:Red bet:100', blackjack: '/casino blackjack bet:100',
         crash: '/casino crash bet:100 auto:2', minas: '/casino mines bet:100 mines:3', moneda: '/casino coinflip side:Heads bet:100',
-        duelo: '/casino duel rival:@someone bet:500', carrera: '/casino race',
+        duelo: '/casino duel rival:@someone bet:500', carrera: '/casino race', hilo: '/casino higherlower bet:100', rasca: '/casino scratch bet:100',
       },
       lobbyTitle: 'Casino lobby', lobbySub: 'A pinned message in the casino channel with an animated sign, the jackpot, big wins and a menu with every game. Picking one opens a table (only for whoever opens it) with chips to bet in one tap. It updates itself every 5 minutes.', lobbyPost: 'Post the lobby', lobbyRepost: 'Post the lobby again', lobbySending: 'Posting…', lobbyDone: 'Done! The lobby is pinned in the casino channel.', lobbyNeed: 'Turn on the casino and pick its channel (below, in “Where and how much”).',
       postGuide: 'Post the guide in the casino channel', postGuideHint: 'A message with the steps, the commands and a menu to see each game.', postGuideNeed: 'Pick the casino channel first (below, in “Where and how much”).',
@@ -2875,6 +2875,8 @@ export default {
         moneda: { n: 'Coin flip', d: 'The coin spins in the air (×1.94).' },
         duelo: { n: 'Duels', d: 'Challenge another member: the winner takes almost everything.' },
         carrera: { n: 'Races', d: 'The whole channel bets for 45 s and the race plays live.' },
+        hilo: { n: 'Higher or lower', d: 'Guess if the next card is higher or lower; chain wins and cash out.' },
+        rasca: { n: 'Scratch card', d: 'A 9-tile ticket: 3 matching symbols win (up to ×500).' },
       },
       limits: 'Where and how much', limitsHint: 'So it stays fun without going overboard.',
       channel: 'Casino channel', channelHint: 'If you pick one, games only work there.', anyChannel: 'Any channel',

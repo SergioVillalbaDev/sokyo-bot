@@ -822,7 +822,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (b.limiteDiario !== undefined) set['casino.limiteDiario'] = entero(b.limiteDiario, 0, 100000000, 20000);
             if (b.cofres !== undefined) set['casino.cofres'] = !!b.cofres;
             if (b.juegos && typeof b.juegos === 'object') {
-                for (const j of ['tragaperras', 'ruleta', 'blackjack', 'crash', 'minas', 'moneda', 'duelo', 'carrera']) {
+                for (const j of ['tragaperras', 'ruleta', 'blackjack', 'crash', 'minas', 'moneda', 'duelo', 'carrera', 'hilo', 'rasca']) {
                     if (b.juegos[j] !== undefined) set[`casino.juegos.${j}`] = !!b.juegos[j];
                 }
             }

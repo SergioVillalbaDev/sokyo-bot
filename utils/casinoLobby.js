@@ -26,6 +26,8 @@ const RESUMEN = {
     moneda: ['Cara o cruz, rápido y sencillo', 'Heads or tails, quick and simple'],
     duelo: ['Reta a alguien del servidor', 'Challenge someone on the server'],
     carrera: ['Todo el canal apuesta por un corredor', 'The whole channel bets on a runner'],
+    hilo: ['¿Mayor o menor? Encadena aciertos y retírate', 'Higher or lower? Chain wins and cash out'],
+    rasca: ['Rasca 9 casillas: 3 iguales y ganas', 'Scratch 9 tiles: 3 of a kind wins'],
 };
 // Opciones de cada juego en su mesa (lo que va como «extra» en cas_rep).
 const OPCIONES = {

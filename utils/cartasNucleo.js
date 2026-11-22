@@ -76,6 +76,50 @@ function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, 
     return { cartas: salen, sinEpica, piedad, devuelto: salen.reduce((a, c) => a + c.devuelto, 0) };
 }
 
+// Colecciones (1.25.0): las series con 2 cartas o más. Completar una da oro una vez
+// (PREMIO_SERIE por carta) y SINERGIA: sus cartas son un 25 % más fuertes para siempre.
+const PREMIO_SERIE = 150;
+const SINERGIA = 0.25;
+let seriesCache = null;
+function series() {
+    if (seriesCache) return seriesCache;
+    const m = new Map();
+    for (const [id, c] of K.ANIME) { if (!m.has(c.serie)) m.set(c.serie, []); m.get(c.serie).push(id); }
+    seriesCache = new Map([...m].filter(([, ids]) => ids.length >= 2));
+    return seriesCache;
+}
+// Series que ya tiene completas con estas cartas.
+function seriesCompletas(cartas = []) {
+    const tengo = new Set(cartas.map((c) => c.id));
+    return [...series()].filter(([, ids]) => ids.every((id) => tengo.has(id))).map(([serie]) => serie);
+}
+// Las que acaba de completar (y aún no se le habían premiado), con su premio.
+function nuevasSeries(cartas, yaPremiadas = []) {
+    const ya = new Set(yaPremiadas);
+    return seriesCompletas(cartas).filter((x) => !ya.has(x)).map((serie) => ({ serie, cartas: series().get(serie).length, oro: PREMIO_SERIE * series().get(serie).length }));
+}
+// Cómo vas en cada serie que has empezado (las más cerca de completarse primero).
+function progresoSeries(cartas = [], max = 5) {
+    const tengo = new Set(cartas.map((c) => c.id));
+    return [...series()].map(([serie, ids]) => ({ serie, tienes: ids.filter((id) => tengo.has(id)).length, total: ids.length }))
+        .filter((x) => x.tienes > 0 && x.tienes < x.total).sort((a, b) => b.tienes / b.total - a.tienes / a.total || b.total - a.total).slice(0, max);
+}
+
+// Regalar (1.25.0): se da una copia. Si tenías varias estrellas, bajas una; si solo una, la pierdes.
+const REGALOS_DIA = 5;
+function regalar(deCartas = [], aCartas = [], id) {
+    const mia = deCartas.find((c) => c.id === id);
+    if (!mia) return { fallo: 'sinCarta' };
+    const nuevasDe = mia.estrellas > 1 ? deCartas.map((c) => (c.id === id ? { ...c, estrellas: c.estrellas - 1 } : c)) : deCartas.filter((c) => c.id !== id);
+    const suya = aCartas.find((c) => c.id === id);
+    let devuelto = 0;
+    let nuevasA;
+    if (!suya) nuevasA = [...aCartas, { id, estrellas: 1, primera: new Date() }];
+    else if ((suya.estrellas || 1) >= MAX_ESTRELLAS) { nuevasA = aCartas; devuelto = 100; } // ya la tiene al máximo: le llega oro
+    else nuevasA = aCartas.map((c) => (c.id === id ? { ...c, estrellas: (c.estrellas || 1) + 1 } : c));
+    return { de: nuevasDe, a: nuevasA, nueva: !suya, devuelto };
+}
+
 // Cuántas cartas puedes usar hoy (con la habilidad de tu mascota equipada).
 function limiteDia(mascotaId) {
     const h = mascotaId ? K.habilidad(mascotaId) : null;
@@ -99,11 +143,13 @@ function usarCarta(col, cartaId, m, { ahora = Date.now(), dia, bromas = false, a
     const usadas = col.cartasHoy && col.cartasHoy.dia === dia ? col.cartasHoy.n || 0 : 0;
     const limite = limiteDia(equipada || m.id);
     if (usadas >= limite) return { fallo: 'topeCartas', limite };
-    const e = P.efectoCarta(cartaId, carta.estrellas || 1, m.id);
+    // Con la serie completa, la carta es más fuerte (sinergia).
+    const sinergia = (col.seriesCompletas || []).includes(K.def(cartaId).serie);
+    const e = P.efectoCarta(cartaId, carta.estrellas || 1, m.id, sinergia ? SINERGIA : 0);
     if (!e) return { fallo: 'sinCarta' };
     const r = P.aplicarEfecto(e, m, { ahora, bromas, azar });
     const d = K.def(cartaId);
     return { ...r, carta: cartaId, emoji: P.ARQUETIPOS[d.poder.tipo].emoji, nombre: { es: d.poder.es, en: d.poder.en }, usadas: usadas + 1, limite };
 }
 
-module.exports = { CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };
+module.exports = { PREMIO_SERIE, SINERGIA, REGALOS_DIA, series, seriesCompletas, nuevasSeries, progresoSeries, regalar, CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };

@@ -34,12 +34,16 @@ async function abrir({ interaction, cfg, idioma, sobre }) {
             const ya = cartas.find((y) => y.id === c.id);
             if (ya) ya.estrellas = c.estrellas; else cartas.push({ id: c.id, estrellas: 1, primera: new Date() });
         }
+        // ¿Completa alguna serie? Premio una sola vez (1.25.0).
+        const nuevas = S.nuevasSeries(cartas, col.seriesCompletas || []);
         const hecho = await ColeccionMascotas.updateOne({ _id: col._id, sobresAbiertos: col.sobresAbiertos || 0 },
-            { $set: { cartas, sinEpicaCartas: x.sinEpica }, $inc: { sobresAbiertos: 1, gastadoSobres: def.precio } });
-        if (hecho.modifiedCount) r = x;
+            { $set: { cartas, sinEpicaCartas: x.sinEpica, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { sobresAbiertos: 1, gastadoSobres: def.precio } });
+        if (hecho.modifiedCount) r = { ...x, series: nuevas };
     }
     if (!r) { await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
     if (r.devuelto) await economia.darOro(userId, r.devuelto);
+    const oroSeries = r.series.reduce((a, n) => a + n.oro, 0);
+    if (oroSeries) await economia.darOro(userId, oroSeries);
     const AperturaCofre = require('../models/AperturaCofre.js');
     for (const c of r.cartas.filter((y) => y.id && K.RAREZAS[y.rareza].orden >= 2)) {
         await AperturaCofre.create({ guildId: interaction.guildId || null, userId, cofre: `sobre:${sobre}`, companero: c.id, rareza: c.rareza }).catch(() => {});
@@ -62,9 +66,10 @@ async function abrir({ interaction, cfg, idioma, sobre }) {
             divina ? t(idioma, '🌈🌈🌈 **¡¡CARTA DIVINA!!** 🌈🌈🌈', '🌈🌈🌈 **DIVINE CARD!!** 🌈🌈🌈') : '',
             ...lineas,
             r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
+            ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
             t(idioma, 'Úsalas sobre tu mascota con `/compi` → 🃏 o `/carta usar`.', 'Use them on your pet with `/companion` → 🃏 or `/card use`.'),
         ].filter(Boolean).join('\n'))
-        .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
+        .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`crt_otro:${sobre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
         new ButtonBuilder().setCustomId('crt_album').setEmoji('📚').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi álbum', 'My album')),
@@ -86,7 +91,7 @@ async function abrir({ interaction, cfg, idioma, sobre }) {
 
 async function verAlbum(interaction, idioma, usuario = null) {
     const quien = usuario || interaction.user;
-    const col = (await ColeccionMascotas.findOne({ userId: quien.id }).select('cartas sobresAbiertos').lean()) || { cartas: [] };
+    const col = (await ColeccionMascotas.findOne({ userId: quien.id }).select('cartas sobresAbiertos seriesCompletas').lean()) || { cartas: [] };
     const cartas = col.cartas || [];
     const porRareza = {}; for (const c of cartas) { const r = K.def(c.id).rareza; porRareza[r] = (porRareza[r] || 0) + 1; }
     const png = await require('./cartasArte.js').album(cartas, { titulo: t(idioma, `Álbum de ${quien.username} · ${cartas.length}/${K.ANIME.size}`, `${quien.username}’s album · ${cartas.length}/${K.ANIME.size}`), idioma }).catch(() => null);
@@ -95,7 +100,10 @@ async function verAlbum(interaction, idioma, usuario = null) {
             t(idioma, `**${cartas.length}** de ${K.ANIME.size} cartas · ${col.sobresAbiertos || 0} sobres abiertos`, `**${cartas.length}** of ${K.ANIME.size} cards · ${col.sobresAbiertos || 0} packs opened`),
             Object.keys(K.RAREZAS).filter((r) => porRareza[r]).map((r) => `${rz(r, idioma)} ${porRareza[r]}`).join(' · '),
             cartas.length ? '' : t(idioma, 'Consigue cartas con `/carta abrir`.', 'Get cards with `/card open`.'),
+            (col.seriesCompletas || []).length ? t(idioma, `📚 Colecciones completas (${col.seriesCompletas.length}): ${col.seriesCompletas.slice(0, 8).join(', ')}${col.seriesCompletas.length > 8 ? '…' : ''}`, `📚 Complete collections (${col.seriesCompletas.length}): ${col.seriesCompletas.slice(0, 8).join(', ')}${col.seriesCompletas.length > 8 ? '…' : ''}`) : '',
         ].filter(Boolean).join('\n'));
+    const prog = S.progresoSeries(cartas, 6);
+    if (prog.length) e.addFields({ name: t(idioma, '📚 Casi completas (premio y +25 % de fuerza al acabarlas)', '📚 Almost complete (reward and +25% power when finished)'), value: prog.map((x) => `${'▰'.repeat(Math.round((x.tienes / x.total) * 8))}${'▱'.repeat(8 - Math.round((x.tienes / x.total) * 8))} **${x.serie}** ${x.tienes}/${x.total}`).join('\n').slice(0, 1024) });
     if (png) e.setImage('attachment://album.png');
     const comps = [];
     if (!usuario && cartas.length) {
@@ -107,7 +115,7 @@ async function verAlbum(interaction, idioma, usuario = null) {
 }
 
 async function verCarta(userId, id, idioma) {
-    const col = await ColeccionMascotas.findOne({ userId }).select('cartas').lean();
+    const col = await ColeccionMascotas.findOne({ userId }).select('cartas seriesCompletas').lean();
     const c = (col?.cartas || []).find((x) => x.id === id);
     if (!c) return { content: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
     const d = K.def(id);
@@ -117,11 +125,47 @@ async function verCarta(userId, id, idioma) {
         .setDescription([
             `${rz(d.rareza, idioma)} · ${d.serie} · ${'★'.repeat(c.estrellas || 1)}`,
             `${P.ARQUETIPOS[d.poder.tipo].emoji} **${t(idioma, d.poder.es, d.poder.en)}**`,
-            P.textoEfecto(P.efectoCarta(id, c.estrellas || 1, null), idioma),
+            P.textoEfecto(P.efectoCarta(id, c.estrellas || 1, null, (col.seriesCompletas || []).includes(d.serie) ? S.SINERGIA : 0), idioma),
+            (col.seriesCompletas || []).includes(d.serie) ? t(idioma, `📚 Colección de ${d.serie} completa: +25 % de fuerza`, `📚 ${d.serie} collection complete: +25% power`) : '',
             f ? t(idioma, `⏳ Se recarga en ${Math.ceil(f / 60)} h`, `⏳ Recharges in ${Math.ceil(f / 60)} h`) : t(idioma, '✅ Lista para usar en tu mascota (`/compi` → 🃏).', '✅ Ready to use on your pet (`/companion` → 🃏).'),
-        ].join('\n'));
+        ].filter(Boolean).join('\n'));
     if (png) e.setImage('attachment://carta.png');
     return { embeds: [e], files: png ? [new AttachmentBuilder(png, { name: 'carta.png' })] : [] };
+}
+
+// Enseñar una carta en el canal (1.25.0).
+async function mostrar(interaction, id, idioma) {
+    const v = await verCarta(interaction.user.id, id, idioma);
+    if (!v.embeds) return v;
+    v.embeds[0].setTitle(t(idioma, `🃏 ${interaction.user.displayName || interaction.user.username} enseña: ${K.def(id).es}`, `🃏 ${interaction.user.displayName || interaction.user.username} shows: ${K.def(id).en}`));
+    v.embeds[0].setDescription(v.embeds[0].data.description.split('\n').filter((l) => !l.startsWith('⏳') && !l.startsWith('✅')).join('\n'));
+    return { ...v, allowedMentions: { parse: [] } };
+}
+
+// Regalar una copia de una carta a otra persona (1.25.0). Hasta REGALOS_DIA al día.
+async function regalar(interaction, idioma, destino, id) {
+    if (!destino || destino.bot || destino.id === interaction.user.id) return { error: t(idioma, 'Elige a otra persona (no un bot).', 'Pick someone else (not a bot).') };
+    const dia = new Date().toISOString().slice(0, 10);
+    const yo = await ColeccionMascotas.findOne({ userId: interaction.user.id }).lean();
+    if (!yo || !(yo.cartas || []).some((c) => c.id === id)) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
+    const hoy = yo.regalosHoy?.dia === dia ? yo.regalosHoy.n || 0 : 0;
+    if (hoy >= S.REGALOS_DIA) return { error: t(idioma, `Ya has regalado ${S.REGALOS_DIA} cartas hoy. Mañana más.`, `You’ve already gifted ${S.REGALOS_DIA} cards today. More tomorrow.`) };
+    const suyo = await ColeccionMascotas.findOneAndUpdate({ userId: destino.id }, { $setOnInsert: { userId: destino.id } }, { upsert: true, returnDocument: 'after' }).lean();
+    const r = S.regalar(yo.cartas, suyo.cartas || [], id);
+    if (r.fallo) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
+    // Solo si mis cartas no han cambiado a la vez (evita regalar dos veces la misma copia).
+    const yoOk = await ColeccionMascotas.updateOne({ _id: yo._id, cartas: yo.cartas }, { $set: { cartas: r.de, regalosHoy: { dia, n: hoy + 1 } } });
+    if (!yoOk.modifiedCount) return { error: t(idioma, 'Prueba otra vez.', 'Try again.') };
+    const nuevas = S.nuevasSeries(r.a, suyo.seriesCompletas || []);
+    await ColeccionMascotas.updateOne({ _id: suyo._id }, { $set: { cartas: r.a, seriesCompletas: [...(suyo.seriesCompletas || []), ...nuevas.map((n) => n.serie)] } });
+    const oro = r.devuelto + nuevas.reduce((a, n) => a + n.oro, 0);
+    if (oro) await require('./economia.js').darOro(destino.id, oro);
+    const d = K.def(id);
+    return { ok: true, texto: [
+        t(idioma, `🎁 <@${interaction.user.id}> le regala a <@${destino.id}> la carta **${d.es}** (${K.RAREZAS[d.rareza].es}).`, `🎁 <@${interaction.user.id}> gifts <@${destino.id}> the card **${d.en}** (${K.RAREZAS[d.rareza].en}).`),
+        r.nueva ? t(idioma, '🆕 ¡Es nueva en su álbum!', '🆕 It’s new in their album!') : r.devuelto ? t(idioma, `Ya la tenía al máximo: le llegan 🪙 ${r.devuelto}.`, `They already had it maxed: they get 🪙 ${r.devuelto}.`) : t(idioma, 'Ya la tenía: sube una estrella.', 'They already had it: it gains a star.'),
+        ...nuevas.map((n) => t(idioma, `📚 ¡Y completa la colección de **${n.serie}**! +🪙 ${n.oro}`, `📚 And completes the **${n.serie}** collection! +🪙 ${n.oro}`)),
+    ].join('\n'), destino: destino.id };
 }
 
 function embedProbabilidades(idioma) {
@@ -160,4 +204,4 @@ async function manejar(interaction) {
     return false;
 }
 
-module.exports = { abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };
+module.exports = { mostrar, regalar, abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };

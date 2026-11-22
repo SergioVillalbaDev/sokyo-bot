@@ -224,13 +224,13 @@ const ARQUETIPOS = {
 };
 const FUERZA = [0.6, 0.8, 1, 1.25, 1.6, 2.2];
 // Lo que hace la carta `cartaId` con `estrellas`, usada en la mascota `mascotaId` (o null).
-function efectoCarta(cartaId, estrellas = 1, mascotaId = null) {
+function efectoCarta(cartaId, estrellas = 1, mascotaId = null, extra = 0) {
     const d = K.def(cartaId);
     if (!d.poder || !ARQUETIPOS[d.poder.tipo]) return null;
     const orden = K.RAREZAS[d.rareza]?.orden || 0;
     const hab = mascotaId ? K.habilidad(mascotaId) : null;
     const extraMascota = hab && (hab.tipo === 'cartas' || hab.tipo === 'divino') ? hab.valor : 0;
-    const f = (FUERZA[orden] || 1) * (1 + 0.1 * (Math.max(1, Math.min(5, estrellas)) - 1)) * (1 + extraMascota);
+    const f = (FUERZA[orden] || 1) * (1 + 0.1 * (Math.max(1, Math.min(5, estrellas)) - 1)) * (1 + extraMascota) * (1 + Math.max(0, extra));
     const e = { ...ARQUETIPOS[d.poder.tipo].efecto };
     if (e.oro) e.oro = e.oro.map((x) => Math.round(x * f));
     if (e.xp) e.xp = Math.min(1.5, Math.round(e.xp * f * 100) / 100);
