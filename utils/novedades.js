@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.22.1': [
+        { tab: 'com-compis', es: '⚖️ Quitar series del Pack anime ya no hace trampa: si toca un personaje quitado, sale un compañero normal, así nadie sale más a menudo por quitar los demás.', en: '⚖️ Removing Anime pack series is no longer a loophole: if a removed character is rolled, a regular companion drops instead, so nobody drops more often.' },
+    ],
     '1.22.0': [
         { tab: 'com-compis', es: '🌸 Pack anime: 643 personajes de anime populares (de 250 series) que pueden salir en los cofres, con su foto. Cuanto más populares, más raros. El admin lo activa en el panel → Diversión → Compañeros.', en: '🌸 Anime pack: 643 popular anime characters (from 250 series) that can drop from chests, with their picture. The more popular, the rarer. Admins turn it on in the panel → Fun → Companions.' },
         { tab: 'com-compis', es: '🕰️ Hay una divina secreta del pack… rarísima. Quien la saque saldrá anunciado a lo grande.', en: '🕰️ There’s a secret divine one in the pack… ultra rare. Whoever pulls it gets a big announcement.' },

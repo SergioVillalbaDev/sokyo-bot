@@ -2937,7 +2937,7 @@ export default {
         on: 'Activado', off: 'Apagado', sinCofres: 'Los cofres están apagados en este servidor: actívalos en Diversión → Casino y cofres para que salgan.',
         divina: 'La divina secreta', divinaSub: 'Rarísima: comparte la rareza divina solo con el Dragón Celestial. Quien la saque saldrá anunciado a lo grande.',
         buscar: 'Buscar personaje, serie o poder…', todas: 'Todas las rarezas', series: 'Series ({{n}}) · quitadas: {{fuera}}',
-        enJuego: '{{n}} de {{total}} personajes pueden salir aquí.', seriesAyuda: 'Toca una serie para quitarla de los cofres de aquí (o volver a ponerla). Quien ya tenga sus personajes los conserva.',
+        enJuego: '{{n}} de {{total}} personajes pueden salir aquí.', seriesAyuda: 'Toca una serie para quitarla de los cofres de aquí (o volver a ponerla). Quien ya tenga sus personajes los conserva. Si toca uno quitado, sale en su lugar un compañero normal: así quitar series no hace que ningún personaje salga más.',
         buscarSerie: 'Buscar serie…', nada: 'No hay personajes con ese nombre.', mas: 'Ver más ({{n}})',
         fuente: 'Nombres y fotos de AniList (anilist.co). Los personajes pertenecen a sus autores.',
       },

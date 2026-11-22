@@ -156,16 +156,22 @@ function idsAnime(fuera = []) {
 function def(id) {
     return COMPANEROS[id] || PERSONALIZADOS.get(id) || ANIME.get(id) || { rareza: 'comun', svg: null, emoji: '❔', es: 'Compañero perdido', en: 'Lost companion', perdido: true };
 }
-function companeroAlAzar(rareza, azar, extra = []) {
-    const lista = [...Object.keys(COMPANEROS).filter((id) => COMPANEROS[id].rareza === rareza), ...extra.filter((id) => def(id).rareza === rareza)];
-    return lista[Math.floor(azar() * lista.length) % lista.length];
+// `quitados`: los que este servidor no quiere (series quitadas del Pack anime). Se tira sobre la
+// lista COMPLETA y, si toca uno quitado, sale en su lugar uno del catálogo de esa rareza. Así
+// quitar series nunca hace más fácil a nadie (no vale quitarlo todo menos tu favorito).
+function companeroAlAzar(rareza, azar, extra = [], quitados = null) {
+    const catalogo = Object.keys(COMPANEROS).filter((id) => COMPANEROS[id].rareza === rareza);
+    const lista = [...catalogo, ...extra.filter((id) => def(id).rareza === rareza)];
+    const id = lista[Math.floor(azar() * lista.length) % lista.length];
+    if (!quitados || !quitados.has(id) || !catalogo.length) return id;
+    return catalogo[Math.floor(azar() * catalogo.length) % catalogo.length];
 }
 // Abre un cofre sobre una colección. Devuelve lo que sale y cómo queda la colección.
-function abrir(coleccion, cofre, azar = require('./casinoNucleo.js').azarSeguro, extra = []) {
+function abrir(coleccion, cofre, azar = require('./casinoNucleo.js').azarSeguro, extra = [], quitados = null) {
     if (!COFRES[cofre]) return { fallo: 'cofre' };
     const sinEpica = coleccion.sinEpica || 0;
     const rareza = rarezaAlAzar(cofre, azar, sinEpica);
-    const id = companeroAlAzar(rareza, azar, extra);
+    const id = companeroAlAzar(rareza, azar, extra, quitados);
     const yaLo = (coleccion.mascotas || []).find((x) => x.id === id);
     let estrellas = 1; let devuelto = 0; let nuevo = true;
     if (yaLo) {
