@@ -199,11 +199,21 @@ export const itemVisible = (item, permisos) => !item.area || !permisos || permis
 // ¿Está bloqueado por el plan? (función de pago en un servidor Free; el propietario lo ve todo).
 export const bloqueadoPorPlan = (item, esPremium, esOwner) => !!item.premium && !esPremium && !esOwner;
 
+// Modo sencillo (1.26.0): el menú enseña solo lo que usa casi todo el mundo. Lo demás sigue
+// en «Ver todas las secciones», en el buscador (Ctrl K) y en el Centro de funciones.
+export const BASICOS = new Set([
+  'tickets-gestion', 'tickets-config', 'mod-miembros', 'mod-automod', 'seg-verificacion', 'prod-bienvenidas',
+  'roles-gestion', 'config-niveles', 'com-sugerencias', 'com-sorteos', 'com-mascota', 'com-compis', 'com-casino',
+  'musica', 'prod-anuncios', 'logs-todos', 'config-diagnostico', 'config-cambios', 'cuenta-plan',
+]);
+export const esBasico = (tab) => BASICOS.has(tab);
+
 // Grupos visibles con solo los ítems a los que se tiene acceso (los vacíos fuera).
-export function gruposVisibles(permisos, esOwner) {
+// `sencillo`: solo los básicos (y los de `extra`, p. ej. la sección abierta y las favoritas).
+export function gruposVisibles(permisos, esOwner, { sencillo = false, extra = null } = {}) {
   return navGroups
     .filter((g) => !g.owner || esOwner)
-    .map((g) => ({ ...g, items: g.items.filter((it) => itemVisible(it, permisos)) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => itemVisible(it, permisos) && (!sencillo || g.owner || BASICOS.has(it.tab) || (extra && extra.has(it.tab)))) }))
     .filter((g) => g.items.length > 0);
 }
 

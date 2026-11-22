@@ -799,6 +799,14 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             res.json({ success: true });
         } catch (e) { console.error('POST casino/guia:', e.message); res.status(400).json({ error: e.message || 'No se pudo publicar el mensaje' }); }
     });
+    // Ordenar en categorías los canales del bot que estén sueltos (1.26.0, Centro de funciones).
+    router.post(ruta('organizar-canales'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await ServidorConfig.findOne({ guildId: guild.id }).lean();
+            res.json({ success: true, movidos: await require('../../utils/setupRapido.js').organizarCanales(guild, cfg, cfg?.idioma || 'es') });
+        } catch (e) { console.error('organizar canales:', e.message); res.status(400).json({ error: 'No se pudo guardar' }); }
+    });
     // Lobby del casino (1.23.0): publicarlo (o volver a publicarlo) en su canal.
     router.post(ruta('casino/lobby'), async (req, res) => {
         try {
