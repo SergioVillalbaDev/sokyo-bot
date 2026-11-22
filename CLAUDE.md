@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.26.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.27.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,15 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.27.0 **Lo básico arriba, lo demás plegado**. `components/dashboard/Plegable.jsx` (`<Plegable id emoji titulo sub abierto>`):
+  bloque que empieza recogido y recuerda si lo abriste (`localStorage.sokyoPlegable:<id>`). Los hijos van SIEMPRE montados
+  (`[data-plegable-cuerpo][hidden]`) para que el buscador (Ctrl + K, `indiceAjustes.resaltarTexto`) encuentre lo que hay dentro:
+  si el texto está en un bloque plegado, lo abre y vuelve a buscar. Aplicado en Inicio (estado del bot, mapa, equipo), Mascotas
+  (ventajas, catálogo, cuidadores), Casino (estadísticas, cofres), Ajustes de tickets (todo desde «Ayuda antes del ticket»),
+  Verificación (preguntas, aprobación, requisitos, cierre, registro), Automod (exenciones, entradas, filtros de mensajes), Voz
+  temporal (botones y vista previa), Acceso (áreas) y Bienvenidas (embed; abierto si ya hay uno). Textos `dashboard.plegable.*`.
+  Si una pantalla crece mucho, mete lo secundario en un `Plegable` en vez de quitarlo. Los tours por sección se saltan solos los
+  pasos que quedan dentro de un bloque cerrado.
 - 1.26.0 **Panel menos abrumador**. Menú en **modo sencillo** por defecto (`navConfig.BASICOS`, `gruposVisibles(…, { sencillo,
   extra })`; el interruptor «Ver todas las secciones» se guarda en `localStorage.sokyoMenuSencillo`; la sección abierta y las
   favoritas se ven siempre). **Centro de funciones** (tab `funciones`, `views/FuncionesView.jsx`, textos `dashboard.funciones.*`):

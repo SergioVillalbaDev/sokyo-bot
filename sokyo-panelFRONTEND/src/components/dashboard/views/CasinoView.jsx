@@ -3,6 +3,7 @@
 // Aquí se activa, se eligen los juegos, los límites (apuesta mínima y máxima, tope de
 // pérdidas al día) y se ven los números. Lógica del bot en utils/casino.js y utils/cofres.js.
 import { useState } from 'react';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import { Dices, ShieldCheck, Trophy, Sparkles, Gift, TrendingUp, Settings2, BookOpen, Pin } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
@@ -180,6 +181,7 @@ export default function CasinoView({ dash }) {
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
       </div>
 
+      <Plegable id="casino-stats" emoji="📊" titulo={t('dashboard.plegable.casinoStats')} sub={t('dashboard.plegable.casinoStatsSub')}>
       <div className="grid gap-5 lg:grid-cols-2">
         <div data-help="casino-top" className={tarjeta}>
           <CabeceraTarjeta icono={Trophy} titulo={t('dashboard.casino_v.top')} />
@@ -213,7 +215,10 @@ export default function CasinoView({ dash }) {
         </div>
       </div>
 
+      </Plegable>
+
       {/* Cofres de mascotas */}
+      <Plegable id="casino-cofres" emoji="🎁" titulo={t('dashboard.casino_v.chestsTitle')} sub={t('dashboard.plegable.cofresSub')}>
       <div data-help="casino-cofres" className={`${tarjeta} relative overflow-hidden`}>
         <CabeceraTarjeta icono={Gift} titulo={t('dashboard.casino_v.chestsTitle')} />
         <p className="mt-1 text-xs text-muted">{t('dashboard.casino_v.chestsIntro', { n: PIEDAD })}</p>
@@ -287,6 +292,7 @@ export default function CasinoView({ dash }) {
           </div>
         </div>
       </div>
+      </Plegable>
 
       <p className="flex items-center gap-2 text-xs text-muted"><Settings2 size={13} /> {t('dashboard.casino_v.commands')}</p>
     </div>

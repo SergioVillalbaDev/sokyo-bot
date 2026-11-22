@@ -2,6 +2,7 @@
 // Configura generadores, el panel de control, qué botones se ofrecen y permite
 // ver/cerrar las salas activas en vivo.
 import { useState, useEffect } from 'react';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import {
   Mic2, Save, Check, Plus, Trash2, RefreshCw, Send, Lock, Eye, Users, X, Crown, Sparkles,
@@ -382,6 +383,7 @@ export default function VozTemporalView({ dash }) {
         </div>
       </Card>
 
+      <Plegable id="voz-mas" emoji="🎛️" titulo={t('dashboard.plegable.vozTit')} sub={t('dashboard.plegable.vozSub')}>
       {/* Controles disponibles */}
       <Card data-help="voztemporal-controles" className={card}>
         <div className="mb-1 font-bold text-fg">{t('dashboard.voztemporal_v.panelButtons')}</div>
@@ -414,6 +416,8 @@ export default function VozTemporalView({ dash }) {
           );
         })()}
       </Card>
+
+      </Plegable>
 
       {/* Guardar */}
       <div className="flex flex-wrap items-center justify-end gap-3">

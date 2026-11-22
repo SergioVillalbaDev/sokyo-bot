@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import QuienAccede from './QuienAccede';
 import AccesosPersona from './AccesosPersona';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import { navGroups } from '../navConfig';
 import { MonitorSmartphone, ShieldAlert, Save, Check, Info, LayoutList } from 'lucide-react';
@@ -125,6 +126,7 @@ export default function AccesoView({ dash }) {
         <SelectorRoles roles={roles} seleccion={moderacion} onToggle={toggle(moderacion, setModeracion)} />
       </div>
 
+      <Plegable id="acceso-areas" emoji="🗂️" titulo={t('dashboard.acceso_v.areasTitle')} sub={t('dashboard.plegable.areasSub')}>
       {/* ¿Quién ve cada sección? */}
       <div data-help="acceso-areas" className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><LayoutList size={18} className="text-brand" /> {t('dashboard.acceso_v.areasTitle')}</h3>
@@ -139,6 +141,8 @@ export default function AccesoView({ dash }) {
           ))}
         </div>
       </div>
+
+      </Plegable>
 
       <div data-help="acceso-guardar" className="flex items-center gap-3">
         <button

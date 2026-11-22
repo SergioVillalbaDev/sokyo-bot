@@ -4,6 +4,7 @@
 // Reglas y control, Textos y Respuestas rápidas. Reutiliza los handlers del hook
 // (auto-guardado por campo donde ya lo había; botón Guardar donde hacía falta).
 import { useState } from 'react';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import {
   Save, Pencil, Eye, ShieldCheck, FolderTree, Hash, Clock, UserCheck, Info,
@@ -270,6 +271,7 @@ export default function TicketsAjustesView({ dash }) {
         {roles.length === 0 && <p className="mt-2 text-xs italic text-muted">{t('dashboard.rules_v.noRoles')}</p>}
       </Card>
 
+      <Plegable id="tickets-mas" emoji="🧰" titulo={t('dashboard.plegable.ticketsTit')} sub={t('dashboard.plegable.ticketsSub')}>
       {/* ───────── AYUDA ANTES DEL TICKET Y TICKETS POR PRIVADO (1.9.0) ───────── */}
       <Card data-help="tickets-ayuda" className="p-6 shadow-soft">
         <div className="divide-y divide-line">
@@ -419,6 +421,8 @@ export default function TicketsAjustesView({ dash }) {
           </div>
         )}
       </Card>
+      </Plegable>
+
     </div>
   );
 }
