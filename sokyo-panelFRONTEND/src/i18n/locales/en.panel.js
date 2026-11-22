@@ -2932,7 +2932,7 @@ export default {
         on: 'On', off: 'Off', sinCofres: 'Chests are off on this server: turn them on in Fun → Casino & chests so they can drop.',
         divina: 'The secret divine', divinaSub: 'Ultra rare: she shares the divine rarity only with the Celestial Dragon. Whoever pulls her gets a big announcement.',
         buscar: 'Search character, series or power…', todas: 'All rarities', series: 'Series ({{n}}) · removed: {{fuera}}',
-        enJuego: '{{n}} of {{total}} characters can drop here.', seriesAyuda: 'Tap a series to remove it from chests here (or bring it back). Anyone who already has its characters keeps them.',
+        enJuego: '{{n}} of {{total}} characters can drop here.', seriesAyuda: 'Tap a series to remove it from chests here (or bring it back). Anyone who already has its characters keeps them. If a removed one is rolled, a regular companion drops instead: removing series never makes any character drop more often.',
         buscarSerie: 'Search series…', nada: 'No characters with that name.', mas: 'See more ({{n}})',
         fuente: 'Names and pictures from AniList (anilist.co). Characters belong to their creators.',
       },

@@ -32,10 +32,19 @@ async function ventajasUsuario(userId) {
 const olvidar = (userId) => cache.delete(userId);
 // Compañeros que pueden salir en los cofres de este servidor además del catálogo: los propios
 // del servidor (1.20.0) y, si lo tiene activado, el Pack anime sin las series quitadas (1.22.0).
+// Con el pack se pasa SIEMPRE entero; las series quitadas van aparte (`quitadosDe`) y, si tocan,
+// se cambian por uno del catálogo: quitar series no sube la probabilidad de ningún personaje.
 function extrasDe(guildId, cfg) {
     if (!guildId) return [];
     const propios = [...K.PERSONALIZADOS.entries()].filter(([, c]) => c.guildId === guildId && c.activo !== false).map(([id]) => id);
-    return cfg?.compis?.anime ? [...propios, ...K.idsAnime(cfg.compis.animeFuera || [])] : propios;
+    return cfg?.compis?.anime ? [...propios, ...K.ANIME.keys()] : propios;
+}
+function quitadosDe(cfg) {
+    const fuera = cfg?.compis?.anime ? cfg.compis.animeFuera || [] : [];
+    if (!fuera.length) return null;
+    const todos = new Set(K.ANIME.keys());
+    for (const id of K.idsAnime(fuera)) todos.delete(id);
+    return todos;
 }
 const coleccion = async (userId) => (await ColeccionMascotas.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, returnDocument: 'after' }));
 
@@ -63,7 +72,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     let r; let col;
     for (let intento = 0; intento < 5; intento++) {
         col = await coleccion(userId);
-        r = K.abrir(col, cofre, undefined, extrasDe(interaction.guildId, cfg));
+        r = K.abrir(col, cofre, undefined, extrasDe(interaction.guildId, cfg), quitadosDe(cfg));
         const tiene = (col.mascotas || []).some((m) => m.id === r.id);
         const upd = {
             $inc: { abiertos: 1, gastado: def.precio, ...(r.rareza === 'divina' ? { divinas: 1 } : {}) },
@@ -204,4 +213,4 @@ async function resumenServidor(client, guildId) {
     };
 }
 
-module.exports = { extrasDe, ventajasUsuario, abrir, equipar, verColeccion, embedProbabilidades, manejar, resumenServidor, textoVentajas, olvidar };
+module.exports = { extrasDe, quitadosDe, ventajasUsuario, abrir, equipar, verColeccion, embedProbabilidades, manejar, resumenServidor, textoVentajas, olvidar };

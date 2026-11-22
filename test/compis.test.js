@@ -185,8 +185,10 @@ describe('1.22.0: Pack anime', () => {
         assert.equal(cofres.extrasDe('1', { compis: { anime: false } }).length, 0);
         const todos = cofres.extrasDe('1', { compis: { anime: true } });
         assert.equal(todos.length, K.ANIME.size);
-        const sinDAL = cofres.extrasDe('1', { compis: { anime: true, animeFuera: ['Date A Live'] } });
-        assert.ok(!sinDAL.includes(`a:${K.KURUMI}`) && sinDAL.length < todos.length);
+        const cfgDAL = { compis: { anime: true, animeFuera: ['Date A Live'] } };
+        const quitados = cofres.quitadosDe(cfgDAL);
+        assert.ok(quitados.has(`a:${K.KURUMI}`));
+        for (let i = 0; i < 300; i++) assert.notEqual(K.companeroAlAzar('divina', Math.random, cofres.extrasDe('1', cfgDAL), quitados), `a:${K.KURUMI}`);
         // Con el pack, una tirada divina puede dar el dragón o Kurumi.
         const salen = new Set();
         for (let i = 0; i < 50; i++) salen.add(K.companeroAlAzar('divina', Math.random, todos));
@@ -230,5 +232,34 @@ describe('1.22.0: un poder para cada personaje del Pack anime', () => {
         const fuera = P.usarPoder({ id: `a:${K.KURUMI}`, ...base, exp: { tipo: 'viaje', hasta: new Date(T0 + 5 * H) } }, {}, { ahora: T0 });
         assert.ok(fuera.volver && fuera.lleno && fuera.buff.xp === 1);
         assert.ok(P.textoEfecto(P.efectoAnime({ id: `a:${K.KURUMI}` }), 'en').includes('XP'));
+    });
+});
+
+describe('1.22.1: quitar series no hace trampa', () => {
+    const cofres = require('../utils/cofres.js');
+    test('quitarlo todo menos una serie no sube la probabilidad de sus personajes', () => {
+        const series = [...new Set([...K.ANIME.values()].map((c) => c.serie))];
+        const cfg = { compis: { anime: true, animeFuera: series.filter((s) => s !== 'JUJUTSU KAISEN') } };
+        const extra = cofres.extrasDe('1', cfg); const quitados = cofres.quitadosDe(cfg);
+        // Con el mismo número al azar, o sale lo mismo que sin quitar nada, o uno del catálogo (nunca otro anime).
+        for (const rareza of ['comun', 'rara', 'epica', 'legendaria', 'mitica']) {
+            for (let i = 0; i < 400; i++) {
+                const a = Math.random(); const b = Math.random();
+                const seq = (x) => { let n = 0; return () => (n++ === 0 ? a : x); };
+                const conTodo = K.companeroAlAzar(rareza, seq(b), extra);
+                const conTrampa = K.companeroAlAzar(rareza, seq(b), extra, quitados);
+                if (K.esAnime(conTrampa)) assert.equal(conTrampa, conTodo, rareza);
+                else assert.ok(K.COMPANEROS[conTrampa], conTrampa);
+            }
+        }
+        // Gojo (mítico) sale lo mismo con o sin quitar las demás series.
+        let gojoTodo = 0; let gojoTrampa = 0; const N = 20000;
+        for (let i = 0; i < N; i++) {
+            const a = Math.random(); const b = Math.random();
+            const seq = () => { let n = 0; return () => (n++ === 0 ? a : b); };
+            if (K.companeroAlAzar('mitica', seq(), extra) === 'a:127691') gojoTodo++;
+            if (K.companeroAlAzar('mitica', seq(), extra, quitados) === 'a:127691') gojoTrampa++;
+        }
+        assert.equal(gojoTrampa, gojoTodo);
     });
 });
