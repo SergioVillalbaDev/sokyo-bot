@@ -1,6 +1,7 @@
 // Vista del Automoderador — filtros automáticos de mensajes + defensa de
 // entradas (anti-raid, cuentas nuevas) + anti-estafas, todo con presets.
 import {useState } from 'react';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import {
   Save, Check, Info, Power, MessageSquareWarning, Link2, Link,
@@ -318,6 +319,7 @@ export default function AutomodView({ dash }) {
         </div>
       </div>
 
+      <Plegable id="automod-exentos" emoji="🙈" titulo={t('dashboard.automod_v.exemptTitle')} sub={t('dashboard.automod_v.exemptDesc')}>
       {/* Exenciones */}
       <div className={card}>
         <h3 className="mb-1 flex items-center gap-2 font-bold text-fg"><ShieldOff size={18} className="text-brand" /> {t('dashboard.automod_v.exemptTitle')}</h3>
@@ -328,6 +330,9 @@ export default function AutomodView({ dash }) {
         <SelectorCanales canales={canales} seleccion={am.canalesExentos} onToggle={toggleEn('canalesExentos')} vacio={t('dashboard.automod_v.noChannels')} />
       </div>
 
+      </Plegable>
+
+      <Plegable id="automod-entradas" emoji="🚪" titulo={t('dashboard.automod_v.groupGuard')} sub={t('dashboard.plegable.entradasSub')}>
       {/* === DEFENSA DE ENTRADAS === */}
       <h4 data-help="automod-entradas" className="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">{t('dashboard.automod_v.groupGuard')}</h4>
 
@@ -354,6 +359,9 @@ export default function AutomodView({ dash }) {
         <p className="text-xs text-muted">{t('dashboard.automod_v.newHint')}</p>
       </ModuloCard>
 
+      </Plegable>
+
+      <Plegable id="automod-mensajes" emoji="💬" titulo={t('dashboard.automod_v.groupMessages')} sub={t('dashboard.plegable.mensajesSub')}>
       {/* === FILTROS DE MENSAJES === */}
       <h4 data-help="automod-mensajes" className="px-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">{t('dashboard.automod_v.groupMessages')}</h4>
 
@@ -483,6 +491,8 @@ export default function AutomodView({ dash }) {
           <NumField label={t('dashboard.automod_v.capsMinLen')} value={am.mayusculas.minLongitud} onChange={(v) => set('mayusculas', { ...am.mayusculas, minLongitud: v })} />
         </div>
       </ModuloCard>
+
+      </Plegable>
 
       {/* Guardar */}
       <div data-help="automod-guardar" className="sticky bottom-0 flex items-center gap-3 rounded-2xl bg-bg/80 py-3 backdrop-blur">

@@ -5,6 +5,7 @@
 // varios mensajes (la principal + extras, p. ej. uno por juego), cada uno con su
 // canal y su embed, que se mandan al entrar o al recibir un rol (bienvenidasExtra).
 import {useState } from 'react';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { LogIn, LogOut, Save, Check, Info, Send, Hash, CheckCircle2, AlertTriangle, XCircle, Plus, Trash2, Star } from 'lucide-react';
@@ -247,6 +248,7 @@ export default function BienvenidaView({ dash }) {
         </div>
       </div>
 
+      <Plegable id="bienvenida-embed" emoji="🖼️" abierto={!!(actual.embed && (actual.embed.titulo || actual.embed.descripcion || actual.embed.imagenUrl || actual.embed.imagenArchivo))} titulo={t('dashboard.bienvenida_v.embedTitle')} sub={t('dashboard.bienvenida_v.embedDesc')}>
       {/* Embed opcional */}
       <div data-help="bienvenida-embed" className={card}>
         <h3 className="flex items-center gap-2 font-bold text-fg"><Hash size={18} className="text-brand" /> {t('dashboard.bienvenida_v.embedTitle')}</h3>
@@ -256,6 +258,8 @@ export default function BienvenidaView({ dash }) {
             texto={actual.contenido} variables={{ mention: '@Alex', user: 'Alex', server: 'Nébula Gaming', members: 1280, avatar: 'https://cdn.discordapp.com/embed/avatars/0.png' }} />
         </div>
       </div>
+
+      </Plegable>
 
       <div data-help="bienvenida-acciones" className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={guardar} disabled={guardando || !configServidor}

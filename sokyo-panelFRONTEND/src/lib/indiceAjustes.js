@@ -76,10 +76,12 @@ export function resaltarTexto(texto, { espera = 4000 } = {}) {
     const andador = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
     let nodo;
     let mejor = null;
+    let plegado = null; // está dentro de un bloque plegado (Plegable): se abre y se vuelve a buscar
     while ((nodo = andador.nextNode())) {
       const n = normalizar(nodo.nodeValue);
       if (!n.includes(buscado)) continue;
       const el = nodo.parentElement;
+      if (el && !plegado) { const c = el.closest('[data-plegable-cuerpo][hidden]'); if (c) plegado = c; }
       if (!el || el.closest('[aria-hidden="true"]') || !el.getClientRects().length) continue;
       mejor = el;
       if (n.trim() === buscado) break; // coincidencia exacta: esta
@@ -94,6 +96,7 @@ export function resaltarTexto(texto, { espera = 4000 } = {}) {
       setTimeout(() => bloque.classList.remove('sk-resaltado'), 2600);
       return;
     }
+    if (plegado) { plegado.parentElement?.querySelector(':scope > button[aria-expanded]')?.click(); setTimeout(intentar, 120); return; }
     if (Date.now() - inicio < espera) setTimeout(intentar, 250);
   };
   setTimeout(intentar, 200);

@@ -4,6 +4,7 @@
 // mejor y se crean los compañeros propios del servidor con su foto (solo salen en
 // los cofres de aquí). Bot: utils/compis.js, utils/compisNucleo.js; API: modulos/compis.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users, Images, Gem, Flower2, Search } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
@@ -384,6 +385,7 @@ export default function CompisView({ dash }) {
         )}
       </div>
 
+      <Plegable id="compis-ventajas" emoji="💎" titulo={t('dashboard.compis_v.ventajasTitulo')} sub={t('dashboard.compis_v.ventajasSub')}>
       {/* Qué da cada rareza */}
       <div className={tarjeta}>
         <CabeceraTarjeta icono={Gem} titulo={t('dashboard.compis_v.ventajasTitulo')} />
@@ -411,6 +413,8 @@ export default function CompisView({ dash }) {
         </div>
       </div>
 
+      </Plegable>
+      <Plegable id="compis-catalogo" emoji="📖" titulo={t('dashboard.compis_v.catalogo', { n: Object.keys(COMPANEROS).length })} sub={t('dashboard.plegable.catalogoSub')}>
       {/* Catálogo */}
       <div className={tarjeta}>
         <CabeceraTarjeta icono={Sparkles} titulo={t('dashboard.compis_v.catalogo', { n: Object.keys(COMPANEROS).length })} />
@@ -441,6 +445,8 @@ export default function CompisView({ dash }) {
         </div>
       </div>
 
+      </Plegable>
+      <Plegable id="compis-top" emoji="❤️" titulo={t('dashboard.compis_v.cuidadores')} sub={t('dashboard.compis_v.cuidadoresSub', { n: n(datos.personas) })}>
       {/* Quién los cuida mejor */}
       <div className={tarjeta}>
         <CabeceraTarjeta icono={Heart} titulo={t('dashboard.compis_v.cuidadores')} />
@@ -466,6 +472,7 @@ export default function CompisView({ dash }) {
         )}
         <p className="mt-4 text-xs text-muted">{t('dashboard.compis_v.comandos')}</p>
       </div>
+      </Plegable>
     </div>
   );
 }

@@ -7,6 +7,7 @@
 // (color, imagen, GIF, campos…) y el botón (texto y color); en la doble
 // bienvenida, además, un texto encima (`embudoAB.panel`). «#canal» sale como enlace.
 import {useState, useRef } from 'react';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import { Toggle } from '../../ui/primitives';
 import { ShieldCheck, Save, Check, Info, Send, MousePointerClick, Puzzle, Users, Crown, Lock, FileText, LayoutTemplate, BarChart3, AlertTriangle } from 'lucide-react';
@@ -347,14 +348,14 @@ export default function VerificacionView({ dash }) {
 
       {/* Una sola verificación: preguntas que dan roles y servidor cerrado sin el rol de acceso (1.9.12) */}
       {!abBloqueado && (
-        <>
+        <Plegable id="verif-mas" emoji="🧩" titulo={t('dashboard.plegable.verifTit')} sub={t('dashboard.plegable.verifSub')}>
           <PreguntasEntrada dash={dash} rolAccesoId={esAB ? e.rolVerificadoId : v.rolVerificadoId} />
           <AprobacionEntrada dash={dash} rolAccesoId={esAB ? e.rolVerificadoId : v.rolVerificadoId} />
           {/* Requisitos, normas, captcha, al verificarse, quien no se verifica y canal del registro (1.9.15) */}
           <OpcionesEntrada dash={dash} modo={modo} />
           <CierreServidor dash={dash} />
           <RegistroVerificaciones dash={dash} />
-        </>
+        </Plegable>
       )}
 
       {/* Cambios en el mensaje del panel que aún no están en Discord */}

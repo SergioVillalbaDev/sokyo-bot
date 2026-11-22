@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.27.0': [
+        { tab: 'inicio', es: '🧹 Pantallas **mucho más limpias**: cada sección enseña primero lo básico y lo demás queda en bloques plegables que se abren con un clic (y recuerdan si los abriste).', en: '🧹 **Much cleaner** screens: each section shows the basics first and the rest sits in collapsible blocks you open with one click (they remember if you opened them).' },
+        { tab: 'inicio', es: '🔎 El buscador (Ctrl + K) sigue encontrando todo: si lo que buscas está plegado, se abre solo.', en: '🔎 Search (Ctrl + K) still finds everything: if what you look for is collapsed, it opens by itself.' },
+    ],
     '1.26.0': [
         { tab: 'funciones', es: '🧩 Nuevo **Centro de funciones**: todo lo que hace Sokyo en tarjetas, con buscador. Cada una dice si está encendida y se activa con un clic.', en: '🧩 New **Feature hub**: everything Sokyo does in cards, with search. Each one shows whether it’s on and turns on in one click.' },
         { tab: 'funciones', es: '🧭 El menú del panel ahora es **sencillo**: solo lo que usa casi todo el mundo. Lo demás sigue ahí con «Ver todas las secciones».', en: '🧭 The panel menu is now **simple**: just what almost everyone uses. Everything else is still there under “Show all sections”.' },

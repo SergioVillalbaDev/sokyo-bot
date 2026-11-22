@@ -4,6 +4,7 @@
 // y actividad recientes · 5) equipo, memoria, registros, satisfacción y latencia.
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
 import {
   Ticket, Inbox, Activity, Users2, HardDrive, ScrollText, Smile, ChevronRight, Wifi, Power, Search, Map as MapIcon, Crown, Stethoscope,
@@ -179,6 +180,7 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
         ))}
       </div>
 
+      <Plegable id="inicio-bot" emoji="📡" titulo={t('dashboard.plegable.botTit')} sub={t('dashboard.plegable.botSub')}>
       {/* 2 · Datos rápidos del bot: latencia, memoria, registros y satisfacción */}
       <div data-help="inicio-rail" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <MiniDato icono={Wifi} color="var(--accent-color)" titulo={t('dashboard.inicio_v.latency')} valor={ping !== null && ping !== undefined ? `${ping} ms` : '–'}
@@ -191,6 +193,8 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
         <MiniDato icono={Smile} color="#fbbf24" titulo={t('dashboard.inicio_v.satisfaction')} valor={csatMedio ? `${csatMedio.toFixed(1)} / 5` : '–'} barra={csatPct}
           nota={valorados.length === 0 ? t('dashboard.inicio_v.noRatings') : t('dashboard.inicio_v.ratings', { count: valorados.length })} />
       </div>
+
+      </Plegable>
 
       {/* 3 · Módulos */}
         {modulos.length > 0 && (
@@ -230,6 +234,7 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
         )}
 
 
+      <Plegable id="inicio-mapa" emoji="🗺️" titulo={t('dashboard.plegable.mapaTit')} sub={t('dashboard.plegable.mapaSub')}>
       {/* 4 · Mapa de todo el panel */}
       <section data-help="inicio-mapa">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
@@ -277,6 +282,8 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
           )))}
         </div>
       </section>
+
+      </Plegable>
 
       {/* 5 · Tickets y actividad recientes */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -328,6 +335,7 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
         </div>
       </div>
 
+      <Plegable id="inicio-equipo" emoji="👥" titulo={t('dashboard.inicio_v.team')} sub={t('dashboard.plegable.equipoSub')}>
       {/* 6 · Equipo de soporte */}
       <div data-help="inicio-team" className={card}>
         <CabeceraTarjeta icono={Users2} titulo={t('dashboard.inicio_v.team')} accion={puedeTickets ? t('dashboard.inicio_v.seeUsers') : null} onAccion={() => setActiveTab('tickets-usuarios')} />
@@ -347,6 +355,8 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
           </div>
         )}
       </div>
+      </Plegable>
+
     </div>
   );
 }
