@@ -99,6 +99,8 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'cofre.gif' })] : [], allowedMentions: { parse: [] } });
     await espera(gif ? (r.rareza === 'divina' ? 5200 : 4000) : 600);
     const v = K.ventajas(r.id, r.estrellas);
+    const G = require('./granja.js');
+    const hitos = r.nuevo ? await G.premiarHitos(userId).catch(() => []) : [];
     const estado = r.nuevo
         ? t(idioma, '🆕 ¡Nuevo en tu colección!', '🆕 New in your collection!')
         : r.devuelto ? t(idioma, `Ya lo tenías con 5 ★: te devolvemos 🪙 ${fmt(r.devuelto, idioma)}.`, `You already had it at 5 ★: you get 🪙 ${fmt(r.devuelto, idioma)} back.`)
@@ -111,12 +113,14 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
             r.piedad ? t(idioma, '🍀 ¡La suerte del décimo cofre! (épica asegurada)', '🍀 Tenth-chest luck! (epic guaranteed)') : '',
             K.habilidad(r.id) ? t(idioma, `🌟 Habilidad exclusiva: **${K.habilidad(r.id).es}**`, `🌟 Exclusive ability: **${K.habilidad(r.id).en}**`) : '',
             t(idioma, `Si la equipas: ${textoVentajas(v, idioma)}`, `If equipped: ${textoVentajas(v, idioma)}`),
+            ...G.textoHitos(hitos, idioma),
         ].filter(Boolean).join('\n'))
         .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${col.abiertos + 1} cofres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${col.abiertos + 1} chests opened`) });
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cof_otro:${cofre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
         new ButtonBuilder().setCustomId(`cof_eq:${r.id}`).setEmoji('✅').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Equipar', 'Equip')),
         new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${r.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Cuidarla', 'Look after it')),
+        new ButtonBuilder().setCustomId(`grj:abrir:${userId}`).setEmoji('🧺').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Granja', 'Farm')),
     );
     await interaction.editReply({ embeds: [fin], components: [fila] });
     // Las legendarias o mejores se anuncian (y la divina, a lo grande).

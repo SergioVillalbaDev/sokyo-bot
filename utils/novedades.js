@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.28.0': [
+        { tab: 'com-compis', es: '🧺 **Granja**: tus mejores mascotas producen oro solas mientras no estás. Más raras, con más ★, más nivel y bien cuidadas = más oro. Recógelo con `/granja` o el botón 🧺 de `/compi`.', en: '🧺 **Farm**: your best pets make gold on their own while you’re away. Rarer, more ★, higher level and well cared for = more gold. Collect it with `/farm` or the 🧺 button in `/companion`.' },
+        { tab: 'com-compis', es: '📖 **Álbum de mascotas** con hitos: 3, 5, 10… hasta las 57. Cada hito da oro y algunos, un hueco más en la granja.', en: '📖 **Pet album** with milestones: 3, 5, 10… up to all 57. Each one gives gold and some unlock one more farm slot.' },
+        { tab: 'com-compis', es: '📅 **Misiones semanales**: cuida, manda expediciones, recoge la granja y usa cartas durante la semana para premios gordos.', en: '📅 **Weekly missions**: care, send expeditions, collect the farm and use cards during the week for big rewards.' },
+        { tab: 'com-compis', es: '🧹 La pantalla de Mascotas del panel, mucho más corta: lo demás, en bloques que se abren con un clic.', en: '🧹 The panel’s Pets screen, much shorter: the rest sits in blocks you open with one click.' },
+    ],
     '1.27.0': [
         { tab: 'inicio', es: '🧹 Pantallas **mucho más limpias**: cada sección enseña primero lo básico y lo demás queda en bloques plegables que se abren con un clic (y recuerdan si los abriste).', en: '🧹 **Much cleaner** screens: each section shows the basics first and the rest sits in collapsible blocks you open with one click (they remember if you opened them).' },
         { tab: 'inicio', es: '🔎 El buscador (Ctrl + K) sigue encontrando todo: si lo que buscas está plegado, se abre solo.', en: '🔎 Search (Ctrl + K) still finds everything: if what you look for is collapsed, it opens by itself.' },

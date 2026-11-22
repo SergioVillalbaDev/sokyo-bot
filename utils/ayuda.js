@@ -50,6 +50,7 @@ const CATEGORIAS = [
         ['casino', 's', null, 'Tragaperras con bote, ruleta, blackjack, crash, minas, cara o cruz, duelos y carreras con oro. Empieza por /casino ayuda.', 'Slots with a jackpot, roulette, blackjack, crash, mines, coin flip, duels and races with gold. Start with /casino help.'],
         ['chest', 's', 'cofre', 'Abre cofres con oro y colecciona mascotas, cada una con su habilidad exclusiva (hay una divina rarísima).', 'Open chests with gold and collect pets, each with its own exclusive ability (there’s an ultra-rare divine one).'],
         ['companion', 's', 'compi', 'Tu mascota: dale de comer, juega, habla con ella, mándala de expedición, usa cartas en ella y cumple las misiones del día.', 'Your pet: feed it, play, talk, send it on expeditions, use cards on it and do the daily missions.'],
+        ['farm', 's', 'granja', 'Tus mascotas producen oro solas: recógelo, mira tu álbum (con premios por coleccionar) y las misiones de la semana.', 'Your pets make gold on their own: collect it, see your album (with collecting rewards) and the weekly missions.'],
         ['card', 's', 'carta', 'Cartas de anime: abre sobres, mira tu álbum y úsalas para potenciar a tu mascota.', 'Anime cards: open packs, see your album and use them to power up your pet.'],
         ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
     ] },

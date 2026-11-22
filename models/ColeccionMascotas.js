@@ -43,6 +43,12 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     // 1.25.0: series del Pack anime completadas (ya premiadas) y regalos de cartas de hoy.
     seriesCompletas: { type: [String], default: [] },
     regalosHoy: { dia: String, n: Number },
+    // 1.28.0 (utils/granja.js): granja (desde cuándo produce), oro sacado de ella, hitos del álbum
+    // ya premiados («3», «5»… «todas») y misiones de la semana.
+    granja: { desde: Date },
+    oroGranja: { type: Number, default: 0 },
+    hitosAlbum: { type: [String], default: [] },
+    semana: { id: String, prog: { type: Object, default: {} }, hechas: { type: [String], default: [] }, todas: Boolean },
 }, { minimize: false });
 
 module.exports = mongoose.model('ColeccionMascotas', ColeccionMascotasSchema);

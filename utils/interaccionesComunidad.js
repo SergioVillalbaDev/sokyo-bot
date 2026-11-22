@@ -31,6 +31,8 @@ async function manejar(interaction, client) {
         if (id.startsWith('cmp')) return await require('./compis.js').manejar(interaction, client);
         // 1.24.0: cartas de anime (sobres, álbum).
         if (id.startsWith('crt_')) return await require('./cartas.js').manejar(interaction, client);
+        // 1.28.0: granja y álbum de mascotas.
+        if (id.startsWith('grj:')) return await require('./granja.js').manejar(interaction, client);
         if (interaction.isButton() && id.startsWith('liga_animar:')) { await require('./liga.js').animar(interaction); return true; }
         if (interaction.isButton() && /^tkayuda_(si|no):/.test(id)) {
             await manejarAyudaPrevia(interaction, client);

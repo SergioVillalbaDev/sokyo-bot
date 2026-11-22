@@ -77,6 +77,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         };
         recoger();
         let frase = null; let fallo = null; let falloMin = 0; let falloRareza = 0;
+        let semAcc = null; // misión semanal que cuenta (1.28.0)
         if (que === 'comer' || que === 'jugar' || que === 'mimar') {
             const r = P.cuidar(m, que, ahora);
             if (r.fallo) fallo = r.fallo;
@@ -87,6 +88,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
                 if (que === 'mimar' && r.afinidad) m.ultMimo = new Date(ahora);
                 frase = P.frase(m, que, { idioma, dueno, ahora });
                 efecto = que;
+                semAcc = 'cuidar';
                 sumarMision(que);
                 if (r.humor === 'feliz') sumarMision('feliz');
             }
@@ -102,6 +104,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
                 Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora), cds: r.cds });
                 m.afinidad = (m.afinidad || 0) + r.afinidad;
                 m.cuidados = (m.cuidados || 0) + 1;
+                semAcc = 'cuidar';
                 frase = P.frase(m, id, { idioma, dueno, ahora });
                 efecto = id === 'regalo' || id === 'milagro' ? 'vuelta' : 'mimar';
                 const x = P.INTERACCIONES[id];
@@ -126,6 +129,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
                     const carta = K.def(r.carta);
                     colSet.cartas = (col.cartas || []).map((c) => (c.id === r.carta ? { ...c, usada: new Date(ahora) } : c));
                     colSet.cartasHoy = { dia, n: r.usadas };
+                    semAcc = 'carta';
                     mensajes.push(t(idioma, `🃏 **${carta.es}** usa ${r.emoji} **${r.nombre.es}** sobre ${corto(m, idioma)}`, `🃏 **${carta.en}** uses ${r.emoji} **${r.nombre.en}** on ${corto(m, idioma)}`));
                     efecto = 'vuelta';
                     frase = P.frase(m, 'mimar', { idioma, dueno, ahora });
@@ -184,6 +188,7 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
             else {
                 Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora), exp: r.exp });
                 colSet.expHoy = { dia, n: r.usadas };
+                semAcc = 'expedicion';
                 const x = P.EXPEDICIONES[r.exp.tipo];
                 mensajes.push(t(idioma, `${x.emoji} Se va de «${x.es}». Vuelve en ${x.horas} h: entra a verlo luego para recoger lo que traiga.`, `${x.emoji} Off on “${x.en}”. Back in ${x.horas} h: come back later to collect what it brings.`));
                 sumarMision('expedicion');
@@ -198,6 +203,10 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
                 colSet.racha = r.racha; colSet.ultimoDiaCuidado = dia; colSet.mejorRacha = Math.max(col.mejorRacha || 0, r.racha);
                 if (r.premio) { oro += r.premio; mensajes.push(t(idioma, `🔥 ¡${r.racha} días seguidos cuidándolo! +🪙 ${r.premio}`, `🔥 ${r.racha} days in a row! +🪙 ${r.premio}`)); }
             }
+        }
+        if (semAcc) {
+            const s = require('./granja.js').semanal(col, semAcc, 1, idioma, ahora);
+            colSet.semana = s.sem; oro += s.oro; mensajes.push(...s.mensajes);
         }
         const nivelDespues = P.nivel(m.afinidad || 0);
         if (nivelDespues > nivelAntes) { mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel'; }
@@ -363,6 +372,7 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         new ButtonBuilder().setCustomId(cid('equipar')).setEmoji('✅').setLabel(equipado ? t(idioma, 'Equipado', 'Equipped') : t(idioma, 'Equipar', 'Equip')).setStyle(ButtonStyle.Secondary).setDisabled(equipado),
         new ButtonBuilder().setCustomId(cid('apodo')).setEmoji('✏️').setLabel(t(idioma, 'Ponerle apodo', 'Nickname')).setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(cid('ver')).setEmoji('🔄').setLabel(t(idioma, 'Actualizar', 'Refresh')).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`grj:abrir:${ownerId}`).setEmoji('🧺').setLabel(t(idioma, 'Granja', 'Farm')).setStyle(ButtonStyle.Success),
         ...(cfg?.compis?.anime ? [new ButtonBuilder().setCustomId(cid('cartas')).setEmoji('🃏').setLabel(t(idioma, `Cartas (${(col.cartas || []).length})`, `Cards (${(col.cartas || []).length})`)).setStyle(ButtonStyle.Primary)] : []),
     ));
     return { embeds: [emb], files, components: filas, attachments: [], allowedMentions: { parse: [] } };
