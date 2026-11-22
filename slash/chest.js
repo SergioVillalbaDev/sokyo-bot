@@ -23,7 +23,7 @@ module.exports = {
     async execute(interaction, client, cfg) {
         const idioma = await idiomaInteraccion(interaction, cfg);
         const sub = interaction.options.getSubcommand();
-        if (sub === 'odds') return interaction.reply({ embeds: [cofres.embedProbabilidades(idioma)], flags: 64 });
+        if (sub === 'odds') return interaction.reply({ embeds: [cofres.embedProbabilidades(idioma, cfg)], flags: 64 });
         if (sub === 'collection') {
             const otro = interaction.options.getUser('member');
             await interaction.deferReply();

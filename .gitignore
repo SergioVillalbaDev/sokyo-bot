@@ -27,3 +27,5 @@ lavalink/.youtube-cuenta.json*
 
 # Copias de seguridad de la base de datos: llevan datos de clientes, NUNCA a git.
 backups/
+# Caché de las fotos del Pack anime (se descargan de AniList al usarse).
+cache/

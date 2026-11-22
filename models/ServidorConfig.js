@@ -846,6 +846,11 @@ const ServidorConfigSchema = new mongoose.Schema({
         },
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
     },
+    // Compañeros (1.22.0): Pack anime (personajes de AniList; las fotos se cargan de AniList, no se guardan).
+    compis: {
+        anime: { type: Boolean, default: false },
+        animeFuera: { type: [String], default: [] },   // series que no salen en los cofres de aquí
+    },
     // Mascota del servidor (1.14.0). El estado de la mascota está en models/Mascota.js.
     mascota: {
         activo: { type: Boolean, default: false },

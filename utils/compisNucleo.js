@@ -176,7 +176,73 @@ const PODERES = [
     { id: 'prisa', emoji: '⚡', es: 'Prisa: vuelve ya de la expedición (o lo deja todo al 100)', en: 'Rush: comes back from the expedition now (or fills everything to 100)' },
     { id: 'bendicion', emoji: '🌈', xp: 1, horas: 2, es: 'Bendición: +100 % de XP 2 h y todo al 100', en: 'Blessing: +100% XP for 2 h and everything to 100' },
 ];
-const poderDe = (m) => PODERES[Math.min(PODERES.length - 1, ordenDe(m))];
+// Pack anime (1.22.0): cada personaje tiene su poder según su personalidad (data/animePoderes.txt).
+// El tipo decide qué hace; la rareza, cuánto (FUERZA). La divina (Kurumi) además da la Bendición.
+const ARQUETIPOS = {
+    tiempo: { emoji: '🕰️', efecto: { volver: true, lleno: true } },
+    fuerza: { emoji: '💪', efecto: { xp: 0.25, min: 60 } },
+    velocidad: { emoji: '⚡', efecto: { volver: true, energia: true, xp: 0.10, min: 60 } },
+    fuego: { emoji: '🔥', efecto: { xp: 0.35, min: 45 } },
+    hielo: { emoji: '❄️', efecto: { escudo: 4, xp: 0.10, min: 60 } },
+    mente: { emoji: '🧠', efecto: { oro: [40, 90], xp: 0.10, min: 60 } },
+    curar: { emoji: '💚', efecto: { lleno: true, afinidad: 10 } },
+    sombra: { emoji: '🥷', efecto: { escudo: 3, oro: [20, 40] } },
+    suerte: { emoji: '🍀', efecto: { oro: [50, 120] } },
+    lider: { emoji: '👑', efecto: { xp: 0.20, min: 120 } },
+    espada: { emoji: '⚔️', efecto: { xp: 0.30, min: 60 } },
+    magia: { emoji: '🔮', efecto: { xp: 0.20, min: 60, lleno: true } },
+    comida: { emoji: '🍙', efecto: { lleno: true, afinidad: 8, oro: [15, 30] } },
+    musica: { emoji: '🎤', efecto: { afinidad: 15, alegria: true } },
+    defensa: { emoji: '🛡️', efecto: { escudo: 6, energia: true } },
+    oscuro: { emoji: '🌑', efecto: { xp: 0.40, min: 30, escudo: 2 } },
+    tecno: { emoji: '🤖', efecto: { oro: [60, 110] } },
+    bestia: { emoji: '🐾', efecto: { xp: 0.30, min: 60, energia: true } },
+    detective: { emoji: '🔍', efecto: { oro: [30, 70], recuerdo: true } },
+    vago: { emoji: '😴', efecto: { energia: true, lleno: true, xp: 0.10, min: 120 } },
+    amistad: { emoji: '🤝', efecto: { afinidad: 20, lleno: true } },
+    caos: { emoji: '🃏', efecto: { caos: true } },
+    deporte: { emoji: '🏐', efecto: { xp: 0.20, min: 90, energia: true } },
+    amor: { emoji: '💘', efecto: { afinidad: 25, alegria: true } },
+    vampiro: { emoji: '🦇', efecto: { xp: 0.30, min: 60, escudo: 2 } },
+};
+const FUERZA = [0.6, 0.8, 1, 1.25, 1.6, 2.2];
+// Qué hace exactamente el poder de este compañero (con la fuerza ya aplicada). null si no es del pack.
+function efectoAnime(m) {
+    const d = K.def(m.id);
+    if (!d.poder || !ARQUETIPOS[d.poder.tipo]) return null;
+    const f = FUERZA[ordenDe(m)] || 1;
+    const e = { ...ARQUETIPOS[d.poder.tipo].efecto };
+    if (e.oro) e.oro = e.oro.map((x) => Math.round(x * f));
+    if (e.xp) e.xp = Math.min(1.5, Math.round(e.xp * f * 100) / 100);
+    if (e.escudo) e.escudo = Math.round(e.escudo * f * 10) / 10;
+    if (e.afinidad) e.afinidad = Math.round(e.afinidad * f);
+    if (ordenDe(m) >= 5) { e.xp = 1; e.min = 120; e.lleno = true; } // divina: también la Bendición
+    return e;
+}
+// Texto corto de lo que hace (para la tarjeta, el pie y el panel).
+function textoEfecto(e, idioma = 'es') {
+    const es = idioma !== 'en'; const l = [];
+    const dur = (min) => (min >= 60 ? `${Math.round(min / 6) / 10} h` : `${min} min`);
+    if (e.caos) l.push(es ? 'algo al azar: oro, +XP o escudo' : 'something random: gold, +XP or shield');
+    if (e.volver) l.push(es ? 'vuelve ya de la expedición' : 'back from the expedition now');
+    if (e.xp) l.push(es ? `+${Math.round(e.xp * 100)} % XP ${dur(e.min)}` : `+${Math.round(e.xp * 100)}% XP ${dur(e.min)}`);
+    if (e.oro) l.push(`🪙 ${e.oro[0]}-${e.oro[1]}`);
+    if (e.escudo) l.push(es ? `escudo anti-bromas ${e.escudo} h` : `prank shield ${e.escudo} h`);
+    if (e.lleno) l.push(es ? 'todo al 100' : 'everything to 100');
+    else {
+        if (e.energia) l.push(es ? 'energía al 100' : 'energy to 100');
+        if (e.alegria) l.push(es ? 'alegría al 100' : 'joy to 100');
+    }
+    if (e.afinidad) l.push(es ? `+${e.afinidad} de afinidad` : `+${e.afinidad} affinity`);
+    if (e.recuerdo) l.push(es ? 'trae un recuerdo' : 'brings a souvenir');
+    return l.join(' · ');
+}
+const poderDe = (m) => {
+    const d = K.def(m.id);
+    const e = efectoAnime(m);
+    if (e) return { id: 'anime', emoji: ARQUETIPOS[d.poder.tipo].emoji, tipo: d.poder.tipo, nombre: { es: d.poder.es, en: d.poder.en }, es: `${d.poder.es} (${textoEfecto(e, 'es')})`, en: `${d.poder.en} (${textoEfecto(e, 'en')})`, efecto: e };
+    return PODERES[Math.min(PODERES.length - 1, ordenDe(m))];
+};
 function faltaPoder(col, ahora = Date.now()) {
     const ult = col && col.poderUsado ? new Date(col.poderUsado).getTime() : 0;
     return Math.max(0, Math.ceil((ult + PODER_ESPERA_H * HORA - ahora) / MIN));
@@ -187,6 +253,28 @@ function usarPoder(m, col, { ahora = Date.now(), bromas = false, azar = Math.ran
     if (f) return { fallo: 'espera', min: f };
     const p = poderDe(m);
     const r = { id: p.id, emoji: p.emoji };
+    if (p.id === 'anime') {
+        let e = p.efecto;
+        r.nombre = p.nombre;
+        if (e.caos) { // 🃏 caos: una de tres cosas, a la suerte
+            const f = FUERZA[ordenDe(m)] || 1; const x = azar();
+            e = x < 0.34 ? { oro: [Math.round(40 * f), Math.round(140 * f)] } : x < 0.67 ? { xp: Math.min(1.5, Math.round(0.4 * f * 100) / 100), min: 45 } : { escudo: Math.round(4 * f * 10) / 10 };
+        }
+        if (e.oro) r.oro = Math.round(e.oro[0] + azar() * (e.oro[1] - e.oro[0]));
+        if (e.xp) r.buff = { xp: e.xp, hasta: new Date(ahora + e.min * MIN) };
+        if (e.escudo) {
+            if (bromas) r.escudoHasta = new Date(ahora + e.escudo * HORA);
+            else if (!r.buff) r.buff = { xp: Math.round(0.15 * (FUERZA[ordenDe(m)] || 1) * 100) / 100, hasta: new Date(ahora + HORA) };
+        }
+        if (e.volver && expedicionActiva(m, ahora)) r.volver = true;
+        else if (e.volver && !e.lleno) r.energia = true;
+        if (e.lleno) r.lleno = true;
+        if (e.energia) r.energia = true;
+        if (e.alegria) r.alegria = true;
+        if (e.afinidad) r.afinidad = e.afinidad;
+        if (e.recuerdo) r.recuerdo = Math.floor(azar() * RECUERDOS.length);
+        return r;
+    }
     if (p.id === 'olfato') r.oro = Math.round(p.oro[0] + azar() * (p.oro[1] - p.oro[0]));
     else if (p.id === 'inspiracion') r.buff = { xp: p.xp, hasta: new Date(ahora + p.horas * HORA) };
     else if (p.id === 'escudo') {
@@ -254,7 +342,8 @@ function frase(m, momento, { idioma = 'es', dueno = '', azar = Math.random, ahor
     const pon = (par) => String(par[i] || par[0]).replace(/\{d\}/g, dueno || (idioma === 'en' ? 'friend' : 'amigo'));
     const al = (lista) => lista[Math.floor(azar() * lista.length) % lista.length];
     // Los de un servidor pueden traer sus frases propias (en un idioma).
-    if (d.tipo === 'servidor' && d.frases?.length && azar() < 0.5) return String(al(d.frases)).replace(/\{d\}/g, dueno || '');
+    // Los de un servidor traen frases propias (texto en un idioma); algunos del Pack anime, [es, en].
+    if (d.frases?.length && azar() < 0.5) { const f = al(d.frases); return Array.isArray(f) ? pon(f) : String(f).replace(/\{d\}/g, dueno || ''); }
     if (EXTRA[momento]) return pon(al(EXTRA[momento]));
     if (momento === 'hablar') {
         const h = humor(estado(m, ahora));
@@ -272,6 +361,6 @@ const totalFrases = () => [GENERAL, VOCES, EXTRA].reduce((t, g) => t + Object.va
 module.exports = {
     LLENO, RITMO, HUMOR, NIVEL_MAX, CUIDADOS, EXPEDICIONES, EXPEDICIONES_DIA, RECUERDOS, MISIONES, PREMIO_MISION, PREMIO_TODAS, PREMIOS_RACHA,
     estado, humor, nivel, umbral, progresoNivel, extraCuidado, cuidar, expedicionActiva, expedicionLista, salir, botin,
-    INTERACCIONES, interaccionesDe, falta, interactuar, PODERES, PODER_ESPERA_H, poderDe, faltaPoder, usarPoder, buffXp, ordenDe,
+    ARQUETIPOS, FUERZA, efectoAnime, textoEfecto, INTERACCIONES, interaccionesDe, falta, interactuar, PODERES, PODER_ESPERA_H, poderDe, faltaPoder, usarPoder, buffXp, ordenDe,
     diaDe, misionesDelDia, avanzarMision, avanzarRacha, frase, totalFrases,
 };

@@ -1,0 +1,648 @@
+# Poder de cada personaje del Pack anime (1.22.0): una línea por personaje.
+# Formato: id de AniList | tipo de poder | nombre en español | nombre en inglés (si se deja vacío, el mismo)
+# Los tipos y lo que hacen están en utils/compisNucleo.js (ARQUETIPOS). La fuerza la da la rareza.
+# Lo lee utils/cofresNucleo.js al arrancar; test/compis.test.js comprueba que no falte ninguno.
+# Lo que va tras «|#» es solo el nombre del personaje, para leerlo fácil.
+127691|mente|Infinito: nada le toca y lo ve todo|Infinity: nothing touches him and he sees everything|# Satoru Gojou
+45627|espada|Limpieza a tres dimensiones|Three-dimensional cleanup|# Levi
+40|amistad|Gomu Gomu: ¡seré el Rey de los Piratas!|Gomu Gomu: I'll be King of the Pirates!|# Luffy Monkey
+27|velocidad|Godspeed: rayos en las manos|Godspeed: lightning in his hands|# Killua Zoldyck
+40882|bestia|Titán de Ataque|Attack Titan|# Eren Yeager
+62|espada|Estilo de tres espadas|Three-sword style|# Zoro Roronoa
+417|mente|Geass: obedece mi orden|Geass: obey my command|# Lelouch Lamperouge
+88572|hielo|Magia de hielo de la medio elfa|Half-elf ice magic|# Emilia
+71|detective|Deducción imposible (y azúcar)|Impossible deduction (and sugar)|# L Lawliet
+87275|oscuro|Kagune del ciempiés|Centipede kagune|# Ken Kaneki
+40881|espada|Instinto Ackerman|Ackerman instinct|# Mikasa Ackerman
+89334|suerte|Consultoría espiritual (y mucho morro)|Spirit consulting (and lots of nerve)|# Arataka Reigen
+422|fuerza|Matadragones|Dragonslayer|# Guts
+126824|detective|Ojo de boticaria: descubre venenos y secretos|Apothecary's eye: uncovers poisons and secrets|# Maomao
+176754|tiempo|Mil años de magia tranquila|A thousand years of quiet magic|# Frieren
+34470|mente|Teoría de la neurociencia|Neuroscience theory|# Kurisu Makise
+10138|espada|Dagas de la venganza|Daggers of revenge|# Thorfinn Karlsefni
+137080|oscuro|Control: todos le obedecen|Control: everyone obeys her|# Makima
+14|sombra|Tsukuyomi del Sharingan|Sharingan Tsukuyomi|# Itachi Uchiha
+85|sombra|Mil técnicas copiadas|A thousand copied jutsu|# Kakashi Hatake
+35252|tiempo|Salto de línea temporal|Worldline jump|# Rintarou Okabe
+127212|fuerza|Puño divergente|Divergent fist|# Yuuji Itadori
+127222|amor|Chica conejita que nadie ve|The bunny girl no one sees|# Mai Sakurajima
+130102|caos|Motosierra a lo loco|Chainsaw rampage|# Denji
+28|defensa|Cadenas del juicio|Judgment chains|# Kurapika
+80|mente|Death Note: el plan perfecto|Death Note: the perfect plan|# Light Yagami
+89616|magia|Psíquico al 100 %|100% psychic|# Shigeo Kageyama
+137079|caos|Sangre al ataque (y mucha cara)|Blood attack (and lots of cheek)|# Power
+90169|amistad|Cartas que expresan sentimientos|Letters that express feelings|# Violet Evergarden
+120649|mente|La guerra del amor: él se confesará primero|Love is war: he'll confess first|# Kaguya Shinomiya
+11|magia|Alquimia sin círculo|Alchemy without a circle|# Edward Elric
+17|amistad|Rasengan y mil clones|Rasengan and a thousand clones|# Naruto Uzumaki
+126071|fuego|Respiración del sol|Sun breathing|# Tanjirou Kamado
+500|oscuro|Sombras de la copa|Shadows of the grail|# Sakura Matou
+126635|sombra|Diez sombras|Ten Shadows|# Megumi Fushiguro
+133676|musica|Cosplay perfecto|Perfect cosplay|# Marin Kitagawa
+6356|caos|Tu siguiente frase será…|Your next line will be…|# Joseph Joestar
+89220|fuego|Mitad fuego, mitad hielo|Half fire, half ice|# Shouto Todoroki
+13020|lider|Estrategia vikinga|Viking strategy|# Askeladd
+89361|fuego|¡EXPLOSIÓN!|EXPLOSION!|# Megumin
+88575|defensa|Lucero del alba de la doncella|Maid's morning star|# Rem
+88892|fuego|Explosión de sudor|Sweat explosion|# Katsuki Bakugou
+89198|oscuro|No Longer Human: anula cualquier habilidad|No Longer Human: cancels any ability|# Osamu Dazai
+672|vago|Samurái de la cara de vago|Lazy-faced samurai|# Gintoki Sakata
+88573|tiempo|Volver a empezar (desde la muerte)|Return by Death|# Subaru Natsuki
+121103|musica|Baile de la tarta|Love Detective dance|# Chika Fujiwara
+126375|comida|Apetito de quintilliza|Quintuplet appetite|# Itsuki Nakano
+124382|bestia|Pistilo del franxx|Franxx pistil|# Ichigo
+123212|mente|Todo según su plan|Everything goes to plan|# Kiyotaka Ayanokouji
+30|bestia|Piedra, papel… ¡PIEDRA!|Rock, paper… ROCK!|# Gon Freecss
+124142|tecno|Ciencia diez mil millones por ciento|Ten billion percent science|# Senkuu Ishigami
+305|comida|Pierna diabólica y comida para todos|Diable jambe and food for everyone|# Sanji
+73935|fuerza|Un solo puñetazo|One punch|# Saitama
+125886|defensa|Disciplina del consejo|Council discipline|# Miko Iino
+129928|sombra|Levántate: ejército de sombras|Arise: shadow army|# Jin-U Seong
+61|detective|Leer los poneglyph|Reading the poneglyphs|# Robin Nico
+90107|mente|Psíquico que solo quiere paz|Psychic who just wants peace|# Kusuo Saiki
+5|espada|Getsuga Tenshou|Getsuga Tensho|# Ichigo Kurosaki
+94|bestia|Unidad 02 en modo bestia|Unit 02 beast mode|# Asuka Langley Souryuu
+137081|espada|Pacto con el zorro|Fox devil contract|# Aki Hayakawa
+22037|defensa|Grapadora tsundere|Tsundere stapler|# Hitagi Senjougahara
+124381|amor|Darling, volemos juntos|Darling, let's fly together|# Zero Two
+66173|amor|Tatuajes y corazón blando|Tattoos and a soft heart|# Izumi Miyamura
+129130|bestia|Respiración de la bestia|Beast breathing|# Inosuke Hashibira
+64769|deporte|¡El pequeño gigante salta!|The little giant jumps!|# Shouyou Hinata
+127518|curar|Sangre demoníaca que protege|Protective demon blood|# Nezuko Kamado
+68|fuego|Alquimia de fuego|Flame alchemy|# Roy Mustang
+121102|vago|Videojuegos hasta el amanecer|Video games until dawn|# Yuu Ishigami
+138102|sombra|Asesina con espinas|Thorn princess assassin|# Yor Forger
+1|suerte|Cazarrecompensas sin prisa|Laid-back bounty hunter|# Spike Spiegel
+31|caos|Goma elástica y chicle|Bungee Gum|# Hisoka Morow
+4003|fuerza|Star Platinum: ¡ORA ORA!|Star Platinum: ORA ORA!|# Joutarou Kuujou
+46494|mente|Estratega del colosal|Colossal strategist|# Armin Arlert
+71121|tecno|Investigación de titanes|Titan research|# Hange Zoe
+89028|fuerza|One For All|One For All|# Izuku Midoriya
+23602|vampiro|Vampira de rosquillas|Donut vampire|# Shinobu Oshino
+129131|velocidad|Primera forma: trueno|First form: thunderclap|# Zenitsu Agatsuma
+133704|lider|Ratio 7:3 y horas extra|7:3 ratio and overtime|# Kento Nanami
+123962|comida|Gran sabio: lo devora todo|Great Sage: devours everything|# Rimuru Tempest
+13|fuego|Chidori del Sharingan|Sharingan Chidori|# Sasuke Uchiha
+133700|espada|Martillo y clavos|Hammer and nails|# Nobara Kugisaki
+138100|detective|Telepatía (y cacahuetes)|Telepathy (and peanuts)|# Anya Forger
+46496|lider|¡Entregad vuestros corazones!|Dedicate your hearts!|# Erwin Smith
+134167|espada|Fuerza sin energía maldita|Strength without cursed energy|# Maki Zenin
+84677|espada|Dios de la calamidad|God of calamity|# Yato
+498|magia|Gemas mágicas|Magic gems|# Rin Toosaka
+257562|musica|Solo de guitarra en el armario|Closet guitar solo|# Hitori Gotou
+67065|mente|Análisis cínico perfecto|Perfectly cynical analysis|# Hachiman Hikigaya
+22036|vampiro|Medio vampiro|Half vampire|# Koyomi Araragi
+64771|deporte|Pase del rey de la pista|King of the court set|# Tobio Kageyama
+38005|tiempo|Escudo que para el tiempo|Time-stopping shield|# Homura Akemi
+130050|hielo|Respiración del agua|Water breathing|# Giyuu Tomioka
+497|lider|Excalibur del rey|The king's Excalibur|# Artoria Pendragon
+133701|oscuro|Santuario malévolo|Malevolent Shrine|# Sukuna
+188783|musica|Actriz prodigio|Child prodigy actress|# Kana Arima
+66171|amor|Hermana mayor que lo controla todo|Big sister in control|# Kyouko Hori
+129571|amistad|Rika, la maldición que le quiere|Rika, the curse that loves him|# Yuuta Okkotsu
+86|hielo|Silencio del EVA 00|EVA-00 silence|# Rei Ayanami
+80243|amor|Lengua de signos y corazón|Sign language and heart|# Shouko Nishimiya
+88350|magia|Maestra de magia del agua|Water magic teacher|# Roxy Migurdia
+126373|musica|Auriculares y generales|Headphones and warlords|# Miku Nakano
+129133|fuego|¡Corazón ardiente!|Set your heart ablaze!|# Kyoujurou Rengoku
+89|vago|Entrar en el EVA (o no)|Get in the EVA (or not)|# Shinji Ikari
+719|oscuro|El monstruo sin nombre|The nameless monster|# Johan Liebert
+1259|lider|Capitana con cerveza|Captain with beer|# Misato Katsuragi
+1111|curar|Inmortal de la pizza|Immortal pizza lover|# C.C.
+124440|sombra|Superar tus límites con sombra|Surpass your limits with darkness|# Yami Sukehiro
+80491|amistad|Perdón sincero|A sincere apology|# Shouya Ishida
+121104|sombra|Doncella espía|Spy maid|# Ai Hayasaka
+127221|tiempo|Pubertad que rompe la realidad|Reality-breaking puberty|# Sakuta Azusagawa
+126372|amor|Nino de los cinco|Nino of the five|# Nino Nakano
+67327|defensa|Guardián del balón|Guardian of the ball|# Yuu Nishinoya
+148740|fuego|Diablo bomba|Bomb devil|# Reze
+71933|caos|Gamberro estratega|Troublemaker strategist|# Karma Akabane
+13767|mente|ROOM: cirujano de la muerte|ROOM: surgeon of death|# Law Trafalgar
+209|bestia|Gato del zodiaco|Zodiac cat|# Kyou Souma
+723|suerte|Ladrona de mapas y tesoros|Map and treasure thief|# Nami
+11772|caos|Rotación del acero|Steel ball spin|# Gyro Zeppeli
+141061|lider|Handler de la 86|86 handler|# Vladilena Milizé
+138101|sombra|Agente Crepúsculo|Agent Twilight|# Loid Forger
+123385|defensa|Cuerpo de gema que no se rinde|Gem body that never gives up|# Phosphophyllite
+36828|velocidad|Destello del estoque|Rapier flash|# Asuna Yuuki
+145341|fuerza|Patada invencible de Mikey|Invincible Mikey kick|# Manjirou Sano
+121724|mente|Plan de fuga perfecto|Perfect escape plan|# Ray
+71267|vago|Cerebro del equipo (desde el sofá)|The team's brain (from the couch)|# Kenma Kozume
+174873|suerte|Francotiradora de la 86|86 sniper|# Kurena Kukumila
+246|fuerza|Kamehameha|Kamehameha|# Gokuu Son
+157115|oscuro|Habla maldita|Cursed speech|# Toge Inumaki
+67067|hielo|Reina de hielo del club|Ice queen of the club|# Yukino Yukinoshita
+65643|velocidad|Mach 20 de profesor|Mach 20 teacher|# Koro-sensei
+154224|amor|Sonrisa perfecta (y peligrosa)|Perfect (and dangerous) smile|# Mami Nanami
+58|sombra|Libro del ladrón|Thief's book|# Chrollo Lucilfer
+123285|fuerza|Antimagia y músculos|Anti-magic and muscles|# Asta
+125659|caos|Guerrera de Marley|Marley warrior|# Gabi Braun
+4004|tiempo|The World: el tiempo se detiene|The World: time stops|# Dio Brando
+13580|suerte|Lince de Nueva York|Lynx of New York|# Ash Lynx
+89364|suerte|Robo de suerte absurda|Absurd luck steal|# Kazuma Satou
+23277|lider|Rey de las hormigas|King of the ants|# Meruem
+2075|lider|¿Quién demonios te crees que soy?|Who the hell do you think I am?|# Kamina
+136070|curar|Veneno de mariposa|Butterfly poison|# Shinobu Kochou
+69411|musica|Violín de primavera|Spring violin|# Kaori Miyazono
+71611|deporte|Saque del Gran Rey|Grand King serve|# Tooru Oikawa
+284157|tecno|Ciberimplantes en la luna|Cyber implants to the moon|# Lucy
+121101|lider|Presidente que nunca duerme|President who never sleeps|# Miyuki Shirogane
+2072|fuego|Puño de fuego|Fire fist|# Ace Portgas
+207|curar|Bondad que lo arregla todo|Kindness that fixes everything|# Tooru Honda
+36765|espada|Doble espada negra|Dual black blades|# Kazuto Kirigaya
+183965|magia|Zoltraak de aprendiz|Apprentice Zoltraak|# Fern
+309|curar|Médico de algodón de azúcar|Cotton candy doctor|# Chopper Tony Tony
+13085|curar|Crazy Diamond: lo arregla todo|Crazy Diamond: fixes everything|# Jousuke Higashikata
+718|curar|Cirujano que salva al monstruo|Surgeon who saved the monster|# Kenzou Tenma
+121889|suerte|Apuesta a todo o nada|All-or-nothing gamble|# Yumeko Jabami
+89225|vago|Borrar dons (y dormir en el saco)|Erase quirks (and sleep in a bag)|# Shouta Aizawa
+81929|magia|Telequinesis de tornado|Tornado telekinesis|# Tatsumaki
+2007|vago|Posesión de sombras: qué pereza|Shadow possession: what a drag|# Shikamaru Nara
+128651|tiempo|Siete misterios del colegio|Seven school mysteries|# Hanako
+88348|magia|Mago prodigio|Prodigy mage|# Rudeus Greyrat
+12055|oscuro|Killer Queen|Killer Queen|# Yoshikage Kira
+507|magia|Castillo andante|Moving castle|# Howl
+210|tecno|Tienda de dulces y bankai|Candy shop and bankai|# Kisuke Urahara
+12064|fuerza|Tigre de palmo y medio|Palmtop tiger|# Taiga Aisaka
+424|lider|Halcón del Eclipse|Falcon of the Eclipse|# Griffith
+87277|oscuro|Kagune de cuervo|Crow kagune|# Touka Kirishima
+133699|oscuro|Manipulación de maldiciones|Cursed spirit manipulation|# Suguru Getou
+45887|comida|¡Patata robada!|Stolen potato!|# Sasha Blouse
+2257|amistad|Taladro que perfora los cielos|Drill that pierces the heavens|# Simon
+458|caos|Dos manos rápidas|Two fast hands|# Revy
+89362|curar|Diosa del agua (inútil, pero cura)|Water goddess (useless, but heals)|# Aqua
+83797|fuerza|Tijera escarlata|Scissor blade|# Ryuuko Matoi
+2219|tecno|Conectada a la Wired|Connected to the Wired|# Lain Iwakura
+702|musica|Punk de los grandes escenarios|Big stage punk|# Nana Oosaki
+11222|defensa|Stone Free: hilo de piedra|Stone Free: stone string|# Jolyne Kuujou
+141060|sombra|Segador sin cabeza|Headless reaper|# Shinei Nouzen
+70069|tiempo|Zafkiel: el reloj de las doce|Zafkiel: the twelve-hour clock|# Kurumi Tokisaki
+136071|musica|Espectacular dios de la fiesta|Flamboyant festival god|# Tengen Uzui
+67329|mente|Bloqueo calculado|Calculated block|# Kei Tsukishima
+65865|magia|Ojo del Tirano Malvado|Wicked Eye of the Tyrant|# Rikka Takanashi
+121956|amistad|Cien amigos (sin hablar)|A hundred friends (without talking)|# Shouko Komi
+22055|mente|Lo sabe todo (solo lo que sabe)|Knows everything (just what she knows)|# Tsubasa Hanekawa
+46484|defensa|Titán Acorazado|Armored Titan|# Reiner Braun
+162722|sombra|Asesino de hechiceros|Sorcerer killer|# Touji Fushiguro
+1662|defensa|Escudo absoluto de arena|Absolute sand shield|# Gaara
+2514|lider|Puerta de Babilonia|Gate of Babylon|# Gilgamesh
+77605|curar|Inmortal del zorro|Fox's immortality|# Ban
+6|hielo|Sode no Shirayuki|Sode no Shirayuki|# Rukia Kuchiki
+19492|tiempo|Rotación infinita|Infinite rotation|# Johnny Joestar
+88349|espada|Furia de espadachina|Swordswoman fury|# Eris Boreas Greyrat
+434|amistad|Gran profesor Onizuka|Great Teacher Onizuka|# Eikichi Onizuka
+12|defensa|Alma en una armadura|Soul in armor|# Alphonse Elric
+913|fuerza|Orgullo de príncipe saiyajin|Saiyan prince's pride|# Vegeta
+88412|caos|Cuchillas sin miedo|Fearless blades|# Juuzou Suzuya
+222594|magia|Psíquica de la abuela|Grandma's psychic powers|# Momo Ayase
+89201|detective|Ultradeducción|Ultra Deduction|# Ranpo Edogawa
+137975|caos|Boogie Woogie: ¡mi mejor amigo!|Boogie Woogie: my best friend!|# Aoi Toudou
+75|caos|Manzanas del shinigami|Shinigami apples|# Ryuk
+55131|vago|Ahorro de energía y deducción|Energy saving and deduction|# Houtarou Oreki
+260329|suerte|Esquivar las balas con una sonrisa|Dodge bullets with a smile|# Chisato Nishikigi
+1086|oscuro|Hipnosis total de la espada|Complete hypnosis sword|# Sousuke Aizen
+908|velocidad|Diosa del destello|Flash goddess|# Yoruichi Shihouin
+835|amor|Ojos de shinigami por amor|Shinigami eyes for love|# Misa Amane
+5189|espada|Recambio de armadura|Requip armor|# Erza Scarlet
+3096|detective|Inspector imparable|Relentless inspector|# Wolfgang Grimmer
+136837|sombra|Eminencia en las sombras|Eminence in shadow|# Cid Kagenou
+7373|suerte|Loba sabia del trigo|Wise wolf of wheat|# Holo
+63351|sombra|Murasame: un corte basta|Murasame: one cut is enough|# Akame
+145344|amistad|Fiel a la banda|Loyal to the gang|# Chifuyu Matsuno
+145345|lider|Draken: la mano derecha|Draken: the right hand|# Ken Ryuuguji
+75216|comida|Plato de chef de barrio|Diner chef's dish|# Souma Yukihira
+261674|musica|Batería que une a la banda|Drums that hold the band together|# Nijika Ijichi
+88937|deporte|¡Hey hey hey!|Hey hey hey!|# Koutarou Bokuto
+89224|fuerza|Plus Ultra|Plus Ultra|# Toshinori Yagi
+65645|sombra|Sed de sangre del alumno|Student's bloodlust|# Nagisa Shiota
+10010|sombra|Origen: balas que rompen|Origin bullets|# Kiritsugu Emiya
+10529|curar|Gold Experience: da vida|Gold Experience: gives life|# Giorno Giovanna
+12659|detective|Heaven's Door: te lee como un libro|Heaven's Door: reads you like a book|# Rohan Kishibe
+168774|vampiro|Vampira de la noche|Night vampire|# Nazuna Nanakusa
+218648|amor|Atleta del corazón|Athlete of the heart|# Hina Chouno
+121700|mente|Genio de la Granja|Genius of the farm|# Norman
+2|suerte|Apostadora con deudas|Gambler in debt|# Faye Valentine
+89853|fuerza|Gravedad: Corrupción|Gravity: Corruption|# Chuuya Nakahara
+724|suerte|Mentiras que se hacen verdad|Lies that come true|# Usopp
+130848|fuego|Destrucción a la fuerza|Destruction by force|# Benimaru Shinmon
+2423|amistad|Sabio de los sapos|Toad sage|# Jiraiya
+13045|defensa|Sticky Fingers: cremalleras|Sticky Fingers: zippers|# Bruno Bucciarati
+88889|espada|Espada del héroe del escudo|Shield hero's sword|# Raphtalia
+71269|deporte|Bloqueo del gato|Cat block|# Tetsurou Kuroo
+8455|lider|Simetría perfecta|Perfect symmetry|# Death the Kid
+128106|amor|Novia de alquiler|Rental girlfriend|# Chizuru Ichinose
+65239|hielo|Hielo del Imperio|Imperial ice|# Esdeath
+264529|vago|Bajista que vive de prestado|Freeloading bassist|# Ryou Yamada
+136072|amor|Respiración del amor|Love breathing|# Mitsuri Kanroji
+203384|mente|Actriz que analiza|Analytical actress|# Akane Kurokawa
+73979|tecno|Cyborg incendiario|Incineration cyborg|# Genos
+21044|mente|Shogi del alma|Soul shogi|# Rei Kiriyama
+29|curar|Médico de la Asociación|Association doctor|# Leorio Paradinight
+162213|deporte|Regate del monstruo|Monster dribble|# Meguru Bachira
+121052|oscuro|Diablo de Rin|Devil of the Rhine|# Tanya Degurechaff
+125168|bestia|Lobo de corazón tierno|Soft-hearted wolf|# Legoshi
+89277|bestia|Cazador de héroes|Hero hunter|# Garou
+172759|musica|Idol de mentiras que brillan|Idol of shining lies|# Ai Hoshino
+89243|defensa|Endurecimiento: ¡roca!|Hardening: rock!|# Eijirou Kirishima
+14864|espada|Brazos de espada|Sword arms|# Hyakkimaru
+157116|oscuro|Manipulación de sangre|Blood manipulation|# Chousou
+2535|velocidad|Rayo amarillo de Konoha|Yellow Flash of the Leaf|# Minato Namikaze
+50389|oscuro|Poder de la destrucción carmesí|Crimson power of destruction|# Rias Gremory
+19565|musica|Guitarra Gitah|Gitah the guitar|# Yui Hirasawa
+46498|lider|Líder realista|Realistic leader|# Jean Kirstein
+601|vampiro|Vampiro sin límites|Limitless vampire|# Alucard
+53641|suerte|Estafador de lujo|Luxury swindler|# Deishuu Kaiki
+67069|amor|Amabilidad que lo arregla|Kindness that mends|# Yui Yuigahama
+122445|tecno|Exploradora del abismo|Abyss explorer|# Nanachi
+909|fuerza|Buscar pelea siempre|Always looking for a fight|# Kenpachi Zaraki
+19566|musica|Bajo tímido|Shy bassist|# Mio Akiyama
+245466|caos|Turbo abuela|Turbo Granny|# Aira Shiratori
+674|comida|Arroz con huevo infinito|Endless egg rice|# Kagura
+162969|vago|Talento sin ganas|Talent without effort|# Seishirou Nagi
+125619|amor|Transformación por amor|Transformation for love|# Himiko Toga
+140856|mente|Metavisión|Metavision|# Yoichi Isagi
+184313|defensa|Guerrero cobarde (y valiente)|Cowardly (and brave) warrior|# Stark
+1555|curar|Byakugan amable|Gentle Byakugan|# Hinata Hyuuga
+4963|oscuro|Diario del futuro|Future diary|# Yuno Gasai
+89363|defensa|Paladina que lo aguanta todo|Paladin who endures everything|# Darkness
+268676|comida|Pasteles de la floristería|Pastry shop sweets|# Kaoruko Waguri
+129330|mente|Bruja de la codicia|Witch of greed|# Echidna
+130716|curar|Hermana que reza|Praying sister|# Iris
+35253|amistad|¡Tuturú!|Tuturu!|# Mayuri Shiina
+89122|lider|Supervisora de Nazarick|Nazarick overseer|# Albedo
+727|lider|Haki del rey|Conqueror's haki|# Shanks
+120974|comida|Dragona golosa|Sweet-toothed dragon|# Kanna Kamui
+82525|mente|Ajedrez perfecto|Perfect chess|# Shiro
+120462|velocidad|Pies del diablo|Devil's footprints|# Shinra Kusakabe
+183885|mente|Venganza del escenario|Stage revenge|# Aquamarine Hoshino
+90112|caos|Héroe oscuro de mentira|Fake dark hero|# Shun Kaidou
+89590|vampiro|Libro de Vanitas|Book of Vanitas|# Vanitas
+1120|amor|Sonrisa del consejo|Student council smile|# Shirley Fenette
+24482|fuego|Llamas azules|Blue flames|# Rin Okumura
+13701|velocidad|Railgun|Railgun|# Mikoto Misaka
+284158|tecno|Sandevistan|Sandevistan|# David Martinez
+162|suerte|Tifón humanitario|Humanoid typhoon|# Vash the Stampede
+88817|defensa|Escudo legendario|Legendary shield|# Naofumi Iwatani
+5187|fuego|Dragón de fuego|Fire dragon slayer|# Natsu Dragneel
+88951|sombra|Invisible ante uno|Invisible to one person|# Nao Tomori
+121725|amistad|Todos escapan juntos|Everyone escapes together|# Emma
+284163|caos|Pistolas y caos|Guns and chaos|# Rebecca
+18344|magia|Zorro shinigami|Fox familiar|# Tomoe
+195120|velocidad|Skate de las curvas|Curve skate|# Reki Kyan
+14523|amor|Alienígena del instituto|High school alien|# Takumi Usui
+125736|magia|Bruja viajera|Wandering witch|# Elaina
+3180|oscuro|Shinra Tensei|Shinra Tensei|# Pain
+37832|curar|Deseo que salva a todas|A wish that saves everyone|# Madoka Kaname
+89221|defensa|Gravedad cero|Zero gravity|# Ochako Uraraka
+126378|fuego|Llamas azules del villano|Villain's blue flames|# Dabi
+67321|amistad|Ánimo del suplente|Bench cheer|# Koushi Sugawara
+89103|lider|Rey de la tumba|Lord of the tomb|# Momonga
+137260|fuego|Ninjutsu del fuego|Fire ninjutsu|# Gabimaru
+10863|lider|Mayordomo demonio|Demon butler|# Sebastian Michaelis
+1261|musica|Ángel que canta|Singing angel|# Kaworu Nagisa
+170266|comida|Pochita quiere pan|Pochita wants bread|# Pochita
+89226|oscuro|Desintegración|Decay|# Tomura Shigaraki
+43815|bestia|Bestia del trueno|Thunder beast|# Hak Son
+51347|fuego|Sacerdotisa del rayo|Priestess of thunder|# Akeno Himejima
+306|fuerza|Ocho puertas|Eight gates|# Rock Lee
+87655|espada|Princesa de la espada|Sword princess|# Ais Wallenstein
+136844|musica|Voz que conmueve|Voice that moves you|# Mafuyu Satou
+43814|lider|Princesa que se hace fuerte|Princess who grows strong|# Yona
+127633|mente|Ciencia de la adolescencia|Science of adolescence|# Rio Futaba
+144594|suerte|Huir por supervivencia|Running to survive|# Kobeni Higashiyama
+139038|espada|Respiración de la flor|Flower breathing|# Kanao Tsuyuri
+52723|amor|Llave de la promesa|Key of the promise|# Kosaki Onodera
+496|espada|Proyección de espadas|Sword projection|# Shirou Emiya
+126374|amistad|Optimismo de quintilliza|Quintuplet optimism|# Yotsuba Nakano
+127445|suerte|Mentalista en el mundo de piedra|Stone world mentalist|# Gen Asagiri
+88708|musica|Bombardino de la banda|Band euphonium|# Kumiko Oumae
+83017|vampiro|Guadaña del demonio|Demon scythe|# Shinoa Hiiragi
+120970|comida|Dragona doncella|Dragon maid|# Tohru
+5627|musica|Canción de la muerte|Song of the dead|# Brook
+136069|vago|Respiración de la niebla|Mist breathing|# Muichirou Tokitou
+130715|espada|Excalibur de plasma|Plasma Excalibur|# Arthur Boyle
+124696|caos|¡Senpai!|Senpai!|# Hayase Nagatoro
+89199|oscuro|Rashomon|Rashomon|# Ryuunosuke Akutagawa
+390|caos|Breakdance con espada|Breakdance with a sword|# Mugen
+8945|defensa|Hierophant Green|Hierophant Green|# Noriaki Kakyouin
+123283|magia|Magia de agua real|Royal water magic|# Noelle Silva
+124586|vago|Acampada en solitario|Solo camping|# Rin Shima
+701|amor|Hachi enamorada|Hachi in love|# Nana Komatsu
+8439|defensa|Arma con alma|Soul weapon|# Maka Albarn
+2087|espada|Unlimited Blade Works|Unlimited Blade Works|# Archer
+22050|amor|Serpiente enamorada|Lovesick snake|# Nadeko Sengoku
+195116|velocidad|Snowboard sobre ruedas|Snowboard on wheels|# Langa Hasegawa
+87287|vampiro|Vampiro protector|Protective vampire|# Mikaela Hyakuya
+53901|oscuro|Rinnegan y meteoritos|Rinnegan and meteors|# Madara Uchiha
+46490|defensa|Titán Hembra cristalizada|Crystallized Female Titan|# Annie Leonhart
+127278|mente|Eunuco que todo lo ve|The eunuch who sees everything|# Jinshi
+84781|mente|Estratega de la Torre|Tower strategist|# Aguero Agnis Khun
+2456|bestia|Devilman|Devilman|# Akira Fudou
+69407|musica|Piano que vuelve a sonar|Piano that plays again|# Kousei Arima
+144674|musica|Pintura con todo el alma|Painting with all your soul|# Yatora Yaguchi
+16342|amor|Fruta del amor|Love-love fruit|# Hancock Boa
+18|mente|Plebeya que lo ve claro|Commoner who sees clearly|# Haruhi Fujioka
+90181|magia|Biblioteca prohibida|Forbidden library|# Beatrice
+55147|suerte|Francotiradora de hielo|Ice sniper|# Shino Asada
+19|amor|Rey del club de anfitriones|Host club king|# Tamaki Suou
+180887|detective|Lector omnisciente|Omniscient reader|# Dok-Ja Kim
+22052|tiempo|Niña caracol perdida|Lost snail girl|# Mayoi Hachikuji
+184311|amistad|Héroe que siempre ayudaba|The hero who always helped|# Himmel
+222593|caos|Maldición de la Turbo Abuela|Turbo Granny's curse|# Ken Takakura
+4606|amistad|La familia es lo primero|Family comes first|# Tomoya Okazaki
+4368|espada|Silver Chariot|Silver Chariot|# Jean-Pierre Polnareff
+138789|espada|Espada de la cazadora|Hunter's sword|# Hae-In Cha
+151486|mente|Patriota del crimen|Patriot of crime|# William Moriarty
+152231|vago|Ángel que quita la vida al tocar|Angel whose touch drains life|# Tenshi no Akuma
+310|deporte|¡Genio del rebote!|Rebound genius!|# Hanamichi Sakuragi
+6977|amistad|Amable aunque la teman|Kind even if feared|# Sawako Kuronuma
+208|amor|Príncipe ratón|Rat prince|# Yuki Souma
+82523|mente|Jugador sin derrotas|Undefeated gamer|# Sora
+72921|fuerza|Contraataque total|Full counter|# Meliodas
+1081|oscuro|Murciélago de la desesperación|Bat of despair|# Ulquiorra Cifer
+55133|detective|¡Tengo curiosidad!|I'm curious!|# Eru Chitanda
+121514|tiempo|Cordón rojo del destino|Red thread of fate|# Mitsuha Miyamizu
+88346|amor|Elfa de la infancia|Childhood elf|# Sylphiette
+423|espada|Halcón guerrera|Band of the Hawk warrior|# Casca
+5186|magia|Llaves celestiales|Celestial keys|# Lucy Heartfilia
+63845|detective|Detective definitiva|Ultimate detective|# Kyouko Kirigiri
+3195|fuego|Sol de dolor|Pain sun|# Feitan Portor
+131106|amor|Matrimonio de cuento|Fairytale marriage|# Tsukasa Yuzaki
+13084|suerte|Sex Pistols: seis balas|Sex Pistols: six bullets|# Guido Mista
+61371|musica|Pintora genial|Genius painter|# Mashiro Shiina
+75284|comida|Lengua divina|God's tongue|# Erina Nakiri
+81931|magia|Telequinesis del infierno|Hellish telekinesis|# Fubuki
+123213|mente|Clase A sin amigos|Friendless Class A|# Suzune Horikita
+89249|velocidad|Descarga de electricidad|Electrification|# Denki Kaminari
+3105|sombra|Ojos místicos de la muerte|Mystic eyes of death perception|# Shiki Ryougi
+425|detective|Maestro de los mushi|Mushi master|# Ginko
+145343|lider|Fiel hasta el final|Loyal to the end|# Keisuke Baji
+144596|sombra|Diablo fantasma|Ghost devil|# Himeno
+21928|amistad|Luz de Ash|Ash's light|# Eiji Okumura
+87886|oscuro|Oscuridad que lo sabe todo|Darkness that knows everything|# Ougi Oshino
+87511|amistad|Discurso de amiga|Best friend speech|# Mako Mankanshoku
+2754|caos|Hilos del pájaro|Bird strings|# Doflamingo Donquixote
+1080|bestia|Pantera rey|Panther king|# Grimmjow Jaegerjaquez
+1533|caos|¡No es Zura, es Katsura!|It's not Zura, it's Katsura!|# Kotarou Katsura
+127292|magia|Maga de los monstruos (que no quiere comerlos)|Monster mage (who won't eat them)|# Marcille Donato
+122687|suerte|Apostadora rebelde|Rebel gambler|# Mary Saotome
+122064|mente|Manipulador de amigos|Friend manipulator|# Yuuichi Katagiri
+122189|vago|Otaku de los videojuegos|Gaming otaku|# Hirotaka Nifuji
+21173|musica|Guitarra de la gatita|Kitten guitar|# Azusa Nakano
+88576|magia|Oni de viento|Wind oni|# Ram
+141694|fuerza|Destrucción del luchador|Destructive Death|# Akaza
+209532|amistad|Rey que no se rinde|King who never gives up|# Bojji
+89223|curar|¡Kero! Rana tranquila|Kero! Calm frog|# Tsuyu Asui
+63|tecno|Automail perfecto|Perfect automail|# Winry Rockbell
+24596|caos|Amo a los humanos|I love humans|# Izaya Orihara
+266041|musica|Guitarra brillante|Sparkling guitar|# Ikuyo Kita
+36820|deporte|Zona del as|Ace's zone|# Daiki Aomine
+260328|sombra|Agente de Lycoris|Lycoris agent|# Takina Inoue
+123328|oscuro|Guadaña del ángel|Angel's scythe|# Isaac Foster
+70|suerte|Tiradora de élite|Elite sharpshooter|# Riza Hawkeye
+128299|velocidad|Alas feroces|Fierce wings|# Keigo Takami
+2751|fuerza|Fruta del temblor|Tremor fruit|# Newgate Edward
+67325|deporte|¡Calvo con energía!|Bald with energy!|# Ryuunosuke Tanaka
+68315|detective|Cazador latente|Latent hunter|# Shinya Kougami
+136843|musica|Guitarrista de la banda|Band guitarist|# Ritsuka Uenoyama
+124026|caos|Rencor de clase|Class grudge|# Naoka Ueno
+19568|musica|Teclados y té|Keyboards and tea|# Tsumugi Kotobuki
+42528|lider|Rey de los siete mares|King of the seven seas|# Sinbad
+11804|fuerza|Contragolpe cruzado|Cross counter|# Joe Yabuki
+64|tecno|¡SÚPER!|SUPER!|# Franky
+127596|amor|Profesora y vecina|Teacher and neighbor|# Rui Tachibana
+22369|defensa|Hand Sonic|Hand Sonic|# Kanade Tachibana
+123527|defensa|Permeabilidad|Permeation|# Mirio Togata
+251|caos|Diosa sin saberlo|Goddess without knowing it|# Haruhi Suzumiya
+729|fuerza|Pistola espiritual|Spirit gun|# Yuusuke Urameshi
+73227|suerte|Suerte absurda|Absurd luck|# Nagito Komaeda
+123181|vago|Desprecio de la buceadora|Diver's contempt|# Chisa Kotegawa
+22054|velocidad|Mano de mono|Monkey's paw|# Suruga Kanbaru
+90202|fuego|El orgulloso sol|The proud sun|# Escanor
+136548|tiempo|Ser inmortal|Immortal being|# Fushi
+2707|espada|Espada del futuro|Sword from the future|# Trunks
+89897|musica|Jacks de los auriculares|Earphone jacks|# Kyouka Jirou
+128652|amor|Rábano enamoradizo|Lovestruck radish|# Nene Yashiro
+183884|musica|Idol gemela|Twin idol|# Ruby Hoshino
+18769|sombra|Pase invisible|Invisible pass|# Tetsuya Kuroko
+15|fuerza|Dempsey Roll|Dempsey Roll|# Ippo Makunouchi
+90225|musica|Patinaje de leyenda|Legendary skating|# Victor Nikiforov
+81853|mente|Juez del más allá|Afterlife judge|# Decim
+22370|lider|Líder de la resistencia|Resistance leader|# Yuri Nakamura
+8456|musica|Guadaña de jazz|Jazz scythe|# Soul Eater Evans
+130713|fuego|Bruja del fuego|Fire witch|# Maki Oze
+7|curar|Rechazo divino|Divine rejection|# Orihime Inoue
+2093|fuerza|Potencial oculto|Hidden potential|# Gohan Son
+12323|bestia|Mano derecha parásita|Parasite right hand|# Shinichi Izumi
+11919|oscuro|Sangre negra|Black blood|# Crona
+125934|bestia|Manifestación|Manifest|# Tamaki Amajiki
+218266|tiempo|Viajar por la foto|Travel through the photo|# Xiaoshi Cheng
+4092|oscuro|Ángel caído|Fallen angel|# Ryou Asuka
+558|velocidad|Guren Mk-II|Guren Mk-II|# Kallen Stadtfeld
+17440|fuerza|Guerra sin fin|Endless war|# Thorkell
+48391|amor|Chica gorila|Gorilla girl|# Chitoge Kirisaki
+128036|fuego|Destructora inocente|Innocent destroyer|# Milim Nava
+62481|curar|Diosa del regimiento|Goddess of the regiment|# Krista Lenz
+217334|amor|Susurros en ruso|Russian whispers|# Alisa Kujou
+19567|musica|Batería a todo volumen|Drums at full volume|# Ritsu Tainaka
+89835|vampiro|Vampiro de la memoria|Memory vampire|# Noé Archiviste
+245|hielo|Hyourinmaru|Hyorinmaru|# Toushirou Hitsugaya
+155702|amor|Novia mona y genial|Cute and cool girlfriend|# Miyako Shikimori
+12531|mente|Conde con contrato|Contracted earl|# Ciel Phantomhive
+7156|musica|Voz digital|Digital voice|# Miku Hatsune
+24595|fuerza|Lanzar máquinas expendedoras|Throwing vending machines|# Shizuo Heiwajima
+199892|amistad|Huevo de las maravillas|Wonder egg|# Ai Ooto
+1795|tecno|Fantasma en la máquina|Ghost in the shell|# Motoko Kusanagi
+3293|velocidad|Príncipe de Xing|Prince of Xing|# Ling Yao
+130751|suerte|Gafe de la suerte|Lucky lecher lure|# Tamaki Kotatsu
+2650|lider|Demonio vice-comandante|Demon vice-commander|# Toushirou Hijikata
+144665|musica|Actriz tímida|Shy actress|# Sumi Sakurasawa
+4839|hielo|Hielo creador|Ice make|# Gray Fullbuster
+41026|amor|Paseo de primavera|Spring ride|# Kou Mabuchi
+57499|caos|Unlimited Rulebook|Unlimited Rulebook|# Yotsugi Ononoki
+88860|velocidad|Héroe argonauta|Argonaut hero|# Bell Cranel
+4604|amor|Gran familia dango|Big dango family|# Nagisa Furukawa
+183|vago|Mente en las nubes|Head in the clouds|# Ayumu Kasuga
+129841|magia|Maestro de las brujas|Witch master|# Qifrey
+914|curar|Regeneración namekiana|Namekian regeneration|# Piccolo
+83019|deporte|Tiburón de la piscina|Pool shark|# Rin Matsuoka
+83799|lider|Uniforme kamui|Kamui uniform|# Satsuki Kiryuuin
+369|bestia|Toro negro|Black bull|# Hatsuharu Souma
+2063|suerte|Francotiradora del Gurren|Gurren sniper|# Youko Littner
+88748|sombra|Presencia nula|Zero presence|# Megumi Katou
+89197|bestia|Tigre bajo la luna|Beast beneath the moonlight|# Atsushi Nakajima
+127118|amor|Diario de la vida|Living with dying|# Sakura Yamauchi
+123182|vago|Fiesta del buceo|Diving party|# Iori Kitahara
+158386|suerte|Millonario sin límite|Unlimited millionaire|# Daisuke Kanbe
+158734|fuerza|Magia de músculos|Muscle magic|# Mash Burnedead
+90224|hielo|Hada rusa|Russian fairy|# Yuuri Plisetsky
+123528|amor|Florecer en el amor|Bloom into love|# Yuu Koito
+89898|oscuro|Sombra oscura|Dark Shadow|# Fumikage Tokoyami
+506|oscuro|Sacerdote del vacío|Priest of the void|# Kirei Kotomine
+209903|lider|Ejército del rey|Army of the king|# Vivy
+16021|musica|Canción de fluorita|Fluorite song|# Iskandar
+41402|sombra|Ojo que ve la muerte|Eye that sees death|# Mei Misaki
+14941|amor|Presidenta y doncella|President and maid|# Misaki Ayuzawa
+218267|velocidad|Atajo de Link Click|Link Click shortcut|# Guang Lu
+273105|amor|Pareja de práctica|Practice partner|# Shiori Sakurazaka
+123284|hielo|Magia de viento|Wind magic|# Yuno
+10285|oscuro|Bruja dorada|Golden witch|# Beatrice
+126458|defensa|Cazador de goblins|Goblin hunter|# Goblin Slayer
+2169|vago|Otaku a tiempo completo|Full-time otaku|# Konata Izumi
+125661|bestia|Titán Bestia|Beast Titan|# Zeke
+73205|vago|Jugadora definitiva|Ultimate gamer|# Chiaki Nanami
+907|espada|Senbonzakura|Senbonzakura|# Byakuya Kuchiki
+268677|comida|Pasteles de la pastelería|Bakery cakes|# Rintarou Tsumugi
+133678|musica|Costura de muñecas|Doll sewing|# Wakana Gojou
+16|tecno|Hacker radical|Radical hacker|# Edward Wong Hau Pepelu Tivrusky IV
+75450|espada|Caballera de la integridad|Integrity knight|# Alice Zuberg
+5578|suerte|Ganar al borde del abismo|Winning on the edge|# Kaiji Itou
+89241|tecno|Creación|Creation|# Momo Yaoyorozu
+195602|comida|Cocina del ángel|Angel's cooking|# Mahiru Shiina
+127613|vago|Panda y hermanita|Panda little sister|# Kaede Azusagawa
+137263|espada|Espada de la verdugo|Executioner's sword|# Sagiri
+35255|tiempo|Viajera del futuro|Time traveler|# Suzuha Amane
+126371|musica|Actriz de quintillizas|Quintuplet actress|# Ichika Nakano
+84679|curar|Medio fantasma|Half phantom|# Hiyori Iki
+11895|velocidad|Aerosmith|Aerosmith|# Narancia Ghirga
+125603|bestia|Titán Carguero|Cart Titan|# Pieck Finger
+167841|amistad|Costura de la pandilla|Gang tailoring|# Takashi Mitsuya
+9192|bestia|Cabeza de lagarto|Lizard head|# Kaiman
+132849|curar|Curandera del grupo|Party healer|# Kaori Shirasaki
+50057|vago|Antisocial de manual|Textbook antisocial|# Tomoko Kuroki
+12295|comida|Chef de la casa|Home chef|# Ryuuji Takasu
+65229|suerte|Pumpkin: francotiradora|Pumpkin sniper|# Mine
+291639|musica|Bajo borracho|Drunk bassist|# Kikuri Hiroi
+71479|bestia|Titán Mandíbula|Jaw Titan|# Ymir
+2671|magia|Cartas Clow|Clow cards|# Sakura Kinomoto
+69725|caos|Coeficiente criminal|Crime coefficient|# Shougo Makishima
+1088|vago|Juego de niños mortal|Deadly children's game|# Jirou Sakuranosuke Shunsui Kyouraku
+138595|lider|Rey demonio|Demon king|# Anos Voldigoad
+120800|caos|Bromas de Takagi|Takagi's teasing|# Takagi
+88938|deporte|Colocador tranquilo|Calm setter|# Keiji Akaashi
+124136|fuerza|Bastón del rey mono|Monkey king staff|# Mo-Ri Jin
+124143|velocidad|Guerrera de la aldea|Village warrior|# Kohaku
+13783|amistad|Libro de los amigos|Book of friends|# Takashi Natsume
+1534|tiempo|Bucle de la gatita|Kitten's loop|# Rika Furude
+127840|tiempo|Diablo de Laplace|Laplace's demon|# Tomoe Koga
+81751|curar|Sangre que cura|Healing blood|# Mirai Kuriyama
+16057|comida|Gyozas de la hechicera|Sorcerer's gyoza|# Nikaido
+88950|velocidad|Saqueo de habilidades|Ability plunder|# Yuu Otosaka
+8087|fuerza|Hamon del caballero|Gentleman's Hamon|# Jonathan Joestar
+16059|curar|Curación del hongo|Mushroom healing|# Noi
+1336|lider|Cometa rojo|Red Comet|# Char Aznable
+13917|defensa|Vector que lo devuelve todo|Vector that reflects everything|# Accelerator
+88753|tiempo|Recuerdos que se apagan|Fading memories|# Isla
+503|magia|Copa de la doncella|Grail maiden|# Illyasviel von Einzbern
+2282|caos|Sádico de la capital|Capital sadist|# Sougo Okita
+147005|amor|Novia celosa|Jealous girlfriend|# Ruka Sarashina
+126818|comida|Cocinar monstruos|Cooking monsters|# Laios Thorden
+174190|amor|Peligro en mi corazón|Danger in my heart|# Anna Yamada
+84769|amistad|Escalada por la Torre|Tower climb|# Twenty-Fifth Baam
+20147|lider|D4C|D4C|# Funny Valentine
+132494|espada|Androide de combate|Combat android|# YoRHa 2-gou B-gata
+89617|caos|Espíritu de la sonrisa|Smile spirit|# Ekubo
+391|espada|Samurái silencioso|Silent samurai|# Jin
+131519|comida|Amo de casa yakuza|Yakuza househusband|# Tatsu
+1424|caos|Gira de rock|Rock tour|# Shinichi Okazaki
+2780|mente|Estratega de la galaxia|Galactic strategist|# Wenli Yang
+87654|amistad|Diosa del hogar|Goddess of the hearth|# Hestia
+121775|mente|Estudiante de ciencias|Science student|# Fumino Furuhashi
+627|caos|Guitarra de bajo voladora|Flying bass guitar|# Haruko Haruhara
+3149|caos|Buen chico Tobi|Tobi is a good boy|# Tobi
+191672|amor|Compañera de práctica|Practice companion|# Akari Watanabe
+84681|defensa|Arma sagrada|Holy weapon|# Yukine
+124576|comida|Acampada y fideos|Camping and noodles|# Nadeshiko Kagamihara
+137222|curar|Exorcista amable|Kind exorcist|# Kou Minamoto
+124704|fuerza|Sugimoto el inmortal|Immortal Sugimoto|# Saichi Sugimoto
+122191|vago|Fujoshi secreta|Secret fujoshi|# Hanako Koyanagi
+145342|tiempo|Salto al pasado|Leap to the past|# Takemichi Hanagaki
+141122|amor|Reina de la clase|Queen of the class|# Kei Karuizawa
+88993|lider|Teniente demonio|Demon lieutenant|# Guren Ichinose
+24312|amistad|Hermana valiente|Brave sister|# Hinata Kawamoto
+68583|detective|Inspectora con principios|Principled inspector|# Akane Tsunemori
+2552|curar|Proyecto de salvación|Rescue project|# Misaki Nakahara
+351|suerte|Codicia sin fin|Endless greed|# Greed
+13773|mente|Mano derecha que piensa|Thinking right hand|# Migi
+88890|espada|Elfa justiciera|Justice elf|# Ryuu  Lion
+16058|fuerza|Martillo de limpiador|Cleaner's hammer|# Shin
+124522|fuego|León de las llamas|Lion of flames|# Mereoleona Vermillion
+32801|espada|Espadas de rayas|Striped swords|# Stocking Anarchy
+249|tecno|Alien de la biblioteca|Library alien|# Yuki Nagato
+1427|caos|¡Mentira!|Liar!|# Rena Ryuuguu
+149594|lider|Rey fantasma|Ghost king|# Cheng Hua
+845|fuerza|Campeón de los pesos medios|Middleweight champion|# Mamoru Takamura
+17438|lider|Príncipe que se vuelve rey|Prince who becomes king|# Canute Svenson
+133702|oscuro|Transfiguración ociosa|Idle Transfiguration|# Mahito
+145|fuerza|Puño de cien sellos|Hundred seals fist|# Sakura Haruno
+22552|vago|Experto en lo raro|Oddity expert|# Meme Oshino
+137777|espada|Respiración de la serpiente|Serpent breathing|# Obanai Iguro
+20148|velocidad|Scary Monsters|Scary Monsters|# Diego Brando
+385|velocidad|Dragón del río|River dragon|# Haku
+89275|tiempo|Revival|Revival|# Satoru Fujinuma
+122463|tecno|Amanecer del abismo|Dawn of the abyss|# Bondrewd
+120969|vago|Oficinista con dragones|Office worker with dragons|# Kobayashi
+28991|caos|The Hand: borra el espacio|The Hand: erases space|# Okuyasu Nijimura
+121516|tiempo|Cambio de cuerpo|Body swap|# Taki Tachibana
+132222|sombra|Anne de los juguetes|Toy Anne|# Lucy Montgomery
+18938|curar|Kárate de los tritones|Fish-man karate|# Jinbe
+28331|velocidad|Jinete sin cabeza|Headless rider|# Celty Sturluson
+2948|oscuro|Destruir el mundo|Destroy the world|# Shinsuke Takasugi
+69|amistad|Foto de su hija|Photo of his daughter|# Maes Hughes
+139486|deporte|Saque de la colocación|Setter serve|# Atsumu Miya
+139|defensa|Inocencia del exorcista|Exorcist innocence|# Allen Walker
+38395|curar|Caballera que cura|Healing knight|# Sayaka Miki
+144593|espada|Cazador veterano|Veteran hunter|# Kishibe
+156848|amistad|Espada simple|Simple domain|# Kasumi Miwa
+124435|tiempo|Magia del tiempo|Time magic|# Julius Novachrono
+88344|magia|Esposa del mago|Magus' bride|# Chise Hatori
+149589|curar|Príncipe de las flores|Flower prince|# Lian Xie
+8464|fuerza|¡El gran Black☆Star!|The great Black☆Star!|# Black☆Star
+40006|comida|Lanza y pastelitos|Spear and snacks|# Kyouko Sakura
+127465|musica|Flauta del maestro|Master's flute|# Wuxian Wei
+88239|lider|Diosa de la guerra|Goddess of war|# Bishamon
+126073|caos|Bloqueo adivino|Guess block|# Satori Tendou
+89121|vampiro|Vampira de Nazarick|Nazarick vampire|# Shalltear Bloodfallen
+147|espada|Hiten Mitsurugi|Hiten Mitsurugi|# Kenshin Himura
+96114|deporte|Gris que nunca se rinde|Grey who never gives up|# Oguri Cap
+87887|magia|Ángel del conocimiento|Angel of knowledge|# Jibril
+122190|vago|Gamer de pocas palabras|Quiet gamer|# Narumi Momose
+137774|bestia|Respiración del viento|Wind breathing|# Sanemi Shinazugawa
+88421|amistad|Mejor amigo de Kaneki|Kaneki's best friend|# Hideyoshi Nagachika
+79995|amor|Caballero del hipogrifo|Hippogriff knight|# Astolfo
+120536|amistad|Calma silenciosa|Calm silence|# Rosinante Donquixote
+124145|tecno|Ciencia de las piedras|Stone science|# Chrome
+195121|deporte|Saltos de skate|Skate tricks|# Miya Chinen
+21959|fuerza|Burbujas de hamon|Hamon bubbles|# Caesar Zeppeli
+14489|lider|Bodhisattva de cien mil manos|Hundred-type Guanyin Bodhisattva|# Isaac Netero
+121661|defensa|Espada de las hadas|Fairy sword|# Chtholly Nota Seniorious
+732|fuego|Llama del dragón negro|Black dragon flame|# Hiei
+162248|bestia|Bestia de las sombras|Shadow beast|# Delta
+89183|fuerza|Amiga desde la infancia|Childhood friend|# Misuzu Gundou
+88727|amor|Pícara del consejo|Council rascal|# Iroha Isshiki
+252|vago|Sarcasmo del narrador|Narrator sarcasm|# Kyon
+124449|velocidad|Rayo feliz|Happy lightning|# Luck Voltia
+42038|lider|Ojo del emperador|Emperor eye|# Seijuurou Akashi
+747|espada|Princesa que quería ser príncipe|Princess who wanted to be a prince|# Utena Tenjou
+1353|bestia|Garra del medio demonio|Half-demon claw|# Inuyasha
+83015|amistad|Venganza por la familia|Revenge for family|# Yuuichirou Hyakuya
+43121|velocidad|Fanalis|Fanalis|# Morgiana
+2030|amor|¡En el nombre de la luna!|In the name of the moon!|# Usagi Tsukino
+138851|amistad|Chica de pueblo|Small-town girl|# Mitsumi Iwakura
+307|fuerza|¡Llama de la juventud!|Flames of youth!|# Guy Might
+67749|vago|Ojos del dragón|Dragon eyes|# Shin-Ah
+1742|detective|Detective sin descanso|Restless detective|# Conan Edogawa
+81645|magia|Shiny Rod|Shiny Rod|# Atsuko Kagari
+141671|amistad|Espíritu del club|Club spirit|# Sousuke Mitsuba
+89242|mente|Lavado de cerebro|Brainwashing|# Hitoshi Shinsou
+206604|espada|Cazadora de la aldea|Village huntress|# Sara
+65259|espada|Espada del ángel|Angel's sword|# Tooka Yatogami
+167444|velocidad|El más rápido|The fastest|# Hyouma Chigiri
+5833|suerte|Aspiradora mágica|Magic vacuum|# Shizuku Murasaki
+195118|tecno|Skate con calígrafa|Calligraphy skate|# Kaoru Sakurayashiki
+12300|curar|Doctor Blythe|Doctor Blythe|# Neferpitou
+18343|amor|Diosa de la tierra|Earth goddess|# Nanami Momozono
+78093|amistad|El chico más normal|The most normal guy|# Hitohito Tadano
+2819|velocidad|Derrape del repartidor de tofu|Tofu delivery drift|# Takumi Fujiwara
+21332|deporte|Copia perfecta|Perfect copy|# Ryouta Kise
+1694|defensa|Rotación celestial|Heavenly rotation|# Neji Hyuuga

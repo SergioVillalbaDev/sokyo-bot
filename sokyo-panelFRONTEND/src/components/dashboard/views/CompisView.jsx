@@ -3,9 +3,9 @@
 // expediciones, misiones del día y racha). Aquí se ve el catálogo, quién los cuida
 // mejor y se crean los compañeros propios del servidor con su foto (solo salen en
 // los cofres de aquí). Bot: utils/compis.js, utils/compisNucleo.js; API: modulos/compis.
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users, Images, Gem } from 'lucide-react';
+import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users, Images, Gem, Flower2, Search } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, Aviso } from './crecimientoShared';
 import { useModulo } from '../../../hooks/useModulo';
@@ -51,6 +51,136 @@ function Ficha({ src, foto, rareza, titulo, sub, apagado }) {
       </span>
       <span className="mt-1 line-clamp-2 text-[11px] font-bold leading-tight text-fg">{String(titulo).split(',')[0]}</span>
       {sub && <span className="mt-0.5 text-[10px] font-semibold" style={{ color: R.color }}>{sub}</span>}
+    </div>
+  );
+}
+
+// Pack anime (1.22.0): interruptor, la divina secreta, galería con buscador y series que quitar.
+const KURUMI = 'a:70069';
+function PackAnime({ dash, info, onCambio }) {
+  const { t } = useTranslation();
+  const [lista, setLista] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [rareza, setRareza] = useState('todas');
+  const [ver, setVer] = useState(48);
+  const [series, setSeries] = useState(false);
+  const [buscaSerie, setBuscaSerie] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    dash.cargarModulo('compis/anime').then((r) => { if (vivo) setLista(r.personajes || []); });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const fuera = useMemo(() => new Set(info.fuera || []), [info.fuera]);
+  const porSerie = useMemo(() => {
+    const m = new Map();
+    for (const c of lista || []) m.set(c.serie, (m.get(c.serie) || 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [lista]);
+  const filtrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return (lista || []).filter((c) => (rareza === 'todas' || c.rareza === rareza) && (!q || c.nombre.toLowerCase().includes(q) || c.serie.toLowerCase().includes(q) || (c.poder?.nombre || '').toLowerCase().includes(q)))
+      .sort((a, b) => RAREZAS[b.rareza].orden - RAREZAS[a.rareza].orden);
+  }, [lista, busca, rareza]);
+  const guardar = async (cambio) => {
+    setGuardando(true);
+    await dash.accionModulo('compis/anime', 'PUT', cambio);
+    setGuardando(false);
+    onCambio();
+  };
+  const alternarSerie = (serie) => {
+    const nueva = new Set(fuera);
+    if (nueva.has(serie)) nueva.delete(serie); else nueva.add(serie);
+    guardar({ fuera: [...nueva] });
+  };
+  const kurumi = (lista || []).find((c) => c.id === KURUMI);
+  const enJuego = (lista || []).filter((c) => !fuera.has(c.serie)).length;
+
+  return (
+    <div className={`${tarjeta} relative overflow-hidden`}>
+      <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-fuchsia-500/20 blur-3xl" />
+      <div className="relative flex flex-wrap items-start gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-fuchsia-500/15 text-fuchsia-300"><Flower2 size={22} /></span>
+        <div className="min-w-[200px] flex-1">
+          <p className="text-lg font-extrabold text-fg">{t('dashboard.compis_v.anime.titulo', { n: info.total })}</p>
+          <p className="text-sm text-muted">{t('dashboard.compis_v.anime.sub')}</p>
+        </div>
+        <label className="flex w-full shrink-0 items-center gap-2 rounded-2xl border border-line bg-bg px-3 py-2 sm:w-auto">
+          <Toggle checked={!!info.activo} onChange={(v) => guardar({ activo: v })} disabled={guardando} />
+          <span className="text-sm font-bold text-fg">{info.activo ? t('dashboard.compis_v.anime.on') : t('dashboard.compis_v.anime.off')}</span>
+        </label>
+      </div>
+      {info.activo && !info.cofres && <div className="relative mt-3"><Aviso tipo="alerta">{t('dashboard.compis_v.anime.sinCofres')}</Aviso></div>}
+
+      {kurumi && (
+        <div className="relative mt-4 flex items-center gap-4 rounded-2xl border border-transparent bg-gradient-to-r from-fuchsia-500/20 via-rose-500/15 to-amber-400/20 p-3">
+          <img src={kurumi.imagen} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-2xl object-cover object-top ring-2 ring-amber-300" />
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-wide"><span aria-hidden>🌈 </span><span className="sk-divina-texto">{t('dashboard.compis_v.anime.divina')}</span></p>
+            <p className="truncate text-base font-extrabold text-fg">🕰️ {kurumi.nombre} <span className="text-sm font-semibold text-muted">· {kurumi.serie}</span></p>
+            <p className="text-xs text-muted">{t('dashboard.compis_v.anime.divinaSub')}</p>
+          </div>
+        </div>
+      )}
+
+      {lista === null ? <p className="relative mt-4 text-sm text-muted">{t('dashboard.loading')}</p> : (
+        <>
+          <div className="relative mt-4 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[200px] flex-1">
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input className={`${campo} pl-9`} value={busca} onChange={(e) => { setBusca(e.target.value); setVer(48); }} placeholder={t('dashboard.compis_v.anime.buscar')} />
+            </div>
+            <select className={`${campo.replace('w-full ', '')} w-auto`} value={rareza} onChange={(e) => { setRareza(e.target.value); setVer(48); }} aria-label={t('dashboard.compis_v.rareza')}>
+              <option value="todas">{t('dashboard.compis_v.anime.todas')}</option>
+              {ORDEN_R.map((r) => <option key={r} value={r}>{t(`dashboard.casino_v.rareza.${r}`)}</option>)}
+            </select>
+            <button type="button" onClick={() => setSeries((v) => !v)} aria-pressed={series} className={`rounded-xl border px-3 py-2 text-sm font-bold ${series ? 'border-brand bg-brand/10 text-fg' : 'border-line text-muted hover:text-fg'}`}>
+              {t('dashboard.compis_v.anime.series', { n: porSerie.length, fuera: fuera.size })}
+            </button>
+          </div>
+          <p className="relative mt-2 text-xs text-muted">{t('dashboard.compis_v.anime.enJuego', { n: enJuego, total: lista.length })}</p>
+
+          {series && (
+            <div className="relative mt-3 rounded-2xl border border-line bg-bg p-3">
+              <p className="text-xs text-muted">{t('dashboard.compis_v.anime.seriesAyuda')}</p>
+              <input className={`${campo} mt-2`} value={buscaSerie} onChange={(e) => setBuscaSerie(e.target.value)} placeholder={t('dashboard.compis_v.anime.buscarSerie')} />
+              <div className="mt-2 flex max-h-64 flex-wrap gap-1.5 overflow-y-auto">
+                {porSerie.filter(([sr]) => !buscaSerie.trim() || sr.toLowerCase().includes(buscaSerie.trim().toLowerCase())).map(([sr, n]) => (
+                  <button key={sr} type="button" disabled={guardando} onClick={() => alternarSerie(sr)} aria-pressed={!fuera.has(sr)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${fuera.has(sr) ? 'border-line text-muted line-through opacity-60' : 'border-fuchsia-400/50 bg-fuchsia-500/10 text-fg'}`}>
+                    {sr} · {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="relative mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+            {filtrados.slice(0, ver).map((c) => {
+              const R = RAREZAS[c.rareza];
+              return (
+                <div key={c.id} title={`${c.nombre} · ${c.serie}${c.poder ? `\n${c.poder.emoji} ${c.poder.nombre}\n${c.poder.efecto}` : ''}`} className={`overflow-hidden rounded-2xl border bg-bg transition-transform hover:-translate-y-1 ${fuera.has(c.serie) ? 'opacity-35' : ''}`} style={{ borderColor: `${R.color}88` }}>
+                  <div className="relative aspect-[3/4] bg-elevated">
+                    <img src={c.imagen} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
+                    <span className="absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-black text-white" style={{ background: c.rareza === 'divina' ? 'linear-gradient(90deg,#f472b6,#fbbf24,#60a5fa)' : R.color }}>{t(`dashboard.casino_v.rareza.${c.rareza}`)}</span>
+                  </div>
+                  <p className="truncate px-1.5 pt-1 text-[11px] font-bold text-fg">{c.nombre}</p>
+                  <p className="truncate px-1.5 text-[10px] text-muted">{c.serie}</p>
+                  {c.poder && <p className="truncate px-1.5 pb-1.5 text-[10px] font-semibold text-fuchsia-300">{c.poder.emoji} {c.poder.nombre}</p>}
+                </div>
+              );
+            })}
+          </div>
+          {filtrados.length === 0 && <p className="relative mt-3 text-sm italic text-muted">{t('dashboard.compis_v.anime.nada')}</p>}
+          {filtrados.length > ver && (
+            <div className="relative mt-3 text-center">
+              <button type="button" onClick={() => setVer((v) => v + 96)} className="rounded-xl border border-line px-4 py-2 text-sm font-bold text-fg hover:border-brand">{t('dashboard.compis_v.anime.mas', { n: filtrados.length - ver })}</button>
+            </div>
+          )}
+          <p className="relative mt-4 text-[11px] text-muted">{t('dashboard.compis_v.anime.fuente')}</p>
+        </>
+      )}
     </div>
   );
 }
@@ -161,6 +291,8 @@ export default function CompisView({ dash }) {
         </ol>
         <p className="relative mt-4 text-xs text-muted">{t('dashboard.compis_v.sano')}</p>
       </div>
+
+      {datos.anime && <PackAnime dash={dash} info={datos.anime} onCambio={recargar} />}
 
       {/* Los de tu servidor */}
       <div className={tarjeta}>

@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.22.0': [
+        { tab: 'com-compis', es: '🌸 Pack anime: 643 personajes de anime populares (de 250 series) que pueden salir en los cofres, con su foto. Cuanto más populares, más raros. El admin lo activa en el panel → Diversión → Compañeros.', en: '🌸 Anime pack: 643 popular anime characters (from 250 series) that can drop from chests, with their picture. The more popular, the rarer. Admins turn it on in the panel → Fun → Companions.' },
+        { tab: 'com-compis', es: '🕰️ Hay una divina secreta del pack… rarísima. Quien la saque saldrá anunciado a lo grande.', en: '🕰️ There’s a secret divine one in the pack… ultra rare. Whoever pulls it gets a big announcement.' },
+        { tab: 'com-compis', es: '✨ Cada personaje tiene su propio poder según cómo es en su anime (25 tipos: tiempo, fuego, sombra, mente, amistad, caos…). Cuanto más raro, más fuerte.', en: '✨ Every character has its own power based on its personality in its anime (25 types: time, fire, shadow, mind, friendship, chaos…). The rarer, the stronger.' },
+        { tab: 'com-compis', es: '📺 Se pueden quitar series que no quieras en tu servidor, y hay una galería con buscador para verlos todos.', en: '📺 You can remove series you don’t want on your server, and there’s a searchable gallery to see them all.' },
+    ],
     '1.21.0': [
         { tab: 'com-compis', es: '🎀 Cuanto más raro es tu compañero, más cosas sabe hacer en /compi: baño, fotos, entrenar, bailar, regalo del día, historias, meditar, secretos… y la divina, milagros.', en: '🎀 The rarer your companion, the more it can do in /companion: bath, photos, training, dancing, daily gift, stories, meditation, secrets… and the divine one, miracles.' },
         { tab: 'com-compis', es: '✨ Cada compañero tiene un poder al día: Olfato (oro), Inspiración (+XP), Escudo contra bromas, Prisa (vuelve ya de la expedición) o Bendición.', en: '✨ Every companion has a daily power: Sniff (gold), Inspiration (+XP), Prank shield, Rush (back from the expedition now) or Blessing.' },

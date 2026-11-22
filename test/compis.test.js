@@ -161,3 +161,74 @@ describe('1.21.0: interacciones por rareza, poderes y ventajas', () => {
         assert.equal(rico, pobre * 2);
     });
 });
+
+describe('1.22.0: Pack anime', () => {
+    test('más de 500 personajes, con serie, foto de AniList y rareza válida', () => {
+        assert.ok(K.ANIME.size >= 500);
+        for (const [id, c] of K.ANIME) {
+            assert.ok(/^a:\d+$/.test(id) && c.es && c.serie, id);
+            assert.ok(c.imagen.startsWith('https://s4.anilist.co/'), id);
+            assert.ok(K.RAREZAS[c.rareza], id);
+            assert.ok(VOCES[c.voz], `${id} voz ${c.voz}`);
+        }
+        const r = {}; for (const c of K.ANIME.values()) r[c.rareza] = (r[c.rareza] || 0) + 1;
+        assert.ok(r.comun > r.rara && r.rara > r.epica && r.epica > r.legendaria && r.legendaria > r.mitica);
+    });
+    test('Kurumi Tokisaki es la única divina del pack y tiene frases propias', () => {
+        const divinas = [...K.ANIME.entries()].filter(([, c]) => c.rareza === 'divina');
+        assert.deepEqual(divinas.map(([id]) => id), [`a:${K.KURUMI}`]);
+        const f = P.frase({ id: `a:${K.KURUMI}` }, 'hablar', { idioma: 'en', dueno: 'Ana', azar: () => 0 });
+        assert.ok(f.includes('Ana'), f);
+    });
+    test('solo sale en los servidores que lo activan y sin las series quitadas', () => {
+        const cofres = require('../utils/cofres.js');
+        assert.equal(cofres.extrasDe('1', { compis: { anime: false } }).length, 0);
+        const todos = cofres.extrasDe('1', { compis: { anime: true } });
+        assert.equal(todos.length, K.ANIME.size);
+        const sinDAL = cofres.extrasDe('1', { compis: { anime: true, animeFuera: ['Date A Live'] } });
+        assert.ok(!sinDAL.includes(`a:${K.KURUMI}`) && sinDAL.length < todos.length);
+        // Con el pack, una tirada divina puede dar el dragón o Kurumi.
+        const salen = new Set();
+        for (let i = 0; i < 50; i++) salen.add(K.companeroAlAzar('divina', Math.random, todos));
+        assert.deepEqual([...salen].sort(), [`a:${K.KURUMI}`, 'celestial']);
+        assert.ok(K.ventajas(`a:${K.KURUMI}`, 1).xp === K.RAREZAS.divina.xp);
+    });
+});
+
+describe('1.22.0: un poder para cada personaje del Pack anime', () => {
+    test('todos tienen poder propio, con nombre en los dos idiomas y un tipo que existe', () => {
+        const tipos = new Set();
+        for (const [id, c] of K.ANIME) {
+            assert.ok(c.poder, `${id} ${c.es} sin poder`);
+            assert.ok(P.ARQUETIPOS[c.poder.tipo], `${id} tipo ${c.poder.tipo}`);
+            assert.ok(c.poder.es && c.poder.en, id);
+            tipos.add(c.poder.tipo);
+        }
+        assert.ok(tipos.size >= 20, `solo ${tipos.size} tipos`);
+        assert.equal(K.PODERES_ANIME.size, K.ANIME.size);
+    });
+    test('la rareza decide la fuerza y la divina además bendice', () => {
+        const comun = [...K.ANIME.entries()].find(([, c]) => c.rareza === 'comun' && c.poder.tipo === 'espada')[0];
+        const mitica = [...K.ANIME.entries()].find(([, c]) => c.rareza === 'mitica' && c.poder.tipo === 'espada')[0]; // Levi
+        assert.ok(P.efectoAnime({ id: mitica }).xp > P.efectoAnime({ id: comun }).xp);
+        const k = P.efectoAnime({ id: `a:${K.KURUMI}` });
+        assert.ok(k.volver && k.lleno && k.xp === 1);
+        assert.ok(P.poderDe({ id: `a:${K.KURUMI}` }).nombre.es.startsWith('Zafkiel'));
+    });
+    test('usar el poder de un personaje del pack', () => {
+        const base = { hambre: 50, alegria: 50, energia: 50, actualizado: new Date(T0) };
+        for (const [id] of [...K.ANIME.entries()].slice(0, 120)) {
+            const r = P.usarPoder({ id, ...base }, {}, { ahora: T0, bromas: true, azar: () => 0.5 });
+            assert.equal(r.id, 'anime', id);
+            assert.ok(r.oro || r.buff || r.escudoHasta || r.lleno || r.energia || r.alegria || r.afinidad || r.recuerdo !== undefined, `${id} no hace nada`);
+        }
+        // Sin bromas, el escudo se cambia por XP.
+        const sombra = [...K.ANIME.entries()].find(([, c]) => c.poder.tipo === 'defensa')[0];
+        const sin = P.usarPoder({ id: sombra, ...base }, {}, { ahora: T0, bromas: false });
+        assert.ok(!sin.escudoHasta && sin.buff);
+        // Kurumi devuelve la expedición al momento.
+        const fuera = P.usarPoder({ id: `a:${K.KURUMI}`, ...base, exp: { tipo: 'viaje', hasta: new Date(T0 + 5 * H) } }, {}, { ahora: T0 });
+        assert.ok(fuera.volver && fuera.lleno && fuera.buff.xp === 1);
+        assert.ok(P.textoEfecto(P.efectoAnime({ id: `a:${K.KURUMI}` }), 'en').includes('XP'));
+    });
+});

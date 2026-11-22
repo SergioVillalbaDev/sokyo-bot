@@ -33,11 +33,37 @@ const UPLOADS = path.join(__dirname, '..', 'api', 'uploads');
 async function imagenCompanero(id) {
     const d = K.def(id);
     if (d.svg) return imagen(d.svg);
+    if (d.imagen && String(d.imagen).startsWith('https://s4.anilist.co/')) return imagenAnime(d.imagen);
     if (!d.imagen || !String(d.imagen).startsWith('/uploads/')) return imagen('2b50');
     const clave = `foto:${d.imagen}`;
     if (imagenes.has(clave)) return imagenes.get(clave);
     const ruta = path.join(UPLOADS, path.basename(d.imagen));
     const img = fs.existsSync(ruta) ? await canvasLib.loadImage(fs.readFileSync(ruta)).catch(() => null) : null;
+    imagenes.set(clave, img);
+    return img;
+}
+// Fotos del Pack anime: se bajan de AniList la primera vez y se guardan en cache/anime (no en
+// git). Solo de s4.anilist.co, como mucho 5 MB y que de verdad sean imágenes. Si falla, estrella.
+const CACHE_ANIME = path.join(__dirname, '..', 'cache', 'anime');
+async function imagenAnime(url) {
+    const clave = `anime:${url}`;
+    if (imagenes.has(clave)) return imagenes.get(clave);
+    const archivo = path.join(CACHE_ANIME, path.basename(new URL(url).pathname));
+    let buf = fs.existsSync(archivo) ? fs.readFileSync(archivo) : null;
+    if (!buf) {
+        try {
+            const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+            const b = r.ok ? Buffer.from(await r.arrayBuffer()) : null;
+            if (b && b.length < 5 * 1024 * 1024 && require('./imagenes.js').extensionImagen(b)) {
+                buf = b;
+                fs.mkdirSync(CACHE_ANIME, { recursive: true });
+                fs.writeFileSync(archivo, b);
+            }
+        } catch { buf = null; }
+    }
+    const img = buf ? await canvasLib.loadImage(buf).catch(() => null) : null;
+    if (!img) return imagen('2b50'); // no se guarda en memoria: se reintenta la próxima vez
+    if (imagenes.size > 400) imagenes.delete(imagenes.keys().next().value);
     imagenes.set(clave, img);
     return img;
 }
@@ -47,8 +73,9 @@ function pintarCompanero(ctx, img, id, x, y, tam, borde = null) {
     const d = K.def(id);
     if (d.svg) { ctx.drawImage(img, x, y, tam, tam); return; }
     ctx.save(); ctx.beginPath(); ctx.arc(x + tam / 2, y + tam / 2, tam / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+    // Recorte cuadrado; en las fotos verticales (retratos) se coge la parte de arriba, donde está la cara.
     const lado = Math.min(img.width, img.height);
-    ctx.drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, x, y, tam, tam);
+    ctx.drawImage(img, (img.width - lado) / 2, img.height > img.width ? (img.height - lado) * 0.15 : (img.height - lado) / 2, lado, lado, x, y, tam, tam);
     ctx.restore();
     if (borde) { ctx.beginPath(); ctx.arc(x + tam / 2, y + tam / 2, tam / 2, 0, Math.PI * 2); ctx.strokeStyle = borde; ctx.lineWidth = Math.max(2, tam / 30); ctx.stroke(); }
 }
@@ -409,7 +436,11 @@ async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', est
 async function tarjetaColeccion(coleccion, { titulo = '' } = {}) {
     if (!canvasLib) return null;
     // Los del catálogo y, al final, los de servidores que tenga.
-    const ids = [...Object.keys(K.COMPANEROS), ...(coleccion.mascotas || []).map((m) => m.id).filter((id) => K.esPersonalizado(id))];
+    // Del Pack anime y de servidores solo se dibujan los 40 más raros que tenga (si no, sería enorme).
+    const extras = (coleccion.mascotas || []).map((m) => m.id).filter((id) => K.esExtra(id))
+        .sort((a, b) => K.RAREZAS[K.def(b).rareza].orden - K.RAREZAS[K.def(a).rareza].orden).slice(0, 40);
+    const ids = [...Object.keys(K.COMPANEROS), ...extras];
+    const fotos = new Map(await Promise.all(ids.map(async (id) => [id, await imagenCompanero(id).catch(() => null)])));
     const W = 760; const cols = 8; const celda = 88;
     const filas = Math.ceil(ids.length / cols);
     const H = 90 + filas * (celda + 14) + 20;
@@ -419,14 +450,14 @@ async function tarjetaColeccion(coleccion, { titulo = '' } = {}) {
     redondeado(ctx, 0, 0, W, H, 24); ctx.fillStyle = g; ctx.fill();
     ctx.fillStyle = '#ffffff'; ctx.font = `bold 28px ${FUENTE}`; ctx.textAlign = 'left';
     const tiene = new Map((coleccion.mascotas || []).map((m) => [m.id, m]));
-    ctx.fillText(titulo || `Colección · ${tiene.size}/${ids.length}`, 28, 52);
-    const orden = [...ids].sort((a, b) => (K.esPersonalizado(a) - K.esPersonalizado(b)) || (K.RAREZAS[K.def(a).rareza].orden - K.RAREZAS[K.def(b).rareza].orden));
+    ctx.fillText(titulo || `Colección · ${tiene.size}`, 28, 52);
+    const orden = [...ids].sort((a, b) => (K.esExtra(a) - K.esExtra(b)) || (K.RAREZAS[K.def(a).rareza].orden - K.RAREZAS[K.def(b).rareza].orden));
     for (let i = 0; i < orden.length; i++) {
         const id = orden[i]; const comp = K.def(id); const r = K.RAREZAS[comp.rareza];
         const x = 28 + (i % cols) * (celda + 2); const y = 76 + Math.floor(i / cols) * (celda + 14);
         redondeado(ctx, x, y, celda - 6, celda, 14); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
         ctx.strokeStyle = tiene.has(id) ? r.color : 'rgba(255,255,255,0.12)'; ctx.lineWidth = tiene.has(id) ? 3 : 1.5; ctx.stroke();
-        const im = await imagenCompanero(id);
+        const im = fotos.get(id);
         if (im) {
             if (!tiene.has(id)) { ctx.globalAlpha = 0.12; }
             pintarCompanero(ctx, im, id, x + 13, y + 8, 56);

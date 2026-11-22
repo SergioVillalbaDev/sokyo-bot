@@ -30,8 +30,13 @@ async function ventajasUsuario(userId) {
     return v;
 }
 const olvidar = (userId) => cache.delete(userId);
-// Compañeros propios del servidor que pueden salir en sus cofres (1.20.0).
-const personalizadosDe = (guildId) => (guildId ? [...K.PERSONALIZADOS.entries()].filter(([, c]) => c.guildId === guildId && c.activo !== false).map(([id]) => id) : []);
+// Compañeros que pueden salir en los cofres de este servidor además del catálogo: los propios
+// del servidor (1.20.0) y, si lo tiene activado, el Pack anime sin las series quitadas (1.22.0).
+function extrasDe(guildId, cfg) {
+    if (!guildId) return [];
+    const propios = [...K.PERSONALIZADOS.entries()].filter(([, c]) => c.guildId === guildId && c.activo !== false).map(([id]) => id);
+    return cfg?.compis?.anime ? [...propios, ...K.idsAnime(cfg.compis.animeFuera || [])] : propios;
+}
 const coleccion = async (userId) => (await ColeccionMascotas.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, returnDocument: 'after' }));
 
 function textoVentajas(v, idioma) {
@@ -58,7 +63,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     let r; let col;
     for (let intento = 0; intento < 5; intento++) {
         col = await coleccion(userId);
-        r = K.abrir(col, cofre, undefined, personalizadosDe(interaction.guildId));
+        r = K.abrir(col, cofre, undefined, extrasDe(interaction.guildId, cfg));
         const tiene = (col.mascotas || []).some((m) => m.id === r.id);
         const upd = {
             $inc: { abiertos: 1, gastado: def.precio, ...(r.rareza === 'divina' ? { divinas: 1 } : {}) },
@@ -89,7 +94,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     const fin = EmbedBuilder.from(e).setColor(rz.color)
         .setDescription([
             r.rareza === 'divina' ? t(idioma, '🌈🌈🌈 **¡¡¡DIVINA!!!** 🌈🌈🌈', '🌈🌈🌈 **DIVINE!!!** 🌈🌈🌈') : '',
-            `${comp.emoji} **${nombre(r.id, idioma)}** · ${rarezaTxt(r.rareza, idioma)}`,
+            `${comp.emoji} **${nombre(r.id, idioma)}** · ${rarezaTxt(r.rareza, idioma)}${comp.serie ? `\n📺 ${comp.serie}` : ''}`,
             estado,
             r.piedad ? t(idioma, '🍀 ¡La suerte del décimo cofre! (épica asegurada)', '🍀 Tenth-chest luck! (epic guaranteed)') : '',
             t(idioma, `Si lo equipas: ${textoVentajas(v, idioma)}`, `If equipped: ${textoVentajas(v, idioma)}`),
@@ -123,7 +128,10 @@ async function verColeccion(interaction, idioma, usuario = null) {
     const quien = usuario || interaction.user;
     const col = (await ColeccionMascotas.findOne({ userId: quien.id }).lean()) || { mascotas: [], abiertos: 0 };
     const total = Object.keys(K.COMPANEROS).length;
-    const png = await A.tarjetaColeccion(col, { titulo: t(idioma, `Colección de ${quien.username} · ${col.mascotas.length}/${total}`, `${quien.username}’s collection · ${col.mascotas.length}/${total}`) }).catch(() => null);
+    const delCatalogo = col.mascotas.filter((m) => K.COMPANEROS[m.id]).length;
+    const anime = col.mascotas.filter((m) => K.esAnime(m.id)).length;
+    const extra = anime ? ` · 🌸 ${anime}` : '';
+    const png = await A.tarjetaColeccion(col, { titulo: t(idioma, `Colección de ${quien.username} · ${delCatalogo}/${total}${extra}`, `${quien.username}’s collection · ${delCatalogo}/${total}${extra}`) }).catch(() => null);
     const eq = col.equipada ? col.mascotas.find((m) => m.id === col.equipada) : null;
     const e = new EmbedBuilder().setColor(eq ? K.RAREZAS[K.def(eq.id).rareza].color : '#6366f1')
         .setTitle(t(idioma, `🐾 Colección de ${quien.username}`, `🐾 ${quien.username}’s collection`))
@@ -142,11 +150,15 @@ async function verColeccion(interaction, idioma, usuario = null) {
     return { embeds: [e], files: png ? [new AttachmentBuilder(png, { name: 'coleccion.png' })] : [], components: comps, allowedMentions: { parse: [] } };
 }
 
-function embedProbabilidades(idioma) {
+function embedProbabilidades(idioma, cfg = null) {
     const e = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, '🎁 Cofres de mascotas', '🎁 Pet chests'))
         .setDescription(t(idioma, `Compañeros para ti (en todos los servidores). Lleva uno equipado para tener sus ventajas. Los repetidos suben estrellas (hasta 5). Cada ${K.PIEDAD} cofres sin épica, el siguiente la trae segura.`, `Companions for you (across all servers). Equip one to get its perks. Duplicates add stars (up to 5). Every ${K.PIEDAD} chests without an epic, the next one guarantees it.`));
     for (const [, c] of Object.entries(K.COFRES)) {
         e.addFields({ name: `${c.emoji} ${t(idioma, c.es, c.en)} · 🪙 ${fmt(c.precio, idioma)}`, value: Object.entries(c.prob).filter(([, p]) => p > 0).map(([r, p]) => `${rarezaTxt(r, idioma)} ${p} %`).join(' · '), inline: false });
+    }
+    if (cfg?.compis?.anime) {
+        const n = K.idsAnime(cfg.compis.animeFuera || []).length;
+        e.addFields({ name: t(idioma, '🌸 Pack anime activado', '🌸 Anime pack on'), value: t(idioma, `Aquí también pueden salir ${n} personajes de anime (cuanto más populares, más raros). Y hay una divina secreta… 🕰️`, `${n} anime characters can also drop here (the more popular, the rarer). And there’s a secret divine one… 🕰️`) });
     }
     e.addFields({ name: t(idioma, '✨ Ventajas por rareza', '✨ Perks by rarity'), value: Object.keys(K.RAREZAS).map((r) => `${rarezaTxt(r, idioma)}: ${textoVentajas({ xp: K.RAREZAS[r].xp, diario: K.RAREZAS[r].diario, vuelta: K.RAREZAS[r].vuelta }, idioma)}`).join('\n') });
     return e;
@@ -188,8 +200,8 @@ async function resumenServidor(client, guildId) {
         abiertos, divinasMundo,
         porRareza: Object.fromEntries(porRareza.map((x) => [x._id, x.n])),
         ultimas: ultimas.map((a) => ({ ...persona(a.userId), cofre: a.cofre, companero: a.companero, rareza: a.rareza, fecha: a.fecha,
-            ...(K.esPersonalizado(a.companero) ? { custom: { nombre: K.def(a.companero).es, imagen: K.def(a.companero).imagen } } : {}) })),
+            ...(K.esExtra(a.companero) ? { custom: { nombre: K.def(a.companero).es, imagen: K.def(a.companero).imagen, serie: K.def(a.companero).serie || null } } : {}) })),
     };
 }
 
-module.exports = { ventajasUsuario, abrir, equipar, verColeccion, embedProbabilidades, manejar, resumenServidor, textoVentajas, olvidar };
+module.exports = { extrasDe, ventajasUsuario, abrir, equipar, verColeccion, embedProbabilidades, manejar, resumenServidor, textoVentajas, olvidar };
