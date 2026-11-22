@@ -66,6 +66,7 @@ const CARGAR_VISTA = {
   OwnerSubsView: () => import('./views/OwnerSubsView'),
   OwnerEntradaView: () => import('./views/OwnerEntradaView'),
   OwnerSoporteView: () => import('./views/OwnerSoporteView'),
+  FuncionesView: () => import('./views/FuncionesView'),
   SorteosView: () => import('./views/SorteosView'),
   EventosView: () => import('./views/EventosView'),
   EncuestasView: () => import('./views/EncuestasView'),
@@ -332,6 +333,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
 
   const renderView = () => {
     if (activeTab === 'inicio') return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
+    if (activeTab === 'funciones') return <V.FuncionesView dash={dash} onRequestUpgrade={setUpgradeFeature} />;
     if (activeTab === 'tickets-gestion') return ticketSeleccionado ? <V.ChatView dash={{ ...dash, cerrarMensajes: cerrarChat }} /> : <V.TicketsView dash={dash} />;
     if (activeTab === 'tickets-usuarios') return <V.UsersView dash={dash} />;
     if (activeTab === 'tickets-config') return <V.TicketsAjustesView dash={dash} />;

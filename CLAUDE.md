@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.25.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.26.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,14 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.26.0 **Panel menos abrumador**. Menú en **modo sencillo** por defecto (`navConfig.BASICOS`, `gruposVisibles(…, { sencillo,
+  extra })`; el interruptor «Ver todas las secciones» se guarda en `localStorage.sokyoMenuSencillo`; la sección abierta y las
+  favoritas se ven siempre). **Centro de funciones** (tab `funciones`, `views/FuncionesView.jsx`, textos `dashboard.funciones.*`):
+  todas las secciones como tarjetas con estado (`estadoModulos`), «Activar» (`lib/activar.js`) y «Abrir», filtros y buscador.
+  Al añadir una sección nueva, piensa si va en `BASICOS`. **Canales en categorías**: `setupRapido.categoriaDe` crea/usa las
+  categorías de `CATEGORIAS` (la de staff, privada) y `canalDe` mete ahí los canales nuevos; `organizarCanales(guild, cfg)` mueve
+  los canales del bot que estén sueltos (nunca los ya colocados). API: `POST /modulos/organizar-canales` (botón en el Centro de
+  funciones) y `POST /api/soporte/:guildId/organizar`.
 - 1.25.0 **Casino**: juegos `hilo` (Mayor o menor: `C.pagoHilo`/`resultadoHilo`, 3 % para la casa por paso, tope ×100 o 12
   aciertos; botones `cas_hl:<id>:mayor|menor|cobrar`, mesa PNG `casinoArte.mesaHilo`) y `rasca` (Rasca y gana: `C.boletoRasca`
   con `RASCA_PREMIOS`, RTP 95,5 %; botones `cas_ras:<id>:<i>|todo`). Están en `JUEGOS`, `cfg.casino.juegos`, `/casino mayormenor`

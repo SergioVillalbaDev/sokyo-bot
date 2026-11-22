@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Home, LayoutDashboard, LogOut, Crown, X, Search, Smartphone, Star } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Home, LayoutDashboard, LayoutGrid, LogOut, Crown, X, Search, Smartphone, Star, Eye, EyeOff } from 'lucide-react';
 import { navSections, gruposVisibles, tabDeMenu, bloqueadoPorPlan, ubicacion } from './navConfig';
 import { useFavoritos, alternarFavorito } from '../../lib/favoritos';
 import { Avatar } from '../ui/primitives';
@@ -15,6 +15,7 @@ import { getStaffSession } from '../../lib/api';
 import { enLaAppAndroid } from '../../lib/appMovil';
 
 const sesion = getStaffSession();
+const CLAVE_SENCILLO = 'sokyoMenuSencillo';
 const esOwner = !!sesion?.owner;
 const enApp = enLaAppAndroid();
 const CLAVE_ABIERTOS = 'sokyoMenuAbiertos';
@@ -40,9 +41,15 @@ export default function Sidebar({
   // Grupos abiertos o cerrados a mano (se recuerdan). Sin tocar: abierto el de la sección actual.
   const [abiertos, setAbiertos] = useState(leerAbiertos);
 
-  const grupos = gruposVisibles(permisos, esOwner);
-  const porId = Object.fromEntries(grupos.map((g) => [g.id, g]));
+  // Modo sencillo (1.26.0): por defecto solo lo básico; se recuerda lo que elija cada uno.
+  const [sencillo, setSencillo] = useState(() => { try { return localStorage.getItem(CLAVE_SENCILLO) !== '0'; } catch { return true; } });
+  const cambiarModo = () => { const v = !sencillo; setSencillo(v); try { localStorage.setItem(CLAVE_SENCILLO, v ? '1' : '0'); } catch { /* no es crítico */ } };
   const tabMenu = tabDeMenu(activeTab);
+  const favoritos = useFavoritos();
+  const todos = gruposVisibles(permisos, esOwner);
+  const grupos = gruposVisibles(permisos, esOwner, { sencillo, extra: new Set([tabMenu, ...favoritos]) });
+  const ocultas = todos.reduce((n, g) => n + g.items.length, 0) - grupos.reduce((n, g) => n + g.items.length, 0);
+  const porId = Object.fromEntries(grupos.map((g) => [g.id, g]));
 
   const seleccionado = servidores.find((s) => s.id === guildId);
   const nombreServidor = seleccionado?.nombre || servidorInfo?.nombre || t('dashboard.sidebar.myServer');
@@ -64,8 +71,7 @@ export default function Sidebar({
   const irA = (tab) => { setActiveTab(tab); setMobileOpen(false); };
 
   // Favoritas: arriba del todo (solo las que puede ver en este servidor).
-  const favoritos = useFavoritos();
-  const visibles = new Set(grupos.flatMap((g) => g.items.map((it) => it.tab)));
+  const visibles = new Set(todos.flatMap((g) => g.items.map((it) => it.tab)));
   const misFavoritos = favoritos.filter((tab) => visibles.has(tab)).map((tab) => ({ tab, ...ubicacion(tab) })).filter((f) => f.item);
 
   return (
@@ -166,6 +172,19 @@ export default function Sidebar({
           >
             <span className={cn('sk-icono-grupo h-8 w-8', activeTab === 'inicio' && '!bg-white/20 !text-on-brand !shadow-none')}><LayoutDashboard size={17} /></span>
             {!plegado && <span>{t('dashboard.inicio')}</span>}
+          </button>
+          <button
+            onClick={() => irA('funciones')}
+            aria-current={activeTab === 'funciones' ? 'page' : undefined}
+            className={cn(
+              'sk-foco mt-0.5 flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-semibold transition-colors',
+              activeTab === 'funciones' ? 'sk-nav-activo' : 'text-muted hover:bg-elevated hover:text-fg',
+              plegado && 'lg:justify-center',
+            )}
+            title={plegado ? t('dashboard.nav.items.funciones') : undefined}
+          >
+            <span className={cn('sk-icono-grupo h-8 w-8', activeTab === 'funciones' && '!bg-white/20 !text-on-brand !shadow-none')}><LayoutGrid size={17} /></span>
+            {!plegado && <span>{t('dashboard.nav.items.funciones')}</span>}
           </button>
 
           {misFavoritos.length > 0 && (
@@ -287,6 +306,14 @@ export default function Sidebar({
               </div>
             );
           })}
+
+          {/* Modo sencillo / todas las secciones */}
+          {!plegado && (ocultas > 0 || !sencillo) && (
+            <button onClick={cambiarModo} className="sk-foco mt-4 flex w-full items-center gap-2 rounded-xl border border-dashed border-line px-3 py-2 text-left text-xs font-semibold text-muted transition-colors hover:border-brand/50 hover:text-fg">
+              {sencillo ? <Eye size={14} className="shrink-0" /> : <EyeOff size={14} className="shrink-0" />}
+              <span className="flex-1">{sencillo ? t('dashboard.nav.verTodas', { n: ocultas }) : t('dashboard.nav.verBasicas')}</span>
+            </button>
+          )}
         </nav>
 
         {/* Subir a Pro (servidores Free, si puede ver la facturación; mientras carga el plan, nada) */}

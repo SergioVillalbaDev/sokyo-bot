@@ -70,6 +70,7 @@ export default {
     },
     loading: 'Cargando configuración del servidor...',
     nav: {
+      verTodas: 'Ver todas las secciones ({{n}} más)', verBasicas: 'Ver solo lo básico',
       groups: { tickets: 'Tickets', moderacion: 'Moderación', entrada: 'Llegada de miembros', roles: 'Roles', comunidad: 'Comunidad', diversion: 'Diversión', crecimiento: 'Crecimiento', musica: 'Música y voz', mensajes: 'Mensajes y anuncios', datos: 'Estadísticas y registros', config: 'Servidor y ajustes', propietario: 'Propietario', cuenta: 'Plan', logs: 'Registro', voz: 'Voz' },
       sections: { diario: 'Día a día', comunidad: 'Tu comunidad', admin: 'Administración' },
       groupDesc: { tickets: 'Atiende a tus miembros y configura el soporte', moderacion: 'Sanciones, filtros automáticos y reportes', entrada: 'Lo que pasa cuando alguien entra al servidor', roles: 'Crea roles y deja que cada uno elija los suyos', comunidad: 'Mi cuenta de los miembros, niveles, sorteos, eventos, cumpleaños y solicitudes', diversion: 'Grupos para jugar, clanes, salón de la fama, confesiones y juegos', crecimiento: 'Consigue más miembros para tu servidor', musica: 'Reproductor de música y salas de voz', mensajes: 'Lo que el bot publica y responde por ti', datos: 'Cifras del servidor y todo lo que ha pasado', config: 'Canales, emojis, acceso al panel, tu plan y la app móvil', propietario: 'Solo para los propietarios del bot' },
@@ -77,6 +78,7 @@ export default {
       moduleOnShort: 'Activo', moduleOffShort: 'Apagado',
       favoritos: 'Favoritos', anadirFavorito: 'Fijar arriba (favorito)', quitarFavorito: 'Quitar de favoritos',
       items: {
+        'funciones': 'Centro de funciones',
         'cuenta-plan': 'Plan y facturación',
         'config-app': 'App móvil',
         'datos-analitica': 'Analítica',
@@ -150,6 +152,7 @@ export default {
       },
     },
     meta: {
+      'funciones': { title: 'Centro de funciones', subtitle: 'Todo lo que hace Sokyo en un sitio: enciende lo que quieras con un clic.' },
       inicio: { title: 'Inicio', subtitle: 'Resumen de tu sistema de soporte.' },
       'cuenta-plan': { title: 'Plan y facturación', subtitle: 'Sube de plan y desbloquea todo el potencial de Sokyo.' },
       'config-app': { title: 'App móvil', subtitle: 'Todo el panel en tu teléfono, en Android y en iPhone.' },
@@ -2922,6 +2925,14 @@ export default {
       nuevaTitulo: 'Tu clave nueva (solo se enseña ahora)', nuevaSub: 'Cópiala y guárdala: si la pierdes, crea otra.', copiar: 'Copiar', copiada: '¡Copiada!',
       comoDar: 'Pégala solo en la ventana segura que te salga al pedírtela (cabecera «Authorization: Bearer» para dashboard.sokyo.studio). No la compartas en ningún chat.',
       activa: 'Activa', caducada: 'Caducada', termina: 'Clave que termina en …{{pista}}', creada: 'Creada', caduca: 'Caduca', ultimoUso: 'Último uso', usos: 'Veces usada', quepuede: 'Qué puede hacer',
+    },
+    funciones: {
+      ordenar: 'Ordenar canales', ordenarSub: '¿Los canales del bot están sueltos en Discord? Los coloco en categorías (Comunidad, Diversión, Soporte, Staff, Estadísticas). No toco los que ya tengas en una categoría.', ordenados_one: 'Listo: he movido {{n}} canal a su categoría.', ordenados_other: 'Listo: he movido {{n}} canales a sus categorías.', nadaQueOrdenar: 'Todo estaba ya ordenado: no he movido nada.',
+      titulo: '🧩 Todo lo que puede hacer Sokyo', sub: 'Cada función en una tarjeta. Pulsa «Activar» para dejarla funcionando con lo recomendado o «Abrir» para ver sus ajustes. No hace falta configurarlo todo: empieza por las esenciales.',
+      progreso: 'Tienes {{n}} de {{total}} funciones encendidas', buscar: 'Busca una función: «tickets», «bienvenida», «música»…',
+      filtro: { esenciales: '⭐ Esenciales', todas: 'Todas', activas: 'Encendidas', apagadas: 'Apagadas' },
+      activa: 'Encendida', apagada: 'Apagada', activar: 'Activar', abrir: 'Abrir', configurar: 'Configurar', lista: '¡Activada!',
+      nada: 'No hay funciones con ese nombre. Prueba con otra palabra.',
     },
     compis_v: {
       titulo: '{{n}} mascotas para coleccionar y cuidar', intro: 'Cada miembro consigue mascotas en los cofres, cada una con su habilidad exclusiva, y las cuida como un tamagotchi con /compi. Con las cartas de anime las potencia. Cuanto mejor las cuida, más le ayudan.',

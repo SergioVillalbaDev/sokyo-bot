@@ -144,6 +144,14 @@ module.exports = ({ client }) => {
             res.json({ success: true, rol: { id: rol.id, nombre: rol.name } });
         } catch (e) { console.error('soporte rol:', e.message); res.status(400).json({ error: 'No se pudo guardar', detalle: e.message }); }
     });
+    // Ordenar en categorías los canales del bot que estén sueltos (1.26.0).
+    router.post('/soporte/:guildId/organizar', async (req, res) => {
+        const guild = guildDe(req, res); if (!guild) return;
+        const cfg = await ServidorConfig.findOne({ guildId: guild.id }).lean();
+        const movidos = await require('../../utils/setupRapido.js').organizarCanales(guild, cfg, cfg?.idioma || 'es').catch((e) => ({ error: e.message }));
+        if (movidos.error) return res.status(400).json({ error: movidos.error });
+        res.json({ success: true, movidos });
+    });
     // Publicar el lobby del casino en su canal.
     router.post('/soporte/:guildId/casino/lobby', async (req, res) => {
         const guild = guildDe(req, res); if (!guild) return;

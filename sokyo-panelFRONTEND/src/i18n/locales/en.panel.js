@@ -70,6 +70,7 @@ export default {
     },
     loading: 'Loading server configuration...',
     nav: {
+      verTodas: 'Show all sections ({{n}} more)', verBasicas: 'Show only the basics',
       groups: { tickets: 'Tickets', moderacion: 'Moderation', entrada: 'New members', roles: 'Roles', comunidad: 'Community', diversion: 'Fun', crecimiento: 'Growth', musica: 'Music & voice', mensajes: 'Messages & announcements', datos: 'Stats & logs', config: 'Server & settings', propietario: 'Owner', cuenta: 'Plan', logs: 'Log', voz: 'Voice' },
       sections: { diario: 'Day to day', comunidad: 'Your community', admin: 'Administration' },
       groupDesc: { tickets: 'Help your members and set up support', moderacion: 'Sanctions, automatic filters and reports', entrada: 'What happens when someone joins the server', roles: 'Create roles and let people pick their own', comunidad: 'Members’ My account, levels, giveaways, events, birthdays and applications', diversion: 'Groups to play, clans, hall of fame, confessions and games', crecimiento: 'Get more members for your server', musica: 'Music player and voice rooms', mensajes: 'What the bot posts and answers for you', datos: 'Server numbers and everything that happened', config: 'Channels, emojis, panel access, your plan and the mobile app', propietario: 'Only for the bot owners' },
@@ -77,6 +78,7 @@ export default {
       moduleOnShort: 'On', moduleOffShort: 'Off',
       favoritos: 'Favorites', anadirFavorito: 'Pin to the top (favorite)', quitarFavorito: 'Remove from favorites',
       items: {
+        'funciones': 'Feature hub',
         'cuenta-plan': 'Plan & billing',
         'config-app': 'Mobile app',
         'datos-analitica': 'Analytics',
@@ -150,6 +152,7 @@ export default {
       },
     },
     meta: {
+      'funciones': { title: 'Feature hub', subtitle: 'Everything Sokyo does in one place: turn on whatever you want in one click.' },
       inicio: { title: 'Home', subtitle: 'Overview of your support system.' },
       'cuenta-plan': { title: 'Plan & billing', subtitle: 'Upgrade and unlock the full power of Sokyo.' },
       'config-app': { title: 'Mobile app', subtitle: 'The whole panel on your phone, on Android and iPhone.' },
@@ -2917,6 +2920,14 @@ export default {
       nuevaTitulo: 'Your new key (only shown now)', nuevaSub: 'Copy it and keep it: if you lose it, create another.', copiar: 'Copy', copiada: 'Copied!',
       comoDar: 'Only paste it in the secure window that appears when it’s requested (“Authorization: Bearer” header for dashboard.sokyo.studio). Don’t share it in any chat.',
       activa: 'Active', caducada: 'Expired', termina: 'Key ending in …{{pista}}', creada: 'Created', caduca: 'Expires', ultimoUso: 'Last used', usos: 'Times used', quepuede: 'What it can do',
+    },
+    funciones: {
+      ordenar: 'Tidy channels', ordenarSub: 'Are the bot’s channels loose in Discord? I’ll put them in categories (Community, Fun, Support, Staff, Stats). Channels you already placed in a category aren’t touched.', ordenados_one: 'Done: I moved {{n}} channel into its category.', ordenados_other: 'Done: I moved {{n}} channels into their categories.', nadaQueOrdenar: 'Everything was already tidy: nothing moved.',
+      titulo: '🧩 Everything Sokyo can do', sub: 'Each feature in a card. Press “Turn on” to get it working with the recommended setup or “Open” to see its settings. No need to set everything up: start with the essentials.',
+      progreso: 'You have {{n}} of {{total}} features on', buscar: 'Search a feature: “tickets”, “welcome”, “music”…',
+      filtro: { esenciales: '⭐ Essentials', todas: 'All', activas: 'On', apagadas: 'Off' },
+      activa: 'On', apagada: 'Off', activar: 'Turn on', abrir: 'Open', configurar: 'Set up', lista: 'Turned on!',
+      nada: 'No features with that name. Try another word.',
     },
     compis_v: {
       titulo: '{{n}} pets to collect and look after', intro: 'Members get pets from chests, each with its own exclusive ability, and look after them like a tamagotchi with /companion. Anime cards power them up. The better they look after them, the more they help.',

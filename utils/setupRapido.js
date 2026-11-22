@@ -114,6 +114,48 @@ function puedePasar(guildId, ahora = Date.now(), modulo = null) {
 }
 
 // Busca un canal ya configurado o con el mismo nombre; si no, lo crea con sus permisos.
+// Categorías (1.26.0): los canales del bot no quedan sueltos arriba del todo, sino ordenados.
+const CATEGORIAS = {
+    comunidad: ['📢 COMMUNITY', '📢 COMUNIDAD'], diversion: ['🎮 FUN', '🎮 DIVERSIÓN'], soporte: ['🎫 SUPPORT', '🎫 SOPORTE'],
+    staff: ['🛡️ STAFF', '🛡️ STAFF'], stats: ['📊 STATS', '📊 ESTADÍSTICAS'],
+};
+const GRUPO_CANAL = { bienvenida: 'comunidad', anuncios: 'comunidad', sugerencias: 'comunidad', salon: 'comunidad', mascota: 'diversion', casino: 'diversion', soporte: 'soporte', registro: 'staff', contador: 'stats' };
+// La categoría de ese grupo (la busca por nombre en los dos idiomas; si no, la crea).
+// La de staff es privada: solo el bot y el rol de staff la ven.
+async function categoriaDe(guild, grupo, idioma, rolStaffId = null) {
+    const nombres = CATEGORIAS[grupo];
+    if (!nombres) return null;
+    const ya = guild.channels.cache.find((c) => c.type === ChannelType.GuildCategory && nombres.includes(c.name));
+    if (ya) return ya;
+    const permisos = [];
+    if (grupo === 'staff') {
+        permisos.push({ id: guild.id, type: OverwriteType.Role, deny: [F.ViewChannel] });
+        permisos.push({ id: guild.members.me.id, type: OverwriteType.Member, allow: [F.ViewChannel, F.SendMessages, F.EmbedLinks, F.ReadMessageHistory] });
+        if (rolStaffId) permisos.push({ id: rolStaffId, type: OverwriteType.Role, allow: [F.ViewChannel, F.ReadMessageHistory] });
+    }
+    return guild.channels.create({ name: nombres[idioma === 'en' ? 0 : 1], type: ChannelType.GuildCategory, permissionOverwrites: permisos, reason: 'Setup rápido de Sokyo' });
+}
+// Mete en su categoría los canales del bot que estén SUELTOS (sin categoría). Lo que alguien ya
+// haya colocado en otra categoría no se toca. No cambia permisos. Devuelve los movidos.
+async function organizarCanales(guild, cfg, idioma = 'es') {
+    const c = cfg || {};
+    const lista = [
+        ['bienvenida', c.bienvenida?.canalId], ['registro', c.canalLogsId], ['anuncios', c.temporadas?.canalId], ['anuncios', c.cumpleanos?.canalId],
+        ['sugerencias', c.canalSugerencias], ['salon', c.salonFama?.canalId], ['mascota', c.mascota?.canalId], ['casino', c.casino?.canalId],
+        ['soporte', c.panelTickets?.canalId], ...(c.contadoresCanal || []).map((x) => ['contador', x.canalId]),
+    ];
+    const movidos = []; const vistos = new Set();
+    for (const [clave, id] of lista) {
+        const canal = id && guild.channels.cache.get(String(id));
+        if (!canal || vistos.has(canal.id) || canal.parentId || canal.type === ChannelType.GuildCategory) continue;
+        vistos.add(canal.id);
+        const cat = await categoriaDe(guild, GRUPO_CANAL[clave], idioma, c.rolStaffId);
+        if (!cat) continue;
+        await canal.setParent(cat.id, { lockPermissions: false, reason: 'Sokyo · ordenar canales' }).then(() => movidos.push({ canal: canal.name, categoria: cat.name })).catch(() => {});
+    }
+    return movidos;
+}
+
 async function canalDe(guild, clave, idioma, { configurado = null, privado = false, soloLectura = false, parent = null, rolStaffId = null } = {}) {
     if (configurado && guild.channels.cache.get(configurado)?.type === ChannelType.GuildText) return { canal: guild.channels.cache.get(configurado), creado: false };
     const nom = nombre(clave, idioma);
@@ -126,7 +168,9 @@ async function canalDe(guild, clave, idioma, { configurado = null, privado = fal
         permisos.push({ id: yo.id, type: OverwriteType.Member, allow: [F.ViewChannel, F.SendMessages, F.EmbedLinks, F.ReadMessageHistory] });
         if (privado && rolStaffId) permisos.push({ id: rolStaffId, type: OverwriteType.Role, allow: [F.ViewChannel, F.ReadMessageHistory] });
     }
-    const canal = await guild.channels.create({ name: nom, type: ChannelType.GuildText, parent: parent || undefined, permissionOverwrites: permisos, reason: 'Setup rápido de Sokyo' });
+    // Nuevo: dentro de su categoría (la de staff ya es privada).
+    const cat = parent ? null : await categoriaDe(guild, GRUPO_CANAL[clave], idioma, rolStaffId).catch(() => null);
+    const canal = await guild.channels.create({ name: nom, type: ChannelType.GuildText, parent: parent || cat?.id || undefined, permissionOverwrites: permisos, reason: 'Setup rápido de Sokyo' });
     return { canal, creado: true };
 }
 
@@ -314,6 +358,11 @@ async function aplicar(client, guild, respuestas, { idiomaTextos = respuestas.id
         return {};
     });
 
+    // Al final, lo que haya quedado suelto (p. ej. el contador) va a su categoría.
+    try {
+        const doc = await ServidorConfig.findOne({ guildId: guild.id });
+        await organizarCanales(guild, doc?.toObject ? doc.toObject() : doc, idioma);
+    } catch { /* ordenar es un extra: si falla, el setup ya está hecho */ }
     require('./config.js').invalidateConfig(guild.id);
     return { pasos, creados };
 }
@@ -333,6 +382,7 @@ function resumenTexto(idioma, resultado) {
 }
 
 module.exports = {
+    CATEGORIAS, GRUPO_CANAL, categoriaDe, organizarCanales,
     MODULOS, TIPOS, CANALES, NOMBRES, recomendados, validar, canalesNecesarios, permisosQueFaltan, puedePasar, canalDe, aplicar, resumenTexto, NOMBRE_PASO,
     _reiniciarLimite: () => ultimaPasada.clear(),
 };

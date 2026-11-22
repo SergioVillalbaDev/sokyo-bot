@@ -139,6 +139,16 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
 
       {/* Setup rápido (1.11.0): deja el bot funcionando con unas preguntas */}
       <TarjetaInstalacion onAbrir={() => { dash.cargarCanales?.(); dash.cargarRoles?.(); setSetupAbierto(true); }} />
+      {/* Centro de funciones (1.26.0): todo lo que hace Sokyo, en tarjetas */}
+      <button type="button" onClick={() => setActiveTab('funciones')}
+        className="sk-foco group flex w-full items-center gap-4 rounded-3xl border border-line bg-card p-4 text-left shadow-soft transition-colors hover:border-brand/50">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand/15 text-2xl" aria-hidden>🧩</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-extrabold text-fg">{t('dashboard.funciones.titulo')}</span>
+          <span className="block text-sm text-muted">{t('dashboard.meta.funciones.subtitle')}</span>
+        </span>
+        <span className="shrink-0 rounded-xl border border-line px-3 py-2 text-sm font-bold text-fg group-hover:border-brand">{t('dashboard.funciones.abrir')} →</span>
+      </button>
       {setupAbierto && (
         <InstalacionGuiada guildId={guildId} canales={dash.canales} roles={dash.roles} irA={setActiveTab}
           onCerrar={() => setSetupAbierto(false)} onHecho={() => dash.recargarSeccion?.({ soloDatos: true })} />

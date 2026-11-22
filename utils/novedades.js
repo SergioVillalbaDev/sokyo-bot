@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.26.0': [
+        { tab: 'funciones', es: '🧩 Nuevo **Centro de funciones**: todo lo que hace Sokyo en tarjetas, con buscador. Cada una dice si está encendida y se activa con un clic.', en: '🧩 New **Feature hub**: everything Sokyo does in cards, with search. Each one shows whether it’s on and turns on in one click.' },
+        { tab: 'funciones', es: '🧭 El menú del panel ahora es **sencillo**: solo lo que usa casi todo el mundo. Lo demás sigue ahí con «Ver todas las secciones».', en: '🧭 The panel menu is now **simple**: just what almost everyone uses. Everything else is still there under “Show all sections”.' },
+        { tab: 'funciones', es: '🗂️ Los canales que crea el bot van ahora **ordenados en categorías** (Comunidad, Diversión, Soporte, Staff, Estadísticas). Y en el Centro de funciones hay un botón para ordenar los que ya estaban sueltos.', en: '🗂️ Channels the bot creates now go **into categories** (Community, Fun, Support, Staff, Stats). And the Feature hub has a button to tidy the ones that were loose.' },
+    ],
     '1.25.0': [
         { tab: 'com-casino', es: '🔼 Nuevo juego: **Mayor o menor**. ¿La siguiente carta será mayor o menor? Encadena aciertos (cada uno multiplica) y retírate a tiempo.', en: '🔼 New game: **Higher or lower**. Will the next card be higher or lower? Chain correct guesses (each one multiplies) and cash out in time.' },
         { tab: 'com-casino', es: '🎟️ Nuevo juego: **Rasca y gana**. Rasca 9 casillas: con 3 símbolos iguales ganas, hasta ×500.', en: '🎟️ New game: **Scratch card**. Scratch 9 tiles: 3 matching symbols win, up to ×500.' },
