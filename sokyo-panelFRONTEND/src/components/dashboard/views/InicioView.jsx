@@ -13,7 +13,7 @@ import { CircularGauge } from '../../ui/CircularGauge';
 import { gruposVisibles, navSections, bloqueadoPorPlan, ubicacion, itemVisible } from '../navConfig';
 import { getStaffSession, apiFetch, procesarRespuesta } from '../../../lib/api';
 import AsistenteInicio from '../AsistenteInicio';
-import SetupRapido, { TarjetaSetupRapido } from '../SetupRapido';
+import InstalacionGuiada, { TarjetaInstalacion } from '../InstalacionGuiada';
 import AvisoIdiomaBot from '../AvisoIdiomaBot';
 import { cn } from '../../../lib/cn';
 
@@ -138,9 +138,9 @@ export default function InicioView({ dash, onBuscar, onRequestUpgrade }) {
       <AvisoIdiomaBot key={guildId} dash={dash} ocultable />
 
       {/* Setup rápido (1.11.0): deja el bot funcionando con unas preguntas */}
-      <TarjetaSetupRapido onAbrir={() => { dash.cargarCanales?.(); dash.cargarRoles?.(); setSetupAbierto(true); }} />
+      <TarjetaInstalacion onAbrir={() => { dash.cargarCanales?.(); dash.cargarRoles?.(); setSetupAbierto(true); }} />
       {setupAbierto && (
-        <SetupRapido guildId={guildId} canales={dash.canales} roles={dash.roles} irA={setActiveTab}
+        <InstalacionGuiada guildId={guildId} canales={dash.canales} roles={dash.roles} irA={setActiveTab}
           onCerrar={() => setSetupAbierto(false)} onHecho={() => dash.recargarSeccion?.({ soloDatos: true })} />
       )}
 

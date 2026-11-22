@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.19.0': [
+        { tab: 'inicio', es: '🧭 Instalación guiada nueva: te pregunta en qué idioma hablar, qué tipo de servidor tienes, qué quieres que haga y dónde va cada cosa («¿Dónde saludo a los que llegan?»). Eliges un canal tuyo o dejas que Sokyo lo cree.', en: '🧭 New guided setup: it asks which language to speak, what kind of server you have, what you want it to do and where each thing goes (“Where do I greet newcomers?”). Pick one of your channels or let Sokyo create it.' },
+        { tab: 'inicio', es: '📝 Antes de tocar nada te enseña en frases sencillas todo lo que va a hacer, y al acabar te dice qué hacer después.', en: '📝 Before touching anything it shows in plain sentences everything it will do, and when it’s done it tells you what to do next.' },
+    ],
     '1.18.0': [
         { tab: 'com-sugerencias', es: '⚡ Al entrar en una sección que está apagada, sale arriba en grande qué hace, qué va a pasar y un botón «Activarlo ahora» que la deja funcionando en un clic.', en: '⚡ When you open a section that’s off, a big card at the top shows what it does, what will happen and a “Turn it on now” button that gets it working in one click.' },
         { es: '🔦 Si una sección se enciende a mano, el botón te lleva a su interruptor y lo hace brillar.', en: '🔦 If a section is turned on by hand, the button takes you to its switch and makes it glow.' },
