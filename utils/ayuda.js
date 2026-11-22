@@ -49,6 +49,7 @@ const CATEGORIAS = [
         ['prank', 's', 'broma', 'Gasta oro en bromas: cambiar un apodo, payaso del día, reacciones o loro. Y escudos.', 'Spend gold on pranks: change a nickname, clown of the day, reactions or a parrot. And shields.'],
         ['casino', 's', null, 'Tragaperras con bote, ruleta, blackjack, crash, minas, cara o cruz, duelos y carreras con oro. Empieza por /casino ayuda.', 'Slots with a jackpot, roulette, blackjack, crash, mines, coin flip, duels and races with gold. Start with /casino help.'],
         ['chest', 's', 'cofre', 'Abre cofres con oro y colecciona compañeros (hay uno divino rarísimo).', 'Open chests with gold and collect companions (there’s an ultra-rare divine one).'],
+        ['companion', 's', 'compi', 'Tu compañero: dale de comer, juega, habla con él, mándalo de expedición y cumple las misiones del día.', 'Your companion: feed it, play, talk, send it on expeditions and do the daily missions.'],
         ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
     ] },
     { id: 'niveles', emoji: '📈', titulo: ['Niveles', 'Levels'], tab: 'config-niveles', cmds: [

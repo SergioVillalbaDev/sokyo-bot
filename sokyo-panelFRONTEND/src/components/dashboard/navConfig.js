@@ -17,7 +17,7 @@ import {
   Rocket, Send, ChevronsUp, Globe2, Radio, Music, Mic2, Megaphone, LayoutTemplate, MessagesSquare,
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
   Stethoscope, FileClock, Cake, ClipboardCheck, Star, Shield, MessageSquareHeart, Moon, Pin, Hash, Dices,
-  Vote, Handshake, Trophy, Award, Laugh, PawPrint, Medal, Coins,
+  Vote, Handshake, Trophy, Award, Laugh, PawPrint, Medal, Coins, Heart,
 } from 'lucide-react';
 
 export const navSections = [
@@ -97,6 +97,7 @@ export const navGroups = [
       { tab: 'com-confesiones', icon: MessageSquareHeart, kw: 'confesiones anonimo anonimas secretos confess confessions anonymous' },
       { tab: 'com-temporadas', icon: Trophy, kw: 'temporadas temporada ranking mensual semanal premios podio campeon season leaderboard monthly' },
       { tab: 'com-mascota', icon: PawPrint, kw: 'mascota pet tamagotchi huevo dragon zorro cuidar alimentar oro combates criatura egg creature feed' },
+      { tab: 'com-compis', icon: Heart, kw: 'compañeros compi companion tamagotchi personajes anime cuidar expediciones misiones racha coleccion cofres fotos propios characters care expeditions missions streak' },
       { tab: 'com-casino', icon: Coins, kw: 'casino tragaperras slots ruleta roulette blackjack crash minas mines apuestas gambling bote jackpot cofres lootbox mascotas carrera duelo coinflip moneda' },
       { tab: 'com-bromas', icon: Laugh, kw: 'bromas broma apodo payaso loro reaccion escudo oro gastar pranks prank nickname clown parrot shield gold' },
     ],

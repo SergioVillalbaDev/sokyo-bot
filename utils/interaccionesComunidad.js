@@ -27,6 +27,8 @@ async function manejar(interaction, client) {
         // 1.16.0: casino y cofres de mascotas.
         if (id.startsWith('cas_')) return await require('./casino.js').manejar(interaction, client);
         if (id.startsWith('cof_')) return await require('./cofres.js').manejar(interaction, client);
+        // 1.20.0: compañeros tipo tamagotchi (/compi).
+        if (id.startsWith('cmp')) return await require('./compis.js').manejar(interaction, client);
         if (interaction.isButton() && id.startsWith('liga_animar:')) { await require('./liga.js').animar(interaction); return true; }
         if (interaction.isButton() && /^tkayuda_(si|no):/.test(id)) {
             await manejarAyudaPrevia(interaction, client);

@@ -27,6 +27,32 @@ async function imagen(svg) {
     return img;
 }
 
+// Dibujo de un compañero: el de Twemoji o, si es de un servidor, la foto que subió el admin
+// (solo de /uploads, nunca de internet). Las fotos se recortan en círculo al dibujarlas.
+const UPLOADS = path.join(__dirname, '..', 'api', 'uploads');
+async function imagenCompanero(id) {
+    const d = K.def(id);
+    if (d.svg) return imagen(d.svg);
+    if (!d.imagen || !String(d.imagen).startsWith('/uploads/')) return imagen('2b50');
+    const clave = `foto:${d.imagen}`;
+    if (imagenes.has(clave)) return imagenes.get(clave);
+    const ruta = path.join(UPLOADS, path.basename(d.imagen));
+    const img = fs.existsSync(ruta) ? await canvasLib.loadImage(fs.readFileSync(ruta)).catch(() => null) : null;
+    imagenes.set(clave, img);
+    return img;
+}
+// Pinta el compañero en (x, y, tam). Las fotos van en círculo con borde.
+function pintarCompanero(ctx, img, id, x, y, tam, borde = null) {
+    if (!img) return;
+    const d = K.def(id);
+    if (d.svg) { ctx.drawImage(img, x, y, tam, tam); return; }
+    ctx.save(); ctx.beginPath(); ctx.arc(x + tam / 2, y + tam / 2, tam / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+    const lado = Math.min(img.width, img.height);
+    ctx.drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, x, y, tam, tam);
+    ctx.restore();
+    if (borde) { ctx.beginPath(); ctx.arc(x + tam / 2, y + tam / 2, tam / 2, 0, Math.PI * 2); ctx.strokeStyle = borde; ctx.lineWidth = Math.max(2, tam / 30); ctx.stroke(); }
+}
+
 // Junta los fotogramas en un GIF que se reproduce una vez. frames: [{ ctx, delay }]
 function aGif(frames, W, H) {
     const { GIFEncoder, quantize, applyPalette } = gifLib;
@@ -305,11 +331,11 @@ function rayos(ctx, cx, cy, n, largo, giro, colores, alfa = 0.6) {
 async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true } = {}) {
     if (!listo()) return null;
     const W = 420; const H = 360;
-    const comp = K.COMPANEROS[companeroId];
+    const comp = K.def(companeroId);
     const rareza = K.RAREZAS[comp.rareza];
     const divina = comp.rareza === 'divina';
     const color = K.COFRES[cofre].color;
-    const [bicho, brillo, corona] = await Promise.all([imagen(comp.svg), imagen('2728'), imagen('1f451')]);
+    const [bicho, brillo, corona] = await Promise.all([imagenCompanero(companeroId), imagen('2728'), imagen('1f451')]);
     const ARCOIRIS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#60a5fa', '#a78bfa', '#f472b6'];
     // Fases: tiembla (0-9), sube de rareza (10-19), estalla (20-23), aparece (24-35), queda (36…)
     const subeHasta = ORDEN_RAREZAS.indexOf(comp.rareza);
@@ -349,7 +375,7 @@ async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', est
                 aura.addColorStop(0, ARCOIRIS[f % ARCOIRIS.length] + 'cc'); aura.addColorStop(1, '#00000000');
                 ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(cx, by, 130, 0, Math.PI * 2); ctx.fill();
             }
-            if (bicho && tam > 2) ctx.drawImage(bicho, cx - tam / 2, by - tam / 2, tam, tam);
+            if (bicho && tam > 2) pintarCompanero(ctx, bicho, companeroId, cx - tam / 2, by - tam / 2, tam, rareza.color);
             if (divina && corona && k >= 1) ctx.drawImage(corona, cx - 36, by - tam / 2 - 46, 72, 72);
             // Destellos
             if (brillo && k >= 0.5) {
@@ -382,7 +408,8 @@ async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', est
 // Tarjeta (PNG) de la colección de alguien: sus compañeros por rareza.
 async function tarjetaColeccion(coleccion, { titulo = '' } = {}) {
     if (!canvasLib) return null;
-    const ids = Object.keys(K.COMPANEROS);
+    // Los del catálogo y, al final, los de servidores que tenga.
+    const ids = [...Object.keys(K.COMPANEROS), ...(coleccion.mascotas || []).map((m) => m.id).filter((id) => K.esPersonalizado(id))];
     const W = 760; const cols = 8; const celda = 88;
     const filas = Math.ceil(ids.length / cols);
     const H = 90 + filas * (celda + 14) + 20;
@@ -393,16 +420,16 @@ async function tarjetaColeccion(coleccion, { titulo = '' } = {}) {
     ctx.fillStyle = '#ffffff'; ctx.font = `bold 28px ${FUENTE}`; ctx.textAlign = 'left';
     const tiene = new Map((coleccion.mascotas || []).map((m) => [m.id, m]));
     ctx.fillText(titulo || `Colección · ${tiene.size}/${ids.length}`, 28, 52);
-    const orden = [...ids].sort((a, b) => K.RAREZAS[K.COMPANEROS[a].rareza].orden - K.RAREZAS[K.COMPANEROS[b].rareza].orden);
+    const orden = [...ids].sort((a, b) => (K.esPersonalizado(a) - K.esPersonalizado(b)) || (K.RAREZAS[K.def(a).rareza].orden - K.RAREZAS[K.def(b).rareza].orden));
     for (let i = 0; i < orden.length; i++) {
-        const id = orden[i]; const comp = K.COMPANEROS[id]; const r = K.RAREZAS[comp.rareza];
+        const id = orden[i]; const comp = K.def(id); const r = K.RAREZAS[comp.rareza];
         const x = 28 + (i % cols) * (celda + 2); const y = 76 + Math.floor(i / cols) * (celda + 14);
         redondeado(ctx, x, y, celda - 6, celda, 14); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
         ctx.strokeStyle = tiene.has(id) ? r.color : 'rgba(255,255,255,0.12)'; ctx.lineWidth = tiene.has(id) ? 3 : 1.5; ctx.stroke();
-        const im = await imagen(comp.svg);
+        const im = await imagenCompanero(id);
         if (im) {
             if (!tiene.has(id)) { ctx.globalAlpha = 0.12; }
-            ctx.drawImage(im, x + 13, y + 8, 56, 56);
+            pintarCompanero(ctx, im, id, x + 13, y + 8, 56);
             ctx.globalAlpha = 1;
         }
         if (!tiene.has(id)) { ctx.fillStyle = '#94a3b8'; ctx.font = `bold 26px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText('?', x + (celda - 6) / 2, y + 46); }
@@ -415,4 +442,4 @@ async function tarjetaColeccion(coleccion, { titulo = '' } = {}) {
     return c.toBuffer('image/png');
 }
 
-module.exports = { gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack, gifCofre, tarjetaColeccion, listo };
+module.exports = { gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

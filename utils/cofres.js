@@ -10,7 +10,7 @@ const { t } = require('./i18n.js');
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const fmt = (n, idioma) => Math.round(n || 0).toLocaleString(t(idioma, 'es-ES', 'en-US'));
-const nombre = (id, idioma) => { const c = K.COMPANEROS[id]; return c ? t(idioma, c.es, c.en) : id; };
+const nombre = (id, idioma) => { const c = K.def(id); return t(idioma, c.es, c.en); };
 const rarezaTxt = (r, idioma) => `${K.RAREZAS[r].emoji} ${t(idioma, K.RAREZAS[r].es, K.RAREZAS[r].en)}`;
 const pct = (v) => `+${Math.round(v * 1000) / 10} %`;
 
@@ -21,11 +21,13 @@ async function ventajasUsuario(userId) {
     if (c && c.hasta > Date.now()) return c.v;
     const col = await ColeccionMascotas.findOne({ userId }).select('equipada mascotas').lean();
     const eq = col?.equipada ? (col.mascotas || []).find((m) => m.id === col.equipada) : null;
-    const v = eq ? K.ventajas(eq.id, eq.estrellas) : { xp: 0, diario: 0, vuelta: 0 };
+    const v = eq ? K.ventajas(eq.id, eq.estrellas, require('./compisNucleo.js').extraCuidado(eq)) : { xp: 0, diario: 0, vuelta: 0 };
     cache.set(userId, { v, hasta: Date.now() + 60000 });
     return v;
 }
 const olvidar = (userId) => cache.delete(userId);
+// Compañeros propios del servidor que pueden salir en sus cofres (1.20.0).
+const personalizadosDe = (guildId) => (guildId ? [...K.PERSONALIZADOS.entries()].filter(([, c]) => c.guildId === guildId && c.activo !== false).map(([id]) => id) : []);
 const coleccion = async (userId) => (await ColeccionMascotas.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, returnDocument: 'after' }));
 
 function textoVentajas(v, idioma) {
@@ -49,7 +51,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     let r; let col;
     for (let intento = 0; intento < 5; intento++) {
         col = await coleccion(userId);
-        r = K.abrir(col, cofre);
+        r = K.abrir(col, cofre, undefined, personalizadosDe(interaction.guildId));
         const tiene = (col.mascotas || []).some((m) => m.id === r.id);
         const upd = {
             $inc: { abiertos: 1, gastado: def.precio, ...(r.rareza === 'divina' ? { divinas: 1 } : {}) },
@@ -64,7 +66,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     if (r.devuelto) await economia.darOro(userId, r.devuelto);
     olvidar(userId);
     await AperturaCofre.create({ guildId: interaction.guildId || null, userId, cofre, companero: r.id, rareza: r.rareza }).catch(() => {});
-    const comp = K.COMPANEROS[r.id];
+    const comp = K.def(r.id);
     const rz = K.RAREZAS[r.rareza];
     const gif = await A.gifCofre(cofre, r.id, { nombre: nombre(r.id, idioma), rarezaTexto: t(idioma, rz.es, rz.en).toUpperCase(), estrellas: r.estrellas, nuevo: r.nuevo }).catch(() => null);
     const e = new EmbedBuilder().setColor(def.color).setTitle(`${def.emoji} ${t(idioma, def.es, def.en)}`)
@@ -89,6 +91,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre }) {
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cof_otro:${cofre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
         new ButtonBuilder().setCustomId(`cof_eq:${r.id}`).setEmoji('✅').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Equipar', 'Equip')),
+        new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${r.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Cuidarlo', 'Look after it')),
     );
     await interaction.editReply({ embeds: [fin], components: [fila] });
     // Las legendarias o mejores se anuncian (y la divina, a lo grande).
@@ -115,19 +118,19 @@ async function verColeccion(interaction, idioma, usuario = null) {
     const total = Object.keys(K.COMPANEROS).length;
     const png = await A.tarjetaColeccion(col, { titulo: t(idioma, `Colección de ${quien.username} · ${col.mascotas.length}/${total}`, `${quien.username}’s collection · ${col.mascotas.length}/${total}`) }).catch(() => null);
     const eq = col.equipada ? col.mascotas.find((m) => m.id === col.equipada) : null;
-    const e = new EmbedBuilder().setColor(eq ? K.RAREZAS[K.COMPANEROS[eq.id].rareza].color : '#6366f1')
+    const e = new EmbedBuilder().setColor(eq ? K.RAREZAS[K.def(eq.id).rareza].color : '#6366f1')
         .setTitle(t(idioma, `🐾 Colección de ${quien.username}`, `🐾 ${quien.username}’s collection`))
         .setDescription([
-            eq ? t(idioma, `Equipado: ${K.COMPANEROS[eq.id].emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`, `Equipped: ${K.COMPANEROS[eq.id].emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`) : t(idioma, 'Sin compañero equipado. Abre un cofre con `/cofre abrir`.', 'No companion equipped. Open a chest with `/chest open`.'),
-            eq && K.COMPANEROS[eq.id].titulo ? `**${t(idioma, K.COMPANEROS[eq.id].titulo.es, K.COMPANEROS[eq.id].titulo.en)}**` : '',
+            eq ? t(idioma, `Equipado: ${K.def(eq.id).emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`, `Equipped: ${K.def(eq.id).emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`) : t(idioma, 'Sin compañero equipado. Abre un cofre con `/cofre abrir`.', 'No companion equipped. Open a chest with `/chest open`.'),
+            eq && K.def(eq.id).titulo ? `**${t(idioma, K.def(eq.id).titulo.es, K.def(eq.id).titulo.en)}**` : '',
             t(idioma, `📦 ${col.abiertos} cofres abiertos`, `📦 ${col.abiertos} chests opened`),
         ].filter(Boolean).join('\n'));
     if (png) e.setImage('attachment://coleccion.png');
     const comps = [];
     if (!usuario && col.mascotas.length) {
         comps.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('cof_sel').setPlaceholder(t(idioma, '✅ Equipar otro compañero…', '✅ Equip another companion…'))
-            .addOptions([...col.mascotas].sort((a, b) => K.RAREZAS[K.COMPANEROS[b.id].rareza].orden - K.RAREZAS[K.COMPANEROS[a.id].rareza].orden).slice(0, 25)
-                .map((m) => ({ label: `${nombre(m.id, idioma)} ${'★'.repeat(m.estrellas)}`.slice(0, 100), value: m.id, emoji: K.COMPANEROS[m.id].emoji, description: `${t(idioma, K.RAREZAS[K.COMPANEROS[m.id].rareza].es, K.RAREZAS[K.COMPANEROS[m.id].rareza].en)} · ${textoVentajas(K.ventajas(m.id, m.estrellas), idioma)}`.slice(0, 100) })))));
+            .addOptions([...col.mascotas].sort((a, b) => K.RAREZAS[K.def(b.id).rareza].orden - K.RAREZAS[K.def(a.id).rareza].orden).slice(0, 25)
+                .map((m) => ({ label: `${nombre(m.id, idioma)} ${'★'.repeat(m.estrellas)}`.slice(0, 100), value: m.id, emoji: K.def(m.id).emoji, description: `${t(idioma, K.RAREZAS[K.def(m.id).rareza].es, K.RAREZAS[K.def(m.id).rareza].en)} · ${textoVentajas(K.ventajas(m.id, m.estrellas), idioma)}`.slice(0, 100) })))));
     }
     return { embeds: [e], files: png ? [new AttachmentBuilder(png, { name: 'coleccion.png' })] : [], components: comps, allowedMentions: { parse: [] } };
 }
@@ -158,7 +161,7 @@ async function manejar(interaction, client) {
     if ((interaction.isButton() && id.startsWith('cof_eq:')) || (interaction.isStringSelectMenu() && id === 'cof_sel')) {
         const comp = interaction.isStringSelectMenu() ? interaction.values[0] : id.split(':')[1];
         const ok = await equipar(interaction.user.id, comp);
-        await interaction.reply({ content: ok ? t(idioma, `✅ Ahora te acompaña ${K.COMPANEROS[comp].emoji} **${nombre(comp, idioma)}**.`, `✅ ${K.COMPANEROS[comp].emoji} **${nombre(comp, idioma)}** is now with you.`) : t(idioma, 'Ese compañero no es tuyo.', 'That companion isn’t yours.'), flags: 64 });
+        await interaction.reply({ content: ok ? t(idioma, `✅ Ahora te acompaña ${K.def(comp).emoji} **${nombre(comp, idioma)}**.`, `✅ ${K.def(comp).emoji} **${nombre(comp, idioma)}** is now with you.`) : t(idioma, 'Ese compañero no es tuyo.', 'That companion isn’t yours.'), flags: 64 });
         return true;
     }
     return false;
@@ -177,7 +180,8 @@ async function resumenServidor(client, guildId) {
     return {
         abiertos, divinasMundo,
         porRareza: Object.fromEntries(porRareza.map((x) => [x._id, x.n])),
-        ultimas: ultimas.map((a) => ({ ...persona(a.userId), cofre: a.cofre, companero: a.companero, rareza: a.rareza, fecha: a.fecha })),
+        ultimas: ultimas.map((a) => ({ ...persona(a.userId), cofre: a.cofre, companero: a.companero, rareza: a.rareza, fecha: a.fecha,
+            ...(K.esPersonalizado(a.companero) ? { custom: { nombre: K.def(a.companero).es, imagen: K.def(a.companero).imagen } } : {}) })),
     };
 }
 

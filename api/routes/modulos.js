@@ -823,5 +823,100 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
         } catch (e) { console.error('PUT casino:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
 
+    // ===================== COMPAÑEROS (1.20.0): los del servidor, con foto =====================
+    const CompaneroServidor = require('../../models/CompaneroServidor.js');
+    const KC = require('../../utils/cofresNucleo.js');
+    const MAX_COMPIS = 20;
+    const fs = require('fs');
+    const path = require('path');
+    const dirUploads = path.join(__dirname, '..', 'uploads');
+    const formaCompi = (c) => ({ cid: c.cid, id: `s:${c.guildId}:${c.cid}`, nombre: c.nombre, rareza: c.rareza, imagen: c.imagen, desc: c.desc, voz: c.voz, frases: c.frases, activo: c.activo !== false });
+    // Valida y prepara los campos que llegan del panel. Devuelve { set } o { error }.
+    const camposCompi = (b, nuevo) => {
+        const set = {};
+        if (b.nombre !== undefined || nuevo) {
+            const n = String(b.nombre || '').replace(/[\n\r@#<>`*_~|]/g, '').trim().slice(0, 32);
+            if (!n) return { error: 'Ponle un nombre' };
+            set.nombre = n;
+        }
+        if (b.rareza !== undefined) {
+            if (!KC.RAREZAS_PERSONALIZADAS.includes(b.rareza)) return { error: 'Esa rareza no vale' };
+            set.rareza = b.rareza;
+        }
+        if (b.desc !== undefined) set.desc = String(b.desc || '').replace(/[\n\r]/g, ' ').trim().slice(0, 140);
+        if (b.voz !== undefined) set.voz = require('../../utils/compisFrases.js').VOCES[b.voz] ? b.voz : 'tierno';
+        if (b.frases !== undefined) set.frases = (Array.isArray(b.frases) ? b.frases : []).map((f) => String(f || '').replace(/[\n\r]/g, ' ').replace(/@(everyone|here)/g, '@\u200b$1').trim().slice(0, 160)).filter(Boolean).slice(0, 15);
+        if (b.activo !== undefined) set.activo = !!b.activo;
+        if (b.imagen) {
+            const img = require('../../utils/imagenes.js').imagenDeDataUrl(b.imagen);
+            if (!img) return { error: require('../../utils/imagenes.js').ERROR_NO_IMAGEN };
+            if (img.buffer.length > 3 * 1024 * 1024) return { error: 'La imagen supera 3 MB' };
+            set.imagenBuffer = img;
+        }
+        return { set };
+    };
+    const guardarFoto = (guildId, img) => {
+        if (!fs.existsSync(dirUploads)) fs.mkdirSync(dirUploads, { recursive: true });
+        const archivo = `compi-${guildId}-${Date.now()}.${img.ext}`;
+        fs.writeFileSync(path.join(dirUploads, archivo), img.buffer);
+        return `/uploads/${archivo}`;
+    };
+    router.get(ruta('compis'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const [lista, resumen] = await Promise.all([
+                CompaneroServidor.find({ guildId: guild.id }).sort({ creado: 1 }).lean(),
+                require('../../utils/compis.js').resumenServidor(client, guild.id),
+            ]);
+            const ColeccionMascotas = require('../../models/ColeccionMascotas.js');
+            const duenos = await Promise.all(lista.map((c) => ColeccionMascotas.countDocuments({ 'mascotas.id': `s:${guild.id}:${c.cid}` })));
+            res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: MAX_COMPIS, ...resumen });
+        } catch (e) { console.error('GET compis:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    router.post(ruta('compis'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            if (await CompaneroServidor.countDocuments({ guildId: guild.id }) >= MAX_COMPIS) return res.status(400).json({ error: 'Ya tienes 20 compañeros propios: borra alguno antes' });
+            const r = camposCompi({ rareza: 'rara', ...(req.body || {}) }, true);
+            if (r.error) return res.status(400).json({ error: r.error });
+            if (!r.set.imagenBuffer) return res.status(400).json({ error: 'Sube una foto para tu compañero' });
+            const { imagenBuffer, ...set } = r.set;
+            set.imagen = guardarFoto(guild.id, imagenBuffer);
+            const cid = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+            const c = await CompaneroServidor.create({ guildId: guild.id, cid, ...set });
+            KC.registrarPersonalizado({ ...c.toObject(), id: `s:${guild.id}:${cid}` });
+            res.json({ success: true, compi: formaCompi(c) });
+        } catch (e) { console.error('POST compis:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+    router.put(ruta('compis/:cid'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const r = camposCompi(req.body || {}, false);
+            if (r.error) return res.status(400).json({ error: r.error });
+            const { imagenBuffer, ...set } = r.set;
+            if (imagenBuffer) set.imagen = guardarFoto(guild.id, imagenBuffer);
+            const c = await CompaneroServidor.findOneAndUpdate({ guildId: guild.id, cid: String(req.params.cid) }, { $set: set }, { returnDocument: 'after' });
+            if (!c) return res.status(404).json({ error: 'No encontrado' });
+            KC.registrarPersonalizado({ ...c.toObject(), id: `s:${guild.id}:${c.cid}` });
+            res.json({ success: true, compi: formaCompi(c) });
+        } catch (e) { console.error('PUT compis:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+    });
+    // Borrar solo si nadie lo tiene; si alguien lo tiene, se quita de los cofres (activo: false).
+    router.delete(ruta('compis/:cid'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const id = `s:${guild.id}:${String(req.params.cid)}`;
+            const ColeccionMascotas = require('../../models/ColeccionMascotas.js');
+            if (await ColeccionMascotas.countDocuments({ 'mascotas.id': id })) {
+                const c = await CompaneroServidor.findOneAndUpdate({ guildId: guild.id, cid: String(req.params.cid) }, { $set: { activo: false } }, { returnDocument: 'after' });
+                if (c) KC.registrarPersonalizado({ ...c.toObject(), id });
+                return res.json({ success: true, retirado: true });
+            }
+            await CompaneroServidor.deleteOne({ guildId: guild.id, cid: String(req.params.cid) });
+            KC.olvidarPersonalizado(id);
+            res.json({ success: true, borrado: true });
+        } catch (e) { console.error('DELETE compis:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
     return router;
 };
