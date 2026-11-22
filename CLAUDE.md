@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.27.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.28.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,18 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.28.0 **Granja, álbum y misiones semanales** (cada persona, global como el oro). Reglas puras en `utils/granjaNucleo.js`
+  (test/granja.test.js); Discord en `utils/granja.js` (botones `grj:ver|rec|alb|abrir:<owner>`; sin dueño o de otra persona
+  → se abre la suya en privado) y `/granja` (`slash/farm.js`). Granja: las mejores mascotas (huecos = 3 + hitos con hueco)
+  producen `PRODUCCION[rareza]` oro/h × (1 + 0,15·(★−1)) × (1 + 0,02·nivel) × cuidado (0,5–1,2 según barriga y alegría);
+  de expedición, 0. Se guarda hasta `TOPE_H` = 12 h; la primera vez solo arranca (`granja.desde`), sin oro retroactivo.
+  `recoger` cobra con filtro por `granja.desde` (dos clics a la vez → uno cobra). Álbum: hitos por mascotas DISTINTAS del
+  catálogo (`COMPANEROS`, las de servidor no cuentan), premiados una vez (`hitosAlbum`, `$ne` + `$addToSet`); se dan al
+  sacar una nueva en un cofre (`cofres.abrir`) o al abrir granja/álbum. Misiones semanales (`semana`, semana ISO UTC):
+  cuidar 40, expediciones 8, recoger granja 6, usar cartas 6 → 400 cada una + 1000 todas; se suman en `compis.accion`
+  (`semAcc`) y en `recoger`. El panel tiene una copia de los números en `lib/casino.js` (`GRANJA`, comprobada en
+  test/casino.test.js). En el panel, Mascotas queda en bloques plegables (cómo funciona, granja, mascotas del servidor,
+  galería del pack anime…). Nada de oro de pago ni trucos de apuesta: la granja premia volver, no apostar.
 - 1.27.0 **Lo básico arriba, lo demás plegado**. `components/dashboard/Plegable.jsx` (`<Plegable id emoji titulo sub abierto>`):
   bloque que empieza recogido y recuerda si lo abriste (`localStorage.sokyoPlegable:<id>`). Los hijos van SIEMPRE montados
   (`[data-plegable-cuerpo][hidden]`) para que el buscador (Ctrl + K, `indiceAjustes.resaltarTexto`) encuentre lo que hay dentro:

@@ -10,14 +10,14 @@ import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users, Images, Ge
 import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, Aviso } from './crecimientoShared';
 import { useModulo } from '../../../hooks/useModulo';
-import { RAREZAS, COMPANEROS, INTERACCIONES, PODERES } from '../../../lib/casino';
+import { RAREZAS, COMPANEROS, INTERACCIONES, PODERES, GRANJA } from '../../../lib/casino';
 import { svgMascota } from '../../../lib/mascota';
 import { API_URL } from '../../../lib/api';
 
 const ORDEN_R = ['comun', 'rara', 'epica', 'legendaria', 'mitica', 'divina'];
 const RAREZAS_PROPIAS = ['comun', 'rara', 'epica', 'legendaria', 'mitica'];
 const VOCES = ['tierno', 'sabio', 'bromista', 'timido', 'glotón', 'dormilon', 'orgulloso', 'sonador', 'energico', 'robot', 'alien', 'ninja', 'guerrero', 'maga', 'idol', 'vampiro', 'heroe', 'misterioso', 'genio', 'princesa'];
-const PASOS = [['🎁', 'p1'], ['🍖', 'p2'], ['🧭', 'p3'], ['🔥', 'p4']];
+const PASOS = [['🎁', 'p1'], ['🍖', 'p2'], ['🧭', 'p3'], ['🔥', 'p4'], ['🧺', 'p5'], ['📖', 'p6']];
 // Las fotos subidas vienen como «/uploads/…»: se les pone delante la dirección de la API.
 const foto = (p) => (p && p.startsWith('/uploads/') ? `${API_URL}${p}` : p);
 const VACIO = { nombre: '', rareza: 'rara', voz: 'tierno', desc: '', frases: '', activo: true, imagen: null, vista: null };
@@ -125,9 +125,11 @@ function PackAnime({ dash, info, onCambio }) {
         </div>
       )}
 
-      {lista === null ? <p className="relative mt-4 text-sm text-muted">{t('dashboard.loading')}</p> : (
-        <>
-          <div className="relative mt-4 flex flex-wrap items-center gap-2">
+      <div className="relative mt-4">
+      <Plegable id="anime-galeria" emoji="🖼️" titulo={t('dashboard.compis_v.anime.galeria')} sub={t('dashboard.compis_v.anime.galeriaSub')} cuenta={lista ? lista.length : null}>
+      {lista === null ? <p className="relative text-sm text-muted">{t('dashboard.loading')}</p> : (
+        <div>
+          <div className="relative flex flex-wrap items-center gap-2">
             <div className="relative min-w-[200px] flex-1">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input className={`${campo} pl-9`} value={busca} onChange={(e) => { setBusca(e.target.value); setVer(48); }} placeholder={t('dashboard.compis_v.anime.buscar')} />
@@ -180,8 +182,10 @@ function PackAnime({ dash, info, onCambio }) {
             </div>
           )}
           <p className="relative mt-4 text-[11px] text-muted">{t('dashboard.compis_v.anime.fuente')}</p>
-        </>
+        </div>
       )}
+      </Plegable>
+      </div>
     </div>
   );
 }
@@ -278,24 +282,69 @@ export default function CompisView({ dash }) {
             <p className="text-sm text-muted">{t('dashboard.compis_v.intro')}</p>
           </div>
         </div>
-        <ol className="relative mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {PASOS.map(([emoji, p], i) => (
-            <li key={p} className="rounded-2xl border border-line bg-bg p-3">
-              <div className="flex items-center gap-2">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-pink-500/15 text-sm font-black text-pink-300">{i + 1}</span>
-                <span className="text-xl" aria-hidden>{emoji}</span>
-              </div>
-              <p className="mt-2 text-sm font-bold text-fg">{t(`dashboard.compis_v.paso.${p}.t`)}</p>
-              <p className="mt-0.5 text-xs text-muted">{t(`dashboard.compis_v.paso.${p}.d`)}</p>
-            </li>
-          ))}
-        </ol>
-        <p className="relative mt-4 text-xs text-muted">{t('dashboard.compis_v.sano')}</p>
       </div>
+
+      <Plegable id="compis-como" emoji="🧭" titulo={t('dashboard.compis_v.comoTit')} sub={t('dashboard.compis_v.comoSub')}>
+        <div className={tarjeta}>
+          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {PASOS.map(([emoji, p], i) => (
+              <li key={p} className="rounded-2xl border border-line bg-bg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-pink-500/15 text-sm font-black text-pink-300">{i + 1}</span>
+                  <span className="text-xl" aria-hidden>{emoji}</span>
+                </div>
+                <p className="mt-2 text-sm font-bold text-fg">{t(`dashboard.compis_v.paso.${p}.t`)}</p>
+                <p className="mt-0.5 text-xs text-muted">{t(`dashboard.compis_v.paso.${p}.d`)}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-4 text-xs text-muted">{t('dashboard.compis_v.sano')}</p>
+        </div>
+      </Plegable>
+
+      <Plegable id="compis-granja" emoji="🧺" titulo={t('dashboard.compis_v.granja.titulo')} sub={t('dashboard.compis_v.granja.sub')}>
+        <div className={tarjeta}>
+          <p className="text-sm text-fg">{t('dashboard.compis_v.granja.intro', { h: GRANJA.topeH, huecos: GRANJA.huecos })}</p>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-line bg-bg p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.compis_v.granja.porHora')}</p>
+              <ul className="mt-2 space-y-1">
+                {ORDEN_R.map((r) => (
+                  <li key={r} className="flex items-center justify-between text-sm">
+                    <span style={{ color: RAREZAS[r].color }}>{t(`dashboard.casino_v.rareza.${r}`)}</span>
+                    <span className="font-bold text-fg">🪙 {GRANJA.produccion[r]}/h</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[11px] text-muted">{t('dashboard.compis_v.granja.extra', { e: Math.round(GRANJA.porEstrella * 100), n: Math.round(GRANJA.porNivel * 100) })}</p>
+            </div>
+            <div className="rounded-2xl border border-line bg-bg p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.compis_v.granja.album')}</p>
+              <ul className="mt-2 space-y-1 text-sm">
+                {GRANJA.hitos.map((h) => (
+                  <li key={h.n} className="flex items-center justify-between gap-2">
+                    <span className="text-fg">{h.n === 'todas' ? t('dashboard.compis_v.granja.todas', { n: Object.keys(COMPANEROS).length }) : t('dashboard.compis_v.granja.distintas', { n: h.n })}</span>
+                    <span className="shrink-0 font-bold text-fg">🪙 {n(h.oro)}{h.hueco ? ' · 🧺+1' : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-line bg-bg p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('dashboard.compis_v.granja.semana')}</p>
+              <ul className="mt-2 space-y-1 text-sm text-fg">
+                {Object.entries(GRANJA.semana).map(([k, v]) => <li key={k}>{v.emoji} {t(`dashboard.compis_v.granja.mision.${k}`, { n: v.n })}</li>)}
+              </ul>
+              <p className="mt-2 text-[11px] text-muted">{t('dashboard.compis_v.granja.premios', { cada: GRANJA.premioSemana, todas: GRANJA.premioTodas })}</p>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-muted">{t('dashboard.compis_v.granja.comandos')}</p>
+        </div>
+      </Plegable>
 
       {datos.anime && <PackAnime dash={dash} info={datos.anime} onCambio={recargar} />}
 
       {/* Los de tu servidor */}
+      <Plegable id="compis-propios" emoji="📸" cuenta={lista.length} titulo={t('dashboard.compis_v.propiosTitulo')} sub={t('dashboard.compis_v.propiosPlegable')}>
       <div className={tarjeta}>
         <CabeceraTarjeta icono={Crown} titulo={t('dashboard.compis_v.propiosTitulo')}
           extra={!form && lista.length < (datos.max || 20) && (
@@ -384,6 +433,7 @@ export default function CompisView({ dash }) {
           </ul>
         )}
       </div>
+      </Plegable>
 
       <Plegable id="compis-ventajas" emoji="💎" titulo={t('dashboard.compis_v.ventajasTitulo')} sub={t('dashboard.compis_v.ventajasSub')}>
       {/* Qué da cada rareza */}

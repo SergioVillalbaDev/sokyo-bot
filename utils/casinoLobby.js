@@ -171,7 +171,11 @@ async function mesa(juego, { cfg, idioma, userId, cantidad = null, extra = null 
             .setFooter({ text: t(idioma, `Tu oro: 🪙 ${fmt(saldo, idioma)}`, `Your gold: 🪙 ${fmt(saldo, idioma)}`) });
         return { embeds: [e], components: [
             new ActionRowBuilder().addComponents(Object.entries(K.COFRES).map(([id, x]) => new ButtonBuilder().setCustomId(`cof_otro:${id}`).setEmoji(x.emoji).setStyle(ButtonStyle.Primary).setLabel(`${t(idioma, x.es, x.en)} · 🪙 ${fmt(x.precio, idioma)}`).setDisabled(saldo < x.precio))),
-            new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cas_lb:coleccion').setEmoji('📚').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi colección', 'My collection'))),
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('cas_lb:coleccion').setEmoji('📚').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi colección', 'My collection')),
+                new ButtonBuilder().setCustomId('grj:abrir').setEmoji('🧺').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Mi granja', 'My farm')),
+                new ButtonBuilder().setCustomId('grj:alb').setEmoji('📖').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Álbum', 'Album')),
+            ),
         ] };
     }
     const g = ayuda().GUIA[juego];
