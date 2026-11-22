@@ -40,9 +40,11 @@ const elegir = (col, compId) => {
 
 // Hace una acción (ver, comer, jugar, mimar, hablar, exp:<tipo>) y lo guarda todo.
 // Devuelve { col, m, mensajes, efecto, frase, fallo }.
-async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = Date.now(), guildId = null, bromas = false } = {}) {
-    return enCola(userId, async () => {
-        const col = await ColeccionMascotas.findOne({ userId }).lean();
+// 1.30.0: todo es de la persona EN ESTE SERVIDOR (guildId obligatorio).
+async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '', ahora = Date.now(), bromas = false } = {}) {
+    if (!guildId) throw new Error('mascotas sin servidor');
+    return enCola(`${guildId}:${userId}`, async () => {
+        const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
         const m0 = elegir(col, compId);
         if (!m0) return { fallo: 'sin' };
         let m = { ...m0 };
@@ -122,8 +124,8 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
             // Poder del día de la mascota o una carta de anime usada en ella (1.24.0).
             const esCarta = que.startsWith('carta:');
             const r = esCarta
-                ? require('./cartasNucleo.js').usarCarta(col, que.slice(6), m, { ahora, dia, bromas: bromas && !!guildId, equipada: col.equipada })
-                : P.usarPoder(m, col, { ahora, bromas: bromas && !!guildId });
+                ? require('./cartasNucleo.js').usarCarta(col, que.slice(6), m, { ahora, dia, bromas, equipada: col.equipada })
+                : P.usarPoder(m, col, { ahora, bromas });
             if (r.fallo) { fallo = r.fallo; falloMin = r.min || 0; if (r.limite) falloRareza = r.limite; }
             else {
                 const def = P.poderDe(m);
@@ -220,11 +222,11 @@ async function accion(userId, compId, que, { idioma = 'es', dueno = '', ahora = 
         if (mis !== col.misiones) colSet.misiones = mis;
         if (oro) colSet.oroCompis = (col.oroCompis || 0) + oro;
         if (Object.keys(set).length || Object.keys(colSet).length) {
-            await ColeccionMascotas.updateOne({ userId }, { $set: { ...set, ...colSet } }, Object.keys(set).length ? { arrayFilters: [{ 'm.id': m.id }] } : {});
+            await ColeccionMascotas.updateOne({ guildId, userId }, { $set: { ...set, ...colSet } }, Object.keys(set).length ? { arrayFilters: [{ 'm.id': m.id }] } : {});
         }
-        if (oro) await require('./economia.js').darOro(userId, oro);
-        if (cuida) require('./cofres.js').olvidar(userId);
-        if (semAcc || misCumplidas) mensajes.push(...await require('./pase.js').registrar(userId, [[semAcc, semAcc ? 1 : 0], ['mision', misCumplidas], ['misionSemanal', semCumplidas]], { idioma, ahora }).catch(() => []));
+        if (oro) await require('./economia.js').en(guildId).darOro(userId, oro);
+        if (cuida) require('./cofres.js').olvidar(guildId, userId);
+        if (semAcc || misCumplidas) mensajes.push(...await require('./pase.js').registrar(guildId, userId, [[semAcc, semAcc ? 1 : 0], ['mision', misCumplidas], ['misionSemanal', semCumplidas]], { idioma, ahora }).catch(() => []));
         return { col: { ...col, ...colSet }, m, mensajes, efecto, frase, fallo, falloMin, falloRareza, oro };
     });
 }
@@ -433,7 +435,7 @@ async function manejar(interaction) {
         return true;
     }
     if (que === 'cartas') {
-        const col = await ColeccionMascotas.findOne({ userId: owner }).lean();
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
         const m = elegir(col, comp);
         if (!m) { await interaction.reply({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
         await interaction.reply(selectorCartas(col, m, owner, interaction.message?.id, idioma));
@@ -443,14 +445,14 @@ async function manejar(interaction) {
         // Se usa la carta, se pone al día la tarjeta pública de /compi y aquí se ve qué ha pasado.
         await interaction.deferUpdate();
         const nombre = interaction.user.displayName || interaction.user.username;
-        const res = await accion(owner, comp, que, { idioma, dueno: nombre, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
+        const res = await accion(interaction.guildId, owner, comp, que, { idioma, dueno: nombre, bromas: !!cfg?.bromas?.activo });
         const msgId = partes[2];
         let editado = false;
         if (!res.fallo && msgId && msgId !== '0') {
             const original = await interaction.channel?.messages.fetch(msgId).catch(() => null);
             if (original) editado = !!(await original.edit(await vista({ ownerId: owner, duenoNombre: nombre, idioma, res, cfg })).catch(() => null));
         }
-        const col = await ColeccionMascotas.findOne({ userId: owner }).lean();
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
         const sel = selectorCartas(col, elegir(col, comp) || res.m, owner, msgId, idioma);
         const resumen = res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin, res.falloRareza)}` : (res.mensajes || []).join('\n');
         if (!res.fallo && !editado) {
@@ -470,16 +472,16 @@ async function manejar(interaction) {
     await interaction.deferUpdate();
     let res;
     if (que === 'equipar') {
-        await require('./cofres.js').equipar(owner, comp);
-        res = await accion(owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
+        await require('./cofres.js').equipar(interaction.guildId, owner, comp);
+        res = await accion(interaction.guildId, owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username, bromas: !!cfg?.bromas?.activo });
         if (!res.fallo) res.mensajes.unshift(t(idioma, `✅ Ahora te acompaña ${K.def(comp).emoji} **${corto(res.m, idioma)}**: sus ventajas ya cuentan.`, `✅ ${K.def(comp).emoji} **${corto(res.m, idioma)}** is now with you: its perks are active.`));
     } else if (que === 'apodo_guardar') {
         const apodo = String(interaction.fields.getTextInputValue('apodo') || '').replace(/[\n\r@#<>`*_~|]/g, '').trim().slice(0, 24);
-        await ColeccionMascotas.updateOne({ userId: owner }, apodo ? { $set: { 'mascotas.$[m].apodo': apodo } } : { $unset: { 'mascotas.$[m].apodo': 1 } }, { arrayFilters: [{ 'm.id': comp }] });
-        res = await accion(owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
+        await ColeccionMascotas.updateOne({ guildId: interaction.guildId, userId: owner }, apodo ? { $set: { 'mascotas.$[m].apodo': apodo } } : { $unset: { 'mascotas.$[m].apodo': 1 } }, { arrayFilters: [{ 'm.id': comp }] });
+        res = await accion(interaction.guildId, owner, comp, 'ver', { idioma, dueno: interaction.user.displayName || interaction.user.username, bromas: !!cfg?.bromas?.activo });
         if (!res.fallo) res.mensajes.unshift(apodo ? t(idioma, `✏️ Ahora se llama **${apodo}**.`, `✏️ It’s now called **${apodo}**.`) : t(idioma, '✏️ Apodo quitado.', '✏️ Nickname removed.'));
     } else {
-        res = await accion(owner, comp, que, { idioma, dueno: interaction.user.displayName || interaction.user.username, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
+        res = await accion(interaction.guildId, owner, comp, que, { idioma, dueno: interaction.user.displayName || interaction.user.username, bromas: !!cfg?.bromas?.activo });
     }
     if (res.fallo === 'sin') { await interaction.followUp({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
     await interaction.editReply(await vista({ ownerId: owner, duenoNombre: interaction.user.displayName || interaction.user.username, idioma, res, cfg }));
@@ -490,7 +492,7 @@ async function manejar(interaction) {
 async function resumenServidor(client, guildId) {
     const guild = client.guilds.cache.get(guildId);
     const ids = guild ? [...guild.members.cache.keys()] : [];
-    const cols = ids.length ? await ColeccionMascotas.find({ userId: { $in: ids }, 'mascotas.0': { $exists: true } }).select('userId mascotas equipada racha').lean() : [];
+    const cols = ids.length ? await ColeccionMascotas.find({ guildId, userId: { $in: ids }, 'mascotas.0': { $exists: true } }).select('userId mascotas equipada racha').lean() : [];
     const top = cols.map((c) => {
         const eq = elegir(c, c.equipada);
         return { id: c.userId, nombre: guild.members.cache.get(c.userId)?.displayName || c.userId, avatar: guild.members.cache.get(c.userId)?.user.displayAvatarURL({ size: 64 }) || null, companero: eq?.id, apodo: eq?.apodo || null, nivel: P.nivel(eq?.afinidad || 0), racha: c.racha || 0, total: c.mascotas.length };

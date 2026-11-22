@@ -53,6 +53,8 @@ function Portal() {
   const [token, setToken] = useState(sesionGuardada);
   const [usuario, setUsuario] = useState(null);
   const [resumen, setResumen] = useState(null);
+  // 1.30.0: el oro es de cada servidor: el elegido se recuerda en este navegador.
+  const [servidorOro, setServidorOro] = useState(() => { try { return localStorage.getItem('sokyoPortalServidor') || ''; } catch { return ''; } });
   const [errorResumen, setErrorResumen] = useState('');
   const [error, setError] = useState('');
   const [intento, setIntento] = useState(0); // sube al pulsar "Reintentar" tras un fallo de red
@@ -142,10 +144,10 @@ function Portal() {
   }, []);
 
   const tz = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } }, []);
-  const cargarResumen = useCallback(() => portalFetch(`/api/portal/resumen?tz=${encodeURIComponent(tz)}`)
+  const cargarResumen = useCallback(() => portalFetch(`/api/portal/resumen?tz=${encodeURIComponent(tz)}${servidorOro ? `&guildId=${encodeURIComponent(servidorOro)}` : ''}`)
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-    .then((d) => { setResumen(d); setErrorResumen(''); })
-    .catch(() => setErrorResumen(t('portal.home.errorDesc'))), [portalFetch, tz, t]);
+    .then((d) => { setResumen(d); setErrorResumen(''); if (d.servidorOro && d.servidorOro !== servidorOro) setServidorOro(d.servidorOro); })
+    .catch(() => setErrorResumen(t('portal.home.errorDesc'))), [portalFetch, tz, t, servidorOro]);
 
   // Sesión + resumen. Solo un 401 cierra la sesión: un fallo de red (el móvil sin
   // cobertura) la conserva y deja reintentar.
@@ -189,9 +191,20 @@ function Portal() {
   const verPremios = useCallback(() => { setSorteosVistos(marcarSorteosVistos(premios.map((x) => x.id))); irA('ajustes'); }, [premios, irA]);
   const releerVistos = useCallback(() => setVistos(leerVistos()), []);
   const alCambiarOro = useCallback((balance) => setResumen((r) => (r ? { ...r, oro: balance } : r)), []);
+  const cambiarServidor = useCallback((id) => {
+    setServidorOro(id);
+    try { localStorage.setItem('sokyoPortalServidor', id); } catch { /* sin almacenamiento */ }
+  }, []);
+  // Al cambiar de servidor se vuelve a pedir el resumen (su oro, su diario).
+  const primeraCarga = useRef(true);
+  useEffect(() => {
+    if (primeraCarga.current) { primeraCarga.current = false; return; }
+    if (usuario) cargarResumen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [servidorOro]);
 
   const reclamarDaily = useCallback(async () => {
-    const res = await portalFetch('/api/portal/daily', { method: 'POST' }).catch(() => null);
+    const res = await portalFetch('/api/portal/daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guildId: servidorOro || undefined }) }).catch(() => null);
     const d = res ? await res.json().catch(() => ({})) : {};
     if (res && res.ok) {
       avisar(d.jackpot ? t('portal.home.dailyJackpot', { total: d.total, jackpot: d.jackpot, count: d.racha }) : t('portal.home.dailyClaimed', { total: d.total, count: d.racha }), 'oro');
@@ -199,7 +212,7 @@ function Portal() {
       avisar(res && res.status === 409 ? t('portal.home.dailyWait') : t('portal.login.errConexion'), 'error');
     }
     cargarResumen();
-  }, [portalFetch, avisar, t, cargarResumen]);
+  }, [portalFetch, avisar, t, cargarResumen, servidorOro]);
 
   if (!token) return <Entrada error={error} />;
 
@@ -216,7 +229,7 @@ function Portal() {
   } else if (vista === 'tickets') {
     contenido = <TicketsPortal portalFetch={portalFetch} usuario={usuario} ticketId={ticket} irA={irA} avisar={avisar} nuevas={nuevas} onLeido={releerVistos} />;
   } else if (vista === 'tienda') {
-    contenido = <TiendaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} onOro={alCambiarOro} pestanaInicial={sub} />;
+    contenido = <TiendaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} onOro={alCambiarOro} pestanaInicial={sub} guildId={servidorOro} servidores={resumen?.servidoresOro || []} onCambiarServidor={cambiarServidor} />;
   } else if (vista === 'tarjeta') {
     contenido = <TarjetaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} />;
   } else if (vista === 'ajustes') {
@@ -229,7 +242,7 @@ function Portal() {
       </>
     );
   } else {
-    contenido = <InicioPortal resumen={resumen} usuario={usuario} error={errorResumen} onReintentar={cargarResumen} irA={irA} onDaily={reclamarDaily} nuevas={nuevas.length} />;
+    contenido = <InicioPortal resumen={resumen} usuario={usuario} error={errorResumen} onReintentar={cargarResumen} irA={irA} onDaily={reclamarDaily} nuevas={nuevas.length} onCambiarServidor={cambiarServidor} />;
   }
 
   return (

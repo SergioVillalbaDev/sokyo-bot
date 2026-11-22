@@ -78,13 +78,13 @@ async function impulsar(guildId, userId, cfg, oro, idioma) {
         const queda = Math.max(0, TOPE_ORO_DIA - (hoy?.oro || 0));
         return { error: t(idioma, `Hoy solo puedes impulsar 🪙 ${queda} más (tope de 🪙 ${TOPE_ORO_DIA} al día).`, `You can only boost 🪙 ${queda} more today (🪙 ${TOPE_ORO_DIA} daily cap).`) };
     }
-    const saldo = await require('./economia.js').cobrar(userId, cantidad);
+    const saldo = await require('./economia.js').en(guildId).cobrar(userId, cantidad);
     if (saldo === null) {
         await ImpulsoLiga.updateOne({ userId, dia }, { $inc: { oro: -cantidad } });
         return { error: t(idioma, `No tienes 🪙 ${cantidad}.`, `You don’t have 🪙 ${cantidad}.`) };
     }
     // Compañero equipado (1.21.0): sus puntos extra (redondeando hacia abajo).
-    const v = await require('./cofres.js').ventajasUsuario(userId).catch(() => null);
+    const v = await require('./cofres.js').ventajasUsuario(guildId, userId).catch(() => null);
     const base = cantidad / ORO_POR_PUNTO;
     const extraCompa = v?.liga > 0 ? Math.floor(base * v.liga) : 0;
     const puntos = base + extraCompa;

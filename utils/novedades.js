@@ -6,6 +6,11 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.30.0': [
+        { tab: 'com-compis', es: '🏠 **Cada servidor, su propia aventura**: el oro, las mascotas, las cartas, la granja, el pase y los logros son ahora de cada servidor. Aquí todos empiezan de cero y compiten con la gente de aquí.', en: '🏠 **Every server, its own adventure**: gold, pets, cards, the farm, the pass and achievements now belong to each server. Everyone starts from zero here and competes with the people here.' },
+        { tab: 'com-mascota', es: '🐾 Arreglado: `/mascota`, `/broma` y `/liga` ya salen con su nombre en español (antes solo existían como /pet, /prank y /league).', en: '🐾 Fixed: `/pet`, `/prank` and `/league` now also show their Spanish names (/mascota, /broma, /liga) for Spanish users.' },
+        { tab: 'com-compis', es: '🌐 En la web personal eliges de qué servidor ver tu oro, reclamar el diario y comprar en la tienda.', en: '🌐 On your personal web you pick which server’s gold to see, claim the daily from and shop with.' },
+    ],
     '1.29.0': [
         { tab: 'com-compis', es: '👋 Nuevo **/empezar**: si no sabes por dónde empezar, te dice qué hacer ahora con un botón y te explica mascotas, cartas, oro y casino en sencillo. También en el casino: «¿Nuevo? Empieza aquí».', en: '👋 New **/start**: if you don’t know where to begin, it tells you what to do now with a button and explains pets, cards, gold and the casino simply. Also in the casino: “New? Start here”.' },
         { tab: 'com-compis', es: '🎟️ **Pase de temporada gratis** (`/pase`): casi todo lo que haces da XP. Cada nivel da oro, cada 5 un sobre gratis y cada 10 un cofre épico gratis. Se renueva cada mes.', en: '🎟️ **Free season pass** (`/pass`): almost everything you do gives XP. Each level gives gold, every 5 a free pack and every 10 a free epic chest. Renews every month.' },

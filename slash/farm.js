@@ -19,6 +19,6 @@ module.exports = {
         const G = require('../utils/granja.js');
         await interaction.deferReply();
         const ver = interaction.options.getString('view') === 'album' ? G.vistaAlbum : G.vistaGranja;
-        return interaction.editReply(await ver(interaction.user.id, idioma));
+        return interaction.editReply(await ver(interaction.guildId, interaction.user.id, idioma));
     },
 };

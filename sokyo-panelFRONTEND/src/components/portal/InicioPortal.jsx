@@ -11,7 +11,9 @@ import { Tarjeta, Vacio } from './glass';
 import GraficaActividad from './GraficaActividad';
 import { fmtNum, fmtCorto, fmtEspera } from './portalUtils';
 
-export default function InicioPortal({ resumen, usuario, error, onReintentar, irA, onDaily, nuevas }) {
+import SelectorServidorOro from './SelectorServidorOro';
+
+export default function InicioPortal({ resumen, usuario, error, onReintentar, irA, onDaily, nuevas, onCambiarServidor }) {
   const { t, i18n } = useTranslation();
   const idioma = i18n.language === 'en' ? 'en' : 'es';
   // Reloj de la pantalla (cuenta atrás de la recompensa y del boost de XP).
@@ -43,7 +45,7 @@ export default function InicioPortal({ resumen, usuario, error, onReintentar, ir
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* Tarjeta de usuario: en el móvil va primero */}
-        <TarjetaUsuario resumen={resumen} usuario={usuario} idioma={idioma} irA={irA} onDaily={onDaily} ahora={ahora} className="gx-sube lg:order-2 lg:col-span-5 xl:col-span-4" />
+        <TarjetaUsuario resumen={resumen} usuario={usuario} idioma={idioma} irA={irA} onDaily={onDaily} onCambiarServidor={onCambiarServidor} ahora={ahora} className="gx-sube lg:order-2 lg:col-span-5 xl:col-span-4" />
 
         {/* Actividad */}
         <Tarjeta brillo className="gx-sube p-5 sm:p-6 lg:order-1 lg:col-span-7 xl:col-span-8" style={{ animationDelay: '.06s' }}>
@@ -108,7 +110,7 @@ function Cambio({ valor }) {
   );
 }
 
-function TarjetaUsuario({ resumen, usuario, idioma, irA, onDaily, ahora, className = '' }) {
+function TarjetaUsuario({ resumen, usuario, idioma, irA, onDaily, onCambiarServidor, ahora, className = '' }) {
   const { t } = useTranslation();
   const [reclamando, setReclamando] = useState(false);
 
@@ -143,7 +145,8 @@ function TarjetaUsuario({ resumen, usuario, idioma, irA, onDaily, ahora, classNa
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.03)] p-3 text-center">
+      <SelectorServidorOro className="mt-4" servidores={resumen.servidoresOro || []} valor={resumen.servidorOro} onCambiar={onCambiarServidor} />
+      <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.03)] p-3 text-center">
         {datos.map((d) => (
           <div key={d.etiqueta}>
             <div className="gx-texto-neon text-2xl font-extrabold leading-tight">{d.valor}</div>
@@ -156,7 +159,7 @@ function TarjetaUsuario({ resumen, usuario, idioma, irA, onDaily, ahora, classNa
         <button onClick={() => irA('tienda')} className="gx-btn"><ShoppingBag size={16} /> {t('portal.nav.shop')}</button>
         <button onClick={() => irA('tarjeta')} className="gx-btn"><Palette size={16} /> {t('portal.home.myCard')}</button>
       </div>
-      <button onClick={reclamar} disabled={!disponible || reclamando} className="gx-btn gx-btn-neon mt-2.5 w-full py-3 text-[15px]">
+      <button onClick={reclamar} disabled={!disponible || reclamando || !resumen.servidorOro} className="gx-btn gx-btn-neon mt-2.5 w-full py-3 text-[15px]">
         {reclamando ? <Loader2 size={17} className="animate-spin" /> : <Gift size={17} />}
         {disponible ? t('portal.home.claimDaily') : t('portal.home.nextDaily', { time: fmtEspera(espera, t) })}
       </button>

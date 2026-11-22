@@ -54,7 +54,7 @@ function textoTema(tema, idioma, cfg) {
     const canal = c.canalId ? `<#${c.canalId}>` : t(idioma, 'el canal del casino', 'the casino channel');
     const ES = {
         oro: [
-            '🪙 **El oro es la moneda del bot.** Es gratis y no se compra con dinero: se gana jugando.',
+            '🪙 **El oro es la moneda de este servidor.** Es gratis y no se compra con dinero: se gana jugando. Cada servidor tiene el suyo.',
             '',
             '**Cómo conseguirlo:**',
             '1️⃣ `/diario` cada día → oro gratis (y más si no fallas ningún día: racha).',
@@ -66,7 +66,7 @@ function textoTema(tema, idioma, cfg) {
             '**¿En qué se gasta?** Cofres de mascotas, sobres de cartas, bromas, la Liga… Mira cuánto tienes con `/inventario` o con el botón 🪙 del casino.',
         ],
         mascotas: [
-            '🐾 **Cada persona tiene sus propias mascotas** (las tienes en todos los servidores con Sokyo).',
+            '🐾 **Cada persona tiene sus propias mascotas en este servidor.** En cada servidor se empieza de cero: aquí compites con la gente de aquí.',
             '',
             '1️⃣ **Consíguelas en cofres:** `/cofre abrir`. Sale una al azar: común, rara, épica, legendaria, mítica… y una **divina** rarísima.',
             '2️⃣ **Míralas y cuídalas:** `/compi`. Botones: 🍖 comer, 🎾 jugar, 🤗 mimar, 💬 hablar. Si las cuidas, suben de nivel.',
@@ -128,7 +128,7 @@ function textoTema(tema, idioma, cfg) {
     };
     const EN = {
         oro: [
-            '🪙 **Gold is the bot’s currency.** It’s free and can’t be bought with money: you earn it by playing.',
+            '🪙 **Gold is this server’s currency.** It’s free and can’t be bought with money: you earn it by playing. Each server has its own.',
             '',
             '**How to get it:**',
             '1️⃣ `/daily` every day → free gold (more if you don’t miss a day: streak).',
@@ -140,7 +140,7 @@ function textoTema(tema, idioma, cfg) {
             '**What’s it for?** Pet chests, card packs, pranks, the League… See how much you have with `/inventory` or the 🪙 button in the casino.',
         ],
         mascotas: [
-            '🐾 **Everyone has their own pets** (you keep them on every server with Sokyo).',
+            '🐾 **Everyone has their own pets on this server.** Every server starts from zero: here you compete with the people here.',
             '',
             '1️⃣ **Get them from chests:** `/chest open`. A random one drops: common, rare, epic, legendary, mythic… and an ultra-rare **divine**.',
             '2️⃣ **See and care for them:** `/companion`. Buttons: 🍖 feed, 🎾 play, 🤗 cuddle, 💬 talk. Care makes them level up.',
@@ -229,9 +229,9 @@ function menuTemas(userId, idioma, actual = null) {
         .addOptions(TEMAS.map((k) => ({ value: k, emoji: TEMA[k].emoji, label: t(idioma, TEMA[k].es, TEMA[k].en), default: k === actual }))));
 }
 
-async function vistaInicio(userId, idioma, cfg, mensajes = []) {
-    const usuario = await require('./economia.js').obtenerUsuario(userId);
-    const col = await ColeccionMascotas.findOne({ userId }).lean();
+async function vistaInicio(guildId, userId, idioma, cfg, mensajes = []) {
+    const usuario = await require('./economia.js').en(guildId).obtenerUsuario(userId);
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
     const paso = siguientePaso({ usuario, col, cfg });
     const ui = pasoUI(paso, userId, idioma);
     const e = new EmbedBuilder().setColor('#22c55e').setTitle(t(idioma, '👋 Empieza aquí', '👋 Start here'))
@@ -283,16 +283,16 @@ async function manejar(interaction) {
     const ajeno = !owner || owner !== userId;
     const responder = async (payload) => (ajeno ? interaction.reply({ ...payload, flags: 64 }) : interaction.update(payload));
     if (que === 'diario') {
-        const r = await require('./economia.js').reclamarDaily(userId);
+        const r = await require('./economia.js').en(interaction.guildId).reclamarDaily(userId);
         const msj = r.ok
             ? t(idioma, `✅ **+🪙 ${fmt(r.total, idioma)}** de oro gratis (racha de ${r.racha} día${r.racha === 1 ? '' : 's'}).`, `✅ **+🪙 ${fmt(r.total, idioma)}** free gold (${r.racha}-day streak).`)
             : t(idioma, `⏳ Ya lo cogiste: vuelve en ${Math.ceil(r.esperaHoras)} h.`, `⏳ Already claimed: come back in ${Math.ceil(r.esperaHoras)} h.`);
-        await responder(await vistaInicio(userId, idioma, cfg, [msj, '']));
+        await responder(await vistaInicio(interaction.guildId, userId, idioma, cfg, [msj, '']));
         return true;
     }
     if (que === 'menu') { await responder(vistaTema(interaction.values[0], userId, idioma, cfg)); return true; }
     if (que === 'tema' && TEMA[p[2]]) { await responder(vistaTema(p[2], userId, idioma, cfg)); return true; }
-    await responder(await vistaInicio(userId, idioma, cfg));
+    await responder(await vistaInicio(interaction.guildId, userId, idioma, cfg));
     return true;
 }
 

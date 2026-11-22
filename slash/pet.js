@@ -14,6 +14,7 @@ const MEDALLAS = ['🥇', '🥈', '🥉'];
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('pet')
+        .setNameLocalizations(ES('mascota'))
         .setDescription('The server pet: look after it together')
         .setDescriptionLocalizations(ES('La mascota del servidor: cuidadla entre todos'))
         .setContexts(InteractionContextType.Guild)

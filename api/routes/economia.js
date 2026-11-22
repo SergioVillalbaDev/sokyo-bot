@@ -2,11 +2,17 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const Item = require('../../models/Item.js');
-const Usuario = require('../../models/Usuario.js');
+const SP = require('../../utils/servidorPortal.js');
 const economia = require('../../utils/economia.js');
 
 // Recibe portalAuth desde server.js (donde está definido, con acceso a JWT_SECRET).
-module.exports = ({ portalAuth }) => {
+module.exports = ({ portalAuth, client }) => {
+    // 1.30.0: el oro y la mochila son de un servidor: ?guildId= (o en el cuerpo). Si no, el primero suyo.
+    const servidor = async (req, res) => {
+        const gid = await SP.elegir(client, req.usuario.id, req.query.guildId || req.body?.guildId);
+        if (!gid) { res.status(400).json({ error: 'Elige un servidor donde estés con Sokyo.', code: 'sin_servidor' }); return null; }
+        return gid;
+    };
     const router = express.Router();
 
     // CREAR OBJETO. Abierto a cualquier usuario logueado (fase actual): cuelga de
@@ -113,9 +119,11 @@ module.exports = ({ portalAuth }) => {
 
     // SALDO + INVENTARIO del usuario logueado (oro para la barra, inventario para "Mi mochila").
     router.get('/portal/economia', portalAuth, async (req, res) => {
-        const u = await economia.obtenerUsuario(req.usuario.id);
+        const gid = await servidor(req, res); if (!gid) return;
+        const eco = economia.en(gid);
+        const u = await eco.obtenerUsuario(req.usuario.id);
         // populate() cambia cada referencia por el documento completo del ítem.
-        const doc = await Usuario.findOne({ discordId: req.usuario.id }).populate('inventory.item');
+        const doc = await eco.inventario(req.usuario.id);
         const inventory = (doc?.inventory || [])
             .filter(e => e.item) // descarta objetos que ya no existan en la BD
             .map(e => ({
@@ -123,14 +131,15 @@ module.exports = ({ portalAuth }) => {
                 tipo: e.item.tipo, rareza: e.item.rareza, imageUrl: e.item.imageUrl,
                 efecto: e.item.efecto, cantidad: e.cantidad,
             }));
-        res.json({ balance: u.balance, inventory });
+        res.json({ balance: u.balance, inventory, guildId: gid, servidores: await SP.servidoresDe(client, req.usuario.id) });
     });
 
     // COMPRAR (usuario logueado). El comprador es req.usuario (lo pone portalAuth):
     // NUNCA confiamos en un discordId que venga del body, se podría falsear.
     router.post('/portal/shop/buy', portalAuth, async (req, res) => {
         const { itemId, cantidad } = req.body;
-        const r = await economia.comprarItem(req.usuario.id, itemId, cantidad);
+        const gid = await servidor(req, res); if (!gid) return;
+        const r = await economia.en(gid).comprarItem(req.usuario.id, itemId, cantidad);
         if (!r.ok) return res.status(400).json({ error: r.error });
         res.json({ success: true, comprado: r.item.nombre, coste: r.coste, balance: r.balance });
     });
@@ -138,7 +147,8 @@ module.exports = ({ portalAuth }) => {
     // USAR un objeto desde la web. Sin contexto de servidor, así que solo aplica
     // efectos globales (xpBoost); los de rol piden usar /usar en Discord.
     router.post('/portal/shop/use', portalAuth, async (req, res) => {
-        const r = await economia.usarItem(req.usuario.id, req.body.itemId);
+        const gid = await servidor(req, res); if (!gid) return;
+        const r = await economia.en(gid).usarItem(req.usuario.id, req.body.itemId);
         if (!r.ok) return res.status(400).json({ error: r.error });
         // Si era una caja, devolvemos el premio (slim) para la animación de apertura.
         const premio = r.premio

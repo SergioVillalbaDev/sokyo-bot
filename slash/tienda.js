@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, InteractionContextType } = require('discord.js');
 const Item = require('../models/Item.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
@@ -10,7 +10,8 @@ module.exports = {
         .setName('shop')
         .setNameLocalizations(ES('tienda'))
         .setDescription('Open the Sokyo shop and buy items with your gold')
-        .setDescriptionLocalizations(ES('Abrir la tienda y comprar objetos con tu oro')),
+        .setDescriptionLocalizations(ES('Abrir la tienda y comprar objetos con tu oro'))
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction, client, cfg) {
         const items = await Item.find({ activo: true }).sort({ precio: 1 }).limit(25); // Discord: máx 25 opciones

@@ -17,12 +17,13 @@ const filtroVersion = (col) => (col.paseV ? { _id: col._id, paseV: col.paseV } :
 
 // Suma XP por una o varias acciones ([['cuidar', 1], ['mision', 1]] o 'cuidar'). Paga los niveles
 // que suba y revisa logros. Devuelve los mensajes para enseñar (vacío si no ha pasado nada que contar).
-async function registrar(userId, acciones, { idioma = 'es', ahora = Date.now(), logros = true } = {}) {
+async function registrar(guildId, userId, acciones, { idioma = 'es', ahora = Date.now(), logros = true } = {}) {
+    if (!guildId) return [];
     const lista = (Array.isArray(acciones) ? acciones : [[acciones, 1]]).filter(([a, n]) => a && n > 0);
     if (!lista.length) return [];
     const mensajes = [];
     for (let intento = 0; intento < 5; intento++) {
-        const col = await ColeccionMascotas.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, returnDocument: 'after' }).lean();
+        const col = await ColeccionMascotas.findOneAndUpdate({ guildId, userId }, { $setOnInsert: { guildId, userId } }, { upsert: true, returnDocument: 'after' }).lean();
         let pase = col.pase; const niveles = []; const premios = { oro: 0, tickets: {}, titulo: false };
         for (const [a, n] of lista) {
             const r = X.sumar(pase, a, { ahora, n });
@@ -36,7 +37,7 @@ async function registrar(userId, acciones, { idioma = 'es', ahora = Date.now(), 
         if (premios.titulo) set.tituloPase = pase.temp;
         const hecho = await ColeccionMascotas.updateOne(filtroVersion(col), { $set: set, $inc: inc });
         if (!hecho.modifiedCount) continue;
-        if (premios.oro) await require('./economia.js').darOro(userId, premios.oro);
+        if (premios.oro) await require('./economia.js').en(guildId).darOro(userId, premios.oro);
         if (niveles.length) {
             const tope = niveles.at(-1);
             const extra = [premios.oro ? `+🪙 ${fmt(premios.oro, idioma)}` : '', textoTickets(premios.tickets, idioma)].filter(Boolean).join(' · ');
@@ -47,41 +48,41 @@ async function registrar(userId, acciones, { idioma = 'es', ahora = Date.now(), 
         }
         break;
     }
-    if (logros) mensajes.push(...await revisarLogros(userId, idioma, ahora));
+    if (logros) mensajes.push(...await revisarLogros(guildId, userId, idioma, ahora));
     return mensajes;
 }
 
 // Da los logros conseguidos que aún no tenía (cada uno, una vez).
-async function revisarLogros(userId, idioma = 'es', ahora = Date.now()) {
-    const col = await ColeccionMascotas.findOne({ userId }).lean();
+async function revisarLogros(guildId, userId, idioma = 'es', ahora = Date.now()) {
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
     if (!col) return [];
     const mensajes = []; let n = 0;
     for (const l of X.logrosNuevos(col)) {
-        const r = await ColeccionMascotas.updateOne({ userId, logros: { $ne: l.id } }, { $addToSet: { logros: l.id } });
+        const r = await ColeccionMascotas.updateOne({ guildId, userId, logros: { $ne: l.id } }, { $addToSet: { logros: l.id } });
         if (!r.modifiedCount) continue;
-        await require('./economia.js').darOro(userId, l.oro);
+        await require('./economia.js').en(guildId).darOro(userId, l.oro);
         mensajes.push(t(idioma, `🏅 **Logro: ${l.emoji} ${l.es}** · +🪙 ${fmt(l.oro, idioma)}`, `🏅 **Achievement: ${l.emoji} ${l.en}** · +🪙 ${fmt(l.oro, idioma)}`));
         n++;
     }
-    if (n) mensajes.push(...await registrar(userId, [['logro', n]], { idioma, ahora, logros: false }));
+    if (n) mensajes.push(...await registrar(guildId, userId, [['logro', n]], { idioma, ahora, logros: false }));
     return mensajes;
 }
 
 // Gasta un ticket (true si lo tenía). `devolver` lo repone si luego algo falla.
-async function usarTicket(userId, clave) {
+async function usarTicket(guildId, userId, clave) {
     if (!X.TICKETS[clave]) return false;
-    const r = await ColeccionMascotas.updateOne({ userId, [`tickets.${clave}`]: { $gte: 1 } }, { $inc: { [`tickets.${clave}`]: -1 } });
+    const r = await ColeccionMascotas.updateOne({ guildId, userId, [`tickets.${clave}`]: { $gte: 1 } }, { $inc: { [`tickets.${clave}`]: -1 } });
     return r.modifiedCount > 0;
 }
-const devolverTicket = (userId, clave) => ColeccionMascotas.updateOne({ userId }, { $inc: { [`tickets.${clave}`]: 1 } });
+const devolverTicket = (guildId, userId, clave) => ColeccionMascotas.updateOne({ guildId, userId }, { $inc: { [`tickets.${clave}`]: 1 } });
 
 function barra(f, largo = 12) {
     const llenos = Math.round(Math.max(0, Math.min(1, f)) * largo);
     return '🟪'.repeat(llenos) + '⬛'.repeat(largo - llenos);
 }
 
-async function vistaPase(userId, idioma, mensajes = [], ahora = Date.now()) {
-    const col = await ColeccionMascotas.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, returnDocument: 'after' }).lean();
+async function vistaPase(guildId, userId, idioma, mensajes = [], ahora = Date.now()) {
+    const col = await ColeccionMascotas.findOneAndUpdate({ guildId, userId }, { $setOnInsert: { guildId, userId } }, { upsert: true, returnDocument: 'after' }).lean();
     const temp = X.temporadaDe(ahora);
     const pase = X.actual(col.pase, temp);
     const nivel = X.nivelDe(pase.xp);
@@ -124,8 +125,8 @@ async function vistaPase(userId, idioma, mensajes = [], ahora = Date.now()) {
     return { content: null, embeds: [e], components: filas, allowedMentions: { parse: [] } };
 }
 
-async function vistaLogros(userId, idioma) {
-    const col = await ColeccionMascotas.findOne({ userId }).lean() || {};
+async function vistaLogros(guildId, userId, idioma) {
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).lean() || {};
     const ya = new Set(col.logros || []);
     const lineas = X.LOGROS.map((l) => `${ya.has(l.id) ? l.emoji : '🔒'} ${ya.has(l.id) ? `**${t(idioma, l.es, l.en)}**` : t(idioma, l.es, l.en)} · 🪙 ${fmt(l.oro, idioma)}`);
     const mitad = Math.ceil(lineas.length / 2);
@@ -157,11 +158,11 @@ async function manejar(interaction, client) {
     }
     // «abrir», sin dueño o de otra persona: el tuyo, solo para ti.
     if (que === 'abrir' || !owner || owner !== userId) {
-        await interaction.reply({ ...(await (que === 'log' ? vistaLogros : vistaPase)(userId, idioma)), flags: 64 });
+        await interaction.reply({ ...(await (que === 'log' ? vistaLogros : vistaPase)(interaction.guildId, userId, idioma)), flags: 64 });
         return true;
     }
     await interaction.deferUpdate();
-    await interaction.editReply(await (que === 'log' ? vistaLogros : vistaPase)(userId, idioma));
+    await interaction.editReply(await (que === 'log' ? vistaLogros : vistaPase)(interaction.guildId, userId, idioma));
     return true;
 }
 

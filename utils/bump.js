@@ -103,7 +103,7 @@ async function procesarMensaje(message) {
     }
 
     const oro = Math.max(0, conf.oroPorBump || 0);
-    if (oro > 0 && r.usuarioId) await require('./economia.js').darOro(r.usuarioId, oro).catch((e) => console.error('Oro por bump:', e.message));
+    if (oro > 0 && r.usuarioId) await require('./economia.js').en(message.guild.id).darOro(r.usuarioId, oro).catch((e) => console.error('Oro por bump:', e.message));
 
     let texto = rellenar(conf.mensajeGracias || t(cfg, '🙌 ¡Gracias por el bump, {mention}! Próximo bump {next}.', '🙌 Thanks for the bump, {mention}! Next bump {next}.'), {
         mention: r.usuarioId ? `<@${r.usuarioId}>` : t(cfg, 'equipo', 'team'),

@@ -87,7 +87,7 @@ async function darRecompensa(guild, member, recompensa = {}, cfg = {}, canal = n
         if (xp > 0 && member) await niveles.aplicarXp(guild, member, xp, cfg, canal);
     } catch (e) { console.error('Dinámicas · dar XP:', e.message); }
     try {
-        if (oro > 0 && member) await economia.darOro(member.id, oro);
+        if (oro > 0 && member) await economia.en(guild.id).darOro(member.id, oro);
     } catch (e) { console.error('Dinámicas · dar oro:', e.message); }
 }
 

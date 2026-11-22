@@ -16,10 +16,12 @@ const pct = (v) => `+${Math.round(v * 1000) / 10} %`;
 
 // Ventajas del compañero equipado (en memoria 60 s: las leen la XP, el diario y el casino).
 const cache = new Map();
-async function ventajasUsuario(userId) {
-    const c = cache.get(userId);
+async function ventajasUsuario(guildId, userId) {
+    if (!guildId) return { xp: 0, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 };
+    const clave = `${guildId}:${userId}`;
+    const c = cache.get(clave);
     if (c && c.hasta > Date.now()) return c.v;
-    const col = await ColeccionMascotas.findOne({ userId }).select('equipada mascotas buff potencia').lean();
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).select('equipada mascotas buff potencia').lean();
     const eq = col?.equipada ? (col.mascotas || []).find((m) => m.id === col.equipada) : null;
     const P = require('./compisNucleo.js');
     // Una carta usada en tu mascota equipada (1.24.0) le da un empujón a todas sus ventajas un rato.
@@ -28,10 +30,10 @@ async function ventajasUsuario(userId) {
     // Poder activo (Inspiración, Bendición): suma XP mientras dura. La caché dura poco para que se note al acabar.
     const extra = P.buffXp(col);
     if (extra) v.xp = Math.round((v.xp + extra) * 1000) / 1000;
-    cache.set(userId, { v, hasta: Date.now() + 60000 });
+    cache.set(clave, { v, hasta: Date.now() + 60000 });
     return v;
 }
-const olvidar = (userId) => cache.delete(userId);
+const olvidar = (guildId, userId) => cache.delete(`${guildId}:${userId}`);
 // Compañeros que pueden salir en los cofres de este servidor además del catálogo: los propios
 // del servidor (1.20.0) y, si lo tiene activado, el Pack anime sin las series quitadas (1.22.0).
 // Mascotas que pueden salir aquí además del catálogo: las propias del servidor. `quitadosDe`
@@ -49,7 +51,7 @@ function quitadosDe(cfg) {
     for (const id of K.idsAnime(fuera)) todos.delete(id);
     return todos;
 }
-const coleccion = async (userId) => (await ColeccionMascotas.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, returnDocument: 'after' }));
+const coleccion = async (guildId, userId) => (await ColeccionMascotas.findOneAndUpdate({ guildId, userId }, { $setOnInsert: { guildId, userId } }, { upsert: true, returnDocument: 'after' }));
 
 function textoVentajas(v, idioma) {
     const partes = [];
@@ -68,16 +70,17 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
     const def = K.COFRES[cofre];
     if (!def) return { error: t(idioma, 'Ese cofre no existe.', 'That chest doesn’t exist.') };
     const userId = interaction.user.id;
-    const economia = require('./economia.js');
+    const guildId = interaction.guildId;
+    const economia = require('./economia.js').en(guildId);
     // 1.29.0: con un ticket del pase el cofre sale gratis.
     const Pase = require('./pase.js');
-    if (ticket && !(await Pase.usarTicket(userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
+    if (ticket && !(await Pase.usarTicket(guildId, userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
     const saldo = ticket ? (await economia.obtenerUsuario(userId)).balance : await economia.cobrar(userId, def.precio);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${fmt(def.precio, idioma)} para el ${def.es.toLowerCase()}.`, `You don’t have 🪙 ${fmt(def.precio, idioma)} for the ${def.en.toLowerCase()}.`) };
     // Se calcula sobre la colección y se guarda solo si nadie la ha tocado a la vez.
     let r; let col;
     for (let intento = 0; intento < 5; intento++) {
-        col = await coleccion(userId);
+        col = await coleccion(guildId, userId);
         r = K.abrir(col, cofre, undefined, extrasDe(interaction.guildId, cfg), quitadosDe(cfg));
         const tiene = (col.mascotas || []).some((m) => m.id === r.id);
         const upd = {
@@ -89,9 +92,9 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
         if (hecho.modifiedCount) break;
         r = null;
     }
-    if (!r) { if (ticket) await Pase.devolverTicket(userId, ticket); else await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
+    if (!r) { if (ticket) await Pase.devolverTicket(guildId, userId, ticket); else await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
     if (r.devuelto) await economia.darOro(userId, r.devuelto);
-    olvidar(userId);
+    olvidar(guildId, userId);
     await AperturaCofre.create({ guildId: interaction.guildId || null, userId, cofre, companero: r.id, rareza: r.rareza }).catch(() => {});
     const comp = K.def(r.id);
     const rz = K.RAREZAS[r.rareza];
@@ -103,8 +106,8 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
     await espera(gif ? (r.rareza === 'divina' ? 5200 : 4000) : 600);
     const v = K.ventajas(r.id, r.estrellas);
     const G = require('./granja.js');
-    const hitos = r.nuevo ? await G.premiarHitos(userId).catch(() => []) : [];
-    const delPase = await Pase.registrar(userId, 'cofre', { idioma }).catch(() => []);
+    const hitos = r.nuevo ? await G.premiarHitos(guildId, userId).catch(() => []) : [];
+    const delPase = await Pase.registrar(guildId, userId, 'cofre', { idioma }).catch(() => []);
     const estado = r.nuevo
         ? t(idioma, '🆕 ¡Nuevo en tu colección!', '🆕 New in your collection!')
         : r.devuelto ? t(idioma, `Ya lo tenías con 5 ★: te devolvemos 🪙 ${fmt(r.devuelto, idioma)}.`, `You already had it at 5 ★: you get 🪙 ${fmt(r.devuelto, idioma)} back.`)
@@ -141,15 +144,15 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
     return { ok: true, r };
 }
 
-async function equipar(userId, id) {
-    const r = await ColeccionMascotas.updateOne({ userId, 'mascotas.id': id }, { $set: { equipada: id } });
-    olvidar(userId);
+async function equipar(guildId, userId, id) {
+    const r = await ColeccionMascotas.updateOne({ guildId, userId, 'mascotas.id': id }, { $set: { equipada: id } });
+    olvidar(guildId, userId);
     return r.modifiedCount > 0 || r.matchedCount > 0;
 }
 
 async function verColeccion(interaction, idioma, usuario = null) {
     const quien = usuario || interaction.user;
-    const col = (await ColeccionMascotas.findOne({ userId: quien.id }).lean()) || { mascotas: [], abiertos: 0 };
+    const col = (await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: quien.id }).lean()) || { mascotas: [], abiertos: 0 };
     const total = Object.keys(K.COMPANEROS).length;
     const delCatalogo = col.mascotas.filter((m) => K.COMPANEROS[m.id]).length;
     const anime = col.mascotas.filter((m) => K.esAnime(m.id)).length;
@@ -175,7 +178,7 @@ async function verColeccion(interaction, idioma, usuario = null) {
 
 function embedProbabilidades(idioma, cfg = null) {
     const e = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, '🎁 Cofres de mascotas', '🎁 Pet chests'))
-        .setDescription(t(idioma, `Compañeros para ti (en todos los servidores). Lleva uno equipado para tener sus ventajas. Los repetidos suben estrellas (hasta 5). Cada ${K.PIEDAD} cofres sin épica, el siguiente la trae segura.`, `Companions for you (across all servers). Equip one to get its perks. Duplicates add stars (up to 5). Every ${K.PIEDAD} chests without an epic, the next one guarantees it.`));
+        .setDescription(t(idioma, `Tus compañeros en este servidor. Lleva uno equipado para tener sus ventajas. Los repetidos suben estrellas (hasta 5). Cada ${K.PIEDAD} cofres sin épica, el siguiente la trae segura.`, `Your companions on this server. Equip one to get its perks. Duplicates add stars (up to 5). Every ${K.PIEDAD} chests without an epic, the next one guarantees it.`));
     for (const [, c] of Object.entries(K.COFRES)) {
         e.addFields({ name: `${c.emoji} ${t(idioma, c.es, c.en)} · 🪙 ${fmt(c.precio, idioma)}`, value: Object.entries(c.prob).filter(([, p]) => p > 0).map(([r, p]) => `${rarezaTxt(r, idioma)} ${p} %`).join(' · '), inline: false });
     }
@@ -202,7 +205,7 @@ async function manejar(interaction, client) {
     }
     if ((interaction.isButton() && id.startsWith('cof_eq:')) || (interaction.isStringSelectMenu() && id === 'cof_sel')) {
         const comp = interaction.isStringSelectMenu() ? interaction.values[0] : id.split(':')[1];
-        const ok = await equipar(interaction.user.id, comp);
+        const ok = await equipar(interaction.guildId, interaction.user.id, comp);
         await interaction.reply({ content: ok ? t(idioma, `✅ Ahora te acompaña ${K.def(comp).emoji} **${nombre(comp, idioma)}**.`, `✅ ${K.def(comp).emoji} **${nombre(comp, idioma)}** is now with you.`) : t(idioma, 'Ese compañero no es tuyo.', 'That companion isn’t yours.'), flags: 64 });
         return true;
     }

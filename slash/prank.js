@@ -10,6 +10,7 @@ const conObjetivo = (s) => s.addUserOption((o) => o.setName('member').setNameLoc
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('prank')
+        .setNameLocalizations(ES('broma'))
         .setDescription('Pranks paid with gold: nickname, clown, reactions or parrot')
         .setDescriptionLocalizations(ES('Bromas que se pagan con oro: apodo, payaso, reacciones o loro'))
         .setContexts(InteractionContextType.Guild)

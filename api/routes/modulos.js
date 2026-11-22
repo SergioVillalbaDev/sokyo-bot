@@ -886,7 +886,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
                 require('../../utils/compis.js').resumenServidor(client, guild.id),
             ]);
             const ColeccionMascotas = require('../../models/ColeccionMascotas.js');
-            const duenos = await Promise.all(lista.map((c) => ColeccionMascotas.countDocuments({ 'mascotas.id': `s:${guild.id}:${c.cid}` })));
+            const duenos = await Promise.all(lista.map((c) => ColeccionMascotas.countDocuments({ guildId: guild.id, 'mascotas.id': `s:${guild.id}:${c.cid}` })));
             const cfg = await cfgDe(guild.id);
             res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: MAX_COMPIS, ...resumen,
                 anime: { activo: !!cfg.compis?.anime, fuera: cfg.compis?.animeFuera || [], total: KC.ANIME.size, cofres: cfg.casino?.activo && cfg.casino?.cofres !== false } });

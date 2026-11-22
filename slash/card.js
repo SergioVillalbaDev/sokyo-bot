@@ -34,7 +34,7 @@ module.exports = {
         .addSubcommand((s) => s.setName('odds').setNameLocalizations(ES('probabilidades')).setDescription('What can come out of each pack').setDescriptionLocalizations(ES('Qué puede salir en cada sobre'))),
 
     async autocomplete(interaction) {
-        const col = await ColeccionMascotas.findOne({ userId: interaction.user.id }).select('cartas').lean();
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).select('cartas').lean();
         const q = String(interaction.options.getFocused() || '').toLowerCase();
         const ahora = Date.now();
         const ops = (col?.cartas || []).map((c) => {
@@ -55,7 +55,7 @@ module.exports = {
         }
         if (sub === 'see') {
             await interaction.deferReply({ flags: 64 });
-            return interaction.editReply(await cartas.verCarta(interaction.user.id, interaction.options.getString('card'), idioma));
+            return interaction.editReply(await cartas.verCarta(interaction.guildId, interaction.user.id, interaction.options.getString('card'), idioma));
         }
         if (sub === 'show') {
             await interaction.deferReply();
@@ -71,7 +71,7 @@ module.exports = {
             await interaction.deferReply();
             const compis = require('../utils/compis.js');
             const nombre = interaction.member?.displayName || interaction.user.username;
-            const res = await compis.accion(interaction.user.id, null, `carta:${interaction.options.getString('card')}`, { idioma, dueno: nombre, guildId: interaction.guildId, bromas: !!cfg?.bromas?.activo });
+            const res = await compis.accion(interaction.guildId, interaction.user.id, null, `carta:${interaction.options.getString('card')}`, { idioma, dueno: nombre, bromas: !!cfg?.bromas?.activo });
             if (res.fallo === 'sin') return interaction.editReply({ content: compis.textoFallo('sinMascota', idioma) });
             return interaction.editReply(await compis.vista({ ownerId: interaction.user.id, duenoNombre: nombre, idioma, res, cfg }));
         }

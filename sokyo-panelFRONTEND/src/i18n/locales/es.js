@@ -458,6 +458,7 @@ export default {
     },
     nav: { home: 'Inicio', tickets: 'Tickets', shop: 'Tienda', music: 'Música', card: 'Tarjeta', label: 'Secciones de tu cuenta' },
     common: { hoursMinutes: '{{h}} h {{m}} min', minutes: '{{m}} min' },
+    server: { label: 'Servidor:', none: 'El oro es de cada servidor: entra en uno con Sokyo y habla allí para empezar.' },
     home: {
       hello: 'Hola, {{name}}',
       subtitle: 'Esto es lo tuyo en todos los servidores con Sokyo.',

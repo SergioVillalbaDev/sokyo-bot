@@ -1,13 +1,16 @@
 const mongoose = require('mongoose');
-const Usuario = require('../models/Usuario.js');
+// 1.30.0: el oro es POR SERVIDOR (models/Monedero.js). Todo se usa con `economia.en(guildId)`:
+//   const eco = require('./economia.js').en(guildId); await eco.darOro(userId, 50);
+// Sin servidor no hay economía (lanza un error en vez de dar oro en un sitio cualquiera).
+const Usuario = require('../models/Monedero.js');
 const Item = require('../models/Item.js');
 const { t } = require('./i18n.js');
 
 // Devuelve el usuario, creándolo si es la primera vez que aparece (upsert).
-async function obtenerUsuario(discordId) {
+async function obtenerUsuario(guildId, discordId) {
     return Usuario.findOneAndUpdate(
-        { discordId },
-        { $setOnInsert: { discordId } },
+        { guildId, discordId },
+        { $setOnInsert: { guildId, discordId } },
         { upsert: true, returnDocument: 'after' }
     );
 }
@@ -18,7 +21,7 @@ async function obtenerUsuario(discordId) {
 // en vez de dejar stock descontado sin cobrar el oro (o viceversa).
 // `idioma` (cfg del servidor o 'es'/'en') solo afecta a los mensajes de error;
 // la tienda web está en español.
-async function comprarItem(discordId, itemDocId, cantidad = 1, idioma = 'es') {
+async function comprarItem(guildId, discordId, itemDocId, cantidad = 1, idioma = 'es') {
     cantidad = Math.max(1, parseInt(cantidad, 10) || 1);
 
     // 1) El ítem debe existir y estar activo en la tienda.
@@ -31,7 +34,7 @@ async function comprarItem(discordId, itemDocId, cantidad = 1, idioma = 'es') {
     if (!item) return { ok: false, error: t(idioma, 'Ese objeto no existe o no está disponible.', 'That item doesn’t exist or isn’t available.') };
 
     const coste = precioEfectivo(item).precio * cantidad; // respeta la oferta relámpago si la hay
-    await obtenerUsuario(discordId);
+    await obtenerUsuario(guildId, discordId);
 
     const session = await mongoose.startSession();
     try {
@@ -53,14 +56,14 @@ async function comprarItem(discordId, itemDocId, cantidad = 1, idioma = 'es') {
             //    suficiente. Si dos compras llegan a la vez, MongoDB serializa este update:
             //    una pasa y la otra falla la condición `balance >= coste`.
             const usuario = await Usuario.findOneAndUpdate(
-                { discordId, balance: { $gte: coste } },
+                { guildId, discordId, balance: { $gte: coste } },
                 { $inc: { balance: -coste } },
                 { returnDocument: 'after', session }
             );
             if (!usuario) throw new Error('SIN_ORO');
 
             // 4) Añadir al inventario (misma transacción: si esto fallara, deshace todo).
-            await anadirAlInventario(discordId, item._id, cantidad, session);
+            await anadirAlInventario(guildId, discordId, item._id, cantidad, session);
             balanceFinal = usuario.balance;
         });
         return { ok: true, item, coste, balance: balanceFinal };
@@ -77,15 +80,15 @@ async function comprarItem(discordId, itemDocId, cantidad = 1, idioma = 'es') {
 // Añade un objeto al inventario: suma cantidad si ya lo tiene, o crea la entrada.
 // `session` opcional: si viene de una transacción (p. ej. comprarItem), la reutiliza
 // para que el find-then-push sea parte del mismo todo-o-nada.
-async function anadirAlInventario(discordId, itemId, cantidad = 1, session = null) {
+async function anadirAlInventario(guildId, discordId, itemId, cantidad = 1, session = null) {
     const opts = session ? { session } : {};
     const yaLoTiene = await Usuario.findOneAndUpdate(
-        { discordId, 'inventory.item': itemId },
+        { guildId, discordId, 'inventory.item': itemId },
         { $inc: { 'inventory.$.cantidad': cantidad } }, // $ = el elemento que coincidió
         { returnDocument: 'after', ...opts }
     );
     if (!yaLoTiene) {
-        await Usuario.updateOne({ discordId }, { $push: { inventory: { item: itemId, cantidad } } }, opts);
+        await Usuario.updateOne({ guildId, discordId }, { $push: { inventory: { item: itemId, cantidad } } }, { upsert: true, ...opts });
     }
 }
 
@@ -111,11 +114,11 @@ async function ponerOferta(itemDocId, porcentaje, duracionMin) {
 
 // Da (o quita, si es negativo) oro a un usuario. Nunca deja el saldo por debajo de 0.
 // Usa una pipeline de actualización para clampear el resultado en la propia BD.
-async function darOro(discordId, cantidad) {
+async function darOro(guildId, discordId, cantidad) {
     cantidad = parseInt(cantidad, 10) || 0;
-    await obtenerUsuario(discordId);
+    await obtenerUsuario(guildId, discordId);
     const u = await Usuario.findOneAndUpdate(
-        { discordId },
+        { guildId, discordId },
         [{ $set: { balance: { $max: [0, { $add: ['$balance', cantidad] }] } } }],
         // Mongoose 9 rechaza los pipelines (arrays) si no se pide expresamente.
         { returnDocument: 'after', updatePipeline: true }
@@ -125,11 +128,11 @@ async function darOro(discordId, cantidad) {
 
 // Cobra oro solo si hay bastante (puerta atómica: dos cobros a la vez no dejan el saldo
 // en negativo). Devuelve el saldo que queda, o null si no llega.
-async function cobrar(discordId, cantidad) {
+async function cobrar(guildId, discordId, cantidad) {
     cantidad = Math.max(0, Math.floor(cantidad || 0));
-    if (!cantidad) { const u = await obtenerUsuario(discordId); return u.balance; }
+    if (!cantidad) { const u = await obtenerUsuario(guildId, discordId); return u.balance; }
     const u = await Usuario.findOneAndUpdate(
-        { discordId, balance: { $gte: cantidad } },
+        { guildId, discordId, balance: { $gte: cantidad } },
         { $inc: { balance: -cantidad } },
         { returnDocument: 'after' },
     );
@@ -141,8 +144,8 @@ async function cobrar(discordId, cantidad) {
 // (La web de "Mi cuenta" usa las mismas horas para su cuenta atrás.)
 const HORAS_DAILY = 20;
 const HORAS_RACHA = 48;
-async function reclamarDaily(discordId) {
-    const u = await obtenerUsuario(discordId);
+async function reclamarDaily(guildId, discordId) {
+    const u = await obtenerUsuario(guildId, discordId);
     const ahora = new Date();
     let racha;
     if (u.ultimoDaily) {
@@ -157,7 +160,7 @@ async function reclamarDaily(discordId) {
     const jackpot = (racha % 7 === 0) ? 500 : 0;    // premio gordo cada 7 días
     let total = base + bonus + jackpot;
     // Compañero equipado de los cofres (1.16.0): más oro en el diario.
-    const compa = await require('./cofres.js').ventajasUsuario(discordId).catch(() => null);
+    const compa = await require('./cofres.js').ventajasUsuario(guildId, discordId).catch(() => null);
     const extraCompa = compa?.diario > 0 ? Math.round(total * compa.diario) : 0;
     total += extraCompa;
 
@@ -166,7 +169,7 @@ async function reclamarDaily(discordId) {
     // Discord), la segunda encuentra el documento ya cambiado y esta condición
     // falla, así que no duplica el premio.
     const actualizado = await Usuario.findOneAndUpdate(
-        { discordId, ultimoDaily: u.ultimoDaily ?? null },
+        { guildId, discordId, ultimoDaily: u.ultimoDaily ?? null },
         { $set: { ultimoDaily: ahora, rachaDaily: racha }, $inc: { balance: total } },
         { returnDocument: 'after' }
     );
@@ -175,18 +178,18 @@ async function reclamarDaily(discordId) {
 }
 
 // Ranking de los usuarios con más oro.
-async function topRicos(limite = 10) {
-    return Usuario.find().sort({ balance: -1 }).limit(limite).select('discordId balance');
+async function topRicos(guildId, limite = 10) {
+    return Usuario.find({ guildId, balance: { $gt: 0 } }).sort({ balance: -1 }).limit(limite).select('discordId balance');
 }
 
 // Quita 1 unidad de un objeto del inventario; si llega a 0, elimina la entrada.
-async function consumirUnidad(discordId, itemId) {
+async function consumirUnidad(guildId, discordId, itemId) {
     await Usuario.updateOne(
-        { discordId, 'inventory.item': itemId },
+        { guildId, discordId, 'inventory.item': itemId },
         { $inc: { 'inventory.$.cantidad': -1 } }
     );
     await Usuario.updateOne(
-        { discordId },
+        { guildId, discordId },
         { $pull: { inventory: { cantidad: { $lte: 0 } } } }
     );
 }
@@ -214,7 +217,7 @@ async function elegirPremioDeCaja(caja) {
 //  ctx.aplicarRol(rolId, duracionMin) -> Promise<bool>: lo aporta /usar (tiene
 //  contexto de servidor). Sin él, los efectos de rol no se pueden aplicar (web).
 //  ctx.idioma: cfg del servidor o 'es'/'en' para los mensajes de error (web: 'es').
-async function usarItem(discordId, itemDocId, ctx = {}) {
+async function usarItem(guildId, discordId, itemDocId, ctx = {}) {
     const idioma = ctx.idioma || 'es';
     let item;
     try { item = await Item.findOne({ _id: itemDocId }); }
@@ -227,15 +230,15 @@ async function usarItem(discordId, itemDocId, ctx = {}) {
     }
 
     // ¿Lo tiene en la mochila?
-    const tiene = await Usuario.findOne({ discordId, 'inventory.item': item._id }).select('_id');
+    const tiene = await Usuario.findOne({ guildId, discordId, 'inventory.item': item._id }).select('_id');
     if (!tiene) return { ok: false, error: t(idioma, 'No tienes ese objeto en tu mochila.', 'You don’t have that item in your bag.') };
 
     // Efecto CAJA: sortea un premio, lo añade al inventario y consume la caja.
     if (efecto.tipo === 'caja') {
         const premio = await elegirPremioDeCaja(item);
         if (!premio) return { ok: false, error: t(idioma, 'Esta caja no tiene contenido configurado.', 'This box has no contents configured.') };
-        await consumirUnidad(discordId, item._id);
-        await anadirAlInventario(discordId, premio._id, 1);
+        await consumirUnidad(guildId, discordId, item._id);
+        await anadirAlInventario(guildId, discordId, premio._id, 1);
         return { ok: true, item, efecto, premio };
     }
 
@@ -249,13 +252,13 @@ async function usarItem(discordId, itemDocId, ctx = {}) {
     }
 
     // Consumir 1 unidad (después de validar el efecto, para no perder el objeto si falla).
-    await consumirUnidad(discordId, item._id);
+    await consumirUnidad(guildId, discordId, item._id);
 
-    // Efecto de XP BOOST (global por usuario): lo lee aplicarXp en niveles.js.
+    // Efecto de XP BOOST (en este servidor): lo lee aplicarXp en niveles.js.
     if (efecto.tipo === 'xpBoost') {
         const expiraEn = new Date(Date.now() + (efecto.duracionMin || 60) * 60000);
         await Usuario.updateOne(
-            { discordId },
+            { guildId, discordId },
             { $set: { boostXp: { multiplicador: efecto.multiplicador || 2, expiraEn } } }
         );
     }
@@ -264,12 +267,29 @@ async function usarItem(discordId, itemDocId, ctx = {}) {
 }
 
 // Multiplicador de XP activo del usuario (1 si no tiene boost o ya caducó).
-async function multiplicadorBoost(discordId) {
-    const u = await Usuario.findOne({ discordId }).select('boostXp');
+async function multiplicadorBoost(guildId, discordId) {
+    const u = await Usuario.findOne({ guildId, discordId }).select('boostXp');
     if (u?.boostXp?.expiraEn && new Date(u.boostXp.expiraEn) > new Date()) {
         return u.boostXp.multiplicador || 1;
     }
     return 1;
 }
 
-module.exports = { obtenerUsuario, comprarItem, darOro, cobrar, reclamarDaily, topRicos, usarItem, multiplicadorBoost, precioEfectivo, ponerOferta, HORAS_DAILY, HORAS_RACHA };
+// La economía de un servidor. Sin servidor, error: el oro siempre es de algún servidor.
+function en(guildId) {
+    if (!guildId || typeof guildId !== 'string') throw new Error('economía sin servidor');
+    return {
+        guildId,
+        obtenerUsuario: (discordId) => obtenerUsuario(guildId, discordId),
+        comprarItem: (discordId, itemDocId, cantidad, idioma) => comprarItem(guildId, discordId, itemDocId, cantidad, idioma),
+        darOro: (discordId, cantidad) => darOro(guildId, discordId, cantidad),
+        cobrar: (discordId, cantidad) => cobrar(guildId, discordId, cantidad),
+        reclamarDaily: (discordId) => reclamarDaily(guildId, discordId),
+        topRicos: (limite) => topRicos(guildId, limite),
+        usarItem: (discordId, itemDocId, ctx) => usarItem(guildId, discordId, itemDocId, ctx),
+        multiplicadorBoost: (discordId) => multiplicadorBoost(guildId, discordId),
+        inventario: (discordId) => Usuario.findOne({ guildId, discordId }).populate('inventory.item'),
+    };
+}
+
+module.exports = { en, precioEfectivo, ponerOferta, HORAS_DAILY, HORAS_RACHA, Monedero: Usuario };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, InteractionContextType } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const { botonWeb } = require('../utils/cuenta.js');
@@ -9,10 +9,11 @@ module.exports = {
         .setName('daily')
         .setNameLocalizations(ES('diario'))
         .setDescription('Claim your daily gold reward (with streak)')
-        .setDescriptionLocalizations(ES('Recoge tu oro de cada día (con racha)')),
+        .setDescriptionLocalizations(ES('Recoge tu oro de cada día (con racha)'))
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction, client, cfg) {
-        const r = await economia.reclamarDaily(interaction.user.id);
+        const r = await economia.en(interaction.guildId).reclamarDaily(interaction.user.id);
 
         if (!r.ok) {
             // Minutos redondeados hacia arriba antes de partir en horas: con

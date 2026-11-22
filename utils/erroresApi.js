@@ -139,6 +139,7 @@ const EN = {
     'No se pudo reproducir la playlist.': 'Couldn’t play the playlist.',
     'No se pudo renombrar.': 'Couldn’t rename it.',
     'No se pudo reclamar la recompensa.': 'Couldn’t claim the reward.',
+    'Elige un servidor donde estés con Sokyo.': 'Pick a server where you are with Sokyo.',
     'No se pudo quitar la canción.': 'Couldn’t remove the song.',
     'No se pudo quitar el rol': 'Couldn’t remove the role',
     'No se pudo publicar el panel': 'Couldn’t publish the panel',
