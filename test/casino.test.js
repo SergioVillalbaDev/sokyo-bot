@@ -126,10 +126,11 @@ describe('Cofres de mascotas', () => {
         assert.deepEqual([r3.estrellas, r3.devuelto], [5, 125]);
     });
     test('ventajas: la divina está muy chetada y las estrellas suman', () => {
-        assert.deepEqual(K.ventajas('celestial', 1), { xp: 0.5, diario: 1, vuelta: 0.1 });
-        assert.deepEqual(K.ventajas('gato', 1), { xp: 0.02, diario: 0, vuelta: 0 });
-        assert.deepEqual(K.ventajas('dragon', 5), { xp: 0.18, diario: 0.36, vuelta: 0.036 });
-        assert.deepEqual(K.ventajas('nada'), { xp: 0, diario: 0, vuelta: 0 });
+        assert.deepEqual(K.ventajas('celestial', 1), { xp: 0.5, diario: 1, vuelta: 0.1, bromas: 0.4, liga: 0.5, expedicion: 1 });
+        assert.deepEqual(K.ventajas('gato', 1), { xp: 0.02, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 });
+        assert.deepEqual(K.ventajas('dragon', 5), { xp: 0.18, diario: 0.36, vuelta: 0.036, bromas: 0.27, liga: 0.36, expedicion: 0.63 });
+        assert.deepEqual(K.ventajas('nada'), { xp: 0, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 });
+        assert.equal(K.ventajas('celestial', 5, 0.5).bromas, 0.6); // tope
     });
 });
 
@@ -139,7 +140,10 @@ describe('Panel y bot con los mismos datos', () => {
         assert.deepEqual(L.SIMBOLOS.map((s) => [s.id, s.paga3]), C.SIMBOLOS.map((s) => [s.id, s.paga3]));
         for (const [id, c] of Object.entries(K.COFRES)) assert.deepEqual([L.COFRES[id].precio, L.COFRES[id].prob], [c.precio, c.prob], id);
         assert.deepEqual(Object.keys(L.COMPANEROS), Object.keys(K.COMPANEROS));
-        for (const [r, v] of Object.entries(K.RAREZAS)) assert.deepEqual([L.RAREZAS[r].xp, L.RAREZAS[r].diario, L.RAREZAS[r].vuelta], [v.xp, v.diario, v.vuelta], r);
+        for (const [r, v] of Object.entries(K.RAREZAS)) assert.deepEqual(['xp', 'diario', 'vuelta', 'bromas', 'liga', 'expedicion'].map((k) => L.RAREZAS[r][k]), ['xp', 'diario', 'vuelta', 'bromas', 'liga', 'expedicion'].map((k) => v[k]), r);
+        const P = require('../utils/compisNucleo.js');
+        assert.deepEqual(Object.fromEntries(Object.entries(L.INTERACCIONES).map(([id, x]) => [id, x.rareza])), Object.fromEntries(Object.entries(P.INTERACCIONES).map(([id, x]) => [id, x.rareza])));
+        assert.deepEqual(L.PODERES.map((p) => p.id), P.PODERES.map((p) => p.id));
         assert.equal(L.PIEDAD, K.PIEDAD);
     });
 });

@@ -5,7 +5,7 @@
 // Sin castigos: si no lo cuidas no le pasa nada malo, solo deja de dar el extra de
 // «feliz». El oro de aquí es modesto y con tope diario (no es para farmear).
 const K = require('./cofresNucleo.js');
-const { GENERAL, VOCES } = require('./compisFrases.js');
+const { GENERAL, VOCES, EXTRA } = require('./compisFrases.js');
 
 const HORA = 3600000;
 const LLENO = 80;                 // cómo empieza un compañero nuevo
@@ -121,12 +121,84 @@ function salir(m, tipo, hoy, dia, ahora = Date.now()) {
 function botin(m, azar = Math.random) {
     const x = EXPEDICIONES[m.exp?.tipo];
     if (!x) return { oro: 0, afinidad: 0, recuerdo: null };
-    const r = K.RAREZAS[K.def(m.id).rareza]?.orden || 0;
-    const k = 1 + 0.12 * Math.min(r, 4) + 0.01 * (nivel(m.afinidad || 0) - 1);
+    // Más oro según su rareza y estrellas (ventaja «expedicion») y su nivel de afinidad.
+    const k = 1 + K.ventajas(m.id, m.estrellas || 1).expedicion + 0.01 * (nivel(m.afinidad || 0) - 1);
     const oro = Math.round((x.oro[0] + azar() * (x.oro[1] - x.oro[0])) * k);
     const recuerdo = azar() < x.recuerdo ? Math.floor(azar() * RECUERDOS.length) : null;
     return { oro, afinidad: x.afinidad, recuerdo };
 }
+
+// Interacciones que se desbloquean con la rareza (1.21.0). `rareza` = orden mínimo
+// (1 rara … 5 divina). `espera` en minutos: hasta que pasa no se puede repetir.
+const INTERACCIONES = {
+    banar: { emoji: '🛁', rareza: 1, cambia: { alegria: 8 }, afinidad: 3, espera: 30, es: 'Darle un baño', en: 'Give it a bath' },
+    foto: { emoji: '📸', rareza: 1, cambia: { alegria: 4 }, afinidad: 2, espera: 30, es: 'Hacerle una foto', en: 'Take its photo' },
+    entrenar: { emoji: '💪', rareza: 2, cambia: { energia: -20, hambre: -8 }, afinidad: 8, espera: 60, energia: 20, es: 'Entrenar juntos', en: 'Train together' },
+    bailar: { emoji: '💃', rareza: 2, cambia: { alegria: 15, energia: -10 }, afinidad: 5, espera: 30, energia: 10, es: 'Bailar', en: 'Dance' },
+    regalo: { emoji: '🎁', rareza: 3, cambia: { alegria: 5 }, afinidad: 5, espera: 20 * 60, oro: [60, 150], recuerdo: 0.3, es: 'Pedirle su regalo del día', en: 'Ask for its daily gift' },
+    historia: { emoji: '📖', rareza: 3, cambia: { alegria: 10 }, afinidad: 4, espera: 60, es: 'Que te cuente una historia', en: 'Hear a story' },
+    meditar: { emoji: '🧘', rareza: 4, cambia: { energia: 40 }, afinidad: 4, espera: 6 * 60, es: 'Meditar juntos', en: 'Meditate together' },
+    confidencia: { emoji: '💌', rareza: 4, cambia: { alegria: 12 }, afinidad: 6, espera: 120, es: 'Contaros secretos', en: 'Share secrets' },
+    milagro: { emoji: '🌈', rareza: 5, cambia: { hambre: 30, alegria: 30, energia: 30 }, afinidad: 10, espera: 12 * 60, es: 'Pedirle un milagro', en: 'Ask for a miracle' },
+};
+const ordenDe = (m) => K.RAREZAS[K.def(m.id).rareza]?.orden || 0;
+const interaccionesDe = (m) => Object.keys(INTERACCIONES).filter((id) => ordenDe(m) >= INTERACCIONES[id].rareza);
+const MIN = 60000;
+// Minutos que faltan para poder repetirla (0 = ya se puede).
+function falta(m, id, ahora = Date.now()) {
+    const x = INTERACCIONES[id];
+    const ult = m.cds && m.cds[id] ? new Date(m.cds[id]).getTime() : 0;
+    return Math.max(0, Math.ceil((ult + x.espera * MIN - ahora) / MIN));
+}
+function interactuar(m, id, ahora = Date.now(), azar = Math.random) {
+    const x = INTERACCIONES[id];
+    if (!x) return { fallo: 'accion' };
+    if (ordenDe(m) < x.rareza) return { fallo: 'rareza', rareza: x.rareza };
+    if (expedicionActiva(m, ahora)) return { fallo: 'fuera' };
+    const f = falta(m, id, ahora);
+    if (f) return { fallo: 'espera', min: f };
+    const e = estado(m, ahora);
+    if (x.energia && e.energia < x.energia) return { fallo: 'energia', e };
+    const nuevo = { ...e };
+    for (const [k, v] of Object.entries(x.cambia)) nuevo[k] = lim(nuevo[k] + v);
+    const oro = x.oro ? Math.round(x.oro[0] + azar() * (x.oro[1] - x.oro[0])) : 0;
+    const recuerdo = x.recuerdo && azar() < x.recuerdo ? Math.floor(azar() * RECUERDOS.length) : null;
+    return { ...nuevo, afinidad: x.afinidad, oro, recuerdo, cds: { ...(m.cds || {}), [id]: new Date(ahora) }, humor: humor(nuevo) };
+}
+
+// Poder del día: uno por persona cada 20 h, según la rareza del compañero.
+const PODER_ESPERA_H = 20;
+const PODERES = [
+    { id: 'olfato', emoji: '👃', oro: [20, 50], es: 'Olfato: encuentra algo de oro', en: 'Sniff: finds some gold' },
+    { id: 'olfato', emoji: '👃', oro: [40, 90], es: 'Olfato: encuentra oro', en: 'Sniff: finds gold' },
+    { id: 'inspiracion', emoji: '💡', xp: 0.3, horas: 1, es: 'Inspiración: +30 % de XP durante 1 h', en: 'Inspiration: +30% XP for 1 h' },
+    { id: 'escudo', emoji: '🛡️', horas: 6, es: 'Escudo: nadie te gasta bromas en 6 h (o +30 % de XP 2 h si no hay bromas)', en: 'Shield: no pranks on you for 6 h (or +30% XP for 2 h if pranks are off)' },
+    { id: 'prisa', emoji: '⚡', es: 'Prisa: vuelve ya de la expedición (o lo deja todo al 100)', en: 'Rush: comes back from the expedition now (or fills everything to 100)' },
+    { id: 'bendicion', emoji: '🌈', xp: 1, horas: 2, es: 'Bendición: +100 % de XP 2 h y todo al 100', en: 'Blessing: +100% XP for 2 h and everything to 100' },
+];
+const poderDe = (m) => PODERES[Math.min(PODERES.length - 1, ordenDe(m))];
+function faltaPoder(col, ahora = Date.now()) {
+    const ult = col && col.poderUsado ? new Date(col.poderUsado).getTime() : 0;
+    return Math.max(0, Math.ceil((ult + PODER_ESPERA_H * HORA - ahora) / MIN));
+}
+// Qué hace el poder. `bromas`: si en este servidor hay bromas. Devuelve los efectos (sin guardar).
+function usarPoder(m, col, { ahora = Date.now(), bromas = false, azar = Math.random } = {}) {
+    const f = faltaPoder(col, ahora);
+    if (f) return { fallo: 'espera', min: f };
+    const p = poderDe(m);
+    const r = { id: p.id, emoji: p.emoji };
+    if (p.id === 'olfato') r.oro = Math.round(p.oro[0] + azar() * (p.oro[1] - p.oro[0]));
+    else if (p.id === 'inspiracion') r.buff = { xp: p.xp, hasta: new Date(ahora + p.horas * HORA) };
+    else if (p.id === 'escudo') {
+        if (bromas) r.escudoHasta = new Date(ahora + p.horas * HORA);
+        else { r.id = 'inspiracion'; r.buff = { xp: 0.3, hasta: new Date(ahora + 2 * HORA) }; }
+    } else if (p.id === 'prisa') {
+        if (expedicionActiva(m, ahora)) r.volver = true; else r.lleno = true;
+    } else if (p.id === 'bendicion') { r.buff = { xp: p.xp, hasta: new Date(ahora + p.horas * HORA) }; r.lleno = true; }
+    return r;
+}
+// XP extra de un poder activo (o 0).
+const buffXp = (col, ahora = Date.now()) => (col && col.buff && col.buff.hasta && new Date(col.buff.hasta).getTime() > ahora ? col.buff.xp || 0 : 0);
 
 // Misiones del día: 3 de esta lista, las mismas para todos ese día.
 const MISIONES = {
@@ -183,6 +255,7 @@ function frase(m, momento, { idioma = 'es', dueno = '', azar = Math.random, ahor
     const al = (lista) => lista[Math.floor(azar() * lista.length) % lista.length];
     // Los de un servidor pueden traer sus frases propias (en un idioma).
     if (d.tipo === 'servidor' && d.frases?.length && azar() < 0.5) return String(al(d.frases)).replace(/\{d\}/g, dueno || '');
+    if (EXTRA[momento]) return pon(al(EXTRA[momento]));
     if (momento === 'hablar') {
         const h = humor(estado(m, ahora));
         if (h === 'hambre' || h === 'cansado' || h === 'aburrido') return pon(al(GENERAL[h]));
@@ -194,10 +267,11 @@ function frase(m, momento, { idioma = 'es', dueno = '', azar = Math.random, ahor
     }
     return pon(al(GENERAL[momento] || GENERAL.saludo));
 }
-const totalFrases = () => Object.values(GENERAL).reduce((a, l) => a + l.length, 0) + Object.values(VOCES).reduce((a, l) => a + l.length, 0);
+const totalFrases = () => [GENERAL, VOCES, EXTRA].reduce((t, g) => t + Object.values(g).reduce((a, l) => a + l.length, 0), 0);
 
 module.exports = {
     LLENO, RITMO, HUMOR, NIVEL_MAX, CUIDADOS, EXPEDICIONES, EXPEDICIONES_DIA, RECUERDOS, MISIONES, PREMIO_MISION, PREMIO_TODAS, PREMIOS_RACHA,
     estado, humor, nivel, umbral, progresoNivel, extraCuidado, cuidar, expedicionActiva, expedicionLista, salir, botin,
+    INTERACCIONES, interaccionesDe, falta, interactuar, PODERES, PODER_ESPERA_H, poderDe, faltaPoder, usarPoder, buffXp, ordenDe,
     diaDe, misionesDelDia, avanzarMision, avanzarRacha, frase, totalFrases,
 };

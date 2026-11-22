@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.20.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.21.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,14 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.21.0 **Más compañeros por rareza**: `RAREZAS` tiene también `bromas` (descuento, tope 60 %), `liga` (puntos extra al
+  impulsar) y `expedicion` (más oro); `K.ventajas` los devuelve y se aplican en `bromas.gastar` (no en devoluciones),
+  `liga.impulsar` y `compisNucleo.botin`. `compisNucleo`: `INTERACCIONES` (se desbloquean por `rareza` = orden mínimo, con
+  `espera` en minutos guardada en `mascotas.cds`; frases en `compisFrases.EXTRA`) y `PODERES` (uno por rareza, uno al día por
+  persona: `poderUsado`; Inspiración/Bendición guardan `buff` que suma XP en `cofres.ventajasUsuario`; Escudo usa
+  `PerfilBroma.escudoHasta`). En `/compi`: botón `cmp:poder`, menú `cmp_int`, campos «Te da en este servidor» (`ventajasAqui`,
+  según los módulos activos) y «Sabe hacer». Compañeros propios: hasta 100 (`MAX_COMPIS`) y subida masiva en el panel.
+  Al tocar rarezas/interacciones/poderes, actualiza `src/lib/casino.js` (lo comprueba test/casino.test.js).
 - 1.20.0 **Compañeros tipo tamagotchi** (`/compi` = `slash/companion.js`). Catálogo ampliado a 57 en `utils/cofresNucleo.js`
   (`tipo: 'personaje'` = personajes originales de estilo anime con Twemoji; `voz` = su forma de hablar). Reglas puras en
   `utils/compisNucleo.js` (hambre/alegría/energía que cambian por hora, `cuidar`, afinidad → `nivel` 1-30, `extraCuidado` que

@@ -2907,7 +2907,7 @@ export default {
     compis_v: {
       titulo: '{{n}} compañeros para coleccionar y cuidar', intro: 'Cada miembro consigue compañeros en los cofres y los cuida como un tamagotchi con /compi. Cuanto mejor los cuida, más le ayudan.',
       paso: {
-        p1: { t: 'Se consiguen en cofres', d: 'Con /cofre abrir y oro. Hay animales y personajes de estilo anime; los repetidos suben estrellas.' },
+        p1: { t: 'Se consiguen en cofres', d: 'Con /cofre abrir y oro. Hay animales y personajes de estilo anime; los repetidos suben estrellas. Cuanto más raros, más cosas saben hacer.' },
         p2: { t: 'Se cuidan con /compi', d: 'Comer, jugar, mimos y hablar. Tienen hambre, alegría y energía, y suben de nivel de afinidad.' },
         p3: { t: 'Se van de expedición', d: 'Paseos de 1 h, aventuras de 4 h o viajes de 8 h: vuelven con oro y recuerdos para coleccionar.' },
         p4: { t: 'Misiones y racha', d: 'Tres misiones nuevas cada día y premio por los días seguidos cuidándolos.' },
@@ -2923,6 +2923,15 @@ export default {
       vacio: 'Aún no hay compañeros propios', vacioSub: 'Sube la foto de vuestra mascota, del logo o de un personaje de la comunidad y que todos quieran conseguirlo.',
       duenos_zero: 'nadie lo tiene aún', duenos_one: 'lo tiene {{n}} persona', duenos_other: 'lo tienen {{n}} personas',
       confirmBorrar: '¿Borrar a {{n}}? Si alguien ya lo tiene, solo se quitará de los cofres.', retirado: 'Alguien ya tiene a {{n}}: no se borra, pero ya no sale en los cofres.',
+      masivo: 'Estilo Mudae: sube muchas fotos a la vez y cada una será un personaje (con el nombre del archivo). Usa imágenes que tengas derecho a usar.', masivoBoton: 'Subir varias fotos', subiendo: 'Subiendo {{n}} de {{total}}…', masivoTope: '{{n}} fotos no se han subido: has llegado al máximo.',
+      ventajasTitulo: 'Qué da cada rareza', ventajasSub: 'Lo que da el compañero que lleva equipado cada miembro (más con estrellas y nivel de afinidad), lo que sabe hacer en /compi y su poder del día (uno cada 20 h). Las ventajas de bromas, casino y Liga solo cuentan si esas funciones están activadas.',
+      enBromas: 'en bromas', enLiga: 'en la Liga', enExpediciones: 'en expediciones', sabeHacer: 'Sabe hacer {{n}} cosas',
+      int: { banar: 'Darle un baño', foto: 'Hacerle una foto', entrenar: 'Entrenar', bailar: 'Bailar', regalo: 'Regalo del día', historia: 'Contar una historia', meditar: 'Meditar', confidencia: 'Contarse secretos', milagro: 'Milagro' },
+      poder: {
+        olfato: { t: 'Olfato', d: 'encuentra oro' }, inspiracion: { t: 'Inspiración', d: '+30 % de XP 1 h' },
+        escudo: { t: 'Escudo', d: 'nadie le gasta bromas en 6 h' }, prisa: { t: 'Prisa', d: 'vuelve ya de la expedición o lo llena todo' },
+        bendicion: { t: 'Bendición', d: '+100 % de XP 2 h y todo al 100' },
+      },
       catalogo: 'Catálogo ({{n}})', personaje: 'Personaje', deAqui: 'De aquí',
       filtro: { todos: 'Todos', personajes: 'Personajes anime', animales: 'Animales' },
       voces: { tierno: 'Tierno', sabio: 'Sabio', bromista: 'Bromista', timido: 'Tímido', 'glotón': 'Glotón', dormilon: 'Dormilón', orgulloso: 'Presumido', sonador: 'Soñador', energico: 'Enérgico', robot: 'Robot', alien: 'Alienígena', ninja: 'Ninja', guerrero: 'Guerrero', maga: 'Maga', idol: 'Idol', vampiro: 'Vampiro', heroe: 'Héroe', misterioso: 'Misterioso', genio: 'Genio', princesa: 'Princesa' },

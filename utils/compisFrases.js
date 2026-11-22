@@ -239,4 +239,51 @@ const VOCES = {
     ],
 };
 
-module.exports = { GENERAL, VOCES };
+// Frases de las interacciones que se desbloquean con la rareza (1.21.0).
+const EXTRA = {
+    banar: [
+        ['*chapotea y te salpica entero* ¡Perdón! Bueno, no.', '*splashes you all over* Sorry! Well, not really.'], ['Huelo a flores. Soy un jardín con patas.', 'I smell like flowers. I’m a garden with legs.'],
+        ['¡Más espuma! ¡MÁS!', 'More bubbles! MORE!'], ['*se sacude y deja todo mojado*', '*shakes off and gets everything wet*'], ['Limpito y listo para presumir.', 'Squeaky clean and ready to show off.'],
+    ],
+    foto: [
+        ['*posa con su mejor ángulo* ¿Salgo bien?', '*strikes their best pose* Do I look good?'], ['¡Esta para el fondo de pantalla!', 'This one’s for the wallpaper!'],
+        ['Espera, que he parpadeado. Otra.', 'Wait, I blinked. Another one.'], ['*hace el signo de la paz* ✌️', '*does a peace sign* ✌️'], ['Etiquétame, ¿eh?', 'Tag me, okay?'],
+    ],
+    entrenar: [
+        ['¡Uno, dos! ¡Uno, dos! Me siento más fuerte.', 'One, two! One, two! I feel stronger.'], ['Sudor, esfuerzo y un poco de drama.', 'Sweat, effort and a bit of drama.'],
+        ['Hoy he superado mi récord. Por ti.', 'I beat my record today. For you.'], ['*hace flexiones con una sola pata*', '*does one-pawed push-ups*'], ['El entrenamiento duro da buenas siestas.', 'Hard training makes good naps.'],
+    ],
+    bailar: [
+        ['💃 ¡Mira este paso nuevo!', '💃 Check out this new move!'], ['*da una vuelta y casi se cae*', '*spins and almost falls*'],
+        ['La música me pide moverme.', 'The music tells me to move.'], ['¡Baila conmigo, {d}!', 'Dance with me, {d}!'], ['Soy la estrella de la pista.', 'I’m the star of the dance floor.'],
+    ],
+    regalo: [
+        ['Te he traído algo. No preguntes de dónde.', 'I brought you something. Don’t ask where from.'], ['¡Sorpresa! Lo he envuelto yo solito.', 'Surprise! I wrapped it all by myself.'],
+        ['Para la mejor persona del servidor.', 'For the best person on the server.'], ['Lo he encontrado brillando bajo una hoja.', 'I found it shining under a leaf.'], ['Un regalito por cuidarme tanto.', 'A little gift for taking such good care of me.'],
+    ],
+    historia: [
+        ['Érase una vez un servidor donde nunca había spam… fin. Es fantasía.', 'Once upon a time there was a server with no spam… the end. It’s fantasy.'],
+        ['Hace mucho, en un canal muy lejano, un emoji se perdió… y lo encontré yo.', 'Long ago, in a channel far away, an emoji got lost… and I found it.'],
+        ['¿Te cuento cuando me escapé del cofre? Fue épico.', 'Want to hear about when I escaped the chest? It was epic.'],
+        ['Dicen que en lo alto de la montaña vive un dragón que solo come galletas.', 'They say a dragon that only eats cookies lives on top of the mountain.'],
+        ['Una vez vi una estrella fugaz y pedí conocerte. Funcionó.', 'Once I saw a shooting star and wished to meet you. It worked.'],
+    ],
+    meditar: [
+        ['Ommm… siento la paz del servidor.', 'Ommm… I feel the server’s peace.'], ['*respira hondo* Energía recargada.', '*breathes deeply* Energy recharged.'],
+        ['El silencio también es un buen amigo.', 'Silence is a good friend too.'], ['Mi mente está en calma. Mi barriga, no tanto.', 'My mind is calm. My tummy, not so much.'], ['Equilibrio total.', 'Total balance.'],
+    ],
+    confidencia: [
+        ['¿Te cuento un secreto? Eres mi persona favorita.', 'Want to know a secret? You’re my favourite person.'], ['A veces me da miedo la oscuridad. Contigo, no.', 'Sometimes I’m scared of the dark. Not with you.'],
+        ['Nunca había tenido un amigo como tú.', 'I never had a friend like you.'], ['Prometo cuidarte igual que tú a mí.', 'I promise to look after you like you do me.'], ['Guárdalo bien: te quiero un montón.', 'Keep it safe: I love you lots.'],
+    ],
+    milagro: [
+        ['🌈 *todo brilla a su alrededor*', '🌈 *everything shines around them*'], ['Que la luz celestial te acompañe, {d}.', 'May the celestial light be with you, {d}.'],
+        ['He pedido a las estrellas un buen día para ti. Concedido.', 'I asked the stars for a good day for you. Granted.'], ['*el cielo se abre por un instante*', '*the sky opens for a moment*'], ['Un pequeño milagro, solo para ti.', 'A little miracle, just for you.'],
+    ],
+    poder: [
+        ['✨ ¡Mira lo que sé hacer!', '✨ Look what I can do!'], ['Poder desbloqueado. Agárrate.', 'Power unlocked. Hold on.'],
+        ['Esto lo llevo entrenando mucho tiempo.', 'I’ve been training this for a long time.'], ['¡Para ti, con todo mi poder!', 'For you, with all my power!'],
+    ],
+};
+
+module.exports = { GENERAL, VOCES, EXTRA };

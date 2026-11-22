@@ -5,11 +5,11 @@
 // los cofres de aquí). Bot: utils/compis.js, utils/compisNucleo.js; API: modulos/compis.
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users } from 'lucide-react';
+import { Heart, Sparkles, Upload, Trash2, Pencil, Plus, Crown, Users, Images, Gem } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, Aviso } from './crecimientoShared';
 import { useModulo } from '../../../hooks/useModulo';
-import { RAREZAS, COMPANEROS } from '../../../lib/casino';
+import { RAREZAS, COMPANEROS, INTERACCIONES, PODERES } from '../../../lib/casino';
 import { svgMascota } from '../../../lib/mascota';
 import { API_URL } from '../../../lib/api';
 
@@ -64,6 +64,9 @@ export default function CompisView({ dash }) {
   const [error, setError] = useState('');
   const [filtro, setFiltro] = useState('todos');
   const archivo = useRef(null);
+  const varias = useRef(null);
+  const [rarezaMasiva, setRarezaMasiva] = useState('rara');
+  const [subiendo, setSubiendo] = useState(null); // { n, total }
 
   if (!datos) return <p className="text-sm text-muted">{t('dashboard.loading')}</p>;
   if (datos.error) return <Aviso tipo="alerta">{datos.error}</Aviso>;
@@ -100,6 +103,29 @@ export default function CompisView({ dash }) {
     if (r.error) { setError(r.error); return; }
     if (r.retirado) setError(t('dashboard.compis_v.retirado', { n: c.nombre }));
     recargar();
+  };
+  // Subir muchas fotos de golpe: cada una es un compañero con el nombre del archivo.
+  const subirVarias = async (e) => {
+    const archivos = [...(e.target.files || [])];
+    e.target.value = '';
+    if (!archivos.length) return;
+    setError('');
+    const hueco = Math.max(0, (datos.max || 100) - lista.length);
+    const lote = archivos.slice(0, hueco);
+    let hechos = 0;
+    for (let i = 0; i < lote.length; i++) {
+      setSubiendo({ n: i + 1, total: lote.length });
+      const nombre = lote[i].name.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 32) || `#${i + 1}`;
+      try {
+        const imagen = await leerFoto(lote[i]);
+        const r = await accionModulo('compis', 'POST', { nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1), rareza: rarezaMasiva, imagen, activo: true });
+        if (r.error) { setError(r.error); break; }
+        hechos++;
+      } catch { setError(t('dashboard.compis_v.errFoto')); }
+    }
+    setSubiendo(null);
+    if (archivos.length > lote.length) setError(t('dashboard.compis_v.masivoTope', { n: archivos.length - lote.length }));
+    if (hechos) recargar();
   };
   const activar = async (c, v) => { await accionModulo(`compis/${c.cid}`, 'PUT', { activo: v }); recargar(); };
 
@@ -146,6 +172,21 @@ export default function CompisView({ dash }) {
           )} />
         <p className="mt-1 text-xs text-muted">{t('dashboard.compis_v.propiosSub', { n: lista.length, max: datos.max || 20 })}</p>
         {error && <div className="mt-3"><Aviso tipo="alerta">{error}</Aviso></div>}
+
+        {/* Subida masiva (estilo Mudae) */}
+        {!form && lista.length < (datos.max || 100) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-line bg-bg p-3">
+            <Images size={18} className="text-muted" />
+            <span className="min-w-0 flex-1 text-xs text-muted">{t('dashboard.compis_v.masivo')}</span>
+            <select className={`${campo.replace('w-full ', '')} w-auto`} value={rarezaMasiva} onChange={(e) => setRarezaMasiva(e.target.value)} aria-label={t('dashboard.compis_v.rareza')} disabled={!!subiendo}>
+              {RAREZAS_PROPIAS.map((r) => <option key={r} value={r}>{t(`dashboard.casino_v.rareza.${r}`)}</option>)}
+            </select>
+            <button type="button" disabled={!!subiendo} onClick={() => varias.current?.click()} className="sk-foco flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-sm font-bold text-fg hover:border-brand disabled:opacity-50">
+              <Upload size={15} /> {subiendo ? t('dashboard.compis_v.subiendo', subiendo) : t('dashboard.compis_v.masivoBoton')}
+            </button>
+            <input ref={varias} type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={subirVarias} />
+          </div>
+        )}
 
         {form && (
           <div className="mt-4 grid gap-4 rounded-2xl border border-brand/40 bg-brand/5 p-4 md:grid-cols-[180px_1fr]">
@@ -209,6 +250,33 @@ export default function CompisView({ dash }) {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Qué da cada rareza */}
+      <div className={tarjeta}>
+        <CabeceraTarjeta icono={Gem} titulo={t('dashboard.compis_v.ventajasTitulo')} />
+        <p className="mt-1 text-xs text-muted">{t('dashboard.compis_v.ventajasSub')}</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {ORDEN_R.map((r) => {
+            const R = RAREZAS[r];
+            const pct = (v) => `${Math.round(v * 1000) / 10}${i18n.language.startsWith('es') ? ' %' : '%'}`;
+            const pasivas = [
+              R.xp && `✨ +${pct(R.xp)} XP`, R.diario && `🪙 +${pct(R.diario)} ${t('dashboard.casino_v.inDaily')}`, R.vuelta && `🎰 ${pct(R.vuelta)} ${t('dashboard.casino_v.cashback')}`,
+              R.bromas && `🃏 −${pct(R.bromas)} ${t('dashboard.compis_v.enBromas')}`, R.liga && `🏆 +${pct(R.liga)} ${t('dashboard.compis_v.enLiga')}`, R.expedicion && `🧭 +${pct(R.expedicion)} ${t('dashboard.compis_v.enExpediciones')}`,
+            ].filter(Boolean);
+            const ints = Object.entries(INTERACCIONES).filter(([, x]) => x.rareza <= R.orden);
+            const poder = PODERES[Math.min(PODERES.length - 1, R.orden)];
+            return (
+              <div key={r} className="rounded-2xl border bg-bg p-3" style={{ borderColor: `${R.color}66` }}>
+                <p className="text-sm font-black" style={{ color: R.color }}>{r === 'divina' ? <span className="sk-divina-texto">{t('dashboard.casino_v.rareza.divina')}</span> : t(`dashboard.casino_v.rareza.${r}`)}</p>
+                <ul className="mt-2 space-y-0.5 text-xs text-fg">{pasivas.map((x) => <li key={x}>{x}</li>)}</ul>
+                <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-muted">{t('dashboard.compis_v.sabeHacer', { n: 4 + ints.length })}</p>
+                <p className="mt-0.5 text-lg leading-tight" title={ints.map(([id]) => t(`dashboard.compis_v.int.${id}`)).join(', ')}>🍖🎾🤗💬{ints.map(([, x]) => x.emoji).join('')}</p>
+                <p className="mt-2 rounded-xl bg-elevated px-2 py-1.5 text-xs text-fg"><b>{poder.emoji} {t(`dashboard.compis_v.poder.${poder.id}.t`)}</b> · {t(`dashboard.compis_v.poder.${poder.id}.d`)}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Catálogo */}

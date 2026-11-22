@@ -31,6 +31,6 @@ module.exports = {
         }
         const r = await liga.impulsar(interaction.guildId, interaction.user.id, cfg, interaction.options.getInteger('gold'), idioma);
         if (r.error) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
-        return interaction.reply({ content: t(idioma, `🚀 <@${interaction.user.id}> ha impulsado el servidor con 🪙 ${r.cantidad}: **+${r.puntos}** puntos de Liga (ya sois **${r.total}**).`, `🚀 <@${interaction.user.id}> boosted the server with 🪙 ${r.cantidad}: **+${r.puntos}** League points (now **${r.total}**).`), allowedMentions: { parse: [] } });
+        return interaction.reply({ content: t(idioma, `🚀 <@${interaction.user.id}> ha impulsado el servidor con 🪙 ${r.cantidad}: **+${r.puntos}** puntos de Liga${r.extraCompa ? ` (${r.extraCompa} gracias a su compañero)` : ''} (ya sois **${r.total}**).`, `🚀 <@${interaction.user.id}> boosted the server with 🪙 ${r.cantidad}: **+${r.puntos}** League points${r.extraCompa ? ` (${r.extraCompa} thanks to their companion)` : ''} (now **${r.total}**).`), allowedMentions: { parse: [] } });
     },
 };

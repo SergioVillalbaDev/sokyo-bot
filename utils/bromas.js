@@ -177,7 +177,13 @@ async function gastar({ client, guild, cfg, autor, objetivo, tipo, texto = '', c
     }
     if (tipo === 'apodo' && !apodoValido(texto, cfg)) return { error: textoError('apodo', idioma) };
     if (tipo === 'reaccion') { texto = (texto || '').trim() || '💩'; if (!emojiValido(texto)) return { error: textoError('emoji', idioma) }; }
-    const coste = precio ?? precioDe(cfg, tipo);
+    let coste = precio ?? precioDe(cfg, tipo);
+    // Compañero equipado (1.21.0): las bromas normales salen más baratas (no las devoluciones).
+    let descuentoCompa = 0;
+    if (precio === null || precio === undefined) {
+        const v = await require('./cofres.js').ventajasUsuario(autor.id).catch(() => null);
+        if (v?.bromas > 0) { descuentoCompa = v.bromas; coste = Math.round(coste * (1 - v.bromas)); }
+    }
     const economia = require('./economia.js');
     const saldo = await economia.cobrar(autor.id, coste);
     if (saldo === null) return { error: textoError('oro', idioma, { precio: coste }) };
@@ -220,7 +226,7 @@ async function gastar({ client, guild, cfg, autor, objetivo, tipo, texto = '', c
         const msg = await destino.send(anuncio(broma, cfg, cfg)).catch(() => null);
         if (msg) await Broma.updateOne({ _id: broma._id }, { $set: { canalId: msg.channelId, mensajeId: msg.id } });
     }
-    return { ok: true, broma, saldo, coste };
+    return { ok: true, broma, saldo, coste, descuentoCompa };
 }
 
 async function finalizar(client, broma) {

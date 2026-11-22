@@ -826,7 +826,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
     // ===================== COMPAÑEROS (1.20.0): los del servidor, con foto =====================
     const CompaneroServidor = require('../../models/CompaneroServidor.js');
     const KC = require('../../utils/cofresNucleo.js');
-    const MAX_COMPIS = 20;
+    const MAX_COMPIS = 100; // estilo Mudae: cada servidor puede montar su colección
     const fs = require('fs');
     const path = require('path');
     const dirUploads = path.join(__dirname, '..', 'uploads');
@@ -876,7 +876,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
     router.post(ruta('compis'), async (req, res) => {
         try {
             const guild = guildDe(req, res); if (!guild) return;
-            if (await CompaneroServidor.countDocuments({ guildId: guild.id }) >= MAX_COMPIS) return res.status(400).json({ error: 'Ya tienes 20 compañeros propios: borra alguno antes' });
+            if (await CompaneroServidor.countDocuments({ guildId: guild.id }) >= MAX_COMPIS) return res.status(400).json({ error: 'Ya tienes 100 compañeros propios: borra alguno antes' });
             const r = camposCompi({ rareza: 'rara', ...(req.body || {}) }, true);
             if (r.error) return res.status(400).json({ error: r.error });
             if (!r.set.imagenBuffer) return res.status(400).json({ error: 'Sube una foto para tu compañero' });

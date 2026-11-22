@@ -2902,7 +2902,7 @@ export default {
     compis_v: {
       titulo: '{{n}} companions to collect and look after', intro: 'Members get companions from chests and look after them like a tamagotchi with /companion. The better they look after them, the more they help.',
       paso: {
-        p1: { t: 'They come from chests', d: 'With /chest open and gold. There are animals and anime-style characters; duplicates add stars.' },
+        p1: { t: 'They come from chests', d: 'With /chest open and gold. There are animals and anime-style characters; duplicates add stars. The rarer, the more they can do.' },
         p2: { t: 'Look after them with /companion', d: 'Feed, play, cuddle and talk. They get hungry, happy and tired, and level up their affinity.' },
         p3: { t: 'They go on expeditions', d: '1 h walks, 4 h adventures or 8 h trips: they come back with gold and souvenirs to collect.' },
         p4: { t: 'Missions and streaks', d: 'Three new missions every day and a reward for consecutive days of care.' },
@@ -2918,6 +2918,15 @@ export default {
       vacio: 'No custom companions yet', vacioSub: 'Upload a picture of your mascot, the logo or a community character and make everyone want it.',
       duenos_zero: 'nobody has it yet', duenos_one: '{{n}} person has it', duenos_other: '{{n}} people have it',
       confirmBorrar: 'Delete {{n}}? If someone already has it, it will only be removed from chests.', retirado: 'Someone already has {{n}}: it isn’t deleted, but it no longer drops from chests.',
+      masivo: 'Mudae style: upload lots of pictures at once and each one becomes a character (named after the file). Use images you have the right to use.', masivoBoton: 'Upload several pictures', subiendo: 'Uploading {{n}} of {{total}}…', masivoTope: '{{n}} pictures weren’t uploaded: you reached the maximum.',
+      ventajasTitulo: 'What each rarity gives', ventajasSub: 'What each member’s equipped companion gives (more with stars and affinity level), what it can do in /companion and its daily power (one every 20 h). Prank, casino and League perks only count if those features are on.',
+      enBromas: 'on pranks', enLiga: 'in the League', enExpediciones: 'on expeditions', sabeHacer: 'Can do {{n}} things',
+      int: { banar: 'Give it a bath', foto: 'Take its photo', entrenar: 'Train', bailar: 'Dance', regalo: 'Daily gift', historia: 'Tell a story', meditar: 'Meditate', confidencia: 'Share secrets', milagro: 'Miracle' },
+      poder: {
+        olfato: { t: 'Sniff', d: 'finds gold' }, inspiracion: { t: 'Inspiration', d: '+30% XP for 1 h' },
+        escudo: { t: 'Shield', d: 'nobody can prank them for 6 h' }, prisa: { t: 'Rush', d: 'comes back from the expedition now or fills everything' },
+        bendicion: { t: 'Blessing', d: '+100% XP for 2 h and everything to 100' },
+      },
       catalogo: 'Catalogue ({{n}})', personaje: 'Character', deAqui: 'From here',
       filtro: { todos: 'All', personajes: 'Anime characters', animales: 'Animals' },
       voces: { tierno: 'Sweet', sabio: 'Wise', bromista: 'Joker', timido: 'Shy', 'glotón': 'Foodie', dormilon: 'Sleepy', orgulloso: 'Vain', sonador: 'Dreamy', energico: 'Energetic', robot: 'Robot', alien: 'Alien', ninja: 'Ninja', guerrero: 'Warrior', maga: 'Mage', idol: 'Idol', vampiro: 'Vampire', heroe: 'Hero', misterioso: 'Mysterious', genio: 'Genie', princesa: 'Princess' },

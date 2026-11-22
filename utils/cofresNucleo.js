@@ -6,12 +6,12 @@
 // Hay UNO divino: «Sokyo, el Dragón Celestial». Rarísimo y muy chetado.
 
 const RAREZAS = {
-    comun: { orden: 0, emoji: '⚪', es: 'Común', en: 'Common', color: '#9ca3af', xp: 0.02, diario: 0, vuelta: 0 },
-    rara: { orden: 1, emoji: '🔵', es: 'Rara', en: 'Rare', color: '#3b82f6', xp: 0.04, diario: 0.05, vuelta: 0 },
-    epica: { orden: 2, emoji: '🟣', es: 'Épica', en: 'Epic', color: '#a855f7', xp: 0.07, diario: 0.10, vuelta: 0.01 },
-    legendaria: { orden: 3, emoji: '🟡', es: 'Legendaria', en: 'Legendary', color: '#f59e0b', xp: 0.10, diario: 0.20, vuelta: 0.02 },
-    mitica: { orden: 4, emoji: '🔴', es: 'Mítica', en: 'Mythic', color: '#ef4444', xp: 0.15, diario: 0.35, vuelta: 0.04 },
-    divina: { orden: 5, emoji: '🌈', es: 'DIVINA', en: 'DIVINE', color: '#fde68a', xp: 0.50, diario: 1.00, vuelta: 0.10 },
+    comun: { orden: 0, emoji: '⚪', es: 'Común', en: 'Common', color: '#9ca3af', xp: 0.02, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 },
+    rara: { orden: 1, emoji: '🔵', es: 'Rara', en: 'Rare', color: '#3b82f6', xp: 0.04, diario: 0.05, vuelta: 0, bromas: 0.05, liga: 0.05, expedicion: 0.10 },
+    epica: { orden: 2, emoji: '🟣', es: 'Épica', en: 'Epic', color: '#a855f7', xp: 0.07, diario: 0.10, vuelta: 0.01, bromas: 0.10, liga: 0.10, expedicion: 0.20 },
+    legendaria: { orden: 3, emoji: '🟡', es: 'Legendaria', en: 'Legendary', color: '#f59e0b', xp: 0.10, diario: 0.20, vuelta: 0.02, bromas: 0.15, liga: 0.20, expedicion: 0.35 },
+    mitica: { orden: 4, emoji: '🔴', es: 'Mítica', en: 'Mythic', color: '#ef4444', xp: 0.15, diario: 0.35, vuelta: 0.04, bromas: 0.25, liga: 0.30, expedicion: 0.50 },
+    divina: { orden: 5, emoji: '🌈', es: 'DIVINA', en: 'DIVINE', color: '#fde68a', xp: 0.50, diario: 1.00, vuelta: 0.10, bromas: 0.40, liga: 0.50, expedicion: 1.00 },
 };
 
 const COMPANEROS = {
@@ -143,11 +143,12 @@ function abrir(coleccion, cofre, azar = require('./casinoNucleo.js').azarSeguro,
 // `extra`: lo que suma el cuidado (nivel de afinidad y si está feliz), de utils/compisNucleo.js.
 function ventajas(id, estrellas = 1, extra = 0) {
     const c = def(id);
-    if (c.perdido) return { xp: 0, diario: 0, vuelta: 0 };
+    if (c.perdido) return { xp: 0, diario: 0, vuelta: 0, bromas: 0, liga: 0, expedicion: 0 };
     const r = RAREZAS[c.rareza];
     const k = (1 + 0.2 * (Math.max(1, Math.min(MAX_ESTRELLAS, estrellas)) - 1)) * (1 + Math.max(0, extra));
     const red = (v) => Math.round(v * k * 1000) / 1000;
-    return { xp: red(r.xp), diario: red(r.diario), vuelta: red(r.vuelta) };
+    // Descuento en bromas: tope del 60 % (con todas las estrellas y nivel).
+    return { xp: red(r.xp), diario: red(r.diario), vuelta: red(r.vuelta), bromas: Math.min(0.6, red(r.bromas)), liga: red(r.liga), expedicion: red(r.expedicion) };
 }
 
 module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado };
