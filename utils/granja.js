@@ -13,15 +13,15 @@ const nombre = (m, idioma) => m.apodo || t(idioma, K.def(m.id).es, K.def(m.id).e
 const nombreHito = (h, idioma) => (h.n === 'todas' ? t(idioma, 'todas', 'all') : String(h.n));
 
 // Da los hitos del álbum alcanzados y aún no premiados (cada uno, una sola vez aunque se pulse a la vez).
-async function premiarHitos(userId, col = null) {
-    const c = col || await ColeccionMascotas.findOne({ userId }).lean();
+async function premiarHitos(guildId, userId, col = null) {
+    const c = col || await ColeccionMascotas.findOne({ guildId, userId }).lean();
     if (!c) return [];
     const dados = [];
     for (const h of G.hitosNuevos(c)) {
-        const r = await ColeccionMascotas.updateOne({ userId, hitosAlbum: { $ne: String(h.n) } }, { $addToSet: { hitosAlbum: String(h.n) } });
-        if (r.modifiedCount) { await require('./economia.js').darOro(userId, h.oro); dados.push(h); }
+        const r = await ColeccionMascotas.updateOne({ guildId, userId, hitosAlbum: { $ne: String(h.n) } }, { $addToSet: { hitosAlbum: String(h.n) } });
+        if (r.modifiedCount) { await require('./economia.js').en(guildId).darOro(userId, h.oro); dados.push(h); }
     }
-    if (dados.length) await require('./pase.js').registrar(userId, 'hito', { n: dados.length }).catch(() => {});
+    if (dados.length) await require('./pase.js').registrar(guildId, userId, 'hito', { n: dados.length }).catch(() => {});
     return dados;
 }
 const textoHitos = (hitos, idioma) => hitos.map((h) => t(idioma,
@@ -50,9 +50,9 @@ function textoSemana(col, idioma, ahora = Date.now()) {
 }
 
 // Recoge lo que ha producido la granja. La primera vez solo la pone en marcha.
-async function recoger(userId, idioma = 'es', ahora = Date.now()) {
+async function recoger(guildId, userId, idioma = 'es', ahora = Date.now()) {
     for (let intento = 0; intento < 4; intento++) {
-        const col = await ColeccionMascotas.findOne({ userId }).lean();
+        const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
         if (!col || !(col.mascotas || []).length) return { fallo: 'sin' };
         const a = G.acumulado(col, ahora);
         const filtro = { _id: col._id, 'granja.desde': col.granja?.desde ?? null };
@@ -66,8 +66,8 @@ async function recoger(userId, idioma = 'es', ahora = Date.now()) {
         const r = await ColeccionMascotas.updateOne(filtro, { $set: { granja: { desde: new Date(ahora) }, semana: sem.sem }, $inc: { oroGranja: a.oro } });
         if (!r.modifiedCount) continue; // alguien recogió a la vez: se recalcula
         const total = a.oro + sem.oro;
-        await require('./economia.js').darOro(userId, total);
-        const delPase = await require('./pase.js').registrar(userId, [['granja', 1], ['misionSemanal', sem.oro ? 1 : 0]], { idioma }).catch(() => []);
+        await require('./economia.js').en(guildId).darOro(userId, total);
+        const delPase = await require('./pase.js').registrar(guildId, userId, [['granja', 1], ['misionSemanal', sem.oro ? 1 : 0]], { idioma }).catch(() => []);
         return { oro: a.oro, mensajes: [...delPase, t(idioma, `🧺 Recoges **🪙 ${fmt(a.oro, idioma)}** de la granja (${dec(a.horas, idioma)} h).`, `🧺 You collect **🪙 ${fmt(a.oro, idioma)}** from the farm (${dec(a.horas, idioma)} h).`), ...sem.mensajes] };
     }
     return { fallo: 'ocupado' };
@@ -85,9 +85,9 @@ function tiempo(ms, idioma) {
     return h ? `${h} h ${min % 60} min` : `${min} min`;
 }
 
-async function vistaGranja(userId, idioma, mensajes = [], ahora = Date.now()) {
-    const hitos = await premiarHitos(userId);
-    const col = await ColeccionMascotas.findOne({ userId }).lean();
+async function vistaGranja(guildId, userId, idioma, mensajes = [], ahora = Date.now()) {
+    const hitos = await premiarHitos(guildId, userId);
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
     if (!col || !(col.mascotas || []).length) return { content: t(idioma, FALLOS.sin[0], FALLOS.sin[1]), embeds: [], components: [] };
     const a = G.acumulado(col, ahora);
     const huecos = G.huecos(col);
@@ -122,9 +122,9 @@ async function vistaGranja(userId, idioma, mensajes = [], ahora = Date.now()) {
     return { content: null, embeds: [e], components: [fila], allowedMentions: { parse: [] } };
 }
 
-async function vistaAlbum(userId, idioma) {
-    const hitos = await premiarHitos(userId);
-    const col = await ColeccionMascotas.findOne({ userId }).lean();
+async function vistaAlbum(guildId, userId, idioma) {
+    const hitos = await premiarHitos(guildId, userId);
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
     if (!col) return { content: t(idioma, FALLOS.sin[0], FALLOS.sin[1]), embeds: [], components: [] };
     const tengo = new Set((col.mascotas || []).map((m) => m.id));
     const pr = G.porRareza(col);
@@ -154,16 +154,16 @@ async function manejar(interaction) {
     const idioma = await idiomaInteraccion(interaction, cfg);
     // «abrir», desde un mensaje de otra persona o desde el lobby (sin dueño): la tuya, en un mensaje solo para ti.
     if (que === 'abrir' || !owner || owner !== interaction.user.id) {
-        await interaction.reply({ ...(await (que === 'alb' ? vistaAlbum : vistaGranja)(interaction.user.id, idioma)), flags: 64 });
+        await interaction.reply({ ...(await (que === 'alb' ? vistaAlbum : vistaGranja)(interaction.guildId, interaction.user.id, idioma)), flags: 64 });
         return true;
     }
     await interaction.deferUpdate();
     if (que === 'rec') {
-        const r = await recoger(owner, idioma);
+        const r = await recoger(interaction.guildId, owner, idioma);
         const msj = r.fallo ? [`⚠️ ${t(idioma, FALLOS[r.fallo][0], FALLOS[r.fallo][1])}`] : r.mensajes;
-        await interaction.editReply(await vistaGranja(owner, idioma, msj));
-    } else if (que === 'alb') await interaction.editReply(await vistaAlbum(owner, idioma));
-    else await interaction.editReply(await vistaGranja(owner, idioma));
+        await interaction.editReply(await vistaGranja(interaction.guildId, owner, idioma, msj));
+    } else if (que === 'alb') await interaction.editReply(await vistaAlbum(interaction.guildId, owner, idioma));
+    else await interaction.editReply(await vistaGranja(interaction.guildId, owner, idioma));
     return true;
 }
 

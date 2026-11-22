@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const Usuario = require('../models/Usuario.js');
+const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, InteractionContextType } = require('discord.js');
+const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
@@ -17,10 +17,11 @@ module.exports = {
         .setName('use')
         .setNameLocalizations(ES('usar'))
         .setDescription('Use an item from your bag to trigger its effect')
-        .setDescriptionLocalizations(ES('Usar un objeto de tu mochila')),
+        .setDescriptionLocalizations(ES('Usar un objeto de tu mochila'))
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction, client, cfg) {
-        const usuario = await Usuario.findOne({ discordId: interaction.user.id }).populate('inventory.item');
+        const usuario = await economia.en(interaction.guildId).inventario(interaction.user.id);
         const usables = (usuario?.inventory || [])
             .filter(e => e.item && e.item.efecto && e.item.efecto.tipo && e.item.efecto.tipo !== 'ninguno');
 

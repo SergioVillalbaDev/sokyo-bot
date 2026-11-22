@@ -33,15 +33,16 @@ async function crear(guildId, userId, cfg, nombre, emoji, idioma) {
     if (await buscar(guildId, nombre)) return { error: t(idioma, 'Ya hay un clan con ese nombre.', 'There’s already a clan with that name.') };
     const coste = Math.max(0, c.costeCrear || 0);
     if (coste > 0) {
-        const u = await economia.obtenerUsuario(userId);
+        const eco = economia.en(guildId);
+        const u = await eco.obtenerUsuario(userId);
         if ((u.balance || 0) < coste) return { error: t(idioma, `Fundar un clan cuesta 🪙 ${coste} y tienes 🪙 ${u.balance || 0}.`, `Founding a clan costs 🪙 ${coste} and you have 🪙 ${u.balance || 0}.`) };
-        await economia.darOro(userId, -coste);
+        if (await eco.cobrar(userId, coste) === null) return { error: t(idioma, `Fundar un clan cuesta 🪙 ${coste} y tienes 🪙 ${u.balance || 0}.`, `Founding a clan costs 🪙 ${coste} and you have 🪙 ${u.balance || 0}.`) };
     }
     try {
         const clan = await Clan.create({ guildId, nombre: nombre.trim(), nombreClave: clave(nombre), emoji: emoji || '🛡️', liderId: userId, miembros: [userId] });
         return { ok: true, clan, coste };
     } catch {
-        if (coste > 0) await economia.darOro(userId, coste); // otro lo fundó a la vez: se devuelve el oro
+        if (coste > 0) await economia.en(guildId).darOro(userId, coste); // otro lo fundó a la vez: se devuelve el oro
         return { error: t(idioma, 'Ya hay un clan con ese nombre.', 'There’s already a clan with that name.') };
     }
 }
@@ -123,7 +124,7 @@ async function cerrarSemana(client, cfg, semanaCerrada) {
         const { darRecompensa } = require('./dinamicas.js');
         for (const uid of ganador.miembros) {
             const member = guild ? await guild.members.fetch(uid).catch(() => null) : null;
-            if (c.premioOro > 0) await economia.darOro(uid, c.premioOro).catch(() => {});
+            if (c.premioOro > 0) await economia.en(cfg.guildId).darOro(uid, c.premioOro).catch(() => {});
             if (member && c.premioXp > 0 && cfg.nivelesActivo) await darRecompensa(guild, member, { xp: c.premioXp }, cfg, null).catch(() => {});
         }
         const canal = guild && c.canalId ? guild.channels.cache.get(c.canalId) : null;

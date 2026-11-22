@@ -9,6 +9,7 @@ const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('league')
+        .setNameLocalizations(ES('liga'))
         .setDescription('Sokyo League: the monthly ranking of servers')
         .setDescriptionLocalizations(ES('Liga Sokyo: la clasificación mensual de servidores'))
         .setContexts(InteractionContextType.Guild)

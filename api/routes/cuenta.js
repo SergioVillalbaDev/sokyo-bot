@@ -151,14 +151,18 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
         try {
             const uid = req.usuario.id;
             const tz = zonaValida(req.query.tz) || 'Europe/Madrid';
-            const [u, actividades, total, abiertos, recientes, actividad, esPremium] = await Promise.all([
-                economia.obtenerUsuario(uid),
+            // 1.30.0: el oro, el diario y la mochila son del servidor elegido (?guildId=).
+            const SP = require('../../utils/servidorPortal.js');
+            const gid = await SP.elegir(client, uid, req.query.guildId);
+            const [u, actividades, total, abiertos, recientes, actividad, esPremium, servidoresOro] = await Promise.all([
+                gid ? economia.en(gid).obtenerUsuario(uid) : { balance: 0, inventory: [] },
                 ActividadUsuario.find({ userId: uid }).select('guildId xp mensajesTotal ultimoMensajeFecha retoRacha').lean(),
                 Ticket.countDocuments({ creadorId: uid }),
                 Ticket.countDocuments({ creadorId: uid, estado: { $ne: 'Cerrado' } }),
                 ticketsAbiertos(uid, client),
                 serieActividad(uid, tz),
                 usuarioEsPremium(uid).catch(() => false),
+                SP.servidoresDe(client, uid),
             ]);
             const [servidores, objetos] = await Promise.all([servidoresDe(uid, client, actividades), contarObjetos(u.inventory)]);
             const boost = u.boostXp && u.boostXp.expiraEn && new Date(u.boostXp.expiraEn) > new Date() && (u.boostXp.multiplicador || 1) > 1
@@ -167,6 +171,8 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
             res.json({
                 usuario: { id: uid, username: req.usuario.username, avatar: req.usuario.avatar, esPremium },
                 oro: u.balance || 0,
+                servidorOro: gid,
+                servidoresOro,
                 objetos,
                 boost,
                 daily: estadoDaily(u),
@@ -286,10 +292,12 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
         }
     });
 
-    // Recompensa diaria desde la web (la misma que /daily: el oro es global).
+    // Recompensa diaria desde la web (la misma que /daily, en el servidor elegido).
     router.post('/portal/daily', portalAuth, async (req, res) => {
         try {
-            const r = await economia.reclamarDaily(req.usuario.id);
+            const gid = await require('../../utils/servidorPortal.js').elegir(client, req.usuario.id, req.body?.guildId || req.query.guildId);
+            if (!gid) return res.status(400).json({ error: 'Elige un servidor donde estés con Sokyo.', code: 'sin_servidor' });
+            const r = await economia.en(gid).reclamarDaily(req.usuario.id);
             if (!r.ok) return res.status(409).json({ error: 'Ya la has reclamado hace poco.', esperaHoras: r.esperaHoras, proximo: new Date(Date.now() + r.esperaHoras * 3600000) });
             res.json({ success: true, total: r.total, racha: r.racha, jackpot: r.jackpot, balance: r.balance });
         } catch (e) {

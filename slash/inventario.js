@@ -1,5 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder } = require('discord.js');
-const Usuario = require('../models/Usuario.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, InteractionContextType } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const { botonWeb } = require('../utils/cuenta.js');
@@ -10,12 +9,14 @@ module.exports = {
         .setName('inventory')
         .setNameLocalizations(ES('inventario'))
         .setDescription('Show your gold and the items you own')
-        .setDescriptionLocalizations(ES('Tu oro y los objetos que tienes')),
+        .setDescriptionLocalizations(ES('Tu oro y los objetos que tienes'))
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction, client, cfg) {
-        await economia.obtenerUsuario(interaction.user.id); // lo crea si es nuevo
+        const eco = economia.en(interaction.guildId);
+        await eco.obtenerUsuario(interaction.user.id); // lo crea si es nuevo
         // populate('inventory.item') sustituye cada referencia por el documento completo del ítem.
-        const usuario = await Usuario.findOne({ discordId: interaction.user.id }).populate('inventory.item');
+        const usuario = await eco.inventario(interaction.user.id);
 
         const lineas = (usuario.inventory || [])
             .filter(e => e.item) // por si un ítem fue borrado de la BD

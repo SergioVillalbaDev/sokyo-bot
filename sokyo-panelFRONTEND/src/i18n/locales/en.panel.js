@@ -2895,7 +2895,7 @@ export default {
       },
       top: 'Biggest winners', noTop: 'Nobody has played yet',
       big: 'Big wins', noBig: 'No big win yet',
-      chestsTitle: 'Pet chests', chestsIntro: 'Each person collects companions (they work on every server). Equipped, each one gives perks by rarity; duplicates add stars (up to 5) and get better. Every {{n}} chests without an epic, the next one guarantees it.',
+      chestsTitle: 'Pet chests', chestsIntro: 'Each person collects companions (each server has its own: everyone starts from zero here). Equipped, each one gives perks by rarity; duplicates add stars (up to 5) and get better. Every {{n}} chests without an epic, the next one guarantees it.',
       cofre: { basico: 'Basic', epico: 'Epic', legendario: 'Legendary' },
       rareza: { comun: 'Common', rara: 'Rare', epica: 'Epic', legendaria: 'Legendary', mitica: 'Mythic', divina: 'DIVINE' },
       inDaily: 'on /daily', cashback: 'casino cashback',

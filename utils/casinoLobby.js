@@ -149,10 +149,10 @@ async function refrescar(client) {
 // ---------------------------------------------------------------------------
 // La mesa de cada juego (solo para quien la abre)
 // ---------------------------------------------------------------------------
-async function mesa(juego, { cfg, idioma, userId, cantidad = null, extra = null }) {
+async function mesa(juego, { cfg, idioma, guildId, userId, cantidad = null, extra = null }) {
     const c = cfg?.casino || {};
     const min = c.apuestaMin ?? 10; const max = c.apuestaMax ?? 5000;
-    const saldo = (await require('./economia.js').obtenerUsuario(userId)).balance;
+    const saldo = (await require('./economia.js').en(guildId || cfg?.guildId).obtenerUsuario(userId)).balance;
     const J = casino().JUEGOS;
     if (juego === 'cartas') {
         const S = require('./cartasNucleo.js');
@@ -218,11 +218,11 @@ async function mesa(juego, { cfg, idioma, userId, cantidad = null, extra = null 
 async function miOro(interaction, cfg, idioma) {
     const PerfilCasino = require('../models/PerfilCasino.js');
     const p = (await PerfilCasino.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).lean()) || {};
-    const saldo = (await require('./economia.js').obtenerUsuario(interaction.user.id)).balance;
+    const saldo = (await require('./economia.js').en(interaction.guildId).obtenerUsuario(interaction.user.id)).balance;
     const c = cfg?.casino || {};
     const hoy = new Date().toISOString().slice(0, 10);
     const perdido = p.dia === hoy ? p.perdidoHoy || 0 : 0;
-    const v = await require('./cofres.js').ventajasUsuario(interaction.user.id).catch(() => null);
+    const v = await require('./cofres.js').ventajasUsuario(interaction.guildId, interaction.user.id).catch(() => null);
     const e = new EmbedBuilder().setColor('#22c55e').setTitle(t(idioma, '💰 Tu oro', '💰 Your gold'))
         .addFields(
             { name: t(idioma, 'Ahora tienes', 'You have'), value: `**🪙 ${fmt(saldo, idioma)}**`, inline: true },
@@ -252,14 +252,14 @@ async function manejar(interaction, client) {
     if (!cfg?.casino?.activo) { await interaction.reply({ content: t(idioma, '🎰 El casino está cerrado ahora mismo.', '🎰 The casino is closed right now.'), flags: 64 }); return true; }
 
     if (interaction.isStringSelectMenu() && id === 'cas_lob') {
-        await interaction.reply({ ...(await mesa(interaction.values[0], { cfg, idioma, userId })), flags: 64 });
+        await interaction.reply({ ...(await mesa(interaction.values[0], { cfg, idioma, guildId: interaction.guildId, userId })), flags: 64 });
         // El desplegable del lobby vuelve a «Elige un juego…» para el siguiente.
         return true;
     }
     if (interaction.isStringSelectMenu() && id.startsWith('cas_lx:')) {
         const [, juego, que] = id.split(':');
         const v = interaction.values[0];
-        await interaction.update(await mesa(juego, { cfg, idioma, userId, ...(que === 'cantidad' ? { cantidad: parseInt(v, 10) } : { extra: v === 'nada' ? '' : v }) }));
+        await interaction.update(await mesa(juego, { cfg, idioma, guildId: interaction.guildId, userId, ...(que === 'cantidad' ? { cantidad: parseInt(v, 10) } : { extra: v === 'nada' ? '' : v }) }));
         return true;
     }
     if (interaction.isUserSelectMenu() && id.startsWith('cas_ldu:')) {

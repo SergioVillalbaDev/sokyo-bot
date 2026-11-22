@@ -126,16 +126,17 @@ describe('votos de top.gg', () => {
     const economia = require('../utils/economia.js');
     let orig, creados, oro, existe;
     beforeEach(() => {
-        orig = { exists: Voto.exists, create: Voto.create, find: ServidorConfig.find, darOro: economia.darOro, env: process.env.TOPGG_WEBHOOK_AUTH };
+        orig = { exists: Voto.exists, create: Voto.create, find: ServidorConfig.find, en: economia.en, env: process.env.TOPGG_WEBHOOK_AUTH };
         creados = []; oro = []; existe = false;
         Voto.exists = async () => existe;
         Voto.create = async (d) => { creados.push(d); return d; };
         ServidorConfig.find = async () => [];
-        economia.darOro = async (id, n) => { oro.push([id, n]); };
+        // 1.30.0: el oro es de cada servidor.
+        economia.en = (g) => ({ darOro: async (id, n) => { oro.push([g, id, n]); } });
     });
     afterEach(() => {
         Object.assign(Voto, { exists: orig.exists, create: orig.create });
-        ServidorConfig.find = orig.find; economia.darOro = orig.darOro;
+        ServidorConfig.find = orig.find; economia.en = orig.en;
         if (orig.env === undefined) delete process.env.TOPGG_WEBHOOK_AUTH; else process.env.TOPGG_WEBHOOK_AUTH = orig.env;
     });
 
@@ -155,8 +156,13 @@ describe('votos de top.gg', () => {
     it('un voto da oro (el doble en fin de semana) y se apunta', async () => {
         const r = await votos.procesarVoto({ guilds: { cache: new Collection() } }, { userId: '1', finde: false });
         assert.deepStrictEqual(r, { estado: 'ok', oro: 300, servidores: 0 });
-        await votos.procesarVoto({ guilds: { cache: new Collection() } }, { userId: '2', finde: true });
-        assert.deepStrictEqual(oro, [['1', 300], ['2', 600]]);
+        // Sin servidores con premios por votar no hay dónde darlo (el oro es de cada servidor).
+        assert.deepStrictEqual(oro, []);
+        // Con uno donde está quien vota: el oro del voto (doble en finde) y el extra del servidor, allí.
+        ServidorConfig.find = async () => [{ guildId: 'G1', crecimiento: { votos: { activo: true, oroExtra: 50 } } }];
+        const guild = { id: 'G1', members: { fetch: async () => ({ user: { bot: false }, roles: { add: async () => {} } }) }, roles: { cache: new Collection() }, channels: { cache: new Collection() } };
+        await votos.procesarVoto({ guilds: { cache: new Collection([['G1', guild]]) } }, { userId: '2', finde: true }).catch(() => {});
+        assert.deepStrictEqual(oro, [['G1', '2', 650]]);
         assert.strictEqual(creados.length, 2);
     });
     it('los reintentos de top.gg y los votos de prueba no premian', async () => {

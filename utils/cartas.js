@@ -20,17 +20,18 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
     const def = S.SOBRES[sobre];
     if (!def) return { error: t(idioma, 'Ese sobre no existe.', 'That pack doesn’t exist.') };
     const userId = interaction.user.id;
-    const economia = require('./economia.js');
+    const guildId = interaction.guildId;
+    const economia = require('./economia.js').en(guildId);
     // 1.29.0: con un ticket del pase el sobre sale gratis.
     const Pase = require('./pase.js');
-    if (ticket && !(await Pase.usarTicket(userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
+    if (ticket && !(await Pase.usarTicket(guildId, userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
     const saldo = ticket ? (await economia.obtenerUsuario(userId)).balance : await economia.cobrar(userId, def.precio);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${fmt(def.precio, idioma)} para el ${def.es.toLowerCase()}.`, `You don’t have 🪙 ${fmt(def.precio, idioma)} for the ${def.en.toLowerCase()}.`) };
     const quitados = require('./cofres.js').quitadosDe(cfg);
     let r = null; let col;
     // Se calcula sobre el álbum y se guarda solo si nadie lo ha tocado a la vez.
     for (let intento = 0; intento < 5 && !r; intento++) {
-        col = await ColeccionMascotas.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, returnDocument: 'after' }).lean();
+        col = await ColeccionMascotas.findOneAndUpdate({ guildId, userId }, { $setOnInsert: { guildId, userId } }, { upsert: true, returnDocument: 'after' }).lean();
         const x = S.abrirSobre(col, sobre, undefined, quitados);
         const cartas = [...(col.cartas || [])];
         for (const c of x.cartas.filter((y) => y.id)) {
@@ -43,8 +44,8 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
             { $set: { cartas, sinEpicaCartas: x.sinEpica, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { sobresAbiertos: 1, gastadoSobres: def.precio } });
         if (hecho.modifiedCount) r = { ...x, series: nuevas };
     }
-    if (!r) { if (ticket) await Pase.devolverTicket(userId, ticket); else await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
-    const delPase = await Pase.registrar(userId, [['sobre', 1], ['serie', r.series.length]], { idioma }).catch(() => []);
+    if (!r) { if (ticket) await Pase.devolverTicket(guildId, userId, ticket); else await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
+    const delPase = await Pase.registrar(guildId, userId, [['sobre', 1], ['serie', r.series.length]], { idioma }).catch(() => []);
     if (r.devuelto) await economia.darOro(userId, r.devuelto);
     const oroSeries = r.series.reduce((a, n) => a + n.oro, 0);
     if (oroSeries) await economia.darOro(userId, oroSeries);
@@ -97,7 +98,7 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
 
 async function verAlbum(interaction, idioma, usuario = null) {
     const quien = usuario || interaction.user;
-    const col = (await ColeccionMascotas.findOne({ userId: quien.id }).select('cartas sobresAbiertos seriesCompletas').lean()) || { cartas: [] };
+    const col = (await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: quien.id }).select('cartas sobresAbiertos seriesCompletas').lean()) || { cartas: [] };
     const cartas = col.cartas || [];
     const porRareza = {}; for (const c of cartas) { const r = K.def(c.id).rareza; porRareza[r] = (porRareza[r] || 0) + 1; }
     const png = await require('./cartasArte.js').album(cartas, { titulo: t(idioma, `Álbum de ${quien.username} · ${cartas.length}/${K.ANIME.size}`, `${quien.username}’s album · ${cartas.length}/${K.ANIME.size}`), idioma }).catch(() => null);
@@ -120,8 +121,8 @@ async function verAlbum(interaction, idioma, usuario = null) {
     return { embeds: [e], files: png ? [new AttachmentBuilder(png, { name: 'album.png' })] : [], components: comps, allowedMentions: { parse: [] } };
 }
 
-async function verCarta(userId, id, idioma) {
-    const col = await ColeccionMascotas.findOne({ userId }).select('cartas seriesCompletas').lean();
+async function verCarta(guildId, userId, id, idioma) {
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).select('cartas seriesCompletas').lean();
     const c = (col?.cartas || []).find((x) => x.id === id);
     if (!c) return { content: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
     const d = K.def(id);
@@ -141,7 +142,7 @@ async function verCarta(userId, id, idioma) {
 
 // Enseñar una carta en el canal (1.25.0).
 async function mostrar(interaction, id, idioma) {
-    const v = await verCarta(interaction.user.id, id, idioma);
+    const v = await verCarta(interaction.guildId, interaction.user.id, id, idioma);
     if (!v.embeds) return v;
     v.embeds[0].setTitle(t(idioma, `🃏 ${interaction.user.displayName || interaction.user.username} enseña: ${K.def(id).es}`, `🃏 ${interaction.user.displayName || interaction.user.username} shows: ${K.def(id).en}`));
     v.embeds[0].setDescription(v.embeds[0].data.description.split('\n').filter((l) => !l.startsWith('⏳') && !l.startsWith('✅')).join('\n'));
@@ -152,11 +153,11 @@ async function mostrar(interaction, id, idioma) {
 async function regalar(interaction, idioma, destino, id) {
     if (!destino || destino.bot || destino.id === interaction.user.id) return { error: t(idioma, 'Elige a otra persona (no un bot).', 'Pick someone else (not a bot).') };
     const dia = new Date().toISOString().slice(0, 10);
-    const yo = await ColeccionMascotas.findOne({ userId: interaction.user.id }).lean();
+    const yo = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).lean();
     if (!yo || !(yo.cartas || []).some((c) => c.id === id)) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
     const hoy = yo.regalosHoy?.dia === dia ? yo.regalosHoy.n || 0 : 0;
     if (hoy >= S.REGALOS_DIA) return { error: t(idioma, `Ya has regalado ${S.REGALOS_DIA} cartas hoy. Mañana más.`, `You’ve already gifted ${S.REGALOS_DIA} cards today. More tomorrow.`) };
-    const suyo = await ColeccionMascotas.findOneAndUpdate({ userId: destino.id }, { $setOnInsert: { userId: destino.id } }, { upsert: true, returnDocument: 'after' }).lean();
+    const suyo = await ColeccionMascotas.findOneAndUpdate({ guildId: interaction.guildId, userId: destino.id }, { $setOnInsert: { guildId: interaction.guildId, userId: destino.id } }, { upsert: true, returnDocument: 'after' }).lean();
     const r = S.regalar(yo.cartas, suyo.cartas || [], id);
     if (r.fallo) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
     // Solo si mis cartas no han cambiado a la vez (evita regalar dos veces la misma copia).
@@ -165,7 +166,7 @@ async function regalar(interaction, idioma, destino, id) {
     const nuevas = S.nuevasSeries(r.a, suyo.seriesCompletas || []);
     await ColeccionMascotas.updateOne({ _id: suyo._id }, { $set: { cartas: r.a, seriesCompletas: [...(suyo.seriesCompletas || []), ...nuevas.map((n) => n.serie)] } });
     const oro = r.devuelto + nuevas.reduce((a, n) => a + n.oro, 0);
-    if (oro) await require('./economia.js').darOro(destino.id, oro);
+    if (oro) await require('./economia.js').en(interaction.guildId).darOro(destino.id, oro);
     const d = K.def(id);
     return { ok: true, texto: [
         t(idioma, `🎁 <@${interaction.user.id}> le regala a <@${destino.id}> la carta **${d.es}** (${K.RAREZAS[d.rareza].es}).`, `🎁 <@${interaction.user.id}> gifts <@${destino.id}> the card **${d.en}** (${K.RAREZAS[d.rareza].en}).`),
@@ -204,7 +205,7 @@ async function manejar(interaction) {
     }
     if (interaction.isStringSelectMenu() && id === 'crt_ver') {
         await interaction.deferReply({ flags: 64 });
-        await interaction.editReply(await verCarta(interaction.user.id, interaction.values[0], idioma));
+        await interaction.editReply(await verCarta(interaction.guildId, interaction.user.id, interaction.values[0], idioma));
         return true;
     }
     return false;

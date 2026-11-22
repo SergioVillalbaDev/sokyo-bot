@@ -52,6 +52,8 @@ module.exports = {
             require('../utils/compis.js').cargarPersonalizados(),
             // 1.24.0: los personajes anime que eran mascotas pasan a ser cartas.
             require('../utils/migrarCartas.js').migrar().then((n) => { if (n) console.log(`🃏 ${n} colecciones: personajes anime pasados a cartas`); }),
+            // 1.30.0: colecciones por servidor (quita el índice viejo de una por persona).
+            require('../utils/migrarPorServidor.js').migrar().then((q) => { if (q) console.log('🗂️ Colecciones por servidor: índice viejo quitado'); }),
         ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
 
         // Mensaje de entrada (panel → Propietario): se tiene a mano para /setup y el botón de idioma.

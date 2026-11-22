@@ -2900,7 +2900,7 @@ export default {
       },
       top: 'Los que más han ganado', noTop: 'Todavía nadie ha jugado',
       big: 'Grandes premios', noBig: 'Aún no ha salido ningún premio gordo',
-      chestsTitle: 'Cofres de mascotas', chestsIntro: 'Cada persona colecciona compañeros (sirven en todos los servidores). Equipado, cada uno da ventajas según su rareza; los repetidos suben estrellas (hasta 5) y mejoran. Cada {{n}} cofres sin épica, el siguiente la trae segura.',
+      chestsTitle: 'Cofres de mascotas', chestsIntro: 'Cada persona colecciona compañeros (cada servidor, los suyos: aquí se empieza de cero). Equipado, cada uno da ventajas según su rareza; los repetidos suben estrellas (hasta 5) y mejoran. Cada {{n}} cofres sin épica, el siguiente la trae segura.',
       cofre: { basico: 'Básico', epico: 'Épico', legendario: 'Legendario' },
       rareza: { comun: 'Común', rara: 'Rara', epica: 'Épica', legendaria: 'Legendaria', mitica: 'Mítica', divina: 'DIVINA' },
       inDaily: 'en /diario', cashback: 'de vuelta en el casino',

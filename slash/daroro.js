@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
@@ -9,6 +9,7 @@ module.exports = {
         .setNameLocalizations(ES('daroro'))
         .setDescription('(Admin) Give or take gold from a user')
         .setDescriptionLocalizations(ES('(Admin) Dar o quitar oro a alguien'))
+        .setContexts(InteractionContextType.Guild)
         .addUserOption(o => o.setName('user').setNameLocalizations(ES('usuario')).setDescription('Who to give it to').setDescriptionLocalizations(ES('A quién')).setRequired(true))
         .addIntegerOption(o => o.setName('amount').setNameLocalizations(ES('cantidad')).setDescription('Amount (negative to take away)').setDescriptionLocalizations(ES('Cuánto (en negativo, para quitar)')).setRequired(true))
         // Solo lo ven/usan quienes tengan permiso de Administrador en el servidor.
@@ -17,7 +18,7 @@ module.exports = {
     async execute(interaction, client, cfg) {
         const usuario = interaction.options.getUser('user');
         const cantidad = interaction.options.getInteger('amount');
-        const balance = await economia.darOro(usuario.id, cantidad);
+        const balance = await economia.en(interaction.guildId).darOro(usuario.id, cantidad);
 
         const embed = new EmbedBuilder()
             .setColor('#c9a227')

@@ -227,7 +227,7 @@ module.exports = {
         if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_comprar') {
             const cfgTienda = await getConfigCached(interaction.guildId).catch(() => null);
             const economia = require('../utils/economia.js');
-            const r = await economia.comprarItem(interaction.user.id, interaction.values[0], 1, cfgTienda || 'en');
+            const r = await economia.en(interaction.guildId).comprarItem(interaction.user.id, interaction.values[0], 1, cfgTienda || 'en');
             if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
             return interaction.reply({
                 content: t(cfgTienda, `✅ Has comprado **${r.item.nombre}** por 🪙 ${r.coste}. Te quedan **${r.balance}** de oro.`, `✅ You bought **${r.item.nombre}** for 🪙 ${r.coste}. You have **${r.balance}** gold left.`),
@@ -288,7 +288,7 @@ module.exports = {
             };
             const cfgUsar = await getConfigCached(interaction.guildId).catch(() => null);
             ctx.idioma = cfgUsar || 'en';
-            const r = await economia.usarItem(interaction.user.id, interaction.values[0], ctx);
+            const r = await economia.en(interaction.guildId).usarItem(interaction.user.id, interaction.values[0], ctx);
             if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
 
             const ef = r.efecto;

@@ -60,7 +60,7 @@ async function apostar({ guildId, canalId, userId, cfg, juego, cantidad }) {
     const perfil = await PerfilCasino.findOne({ guildId, userId }).lean();
     const ok = C.comprobarApuesta(cantidad, c, perfil || {});
     if (ok.fallo) return ok;
-    const saldo = await require('./economia.js').cobrar(userId, ok.cantidad);
+    const saldo = await require('./economia.js').en(guildId).cobrar(userId, ok.cantidad);
     if (saldo === null) return { fallo: 'oro', cantidad: ok.cantidad };
     const jugada = await JugadaCasino.create({ guildId, userId, juego, apuesta: ok.cantidad });
     return { jugada, saldo };
@@ -76,10 +76,10 @@ async function cobrarJugada(client, cfg, jugada, premio, detalle = null) {
     const perdida = Math.max(0, jugada.apuesta - premio);
     let vuelta = 0;
     if (perdida > 0) {
-        const v = await require('./cofres.js').ventajasUsuario(jugada.userId).catch(() => null);
+        const v = await require('./cofres.js').ventajasUsuario(jugada.guildId, jugada.userId).catch(() => null);
         if (v?.vuelta) vuelta = Math.floor(perdida * v.vuelta);
     }
-    if (premio + vuelta > 0) await economia.darOro(jugada.userId, premio + vuelta);
+    if (premio + vuelta > 0) await economia.en(jugada.guildId).darOro(jugada.userId, premio + vuelta);
     const hoy = hoyClave();
     const p = await PerfilCasino.findOne({ guildId: jugada.guildId, userId: jugada.userId }).lean();
     const perdidoHoy = (p?.dia === hoy ? p.perdidoHoy || 0 : 0) + Math.max(0, jugada.apuesta - premio - vuelta) - Math.max(0, premio - jugada.apuesta);
@@ -89,7 +89,7 @@ async function cobrarJugada(client, cfg, jugada, premio, detalle = null) {
     }, { upsert: true });
     if (client && premio >= GRAN_PREMIO && premio >= jugada.apuesta * 10) await anunciarGranPremio(client, cfg, jugada, premio).catch(() => {});
     // 1.29.0: cada partida da un poco de XP del pase (con tope diario y sin importar la apuesta).
-    await require('./pase.js').registrar(jugada.userId, 'casino').catch(() => {});
+    await require('./pase.js').registrar(jugada.guildId, jugada.userId, 'casino').catch(() => {});
     return { premio, vuelta };
 }
 
@@ -106,7 +106,7 @@ async function devolverPendientes() {
     const pendientes = await JugadaCasino.find({ estado: 'en_curso' }).limit(500);
     for (const j of pendientes) {
         const r = await JugadaCasino.updateOne({ _id: j._id, estado: 'en_curso' }, { $set: { estado: 'devuelta' } });
-        if (r.modifiedCount) await require('./economia.js').darOro(j.userId, j.apuesta).catch(() => {});
+        if (r.modifiedCount && j.guildId) await require('./economia.js').en(j.guildId).darOro(j.userId, j.apuesta).catch(() => {});
     }
     return pendientes.length;
 }
@@ -116,7 +116,7 @@ const filaOtraVez = (juego, cantidad, idioma, extra = '') => new ActionRowBuilde
         .setLabel(t(idioma, `Otra vez (🪙 ${cantidad})`, `Again (🪙 ${cantidad})`)));
 
 const pieSaldo = (idioma, saldo, vuelta = 0) => t(idioma, `Tu oro: 🪙 ${fmt(saldo, idioma)}${vuelta ? ` · tu compañero te devuelve 🪙 ${vuelta}` : ''} · /casino pausa si necesitas un descanso`, `Your gold: 🪙 ${fmt(saldo, idioma)}${vuelta ? ` · your companion gives you back 🪙 ${vuelta}` : ''} · /casino pause if you need a break`);
-const saldoDe = async (userId) => (await require('./economia.js').obtenerUsuario(userId)).balance;
+const saldoDe = async (guildId, userId) => (await require('./economia.js').en(guildId).obtenerUsuario(userId)).balance;
 
 // ---------------------------------------------------------------------------
 // 🎰 Tragaperras
@@ -152,7 +152,7 @@ async function tragaperras({ interaction, client, cfg, idioma, cantidad, gratis 
     await interaction.editReply({ embeds: [girando], files: gif ? [new AttachmentBuilder(gif, { name: 'tragaperras.gif' })] : [], allowedMentions: { parse: [] } });
     await espera(gif ? 3300 : 800);
     const { vuelta } = await cobrarJugada(client, cfg, jugada, premio, { rodillos: r.rodillos, bote: boteGanado });
-    const saldo = await saldoDe(userId);
+    const saldo = await saldoDe(interaction.guildId, userId);
     const texto = r.bote
         ? t(idioma, `💎💎💎 **¡¡BOTE!!** <@${userId}> se lleva **🪙 ${fmt(premio, idioma)}** 🎉🎉🎉`, `💎💎💎 **JACKPOT!!** <@${userId}> takes **🪙 ${fmt(premio, idioma)}** 🎉🎉🎉`)
         : premio > base ? t(idioma, `🎉 ¡Premio! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`, `🎉 Winner! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`)
@@ -193,7 +193,7 @@ async function ruleta({ interaction, client, cfg, idioma, cantidad, apuesta, num
         .setDescription(`${t(idioma, 'Ha salido', 'It landed on')} ${color} **${sale}**\n\n${premio
             ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**! (×${mult})`, `🎉 You win **🪙 ${fmt(premio, idioma)}**! (×${mult})`)
             : t(idioma, `💨 Pierdes **🪙 ${fmt(cantidad, idioma)}**.`, `💨 You lose **🪙 ${fmt(cantidad, idioma)}**.`)}`)
-        .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.user.id), vuelta) });
+        .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.guildId, interaction.user.id), vuelta) });
     await interaction.editReply({ embeds: [fin], components: [filaOtraVez('ruleta', cantidad, idioma, `${apuesta}${apuesta === 'numero' ? `-${numero}` : ''}`)] });
     return { ok: true, premio };
 }
@@ -216,7 +216,7 @@ async function moneda({ interaction, client, cfg, idioma, cantidad, lado }) {
     const { vuelta } = await cobrarJugada(client, cfg, a.jugada, premio, { lado, sale });
     const fin = EmbedBuilder.from(e).setColor(premio ? '#16a34a' : '#7f1d1d')
         .setDescription(`${t(idioma, 'Ha salido', 'It’s')} **${nom(sale)}**\n\n${premio ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**!`, `🎉 You win **🪙 ${fmt(premio, idioma)}**!`) : t(idioma, '💨 ¡Mala suerte!', '💨 Bad luck!')}`)
-        .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.user.id), vuelta) });
+        .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.guildId, interaction.user.id), vuelta) });
     await interaction.editReply({ embeds: [fin], components: [filaOtraVez('moneda', cantidad, idioma, lado)] });
     return { ok: true, premio };
 }
@@ -304,7 +304,7 @@ async function terminarBlackjack(interaction, client, p, yaEditado = false) {
         pierde: t(idioma, `😞 Gana la banca. Pierdes **🪙 ${fmt(apuesta, idioma)}**.`, `😞 Dealer wins. You lose **🪙 ${fmt(apuesta, idioma)}**.`),
     };
     const v = vistaBlackjack(p, idioma, { ocultar: false, fin: { mult: r.mult, texto: `${t(idioma, 'Banca', 'Dealer')} **${C.puntos(p.banca).total}** · ${t(idioma, 'Tú', 'You')} **${C.puntos(p.jugador).total}**\n\n${textos[r.res]}` } });
-    v.embeds[0].setFooter({ text: pieSaldo(idioma, await saldoDe(p.userId), vuelta) });
+    v.embeds[0].setFooter({ text: pieSaldo(idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
     v.components = [filaOtraVez('blackjack', p.apuesta, idioma)];
     await interaction.editReply(v).catch(() => {});
 }
@@ -322,7 +322,7 @@ async function botonBlackjack(interaction, client) {
     try {
         if (accion === 'doblar') {
             if (p.jugador.length !== 2 || p.doblada) return;
-            const saldo = await require('./economia.js').cobrar(p.userId, p.apuesta);
+            const saldo = await require('./economia.js').en(p.jugada.guildId).cobrar(p.userId, p.apuesta);
             if (saldo === null) { await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${p.apuesta} para doblar.`, `You don’t have 🪙 ${p.apuesta} to double.`), flags: 64 }); return; }
             p.doblada = true;
             p.jugador.push(p.mazo.pop());
@@ -389,7 +389,7 @@ async function retirarCrash(p, client, multFijo = null) {
     p.premio = Math.floor(p.apuesta * mult);
     const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, p.premio, { punto: p.punto, cobrado: mult });
     const v = vistaCrash(p, p.idioma, mult, 'cobrado');
-    v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.userId), vuelta) });
+    v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
     await p.interaction.editReply(v).catch(() => {});
     return true;
 }
@@ -467,7 +467,7 @@ async function botonMinas(interaction, client) {
             const premio = Math.floor(p.apuesta * C.multMinas(p.minas, p.abiertas.length));
             const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, premio, { minas: p.minas, abiertas: p.abiertas.length });
             const v = vistaMinas(p, p.idioma, 'cobrado');
-            v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.userId), vuelta) });
+            v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
             return interaction.update(v);
         }
         const i = parseInt(que, 10);
@@ -477,7 +477,7 @@ async function botonMinas(interaction, client) {
             p.explota = i;
             const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, 0, { minas: p.minas, abiertas: p.abiertas.length });
             const v = vistaMinas(p, p.idioma, 'boom');
-            v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.userId), vuelta) });
+            v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
             return interaction.update(v);
         }
         p.abiertas.push(i);
@@ -536,7 +536,7 @@ async function botonHilo(interaction, client) {
             partidas.delete(p.id);
             const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, premio, { aciertos: p.aciertos, mult: p.mult });
             const v = vistaHilo(p, p.idioma, estado);
-            v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.userId), vuelta) });
+            v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
             return interaction.update(v);
         };
         if (que === 'cobrar') return p.aciertos ? fin('cobrado', Math.floor(p.apuesta * p.mult)) : interaction.deferUpdate();
@@ -608,7 +608,7 @@ async function botonRasca(interaction, client) {
         const premio = p.boleto.premio ? Math.floor(p.apuesta * p.boleto.premio.mult) : 0;
         const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, premio, { boleto: p.boleto.casillas });
         const v = vistaRasca(p, p.idioma, true);
-        v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.userId), vuelta) });
+        v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
         return interaction.update(v);
     } finally { p.ocupada = false; }
 }

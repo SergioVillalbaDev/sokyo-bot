@@ -104,7 +104,7 @@ async function comprar(client, cfg, guildId, userId, id, idioma, quien = null) {
     if (!a) return { error: t(idioma, 'Eso no está en la tienda.', 'That isn’t in the shop.') };
     const m = await Mascota.findOne({ guildId, estado: 'viva' });
     if (!m) return sinMascota(idioma);
-    const economia = require('./economia.js');
+    const economia = require('./economia.js').en(guildId);
     if (a.tipo === 'comida') {
         const r = X.aplicarComida(m, id);
         if (r.fallo === 'llena') return { error: t(idioma, `A **${m.nombre}** no le hace falta ahora: lo tiene todo al máximo.`, `**${m.nombre}** doesn’t need it right now: everything is maxed.`) };
@@ -246,7 +246,7 @@ async function responderEvento(interaction, client, cfg, idioma) {
     // El primero que llega (puerta atómica).
     const gana = await Mascota.findOneAndUpdate({ _id: m._id, 'evento.id': evId, 'evento.resuelto': false }, { $set: { 'evento.resuelto': true }, $inc: { 'contadores.eventos': 1 } }, { returnDocument: 'after' });
     if (!gana) return interaction.reply({ content: t(idioma, '¡Uy! Alguien ha sido más rápido.', 'Oops! Someone was faster.'), flags: 64 });
-    const economia = require('./economia.js');
+    const economia = require('./economia.js').en(m.guildId);
     const premio = m.evento.tipo === 'perdida' ? 50 : m.evento.premio;
     await economia.darOro(uid, premio);
     await CuidadoMascota.updateOne({ guildId: m.guildId, userId: uid, mes: N.mesClave() }, { $inc: { puntos: m.evento.tipo === 'perdida' ? 15 : 5 } }, { upsert: true });

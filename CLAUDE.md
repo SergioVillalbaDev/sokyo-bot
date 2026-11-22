@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.29.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.30.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -600,7 +600,7 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
 - 1.10.0 **Crecimiento**. Cinco funciones nuevas, todas con tests en `test/crecimiento110.test.js`:
   - **Votos en top.gg** (`utils/votos.js`, `/votar`, panel Crecimiento → Votos, `crecimiento.votos`): top.gg llama a
     `POST /api/topgg/voto` (público; lo protege `TOPGG_WEBHOOK_AUTH` en Authorization, comparado en tiempo constante).
-    Oro global por voto (`ORO_POR_VOTO`, 300; el doble en fin de semana) y, en cada servidor con la sección activa
+    Oro por voto (1.30.0: se da en cada servidor con la sección activa donde esté; `ORO_POR_VOTO`, 300; el doble en fin de semana) y, en cada servidor con la sección activa
     donde esté quien vota, rol temporal (`RolTemporal`), XP y gracias. Los reintentos de top.gg no premian dos veces
     (modelo `Voto`, 11 h). Con `TOPGG_TOKEN` se publica el número de servidores cada 30 min. **Para que funcione hay que
     poner en top.gg la URL del webhook y las dos variables en el `.env` de la Pi** (sin ellas el panel avisa).
@@ -721,7 +721,7 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     bote por servidor `CasinoBote`) y `utils/cofres.js` (`/cofre`, botones `cof_*`, `ventajasUsuario` en caché 60 s: la leen
     `niveles.aplicarXp`, `economia.reclamarDaily` y el casino). Al arrancar, `devolverPendientes` devuelve lo apostado en
     jugadas `en_curso` (las partidas viven en memoria).
-  - Modelos: `PerfilCasino`, `JugadaCasino` (90 días), `CasinoBote`, `ColeccionMascotas` (global por persona), `AperturaCofre`.
+  - Modelos: `PerfilCasino`, `JugadaCasino` (90 días), `CasinoBote`, `ColeccionMascotas` (por servidor y persona desde 1.30.0), `AperturaCofre`.
   - Panel: Diversión → Casino y cofres (`CasinoView.jsx`, `src/lib/casino.js` con los mismos datos; un test lo comprueba),
     `GET/PUT /api/config/:g/modulos/casino`. Config en `ServidorConfig.casino` (apagado por defecto).
 - 1.16.1 Guía del casino: `/casino ayuda` (`utils/casinoAyuda.js`: pasos, comandos con ejemplo, menú `cas_guia` con cada
@@ -738,6 +738,23 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.30.0 **Todo por servidor**: en cada servidor todos empiezan de 0 y compiten con los de allí. **Oro**: `models/Monedero.js`
+  (`guildId + discordId`: balance, mochila, diario, boost de XP). `utils/economia.js` ya NO exporta `darOro`/`cobrar`/…: se usa
+  SIEMPRE `economia.en(guildId).darOro(userId, n)` (lanza error sin servidor; así no se puede dar oro «en ningún sitio»). El
+  viejo `models/Usuario.js` (oro global) se queda sin usar y sin borrar. **Colección** (`ColeccionMascotas`: mascotas, cartas,
+  granja, pase, logros, tickets, misiones) con `guildId`; índice único `guildId + userId`. `utils/migrarPorServidor.js` (en
+  `ready`) quita el índice viejo `userId_1`; los documentos viejos sin `guildId` se quedan guardados sin usarse. Convención:
+  todas las funciones de colección reciben `(guildId, userId, …)`: `compis.accion`, `cofres.ventajasUsuario/equipar/olvidar`,
+  `granja.premiarHitos/recoger/vistaGranja/vistaAlbum`, `pase.registrar/revisarLogros/usarTicket/devolverTicket/vistaPase/
+  vistaLogros`, `cartas.verCarta`, `empezar.vistaInicio`. Comandos de economía solo en servidores (`setContexts(Guild)`).
+  Votos: el oro del voto (+ extra) se da en cada servidor con premios por votar donde esté. Referidos: en el servidor
+  recomendado. **Web personal**: oro, diario y tienda del servidor elegido (`utils/servidorPortal.js`: `?guildId=`/body,
+  comprobando que es miembro; `servidoresOro` en `/portal/resumen`; selector `components/portal/SelectorServidorOro.jsx`,
+  recordado en `localStorage.sokyoPortalServidor`). La Liga sigue entre servidores (su tope diario es por persona).
+  Comprar en la tienda usa transacción (necesita replica set, como antes).
+  **Nombres de comandos**: `/pet`, `/prank` y `/league` no tenían nombre en español, así que en Discord en español
+  «/mascota», «/broma» y «/liga» (lo que dicen la ayuda y los textos) no existían. Ya lo tienen; `test/nombresComandos.test.js`
+  comprueba que cada comando que enseña `/ayuda` existe con ese nombre en español.
 - 1.29.0 **Pase de temporada, logros, tickets gratis y /empezar**. Reglas puras en `utils/paseNucleo.js` (test/pase.test.js):
   pase mensual (UTC) de 50 niveles de 100 XP; `XP` por acción; el casino da `XP.casino` por partida con
   `TOPE_CASINO_DIA` y sin mirar la apuesta (no premiar apostar más). `premio(n)`: oro siempre, sobre normal cada 5,
@@ -752,7 +769,7 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   misiones → primer sobre → expedición → pase) y temas explicados en sencillo. Está en `/ayuda`, en el lobby del
   casino («¿Nuevo? Empieza aquí») y en los avisos de «aún no tienes mascotas». Copia de números para el panel en
   `lib/casino.js` (`PASE`, comprobado en test/casino.test.js). Si cambias lo que dice la guía, que sea verdad en el bot.
-- 1.28.0 **Granja, álbum y misiones semanales** (cada persona, global como el oro). Reglas puras en `utils/granjaNucleo.js`
+- 1.28.0 **Granja, álbum y misiones semanales** (1.30.0: por servidor, como el oro). Reglas puras en `utils/granjaNucleo.js`
   (test/granja.test.js); Discord en `utils/granja.js` (botones `grj:ver|rec|alb|abrir:<owner>`; sin dueño o de otra persona
   → se abre la suya en privado) y `/granja` (`slash/farm.js`). Granja: las mejores mascotas (huecos = 3 + hitos con hueco)
   producen `PRODUCCION[rareza]` oro/h × (1 + 0,15·(★−1)) × (1 + 0,02·nivel) × cuidado (0,5–1,2 según barriga y alegría);

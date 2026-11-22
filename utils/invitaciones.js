@@ -320,7 +320,7 @@ async function registrarSalida(guildId, userId) {
 async function recompensar(guild, invitadorId, cfg) {
     const conf = cfg.crecimiento.invitaciones;
     const oro = Math.max(0, conf.oroPorInvitacion || 0);
-    if (oro > 0) await require('./economia.js').darOro(invitadorId, oro).catch((e) => console.error('Oro por invitación:', e.message));
+    if (oro > 0) await require('./economia.js').en(guild.id).darOro(invitadorId, oro).catch((e) => console.error('Oro por invitación:', e.message));
 
     const miembro = await guild.members.fetch(invitadorId).catch(() => null);
     if (!miembro) return;

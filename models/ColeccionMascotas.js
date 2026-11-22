@@ -2,8 +2,11 @@ const mongoose = require('mongoose');
 
 // Colección de compañeros de cada persona (global, como el oro): los que ha sacado de
 // los cofres, con sus estrellas, y el que lleva equipado. Lógica en utils/cofres.js.
+// 1.30.0: POR SERVIDOR. Cada persona tiene una colección distinta en cada servidor (todos empiezan
+// de 0). Los documentos antiguos (sin guildId, globales) se quedan guardados sin usarse.
 const ColeccionMascotasSchema = new mongoose.Schema({
-    userId: { type: String, required: true, unique: true },
+    guildId: { type: String, default: null },
+    userId: { type: String, required: true },
     // 1.20.0: cada compañero tiene también sus necesidades (tamagotchi), afinidad, apodo,
     // expedición en curso y recuerdos. Lógica en utils/compisNucleo.js y utils/compis.js.
     mascotas: { type: [{
@@ -57,5 +60,6 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     logros: { type: [String], default: [] },
     tituloPase: { type: String, default: null },
 }, { minimize: false });
+ColeccionMascotasSchema.index({ guildId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('ColeccionMascotas', ColeccionMascotasSchema);

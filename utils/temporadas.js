@@ -110,9 +110,9 @@ async function cerrarTemporada(client, guild, cfg) {
 
     const lista = await ranking(guild.id, 10, { guild, excluir: tp.excluirRoles });
     const oro = oroPodio(tp.oro);
-    const { darOro } = require('./economia.js');
+    const eco = require('./economia.js').en(guild.id);
     for (let i = 0; i < Math.min(3, lista.length); i++) {
-        if (oro[i] > 0) await darOro(lista[i].userId, oro[i]).catch((e) => console.error('Temporadas · oro:', e.message));
+        if (oro[i] > 0) await eco.darOro(lista[i].userId, oro[i]).catch((e) => console.error('Temporadas · oro:', e.message));
     }
 
     // Rol de campeón: se le quita al anterior y se le da al nuevo.

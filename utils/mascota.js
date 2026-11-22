@@ -383,7 +383,7 @@ async function alimentar(guildId, userId, oro, idioma, quien = null) {
     const c = N.comida(m, oro);
     c.xp = Math.round(c.xp * (require('./mascotaExtras.js').pers(m).xpComida || 1));
     if (c.usado <= 0) return { error: t(idioma, `**${m.nombre}** está llena: no le cabe nada más ahora.`, `**${m.nombre}** is full: it can’t eat anything else right now.`) };
-    const economia = require('./economia.js');
+    const economia = require('./economia.js').en(guildId);
     const saldo = await economia.cobrar(userId, c.usado);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${c.usado}.`, `You don’t have 🪙 ${c.usado}.`) };
     const r = N.sumarXp(m.nivel, m.xp, c.xp);
@@ -419,7 +419,7 @@ async function acariciar(guildId, userId, idioma) {
     const r = N.sumarXp(m.nivel, m.xp, 10);
     const nuevo = await Mascota.findOneAndUpdate({ _id: m._id }, [{ $set: { alegria: { $min: [100, { $add: ['$alegria', 4 * (require('./mascotaExtras.js').pers(m).caricia || 1)] }] }, nivel: r.nivel, xp: r.xp, 'contadores.caricias': { $add: [{ $ifNull: ['$contadores.caricias', 0] }, 1] } } }], { returnDocument: 'after', updatePipeline: true });
     let oro = 0;
-    if (N.ventajasDe(m).includes('caricia')) { oro = ORO_CARICIA; await require('./economia.js').darOro(userId, oro); }
+    if (N.ventajasDe(m).includes('caricia')) { oro = ORO_CARICIA; await require('./economia.js').en(guildId).darOro(userId, oro); }
     ponerCache(nuevo);
     return { ok: true, m: nuevo, oro };
 }
@@ -461,7 +461,7 @@ async function resolverJuego(interaction, clave, eleccion, idioma) {
     const r = N.sumarXp(m.nivel, m.xp, acierto ? 15 : 5);
     const nuevo = await Mascota.findOneAndUpdate({ _id: m._id }, [{ $set: { alegria: { $min: [100, { $add: ['$alegria', (acierto ? 7 : 3) * (require('./mascotaExtras.js').pers(m).juego || 1)] }] }, nivel: r.nivel, xp: r.xp } }], { returnDocument: 'after', updatePipeline: true });
     await cuidado(j.guildId, j.userId, {}, { puntos: acierto ? 6 : 3 });
-    if (acierto) await require('./economia.js').darOro(j.userId, ORO_JUEGO);
+    if (acierto) await require('./economia.js').en(j.guildId).darOro(j.userId, ORO_JUEGO);
     ponerCache(nuevo);
     const vasos = [0, 1, 2].map((i) => (i === j.premio ? '🍬' : (i === eleccion ? '❌' : '🥤'))).join(' ');
     return interaction.update({

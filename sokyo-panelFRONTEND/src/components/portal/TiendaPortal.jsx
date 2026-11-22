@@ -16,7 +16,9 @@ function destacadosDe(items, dia) {
   return new Set(items.map((i) => i._id).sort((a, b) => hash(a + dia) - hash(b + dia)).slice(0, Math.min(3, items.length)));
 }
 
-export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pestanaInicial = null }) {
+import SelectorServidorOro from './SelectorServidorOro';
+
+export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pestanaInicial = null, guildId = '', servidores = [], onCambiarServidor }) {
   const { t, i18n } = useTranslation();
   const idioma = i18n.language === 'en' ? 'en' : 'es';
   const [pestana, setPestana] = useState(['catalogo', 'mochila', 'crear'].includes(pestanaInicial) ? pestanaInicial : 'catalogo');
@@ -34,10 +36,10 @@ export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pest
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error('red'))))
     .then((d) => { setItems(Array.isArray(d) ? d : []); setError(''); })
     .catch(() => setError(t('portal.login.errConexion'))), [portalFetch, t]);
-  const cargarCartera = useCallback(() => portalFetch('/api/portal/economia')
+  const cargarCartera = useCallback(() => portalFetch(`/api/portal/economia${guildId ? `?guildId=${encodeURIComponent(guildId)}` : ''}`)
     .then((r) => (r.ok ? r.json() : null))
-    .then((d) => { if (d) { setOro(d.balance); setMochila(d.inventory || []); onOro?.(d.balance); } })
-    .catch(() => {}), [portalFetch, onOro]);
+    .then((d) => { if (d) { setOro(d.balance); setMochila(d.inventory || []); onOro?.(d.balance); } else { setOro(0); setMochila([]); } })
+    .catch(() => {}), [portalFetch, onOro, guildId]);
 
   useEffect(() => { cargarItems(); cargarCartera(); }, [cargarItems, cargarCartera]);
 
@@ -64,7 +66,7 @@ export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pest
   const comprar = async (item) => {
     setOcupado(item._id);
     try {
-      const res = await portalFetch('/api/portal/shop/buy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: item._id, cantidad: 1 }) });
+      const res = await portalFetch('/api/portal/shop/buy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: item._id, cantidad: 1, guildId: guildId || undefined }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { avisar(d.error || t('portal.shop.buyError'), 'error'); return; }
       setOro(d.balance); onOro?.(d.balance);
@@ -76,7 +78,7 @@ export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pest
   const usar = async (obj) => {
     setOcupado(obj._id);
     try {
-      const res = await portalFetch('/api/portal/shop/use', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: obj._id }) });
+      const res = await portalFetch('/api/portal/shop/use', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: obj._id, guildId: guildId || undefined }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { avisar(d.error || t('portal.shop.useError'), 'error'); return; }
       const ef = d.efecto || {};
@@ -104,6 +106,8 @@ export default function TiendaPortal({ portalFetch, usuario, avisar, onOro, pest
           </div>
         </div>
       </TituloVista>
+
+      <SelectorServidorOro className="mb-4 max-w-md" servidores={servidores} valor={guildId} onCambiar={onCambiarServidor} />
 
       <div className="mb-5 flex gap-1.5 overflow-x-auto rounded-2xl border border-line bg-[rgb(var(--gx-tinta)/.03)] p-1.5" role="tablist">
         {pestanas.map(({ id, icono: Icono, label }) => (

@@ -22,7 +22,7 @@ module.exports = {
 
     async autocomplete(interaction, client, cfg) {
         const idioma = await idiomaInteraccion(interaction, cfg).catch(() => 'es');
-        const col = await ColeccionMascotas.findOne({ userId: interaction.user.id }).select('mascotas').lean();
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).select('mascotas').lean();
         const q = String(interaction.options.getFocused() || '').toLowerCase();
         const ops = (col?.mascotas || []).map((m) => {
             const d = K.def(m.id);
@@ -39,7 +39,7 @@ module.exports = {
         const member = otro ? interaction.options.getMember('member') : interaction.member;
         const nombre = member?.displayName || quien.globalName || quien.username;
         await interaction.deferReply();
-        const res = await compis.accion(quien.id, interaction.options.getString('companion'), 'ver', { idioma, dueno: nombre });
+        const res = await compis.accion(interaction.guildId, quien.id, interaction.options.getString('companion'), 'ver', { idioma, dueno: nombre });
         if (res.fallo === 'sin') {
             return interaction.editReply({ content: otro ? t(idioma, `${nombre} aún no tiene compañeros.`, `${nombre} has no companions yet.`) : compis.textoFallo('sin', idioma), allowedMentions: { parse: [] } });
         }

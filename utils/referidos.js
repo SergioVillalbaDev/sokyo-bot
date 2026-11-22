@@ -130,11 +130,12 @@ async function barrerReferidos(client, { forzar = false } = {}) {
                     `🎉 **${guild.name}** sigue con Sokyo gracias a tu recomendación: **${destino.name}** tiene ${DIAS_PREMIUM} días más de Premium.`,
                     `🎉 **${guild.name}** is still using Sokyo thanks to your referral: **${destino.name}** got ${DIAS_PREMIUM} more days of Premium.`);
             } else {
-                await require('./economia.js').darOro(c.referidorId, ORO_EN_VEZ);
-                premio = `${ORO_EN_VEZ} oro`;
+                // 1.30.0: el oro es de cada servidor: se da en el servidor recomendado.
+                await require('./economia.js').en(guild.id).darOro(c.referidorId, ORO_EN_VEZ);
+                premio = `${ORO_EN_VEZ} oro en ${guild.name}`;
                 await avisar(client, c.referidorId,
-                    `🎉 **${guild.name}** sigue con Sokyo gracias a tu recomendación: te llevas **${ORO_EN_VEZ} de oro**. (Elige con \`/referidos destino\` un servidor tuyo para ganar días de Premium.)`,
-                    `🎉 **${guild.name}** is still using Sokyo thanks to your referral: you get **${ORO_EN_VEZ} gold**. (Pick one of your servers with \`/referrals destination\` to earn Premium days.)`);
+                    `🎉 **${guild.name}** sigue con Sokyo gracias a tu recomendación: te llevas **${ORO_EN_VEZ} de oro** para usar allí. (Elige con \`/referidos destino\` un servidor tuyo para ganar días de Premium.)`,
+                    `🎉 **${guild.name}** is still using Sokyo thanks to your referral: you get **${ORO_EN_VEZ} gold** to spend there. (Pick one of your servers with \`/referrals destination\` to earn Premium days.)`);
             }
             await Referido.updateOne({ _id: c._id }, { $set: { premio } });
         } catch (e) { console.error('Referidos:', e.message); }

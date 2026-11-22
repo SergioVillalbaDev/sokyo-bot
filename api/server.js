@@ -374,7 +374,7 @@ module.exports = (client) => {
     };
 
     // --- Sistema de economía y tienda (rutas en api/routes/economia.js) ---
-    app.use('/api', require('./routes/economia.js')({ portalAuth }));
+    app.use('/api', require('./routes/economia.js')({ portalAuth, client }));
 
     // --- Sistema de música (rutas en api/routes/musica.js) ---
     app.use('/api', require('./routes/musica.js')({ portalAuth, client, tieneAreaAcceso }));

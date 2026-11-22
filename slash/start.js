@@ -15,6 +15,6 @@ module.exports = {
     async execute(interaction, client, cfg) {
         const idioma = await idiomaInteraccion(interaction, cfg);
         await interaction.deferReply({ flags: 64 });
-        return interaction.editReply(await require('../utils/empezar.js').vistaInicio(interaction.user.id, idioma, cfg));
+        return interaction.editReply(await require('../utils/empezar.js').vistaInicio(interaction.guildId, interaction.user.id, idioma, cfg));
     },
 };

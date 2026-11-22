@@ -181,10 +181,10 @@ async function gastar({ client, guild, cfg, autor, objetivo, tipo, texto = '', c
     // Compañero equipado (1.21.0): las bromas normales salen más baratas (no las devoluciones).
     let descuentoCompa = 0;
     if (precio === null || precio === undefined) {
-        const v = await require('./cofres.js').ventajasUsuario(autor.id).catch(() => null);
+        const v = await require('./cofres.js').ventajasUsuario(guild.id, autor.id).catch(() => null);
         if (v?.bromas > 0) { descuentoCompa = v.bromas; coste = Math.round(coste * (1 - v.bromas)); }
     }
-    const economia = require('./economia.js');
+    const economia = require('./economia.js').en(guild.id);
     const saldo = await economia.cobrar(autor.id, coste);
     if (saldo === null) return { error: textoError('oro', idioma, { precio: coste }) };
 
@@ -270,7 +270,7 @@ async function comprarEscudo(guildId, userId, cfg, idioma) {
     if (!cfg?.bromas?.activo) return { error: textoError('apagadas', idioma) };
     const precio = Math.max(0, parseInt(cfg.bromas.escudoPrecio, 10) || 0);
     const horas = Math.max(1, Math.min(168, parseInt(cfg.bromas.escudoHoras, 10) || 12));
-    const saldo = await require('./economia.js').cobrar(userId, precio);
+    const saldo = await require('./economia.js').en(guildId).cobrar(userId, precio);
     if (saldo === null) return { error: textoError('oro', idioma, { precio }) };
     const p = await perfil(guildId, userId);
     const desde = p?.escudoHasta && new Date(p.escudoHasta) > new Date() ? new Date(p.escudoHasta) : new Date();

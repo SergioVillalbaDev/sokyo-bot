@@ -1,6 +1,6 @@
 // Votos en top.gg (1.10.0). top.gg avisa de cada voto por un webhook
 // (POST /api/topgg/voto, ver api/server.js) con la clave TOPGG_WEBHOOK_AUTH. Por cada
-// voto: oro (global, de la economía; el doble en fin de semana) y, en cada servidor
+// voto: oro (1.30.0: en cada servidor con premios por votar donde esté; el doble en fin de semana) y, en cada servidor
 // con «Crecimiento → Votos» activo donde esté quien vota, un rol temporal, XP y un
 // mensaje de gracias. Con TOPGG_TOKEN, además, se publica en top.gg cuántos
 // servidores tiene el bot (sale en la ficha y ayuda a subir en la lista).
@@ -61,9 +61,9 @@ async function premiarEnServidor(client, cfg, userId, oro, proximo) {
     if (!member || member.user.bot) return false;
 
     const extras = [];
-    // Oro de más que da este servidor (además del global del voto).
+    // 1.30.0: el oro es de cada servidor: el del voto (y el extra que ponga este servidor) se da AQUÍ.
     const oroExtra = Math.max(0, Math.min(100000, v.oroExtra || 0));
-    if (oroExtra > 0) await require('./economia.js').darOro(userId, oroExtra).catch((e) => console.error('Votos · oro extra:', e.message));
+    if (oro + oroExtra > 0) await require('./economia.js').en(guild.id).darOro(userId, oro + oroExtra).catch((e) => console.error('Votos · oro:', e.message));
     // El rol se comprueba también ahora: si alguien le añadió permisos de staff, no se da.
     const rolVoto = v.rolId ? guild.roles.cache.get(v.rolId) : null;
     if (rolVoto && require('./permisos.js').errorRolPeligroso(rolVoto)) {
@@ -106,7 +106,6 @@ async function procesarVoto(client, { userId, finde, prueba }) {
 
     const oro = ORO_POR_VOTO() * (finde ? 2 : 1);
     await Voto.create({ userId, finde, oro });
-    if (oro > 0) await require('./economia.js').darOro(userId, oro).catch((e) => console.error('Votos · oro:', e.message));
 
     const proximo = new Date(Date.now() + HORAS_ENTRE_VOTOS * 3600 * 1000);
     const cfgs = await ServidorConfig.find({ 'crecimiento.votos.activo': true });

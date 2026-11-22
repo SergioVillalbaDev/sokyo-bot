@@ -19,6 +19,6 @@ module.exports = {
         const X = require('../utils/pase.js');
         await interaction.deferReply();
         const ver = interaction.options.getString('view') === 'logros' ? X.vistaLogros : X.vistaPase;
-        return interaction.editReply(await ver(interaction.user.id, idioma));
+        return interaction.editReply(await ver(interaction.guildId, interaction.user.id, idioma));
     },
 };

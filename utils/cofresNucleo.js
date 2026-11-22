@@ -1,5 +1,5 @@
 // Cofres de mascotas (1.16.0) — reglas puras. Cada persona tiene su colección de
-// compañeros (global, como el oro). Se consiguen abriendo cofres con oro; cada
+// compañeros (1.30.0: por servidor, como el oro). Se consiguen abriendo cofres con oro; cada
 // compañero tiene una rareza y, si lo llevas equipado, te da ventajas: más XP, más oro
 // en /diario y un poco de vuelta de lo que pierdes en el casino. Los repetidos suben
 // estrellas (hasta 5), y cada estrella mejora sus ventajas.
