@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.22.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.22.1.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -752,6 +752,9 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   duración, escudo, volver de expedición, llenar, energía, alegría, afinidad, recuerdo; `caos` = uno al azar) y `FUERZA`
   lo escala por rareza (`efectoAnime`, `textoEfecto`); la divina suma la Bendición. Si se regenera el pack, añade aquí
   los nuevos (el test exige que no falte ninguno).
+  **Series quitadas sin trampa (1.22.1)**: `cofres.extrasDe` pasa SIEMPRE el pack entero y `cofres.quitadosDe` las quitadas;
+  `K.companeroAlAzar(rareza, azar, extra, quitados)` tira sobre todo y, si toca uno quitado, da uno del catálogo de esa
+  rareza. Así quitar series no sube la probabilidad de ningún personaje (lo comprueba test/compis.test.js).
 - 1.21.0 **Más compañeros por rareza**: `RAREZAS` tiene también `bromas` (descuento, tope 60 %), `liga` (puntos extra al
   impulsar) y `expedicion` (más oro); `K.ventajas` los devuelve y se aplican en `bromas.gastar` (no en devoluciones),
   `liga.impulsar` y `compisNucleo.botin`. `compisNucleo`: `INTERACCIONES` (se desbloquean por `rareza` = orden mínimo, con
