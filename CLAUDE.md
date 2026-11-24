@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.31.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.31.1.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,11 +738,28 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.31.1 **GIF que no «se notan» y sin saltos** (tests en `test/visual131.test.js`):
+  - `casinoArte.aGif` (async: devuelve una promesa; cede el turno cada pocos fotogramas para no bloquear el bot en
+    la Pi): UNA paleta para toda la animación (muestra de hasta 10 fotogramas), tramado Bayer 4×4 suave (sin bandas;
+    `tramado: 0` lo quita) y cada fotograma guarda solo lo que cambia (transparente + `dispose: 1`). `repetir: true` =
+    en bucle (cartel del lobby, cohete); por defecto se ve una vez. Más fotogramas (~25/s) en tragaperras, ruleta,
+    moneda y dado.
+  - **Una jugada = un mensaje que no se edita**: tragaperras, ruleta, moneda, duelo, cofre y sobre cobran ANTES y el
+    GIF ya trae el final (pastilla + tu oro, `resultado.saldo`). Antes se editaba al acabar y la imagen saltaba o
+    volvía a empezar. Los premios gordos se anuncian con `anunciarDespues` (cuando acaba la animación). Lo que hay que
+    contar aparte (hitos, pase, logros) va en un `followUp` tras la animación, solo si lo hay. El resultado también va
+    escrito como spoiler (`oculto`, ‖…‖) para quien tiene los GIF en pausa.
+  - **Blackjack**: `gifBlackjack` (destapa, roba carta a carta y resultado) en una sola edición; `pintarMesa` pinta la
+    mesa para el PNG y el GIF. **Crash**: `gifCohete` (en bucle, en caché) mientras vuela y el número en grande en la
+    descripción (`# 🚀 ×1,84`), que se edita cada segundo sin tocar la imagen; al acabar, la gráfica una vez.
+    **Carrera**: durante las apuestas no se resube la pista (`vistaCarrera({ imagen: false })`, solo si
+    `car.conImagen`); al salir, `gifCarrera` (cuenta atrás, tramos interpolados con galope y cartel de premios) en una
+    edición. `car.corriendo`: una apuesta que se cobra cuando ya ha salido se devuelve. En `pasosCarrera` nadie retrocede.
 - 1.31.0 **Mascotas, casino y niveles en imagen, con muy poco texto** (tests en `test/visual131.test.js`):
   - Casino (`utils/casinoArte.js`): `pastillaResultado`/`textoResultado` pintan +🪙/−🪙 (↩ si recuperas algo, 💨 en la tirada
     gratis sin premio) en el último fotograma de tragaperras, ruleta y moneda (`resultado`/`res`) y en la mesa de blackjack.
-    Nuevos `graficaCrash` (PNG que se repinta en cada edición del crash), `pistaCarrera` (PNG por paso de la carrera) y
-    `gifDado`. En `utils/casino.js` los embeds solo llevan título (juego · apuesta) y pie corto (`pieSaldo`: oro · /casino
+    Nuevos `graficaCrash` (la gráfica del final del crash), `pistaCarrera` (la pista mientras se apuesta) y
+    `gifDado` (ver 1.31.1). En `utils/casino.js` los embeds solo llevan título (juego · apuesta) y pie corto (`pieSaldo`: oro · /casino
     pausa); el texto largo de antes solo sale si no se pudo dibujar. Toda edición que cambia la imagen lleva `files` +
     `attachments: []`.
   - `utils/arteVistas.js`: `tarjetaGranja`, `tarjetaPase`, `tarjetaLogros`, `tarjetaDiario` y `tarjetaRanking`. Reciben datos

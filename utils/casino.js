@@ -119,9 +119,25 @@ const filaOtraVez = (juego, cantidad, idioma, extra = '') => new ActionRowBuilde
 const pieSaldo = (idioma, saldo, vuelta = 0) => t(idioma, `🪙 ${fmt(saldo, idioma)}${vuelta ? ` · 🐾 +${vuelta}` : ''} · /casino pausa`, `🪙 ${fmt(saldo, idioma)}${vuelta ? ` · 🐾 +${vuelta}` : ''} · /casino pause`);
 const saldoDe = async (guildId, userId) => (await require('./economia.js').en(guildId).obtenerUsuario(userId)).balance;
 
+// 1.31.1: el resultado también en texto, oculto como spoiler (‖…‖): no destripa la animación y lo ve
+// quien tiene los GIF en pausa en Discord (ahí solo se ve el primer fotograma) pulsando encima.
+const oculto = (s) => `||${s}||`;
+const masMenos = (premio, apuesta, idioma) => (premio > apuesta ? `+🪙 ${fmt(premio, idioma)}` : premio > 0 ? `↩ 🪙 ${fmt(premio, idioma)}` : apuesta ? `−🪙 ${fmt(apuesta, idioma)}` : '💨');
+
+// 1.31.1: los premios gordos se anuncian cuando la animación ya ha acabado (si no, el canal de
+// anuncios lo contaba antes de que el jugador lo viera caer). `extra` (el bote) se anuncia siempre.
+function anunciarDespues(ms, client, cfg, jugada, premio, extra = '') {
+    const gordo = premio >= GRAN_PREMIO && premio >= Math.max(1, jugada.apuesta) * 10;
+    if (!client || (!gordo && !extra)) return;
+    const tm = setTimeout(() => anunciarGranPremio(client, cfg, jugada, premio, extra).catch(() => {}), ms);
+    tm.unref?.();
+}
+
 // ---------------------------------------------------------------------------
 // 🎰 Tragaperras
 // ---------------------------------------------------------------------------
+// 1.31.1: UN solo mensaje por jugada. Se cobra antes y el GIF ya trae el final (lo que ganas y
+// tu oro), así el bot no edita el mensaje después: nada salta ni la animación vuelve a empezar.
 async function tragaperras({ interaction, client, cfg, idioma, cantidad, gratis = false }) {
     const guildId = interaction.guildId; const userId = interaction.user.id;
     let jugada;
@@ -144,26 +160,27 @@ async function tragaperras({ interaction, client, cfg, idioma, cantidad, gratis 
         boteGanado = antes?.bote || 0;
         premio += boteGanado;
     }
-    // 1.31.0: el GIF acaba con lo que ganas o pierdes dibujado; el mensaje casi no lleva texto.
-    const gif = await A.gifTragaperras(r.rodillos, { mult: r.mult, bote: r.bote, resultado: { premio, apuesta: gratis ? 0 : base, idioma } }).catch(() => null);
-    const simb = r.rodillos.map((id) => C.simbolo(id).emoji).join(' │ ');
-    const girando = new EmbedBuilder().setColor('#b91c1c')
-        .setTitle(t(idioma, `🎰 Tragaperras · 🪙 ${fmt(base, idioma)}${gratis ? ' · 🎁 gratis' : ''}`, `🎰 Slots · 🪙 ${fmt(base, idioma)}${gratis ? ' · 🎁 free' : ''}`))
-        .setFooter({ text: t(idioma, `💎 Bote 🪙 ${fmt(r.bote ? boteGanado : bote.bote, idioma)}`, `💎 Jackpot 🪙 ${fmt(r.bote ? boteGanado : bote.bote, idioma)}`) });
-    if (gif) girando.setImage('attachment://tragaperras.gif');
-    else girando.setDescription(t(idioma, `<@${userId}> apuesta **🪙 ${fmt(base, idioma)}**… 🤞`, `<@${userId}> bets **🪙 ${fmt(base, idioma)}**… 🤞`));
-    await interaction.editReply({ embeds: [girando], files: gif ? [new AttachmentBuilder(gif, { name: 'tragaperras.gif' })] : [], allowedMentions: { parse: [] } });
-    await espera(gif ? 3300 : 800);
-    const { vuelta } = await cobrarJugada(client, cfg, jugada, premio, { rodillos: r.rodillos, bote: boteGanado });
-    const saldo = await saldoDe(interaction.guildId, userId);
-    const texto = r.bote
-        ? t(idioma, `💎💎💎 **¡¡BOTE!!** <@${userId}> se lleva **🪙 ${fmt(premio, idioma)}** 🎉🎉🎉`, `💎💎💎 **JACKPOT!!** <@${userId}> takes **🪙 ${fmt(premio, idioma)}** 🎉🎉🎉`)
-        : premio > base ? t(idioma, `🎉 ¡Premio! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`, `🎉 Winner! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`)
-            : premio > 0 ? t(idioma, `😅 Recuperas **🪙 ${fmt(premio, idioma)}**`, `😅 You get back **🪙 ${fmt(premio, idioma)}**`)
-                : t(idioma, '💨 Esta vez no… ¡la próxima!', '💨 Not this time… next one!');
-    const fin = EmbedBuilder.from(girando).setColor(premio > base ? '#16a34a' : '#7f1d1d').setDescription(gif ? (r.bote ? texto : null) : `${simb}\n\n${texto}`).setFooter({ text: pieSaldo(idioma, saldo, vuelta) });
-    if (r.bote) await anunciarGranPremio(client, cfg, { ...jugada.toObject(), apuesta: Math.max(1, base) }, premio, t(cfg, ' 💎💎💎 ¡BOTE!', ' 💎💎💎 JACKPOT!')).catch(() => {});
-    await interaction.editReply({ embeds: [fin], components: gratis ? [] : [filaOtraVez('tragaperras', base, idioma)] });
+    const { vuelta } = await cobrarJugada(null, cfg, jugada, premio, { rodillos: r.rodillos, bote: boteGanado });
+    const saldo = await saldoDe(guildId, userId);
+    const gif = await A.gifTragaperras(r.rodillos, { mult: r.mult, bote: r.bote, resultado: { premio, apuesta: gratis ? 0 : base, idioma, saldo, vuelta } }).catch(() => null);
+    const e = new EmbedBuilder().setColor('#b91c1c')
+        .setTitle(t(idioma, `🎰 Tragaperras · 🪙 ${fmt(base, idioma)}${gratis ? ' · 🎁 gratis' : ''}`, `🎰 Slots · 🪙 ${fmt(base, idioma)}${gratis ? ' · 🎁 free' : ''}`));
+    if (gif) {
+        const boteAhora = r.bote ? BOTE_INICIAL : bote.bote; // si lo acaba de ganar, vuelve a empezar
+        e.setImage('attachment://tragaperras.gif')
+            .setDescription(oculto(`${r.rodillos.map((id) => C.simbolo(id).emoji).join(' ')}  ${r.bote ? `💎 ${t(idioma, 'BOTE', 'JACKPOT')} +🪙 ${fmt(premio, idioma)}` : masMenos(premio, gratis ? 0 : base, idioma)} · 🪙 ${fmt(saldo, idioma)}`))
+            .setFooter({ text: t(idioma, `💎 Bote 🪙 ${fmt(boteAhora, idioma)} · /casino pausa`, `💎 Jackpot 🪙 ${fmt(boteAhora, idioma)} · /casino pause`) });
+    } else {
+        const simb = r.rodillos.map((id) => C.simbolo(id).emoji).join(' │ ');
+        const texto = r.bote
+            ? t(idioma, `💎💎💎 **¡¡BOTE!!** <@${userId}> se lleva **🪙 ${fmt(premio, idioma)}** 🎉🎉🎉`, `💎💎💎 **JACKPOT!!** <@${userId}> takes **🪙 ${fmt(premio, idioma)}** 🎉🎉🎉`)
+            : premio > base ? t(idioma, `🎉 ¡Premio! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`, `🎉 Winner! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`)
+                : premio > 0 ? t(idioma, `😅 Recuperas **🪙 ${fmt(premio, idioma)}**`, `😅 You get back **🪙 ${fmt(premio, idioma)}**`)
+                    : t(idioma, '💨 Esta vez no… ¡la próxima!', '💨 Not this time… next one!');
+        e.setColor(premio > base ? '#16a34a' : '#7f1d1d').setDescription(`${simb}\n\n${texto}`).setFooter({ text: pieSaldo(idioma, saldo, vuelta) });
+    }
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'tragaperras.gif' })] : [], components: gratis ? [] : [filaOtraVez('tragaperras', base, idioma)], allowedMentions: { parse: [] } });
+    anunciarDespues(gif ? 3400 : 0, client, cfg, { ...jugada.toObject(), apuesta: Math.max(1, base) }, premio, r.bote ? t(cfg, ' 💎💎💎 ¡BOTE!', ' 💎💎💎 JACKPOT!') : '');
     return { ok: true, premio, r };
 }
 
@@ -183,21 +200,25 @@ async function ruleta({ interaction, client, cfg, idioma, cantidad, apuesta, num
     const sale = C.girarRuleta();
     const mult = C.pagoRuleta(apuesta, numero, sale);
     const premio = Math.floor(cantidad * mult);
-    const gif = await A.gifRuleta(sale, { resultado: { premio, apuesta: cantidad, idioma, mult } }).catch(() => null);
+    const { vuelta } = await cobrarJugada(null, cfg, a.jugada, premio, { apuesta, numero, sale });
+    const saldo = await saldoDe(interaction.guildId, interaction.user.id);
+    const gif = await A.gifRuleta(sale, { resultado: { premio, apuesta: cantidad, idioma, mult, saldo, vuelta } }).catch(() => null);
     const nombre = t(idioma, ...NOMBRE_APUESTA[apuesta]) + (apuesta === 'numero' ? ` ${numero}` : '');
-    const e = new EmbedBuilder().setColor('#166534').setTitle(t(idioma, `🎡 ${nombre} · 🪙 ${fmt(cantidad, idioma)}`, `🎡 ${nombre} · 🪙 ${fmt(cantidad, idioma)}`));
-    if (gif) e.setImage('attachment://ruleta.gif');
-    else e.setDescription(t(idioma, `<@${interaction.user.id}> apuesta **🪙 ${fmt(cantidad, idioma)}** a **${nombre}**… 🎲`, `<@${interaction.user.id}> bets **🪙 ${fmt(cantidad, idioma)}** on **${nombre}**… 🎲`));
-    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'ruleta.gif' })] : [], allowedMentions: { parse: [] } });
-    await espera(gif ? 3600 : 800);
-    const { vuelta } = await cobrarJugada(client, cfg, a.jugada, premio, { apuesta, numero, sale });
-    const color = { verde: '🟢', rojo: '🔴', negro: '⚫' }[C.colorNumero(sale)];
-    const fin = EmbedBuilder.from(e).setColor(premio ? '#16a34a' : '#7f1d1d')
-        .setDescription(gif ? null : `${t(idioma, 'Ha salido', 'It landed on')} ${color} **${sale}**\n\n${premio
-            ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**! (×${mult})`, `🎉 You win **🪙 ${fmt(premio, idioma)}**! (×${mult})`)
-            : t(idioma, `💨 Pierdes **🪙 ${fmt(cantidad, idioma)}**.`, `💨 You lose **🪙 ${fmt(cantidad, idioma)}**.`)}`)
-        .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.guildId, interaction.user.id), vuelta) });
-    await interaction.editReply({ embeds: [fin], components: [filaOtraVez('ruleta', cantidad, idioma, `${apuesta}${apuesta === 'numero' ? `-${numero}` : ''}`)] });
+    const e = new EmbedBuilder().setColor('#166534').setTitle(`🎡 ${nombre} · 🪙 ${fmt(cantidad, idioma)}`);
+    if (gif) {
+        const colorS = { verde: '🟢', rojo: '🔴', negro: '⚫' }[C.colorNumero(sale)];
+        e.setImage('attachment://ruleta.gif').setDescription(oculto(`${colorS} ${sale}  ${masMenos(premio, cantidad, idioma)} · 🪙 ${fmt(saldo, idioma)}`))
+            .setFooter({ text: t(idioma, '/casino pausa si necesitas un descanso', '/casino pause if you need a break') });
+    }
+    else {
+        const color = { verde: '🟢', rojo: '🔴', negro: '⚫' }[C.colorNumero(sale)];
+        e.setColor(premio ? '#16a34a' : '#7f1d1d').setFooter({ text: pieSaldo(idioma, saldo, vuelta) })
+            .setDescription(`${t(idioma, 'Ha salido', 'It landed on')} ${color} **${sale}**\n\n${premio
+                ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**! (×${mult})`, `🎉 You win **🪙 ${fmt(premio, idioma)}**! (×${mult})`)
+                : t(idioma, `💨 Pierdes **🪙 ${fmt(cantidad, idioma)}**.`, `💨 You lose **🪙 ${fmt(cantidad, idioma)}**.`)}`);
+    }
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'ruleta.gif' })] : [], components: [filaOtraVez('ruleta', cantidad, idioma, `${apuesta}${apuesta === 'numero' ? `-${numero}` : ''}`)], allowedMentions: { parse: [] } });
+    anunciarDespues(gif ? 3800 : 0, client, cfg, a.jugada, premio);
     return { ok: true, premio };
 }
 
@@ -209,18 +230,18 @@ async function moneda({ interaction, client, cfg, idioma, cantidad, lado }) {
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     const sale = C.lanzarMoneda();
     const premio = sale === lado ? Math.floor(cantidad * C.MONEDA_PAGO) : 0;
-    const gif = await A.gifMoneda(sale, { res: { premio, apuesta: cantidad, idioma }, textos: { cara: t(idioma, '👑 CARA', '👑 HEADS'), cruz: t(idioma, '⭐ CRUZ', '⭐ TAILS') } }).catch(() => null);
+    const { vuelta } = await cobrarJugada(null, cfg, a.jugada, premio, { lado, sale });
+    const saldo = await saldoDe(interaction.guildId, interaction.user.id);
+    const gif = await A.gifMoneda(sale, { res: { premio, apuesta: cantidad, idioma, saldo, vuelta }, textos: { cara: t(idioma, '👑 CARA', '👑 HEADS'), cruz: t(idioma, '⭐ CRUZ', '⭐ TAILS') } }).catch(() => null);
     const nom = (x) => (x === 'cara' ? t(idioma, '👑 Cara', '👑 Heads') : t(idioma, '⭐ Cruz', '⭐ Tails'));
     const e = new EmbedBuilder().setColor('#a16207').setTitle(`${nom(lado)} · 🪙 ${fmt(cantidad, idioma)}`);
-    if (gif) e.setImage('attachment://moneda.gif');
-    else e.setDescription(t(idioma, `<@${interaction.user.id}> apuesta **🪙 ${fmt(cantidad, idioma)}** a **${nom(lado)}**… 🪙💨`, `<@${interaction.user.id}> bets **🪙 ${fmt(cantidad, idioma)}** on **${nom(lado)}**… 🪙💨`));
-    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'moneda.gif' })] : [], allowedMentions: { parse: [] } });
-    await espera(gif ? 1800 : 600);
-    const { vuelta } = await cobrarJugada(client, cfg, a.jugada, premio, { lado, sale });
-    const fin = EmbedBuilder.from(e).setColor(premio ? '#16a34a' : '#7f1d1d')
-        .setDescription(gif ? null : `${t(idioma, 'Ha salido', 'It’s')} **${nom(sale)}**\n\n${premio ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**!`, `🎉 You win **🪙 ${fmt(premio, idioma)}**!`) : t(idioma, '💨 ¡Mala suerte!', '💨 Bad luck!')}`)
-        .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.guildId, interaction.user.id), vuelta) });
-    await interaction.editReply({ embeds: [fin], components: [filaOtraVez('moneda', cantidad, idioma, lado)] });
+    if (gif) e.setImage('attachment://moneda.gif').setDescription(oculto(`${nom(sale)}  ${masMenos(premio, cantidad, idioma)} · 🪙 ${fmt(saldo, idioma)}`));
+    else {
+        e.setColor(premio ? '#16a34a' : '#7f1d1d').setFooter({ text: pieSaldo(idioma, saldo, vuelta) })
+            .setDescription(`${t(idioma, 'Ha salido', 'It’s')} **${nom(sale)}**\n\n${premio ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**!`, `🎉 You win **🪙 ${fmt(premio, idioma)}**!`) : t(idioma, '💨 ¡Mala suerte!', '💨 Bad luck!')}`);
+    }
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'moneda.gif' })] : [], components: [filaOtraVez('moneda', cantidad, idioma, lado)], allowedMentions: { parse: [] } });
+    anunciarDespues(gif ? 2000 : 0, client, cfg, a.jugada, premio);
     return { ok: true, premio };
 }
 
@@ -284,14 +305,11 @@ async function blackjack({ interaction, client, cfg, idioma, cantidad }) {
 async function terminarBlackjack(interaction, client, p, yaEditado = false) {
     partidas.delete(p.id);
     const idioma = p.idioma;
-    // La banca destapa y roba carta a carta (animación con ediciones).
+    // 1.31.1: la banca juega entera aquí y se enseña en UN GIF (destapa, roba y resultado).
+    // Antes era una edición del mensaje por carta y la imagen saltaba en cada una.
+    const bancaInicial = [...p.banca];
     if (C.puntos(p.jugador).total <= 21 && !C.esBlackjack(p.jugador)) {
-        if (!yaEditado) { await interaction.editReply(vistaBlackjack(p, idioma, { ocultar: false, fin: null })).catch(() => {}); await espera(900); }
-        while (C.puntos(p.banca).total < 17) {
-            p.banca.push(p.mazo.pop());
-            await interaction.editReply({ ...vistaBlackjack(p, idioma, { ocultar: false }), components: [] }).catch(() => {});
-            await espera(900);
-        }
+        while (C.puntos(p.banca).total < 17) p.banca.push(p.mazo.pop());
     }
     const r = C.resultadoBlackjack(p.jugador, p.banca);
     const apuesta = p.apuesta * (p.doblada ? 2 : 1);
@@ -300,6 +318,7 @@ async function terminarBlackjack(interaction, client, p, yaEditado = false) {
     jugada.apuesta = apuesta;
     if (p.doblada) await JugadaCasino.updateOne({ _id: jugada._id }, { $set: { apuesta } });
     const { vuelta } = await cobrarJugada(client, p.cfg, jugada, premio, { jugador: p.jugador, banca: p.banca, res: r.res });
+    const saldo = await saldoDe(p.jugada.guildId, p.userId);
     const textos = {
         blackjack: t(idioma, `🂡 **¡BLACKJACK!** Ganas **🪙 ${fmt(premio, idioma)}**`, `🂡 **BLACKJACK!** You win **🪙 ${fmt(premio, idioma)}**`),
         gana: t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**!`, `🎉 You win **🪙 ${fmt(premio, idioma)}**!`),
@@ -308,8 +327,17 @@ async function terminarBlackjack(interaction, client, p, yaEditado = false) {
         pierde: t(idioma, `😞 Gana la banca. Pierdes **🪙 ${fmt(apuesta, idioma)}**.`, `😞 Dealer wins. You lose **🪙 ${fmt(apuesta, idioma)}**.`),
     };
     const titulos = { blackjack: 'BLACKJACK!', gana: t(idioma, '¡GANAS!', 'YOU WIN!'), empate: t(idioma, 'EMPATE', 'PUSH'), pasa: t(idioma, 'TE PASAS', 'BUST'), pierde: t(idioma, 'GANA LA BANCA', 'DEALER WINS') };
-    const v = vistaBlackjack(p, idioma, { ocultar: false, fin: { mult: r.mult, resultado: { premio, apuesta, idioma, titulo: titulos[r.res] }, texto: `${t(idioma, 'Banca', 'Dealer')} **${C.puntos(p.banca).total}** · ${t(idioma, 'Tú', 'You')} **${C.puntos(p.jugador).total}**\n\n${textos[r.res]}` } });
-    v.embeds[0].setFooter({ text: pieSaldo(idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
+    const resultado = { premio, apuesta, idioma, titulo: titulos[r.res], saldo, vuelta };
+    const v = vistaBlackjack(p, idioma, { ocultar: false, fin: { mult: r.mult, resultado, texto: `${t(idioma, 'Banca', 'Dealer')} **${C.puntos(p.banca).total}** · ${t(idioma, 'Tú', 'You')} **${C.puntos(p.jugador).total}**\n\n${textos[r.res]}` } });
+    const gif = await A.gifBlackjack({ jugador: p.jugador, bancaInicial, banca: p.banca, resultado, destapar: !yaEditado, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You') } }).catch(() => null);
+    if (gif) {
+        // Color neutro: si cambiara ya, se sabría el resultado antes de que la banca destape.
+        v.embeds[0].setImage('attachment://mesa.gif').setColor('#14532d')
+            .setDescription(oculto(`${titulos[r.res]} (${C.puntos(p.banca).total}-${C.puntos(p.jugador).total})  ${masMenos(premio, apuesta, idioma)} · 🪙 ${fmt(saldo, idioma)}`));
+        v.files = [new AttachmentBuilder(gif, { name: 'mesa.gif' })];
+    } else {
+        v.embeds[0].setFooter({ text: pieSaldo(idioma, saldo, vuelta) });
+    }
     v.components = [filaOtraVez('blackjack', p.apuesta, idioma)];
     await interaction.editReply(v).catch(() => {});
 }
@@ -345,34 +373,52 @@ async function botonBlackjack(interaction, client) {
 // ---------------------------------------------------------------------------
 // 🚀 Crash (en directo: el mensaje se actualiza mientras sube)
 // ---------------------------------------------------------------------------
-function vistaCrash(p, idioma, mult, estado) {
-    // 1.31.0: gráfica con el cohete; si no se puede dibujar, la barra de texto de siempre.
-    const png = A.graficaCrash({ mult, estado, punto: p.punto, cobradoEn: p.cobradoEn, apuesta: p.apuesta, auto: p.auto, idioma });
+// 1.31.1: mientras vuela, la imagen NO cambia (un cohete en bucle, `p.cohete`) y lo que sube es el
+// número, en grande, en el texto del mensaje: se actualiza cada segundo sin recargar nada. Solo al
+// acabar se cambia la imagen una vez, por la gráfica del final. `primera`: el primer envío (sube el GIF).
+function vistaCrash(p, idioma, mult, estado, { primera = false } = {}) {
     const llenas = Math.min(12, Math.floor(Math.log(mult) / Math.log(1.25)));
     const cielo = `${'▰'.repeat(llenas)}${'▱'.repeat(12 - llenas)}`;
     const cohete = estado === 'boom' ? '💥' : estado === 'cobrado' ? '🪂' : '🚀';
     const color = estado === 'boom' ? '#7f1d1d' : estado === 'cobrado' ? '#16a34a' : mult >= 5 ? '#f59e0b' : '#2563eb';
+    const x = (n) => (t(idioma, 'es', 'en') === 'es' ? n.toFixed(2).replace('.', ',') : n.toFixed(2));
     const texto = ({
         vuela: () => t(idioma, `**×${mult.toFixed(2)}** ${cohete}\n${cielo}\nCobras ahora: **🪙 ${fmt(p.apuesta * mult, idioma)}**${p.auto ? ` · retiro automático en ×${p.auto}` : ''}`, `**×${mult.toFixed(2)}** ${cohete}\n${cielo}\nCash out now: **🪙 ${fmt(p.apuesta * mult, idioma)}**${p.auto ? ` · auto cash-out at ×${p.auto}` : ''}`),
         cobrado: () => t(idioma, `🪂 ¡Te has retirado a tiempo en **×${p.cobradoEn.toFixed(2)}**! Ganas **🪙 ${fmt(p.premio, idioma)}**.\nEl cohete explotó en ×${p.punto.toFixed(2)}.`, `🪂 You cashed out in time at **×${p.cobradoEn.toFixed(2)}**! You win **🪙 ${fmt(p.premio, idioma)}**.\nThe rocket blew up at ×${p.punto.toFixed(2)}.`),
         boom: () => t(idioma, `💥 **¡BOOM!** Ha explotado en **×${p.punto.toFixed(2)}**. Pierdes **🪙 ${fmt(p.apuesta, idioma)}**.`, `💥 **BOOM!** It blew up at **×${p.punto.toFixed(2)}**. You lose **🪙 ${fmt(p.apuesta, idioma)}**.`),
     })[estado]();
     const e = new EmbedBuilder().setColor(color).setTitle(t(idioma, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`));
-    if (png) e.setImage('attachment://crash.png'); else e.setDescription(texto);
     const comps = estado === 'vuela' ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_crash:${p.id}`).setStyle(ButtonStyle.Success).setEmoji('🪂').setLabel(t(idioma, `Retirarme (🪙 ${fmt(p.apuesta * mult, idioma)})`, `Cash out (🪙 ${fmt(p.apuesta * mult, idioma)})`)))] : [filaOtraVez('crash', p.apuesta, idioma, p.auto ? String(p.auto) : '')];
-    return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'crash.png' })] : [], attachments: [] };
+    if (estado === 'vuela' && p.cohete) {
+        // Siempre 2 líneas (el número grande y lo que cobrarías): el mensaje no cambia de alto.
+        e.setImage('attachment://cohete.gif')
+            .setDescription(`# 🚀 ×${x(mult)}\n🪙 **${fmt(p.apuesta * mult, idioma)}**${p.auto ? `  ·  🪂 ×${x(p.auto)}` : ''}`);
+        return primera
+            ? { embeds: [e], components: comps, files: [new AttachmentBuilder(p.cohete, { name: 'cohete.gif' })], attachments: [] }
+            : { embeds: [e], components: comps };
+    }
+    // Al acabar: la gráfica (una sola vez) y el número final en grande, en el mismo sitio.
+    const png = estado === 'vuela' ? null : A.graficaCrash({ mult, estado, punto: p.punto, cobradoEn: p.cobradoEn, apuesta: p.apuesta, auto: p.auto, idioma });
+    if (png) {
+        const final = estado === 'boom' ? p.punto : p.cobradoEn;
+        e.setImage('attachment://crash.png').setDescription(`# ${cohete} ×${x(final)}\n${estado === 'boom' ? `−🪙 **${fmt(p.apuesta, idioma)}**` : `+🪙 **${fmt(p.premio, idioma)}**`}`);
+        return { embeds: [e], components: comps, files: [new AttachmentBuilder(png, { name: 'crash.png' })], attachments: [] };
+    }
+    e.setDescription(texto);
+    return { embeds: [e], components: comps, files: [], attachments: [] };
 }
 async function crash({ interaction, client, cfg, idioma, cantidad, auto = null }) {
     const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'crash', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     limpiarPartidas(client);
     const p = { id: nuevoId(), tipo: 'crash', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, punto: C.puntoCrash(), inicio: Date.now() + 1500, auto: auto && auto >= 1.01 ? Math.round(auto * 100) / 100 : null, terminado: false, caduca: Date.now() + 5 * 60000, cfg, idioma, interaction };
+    p.cohete = await A.gifCohete().catch(() => null);
     partidas.set(p.id, p);
-    await interaction.editReply(vistaCrash(p, idioma, 1, 'vuela'));
-    // Bucle: sube y actualiza cada 1,5 s hasta explotar, retirarse o llegar al automático.
+    await interaction.editReply(vistaCrash(p, idioma, 1, 'vuela', { primera: true }));
+    // Bucle: sube y actualiza cada segundo (solo el texto) hasta explotar, retirarse o llegar al automático.
     (async () => {
         while (!p.terminado) {
-            await espera(1500);
+            await espera(1000);
             if (p.terminado) return;
             const seg = (Date.now() - p.inicio) / 1000;
             const mult = C.multCrash(seg);
@@ -669,15 +715,17 @@ async function botonDuelo(interaction, client) {
     const sale = C.lanzarMoneda();
     const gana = sale === 'cara' ? d.retador : d.rival; // el retador es cara
     const premio = Math.floor(d.cantidad * 2 * (1 - C.DUELO_COMISION));
-    const gif = await A.gifMoneda(sale).catch(() => null);
-    const e = new EmbedBuilder().setColor('#f59e0b').setTitle('⚔️ 🪙')
-        .setDescription(t(d.idioma, `👑 Cara: <@${d.retador}> · ⭐ Cruz: <@${d.rival}>\n¡La moneda está en el aire!`, `👑 Heads: <@${d.retador}> · ⭐ Tails: <@${d.rival}>\nThe coin is in the air!`));
-    if (gif) e.setImage('attachment://moneda.gif');
-    await interaction.editReply({ content: '', embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'moneda.gif' })] : [], components: [], allowedMentions: { parse: [] } });
-    await espera(gif ? 1800 : 500);
     await cobrarJugada(client, d.cfg, gana === d.retador ? d.jugadaA : b.jugada, premio, { duelo: 'ganado', sale });
     await cobrarJugada(client, d.cfg, gana === d.retador ? b.jugada : d.jugadaA, 0, { duelo: 'perdido', sale });
-    await interaction.editReply({ embeds: [EmbedBuilder.from(e).setColor('#16a34a').setDescription(t(d.idioma, `Ha salido **${sale === 'cara' ? '👑 Cara' : '⭐ Cruz'}**\n\n🏆 <@${gana}> gana el duelo y se lleva **🪙 ${fmt(premio, d.idioma)}**!`, `It’s **${sale === 'cara' ? '👑 Heads' : '⭐ Tails'}**\n\n🏆 <@${gana}> wins the duel and takes **🪙 ${fmt(premio, d.idioma)}**!`))], allowedMentions: { users: [gana] } });
+    // 1.31.1: un solo cambio del mensaje: la moneda cae y el GIF acaba con el nombre de quien gana.
+    const nombreDe = (id) => interaction.guild?.members.cache.get(id)?.displayName || interaction.client?.users.cache.get(id)?.username || '?';
+    const gif = await A.gifMoneda(sale, { res: { texto: `🏆 ${String(nombreDe(gana)).slice(0, 18)}  +🪙 ${fmt(premio, d.idioma)}` }, textos: { cara: t(d.idioma, '👑 CARA', '👑 HEADS'), cruz: t(d.idioma, '⭐ CRUZ', '⭐ TAILS') } }).catch(() => null);
+    const e = new EmbedBuilder().setColor('#f59e0b').setTitle(`⚔️ 🪙 ${fmt(d.cantidad, d.idioma)}`)
+        .setDescription(gif
+            ? `👑 <@${d.retador}>  ·  ⭐ <@${d.rival}>\n${oculto(`🏆 <@${gana}> +🪙 ${fmt(premio, d.idioma)}`)}`
+            : t(d.idioma, `Ha salido **${sale === 'cara' ? '👑 Cara' : '⭐ Cruz'}**\n\n🏆 <@${gana}> gana el duelo y se lleva **🪙 ${fmt(premio, d.idioma)}**!`, `It’s **${sale === 'cara' ? '👑 Heads' : '⭐ Tails'}**\n\n🏆 <@${gana}> wins the duel and takes **🪙 ${fmt(premio, d.idioma)}**!`));
+    if (gif) e.setImage('attachment://moneda.gif');
+    await interaction.editReply({ content: '', embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'moneda.gif' })] : [], attachments: [], components: [], allowedMentions: { parse: [] } });
 }
 
 // ---------------------------------------------------------------------------
@@ -691,20 +739,27 @@ function pista(pos, ganador = null) {
         return `\`${i + 1}\` 🏁${'·'.repeat(Math.max(0, LARGO_PISTA - avance))}${c.emoji}${'·'.repeat(avance)}${ganador === c.id ? ' 🏆' : ''}`;
     }).join('\n');
 }
-function vistaCarrera(car, idioma, { pos = null, ganador = null, fase = 'apuestas' } = {}) {
+function vistaCarrera(car, idioma, { pos = null, ganador = null, fase = 'apuestas', imagen = true } = {}) {
     const apuestas = [...car.apuestas.values()];
     const total = apuestas.reduce((s, a) => s + a.cantidad, 0);
     // 1.31.0: la pista es una imagen (se repinta en cada paso); el texto, lo justo.
     const apostados = {};
     for (const a of apuestas) if (a.cantidad) apostados[a.corredor] = (apostados[a.corredor] || 0) + 1;
-    const png = A.pistaCarrera({ pos, ganador, apostados });
+    // 1.31.1: con `imagen: false` no se vuelve a subir la pista (se queda la que hay): así, al apostar
+    // alguien, solo cambia la lista de apuestas y la imagen no salta.
+    if (!imagen && !car.conImagen) imagen = true; // sin dibujo al principio: sigue la pista de texto
+    const png = imagen ? A.pistaCarrera({ pos, ganador, apostados }) : null;
     const e = new EmbedBuilder().setColor(fase === 'fin' ? '#16a34a' : '#b45309')
         .setTitle(t(idioma, '🏇 ¡Carrera!', '🏇 Race!'))
-        .setDescription(`${png ? '' : `${pista(pos, ganador)}\n\n`}${fase === 'apuestas'
+        .setDescription(`${png || !imagen ? '' : `${pista(pos, ganador)}\n\n`}${fase === 'apuestas'
             ? t(idioma, `⏱️ Apuestas hasta <t:${Math.floor(car.cierra / 1000)}:R>`, `⏱️ Bets close <t:${Math.floor(car.cierra / 1000)}:R>`)
             : fase === 'corre' ? t(idioma, '📣 ¡Y salen!', '📣 And they’re off!') : ''}` || null)
         .addFields({ name: t(idioma, `💰 Apuestas (${apuestas.length}) · 🪙 ${fmt(total, idioma)}`, `💰 Bets (${apuestas.length}) · 🪙 ${fmt(total, idioma)}`), value: apuestas.slice(0, 15).map((a) => `<@${a.userId}> → ${C.CORREDORES.find((c) => c.id === a.corredor).emoji} 🪙 ${fmt(a.cantidad, idioma)}`).join('\n') || '—' });
     const comps = fase === 'apuestas' ? [new ActionRowBuilder().addComponents(C.CORREDORES.map((c) => new ButtonBuilder().setCustomId(`cas_car:${car.id}:${c.id}`).setEmoji(c.emoji).setLabel(`×${C.cuota(c.id)}`).setStyle(ButtonStyle.Secondary)))] : [];
+    if (!imagen) {
+        e.setImage('attachment://carrera.png');
+        return { embeds: [e], components: comps, allowedMentions: { parse: [] } };
+    }
     if (png) e.setImage('attachment://carrera.png');
     return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'carrera.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
 }
@@ -716,13 +771,17 @@ async function carrera({ interaction, client, cfg, idioma }) {
     if (carreras.has(interaction.channelId)) return { error: t(idioma, 'Ya hay una carrera en este canal: ¡apuesta en ella!', 'There’s already a race in this channel: bet on it!') };
     const car = { id: nuevoId(), canalId: interaction.channelId, guildId: interaction.guildId, cierra: Date.now() + 45000, apuestas: new Map(), cfg, idioma, interaction };
     carreras.set(interaction.channelId, car);
-    await interaction.editReply(vistaCarrera(car, idioma));
+    const v = vistaCarrera(car, idioma);
+    car.conImagen = (v.files || []).length > 0;
+    await interaction.editReply(v);
     setTimeout(() => correr(client, car).catch((e) => { console.error('Carrera:', e.message); carreras.delete(car.canalId); }), 45000);
     return { ok: true };
 }
 async function correr(client, car) {
     const idioma = car.idioma;
-    const apuestas = [...car.apuestas.values()];
+    car.corriendo = true; // desde aquí, una apuesta que llegue tarde se devuelve (modalCarrera)
+    // Solo las apuestas ya cobradas: una ventana a medias (reserva sin `jugada`) no cuenta.
+    const apuestas = [...car.apuestas.values()].filter((a) => a.jugada);
     if (!apuestas.length) {
         carreras.delete(car.canalId);
         await car.interaction.editReply({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🏇 Nadie ha apostado: carrera cancelada.', '🏇 Nobody bet: race cancelled.'))], components: [], files: [], attachments: [] }).catch(() => {});
@@ -730,19 +789,37 @@ async function correr(client, car) {
     }
     const ganador = C.ganadorCarrera();
     const pasos = C.pasosCarrera(ganador);
+    carreras.delete(car.canalId);
+    // Se paga antes y la carrera ENTERA va en un GIF que acaba con los premios (1.31.1). Antes eran
+    // 9 ediciones con 9 imágenes distintas: la pista saltaba en cada paso.
+    const lineas = []; const ganadores = [];
+    const guild = car.interaction.guild;
+    for (const a of apuestas) {
+        const premio = a.corredor === ganador ? Math.floor(a.cantidad * C.cuota(a.corredor)) : 0;
+        await cobrarJugada(client, car.cfg, a.jugada, premio, { corredor: a.corredor, ganador });
+        if (premio) {
+            lineas.push(`🎉 <@${a.userId}> +🪙 ${fmt(premio, idioma)}`);
+            ganadores.push({ nombre: guild?.members.cache.get(a.userId)?.displayName || client?.users?.cache.get(a.userId)?.username || '?', premio });
+        }
+    }
+    ganadores.sort((x, y) => y.premio - x.premio);
+    const emo = C.CORREDORES.find((c) => c.id === ganador).emoji;
+    const apostados = {};
+    for (const a of apuestas) apostados[a.corredor] = (apostados[a.corredor] || 0) + 1;
+    const gif = await A.gifCarrera({ pasos, ganador, apostados, ganadores, idioma, textos: { nadie: t(idioma, '😅 Nadie había apostado por él', '😅 Nobody had bet on it') } }).catch((e) => { console.error('GIF carrera:', e.message); return null; });
+    if (gif) {
+        const v = vistaCarrera(car, idioma, { fase: 'corre', imagen: false });
+        v.embeds[0].setImage('attachment://carrera.gif')
+            .setDescription(`${t(idioma, '📣 ¡Y salen!', '📣 And they’re off!')}\n${oculto(`🏆 ${emo}  ${lineas.map((l) => l.replace('🎉 ', '')).join(' · ') || '😅'}`)}`);
+        await car.interaction.editReply({ ...v, files: [new AttachmentBuilder(gif, { name: 'carrera.gif' })], attachments: [] }).catch(() => {});
+        return;
+    }
+    // Sin GIF: como antes, paso a paso.
     await car.interaction.editReply(vistaCarrera(car, idioma, { fase: 'corre' })).catch(() => {});
     for (const pos of pasos) {
         await espera(1300);
         await car.interaction.editReply(vistaCarrera(car, idioma, { pos, fase: 'corre' })).catch(() => {});
     }
-    carreras.delete(car.canalId);
-    const lineas = [];
-    for (const a of apuestas) {
-        const premio = a.corredor === ganador ? Math.floor(a.cantidad * C.cuota(a.corredor)) : 0;
-        await cobrarJugada(client, car.cfg, a.jugada, premio, { corredor: a.corredor, ganador });
-        if (premio) lineas.push(`🎉 <@${a.userId}> +🪙 ${fmt(premio, idioma)}`);
-    }
-    const emo = C.CORREDORES.find((c) => c.id === ganador).emoji;
     const v = vistaCarrera(car, idioma, { pos: pasos[pasos.length - 1], ganador, fase: 'fin' });
     v.embeds[0].setDescription(`${v.files.length ? '' : `${pista(pasos[pasos.length - 1], ganador)}\n\n`}${t(idioma, `🏆 ¡Gana ${emo}!`, `🏆 ${emo} wins!`)}\n${lineas.join('\n') || '😅'}`);
     await car.interaction.editReply(v).catch(() => {});
@@ -767,9 +844,14 @@ async function modalCarrera(interaction, client) {
     car.apuestas.set(interaction.user.id, { userId: interaction.user.id, corredor, cantidad: 0, jugada: null }); // reserva (doble clic)
     const a = await apostar({ guildId: car.guildId, canalId: car.canalId, userId: interaction.user.id, cfg: car.cfg, juego: 'carrera', cantidad });
     if (a.fallo) { car.apuestas.delete(interaction.user.id); return interaction.reply({ content: textoFallo(a, idioma, car.cfg.casino), flags: 64 }); }
+    // Llegó tarde (la carrera salió mientras se cobraba): se devuelve y no se toca el mensaje del resultado.
+    if (car.corriendo || !carreras.has(car.canalId)) {
+        await cobrarJugada(client, car.cfg, a.jugada, cantidad, { carrera: 'tarde' }).catch(() => {});
+        return interaction.reply({ content: t(idioma, '⌛ Las apuestas ya están cerradas: te devolvemos el oro.', '⌛ Bets are closed: your gold is refunded.'), flags: 64 });
+    }
     car.apuestas.set(interaction.user.id, { userId: interaction.user.id, corredor, cantidad, jugada: a.jugada });
     await interaction.reply({ content: t(idioma, `✅ Apuestas 🪙 ${fmt(cantidad, idioma)} por ${C.CORREDORES.find((c) => c.id === corredor).emoji}. ¡Suerte!`, `✅ You bet 🪙 ${fmt(cantidad, idioma)} on ${C.CORREDORES.find((c) => c.id === corredor).emoji}. Good luck!`), flags: 64 });
-    await car.interaction.editReply(vistaCarrera(car, idioma)).catch(() => {});
+    await car.interaction.editReply(vistaCarrera(car, idioma, { imagen: false })).catch(() => {});
 }
 
 // ---------------------------------------------------------------------------

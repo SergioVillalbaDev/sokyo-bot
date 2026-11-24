@@ -84,3 +84,63 @@ test('granja: los datos de la imagen salen de la colección', () => {
     assert.equal(d.semana.length, Object.keys(G.MISIONES_SEMANA).length);
     assert.equal(d.album.total, G.TOTAL());
 });
+
+// ---------------------------------------------------------------------------
+// 1.31.1: GIF que no «se notan» y sin saltos (una animación por jugada).
+// ---------------------------------------------------------------------------
+const tieneBucle = (b) => b.includes(Buffer.from('NETSCAPE2.0'));
+const paletasLocales = (b) => {
+    // Cuenta los «Image Descriptor» (0x2C) con tabla de color local (bit 0x80 del byte 9).
+    const { GifReader } = require('omggif');
+    const r = new GifReader(new Uint8Array(b));
+    let n = 0;
+    for (let i = 0; i < r.numFrames(); i++) if (r.frameInfo(i).palette_offset !== r.frameInfo(0).palette_offset) n++;
+    return n;
+};
+
+test('los GIF usan una sola paleta y los de jugada no se repiten', async () => {
+    const g = await A.gifTragaperras(['uva', 'uva', 'uva'], { mult: 22, resultado: { premio: 2200, apuesta: 100, saldo: 5000 } });
+    assert.equal(paletasLocales(g), 0, 'todos los fotogramas comparten la paleta');
+    assert.ok(!tieneBucle(g), 'la jugada se ve una vez y se queda en el resultado');
+    assert.ok(tieneBucle(await A.gifCohete()), 'el cohete del crash sí va en bucle');
+    assert.ok(tieneBucle(await A.bannerCasino({ titulo: 'CASINO', boteTexto: '1000' })), 'el cartel del lobby, también');
+});
+
+test('el blackjack acaba en una sola animación (destapa, roba y resultado)', async () => {
+    const { GifReader } = require('omggif');
+    const g = await A.gifBlackjack({ jugador: ['10♠', '8♥'], bancaInicial: ['6♦', '5♣'], banca: ['6♦', '5♣', '3♠', '4♥'], resultado: { premio: 0, apuesta: 100, titulo: 'X' } });
+    const r = new GifReader(new Uint8Array(g));
+    assert.ok(r.numFrames() > 25, 'carta a carta, con movimiento');
+    const sinDestapar = await A.gifBlackjack({ jugador: ['A♠', 'K♥'], bancaInicial: ['6♦', '5♣'], banca: ['6♦', '5♣'], destapar: false, resultado: { premio: 250, apuesta: 100 } });
+    assert.ok(new GifReader(new Uint8Array(sinDestapar)).numFrames() < r.numFrames());
+});
+
+test('la carrera entera va en un GIF con los ganadores al final', async () => {
+    const C = require('../utils/casinoNucleo.js');
+    const { GifReader } = require('omggif');
+    const g = await A.gifCarrera({ pasos: C.pasosCarrera('tortuga'), ganador: 'tortuga', ganadores: [{ nombre: 'ana', premio: 939 }] });
+    const r = new GifReader(new Uint8Array(g));
+    assert.ok(r.numFrames() >= 3 + 8 * 9, 'cuenta atrás + 8 tramos interpolados');
+    assert.ok(g.length < 3 * 1024 * 1024, 'pesa poco (solo se guarda lo que se mueve)');
+    assert.ok(esGif(await A.gifCarrera({ pasos: C.pasosCarrera('caballo'), ganador: 'caballo' })), 'sin ganadores también');
+});
+
+test('en la carrera nadie retrocede y el ganador llega el primero', () => {
+    const C = require('../utils/casinoNucleo.js');
+    for (let n = 0; n < 200; n++) {
+        const gana = C.CORREDORES[n % C.CORREDORES.length].id;
+        const pasos = C.pasosCarrera(gana);
+        for (let i = 1; i < pasos.length; i++) for (const c of C.CORREDORES) assert.ok(pasos[i][c.id] >= pasos[i - 1][c.id], `${c.id} retrocede en el paso ${i}`);
+        const fin = pasos.at(-1);
+        for (const c of C.CORREDORES) if (c.id !== gana) assert.ok(fin[c.id] < fin[gana]);
+    }
+});
+
+test('generar la carrera no deja al bot parado (cede el turno entre fotogramas)', async () => {
+    const C = require('../utils/casinoNucleo.js');
+    let ultimo = Date.now(); let peor = 0;
+    const reloj = setInterval(() => { const ahora = Date.now(); peor = Math.max(peor, ahora - ultimo); ultimo = ahora; }, 5);
+    await A.gifCarrera({ pasos: C.pasosCarrera('cebra'), ganador: 'cebra' });
+    clearInterval(reloj);
+    assert.ok(peor < 400, `el bot estuvo parado ${peor} ms seguidos`);
+});
