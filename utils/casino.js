@@ -115,7 +115,8 @@ const filaOtraVez = (juego, cantidad, idioma, extra = '') => new ActionRowBuilde
     new ButtonBuilder().setCustomId(`cas_rep:${juego}:${cantidad}${extra ? `:${extra}` : ''}`).setEmoji('🔁').setStyle(ButtonStyle.Secondary)
         .setLabel(t(idioma, `Otra vez (🪙 ${cantidad})`, `Again (🪙 ${cantidad})`)));
 
-const pieSaldo = (idioma, saldo, vuelta = 0) => t(idioma, `Tu oro: 🪙 ${fmt(saldo, idioma)}${vuelta ? ` · tu compañero te devuelve 🪙 ${vuelta}` : ''} · /casino pausa si necesitas un descanso`, `Your gold: 🪙 ${fmt(saldo, idioma)}${vuelta ? ` · your companion gives you back 🪙 ${vuelta}` : ''} · /casino pause if you need a break`);
+// 1.31.0: el pie solo dice tu oro (y lo que te devuelve el compañero); el resultado ya va en la imagen.
+const pieSaldo = (idioma, saldo, vuelta = 0) => t(idioma, `🪙 ${fmt(saldo, idioma)}${vuelta ? ` · 🐾 +${vuelta}` : ''} · /casino pausa`, `🪙 ${fmt(saldo, idioma)}${vuelta ? ` · 🐾 +${vuelta}` : ''} · /casino pause`);
 const saldoDe = async (guildId, userId) => (await require('./economia.js').en(guildId).obtenerUsuario(userId)).balance;
 
 // ---------------------------------------------------------------------------
@@ -143,12 +144,14 @@ async function tragaperras({ interaction, client, cfg, idioma, cantidad, gratis 
         boteGanado = antes?.bote || 0;
         premio += boteGanado;
     }
-    const gif = await A.gifTragaperras(r.rodillos, { mult: r.mult, bote: r.bote }).catch(() => null);
+    // 1.31.0: el GIF acaba con lo que ganas o pierdes dibujado; el mensaje casi no lleva texto.
+    const gif = await A.gifTragaperras(r.rodillos, { mult: r.mult, bote: r.bote, resultado: { premio, apuesta: gratis ? 0 : base, idioma } }).catch(() => null);
     const simb = r.rodillos.map((id) => C.simbolo(id).emoji).join(' │ ');
-    const girando = new EmbedBuilder().setColor('#b91c1c').setTitle(t(idioma, '🎰 Tragaperras', '🎰 Slots'))
-        .setDescription(t(idioma, `<@${userId}> apuesta **🪙 ${fmt(base, idioma)}**${gratis ? ' (tirada gratis del día)' : ''}… ¡suerte! 🤞`, `<@${userId}> bets **🪙 ${fmt(base, idioma)}**${gratis ? ' (free daily spin)' : ''}… good luck! 🤞`))
-        .addFields({ name: t(idioma, '💎 Bote', '💎 Jackpot'), value: `🪙 ${fmt(r.bote ? boteGanado : bote.bote, idioma)}`, inline: true });
+    const girando = new EmbedBuilder().setColor('#b91c1c')
+        .setTitle(t(idioma, `🎰 Tragaperras · 🪙 ${fmt(base, idioma)}${gratis ? ' · 🎁 gratis' : ''}`, `🎰 Slots · 🪙 ${fmt(base, idioma)}${gratis ? ' · 🎁 free' : ''}`))
+        .setFooter({ text: t(idioma, `💎 Bote 🪙 ${fmt(r.bote ? boteGanado : bote.bote, idioma)}`, `💎 Jackpot 🪙 ${fmt(r.bote ? boteGanado : bote.bote, idioma)}`) });
     if (gif) girando.setImage('attachment://tragaperras.gif');
+    else girando.setDescription(t(idioma, `<@${userId}> apuesta **🪙 ${fmt(base, idioma)}**… 🤞`, `<@${userId}> bets **🪙 ${fmt(base, idioma)}**… 🤞`));
     await interaction.editReply({ embeds: [girando], files: gif ? [new AttachmentBuilder(gif, { name: 'tragaperras.gif' })] : [], allowedMentions: { parse: [] } });
     await espera(gif ? 3300 : 800);
     const { vuelta } = await cobrarJugada(client, cfg, jugada, premio, { rodillos: r.rodillos, bote: boteGanado });
@@ -158,7 +161,7 @@ async function tragaperras({ interaction, client, cfg, idioma, cantidad, gratis 
         : premio > base ? t(idioma, `🎉 ¡Premio! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`, `🎉 Winner! **×${r.mult}** → **🪙 ${fmt(premio, idioma)}**`)
             : premio > 0 ? t(idioma, `😅 Recuperas **🪙 ${fmt(premio, idioma)}**`, `😅 You get back **🪙 ${fmt(premio, idioma)}**`)
                 : t(idioma, '💨 Esta vez no… ¡la próxima!', '💨 Not this time… next one!');
-    const fin = EmbedBuilder.from(girando).setColor(premio > base ? '#16a34a' : '#7f1d1d').setDescription(`${simb}\n\n${texto}`).setFooter({ text: pieSaldo(idioma, saldo, vuelta) });
+    const fin = EmbedBuilder.from(girando).setColor(premio > base ? '#16a34a' : '#7f1d1d').setDescription(gif ? (r.bote ? texto : null) : `${simb}\n\n${texto}`).setFooter({ text: pieSaldo(idioma, saldo, vuelta) });
     if (r.bote) await anunciarGranPremio(client, cfg, { ...jugada.toObject(), apuesta: Math.max(1, base) }, premio, t(cfg, ' 💎💎💎 ¡BOTE!', ' 💎💎💎 JACKPOT!')).catch(() => {});
     await interaction.editReply({ embeds: [fin], components: gratis ? [] : [filaOtraVez('tragaperras', base, idioma)] });
     return { ok: true, premio, r };
@@ -180,17 +183,17 @@ async function ruleta({ interaction, client, cfg, idioma, cantidad, apuesta, num
     const sale = C.girarRuleta();
     const mult = C.pagoRuleta(apuesta, numero, sale);
     const premio = Math.floor(cantidad * mult);
-    const gif = await A.gifRuleta(sale).catch(() => null);
+    const gif = await A.gifRuleta(sale, { resultado: { premio, apuesta: cantidad, idioma, mult } }).catch(() => null);
     const nombre = t(idioma, ...NOMBRE_APUESTA[apuesta]) + (apuesta === 'numero' ? ` ${numero}` : '');
-    const e = new EmbedBuilder().setColor('#166534').setTitle(t(idioma, '🎡 Ruleta', '🎡 Roulette'))
-        .setDescription(t(idioma, `<@${interaction.user.id}> apuesta **🪙 ${fmt(cantidad, idioma)}** a **${nombre}**… ¡no va más! 🎲`, `<@${interaction.user.id}> bets **🪙 ${fmt(cantidad, idioma)}** on **${nombre}**… no more bets! 🎲`));
+    const e = new EmbedBuilder().setColor('#166534').setTitle(t(idioma, `🎡 ${nombre} · 🪙 ${fmt(cantidad, idioma)}`, `🎡 ${nombre} · 🪙 ${fmt(cantidad, idioma)}`));
     if (gif) e.setImage('attachment://ruleta.gif');
+    else e.setDescription(t(idioma, `<@${interaction.user.id}> apuesta **🪙 ${fmt(cantidad, idioma)}** a **${nombre}**… 🎲`, `<@${interaction.user.id}> bets **🪙 ${fmt(cantidad, idioma)}** on **${nombre}**… 🎲`));
     await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'ruleta.gif' })] : [], allowedMentions: { parse: [] } });
     await espera(gif ? 3600 : 800);
     const { vuelta } = await cobrarJugada(client, cfg, a.jugada, premio, { apuesta, numero, sale });
     const color = { verde: '🟢', rojo: '🔴', negro: '⚫' }[C.colorNumero(sale)];
     const fin = EmbedBuilder.from(e).setColor(premio ? '#16a34a' : '#7f1d1d')
-        .setDescription(`${t(idioma, 'Ha salido', 'It landed on')} ${color} **${sale}**\n\n${premio
+        .setDescription(gif ? null : `${t(idioma, 'Ha salido', 'It landed on')} ${color} **${sale}**\n\n${premio
             ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**! (×${mult})`, `🎉 You win **🪙 ${fmt(premio, idioma)}**! (×${mult})`)
             : t(idioma, `💨 Pierdes **🪙 ${fmt(cantidad, idioma)}**.`, `💨 You lose **🪙 ${fmt(cantidad, idioma)}**.`)}`)
         .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.guildId, interaction.user.id), vuelta) });
@@ -206,16 +209,16 @@ async function moneda({ interaction, client, cfg, idioma, cantidad, lado }) {
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     const sale = C.lanzarMoneda();
     const premio = sale === lado ? Math.floor(cantidad * C.MONEDA_PAGO) : 0;
-    const gif = await A.gifMoneda(sale).catch(() => null);
+    const gif = await A.gifMoneda(sale, { res: { premio, apuesta: cantidad, idioma }, textos: { cara: t(idioma, '👑 CARA', '👑 HEADS'), cruz: t(idioma, '⭐ CRUZ', '⭐ TAILS') } }).catch(() => null);
     const nom = (x) => (x === 'cara' ? t(idioma, '👑 Cara', '👑 Heads') : t(idioma, '⭐ Cruz', '⭐ Tails'));
-    const e = new EmbedBuilder().setColor('#a16207').setTitle(t(idioma, '🪙 Cara o cruz', '🪙 Coin flip'))
-        .setDescription(t(idioma, `<@${interaction.user.id}> apuesta **🪙 ${fmt(cantidad, idioma)}** a **${nom(lado)}**… 🪙💨`, `<@${interaction.user.id}> bets **🪙 ${fmt(cantidad, idioma)}** on **${nom(lado)}**… 🪙💨`));
+    const e = new EmbedBuilder().setColor('#a16207').setTitle(`${nom(lado)} · 🪙 ${fmt(cantidad, idioma)}`);
     if (gif) e.setImage('attachment://moneda.gif');
+    else e.setDescription(t(idioma, `<@${interaction.user.id}> apuesta **🪙 ${fmt(cantidad, idioma)}** a **${nom(lado)}**… 🪙💨`, `<@${interaction.user.id}> bets **🪙 ${fmt(cantidad, idioma)}** on **${nom(lado)}**… 🪙💨`));
     await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'moneda.gif' })] : [], allowedMentions: { parse: [] } });
     await espera(gif ? 1800 : 600);
     const { vuelta } = await cobrarJugada(client, cfg, a.jugada, premio, { lado, sale });
     const fin = EmbedBuilder.from(e).setColor(premio ? '#16a34a' : '#7f1d1d')
-        .setDescription(`${t(idioma, 'Ha salido', 'It’s')} **${nom(sale)}**\n\n${premio ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**!`, `🎉 You win **🪙 ${fmt(premio, idioma)}**!`) : t(idioma, '💨 ¡Mala suerte!', '💨 Bad luck!')}`)
+        .setDescription(gif ? null : `${t(idioma, 'Ha salido', 'It’s')} **${nom(sale)}**\n\n${premio ? t(idioma, `🎉 ¡Ganas **🪙 ${fmt(premio, idioma)}**!`, `🎉 You win **🪙 ${fmt(premio, idioma)}**!`) : t(idioma, '💨 ¡Mala suerte!', '💨 Bad luck!')}`)
         .setFooter({ text: pieSaldo(idioma, await saldoDe(interaction.guildId, interaction.user.id), vuelta) });
     await interaction.editReply({ embeds: [fin], components: [filaOtraVez('moneda', cantidad, idioma, lado)] });
     return { ok: true, premio };
@@ -248,11 +251,12 @@ function limpiarPartidas(client = null) {
 const barrerPartidas = (client) => limpiarPartidas(client);
 
 function vistaBlackjack(p, idioma, { fin = null, ocultar = true } = {}) {
-    const png = A.mesaBlackjack({ jugador: p.jugador, banca: p.banca, ocultar, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You'), lema: t(idioma, 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', 'BLACKJACK PAYS 3 TO 2 · DEALER STANDS ON 17') } });
+    const png = A.mesaBlackjack({ jugador: p.jugador, banca: p.banca, ocultar, resultado: fin?.resultado || null, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You'), lema: t(idioma, 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', 'BLACKJACK PAYS 3 TO 2 · DEALER STANDS ON 17') } });
     const e = new EmbedBuilder().setColor(fin ? (fin.mult > 1 ? '#16a34a' : fin.mult === 1 ? '#a16207' : '#7f1d1d') : '#14532d')
-        .setTitle(t(idioma, `🃏 Blackjack · 🪙 ${fmt(p.apuesta, idioma)}`, `🃏 Blackjack · 🪙 ${fmt(p.apuesta, idioma)}`))
-        .setDescription(fin ? fin.texto : t(idioma, `Tienes **${C.puntos(p.jugador).total}**. ¿Pides otra carta o te plantas?`, `You have **${C.puntos(p.jugador).total}**. Hit or stand?`));
+        .setTitle(t(idioma, `🃏 Blackjack · 🪙 ${fmt(p.apuesta * (p.doblada ? 2 : 1), idioma)}`, `🃏 Blackjack · 🪙 ${fmt(p.apuesta * (p.doblada ? 2 : 1), idioma)}`));
+    // 1.31.0: con la mesa dibujada (puntos y resultado incluidos) sobra el texto.
     if (png) e.setImage('attachment://mesa.png');
+    else e.setDescription(fin ? fin.texto : t(idioma, `Tienes **${C.puntos(p.jugador).total}**. ¿Pides otra carta o te plantas?`, `You have **${C.puntos(p.jugador).total}**. Hit or stand?`));
     const botones = fin ? [] : [new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cas_bj:${p.id}:pedir`).setLabel(t(idioma, 'Pedir', 'Hit')).setEmoji('➕').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(`cas_bj:${p.id}:plantarse`).setLabel(t(idioma, 'Plantarse', 'Stand')).setEmoji('✋').setStyle(ButtonStyle.Secondary),
@@ -303,7 +307,8 @@ async function terminarBlackjack(interaction, client, p, yaEditado = false) {
         pasa: t(idioma, `💥 Te has pasado (${C.puntos(p.jugador).total}). Pierdes **🪙 ${fmt(apuesta, idioma)}**.`, `💥 Bust (${C.puntos(p.jugador).total}). You lose **🪙 ${fmt(apuesta, idioma)}**.`),
         pierde: t(idioma, `😞 Gana la banca. Pierdes **🪙 ${fmt(apuesta, idioma)}**.`, `😞 Dealer wins. You lose **🪙 ${fmt(apuesta, idioma)}**.`),
     };
-    const v = vistaBlackjack(p, idioma, { ocultar: false, fin: { mult: r.mult, texto: `${t(idioma, 'Banca', 'Dealer')} **${C.puntos(p.banca).total}** · ${t(idioma, 'Tú', 'You')} **${C.puntos(p.jugador).total}**\n\n${textos[r.res]}` } });
+    const titulos = { blackjack: 'BLACKJACK!', gana: t(idioma, '¡GANAS!', 'YOU WIN!'), empate: t(idioma, 'EMPATE', 'PUSH'), pasa: t(idioma, 'TE PASAS', 'BUST'), pierde: t(idioma, 'GANA LA BANCA', 'DEALER WINS') };
+    const v = vistaBlackjack(p, idioma, { ocultar: false, fin: { mult: r.mult, resultado: { premio, apuesta, idioma, titulo: titulos[r.res] }, texto: `${t(idioma, 'Banca', 'Dealer')} **${C.puntos(p.banca).total}** · ${t(idioma, 'Tú', 'You')} **${C.puntos(p.jugador).total}**\n\n${textos[r.res]}` } });
     v.embeds[0].setFooter({ text: pieSaldo(idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
     v.components = [filaOtraVez('blackjack', p.apuesta, idioma)];
     await interaction.editReply(v).catch(() => {});
@@ -341,6 +346,8 @@ async function botonBlackjack(interaction, client) {
 // 🚀 Crash (en directo: el mensaje se actualiza mientras sube)
 // ---------------------------------------------------------------------------
 function vistaCrash(p, idioma, mult, estado) {
+    // 1.31.0: gráfica con el cohete; si no se puede dibujar, la barra de texto de siempre.
+    const png = A.graficaCrash({ mult, estado, punto: p.punto, cobradoEn: p.cobradoEn, apuesta: p.apuesta, auto: p.auto, idioma });
     const llenas = Math.min(12, Math.floor(Math.log(mult) / Math.log(1.25)));
     const cielo = `${'▰'.repeat(llenas)}${'▱'.repeat(12 - llenas)}`;
     const cohete = estado === 'boom' ? '💥' : estado === 'cobrado' ? '🪂' : '🚀';
@@ -350,9 +357,10 @@ function vistaCrash(p, idioma, mult, estado) {
         cobrado: () => t(idioma, `🪂 ¡Te has retirado a tiempo en **×${p.cobradoEn.toFixed(2)}**! Ganas **🪙 ${fmt(p.premio, idioma)}**.\nEl cohete explotó en ×${p.punto.toFixed(2)}.`, `🪂 You cashed out in time at **×${p.cobradoEn.toFixed(2)}**! You win **🪙 ${fmt(p.premio, idioma)}**.\nThe rocket blew up at ×${p.punto.toFixed(2)}.`),
         boom: () => t(idioma, `💥 **¡BOOM!** Ha explotado en **×${p.punto.toFixed(2)}**. Pierdes **🪙 ${fmt(p.apuesta, idioma)}**.`, `💥 **BOOM!** It blew up at **×${p.punto.toFixed(2)}**. You lose **🪙 ${fmt(p.apuesta, idioma)}**.`),
     })[estado]();
-    const e = new EmbedBuilder().setColor(color).setTitle(t(idioma, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`)).setDescription(texto);
+    const e = new EmbedBuilder().setColor(color).setTitle(t(idioma, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`, `🚀 Crash · 🪙 ${fmt(p.apuesta, idioma)}`));
+    if (png) e.setImage('attachment://crash.png'); else e.setDescription(texto);
     const comps = estado === 'vuela' ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_crash:${p.id}`).setStyle(ButtonStyle.Success).setEmoji('🪂').setLabel(t(idioma, `Retirarme (🪙 ${fmt(p.apuesta * mult, idioma)})`, `Cash out (🪙 ${fmt(p.apuesta * mult, idioma)})`)))] : [filaOtraVez('crash', p.apuesta, idioma, p.auto ? String(p.auto) : '')];
-    return { embeds: [e], components: comps };
+    return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'crash.png' })] : [], attachments: [] };
 }
 async function crash({ interaction, client, cfg, idioma, cantidad, auto = null }) {
     const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'crash', cantidad });
@@ -506,8 +514,12 @@ function vistaHilo(p, idioma, estado = 'juega', ultimo = null) {
     }[estado];
     const previo = ultimo === 'empate' ? t(idioma, '🤝 ¡Empate! Misma carta: sigues igual.\n', '🤝 Tie! Same card: nothing changes.\n') : ultimo === 'gana' ? t(idioma, '✅ ¡Acertaste!\n', '✅ Correct!\n') : '';
     const e = new EmbedBuilder().setColor(estado === 'pierde' ? '#7f1d1d' : estado === 'cobrado' ? '#16a34a' : '#1e3a8a')
-        .setTitle(t(idioma, `🃏 Mayor o menor · 🪙 ${fmt(p.apuesta, idioma)}`, `🃏 Higher or lower · 🪙 ${fmt(p.apuesta, idioma)}`)).setDescription(previo + texto);
-    if (png) e.setImage('attachment://hilo.png');
+        .setTitle(t(idioma, `🃏 Mayor o menor · 🪙 ${fmt(p.apuesta, idioma)}`, `🃏 Higher or lower · 🪙 ${fmt(p.apuesta, idioma)}`));
+    // 1.31.0: con la mesa (carta, historial y multiplicador) basta una línea: ✅/🤝 al jugar o el resultado al acabar.
+    if (png) {
+        e.setImage('attachment://hilo.png');
+        e.setDescription(estado === 'juega' ? (previo.trim() || null) : texto);
+    } else e.setDescription(previo + texto);
     const comps = estado === 'juega' ? [new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cas_hl:${p.id}:mayor`).setEmoji('⬆️').setStyle(ButtonStyle.Primary).setDisabled(!pMayor).setLabel(pMayor ? t(idioma, `Mayor ×${x(pMayor)}`, `Higher ×${pMayor}`) : t(idioma, 'Mayor', 'Higher')),
         new ButtonBuilder().setCustomId(`cas_hl:${p.id}:menor`).setEmoji('⬇️').setStyle(ButtonStyle.Primary).setDisabled(!pMenor).setLabel(pMenor ? t(idioma, `Menor ×${x(pMenor)}`, `Lower ×${pMenor}`) : t(idioma, 'Menor', 'Lower')),
@@ -580,8 +592,9 @@ function vistaRasca(p, idioma, fin = false) {
     const e = new EmbedBuilder().setColor(fin ? (premio > p.apuesta ? '#16a34a' : premio ? '#ca8a04' : '#7f1d1d') : '#7c3aed')
         .setTitle(t(idioma, `🎟️ Rasca y gana · 🪙 ${fmt(p.apuesta, idioma)}`, `🎟️ Scratch card · 🪙 ${fmt(p.apuesta, idioma)}`))
         .setDescription(fin
-            ? (p.boleto.premio ? t(idioma, `🎉 ¡Tres ${p.boleto.premio.simbolo}! Ganas **🪙 ${fmt(premio, idioma)}** (×${p.boleto.premio.mult}).`, `🎉 Three ${p.boleto.premio.simbolo}! You win **🪙 ${fmt(premio, idioma)}** (×${p.boleto.premio.mult}).`) : t(idioma, '💨 Sin premio esta vez.', '💨 No prize this time.'))
-            : t(idioma, `Rasca las casillas: si salen **3 iguales**, ganas.\n${tabla}`, `Scratch the tiles: get **3 of a kind** and you win.\n${tabla}`));
+            ? (p.boleto.premio ? `# +🪙 ${fmt(premio, idioma)}\n${p.boleto.premio.simbolo}×3 · ×${p.boleto.premio.mult}` : '# 💨')
+            : null)
+        .setFooter(fin ? null : { text: t(idioma, `3 iguales = premio · ${tabla}`, `3 of a kind wins · ${tabla}`) });
     return { embeds: [e], components: filas };
 }
 async function rasca({ interaction, client, cfg, idioma, cantidad }) {
@@ -681,14 +694,19 @@ function pista(pos, ganador = null) {
 function vistaCarrera(car, idioma, { pos = null, ganador = null, fase = 'apuestas' } = {}) {
     const apuestas = [...car.apuestas.values()];
     const total = apuestas.reduce((s, a) => s + a.cantidad, 0);
+    // 1.31.0: la pista es una imagen (se repinta en cada paso); el texto, lo justo.
+    const apostados = {};
+    for (const a of apuestas) if (a.cantidad) apostados[a.corredor] = (apostados[a.corredor] || 0) + 1;
+    const png = A.pistaCarrera({ pos, ganador, apostados });
     const e = new EmbedBuilder().setColor(fase === 'fin' ? '#16a34a' : '#b45309')
         .setTitle(t(idioma, '🏇 ¡Carrera!', '🏇 Race!'))
-        .setDescription(`${pista(pos, ganador)}\n\n${fase === 'apuestas'
-            ? t(idioma, `Apuestas abiertas hasta <t:${Math.floor(car.cierra / 1000)}:R>. Elige corredor y cuánto. Cuotas: ${C.CORREDORES.map((c) => `${c.emoji} ×${C.cuota(c.id)}`).join(' · ')}`, `Bets open until <t:${Math.floor(car.cierra / 1000)}:R>. Pick a runner and how much. Odds: ${C.CORREDORES.map((c) => `${c.emoji} ×${C.cuota(c.id)}`).join(' · ')}`)
-            : fase === 'corre' ? t(idioma, '¡Y salen! 📣', 'And they’re off! 📣') : ''}`)
+        .setDescription(`${png ? '' : `${pista(pos, ganador)}\n\n`}${fase === 'apuestas'
+            ? t(idioma, `⏱️ Apuestas hasta <t:${Math.floor(car.cierra / 1000)}:R>`, `⏱️ Bets close <t:${Math.floor(car.cierra / 1000)}:R>`)
+            : fase === 'corre' ? t(idioma, '📣 ¡Y salen!', '📣 And they’re off!') : ''}` || null)
         .addFields({ name: t(idioma, `💰 Apuestas (${apuestas.length}) · 🪙 ${fmt(total, idioma)}`, `💰 Bets (${apuestas.length}) · 🪙 ${fmt(total, idioma)}`), value: apuestas.slice(0, 15).map((a) => `<@${a.userId}> → ${C.CORREDORES.find((c) => c.id === a.corredor).emoji} 🪙 ${fmt(a.cantidad, idioma)}`).join('\n') || '—' });
     const comps = fase === 'apuestas' ? [new ActionRowBuilder().addComponents(C.CORREDORES.map((c) => new ButtonBuilder().setCustomId(`cas_car:${car.id}:${c.id}`).setEmoji(c.emoji).setLabel(`×${C.cuota(c.id)}`).setStyle(ButtonStyle.Secondary)))] : [];
-    return { embeds: [e], components: comps, allowedMentions: { parse: [] } };
+    if (png) e.setImage('attachment://carrera.png');
+    return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'carrera.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
 }
 async function carrera({ interaction, client, cfg, idioma }) {
     const c = cfg?.casino;
@@ -707,7 +725,7 @@ async function correr(client, car) {
     const apuestas = [...car.apuestas.values()];
     if (!apuestas.length) {
         carreras.delete(car.canalId);
-        await car.interaction.editReply({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🏇 Nadie ha apostado: carrera cancelada.', '🏇 Nobody bet: race cancelled.'))], components: [] }).catch(() => {});
+        await car.interaction.editReply({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🏇 Nadie ha apostado: carrera cancelada.', '🏇 Nobody bet: race cancelled.'))], components: [], files: [], attachments: [] }).catch(() => {});
         return;
     }
     const ganador = C.ganadorCarrera();
@@ -726,7 +744,7 @@ async function correr(client, car) {
     }
     const emo = C.CORREDORES.find((c) => c.id === ganador).emoji;
     const v = vistaCarrera(car, idioma, { pos: pasos[pasos.length - 1], ganador, fase: 'fin' });
-    v.embeds[0].setDescription(`${pista(pasos[pasos.length - 1], ganador)}\n\n${t(idioma, `🏆 ¡Gana ${emo}!`, `🏆 ${emo} wins!`)}\n${lineas.join('\n') || t(idioma, 'Nadie había apostado por él… 😅', 'Nobody had bet on it… 😅')}`);
+    v.embeds[0].setDescription(`${v.files.length ? '' : `${pista(pasos[pasos.length - 1], ganador)}\n\n`}${t(idioma, `🏆 ¡Gana ${emo}!`, `🏆 ${emo} wins!`)}\n${lineas.join('\n') || '😅'}`);
     await car.interaction.editReply(v).catch(() => {});
 }
 async function botonCarrera(interaction) {

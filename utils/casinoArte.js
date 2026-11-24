@@ -102,11 +102,41 @@ function redondeado(ctx, x, y, w, h, r) {
 const facil = (t) => 1 - Math.pow(1 - t, 3);
 
 // ---------------------------------------------------------------------------
+// Resultado dentro de la imagen (1.31.0): una pastilla grande con lo que ganas o
+// pierdes, para que el mensaje no necesite frases. `res` = { premio, apuesta, idioma,
+// bote, mult }. Verde si ganas, ámbar si recuperas algo, rojo si pierdes.
+// ---------------------------------------------------------------------------
+const cifra = (n, idioma = 'es') => Math.round(n || 0).toLocaleString(idioma === 'en' ? 'en-US' : 'es-ES');
+function textoResultado(res) {
+    const { premio = 0, apuesta = 0, idioma = 'es', bote = false, mult = 0 } = res || {};
+    if (bote) return { texto: `💎 ${idioma === 'en' ? 'JACKPOT' : 'BOTE'}  +🪙 ${cifra(premio, idioma)}`, color: '#a855f7', borde: '#f0abfc' };
+    if (premio > apuesta) return { texto: `${mult ? `×${String(mult).replace('.', idioma === 'en' ? '.' : ',')}  ` : ''}+🪙 ${cifra(premio, idioma)}`, color: '#15803d', borde: '#86efac' };
+    if (premio > 0) return { texto: `↩ 🪙 ${cifra(premio, idioma)}`, color: '#a16207', borde: '#fde68a' };
+    if (!apuesta) return { texto: '💨', color: '#475569', borde: '#94a3b8' }; // tirada gratis sin premio: no pierdes nada
+    return { texto: `−🪙 ${cifra(apuesta, idioma)}`, color: '#991b1b', borde: '#fca5a5' };
+}
+// Pinta la pastilla centrada en (cx, cy). `brillo` (0..1) la hace latir en los GIF.
+function pastillaResultado(ctx, cx, cy, res, { tam = 30, brillo = 0 } = {}) {
+    const r = textoResultado(res);
+    ctx.save();
+    ctx.font = `900 ${tam}px ${FUENTE}`;
+    const w = Math.min(ctx.measureText(r.texto).width + tam * 1.6, 1000);
+    const h = tam * 1.65;
+    ctx.shadowColor = r.borde; ctx.shadowBlur = 10 + 18 * brillo;
+    redondeado(ctx, cx - w / 2, cy - h / 2, w, h, h / 2); ctx.fillStyle = r.color; ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 3; ctx.strokeStyle = r.borde; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(r.texto, cx, cy + 1);
+    ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
 // 🎰 Tragaperras
 // ---------------------------------------------------------------------------
-async function gifTragaperras(rodillos, { mult = 0, bote = false } = {}) {
+async function gifTragaperras(rodillos, { mult = 0, bote = false, resultado = null } = {}) {
     if (!listo()) return null;
-    const W = 480; const H = 250;
+    const W = 480; const H = resultado ? 300 : 250;
     const sims = await Promise.all(C.SIMBOLOS.map((s) => imagen(s.svg)));
     const img = (id) => sims[C.SIMBOLOS.findIndex((s) => s.id === id)];
     // Tiras de cada rodillo: símbolos al azar y, al final, el que sale.
@@ -165,7 +195,9 @@ async function gifTragaperras(rodillos, { mult = 0, bote = false } = {}) {
         ctx.strokeStyle = brilla ? '#fde047' : 'rgba(251,191,36,0.55)';
         ctx.lineWidth = brilla ? 6 : 3;
         ctx.beginPath(); ctx.moveTo(26, 115); ctx.lineTo(W - 26, 115); ctx.stroke();
-        if (fin && mult > 0) {
+        if (fin && resultado) {
+            pastillaResultado(ctx, W / 2, 252, { ...resultado, mult, bote }, { tam: 28, brillo: brilla ? 1 : 0 });
+        } else if (fin && mult > 0) {
             ctx.font = `bold 34px ${FUENTE}`; ctx.textAlign = 'center';
             const texto = bote ? '💎 ¡BOTE! 💎' : `×${mult}`;
             ctx.lineWidth = 6; ctx.strokeStyle = '#7c2d12'; ctx.strokeText(texto, W / 2, 228);
@@ -202,9 +234,10 @@ function rueda(R) {
     ruedaCache = c;
     return c;
 }
-async function gifRuleta(numero) {
+async function gifRuleta(numero, { resultado = null } = {}) {
     if (!listo()) return null;
-    const W = 360; const H = 360; const R = 170;
+    const W = 360; const H = resultado ? 420 : 360; const R = 170;
+    const CY = 186; // centro de la rueda (la pastilla del resultado va debajo)
     const r = rueda(R);
     const n = C.ORDEN_RUEDA.length; const paso = (Math.PI * 2) / n;
     const idx = C.ORDEN_RUEDA.indexOf(numero);
@@ -218,16 +251,17 @@ async function gifRuleta(numero) {
         ctx.fillStyle = '#0b3d2e'; ctx.fillRect(0, 0, W, H);
         const t = Math.min(1, f / (TOTAL - 6));
         const ang = inicio + (final - inicio) * facil(t);
-        ctx.save(); ctx.translate(W / 2, H / 2 + 6); ctx.rotate(ang); ctx.drawImage(r, -R, -R); ctx.restore();
+        ctx.save(); ctx.translate(W / 2, CY); ctx.rotate(ang); ctx.drawImage(r, -R, -R); ctx.restore();
         // La bola, arriba del todo (gira con la rueda al principio y se asienta)
-        const bolaY = H / 2 + 6 - (R - 24) - (t < 1 ? 10 * Math.abs(Math.sin(f * 1.3)) : 0);
+        const bolaY = CY - (R - 24) - (t < 1 ? 10 * Math.abs(Math.sin(f * 1.3)) : 0);
         ctx.beginPath(); ctx.arc(W / 2, bolaY - 18, 8, 0, Math.PI * 2); ctx.fillStyle = '#f8fafc'; ctx.fill();
         // Flecha
         ctx.beginPath(); ctx.moveTo(W / 2 - 12, 2); ctx.lineTo(W / 2 + 12, 2); ctx.lineTo(W / 2, 22); ctx.closePath(); ctx.fillStyle = '#fbbf24'; ctx.fill();
         if (t >= 1) {
-            ctx.beginPath(); ctx.arc(W / 2, H / 2 + 6, 58, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+            ctx.beginPath(); ctx.arc(W / 2, CY, 58, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
             ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 4; ctx.stroke();
-            ctx.fillStyle = '#ffffff'; ctx.font = `bold 52px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(String(numero), W / 2, H / 2 + 25);
+            ctx.fillStyle = '#ffffff'; ctx.font = `bold 52px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(String(numero), W / 2, CY + 19);
+            if (resultado) pastillaResultado(ctx, W / 2, 386, resultado, { tam: 24, brillo: f % 2 });
         }
         frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 60 + Math.round(90 * t * t) : 200 });
     }
@@ -237,9 +271,9 @@ async function gifRuleta(numero) {
 // ---------------------------------------------------------------------------
 // 🪙 Moneda
 // ---------------------------------------------------------------------------
-async function gifMoneda(resultado) {
+async function gifMoneda(resultado, { res = null, textos = null } = {}) {
     if (!listo()) return null;
-    const W = 260; const H = 260;
+    const W = 260; const H = res ? 310 : 260;
     const [corona, estrella] = await Promise.all([imagen('1f451'), imagen('2b50')]);
     const TOTAL = 26; const vueltas = 5;
     const frames = [];
@@ -254,9 +288,9 @@ async function gifMoneda(resultado) {
         const ang = finalAng + Math.PI * 2 * vueltas * (1 - facil(t));
         const esc = Math.cos(ang);
         const altura = Math.sin(Math.PI * Math.min(1, t * 1.05)) * 60;
-        const cy = H / 2 + 10 - altura;
+        const cy = 140 - altura;
         // Sombra en el suelo
-        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(W / 2, H - 30, 60 - altura / 3, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(W / 2, 230, 60 - altura / 3, 10, 0, 0, Math.PI * 2); ctx.fill();
         ctx.save(); ctx.translate(W / 2, cy); ctx.scale(Math.max(0.06, Math.abs(esc)), 1);
         const oro = ctx.createLinearGradient(-80, -80, 80, 80);
         oro.addColorStop(0, '#fde68a'); oro.addColorStop(0.5, '#f59e0b'); oro.addColorStop(1, '#b45309');
@@ -268,7 +302,8 @@ async function gifMoneda(resultado) {
         ctx.restore();
         if (t >= 1) {
             ctx.fillStyle = '#ffffff'; ctx.font = `bold 30px ${FUENTE}`; ctx.textAlign = 'center';
-            ctx.fillText(resultado === 'cara' ? '👑 CARA' : '⭐ CRUZ', W / 2, 36);
+            ctx.fillText(resultado === 'cara' ? (textos?.cara || '👑 CARA') : (textos?.cruz || '⭐ CRUZ'), W / 2, 36);
+            if (res) pastillaResultado(ctx, W / 2, 274, res, { tam: 22, brillo: f % 2 });
         }
         frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 55 : 150 });
     }
@@ -296,7 +331,7 @@ function carta(ctx, x, y, c, oculta = false) {
     ctx.font = `20px ${FUENTE}`; ctx.fillText(palo, x + 8, y + 48);
     ctx.textAlign = 'center'; ctx.font = `40px ${FUENTE}`; ctx.fillText(palo, x + w / 2 + 6, y + h - 18);
 }
-function mesaBlackjack({ jugador, banca, ocultar = true, textos = {} }) {
+function mesaBlackjack({ jugador, banca, ocultar = true, textos = {}, resultado = null }) {
     if (!canvasLib) return null;
     const W = 640; const H = 380;
     const { c, ctx } = lienzo(W, H);
@@ -306,8 +341,10 @@ function mesaBlackjack({ jugador, banca, ocultar = true, textos = {} }) {
     ctx.strokeStyle = '#a16207'; ctx.lineWidth = 10; redondeado(ctx, 5, 5, W - 10, H - 10, 22); ctx.stroke();
     ctx.strokeStyle = 'rgba(253,230,138,0.35)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(W / 2, -260, 470, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
-    ctx.fillStyle = 'rgba(253,230,138,0.55)'; ctx.font = `bold 14px ${FUENTE}`; ctx.textAlign = 'center';
-    ctx.fillText(textos.lema || 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', W / 2, H / 2 + 6);
+    if (!resultado) {
+        ctx.fillStyle = 'rgba(253,230,138,0.55)'; ctx.font = `bold 14px ${FUENTE}`; ctx.textAlign = 'center';
+        ctx.fillText(textos.lema || 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', W / 2, H / 2 + 6);
+    }
     const fila = (mano, y, ocultarSegunda) => {
         const total = mano.length * 60 + 12;
         const x0 = W / 2 - total / 2;
@@ -319,7 +356,175 @@ function mesaBlackjack({ jugador, banca, ocultar = true, textos = {} }) {
     const pb = ocultar ? `${C.valorCarta(banca[0])} + ?` : String(C.puntos(banca).total);
     ctx.fillText(`${textos.banca || 'Banca'}: ${pb}`, 24, 30 + 6);
     ctx.fillText(`${textos.tu || 'Tú'}: ${C.puntos(jugador).total}`, 24, 236 + 6);
+    // Al acabar: la pastilla con lo ganado/perdido y, encima, la palabra clave (BLACKJACK, EMPATE…).
+    if (resultado) {
+        if (resultado.titulo) {
+            ctx.font = `900 22px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fef3c7';
+            ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 6;
+            ctx.fillText(resultado.titulo, W / 2, 158); ctx.shadowBlur = 0;
+        }
+        pastillaResultado(ctx, W / 2, 196, resultado, { tam: 24, brillo: 1 });
+    }
     return c.toBuffer('image/png');
+}
+
+// ---------------------------------------------------------------------------
+// 🚀 Crash (1.31.0): el cielo, la curva que sube, el cohete en la punta y el
+// multiplicador enorme. `estado`: vuela | cobrado | boom.
+// ---------------------------------------------------------------------------
+function graficaCrash({ mult = 1, estado = 'vuela', punto = null, cobradoEn = null, apuesta = 0, auto = null, idioma = 'es' }) {
+    if (!canvasLib) return null;
+    const W = 640; const H = 320;
+    const { c, ctx } = lienzo(W, H);
+    const boom = estado === 'boom'; const cobrado = estado === 'cobrado';
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, boom ? '#450a0a' : cobrado ? '#052e16' : '#0b1026'); g.addColorStop(1, boom ? '#1c0606' : '#111827');
+    redondeado(ctx, 0, 0, W, H, 24); ctx.fillStyle = g; ctx.fill();
+    // Estrellas fijas (siempre las mismas: no parpadean entre ediciones)
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for (let i = 0; i < 40; i++) { const x = (i * 137) % W; const y = (i * 71) % (H - 60); ctx.fillRect(x, y, i % 3 ? 1.5 : 2.5, i % 3 ? 1.5 : 2.5); }
+    // Zona del gráfico
+    const X0 = 40; const Y0 = H - 34; const X1 = W - 40; const Y1 = 70;
+    const hasta = Math.max(mult, cobrado && punto ? punto : mult);
+    const tope = Math.max(2, hasta * 1.18);
+    const yDe = (m) => Y0 - ((m - 1) / (tope - 1)) * (Y0 - Y1);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    ctx.font = `bold 12px ${FUENTE}`; ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.textAlign = 'left';
+    const pasoRejilla = tope > 20 ? 5 : tope > 6 ? 2 : tope > 3 ? 0.5 : 0.25;
+    for (let m = 1; m <= tope; m += pasoRejilla) {
+        const y = yDe(m); ctx.beginPath(); ctx.moveTo(X0, y); ctx.lineTo(X1, y); ctx.stroke();
+        ctx.fillText(`×${Math.round(m * 100) / 100}`, 8, y + 4);
+    }
+    // Curva exponencial de 1 a `m` ocupando el ancho proporcional a su tiempo.
+    const largo = (m) => Math.min(1, C.segundosHasta(m) / Math.max(C.segundosHasta(hasta), 0.001));
+    const curva = (m, color, ancho, discontinua = false) => {
+        const L = largo(m); const pasos = 48;
+        ctx.save(); if (discontinua) ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        for (let i = 0; i <= pasos; i++) {
+            const k = (i / pasos) * L;
+            const mm = Math.exp(Math.log(hasta) * k) || 1;
+            const x = X0 + k * (X1 - X0 - 30); const y = yDe(mm);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color; ctx.lineWidth = ancho; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+        return { x: Math.max(X0 + 34, X0 + L * (X1 - X0 - 30)), y: Math.min(Y0 - 24, yDe(m)) };
+    };
+    // Relleno bajo la curva
+    const color = boom ? '#ef4444' : cobrado ? '#22c55e' : mult >= 5 ? '#f59e0b' : '#38bdf8';
+    let punta;
+    if (cobrado && punto) {
+        curva(punto, 'rgba(255,255,255,0.25)', 3, true);
+        punta = curva(cobradoEn || mult, color, 6);
+    } else {
+        punta = curva(mult, color, 6);
+    }
+    // El cohete (o la explosión / el paracaídas) en la punta
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${boom ? 64 : 44}px ${FUENTE}`;
+    ctx.fillText(boom ? '💥' : cobrado ? '🪂' : '🚀', punta.x, punta.y - (boom ? 0 : 6));
+    if (auto && estado === 'vuela') {
+        const y = yDe(Math.min(auto, tope)); ctx.save(); ctx.setLineDash([4, 6]); ctx.strokeStyle = 'rgba(134,239,172,0.7)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(X0, y); ctx.lineTo(X1, y); ctx.stroke(); ctx.restore();
+        ctx.font = `bold 13px ${FUENTE}`; ctx.fillStyle = '#86efac'; ctx.textAlign = 'left'; ctx.fillText(`🪂 ×${auto}`, X0 + 4, y + 18);
+    }
+    // Multiplicador grande arriba a la izquierda
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    const enorme = boom ? (punto || mult) : cobrado ? (cobradoEn || mult) : mult;
+    ctx.font = `900 54px ${FUENTE}`; ctx.fillStyle = boom ? '#fca5a5' : '#ffffff';
+    ctx.shadowColor = color; ctx.shadowBlur = 18;
+    ctx.fillText(`×${enorme.toFixed(2)}`, 28, 62); ctx.shadowBlur = 0;
+    if (boom) { ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(24, 44); ctx.lineTo(28 + ctx.measureText(`×${enorme.toFixed(2)}`).width + 4, 44); ctx.stroke(); }
+    // Lo que te llevarías / lo que te has llevado / lo que pierdes
+    const res = boom ? { premio: 0, apuesta, idioma } : { premio: Math.floor(apuesta * (cobrado ? (cobradoEn || mult) : mult)), apuesta, idioma };
+    if (estado === 'vuela') {
+        ctx.font = `bold 22px ${FUENTE}`; ctx.fillStyle = '#e0f2fe'; ctx.textAlign = 'right';
+        ctx.fillText(`🪙 ${cifra(res.premio, idioma)}`, W - 28, 52);
+    } else {
+        pastillaResultado(ctx, W - 150, 48, res, { tam: 22, brillo: 1 });
+    }
+    return c.toBuffer('image/png');
+}
+
+// ---------------------------------------------------------------------------
+// 🏇 Pista de la carrera (1.31.0): un carril por corredor, la meta a la izquierda
+// (los dibujos miran a la izquierda), su cuota y el trofeo para el que gana.
+// pos = { caballo: 0..1, … } (0 = salida, 1 = meta).
+// ---------------------------------------------------------------------------
+function pistaCarrera({ pos = null, ganador = null, apostados = {} } = {}) {
+    if (!canvasLib) return null;
+    const W = 640; const carril = 52; const H = 24 + C.CORREDORES.length * carril + 14;
+    const { c, ctx } = lienzo(W, H);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#3f6212'); g.addColorStop(1, '#14532d');
+    redondeado(ctx, 0, 0, W, H, 22); ctx.fillStyle = g; ctx.fill();
+    const META = 70; const SALIDA = W - 90;
+    C.CORREDORES.forEach((cor, i) => {
+        const y = 24 + i * carril;
+        ctx.fillStyle = i % 2 ? 'rgba(120,53,15,0.55)' : 'rgba(146,64,14,0.55)';
+        ctx.fillRect(META - 20, y, SALIDA - META + 70, carril - 6);
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(META - 20, y + carril - 7, SALIDA - META + 70, 1);
+        // Número del carril
+        ctx.font = `bold 16px ${FUENTE}`; ctx.fillStyle = '#fef3c7'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(i + 1), 22, y + carril / 2 - 3);
+        // Cuota y gente que le ha apostado
+        ctx.font = `bold 13px ${FUENTE}`; ctx.fillStyle = '#fde68a'; ctx.textAlign = 'right';
+        ctx.fillText(`×${String(C.cuota(cor.id)).replace('.', ',')}${apostados[cor.id] ? `  👤${apostados[cor.id]}` : ''}`, W - 14, y + carril / 2 - 3);
+        // El corredor
+        const avance = Math.max(0, Math.min(1, pos?.[cor.id] || 0));
+        const x = SALIDA - avance * (SALIDA - META);
+        ctx.font = `36px ${FUENTE}`; ctx.textAlign = 'center';
+        if (ganador && ganador !== cor.id) ctx.globalAlpha = 0.55;
+        ctx.fillText(cor.emoji, x, y + carril / 2 - 2);
+        ctx.globalAlpha = 1;
+        if (ganador === cor.id) { ctx.font = `28px ${FUENTE}`; ctx.fillText('🏆', x + 38, y + carril / 2 - 4); }
+    });
+    // Meta a cuadros
+    for (let yy = 24; yy < H - 14; yy += 10) {
+        for (let k = 0; k < 2; k++) { ctx.fillStyle = ((yy / 10 + k) % 2 < 1) ? '#ffffff' : '#111827'; ctx.fillRect(META - 30 + k * 8, yy, 8, 10); }
+    }
+    ctx.textBaseline = 'alphabetic';
+    return c.toBuffer('image/png');
+}
+
+// ---------------------------------------------------------------------------
+// 🎲 Dado (1.31.0): rueda por la mesa dando botes y cae en el número.
+// ---------------------------------------------------------------------------
+const PUNTOS_DADO = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+function caraDado(ctx, cx, cy, lado, n, giro = 0) {
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(giro);
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+    redondeado(ctx, -lado / 2, -lado / 2, lado, lado, lado * 0.2);
+    const g = ctx.createLinearGradient(-lado / 2, -lado / 2, lado / 2, lado / 2);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e2e8f0'); ctx.fillStyle = g; ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2; ctx.stroke();
+    for (const [x, y] of PUNTOS_DADO[n]) {
+        ctx.beginPath(); ctx.arc(x * lado * 0.27, y * lado * 0.27, lado * 0.085, 0, Math.PI * 2);
+        ctx.fillStyle = n === 1 ? '#dc2626' : '#111827'; ctx.fill();
+    }
+    ctx.restore();
+}
+async function gifDado(numeroDado) {
+    if (!listo()) return null;
+    const W = 300; const H = 240;
+    const TOTAL = 22; const frames = [];
+    const caras = [...Array(TOTAL)].map((_, i) => (i >= TOTAL - 6 ? numeroDado : 1 + ((i * 5 + numeroDado) % 6)));
+    for (let f = 0; f < TOTAL; f++) {
+        const { ctx } = lienzo(W, H);
+        const g = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W / 1.1);
+        g.addColorStop(0, '#166534'); g.addColorStop(1, '#052e16');
+        redondeado(ctx, 0, 0, W, H, 22); ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = '#a16207'; ctx.lineWidth = 6; redondeado(ctx, 3, 3, W - 6, H - 6, 20); ctx.stroke();
+        const t = Math.min(1, f / (TOTAL - 6));
+        const x = 50 + (W / 2 - 50) * facil(t);
+        const bote = Math.abs(Math.sin(t * Math.PI * 3)) * 60 * (1 - t);
+        const y = H / 2 + 20 - bote;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, H / 2 + 72, 46 - bote / 4, 9, 0, 0, Math.PI * 2); ctx.fill();
+        caraDado(ctx, x, y, 96, caras[f], (1 - facil(t)) * Math.PI * 4);
+        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 60 + Math.round(60 * t) : 140 });
+    }
+    return aGif(frames, W, H);
 }
 
 // 🃏 Mesa de «Mayor o menor» (1.25.0): la carta actual grande, las anteriores pequeñas y lo que llevas.
@@ -565,4 +770,6 @@ async function bannerCasino({ titulo = 'CASINO', subtitulo = '', boteTexto = '',
     return Buffer.from(gif.bytes());
 }
 
-module.exports = { mesaHilo, bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+// Las que se dibujan sin esperar (PNG): si algo falla al pintar, null (el juego sigue con texto).
+const seguro = (fn) => (...a) => { try { return fn(...a); } catch (e) { console.error(`Arte (${fn.name}):`, e.message); return null; } };
+module.exports = { mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

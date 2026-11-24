@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.30.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.31.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,21 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.31.0 **Mascotas, casino y niveles en imagen, con muy poco texto** (tests en `test/visual131.test.js`):
+  - Casino (`utils/casinoArte.js`): `pastillaResultado`/`textoResultado` pintan +🪙/−🪙 (↩ si recuperas algo, 💨 en la tirada
+    gratis sin premio) en el último fotograma de tragaperras, ruleta y moneda (`resultado`/`res`) y en la mesa de blackjack.
+    Nuevos `graficaCrash` (PNG que se repinta en cada edición del crash), `pistaCarrera` (PNG por paso de la carrera) y
+    `gifDado`. En `utils/casino.js` los embeds solo llevan título (juego · apuesta) y pie corto (`pieSaldo`: oro · /casino
+    pausa); el texto largo de antes solo sale si no se pudo dibujar. Toda edición que cambia la imagen lleva `files` +
+    `attachments: []`.
+  - `utils/arteVistas.js`: `tarjetaGranja`, `tarjetaPase`, `tarjetaLogros`, `tarjetaDiario` y `tarjetaRanking`. Reciben datos
+    ya calculados (sin BD) y, si algo falla al pintar, devuelven null (envueltas en `seguro`) y la vista vuelve al texto.
+    Granja/álbum/pase/logros (`granja.js`, `pase.js`) y `/diario`, `!ranking`, `!dado`, `!moneda` las usan. Las
+    explicaciones largas («Cómo producir más», «Cómo se gana XP») pasan a los botones ❔ `grj:info` y `pse:info` (privado).
+  - `/compi` (`compisArte.js`): franja de abajo (`datos.extra`: misiones, racha, expediciones, recuerdos, poder); con imagen,
+    el embed solo deja los mensajes, la habilidad y «Te da en este servidor» (pie: cuándo estará listo el poder).
+  - Probado con MongoDB real (Docker `mongo:7` con replica set) y un script de interacciones simuladas que recorre las 22
+    vistas (vivía en el scratchpad).
 - 1.30.0 **Todo por servidor**: en cada servidor todos empiezan de 0 y compiten con los de allí. **Oro**: `models/Monedero.js`
   (`guildId + discordId`: balance, mochila, diario, boost de XP). `utils/economia.js` ya NO exporta `darOro`/`cobrar`/…: se usa
   SIEMPRE `economia.en(guildId).darOro(userId, n)` (lanza error sin servidor; así no se puede dar oro «en ningún sitio»). El
@@ -764,13 +779,13 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   `compis.accion` (cuidar/expedición/carta + misiones), `granja.recoger` y `premiarHitos`, `cofres.abrir`,
   `cartas.abrir` (sobre + series) y `casino.cobrarJugada`. Tickets: `cofres.abrir`/`cartas.abrir` aceptan
   `ticket` (gasta el ticket en vez de oro; si falla, lo devuelve). `/pase` (`slash/pass.js`, botones
-  `pse:ver|log|abrir|tk:<clave>:<owner>`). **`/empezar`** (`slash/start.js`, `utils/empezar.js`, botones `emp:…`): guía
+  `pse:ver|log|abrir|info|tk:<clave>:<owner>`). **`/empezar`** (`slash/start.js`, `utils/empezar.js`, botones `emp:…`): guía
   para quien no tiene ni idea, con `siguientePaso()` (pura: diario → primer cofre → tickets → granja → cuidar →
   misiones → primer sobre → expedición → pase) y temas explicados en sencillo. Está en `/ayuda`, en el lobby del
   casino («¿Nuevo? Empieza aquí») y en los avisos de «aún no tienes mascotas». Copia de números para el panel en
   `lib/casino.js` (`PASE`, comprobado en test/casino.test.js). Si cambias lo que dice la guía, que sea verdad en el bot.
 - 1.28.0 **Granja, álbum y misiones semanales** (1.30.0: por servidor, como el oro). Reglas puras en `utils/granjaNucleo.js`
-  (test/granja.test.js); Discord en `utils/granja.js` (botones `grj:ver|rec|alb|abrir:<owner>`; sin dueño o de otra persona
+  (test/granja.test.js); Discord en `utils/granja.js` (botones `grj:ver|rec|alb|abrir|info:<owner>`; sin dueño o de otra persona
   → se abre la suya en privado) y `/granja` (`slash/farm.js`). Granja: las mejores mascotas (huecos = 3 + hitos con hueco)
   producen `PRODUCCION[rareza]` oro/h × (1 + 0,15·(★−1)) × (1 + 0,02·nivel) × cuidado (0,5–1,2 según barriga y alegría);
   de expedición, 0. Se guarda hasta `TOPE_H` = 12 h; la primera vez solo arranca (`granja.desde`), sin oro retroactivo.

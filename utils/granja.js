@@ -1,6 +1,6 @@
 // Granja, álbum de mascotas y misiones semanales (1.28.0) en Discord. Reglas en utils/granjaNucleo.js.
 // Botones: grj:ver:<owner> · grj:rec:<owner> · grj:alb:<owner>. Se abre desde /compi, el cofre y el lobby del casino.
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const ColeccionMascotas = require('../models/ColeccionMascotas.js');
 const K = require('./cofresNucleo.js');
 const P = require('./compisNucleo.js');
@@ -85,10 +85,32 @@ function tiempo(ms, idioma) {
     return h ? `${h} h ${min % 60} min` : `${min} min`;
 }
 
+// Lo que antes iba siempre debajo («Cómo producir más»): ahora sale solo al pulsar ❔.
+const textoAyuda = (idioma) => t(idioma,
+    '**🧺 Cómo producir más**\n· Trabajan las que más producen. Más rareza, ★ y nivel = más oro.\n· Bien cuidadas producen hasta ×1,2; con hambre o tristes (😢), la mitad.\n· Las que están de expedición no producen.\n· El álbum (📖) abre más huecos.\n· El granero guarda hasta ' + G.TOPE_H + ' h: vuelve a recogerlo.',
+    '**🧺 How to make more**\n· The best producers work. Higher rarity, ★ and level = more gold.\n· Well cared for, up to ×1.2; hungry or sad (😢), half.\n· Pets on an expedition don’t produce.\n· The album (📖) unlocks more slots.\n· The barn holds up to ' + G.TOPE_H + ' h: come back to collect it.');
+
+// Datos de la imagen de la granja (utils/arteVistas.js).
+function datosGranja(col, a, huecos, idioma, ahora) {
+    const id = G.semanaDe(ahora);
+    const s = col.semana && col.semana.id === id ? col.semana : { prog: {}, hechas: [] };
+    const sig = G.siguienteHito(col);
+    return {
+        oro: a.oro, frac: a.nueva ? 0 : a.horas / G.TOPE_H, lleno: a.lleno, nueva: a.nueva, porHora: a.porHora, huecos, idioma,
+        equipo: a.equipo.map(({ m, oroH }) => ({ id: m.id, estrellas: m.estrellas, oroH, triste: G.factorCuidado(m, ahora) < 0.8 })),
+        album: { n: G.distintas(col), total: G.TOTAL(), sig: sig ? t(idioma, `Próximo: ${nombreHito(sig, idioma)}`, `Next: ${nombreHito(sig, idioma)}`) : '👑', sig2: sig ? `+🪙 ${fmt(sig.oro, idioma)}${sig.hueco ? ' +🧺' : ''}` : '' },
+        semana: Object.entries(G.MISIONES_SEMANA).map(([k, d]) => ({ emoji: d.emoji, n: d.n, prog: (s.prog || {})[k] || 0, hecha: (s.hechas || []).includes(k) })),
+        textos: {
+            titulo: t(idioma, 'TU GRANJA', 'YOUR FARM'), porHora: '/h', album: t(idioma, 'Álbum', 'Album'), semana: t(idioma, 'Misiones de la semana', 'This week’s missions'),
+            listo: t(idioma, 'para recoger', 'to collect'), lleno: t(idioma, '¡granero lleno! recógelo', 'barn full! collect it'), empezar: t(idioma, 'pulsa «Empezar»', 'press “Start”'),
+        },
+    };
+}
+
 async function vistaGranja(guildId, userId, idioma, mensajes = [], ahora = Date.now()) {
     const hitos = await premiarHitos(guildId, userId);
     const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
-    if (!col || !(col.mascotas || []).length) return { content: t(idioma, FALLOS.sin[0], FALLOS.sin[1]), embeds: [], components: [] };
+    if (!col || !(col.mascotas || []).length) return { content: t(idioma, FALLOS.sin[0], FALLOS.sin[1]), embeds: [], components: [], files: [], attachments: [] };
     const a = G.acumulado(col, ahora);
     const huecos = G.huecos(col);
     const lineas = a.equipo.map(({ m, oroH }) => `${K.def(m.id).emoji} **${nombre(m, idioma)}** ${'★'.repeat(m.estrellas || 1)} · 🪙 ${dec(oroH, idioma)}/h${G.factorCuidado(m, ahora) < 0.8 ? t(idioma, ' · 😢 cuídala y producirá más', ' · 😢 look after it to produce more') : ''}`);
@@ -96,6 +118,8 @@ async function vistaGranja(guildId, userId, idioma, mensajes = [], ahora = Date.
     const fuera = (col.mascotas || []).filter((m) => P.expedicionActiva(m, ahora)).length;
     const sig = G.siguienteHito(col);
     const n = G.distintas(col);
+    // 1.31.0: todo en una imagen; el mensaje solo lleva lo que acaba de pasar (hitos, lo recogido…).
+    const png = await require('./arteVistas.js').tarjetaGranja(datosGranja(col, a, huecos, idioma, ahora)).catch((err) => { console.error('Tarjeta granja:', err.message); return null; });
     const e = new EmbedBuilder().setColor('#16a34a').setTitle(t(idioma, '🧺 Tu granja', '🧺 Your farm'))
         .setDescription([
             ...textoHitos(hitos, idioma), ...mensajes,
@@ -113,19 +137,26 @@ async function vistaGranja(guildId, userId, idioma, mensajes = [], ahora = Date.
             { name: t(idioma, '📅 Misiones de la semana', '📅 This week’s missions'), value: textoSemana(col, idioma, ahora), inline: true },
         )
         .setFooter({ text: t(idioma, `Llevas 🪙 ${fmt(col.oroGranja, idioma)} sacados de la granja`, `🪙 ${fmt(col.oroGranja, idioma)} earned from the farm so far`) });
+    if (png) {
+        // Pie corto con lo que la imagen no dice: cuándo se llena, cuántas están fuera y lo sacado en total.
+        const pie = [!a.nueva && !a.lleno ? t(idioma, `⏳ lleno en ${tiempo(a.llenoEn, idioma)}`, `⏳ full in ${tiempo(a.llenoEn, idioma)}`) : '', fuera ? `🧭 ${fuera}` : '', `Σ 🪙 ${fmt(col.oroGranja, idioma)}`].filter(Boolean).join(' · ');
+        e.setFields([]).setImage('attachment://granja.png').setFooter({ text: pie })
+            .setDescription([...textoHitos(hitos, idioma), ...mensajes].join('\n') || null);
+    }
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`grj:rec:${userId}`).setEmoji('🧺').setStyle(ButtonStyle.Success)
             .setLabel(a.nueva ? t(idioma, 'Empezar', 'Start') : t(idioma, `Recoger 🪙 ${fmt(a.oro, idioma)}`, `Collect 🪙 ${fmt(a.oro, idioma)}`)).setDisabled(!a.nueva && a.oro < 1),
         new ButtonBuilder().setCustomId(`grj:alb:${userId}`).setEmoji('📖').setStyle(ButtonStyle.Primary).setLabel(t(idioma, 'Álbum', 'Album')),
-        new ButtonBuilder().setCustomId(`grj:ver:${userId}`).setEmoji('🔄').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Actualizar', 'Refresh')),
+        new ButtonBuilder().setCustomId(`grj:ver:${userId}`).setEmoji('🔄').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`grj:info:${userId}`).setEmoji('❔').setStyle(ButtonStyle.Secondary),
     );
-    return { content: null, embeds: [e], components: [fila], allowedMentions: { parse: [] } };
+    return { content: null, embeds: [e], components: [fila], files: png ? [new AttachmentBuilder(png, { name: 'granja.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
 }
 
 async function vistaAlbum(guildId, userId, idioma) {
     const hitos = await premiarHitos(guildId, userId);
     const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
-    if (!col) return { content: t(idioma, FALLOS.sin[0], FALLOS.sin[1]), embeds: [], components: [] };
+    if (!col) return { content: t(idioma, FALLOS.sin[0], FALLOS.sin[1]), embeds: [], components: [], files: [], attachments: [] };
     const tengo = new Set((col.mascotas || []).map((m) => m.id));
     const pr = G.porRareza(col);
     const n = G.distintas(col);
@@ -138,12 +169,17 @@ async function vistaAlbum(guildId, userId, idioma) {
         e.addFields({ name: `${R.emoji} ${t(idioma, R.es, R.en)} · ${pr[r].tienes}/${pr[r].total}${pr[r].tienes === pr[r].total ? ' ✅' : ''}`, value: ids.map((id) => (tengo.has(id) ? K.COMPANEROS[id].emoji : '❔')).join(' ').slice(0, 1024) });
     }
     const ya = new Set((col.hitosAlbum || []).map(String));
-    e.addFields({ name: t(idioma, '🎯 Hitos', '🎯 Milestones'), value: G.HITOS.map((h) => `${ya.has(String(h.n)) ? '✅' : n >= G.nHito(h) ? '🎁' : '⬜'} ${nombreHito(h, idioma)} → 🪙 ${fmt(h.oro, idioma)}${h.hueco ? t(idioma, ' + 🧺 hueco', ' + 🧺 slot') : ''}`).join('\n') });
+    // 1.31.0: la colección dibujada (las que faltan, en sombra) en vez de filas de emojis.
+    const png = await require('./casinoArte.js').tarjetaColeccion({ mascotas: (col.mascotas || []).filter((m) => !K.esExtra(m.id)), equipada: col.equipada }, { titulo: t(idioma, `📖 Álbum · ${n}/${G.TOTAL()}`, `📖 Album · ${n}/${G.TOTAL()}`) }).catch(() => null);
+    if (png) e.setFields([]).setImage('attachment://album.png').setDescription(textoHitos(hitos, idioma).join('\n') || null);
+    e.addFields({ name: t(idioma, '🎯 Hitos', '🎯 Milestones'), value: png
+        ? G.HITOS.map((h) => `${ya.has(String(h.n)) ? '✅' : n >= G.nHito(h) ? '🎁' : '⬜'}${nombreHito(h, idioma)}`).join(' ')
+        : G.HITOS.map((h) => `${ya.has(String(h.n)) ? '✅' : n >= G.nHito(h) ? '🎁' : '⬜'} ${nombreHito(h, idioma)} → 🪙 ${fmt(h.oro, idioma)}${h.hueco ? t(idioma, ' + 🧺 hueco', ' + 🧺 slot') : ''}`).join('\n') });
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`grj:ver:${userId}`).setEmoji('🧺').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Granja', 'Farm')),
         new ButtonBuilder().setCustomId('cof_otro:basico').setEmoji(K.COFRES.basico.emoji).setStyle(ButtonStyle.Secondary).setLabel(t(idioma, `Abrir cofre (🪙 ${fmt(K.COFRES.basico.precio, idioma)})`, `Open chest (🪙 ${fmt(K.COFRES.basico.precio, idioma)})`)),
     );
-    return { content: null, embeds: [e], components: [fila], allowedMentions: { parse: [] } };
+    return { content: null, embeds: [e], components: [fila], files: png ? [new AttachmentBuilder(png, { name: 'album.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
 }
 
 async function manejar(interaction) {
@@ -152,6 +188,7 @@ async function manejar(interaction) {
     const { idiomaInteraccion } = require('./preferencias.js');
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
+    if (que === 'info') { await interaction.reply({ content: textoAyuda(idioma), flags: 64 }); return true; }
     // «abrir», desde un mensaje de otra persona o desde el lobby (sin dueño): la tuya, en un mensaje solo para ti.
     if (que === 'abrir' || !owner || owner !== interaction.user.id) {
         await interaction.reply({ ...(await (que === 'alb' ? vistaAlbum : vistaGranja)(interaction.guildId, interaction.user.id, idioma)), flags: 64 });
@@ -167,4 +204,4 @@ async function manejar(interaction) {
     return true;
 }
 
-module.exports = { premiarHitos, textoHitos, semanal, textoSemana, recoger, vistaGranja, vistaAlbum, manejar };
+module.exports = { premiarHitos, textoHitos, semanal, textoSemana, recoger, vistaGranja, vistaAlbum, manejar, datosGranja, textoAyuda };

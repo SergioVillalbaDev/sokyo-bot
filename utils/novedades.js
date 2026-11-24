@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.31.0': [
+        { tab: 'com-casino', es: '🎰 **Casino mucho más visual**: lo que ganas o pierdes sale dentro de la animación (+🪙 / −🪙), sin párrafos. El 🚀 crash tiene gráfica con el cohete subiendo y la 🏇 carrera, pista de verdad.', en: '🎰 **Much more visual casino**: what you win or lose shows inside the animation (+🪙 / −🪙), no paragraphs. 🚀 Crash has a chart with the rocket climbing and the 🏇 race a real track.' },
+        { tab: 'com-compis', es: '🧺 **Granja, álbum, pase y logros en imagen**: tus mascotas trabajando, el granero llenándose, los próximos premios del pase y las insignias de logros. Las explicaciones, en el botón ❔.', en: '🧺 **Farm, album, pass and achievements as images**: your pets working, the barn filling up, the next pass rewards and achievement badges. Explanations live in the ❔ button.' },
+        { tab: 'com-compis', es: '🐾 La tarjeta de `/compi` lleva abajo las misiones de hoy, la racha, las expediciones y los recuerdos: casi sin texto.', en: '🐾 The `/companion` card now shows today’s missions, streak, expeditions and souvenirs at the bottom: almost no text.' },
+        { tab: 'config-niveles', es: '🏆 `/ranking` con podio y fotos, `/diario` con la semana de racha en casillas, y `/dado` y `/moneda` animados.', en: '🏆 `/ranking` with a podium and avatars, `/daily` with your streak week in boxes, and animated `/dice` and `/coin`.' },
+    ],
     '1.30.0': [
         { tab: 'com-compis', es: '🏠 **Cada servidor, su propia aventura**: el oro, las mascotas, las cartas, la granja, el pase y los logros son ahora de cada servidor. Aquí todos empiezan de cero y compiten con la gente de aquí.', en: '🏠 **Every server, its own adventure**: gold, pets, cards, the farm, the pass and achievements now belong to each server. Everyone starts from zero here and competes with the people here.' },
         { tab: 'com-mascota', es: '🐾 Arreglado: `/mascota`, `/broma` y `/liga` ya salen con su nombre en español (antes solo existían como /pet, /prank y /league).', en: '🐾 Fixed: `/pet`, `/prank` and `/league` now also show their Spanish names (/mascota, /broma, /liga) for Spanish users.' },

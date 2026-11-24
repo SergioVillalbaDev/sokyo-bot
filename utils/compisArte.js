@@ -6,6 +6,7 @@ const K = require('./cofresNucleo.js');
 const A = require('./casinoArte.js');
 
 const W = 760; const H = 380;
+const FRANJA = 104; // 1.31.0: franja de abajo con misiones, racha, expediciones y recuerdos
 const EFECTOS = { mimar: '2764', comer: '1f356', jugar: '1f3be', hablar: '1f4ac', vuelta: '2728', nivel: '2b50' };
 
 function barra(ctx, x, y, w, valor, color, etiqueta) {
@@ -32,14 +33,15 @@ function lineas(ctx, texto, ancho, max = 3) {
 async function dibujar(ctx, d, f = 0, total = 1, efecto = null, imgEfecto = null, img = null) {
     const comp = K.def(d.id);
     const rz = K.RAREZAS[comp.rareza];
-    const fondo = ctx.createLinearGradient(0, 0, W, H);
+    const HH = d.extra ? H + FRANJA : H;
+    const fondo = ctx.createLinearGradient(0, 0, W, HH);
     fondo.addColorStop(0, '#0f172a'); fondo.addColorStop(1, '#1e1b4b');
-    A.redondeado(ctx, 0, 0, W, H, 26); ctx.fillStyle = fondo; ctx.fill();
+    A.redondeado(ctx, 0, 0, W, HH, 26); ctx.fillStyle = fondo; ctx.fill();
     // Halo del color de su rareza
     const halo = ctx.createRadialGradient(170, 200, 20, 170, 200, 190);
     halo.addColorStop(0, `${rz.color}88`); halo.addColorStop(1, `${rz.color}00`);
     ctx.fillStyle = halo; ctx.fillRect(0, 0, 360, H);
-    ctx.strokeStyle = rz.color; ctx.lineWidth = 4; A.redondeado(ctx, 2, 2, W - 4, H - 4, 24); ctx.stroke();
+    ctx.strokeStyle = rz.color; ctx.lineWidth = 4; A.redondeado(ctx, 2, 2, W - 4, HH - 4, 24); ctx.stroke();
     // El compañero: respira (sube y baja) y, si está fuera, sale medio transparente.
     const t = total > 1 ? f / total : 0;
     const salto = efecto === 'jugar' ? -Math.abs(Math.sin(t * Math.PI * 3)) * 30 : Math.sin(t * Math.PI * 2) * 4;
@@ -84,24 +86,49 @@ async function dibujar(ctx, d, f = 0, total = 1, efecto = null, imgEfecto = null
     const ls = lineas(ctx, d.fuera || `«${d.frase}»`, 372);
     ls.forEach((l, i) => ctx.fillText(l, X + 4, 298 + i * 22 + (3 - ls.length) * 11));
     if (d.pie) { ctx.fillStyle = '#94a3b8'; ctx.font = `13px ${FUENTE}`; ctx.textAlign = 'left'; ctx.fillText(String(d.pie).slice(0, 90), 26, H - 14); }
+    if (d.extra) franja(ctx, d.extra);
+}
+
+// Franja de abajo (1.31.0): lo que antes eran campos de texto del mensaje.
+// x = { misiones: [{ emoji, prog, n, hecha }], racha, exp: { n, max }, recuerdos: ['🐚', …], recTotal, poder: { emoji, listo } }
+function franja(ctx, x) {
+    const V = require('./arteVistas.js');
+    const y = H - 2;
+    ctx.fillStyle = 'rgba(2,6,23,0.55)'; A.redondeado(ctx, 14, y, W - 28, FRANJA - 14, 18); ctx.fill();
+    // Misiones de hoy
+    const ms = x.misiones || [];
+    ms.forEach((m, i) => V.chipMision(ctx, 26 + i * 112, y + 14, 104, m));
+    // Racha y expediciones
+    const x0 = 26 + ms.length * 112 + 6;
+    V.texto(ctx, `🔥 ${x.racha || 0}`, x0, y + 38, { tam: 22, peso: '900', color: (x.racha || 0) ? '#fdba74' : '#64748b' });
+    V.texto(ctx, `🧭 ${x.exp?.n || 0}/${x.exp?.max || 0}`, x0, y + 70, { tam: 16, color: '#bae6fd' });
+    // Poder listo
+    if (x.poder) V.texto(ctx, `${x.poder.emoji}${x.poder.listo ? '' : '💤'}`, x0 + 94, y + 38, { tam: 22, peso: 'normal' });
+    // Recuerdos (los que tiene encendidos)
+    const rx = W - 26;
+    V.texto(ctx, `🎒 ${(x.recuerdos || []).length}/${x.recTotal || 0}`, rx, y + 34, { tam: 15, alin: 'right', color: '#e9d5ff' });
+    const recs = (x.recuerdos || []).slice(-8);
+    ctx.font = `20px ${FUENTE}`;
+    V.texto(ctx, recs.join('') || '·', rx, y + 68, { tam: 20, alin: 'right', peso: 'normal', color: '#64748b' });
 }
 
 async function tarjeta(d, efecto = null) {
     if (!A.listo()) return null;
     const img = await A.imagenCompanero(d.id);
     const imgEfecto = efecto && EFECTOS[efecto] ? await A.imagen(EFECTOS[efecto]) : null;
+    const HH = d.extra ? H + FRANJA : H;
     if (!imgEfecto) {
-        const { c, ctx } = A.lienzo(W, H);
+        const { c, ctx } = A.lienzo(W, HH);
         await dibujar(ctx, d, 0, 1, null, null, img);
         return { buffer: c.toBuffer('image/png'), nombre: 'compi.png' };
     }
     const TOTAL = 18; const frames = [];
     for (let f = 0; f < TOTAL; f++) {
-        const { ctx } = A.lienzo(W, H);
+        const { ctx } = A.lienzo(W, HH);
         await dibujar(ctx, d, f, TOTAL, efecto, imgEfecto, img);
         frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : 70 });
     }
-    return { buffer: A.aGif(frames, W, H), nombre: 'compi.gif' };
+    return { buffer: A.aGif(frames, W, HH), nombre: 'compi.gif' };
 }
 
 module.exports = { tarjeta, EFECTOS };

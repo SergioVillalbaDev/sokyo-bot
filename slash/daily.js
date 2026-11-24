@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, InteractionContextType } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, InteractionContextType, AttachmentBuilder } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const { botonWeb } = require('../utils/cuenta.js');
@@ -36,8 +36,14 @@ module.exports = {
             )
             .setFooter({ text: t(cfg, 'Vuelve mañana para mantener tu racha · bonus cada 7 días', 'Come back tomorrow to keep your streak · jackpot every 7 days') });
 
+        // 1.31.0: tarjeta con el oro, la semana de la racha en casillas y tu saldo.
+        const png = require('../utils/arteVistas.js').tarjetaDiario({
+            total: r.total, racha: r.racha, bote: r.jackpot || 0, extra: r.extraCompa || 0, saldo: r.balance, idioma: t(cfg, 'es', 'en'),
+            textos: { dia: t(cfg, 'Día', 'Day'), racha: t(cfg, r.racha === 1 ? 'día seguido' : 'días seguidos', r.racha === 1 ? 'day in a row' : 'days in a row'), saldo: t(cfg, 'Tu oro', 'Your gold') },
+        });
+        if (png) embed.setFields([]).setDescription(null).setFooter(null).setImage('attachment://diario.png');
         // Desde «Mi cuenta» también se puede reclamar con un clic.
         const web = new ActionRowBuilder().addComponents(botonWeb(cfg, 'inicio', t(cfg, 'Mi cuenta', 'My account')));
-        await interaction.reply({ embeds: [embed], components: [web] });
+        await interaction.reply({ embeds: [embed], components: [web], files: png ? [new AttachmentBuilder(png, { name: 'diario.png' })] : [] });
     },
 };

@@ -1,7 +1,7 @@
 // Pase de temporada, logros y tickets (1.29.0) en Discord. Reglas en utils/paseNucleo.js.
 // /pase (slash/pass.js) y botones pse:ver|log|tk:<ticket>:<owner>. `registrar` se llama desde
 // compis, granja, cofres, cartas y el casino: suma XP, da los premios de nivel y revisa logros.
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const ColeccionMascotas = require('../models/ColeccionMascotas.js');
 const X = require('./paseNucleo.js');
 const { t } = require('./i18n.js');
@@ -112,6 +112,19 @@ async function vistaPase(guildId, userId, idioma, mensajes = [], ahora = Date.no
             { name: t(idioma, '🎫 Tus tickets gratis', '🎫 Your free tickets'), value: tk || t(idioma, 'Ninguno aún: salen cada 5 niveles.', 'None yet: they come every 5 levels.'), inline: false },
         )
         .setFooter({ text: t(idioma, `🏅 Logros: ${(col.logros || []).length}/${X.LOGROS.length}`, `🏅 Achievements: ${(col.logros || []).length}/${X.LOGROS.length}`) });
+    // 1.31.0: el pase se ve en una imagen (nivel, anillo de XP, próximos premios, tickets y logros).
+    const ICONO_TK = (p) => Object.keys(p.tickets || {}).map((k) => NOMBRE_TICKET[k]?.[0]).filter(Boolean);
+    const png = require('./arteVistas.js').tarjetaPase({
+        nivel, max: X.NIVEL_MAX, frac: nivel >= X.NIVEL_MAX && !enNivel ? 1 : enNivel / X.XP_NIVEL, xp: enNivel, xpNivel: X.XP_NIVEL, temp, idioma, leyenda: !!col.tituloPase,
+        proximos: [...Array(5)].map((_, k) => nivel + 1 + k).map((n) => { const p = X.premio(n); return { n, oro: p.oro, iconos: ICONO_TK(p), titulo: p.titulo, regalo: Object.keys(p.tickets).length > 0 || p.titulo }; }),
+        tickets: Object.entries(col.tickets || {}).filter(([k, v]) => v > 0 && NOMBRE_TICKET[k]).map(([k, v]) => ({ emoji: NOMBRE_TICKET[k][0], n: v })),
+        logros: { n: (col.logros || []).length, total: X.LOGROS.length }, casino: { n: hoyCasino, tope: X.TOPE_CASINO_DIA },
+        textos: { nivel: t(idioma, 'NIVEL', 'LEVEL'), tickets: t(idioma, 'Tus tickets gratis', 'Your free tickets') },
+    });
+    if (png) {
+        e.setFields([]).setImage('attachment://pase.png').setFooter(null)
+            .setDescription([...mensajes, t(idioma, `⏳ Termina <t:${Math.floor(fin.getTime() / 1000)}:R>`, `⏳ Ends <t:${Math.floor(fin.getTime() / 1000)}:R>`)].join('\n'));
+    }
     const botones = Object.entries(col.tickets || {}).filter(([k, v]) => v > 0 && X.TICKETS[k]).slice(0, 4)
         .map(([k, v]) => new ButtonBuilder().setCustomId(`pse:tk:${k}:${userId}`).setEmoji(NOMBRE_TICKET[k][0]).setStyle(ButtonStyle.Success)
             .setLabel(t(idioma, `Abrir ${NOMBRE_TICKET[k][1]} (${v})`, `Open ${NOMBRE_TICKET[k][2]} (${v})`).slice(0, 80)));
@@ -120,9 +133,10 @@ async function vistaPase(guildId, userId, idioma, mensajes = [], ahora = Date.no
     filas.push(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`pse:log:${userId}`).setEmoji('🏅').setStyle(ButtonStyle.Primary).setLabel(t(idioma, 'Logros', 'Achievements')),
         new ButtonBuilder().setCustomId(`grj:abrir:${userId}`).setEmoji('🧺').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Granja', 'Farm')),
-        new ButtonBuilder().setCustomId(`pse:ver:${userId}`).setEmoji('🔄').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Actualizar', 'Refresh')),
+        new ButtonBuilder().setCustomId(`pse:ver:${userId}`).setEmoji('🔄').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`pse:info:${userId}`).setEmoji('❔').setStyle(ButtonStyle.Secondary),
     ));
-    return { content: null, embeds: [e], components: filas, allowedMentions: { parse: [] } };
+    return { content: null, embeds: [e], components: filas, files: png ? [new AttachmentBuilder(png, { name: 'pase.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
 }
 
 async function vistaLogros(guildId, userId, idioma) {
@@ -130,10 +144,20 @@ async function vistaLogros(guildId, userId, idioma) {
     const ya = new Set(col.logros || []);
     const lineas = X.LOGROS.map((l) => `${ya.has(l.id) ? l.emoji : '🔒'} ${ya.has(l.id) ? `**${t(idioma, l.es, l.en)}**` : t(idioma, l.es, l.en)} · 🪙 ${fmt(l.oro, idioma)}`);
     const mitad = Math.ceil(lineas.length / 2);
-    const e = new EmbedBuilder().setColor('#f59e0b').setTitle(t(idioma, `🏅 Logros · ${ya.size}/${X.LOGROS.length}`, `🏅 Achievements · ${ya.size}/${X.LOGROS.length}`))
-        .addFields({ name: '​', value: lineas.slice(0, mitad).join('\n'), inline: true }, { name: '​', value: lineas.slice(mitad).join('\n'), inline: true });
+    const e = new EmbedBuilder().setColor('#f59e0b').setTitle(t(idioma, `🏅 Logros · ${ya.size}/${X.LOGROS.length}`, `🏅 Achievements · ${ya.size}/${X.LOGROS.length}`));
+    // 1.31.0: insignias dibujadas (encendidas o con candado) en vez de dos columnas de texto.
+    const png = require('./arteVistas.js').tarjetaLogros({ titulo: t(idioma, '🏅 Logros', '🏅 Achievements'), idioma, logros: X.LOGROS.map((l) => ({ emoji: l.emoji, nombre: t(idioma, l.es, l.en), oro: l.oro, tiene: ya.has(l.id) })) });
+    if (png) e.setImage('attachment://logros.png');
+    else e.addFields({ name: '​', value: lineas.slice(0, mitad).join('\n'), inline: true }, { name: '​', value: lineas.slice(mitad).join('\n'), inline: true });
     const fila = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`pse:ver:${userId}`).setEmoji('🎟️').setStyle(ButtonStyle.Primary).setLabel(t(idioma, 'Pase', 'Pass')));
-    return { content: null, embeds: [e], components: [fila], allowedMentions: { parse: [] } };
+    return { content: null, embeds: [e], components: [fila], files: png ? [new AttachmentBuilder(png, { name: 'logros.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
+}
+
+// «Cómo se gana XP» (antes, siempre debajo del pase): ahora con el botón ❔.
+function textoXp(idioma) {
+    return t(idioma,
+        `**⚡ Cómo se gana XP del pase** (${X.XP_NIVEL} XP = 1 nivel, todo gratis)\n🤗 Cuidar ${X.XP.cuidar} · 🧭 Expedición ${X.XP.expedicion} · 🧺 Granja ${X.XP.granja} · 🃏 Usar carta ${X.XP.carta}\n📦 Cofre ${X.XP.cofre} · 🎴 Sobre ${X.XP.sobre} · 📋 Misión ${X.XP.mision} · 📅 Semanal ${X.XP.misionSemanal}\n📖 Hito ${X.XP.hito} · 📺 Serie ${X.XP.serie} · 🏅 Logro ${X.XP.logro} · 🎰 Partida ${X.XP.casino} (hasta ${X.TOPE_CASINO_DIA} al día)\n🎁 Cada 5 niveles, un ticket gratis.`,
+        `**⚡ How to earn pass XP** (${X.XP_NIVEL} XP = 1 level, all free)\n🤗 Care ${X.XP.cuidar} · 🧭 Expedition ${X.XP.expedicion} · 🧺 Farm ${X.XP.granja} · 🃏 Use card ${X.XP.carta}\n📦 Chest ${X.XP.cofre} · 🎴 Pack ${X.XP.sobre} · 📋 Mission ${X.XP.mision} · 📅 Weekly ${X.XP.misionSemanal}\n📖 Milestone ${X.XP.hito} · 📺 Series ${X.XP.serie} · 🏅 Achievement ${X.XP.logro} · 🎰 Game ${X.XP.casino} (up to ${X.TOPE_CASINO_DIA} a day)\n🎁 A free ticket every 5 levels.`);
 }
 
 async function manejar(interaction, client) {
@@ -145,6 +169,7 @@ async function manejar(interaction, client) {
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
     const userId = interaction.user.id;
+    if (que === 'info') { await interaction.reply({ content: textoXp(idioma, userId), flags: 64 }); return true; }
     if (que === 'tk') {
         if (owner !== userId) { await interaction.reply({ content: t(idioma, 'Esos tickets no son tuyos. Mira los tuyos con `/pase`.', 'Those tickets aren’t yours. See yours with `/pass`.'), flags: 64 }); return true; }
         const def = X.TICKETS[partes[2]];
