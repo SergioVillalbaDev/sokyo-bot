@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.31.2.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.32.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,42 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.32.0 **Mascotas con dibujos propios, combates, cartas que pelean y mucho más enganche** (tests en
+  `test/sprites.test.js`, `combate.test.js`, `mascotas132.test.js`, `gacha132.test.js`, `casino132.test.js`, `enganche132.test.js`):
+  - **Dibujos** (`utils/sprites.js`): cada compañero del catálogo, las especies de la mascota del servidor (`srv:<especie>`) y los
+    jefes (`jefe:<id>`) se dibujan con canvas (chibi, sombreado, ojos con brillo). `dibujar(ctx, id, { etapa 0-2, humor, t,
+    parpadeo, variante: 'brillante', acc })`; `imagen()` con caché LRU (160); `etapaDe(nivel)` (bebé <10, joven <20, adulto);
+    `ACCESORIOS` (también de evento) y `anclas()` (dónde va cada accesorio, la misma tabla en el panel: `lib/mascota.js`
+    `ANCLA_FORMA`, un test lo comprueba). `casinoArte.imagenCompanero` los usa siempre que hay diseño (las fotos del pack y de
+    servidor siguen igual); `pintarCompanero` dibuja los sprites un 22 % más grandes. La tarjeta de `/compi` es un GIF en bucle
+    (respira y parpadea); al llegar a 10 y 20 de afinidad «evoluciona» (efecto `evolucion`). Panel: `public/sprites/*.webp`,
+    generados con `node scripts/generarSprites.js` (hay que volver a ejecutarlo si cambia un dibujo; un test exige que existan).
+  - **Combates** (`utils/combateNucleo.js` reglas puras, `combate.js` Discord, `combateArte.js` arena/GIF de ronda/perfil/jefe,
+    `jefe.js`, `/combate` = `slash/fight.js`; modelos `PerfilCombate`, `CombatePvP` (apuestas: se devuelven al arrancar),
+    `JefeServidor`). Luchador = compañero equipado: `stats()` por rareza, ★, nivel de afinidad, humor y personalidad. 7 elementos
+    (`GANA_A`, ×1,15 / ×0,87). Ronda simultánea: atacar (+1⚡), defender, especial (3⚡, `ESPECIALES` por elemento) o
+    `carta:<i>`. Cartas = `TECNICAS` según el tipo de poder (`tecnicaDe`, `fuerzaCarta`, mazo de 3 en `col.mazo`, sinergia de serie
+    y holo). ELO con tope de 3 combates/día contra la misma persona y 🪙 120 por las 3 primeras victorias del día. Torre mensual
+    (50 pisos, 5 intentos/día, `premioPiso`). Jefe semanal (lunes UTC, 3 ataques/día, `premiosJefe` con bolsa según su vida;
+    `barrerJefes` en tickCrecimiento publica el mensaje fijo en `cfg.combate.canalId` o el del casino). Botones `cbt_*`. Config
+    `ServidorConfig.combate` (activo, jefe, apuestas, apuestaMax, canalId; se edita en el panel → Casino → «Combates de mascotas»).
+  - **Cartas**: `cartasNucleo` añade holográficas (`PROB_HOLO`, `col.holos`), `POLVO`/`COSTE_CREAR` (`/carta desencantar`, `/carta
+    crear`), `intercambiar` (`/carta intercambiar`, botones `crt_int:*`, oferta 5 min en memoria) y la serie destacada de la
+    semana (`serieDestacada`, ×3, global para que quitar series no dé ventaja). `/mercado` (`utils/mercado.js`,
+    `OfertaMercado`, comisión 7 %, caduca a los 7 días con `barrerMercado`).
+  - **Compañeros** (`compisNucleo`): `PERSONALIDADES`/`persDe` y `COMIDAS`/`gustosDe` salen de `huella(m)` (no se guardan; lo
+    descubierto va en `m.gustos`); humor `enfermo` (hambre <10 y alegría <15: no sale de expedición, pelea peor);
+    `eventoExpedicion`; minijuegos `vasos` (de habilidad: `cambios`) y `pelota` (respuesta en memoria, `cmp_mj:*`, tope de 6
+    premiados al día en `col.mjHoy`). Armario (`cmp:armario`, `cmp_arm:*`, `col.armario`, `m.acc`). El menú «Más cosas que hacer»
+    sale siempre (comidas y minijuegos) y «✏️ Apodo» está dentro del armario. Cofres: variante brillante (`PROB_BRILLANTE` 1/64),
+    tirada ×10 (`abrirVarios`, `precioVarios`, en una transacción), piedad a la vista y `/cofre historial`.
+  - **Casino** (`utils/casinoExtra.js`): `plinko`, `rueda` (en `JUEGOS`, guía y lobby), ruleta en mesa (`cas_mr:*`), lotería
+    semanal (`LoteriaSemana`, `barrerLoteria`, el bote nunca da más de lo que se juega) y `/casino numeros` con gráfica. Juego
+    responsable: `PerfilCasino.rachaPerdidas`; `apostar` devuelve `fallo: 'aviso'` una vez cada 10 seguidas sin ganar.
+  - **Enganche**: `utils/eventos.js` (eventos de temporada por fechas: más oro en /diario y su accesorio solo durante el evento),
+    regalos por racha en `economia.reclamarDaily` (`REGALOS_RACHA`, tickets; sin pack anime, cofres) y XP del pase por el diario,
+    `/perfil` (`utils/perfilJugador.js`). Pase: XP `combate`, `victoria`, `torre`, `jefe`, `minijuego`, `diarioLogin` y 5 logros de
+    combate (contadores en `col.cbt`); la copia del panel (`lib/casino.js` `PASE`) está al día.
 - 1.31.2 Ediciones del crash y de la carrera **en fila** (`editarEnFila` en `utils/casino.js`, test en
   `visual131.test.js`): una edición no sale hasta que Discord ha aplicado la anterior, y la vista se calcula al salir
   (null = ya no toca). Antes, una edición del vuelo lenta llegaba DESPUÉS del resultado y el mensaje volvía a enseñar

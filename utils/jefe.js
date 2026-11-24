@@ -96,15 +96,24 @@ async function atacar(interaction, cfg, idioma) {
     return { embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'ataque.gif' })] : [], allowedMentions: { parse: [] } };
 }
 
-// Rehace la imagen del mensaje fijo (como mucho una vez cada 30 s).
-async function refrescar(guild, cfg, forzar = false) {
-    const j = await JefeServidor.findOne({ guildId: guild.id, semana: C.semanaDe() }).lean();
-    if (!j?.mensajeId || !j.canalId) return;
-    if (!forzar && Date.now() - (ultimaEdicion.get(guild.id) || 0) < 30000) return;
+// Rehace la imagen del mensaje fijo (como mucho una vez cada 30 s, salvo al caer). Las ediciones van EN
+// FILA por servidor y el jefe se lee al salir de la fila: una edición lenta nunca pisa a una más nueva
+// (p. ej. no vuelve a salir «Atacar» con el jefe ya derrotado).
+const filas = new Map();
+function refrescar(guild, cfg, forzar = false) {
+    if (!forzar && Date.now() - (ultimaEdicion.get(guild.id) || 0) < 30000) return Promise.resolve();
     ultimaEdicion.set(guild.id, Date.now());
-    const canal = guild.channels.cache.get(j.canalId);
-    const msg = canal?.isTextBased() ? await canal.messages.fetch(j.mensajeId).catch(() => null) : null;
-    if (msg) await msg.edit({ ...await vista(guild, j, t(cfg, 'es', 'en')), attachments: [] }).catch(() => {});
+    const antes = filas.get(guild.id) || Promise.resolve();
+    const ahora = antes.then(async () => {
+        const j = await JefeServidor.findOne({ guildId: guild.id, semana: C.semanaDe() }).lean();
+        if (!j?.mensajeId || !j.canalId) return;
+        const canal = guild.channels.cache.get(j.canalId);
+        const msg = canal?.isTextBased() ? await canal.messages.fetch(j.mensajeId).catch(() => null) : null;
+        if (msg) await msg.edit({ ...await vista(guild, j, t(cfg, 'es', 'en')), attachments: [] }).catch(() => {});
+    }).catch(() => {});
+    filas.set(guild.id, ahora);
+    ahora.finally(() => { if (filas.get(guild.id) === ahora) filas.delete(guild.id); });
+    return ahora;
 }
 
 // Premios: oro según el daño, tickets a todos si cae y extra al podio. Una sola vez (repartido).

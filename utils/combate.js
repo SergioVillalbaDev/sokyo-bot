@@ -398,7 +398,18 @@ async function responderReto(interaction, rid, acepta, cfg, idioma) {
         if (okB === null) { await eco.darOro(r.a, r.apuesta); return interaction.followUp({ content: t(idioma, `❌ <@${r.b}> ya no tiene 🪙 ${fmt(r.apuesta, idioma)}.`, `❌ <@${r.b}> no longer has 🪙 ${fmt(r.apuesta, idioma)}.`), allowedMentions: { parse: [] } }); }
         pvpId = (await CombatePvP.create({ guildId: r.guildId, a: r.a, b: r.b, apuesta: r.apuesta }))._id;
     }
-    await empezar({ canal: interaction.channel, guildId: r.guildId, tipo: 'pvp', a: la.l, b: lb.l, jugadores: { a: r.a, b: r.b }, apuesta: r.apuesta, idioma: t(cfg, 'es', 'en'), pvpId });
+    try {
+        await empezar({ canal: interaction.channel, guildId: r.guildId, tipo: 'pvp', a: la.l, b: lb.l, jugadores: { a: r.a, b: r.b }, apuesta: r.apuesta, idioma: t(cfg, 'es', 'en'), pvpId });
+    } catch (e) {
+        // No se pudo empezar (p. ej. sin permiso para escribir aquí): se devuelve la apuesta ya.
+        console.error('Combate (empezar):', e.message);
+        for (const u of [r.a, r.b]) { const id = enJuego.get(`${r.guildId}:${u}`); if (id) { partidas.delete(id); enJuego.delete(`${r.guildId}:${u}`); } }
+        if (pvpId) {
+            const d = await CombatePvP.findOneAndUpdate({ _id: pvpId, estado: 'en_curso' }, { $set: { estado: 'devuelto' } });
+            if (d) { const eco = require('./economia.js').en(r.guildId); await eco.darOro(r.a, r.apuesta); await eco.darOro(r.b, r.apuesta); }
+        }
+        await interaction.followUp({ content: t(idioma, '❌ No he podido empezar el combate aquí (¿me falta permiso para escribir?). Se ha devuelto la apuesta.', '❌ I couldn’t start the battle here (missing permission to post?). The bet was refunded.'), flags: 64 }).catch(() => {});
+    }
 }
 async function torre(interaction, cfg, idioma) {
     const guildId = interaction.guildId; const userId = interaction.user.id;
@@ -425,7 +436,7 @@ async function torre(interaction, cfg, idioma) {
     const nombre = en.jefe ? t(idioma, C.JEFES[en.id.slice(5)]?.es || 'Jefe', C.JEFES[en.id.slice(5)]?.en || 'Boss') : t(idioma, `${dc.es} salvaje`, `Wild ${dc.en}`);
     const b = C.luchador({ nombre, id: en.jefe ? en.id : en.id === 'golem' ? 'srv:golem' : en.id, s: en.s, mazo: en.mazo, ia: true });
     b.nivel = piso;
-    await empezar({ canal: interaction.channel, guildId, tipo: 'torre', a: yo.l, b, jugadores: { a: userId, b: null }, idioma, piso });
+    try { await empezar({ canal: interaction.channel, guildId, tipo: 'torre', a: yo.l, b, jugadores: { a: userId, b: null }, idioma, piso }); } catch (e) { await PerfilCombate.updateOne({ _id: pf._id, 'torre.intentos.n': { $gt: 0 } }, { $inc: { 'torre.intentos.n': -1 } }).catch(() => {}); const id = enJuego.get(`${guildId}:${userId}`); if (id) partidas.delete(id); enJuego.delete(`${guildId}:${userId}`); return { error: t(idioma, 'No he podido empezar el combate aquí (¿me falta permiso para escribir?).', 'I couldn’t start the battle here (missing permission to post?).') }; }
     return { ok: true, texto: t(idioma, `🗼 Piso ${piso}${en.jefe ? ' · ¡JEFE!' : ''} · intento ${usados + 1}/${C.TORRE_INTENTOS_DIA} de hoy`, `🗼 Floor ${piso}${en.jefe ? ' · BOSS!' : ''} · try ${usados + 1}/${C.TORRE_INTENTOS_DIA} today`) };
 }
 async function practica(interaction, cfg, idioma) {
@@ -440,7 +451,7 @@ async function practica(interaction, cfg, idioma) {
     const s = C.stats({ id, estrellas: yo.m.estrellas || 1, afinidad: yo.m.afinidad || 0 });
     const b = C.luchador({ nombre: t(idioma, `${K.def(id).es} de práctica`, `Practice ${K.def(id).en}`), id, s, ia: true });
     b.nivel = s.nivel;
-    await empezar({ canal: interaction.channel, guildId, tipo: 'practica', a: yo.l, b, jugadores: { a: userId, b: null }, idioma });
+    try { await empezar({ canal: interaction.channel, guildId, tipo: 'practica', a: yo.l, b, jugadores: { a: userId, b: null }, idioma }); } catch (e) { const id = enJuego.get(`${guildId}:${userId}`); if (id) partidas.delete(id); enJuego.delete(`${guildId}:${userId}`); return { error: t(idioma, 'No he podido empezar el combate aquí (¿me falta permiso para escribir?).', 'I couldn’t start the battle here (missing permission to post?).') }; }
     return { ok: true, texto: t(idioma, '🎯 ¡A practicar!', '🎯 Let’s practice!') };
 }
 async function mazo(guildId, userId, ids, idioma, cfg) {

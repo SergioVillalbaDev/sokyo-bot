@@ -220,7 +220,17 @@ async function barrerLoteria(client) {
         const cfg = await require('../models/ServidorConfig.js').findOne({ guildId: l.guildId }).lean().catch(() => null);
         const guild = client.guilds.cache.get(l.guildId);
         const canal = guild?.channels.cache.get(cfg?.casino?.anunciosId || cfg?.casino?.canalId);
-        if (!canal?.isTextBased()) continue;
+        if (!canal?.isTextBased()) {
+            // Sin canal donde anunciarlo: a cada ganador se le avisa por privado (si quiere privados).
+            const Pref = require('./preferencias.js');
+            for (const g of res.ganadores) {
+                if (!await Pref.quiereDM(g.userId, 'anuncios').catch(() => true)) continue;
+                const u = await client.users.fetch(g.userId).catch(() => null);
+                const iu = await Pref.idiomaMiembro(g.userId, { cfg }).catch(() => 'es');
+                if (u) await u.send({ content: t(iu, `🎟️ **¡Te ha tocado la lotería${guild ? ` de ${guild.name}` : ''}!** ${['🥇', '🥈', '🥉'][g.puesto - 1]} +🪙 ${fmt(g.premio, iu)}`, `🎟️ **You won the lottery${guild ? ` in ${guild.name}` : ''}!** ${['🥇', '🥈', '🥉'][g.puesto - 1]} +🪙 ${fmt(g.premio, iu)}`) }).catch(() => {});
+            }
+            continue;
+        }
         await canal.send({ content: [
             t(cfg, `🎟️ **¡Sorteo de la lotería!** Bote: 🪙 ${fmt(res.bote, cfg)} (${fmt(l.total, cfg)} boletos)`, `🎟️ **Lottery draw!** Pot: 🪙 ${fmt(res.bote, cfg)} (${fmt(l.total, cfg)} tickets)`),
             ...res.ganadores.map((g) => `${['🥇', '🥈', '🥉'][g.puesto - 1]} <@${g.userId}> · 🪙 ${fmt(g.premio, cfg)}`),

@@ -67,6 +67,11 @@ async function comprar(guildId, userId, ofertaId, idioma) {
         return { error: t(idioma, `No tienes 🪙 ${fmt(o.precio, idioma)}.`, `You don’t have 🪙 ${fmt(o.precio, idioma)}.`) };
     }
     const r = await darCarta(guildId, userId, o.carta, o.holo);
+    if (!r) { // no se pudo guardar en su álbum: se le devuelve el oro y la carta vuelve a la venta
+        await eco.darOro(userId, o.precio);
+        await OfertaMercado.updateOne({ _id: o._id, estado: 'vendida', comprador: userId }, { $set: { estado: 'activa', comprador: null, cerrada: null } });
+        return { error: t(idioma, 'Prueba otra vez.', 'Try again.') };
+    }
     await eco.darOro(o.vendedor, Math.floor(o.precio * (1 - COMISION)));
     const d = K.def(o.carta);
     return { ok: true, oferta: o, texto: [

@@ -913,7 +913,7 @@ function dibujar(ctx, id, { etapa = 2, humor = 'normal', t = 0, parpadeo = false
 
 // Imagen ya dibujada (en caché). Devuelve un lienzo de TAM×TAM que se puede pasar a drawImage.
 const cache = new Map();
-const MAX_CACHE = 220;
+const MAX_CACHE = 160; // ~40 MB como mucho (cada dibujo de 256×256 son ~260 KB)
 function imagen(id, op = {}) {
     if (!canvasLib || !tiene(id)) return null;
     const clave = `${id}|${op.etapa ?? 2}|${op.humor || 'normal'}|${Math.round((op.t || 0) * 16)}|${op.parpadeo ? 1 : 0}|${op.variante || ''}|${op.aura === false ? 0 : 1}|${op.acc || ''}`;

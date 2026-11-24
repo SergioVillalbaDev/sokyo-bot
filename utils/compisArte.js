@@ -8,7 +8,7 @@ const SPR = require('./sprites.js');
 
 const W = 760; const H = 380;
 const FRANJA = 104; // 1.31.0: franja de abajo con misiones, racha, expediciones y recuerdos
-const EFECTOS = { mimar: '2764', comer: '1f356', jugar: '1f3be', hablar: '1f4ac', vuelta: '2728', nivel: '2b50', evolucion: '1f31f', cura: '1f48a', juego: '1f3c6' };
+const EFECTOS = { mimar: '2764', comer: '1f356', jugar: '1f3be', hablar: '1f4ac', vuelta: '2728', nivel: '2b50', evolucion: '2728', cura: '1f48a', juego: '1f3be' };
 
 function barra(ctx, x, y, w, valor, color, etiqueta) {
     A.redondeado(ctx, x, y, w, 16, 8); ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fill();
