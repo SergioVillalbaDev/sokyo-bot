@@ -64,6 +64,95 @@ function textoVentajas(v, idioma) {
     return partes.join(' · ') || '—';
 }
 
+// 1.32.0: cuánto falta para la épica segura (la piedad, a la vista).
+const textoPiedad = (sinEpica, idioma) => { const f = K.PIEDAD - (sinEpica || 0); return f <= 1 ? t(idioma, '🍀 ¡El próximo trae épica segura!', '🍀 Next one has a guaranteed epic!') : t(idioma, `🍀 Épica segura en ${f} cofres`, `🍀 Guaranteed epic in ${f} chests`); };
+
+// 1.32.0: tirada ×10 con un 10 % de descuento. Un solo cobro, un solo guardado y una animación con
+// las 10 (de menos a más rara, para el final la mejor).
+async function abrirDiez({ interaction, cfg, idioma, cofre }) {
+    if (cfg && (cfg.casino?.cofres === false || !cfg.casino?.activo)) return { error: t(idioma, '🎁 Los cofres no están activados en este servidor (panel → Diversión → Casino).', '🎁 Chests aren’t turned on on this server (panel → Fun → Casino).') };
+    const def = K.COFRES[cofre];
+    if (!def) return { error: t(idioma, 'Ese cofre no existe.', 'That chest doesn’t exist.') };
+    const userId = interaction.user.id; const guildId = interaction.guildId;
+    const economia = require('./economia.js').en(guildId);
+    const Pase = require('./pase.js');
+    const precio = K.precioVarios(cofre, 10);
+    const saldo = await economia.cobrar(userId, precio);
+    if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${fmt(precio, idioma)} para 10 cofres.`, `You don’t have 🪙 ${fmt(precio, idioma)} for 10 chests.`) };
+    const SPR = require('./sprites.js'); const azarS = require('./casinoNucleo.js').azarSeguro;
+    let x = null; let col;
+    for (let intento = 0; intento < 5 && !x; intento++) {
+        col = await coleccion(guildId, userId);
+        const r = K.abrirVarios(col, cofre, 10, undefined, extrasDe(guildId, cfg), quitadosDe(cfg));
+        // Brillantes: cada compañero de la tirada, como en uno a uno (y solo una vez).
+        const brillan = new Set();
+        for (const y of r.res) { if (!brillan.has(y.id) && SPR.tiene(y.id) && !(col.mascotas || []).some((m) => m.id === y.id && m.variante === 'brillante') && azarS() < K.PROB_BRILLANTE) { brillan.add(y.id); y.brillante = true; } }
+        const set = { sinEpica: r.sinEpica }; const filtros = [];
+        r.subir.forEach((u, i) => { set[`mascotas.$[m${i}].estrellas`] = u.estrellas; if (brillan.has(u.id)) set[`mascotas.$[m${i}].variante`] = 'brillante'; filtros.push({ [`m${i}.id`]: u.id }); });
+        if (!col.equipada && r.res[0]) set.equipada = r.res.reduce((a, b) => (K.RAREZAS[b.rareza].orden > K.RAREZAS[a.rareza].orden ? b : a)).id;
+        const upd = { $inc: { abiertos: 10, gastado: precio, divinas: r.res.filter((y) => y.rareza === 'divina').length }, $set: set };
+        const nuevos = r.nuevos.map((n) => ({ id: n.id, estrellas: n.estrellas, primera: new Date(), actualizado: new Date(), ...(brillan.has(n.id) ? { variante: 'brillante' } : {}) }));
+        // Subir estrellas y añadir nuevas no caben en una sola operación: van juntas en una transacción
+        // (o todo o nada), y solo si nadie ha abierto otro cofre a la vez (abiertos).
+        const sesion = await ColeccionMascotas.startSession();
+        try {
+            await sesion.withTransaction(async () => {
+                const hecho = await ColeccionMascotas.updateOne({ _id: col._id, abiertos: col.abiertos }, upd, { session: sesion, ...(filtros.length ? { arrayFilters: filtros } : {}) });
+                if (!hecho.modifiedCount) throw new Error('reintentar');
+                if (nuevos.length) await ColeccionMascotas.updateOne({ _id: col._id }, { $push: { mascotas: { $each: nuevos } } }, { session: sesion });
+            });
+            x = r;
+        } catch (e) { if (e.message !== 'reintentar') console.warn('Cofres ×10:', e.message); } finally { await sesion.endSession(); }
+    }
+    if (!x) { await economia.darOro(userId, precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
+    if (x.devuelto) await economia.darOro(userId, x.devuelto);
+    olvidar(guildId, userId);
+    await AperturaCofre.insertMany(x.res.map((y) => ({ guildId, userId, cofre, companero: y.id, rareza: y.rareza }))).catch(() => {});
+    const G = require('./granja.js');
+    const hitos = x.nuevos.length ? await G.premiarHitos(guildId, userId).catch(() => []) : [];
+    const delPase = await Pase.registrar(guildId, userId, [['cofre', 10]], { idioma }).catch(() => []);
+    const orden = [...x.res].sort((a, b) => K.RAREZAS[a.rareza].orden - K.RAREZAS[b.rareza].orden);
+    const gif = await A.gifDiez(orden.map((y) => ({ id: y.id, rareza: y.rareza, nuevo: y.nuevo, estrellas: y.estrellas, brillante: !!y.brillante })), { color: def.color, textoNuevo: t(idioma, '¡NUEVA!', 'NEW!') }).catch((e) => { console.warn('GIF x10:', e.message); return null; });
+    const mejor = orden[orden.length - 1];
+    const resumen = Object.keys(K.RAREZAS).map((rz) => [rz, x.res.filter((y) => y.rareza === rz).length]).filter(([, n]) => n).map(([rz, n]) => `${K.RAREZAS[rz].emoji}×${n}`).join(' ');
+    const e = new EmbedBuilder().setColor(K.RAREZAS[mejor.rareza].color).setTitle(t(idioma, `${def.emoji} 10 × ${def.es}`, `${def.emoji} 10 × ${def.en}`))
+        .setDescription([
+            `||${resumen} · ${t(idioma, 'nuevas', 'new')}: ${x.nuevos.length}||`,
+            x.res.some((y) => y.brillante) ? t(idioma, '✨🌈 **¡Te ha salido una BRILLANTE!**', '✨🌈 **You got a SHINY one!**') : '',
+            x.devuelto ? t(idioma, `↩ Repetidas al máximo: +🪙 ${fmt(x.devuelto, idioma)}`, `↩ Maxed duplicates: +🪙 ${fmt(x.devuelto, idioma)}`) : '',
+        ].filter(Boolean).join('\n'))
+        .setFooter({ text: `${t(idioma, `Pagado 🪙 ${fmt(precio, idioma)} (−10 %) · te quedan 🪙 ${fmt(saldo + x.devuelto, idioma)}`, `Paid 🪙 ${fmt(precio, idioma)} (−10%) · 🪙 ${fmt(saldo + x.devuelto, idioma)} left`)} · ${textoPiedad(x.sinEpica, idioma)}` });
+    if (gif) e.setImage('attachment://diez.gif');
+    else e.setDescription(`${e.data.description || ''}\n${orden.map((y) => `${K.RAREZAS[y.rareza].emoji} ${nombre(y.id, idioma)} ${y.nuevo ? '🆕' : '★'.repeat(y.estrellas)}`).join('\n')}`);
+    const fila = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`cof_diez:${cofre}`).setEmoji('🔟').setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Otros 10 (🪙 ${fmt(precio, idioma)})`, `Another 10 (🪙 ${fmt(precio, idioma)})`)),
+        new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${mejor.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Ver la mejor', 'See the best')),
+    );
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'diez.gif' })] : [], components: [fila], allowedMentions: { parse: [] } });
+    const extras = [...G.textoHitos(hitos, idioma), ...delPase].filter(Boolean);
+    if (extras.length) { await espera(6500); await interaction.followUp({ content: extras.join('\n'), allowedMentions: { parse: [] } }).catch(() => {}); }
+    if ((K.RAREZAS[mejor.rareza].orden >= 3 || x.res.some((y) => y.brillante)) && cfg?.casino?.anunciosId) {
+        const canal = interaction.guild?.channels.cache.get(cfg.casino.anunciosId);
+        const d = K.def(mejor.id);
+        if (canal?.isTextBased() && canal.id !== interaction.channelId) await canal.send({ content: t(cfg, `✨ <@${userId}> ha abierto 10 cofres y le ha salido ${d.emoji} **${d.es}** (${K.RAREZAS[mejor.rareza].es}).`, `✨ <@${userId}> opened 10 chests and got ${d.emoji} **${d.en}** (${K.RAREZAS[mejor.rareza].en}).`), allowedMentions: { users: [userId] } }).catch(() => {});
+    }
+    return { ok: true, r: x };
+}
+
+// Tus últimas tiradas (las épicas o mejores de cofres y sobres) y tus números.
+async function historial(interaction, idioma) {
+    const col = await coleccion(interaction.guildId, interaction.user.id);
+    const ultimas = await AperturaCofre.find({ guildId: interaction.guildId, userId: interaction.user.id, rareza: { $in: ['epica', 'legendaria', 'mitica', 'divina'] } }).sort({ fecha: -1 }).limit(15).lean();
+    const e = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, '📜 Tus mejores tiradas', '📜 Your best pulls'))
+        .setDescription([
+            t(idioma, `📦 **${fmt(col.abiertos, idioma)}** cofres (🪙 ${fmt(col.gastado, idioma)}) · 🃏 **${fmt(col.sobresAbiertos, idioma)}** sobres · 🌈 ${col.divinas || 0} divinas`, `📦 **${fmt(col.abiertos, idioma)}** chests (🪙 ${fmt(col.gastado, idioma)}) · 🃏 **${fmt(col.sobresAbiertos, idioma)}** packs · 🌈 ${col.divinas || 0} divine`),
+            `${textoPiedad(col.sinEpica, idioma)} · ${require('./cartas.js').textoPiedad(col.sinEpicaCartas, idioma)}`,
+            '',
+            ultimas.length ? ultimas.map((a) => { const d = K.def(a.companero); return `${K.RAREZAS[a.rareza].emoji} ${d.emoji} **${t(idioma, d.es, d.en)}**${String(a.cofre).startsWith('sobre:') ? ' 🃏' : ''} · <t:${Math.floor(new Date(a.fecha).getTime() / 1000)}:R>`; }).join('\n') : t(idioma, 'Aún no te ha salido nada épico. ¡Suerte!', 'Nothing epic yet. Good luck!'),
+        ].join('\n'));
+    return { embeds: [e], flags: 64 };
+}
+
 // Abre un cofre. Cobra, decide qué sale (con piedad), lo guarda y lo anima.
 async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null }) {
     if (cfg && (cfg.casino?.cofres === false || !cfg.casino?.activo)) return { error: t(idioma, '🎁 Los cofres no están activados en este servidor (panel → Diversión → Casino).', '🎁 Chests aren’t turned on on this server (panel → Fun → Casino).') };
@@ -110,12 +199,13 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
         ? t(idioma, '🆕 ¡Nuevo en tu colección!', '🆕 New in your collection!')
         : r.devuelto ? t(idioma, `Ya lo tenías con 5 ★: te devolvemos 🪙 ${fmt(r.devuelto, idioma)}.`, `You already had it at 5 ★: you get 🪙 ${fmt(r.devuelto, idioma)} back.`)
             : t(idioma, `Repetido: sube a **${'★'.repeat(r.estrellas)}**`, `Duplicate: now **${'★'.repeat(r.estrellas)}**`);
-    const pie = { text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${col.abiertos + 1} cofres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${col.abiertos + 1} chests opened`) };
+    const pie = { text: `${t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${col.abiertos + 1} cofres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${col.abiertos + 1} chests opened`)} · ${textoPiedad(r.sinEpica, idioma)}` };
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cof_otro:${cofre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
         new ButtonBuilder().setCustomId(`cof_eq:${r.id}`).setEmoji('✅').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Equipar', 'Equip')),
         new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${r.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Cuidarla', 'Look after it')),
         new ButtonBuilder().setCustomId(`grj:abrir:${userId}`).setEmoji('🧺').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Granja', 'Farm')),
+        new ButtonBuilder().setCustomId(`cof_diez:${cofre}`).setEmoji('🔟').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, `×10 (🪙 ${fmt(K.precioVarios(cofre, 10), idioma)})`, `×10 (🪙 ${fmt(K.precioVarios(cofre, 10), idioma)})`)),
     );
     const e = new EmbedBuilder().setColor(def.color).setTitle(`${def.emoji} ${t(idioma, def.es, def.en)}`).setFooter(pie);
     if (gif) {
@@ -217,6 +307,12 @@ async function manejar(interaction, client) {
     const { idiomaInteraccion } = require('./preferencias.js');
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
+    if (interaction.isButton() && id.startsWith('cof_diez:')) {
+        await interaction.deferReply();
+        const r = await abrirDiez({ interaction, cfg, idioma, cofre: id.split(':')[1] });
+        if (r.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }); }
+        return true;
+    }
     if (interaction.isButton() && id.startsWith('cof_otro:')) {
         await interaction.deferReply();
         const r = await abrir({ interaction, client, cfg, idioma, cofre: id.split(':')[1] });
@@ -250,4 +346,4 @@ async function resumenServidor(client, guildId) {
     };
 }
 
-module.exports = { extrasDe, quitadosDe, ventajasUsuario, abrir, equipar, verColeccion, embedProbabilidades, manejar, resumenServidor, textoVentajas, olvidar };
+module.exports = { abrirDiez, historial, textoPiedad, extrasDe, quitadosDe, ventajasUsuario, abrir, equipar, verColeccion, embedProbabilidades, manejar, resumenServidor, textoVentajas, olvidar };

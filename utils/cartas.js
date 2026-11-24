@@ -15,6 +15,10 @@ const rz = (r, idioma) => `${K.RAREZAS[r].emoji} ${t(idioma, K.RAREZAS[r].es, K.
 const activas = (cfg) => !!cfg?.compis?.anime;
 const textoApagadas = (idioma) => t(idioma, '🃏 Las cartas de anime no están activadas en este servidor (panel → Diversión → Compañeros → Cartas de anime).', '🃏 Anime cards aren’t turned on on this server (panel → Fun → Companions → Anime cards).');
 
+// 1.32.0: cuánto falta para la épica segura (la piedad, a la vista).
+const textoPiedad = (sinEpica, idioma) => { const f = S.PIEDAD - (sinEpica || 0); return f <= 1 ? t(idioma, '🍀 ¡El próximo trae épica segura!', '🍀 Next one has a guaranteed epic!') : t(idioma, `🍀 Épica segura en ${f} sobres`, `🍀 Guaranteed epic in ${f} packs`); };
+const textoDestacada = (idioma) => { const d = S.serieDestacada(require('./combateNucleo.js').semanaDe()); return d ? t(idioma, `🔥 Serie de la semana: **${d}** (sus cartas salen ×${S.SERIE_DESTACADA_X})`, `🔥 Series of the week: **${d}** (its cards drop ×${S.SERIE_DESTACADA_X})`) : ''; };
+
 async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
     if (!activas(cfg)) return { error: textoApagadas(idioma) };
     const def = S.SOBRES[sobre];
@@ -32,7 +36,7 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
     // Se calcula sobre el álbum y se guarda solo si nadie lo ha tocado a la vez.
     for (let intento = 0; intento < 5 && !r; intento++) {
         col = await ColeccionMascotas.findOneAndUpdate({ guildId, userId }, { $setOnInsert: { guildId, userId } }, { upsert: true, returnDocument: 'after' }).lean();
-        const x = S.abrirSobre(col, sobre, undefined, quitados);
+        const x = S.abrirSobre(col, sobre, undefined, quitados, S.serieDestacada(require('./combateNucleo.js').semanaDe()));
         const cartas = [...(col.cartas || [])];
         for (const c of x.cartas.filter((y) => y.id)) {
             const ya = cartas.find((y) => y.id === c.id);
@@ -71,10 +75,10 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
         // 1.31.1: UN mensaje. La animación ya enseña las cartas (nombre, rareza, ¡NUEVA! o ★); no se edita
         // después (la imagen saltaba). Las colecciones completas y los niveles del pase, en un mensaje aparte.
         e.setImage('attachment://sobre.gif')
-            .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
+            .setFooter({ text: `${t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`)} · ${textoPiedad(r.sinEpica, idioma)}` });
         // Lo que sale, también en texto oculto (‖…‖): sin destripar la animación y para quien tiene los GIF en pausa.
         const resumen = `||${r.cartas.map((c) => (c.quitada ? `🪙 +${c.devuelto}` : `${c.holo ? '🌈 ' : ''}${K.def(c.id).es} ${c.nuevo ? '🆕' : '★'.repeat(c.estrellas)}`)).join(' · ')}||`;
-        e.setDescription([ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '', resumen].filter(Boolean).join('\n'));
+        e.setDescription([ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '', resumen, textoDestacada(idioma)].filter(Boolean).join('\n'));
         await interaction.editReply({ embeds: [e], files: [new AttachmentBuilder(gif, { name: 'sobre.gif' })], components: [fila], allowedMentions: { parse: [] } });
         const extras = [
             r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
@@ -291,8 +295,9 @@ async function resolverIntercambio(interaction, idioma, id, acepta) {
 
 function embedProbabilidades(idioma) {
     const e = new EmbedBuilder().setColor('#8b5cf6').setTitle(t(idioma, '🃏 Sobres de cartas de anime', '🃏 Anime card packs'))
-        .setDescription(t(idioma, `Cada sobre trae **${S.CARTAS_POR_SOBRE} cartas**. Las cartas se usan sobre tu mascota para potenciarla (hasta ${S.CARTAS_DIA} al día; cada una se recarga en ${S.ESPERA_CARTA_H} h). Las repetidas suben estrellas y la carta es más fuerte. Cada ${S.PIEDAD} sobres sin épica, el siguiente la trae segura.`,
-            `Each pack has **${S.CARTAS_POR_SOBRE} cards**. Cards are used on your pet to power it up (up to ${S.CARTAS_DIA} a day; each recharges in ${S.ESPERA_CARTA_H} h). Duplicates add stars and make the card stronger. Every ${S.PIEDAD} packs without an epic, the next one guarantees it.`));
+        .setDescription(t(idioma, `Cada sobre trae **${S.CARTAS_POR_SOBRE} cartas**. Las cartas se usan sobre tu mascota para potenciarla (hasta ${S.CARTAS_DIA} al día; cada una se recarga en ${S.ESPERA_CARTA_H} h) o como técnicas en los combates (/combate mazo). Las repetidas suben estrellas y la carta es más fuerte. Cada ${S.PIEDAD} sobres sin épica, el siguiente la trae segura.`,
+            `Each pack has **${S.CARTAS_POR_SOBRE} cards**. Cards power up your pet (up to ${S.CARTAS_DIA} a day; each recharges in ${S.ESPERA_CARTA_H} h) or work as battle techniques (/fight deck). Duplicates add stars and make the card stronger. Every ${S.PIEDAD} packs without an epic, the next one guarantees it.`));
+    if (textoDestacada(idioma)) e.addFields({ name: '🔥', value: textoDestacada(idioma) });
     for (const [, s] of Object.entries(S.SOBRES)) {
         e.addFields({ name: `${s.emoji} ${t(idioma, s.es, s.en)} · 🪙 ${fmt(s.precio, idioma)}`, value: Object.entries(s.prob).filter(([, p]) => p > 0).map(([r, p]) => `${rz(r, idioma)} ${p} %`).join(' · ') + (s.garantia ? t(idioma, `\nLa última carta, ${K.RAREZAS[s.garantia].es.toLowerCase()} o mejor.`, `\nThe last card is ${K.RAREZAS[s.garantia].en.toLowerCase()} or better.`) : '') });
     }
@@ -337,4 +342,4 @@ async function manejar(interaction) {
     return false;
 }
 
-module.exports = { desencantar, crear, proponerIntercambio, resolverIntercambio, ofertas, mostrar, regalar, abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };
+module.exports = { textoPiedad, textoDestacada, desencantar, crear, proponerIntercambio, resolverIntercambio, ofertas, mostrar, regalar, abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };

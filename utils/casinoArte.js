@@ -970,4 +970,54 @@ async function bannerCasino({ titulo = 'CASINO', subtitulo = '', boteTexto = '',
 
 // Las que se dibujan sin esperar (PNG): si algo falla al pintar, null (el juego sigue con texto).
 const seguro = (fn) => (...a) => { try { return fn(...a); } catch (e) { console.error(`Arte (${fn.name}):`, e.message); return null; } };
-module.exports = { mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+
+// 1.32.0: tirada ×10. Las 10 casillas se van destapando de menos a más rara; las épicas o mejores
+// con destello, las brillantes con estrellitas. Termina con todas a la vista.
+async function gifDiez(lista, { color = '#7c3aed', textoNuevo = 'NEW' } = {}) {
+    if (!listo()) return null;
+    const W = 720; const H = 400; const CW = 124; const CH = 168; const GX = 14; const GY = 20;
+    const x0 = (W - (5 * CW + 4 * GX)) / 2; const y0 = (H - (2 * CH + GY)) / 2;
+    const imgs = await Promise.all(lista.map((c) => imagenCompanero(c.id, { humor: 'feliz', variante: c.brillante ? 'brillante' : null }).catch(() => null)));
+    const [brilloImg] = await Promise.all([imagen('2728')]);
+    const frames = [];
+    const casilla = (ctx, i, k) => {
+        const c = lista[i]; const rz = K.RAREZAS[c.rareza];
+        const x = x0 + (i % 5) * (CW + GX); const y = y0 + Math.floor(i / 5) * (CH + GY);
+        if (k <= 0) { // tapada
+            redondeado(ctx, x, y, CW, CH, 14); const g = ctx.createLinearGradient(x, y, x + CW, y + CH); g.addColorStop(0, color); g.addColorStop(1, '#111827'); ctx.fillStyle = g; ctx.fill();
+            ctx.strokeStyle = '#fde68a55'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#fde68a'; ctx.font = `900 40px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText('?', x + CW / 2, y + CH / 2 + 14);
+            return;
+        }
+        const esc = k < 1 ? 0.6 + k * 0.5 : 1;
+        ctx.save(); ctx.translate(x + CW / 2, y + CH / 2); ctx.scale(esc, esc); ctx.translate(-(x + CW / 2), -(y + CH / 2));
+        redondeado(ctx, x, y, CW, CH, 14); const g = ctx.createLinearGradient(x, y, x, y + CH); g.addColorStop(0, `${rz.color}55`); g.addColorStop(1, '#0b1020'); ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = rz.color; ctx.lineWidth = rz.orden >= 3 ? 4 : 2.5; ctx.stroke();
+        if (rz.orden >= 2) { const h = ctx.createRadialGradient(x + CW / 2, y + 62, 4, x + CW / 2, y + 62, 70); h.addColorStop(0, `${rz.color}aa`); h.addColorStop(1, `${rz.color}00`); ctx.fillStyle = h; ctx.fillRect(x, y, CW, CH); }
+        if (imgs[i]) pintarCompanero(ctx, imgs[i], c.id, x + 18, y + 12, CW - 36, rz.color);
+        ctx.fillStyle = '#fff'; ctx.font = `bold 13px ${FUENTE}`; ctx.textAlign = 'center';
+        const d = K.def(c.id); ctx.fillText(String(d.es).split(',')[0].slice(0, 14), x + CW / 2, y + CH - 30);
+        ctx.fillStyle = c.nuevo ? '#4ade80' : '#fde047'; ctx.font = `900 13px ${FUENTE}`;
+        ctx.fillText(c.nuevo ? textoNuevo : '★'.repeat(c.estrellas || 1), x + CW / 2, y + CH - 12);
+        if (c.brillante && brilloImg) for (let s2 = 0; s2 < 3; s2++) ctx.drawImage(brilloImg, x + 6 + s2 * 40, y + 6 + (s2 % 2) * 10, 22, 22);
+        ctx.restore();
+    };
+    const fondo = (ctx) => { const g = ctx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, W); g.addColorStop(0, '#1e1b4b'); g.addColorStop(1, '#020617'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); };
+    const pinta = (hasta, k, destello = 0, delay = 60) => {
+        const { ctx } = lienzo(W, H); fondo(ctx);
+        for (let i = 0; i < lista.length; i++) casilla(ctx, i, i < hasta ? 1 : i === hasta ? k : 0);
+        if (destello) { ctx.fillStyle = `rgba(255,255,255,${destello})`; ctx.fillRect(0, 0, W, H); }
+        frames.push({ ctx, delay });
+    };
+    pinta(-1, 0, 0, 400);
+    for (let i = 0; i < lista.length; i++) {
+        const rz = K.RAREZAS[lista[i].rareza];
+        if (rz.orden >= 3) { pinta(i, 0, 0, 350); pinta(i, 0.3, 0.55, 70); }
+        for (const k of [0.35, 0.7, 1.05]) pinta(i, k, 0, 50);
+        pinta(i + 1, 1, 0, rz.orden >= 3 ? 450 : rz.orden >= 2 ? 250 : 120);
+    }
+    frames[frames.length - 1].delay = 60000;
+    return aGif(frames, W, H);
+}
+
+module.exports = { gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

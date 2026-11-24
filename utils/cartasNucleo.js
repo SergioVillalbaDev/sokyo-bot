@@ -31,16 +31,30 @@ function rarezaAlAzar(sobre, azar, minimo = null) {
 // Una carta de esa rareza. Se tira SIEMPRE sobre todo el pack: si toca una de una serie quitada
 // en el servidor, no se cambia por otra (eso subiría la probabilidad de las demás: no vale quitarlo
 // todo menos tu favorita); quien abre recibe oro a cambio (abrirSobre).
-function cartaAlAzar(rareza, azar) {
-    const todas = [...K.ANIME.entries()].filter(([, c]) => c.rareza === rareza).map(([id]) => id);
+// 1.32.0: `destacada` = la serie de la semana: sus cartas pesan ×SERIE_DESTACADA_X dentro de su rareza.
+function cartaAlAzar(rareza, azar, destacada = null) {
+    const todas = [...K.ANIME.entries()].filter(([, c]) => c.rareza === rareza);
     if (!todas.length) return null;
-    return todas[Math.floor(azar() * todas.length) % todas.length];
+    if (!destacada) return todas[Math.floor(azar() * todas.length) % todas.length][0];
+    const peso = (c) => (c.serie === destacada ? SERIE_DESTACADA_X : 1);
+    const total = todas.reduce((a, [, c]) => a + peso(c), 0);
+    let x = azar() * total;
+    for (const [id, c] of todas) { x -= peso(c); if (x < 0) return id; }
+    return todas[todas.length - 1][0];
+}
+// Serie destacada de la semana (lunes UTC): rota entre las series con 4 cartas o más.
+const SERIE_DESTACADA_X = 3;
+function serieDestacada(semana) {
+    const grandes = [...series()].filter(([, ids]) => ids.length >= 4).map(([s]) => s).sort();
+    if (!grandes.length) return null;
+    let h = 2166136261; for (const ch of String(semana)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    return grandes[h % grandes.length];
 }
 const CAMBIO_QUITADA = 0.4; // una carta de serie quitada se cambia por el 40 % de lo que vale en el sobre
 
 // Abre un sobre sobre una colección ({ cartas, sinEpicaCartas }). Devuelve las 3 cartas
 // (con si son nuevas, sus estrellas y el oro devuelto) y la piedad nueva.
-function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, quitados = null) {
+function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, quitados = null, destacada = null) {
     const def = SOBRES[sobre];
     if (!def) return { fallo: 'sobre' };
     let sinEpica = col.sinEpicaCartas || 0;
@@ -55,8 +69,8 @@ function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, 
         if (ultima && def.garantia) minimo = def.garantia;
         if (ultima && piedad && !hayEpica && (!minimo || K.RAREZAS[minimo].orden < 2)) minimo = 'epica';
         let rareza = rarezaAlAzar(sobre, azar, minimo);
-        let id = cartaAlAzar(rareza, azar);
-        while (!id && K.RAREZAS[rareza].orden > 0) { rareza = ORDEN[K.RAREZAS[rareza].orden - 1]; id = cartaAlAzar(rareza, azar); }
+        let id = cartaAlAzar(rareza, azar, destacada);
+        while (!id && K.RAREZAS[rareza].orden > 0) { rareza = ORDEN[K.RAREZAS[rareza].orden - 1]; id = cartaAlAzar(rareza, azar, destacada); }
         if (!id) continue;
         if (K.RAREZAS[rareza].orden >= 2) hayEpica = true;
         // 1.32.0: holográfica (brilla y es un 5 % más fuerte en combate). Se tira SIEMPRE aquí, también
@@ -196,4 +210,5 @@ function intercambiar(cartasA = [], cartasB = [], idA, idB) {
 }
 
 module.exports = {
+    SERIE_DESTACADA_X, serieDestacada,
     PROB_HOLO, POLVO, COSTE_CREAR, INTERCAMBIOS_DIA, desencantar, crear, intercambiar, PREMIO_SERIE, SINERGIA, REGALOS_DIA, series, seriesCompletas, nuevasSeries, progresoSeries, regalar, CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };
