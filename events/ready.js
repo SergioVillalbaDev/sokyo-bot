@@ -48,6 +48,7 @@ module.exports = {
             require('../utils/mascota.js').cargarCache(),
             // Casino: lo apostado en partidas que quedaron a medias al reiniciar se devuelve.
             require('../utils/casino.js').devolverPendientes(),
+            require('../utils/combate.js').devolverPendientes(),
             // Compañeros propios de cada servidor (salen en sus cofres).
             require('../utils/compis.js').cargarPersonalizados(),
             // 1.24.0: los personajes anime que eran mascotas pasan a ser cartas.

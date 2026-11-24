@@ -855,6 +855,14 @@ const ServidorConfigSchema = new mongoose.Schema({
         anime: { type: Boolean, default: false },
         animeFuera: { type: [String], default: [] },   // series que no salen en los cofres de aquí
     },
+    // Combates de compañeros (1.32.0, utils/combate.js y utils/jefe.js). Necesitan el casino activo.
+    combate: {
+        activo: { type: Boolean, default: true },
+        canalId: { type: String, default: null },           // donde sale el jefe semanal (vacío = el del casino)
+        jefe: { type: Boolean, default: true },             // jefe semanal del servidor
+        apuestas: { type: Boolean, default: true },         // permitir apostar oro en los retos
+        apuestaMax: { type: Number, default: 5000 },
+    },
     // Mascota del servidor (1.14.0). El estado de la mascota está en models/Mascota.js.
     mascota: {
         activo: { type: Boolean, default: false },

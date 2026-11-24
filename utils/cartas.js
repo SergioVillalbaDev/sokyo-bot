@@ -40,8 +40,9 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
         }
         // ¿Completa alguna serie? Premio una sola vez (1.25.0).
         const nuevas = S.nuevasSeries(cartas, col.seriesCompletas || []);
+        const holos = x.cartas.filter((y) => y.id && y.holo).map((y) => y.id);
         const hecho = await ColeccionMascotas.updateOne({ _id: col._id, sobresAbiertos: col.sobresAbiertos || 0 },
-            { $set: { cartas, sinEpicaCartas: x.sinEpica, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { sobresAbiertos: 1, gastadoSobres: def.precio } });
+            { $set: { cartas, sinEpicaCartas: x.sinEpica, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { sobresAbiertos: 1, gastadoSobres: def.precio, polvo: x.polvo || 0 }, ...(holos.length ? { $addToSet: { holos: { $each: holos } } } : {}) });
         if (hecho.modifiedCount) r = { ...x, series: nuevas };
     }
     if (!r) { if (ticket) await Pase.devolverTicket(guildId, userId, ticket); else await economia.darOro(userId, def.precio); return { error: t(idioma, 'Prueba otra vez.', 'Try again.') }; }
@@ -72,11 +73,13 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
         e.setImage('attachment://sobre.gif')
             .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
         // Lo que sale, también en texto oculto (‖…‖): sin destripar la animación y para quien tiene los GIF en pausa.
-        const resumen = `||${r.cartas.map((c) => (c.quitada ? `🪙 +${c.devuelto}` : `${K.def(c.id).es} ${c.nuevo ? '🆕' : '★'.repeat(c.estrellas)}`)).join(' · ')}||`;
+        const resumen = `||${r.cartas.map((c) => (c.quitada ? `🪙 +${c.devuelto}` : `${c.holo ? '🌈 ' : ''}${K.def(c.id).es} ${c.nuevo ? '🆕' : '★'.repeat(c.estrellas)}`)).join(' · ')}||`;
         e.setDescription([ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '', resumen].filter(Boolean).join('\n'));
         await interaction.editReply({ embeds: [e], files: [new AttachmentBuilder(gif, { name: 'sobre.gif' })], components: [fila], allowedMentions: { parse: [] } });
         const extras = [
             r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
+            ...r.cartas.filter((c) => c.id && c.holo).map((c) => t(idioma, `🌈 **¡${K.def(c.id).es} te ha salido HOLOGRÁFICA!** Brilla y pega un 5 % más en combate.`, `🌈 **${K.def(c.id).en} came out HOLOGRAPHIC!** It shines and hits 5% harder in battle.`)),
+            r.polvo ? t(idioma, `✨ Repetidas al máximo: +${r.polvo} de polvo (créate la carta que quieras con \`/carta crear\`).`, `✨ Maxed duplicates: +${r.polvo} dust (craft any card with \`/card craft\`).`) : '',
             ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
             ...delPase,
         ].filter(Boolean);
@@ -138,11 +141,14 @@ async function verAlbum(interaction, idioma, usuario = null) {
 }
 
 async function verCarta(guildId, userId, id, idioma) {
-    const col = await ColeccionMascotas.findOne({ guildId, userId }).select('cartas seriesCompletas').lean();
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).select('cartas seriesCompletas holos mazo').lean();
     const c = (col?.cartas || []).find((x) => x.id === id);
     if (!c) return { content: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
     const d = K.def(id);
-    const png = await require('./cartasArte.js').tarjetaCarta(id, { estrellas: c.estrellas || 1, idioma }).catch(() => null);
+    const holo = (col.holos || []).includes(id);
+    const png = await require('./cartasArte.js').tarjetaCarta(id, { estrellas: c.estrellas || 1, idioma, holo }).catch(() => null);
+    const C = require('./combateNucleo.js');
+    const tec = C.tecnicaDe(id, C.fuerzaCarta(id, c.estrellas || 1, holo ? 0.05 : 0));
     const f = S.faltaCarta(c);
     const e = new EmbedBuilder().setColor(K.RAREZAS[d.rareza].color).setTitle(`🃏 ${d.es}`)
         .setDescription([
@@ -150,6 +156,9 @@ async function verCarta(guildId, userId, id, idioma) {
             `${P.ARQUETIPOS[d.poder.tipo].emoji} **${t(idioma, d.poder.es, d.poder.en)}**`,
             P.textoEfecto(P.efectoCarta(id, c.estrellas || 1, null, (col.seriesCompletas || []).includes(d.serie) ? S.SINERGIA : 0), idioma),
             (col.seriesCompletas || []).includes(d.serie) ? t(idioma, `📚 Colección de ${d.serie} completa: +25 % de fuerza`, `📚 ${d.serie} collection complete: +25% power`) : '',
+            t(idioma, `⚔️ **En combate:** ${tec.es} — ${C.textoTecnica(tec, 'es')}`, `⚔️ **In battle:** ${tec.en} — ${C.textoTecnica(tec, 'en')}`),
+            (col.mazo || []).includes(id) ? t(idioma, '🎴 Está en tu mazo de combate.', '🎴 It’s in your battle deck.') : t(idioma, '🎴 Ponla en tu mazo con `/combate mazo`.', '🎴 Put it in your deck with `/fight deck`.'),
+            holo ? t(idioma, '🌈 **Holográfica** (+5 % en combate)', '🌈 **Holographic** (+5% in battle)') : '',
             f ? t(idioma, `⏳ Se recarga en ${Math.ceil(f / 60)} h`, `⏳ Recharges in ${Math.ceil(f / 60)} h`) : t(idioma, '✅ Lista para usar en tu mascota (`/compi` → 🃏).', '✅ Ready to use on your pet (`/companion` → 🃏).'),
         ].filter(Boolean).join('\n'));
     if (png) e.setImage('attachment://carta.png');
@@ -191,6 +200,95 @@ async function regalar(interaction, idioma, destino, id) {
     ].join('\n'), destino: destino.id };
 }
 
+// 1.32.0: desencantar una copia → polvo. Las legendarias o mejores piden confirmar (botón).
+async function desencantar(guildId, userId, id, idioma, { confirmado = false } = {}) {
+    const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
+    const c = (col?.cartas || []).find((x) => x.id === id);
+    if (!c) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
+    const d = K.def(id);
+    if (K.RAREZAS[d.rareza].orden >= 3 && !confirmado) {
+        return { confirmar: { content: t(idioma, `⚠️ ¿Seguro que quieres desencantar **${d.es}** (${K.RAREZAS[d.rareza].es})? Te da ✨ ${S.POLVO[d.rareza]} de polvo${(c.estrellas || 1) <= 1 ? ' y **la pierdes**' : ' y baja una estrella'}.`, `⚠️ Sure you want to disenchant **${d.en}** (${K.RAREZAS[d.rareza].en})? You get ✨ ${S.POLVO[d.rareza]} dust${(c.estrellas || 1) <= 1 ? ' and **lose it**' : ' and it loses a star'}.`),
+            components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`crt_des:${id}`).setStyle(ButtonStyle.Danger).setLabel(t(idioma, 'Sí, desencantar', 'Yes, disenchant')).setEmoji('✨'))], flags: 64 } };
+    }
+    const r = S.desencantar(col.cartas, id);
+    if (r.fallo) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
+    const mazo = r.ultima ? (col.mazo || []).filter((x) => x !== id) : col.mazo || [];
+    const holos = r.ultima ? (col.holos || []).filter((x) => x !== id) : col.holos || [];
+    const ok = await ColeccionMascotas.updateOne({ _id: col._id, cartas: col.cartas }, { $set: { cartas: r.cartas, mazo, holos }, $inc: { polvo: r.polvo } });
+    if (!ok.modifiedCount) return { error: t(idioma, 'Prueba otra vez.', 'Try again.') };
+    return { ok: true, texto: t(idioma, `✨ Has desencantado **${d.es}**: +${r.polvo} de polvo (tienes ${(col.polvo || 0) + r.polvo}).${r.ultima ? '' : ' Baja una estrella.'}`, `✨ You disenchanted **${d.en}**: +${r.polvo} dust (you have ${(col.polvo || 0) + r.polvo}).${r.ultima ? '' : ' It loses a star.'}`) };
+}
+// Crear una carta con polvo.
+async function crear(guildId, userId, id, idioma) {
+    const col = await ColeccionMascotas.findOneAndUpdate({ guildId, userId }, { $setOnInsert: { guildId, userId } }, { upsert: true, returnDocument: 'after' }).lean();
+    const r = S.crear(col.cartas || [], id, col.polvo || 0);
+    const d = K.def(id);
+    if (r.fallo === 'noExiste') return { error: t(idioma, 'Esa carta no existe.', 'That card doesn’t exist.') };
+    if (r.fallo === 'divina') return { error: t(idioma, 'La carta divina no se puede crear: solo sale en los sobres.', 'The divine card can’t be crafted: it only comes from packs.') };
+    if (r.fallo === 'max') return { error: t(idioma, 'Ya la tienes con 5 ★.', 'You already have it at 5 ★.') };
+    if (r.fallo === 'polvo') return { error: t(idioma, `Te falta polvo: cuesta ✨ ${r.coste} y tienes ${col.polvo || 0}. Desencanta repetidas con \`/carta desencantar\`.`, `Not enough dust: it costs ✨ ${r.coste} and you have ${col.polvo || 0}. Disenchant duplicates with \`/card disenchant\`.`) };
+    const nuevas = S.nuevasSeries(r.cartas, col.seriesCompletas || []);
+    const ok = await ColeccionMascotas.updateOne({ _id: col._id, cartas: col.cartas || [], polvo: { $gte: r.coste } }, { $set: { cartas: r.cartas, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { polvo: -r.coste } });
+    if (!ok.modifiedCount) return { error: t(idioma, 'Prueba otra vez.', 'Try again.') };
+    const oro = nuevas.reduce((a, n) => a + n.oro, 0);
+    if (oro) await require('./economia.js').en(guildId).darOro(userId, oro);
+    return { ok: true, id, texto: [
+        t(idioma, `🪄 Has creado **${d.es}** (${K.RAREZAS[d.rareza].es}) con ✨ ${r.coste} de polvo.${r.nueva ? ' 🆕' : ' Sube una estrella.'}`, `🪄 You crafted **${d.en}** (${K.RAREZAS[d.rareza].en}) with ✨ ${r.coste} dust.${r.nueva ? ' 🆕' : ' It gains a star.'}`),
+        ...nuevas.map((n) => t(idioma, `📚 ¡Colección de **${n.serie}** completa! +🪙 ${n.oro}`, `📚 **${n.serie}** collection complete! +🪙 ${n.oro}`)),
+    ].join('\n') };
+}
+// Intercambios (1.32.0): la oferta vive 5 minutos en memoria (si el bot se reinicia, no se ha movido nada).
+const ofertas = new Map();
+function proponerIntercambio(interaction, idioma, destino, mia, suya) {
+    if (!destino || destino.bot || destino.id === interaction.user.id) return { error: t(idioma, 'Elige a otra persona (no un bot).', 'Pick someone else (not a bot).') };
+    if (mia === suya) return { error: t(idioma, 'Elige cartas distintas.', 'Pick different cards.') };
+    const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    ofertas.set(id, { guildId: interaction.guildId, de: interaction.user.id, a: destino.id, mia, suya, hasta: Date.now() + 5 * 60000 });
+    for (const [k, v] of ofertas) if (v.hasta < Date.now()) ofertas.delete(k);
+    const dm = K.def(mia); const ds = K.def(suya);
+    return { ok: true, msg: {
+        content: t(idioma, `🔁 <@${destino.id}>, <@${interaction.user.id}> te propone un intercambio:\n➡️ Te da **${dm.es}** (${K.RAREZAS[dm.rareza].es}, ${dm.serie})\n⬅️ A cambio de tu **${ds.es}** (${K.RAREZAS[ds.rareza].es}, ${ds.serie})\n*Caduca en 5 minutos.*`, `🔁 <@${destino.id}>, <@${interaction.user.id}> offers you a trade:\n➡️ Gives you **${dm.en}** (${K.RAREZAS[dm.rareza].en}, ${dm.serie})\n⬅️ For your **${ds.en}** (${K.RAREZAS[ds.rareza].en}, ${ds.serie})\n*Expires in 5 minutes.*`),
+        components: [new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`crt_int:ok:${id}`).setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Aceptar', 'Accept')).setEmoji('🤝'),
+            new ButtonBuilder().setCustomId(`crt_int:no:${id}`).setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Rechazar', 'Decline')),
+        )],
+        allowedMentions: { users: [destino.id] },
+    } };
+}
+async function resolverIntercambio(interaction, idioma, id, acepta) {
+    const o = ofertas.get(id);
+    if (!o || o.hasta < Date.now()) { ofertas.delete(id); return { texto: t(idioma, '⌛ Esta oferta ha caducado.', '⌛ This offer has expired.'), cerrar: true }; }
+    if (interaction.user.id !== o.a && !(interaction.user.id === o.de && !acepta)) return { error: t(idioma, 'Esta oferta no es para ti.', 'This offer isn’t for you.') };
+    ofertas.delete(id);
+    if (!acepta) return { texto: t(idioma, '❌ Intercambio rechazado o cancelado.', '❌ Trade declined or cancelled.'), cerrar: true };
+    const dia = new Date().toISOString().slice(0, 10);
+    const A = await ColeccionMascotas.findOne({ guildId: o.guildId, userId: o.de }).lean();
+    const B = await ColeccionMascotas.findOne({ guildId: o.guildId, userId: o.a }).lean();
+    const hoyA = A?.intercambiosHoy?.dia === dia ? A.intercambiosHoy.n || 0 : 0;
+    const hoyB = B?.intercambiosHoy?.dia === dia ? B.intercambiosHoy.n || 0 : 0;
+    if (hoyA >= S.INTERCAMBIOS_DIA || hoyB >= S.INTERCAMBIOS_DIA) return { texto: t(idioma, `Hoy ya se han hecho ${S.INTERCAMBIOS_DIA} intercambios. Mañana más.`, `${S.INTERCAMBIOS_DIA} trades already done today. More tomorrow.`), cerrar: true };
+    const r = S.intercambiar(A?.cartas || [], B?.cartas || [], o.mia, o.suya);
+    if (r.fallo) return { texto: t(idioma, '❌ Alguien ya no tiene la carta que ofrecía.', '❌ Someone no longer has the card they offered.'), cerrar: true };
+    // Las dos colecciones, solo si no han cambiado; si la segunda falla, se deshace la primera.
+    const quitarMazo = (col, cartas) => (col.mazo || []).filter((x) => cartas.some((c) => c.id === x));
+    const okA = await ColeccionMascotas.updateOne({ _id: A._id, cartas: A.cartas }, { $set: { cartas: r.a, mazo: quitarMazo(A, r.a), intercambiosHoy: { dia, n: hoyA + 1 } }, $inc: { polvo: r.polvoA } });
+    if (!okA.modifiedCount) return { texto: t(idioma, 'Prueba otra vez.', 'Try again.'), cerrar: true };
+    const okB = await ColeccionMascotas.updateOne({ _id: B._id, cartas: B.cartas }, { $set: { cartas: r.b, mazo: quitarMazo(B, r.b), intercambiosHoy: { dia, n: hoyB + 1 } }, $inc: { polvo: r.polvoB } });
+    if (!okB.modifiedCount) {
+        await ColeccionMascotas.updateOne({ _id: A._id }, { $set: { cartas: A.cartas, mazo: A.mazo || [], intercambiosHoy: A.intercambiosHoy || { dia, n: hoyA } }, $inc: { polvo: -r.polvoA } });
+        return { texto: t(idioma, 'Prueba otra vez.', 'Try again.'), cerrar: true };
+    }
+    // Las holográficas viajan con la carta (si era la última copia).
+    for (const [de, a, carta] of [[A, B, o.mia], [B, A, o.suya]]) {
+        if ((de.holos || []).includes(carta) && !(de.cartas.find((c) => c.id === carta)?.estrellas > 1)) {
+            await ColeccionMascotas.updateOne({ _id: de._id }, { $pull: { holos: carta } });
+            await ColeccionMascotas.updateOne({ _id: a._id }, { $addToSet: { holos: carta } });
+        }
+    }
+    const dm = K.def(o.mia); const ds = K.def(o.suya);
+    return { texto: t(idioma, `🤝 ¡Intercambio hecho! <@${o.de}> recibe **${ds.es}** y <@${o.a}> recibe **${dm.es}**.`, `🤝 Trade done! <@${o.de}> gets **${ds.en}** and <@${o.a}> gets **${dm.en}**.`), cerrar: true, ok: true };
+}
+
 function embedProbabilidades(idioma) {
     const e = new EmbedBuilder().setColor('#8b5cf6').setTitle(t(idioma, '🃏 Sobres de cartas de anime', '🃏 Anime card packs'))
         .setDescription(t(idioma, `Cada sobre trae **${S.CARTAS_POR_SOBRE} cartas**. Las cartas se usan sobre tu mascota para potenciarla (hasta ${S.CARTAS_DIA} al día; cada una se recarga en ${S.ESPERA_CARTA_H} h). Las repetidas suben estrellas y la carta es más fuerte. Cada ${S.PIEDAD} sobres sin épica, el siguiente la trae segura.`,
@@ -219,6 +317,18 @@ async function manejar(interaction) {
         await interaction.editReply(await verAlbum(interaction, idioma));
         return true;
     }
+    if (interaction.isButton() && id.startsWith('crt_des:')) {
+        const r = await desencantar(interaction.guildId, interaction.user.id, id.slice(8), idioma, { confirmado: true });
+        await interaction.update({ content: r.error ? `❌ ${r.error}` : r.texto, components: [] });
+        return true;
+    }
+    if (interaction.isButton() && id.startsWith('crt_int:')) {
+        const [, que, oid] = id.split(':');
+        const r = await resolverIntercambio(interaction, idioma, oid, que === 'ok');
+        if (r.error) { await interaction.reply({ content: `❌ ${r.error}`, flags: 64 }); return true; }
+        await interaction.update({ content: `${interaction.message.content.split('\n')[0]}\n${r.texto}`, components: [], allowedMentions: { parse: [] } });
+        return true;
+    }
     if (interaction.isStringSelectMenu() && id === 'crt_ver') {
         await interaction.deferReply({ flags: 64 });
         await interaction.editReply(await verCarta(interaction.guildId, interaction.user.id, interaction.values[0], idioma));
@@ -227,4 +337,4 @@ async function manejar(interaction) {
     return false;
 }
 
-module.exports = { mostrar, regalar, abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };
+module.exports = { desencantar, crear, proponerIntercambio, resolverIntercambio, ofertas, mostrar, regalar, abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };

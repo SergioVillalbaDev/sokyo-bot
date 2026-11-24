@@ -64,16 +64,19 @@ function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, 
             continue;
         }
         const antes = tengo.get(id) || 0;
-        let estrellas = 1; let devuelto = 0;
+        let estrellas = 1; let devuelto = 0; let polvo = 0;
         if (antes) {
-            if (antes >= MAX_ESTRELLAS) { estrellas = MAX_ESTRELLAS; devuelto = Math.floor((def.precio / CARTAS_POR_SOBRE) * DEVOLUCION); }
+            // 1.32.0: la repetida al máximo da también polvo (para crear la carta que quieras).
+            if (antes >= MAX_ESTRELLAS) { estrellas = MAX_ESTRELLAS; devuelto = Math.floor((def.precio / CARTAS_POR_SOBRE) * DEVOLUCION); polvo = POLVO[rareza]; }
             else estrellas = antes + 1;
         }
         tengo.set(id, estrellas);
-        salen.push({ id, rareza, nuevo: !antes, estrellas, devuelto });
+        // 1.32.0: holográfica (brilla y es un 5 % más fuerte en combate). Se tira aparte: no cambia lo demás.
+        const holo = azar() < PROB_HOLO;
+        salen.push({ id, rareza, nuevo: !antes, estrellas, devuelto, polvo, holo });
     }
     sinEpica = hayEpica ? 0 : sinEpica + 1;
-    return { cartas: salen, sinEpica, piedad, devuelto: salen.reduce((a, c) => a + c.devuelto, 0) };
+    return { cartas: salen, sinEpica, piedad, devuelto: salen.reduce((a, c) => a + c.devuelto, 0), polvo: salen.reduce((a, c) => a + (c.polvo || 0), 0) };
 }
 
 // Colecciones (1.25.0): las series con 2 cartas o más. Completar una da oro una vez
@@ -152,4 +155,44 @@ function usarCarta(col, cartaId, m, { ahora = Date.now(), dia, bromas = false, a
     return { ...r, carta: cartaId, emoji: P.ARQUETIPOS[d.poder.tipo].emoji, nombre: { es: d.poder.es, en: d.poder.en }, usadas: usadas + 1, limite };
 }
 
-module.exports = { PREMIO_SERIE, SINERGIA, REGALOS_DIA, series, seriesCompletas, nuevasSeries, progresoSeries, regalar, CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };
+// ---------------------------------------------------------------------------
+// 1.32.0: polvo, desencantar, crear e intercambiar
+// ---------------------------------------------------------------------------
+const PROB_HOLO = 0.03;
+const POLVO = { comun: 5, rara: 15, epica: 40, legendaria: 150, mitica: 500, divina: 2500 };   // al desencantar una copia
+const COSTE_CREAR = { comun: 60, rara: 180, epica: 500, legendaria: 1800, mitica: 6000 };      // la divina no se puede crear
+const INTERCAMBIOS_DIA = 5;
+// Quita UNA copia (si tenía varias estrellas, baja una; si solo una, desaparece). Devuelve { cartas, polvo, ultima }.
+function desencantar(cartas = [], id) {
+    const c = cartas.find((x) => x.id === id);
+    if (!c) return { fallo: 'sinCarta' };
+    const r = K.def(id).rareza;
+    const ultima = (c.estrellas || 1) <= 1;
+    const nuevas = ultima ? cartas.filter((x) => x.id !== id) : cartas.map((x) => (x.id === id ? { ...x, estrellas: (x.estrellas || 1) - 1 } : x));
+    return { cartas: nuevas, polvo: POLVO[r] || 0, ultima };
+}
+// Crea una copia de una carta con polvo (si ya la tienes, sube una estrella).
+function crear(cartas = [], id, polvo = 0) {
+    const d = K.ANIME.get(id);
+    if (!d) return { fallo: 'noExiste' };
+    const coste = COSTE_CREAR[d.rareza];
+    if (!coste) return { fallo: 'divina' };
+    const c = cartas.find((x) => x.id === id);
+    if (c && (c.estrellas || 1) >= MAX_ESTRELLAS) return { fallo: 'max' };
+    if (polvo < coste) return { fallo: 'polvo', coste, falta: coste - polvo };
+    const nuevas = c ? cartas.map((x) => (x.id === id ? { ...x, estrellas: (x.estrellas || 1) + 1 } : x)) : [...cartas, { id, estrellas: 1, primera: new Date() }];
+    return { cartas: nuevas, coste, nueva: !c };
+}
+// Cambio de una copia por otra entre dos personas. Si a alguien le llega una que ya tiene al máximo, recibe polvo.
+function intercambiar(cartasA = [], cartasB = [], idA, idB) {
+    if (!cartasA.some((c) => c.id === idA)) return { fallo: 'sinCartaA' };
+    if (!cartasB.some((c) => c.id === idB)) return { fallo: 'sinCartaB' };
+    if (idA === idB) return { fallo: 'iguales' };
+    const r1 = regalar(cartasA, cartasB, idA);
+    const r2 = regalar(r1.a, r1.de, idB);
+    // r1: A da idA a B → r1.de (A sin idA), r1.a (B con idA). r2: B da idB a A → r2.de (B final), r2.a (A final).
+    return { a: r2.a, b: r2.de, polvoA: r2.devuelto ? POLVO[K.def(idB).rareza] : 0, polvoB: r1.devuelto ? POLVO[K.def(idA).rareza] : 0 };
+}
+
+module.exports = {
+    PROB_HOLO, POLVO, COSTE_CREAR, INTERCAMBIOS_DIA, desencantar, crear, intercambiar, PREMIO_SERIE, SINERGIA, REGALOS_DIA, series, seriesCompletas, nuevasSeries, progresoSeries, regalar, CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };

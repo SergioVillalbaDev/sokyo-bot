@@ -53,7 +53,8 @@ const CATEGORIAS = [
         ['companion', 's', 'compi', 'Tu mascota: dale de comer, juega, habla con ella, mándala de expedición, usa cartas en ella y cumple las misiones del día.', 'Your pet: feed it, play, talk, send it on expeditions, use cards on it and do the daily missions.'],
         ['farm', 's', 'granja', 'Tus mascotas producen oro solas: recógelo, mira tu álbum (con premios por coleccionar) y las misiones de la semana.', 'Your pets make gold on their own: collect it, see your album (with collecting rewards) and the weekly missions.'],
         ['pass', 's', 'pase', 'Tu pase de temporada gratis: sube de nivel jugando y gana oro, sobres y cofres gratis. Y tus logros.', 'Your free season pass: level up by playing and win gold, free packs and chests. And your achievements.'],
-        ['card', 's', 'carta', 'Cartas de anime: abre sobres, mira tu álbum y úsalas para potenciar a tu mascota.', 'Anime cards: open packs, see your album and use them to power up your pet.'],
+        ['card', 's', 'carta', 'Cartas de anime: abre sobres, mira tu álbum, úsalas en tu mascota o como técnicas de combate, desencántalas en polvo, créalas e intercámbialas.', 'Anime cards: open packs, see your album, use them on your pet or as battle techniques, disenchant them into dust, craft and trade them.'],
+        ['fight', 's', 'combate', 'Combates por turnos con tu compañero y tu mazo: reta a alguien (con apuesta si quieres), sube la torre, ataca al jefe de la semana y sube de rango.', 'Turn-based battles with your companion and deck: challenge someone (with a bet if you want), climb the tower, hit the weekly boss and rank up.'],
         ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
     ] },
     { id: 'niveles', emoji: '📈', titulo: ['Niveles', 'Levels'], tab: 'config-niveles', cmds: [

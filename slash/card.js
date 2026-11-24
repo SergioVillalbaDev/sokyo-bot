@@ -31,11 +31,30 @@ module.exports = {
         .addSubcommand((s) => s.setName('gift').setNameLocalizations(ES('regalar')).setDescription('Gift a copy of a card to someone').setDescriptionLocalizations(ES('Regala una copia de una carta a alguien'))
             .addUserOption((o) => o.setName('member').setNameLocalizations(ES('miembro')).setDescription('Who').setDescriptionLocalizations(ES('A quién')).setRequired(true))
             .addStringOption((o) => o.setName('card').setNameLocalizations(ES('carta')).setDescription('Which card').setDescriptionLocalizations(ES('Qué carta')).setRequired(true).setAutocomplete(true)))
+        .addSubcommand((s) => s.setName('disenchant').setNameLocalizations(ES('desencantar')).setDescription('Turn a copy of a card into dust').setDescriptionLocalizations(ES('Convierte una copia de una carta en polvo'))
+            .addStringOption((o) => o.setName('card').setNameLocalizations(ES('carta')).setDescription('Which card').setDescriptionLocalizations(ES('Qué carta')).setRequired(true).setAutocomplete(true)))
+        .addSubcommand((s) => s.setName('craft').setNameLocalizations(ES('crear')).setDescription('Craft any card with dust').setDescriptionLocalizations(ES('Crea la carta que quieras con polvo'))
+            .addStringOption((o) => o.setName('any').setNameLocalizations(ES('cualquiera')).setDescription('Any card of the pack (type its name)').setDescriptionLocalizations(ES('Cualquier carta del pack (escribe su nombre)')).setRequired(true).setAutocomplete(true)))
+        .addSubcommand((s) => s.setName('trade').setNameLocalizations(ES('intercambiar')).setDescription('Offer someone a card swap').setDescriptionLocalizations(ES('Propón a alguien un cambio de cartas'))
+            .addUserOption((o) => o.setName('member').setNameLocalizations(ES('miembro')).setDescription('With whom').setDescriptionLocalizations(ES('Con quién')).setRequired(true))
+            .addStringOption((o) => o.setName('card').setNameLocalizations(ES('carta')).setDescription('Your card').setDescriptionLocalizations(ES('Tu carta')).setRequired(true).setAutocomplete(true))
+            .addStringOption((o) => o.setName('theirs').setNameLocalizations(ES('suya')).setDescription('Their card').setDescriptionLocalizations(ES('Su carta')).setRequired(true).setAutocomplete(true)))
         .addSubcommand((s) => s.setName('odds').setNameLocalizations(ES('probabilidades')).setDescription('What can come out of each pack').setDescriptionLocalizations(ES('Qué puede salir en cada sobre'))),
 
     async autocomplete(interaction) {
-        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).select('cartas').lean();
-        const q = String(interaction.options.getFocused() || '').toLowerCase();
+        const foco = interaction.options.getFocused(true);
+        const q = String(foco.value || '').toLowerCase();
+        // 1.32.0: «crear» busca en todo el pack (con lo que cuesta); «suya», en las cartas de la otra persona.
+        if (foco.name === 'any') {
+            const mia = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).select('cartas polvo').lean();
+            const tengo = new Map((mia?.cartas || []).map((c) => [c.id, c.estrellas || 1]));
+            const ops = [...K.ANIME.entries()].filter(([, d]) => d.rareza !== 'divina' && (!q || `${d.es} ${d.serie}`.toLowerCase().includes(q)))
+                .slice(0, 25).map(([id, d]) => ({ name: `${K.RAREZAS[d.rareza].emoji} ${d.es} · ${d.serie} · ✨ ${S.COSTE_CREAR[d.rareza]}${tengo.has(id) ? ` (★${tengo.get(id)})` : ''}`.slice(0, 100), value: id }));
+            return interaction.respond(ops).catch(() => {});
+        }
+        const otro = foco.name === 'theirs' ? interaction.options.get('member')?.value : null;
+        if (foco.name === 'theirs' && !otro) return interaction.respond([]).catch(() => {});
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: otro || interaction.user.id }).select('cartas').lean();
         const ahora = Date.now();
         const ops = (col?.cartas || []).map((c) => {
             const d = K.def(c.id); const f = S.faltaCarta(c, ahora);
@@ -66,6 +85,25 @@ module.exports = {
             const r = await cartas.regalar(interaction, idioma, interaction.options.getUser('member'), interaction.options.getString('card'));
             if (r.error) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
             return interaction.reply({ content: r.texto, allowedMentions: { users: [r.destino] } });
+        }
+        if (sub === 'disenchant') {
+            const r = await cartas.desencantar(interaction.guildId, interaction.user.id, interaction.options.getString('card'), idioma);
+            if (r.confirmar) return interaction.reply(r.confirmar);
+            return interaction.reply({ content: r.error ? `❌ ${r.error}` : r.texto, flags: 64 });
+        }
+        if (sub === 'craft') {
+            await interaction.deferReply();
+            const r = await cartas.crear(interaction.guildId, interaction.user.id, interaction.options.getString('any'), idioma);
+            if (r.error) { await interaction.deleteReply().catch(() => {}); return interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }); }
+            const v = await cartas.verCarta(interaction.guildId, interaction.user.id, r.id, idioma);
+            return interaction.editReply({ content: r.texto, ...v, allowedMentions: { parse: [] } });
+        }
+        if (sub === 'trade') {
+            const yo = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).select('cartas').lean();
+            if (!(yo?.cartas || []).some((c) => c.id === interaction.options.getString('card'))) return interaction.reply({ content: t(idioma, '❌ No tienes esa carta.', '❌ You don’t have that card.'), flags: 64 });
+            const r = cartas.proponerIntercambio(interaction, idioma, interaction.options.getUser('member'), interaction.options.getString('card'), interaction.options.getString('theirs'));
+            if (r.error) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
+            return interaction.reply(r.msg);
         }
         if (sub === 'use') {
             await interaction.deferReply();
