@@ -845,6 +845,9 @@ const ServidorConfigSchema = new mongoose.Schema({
             carrera: { type: Boolean, default: true },
             hilo: { type: Boolean, default: true },     // 1.25.0: mayor o menor
             rasca: { type: Boolean, default: true },    // 1.25.0: rasca y gana
+            plinko: { type: Boolean, default: true },   // 1.32.0
+            rueda: { type: Boolean, default: true },    // 1.32.0: rueda de la fortuna
+            loteria: { type: Boolean, default: true },  // 1.32.0: lotería semanal
         },
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
         // Lobby (1.23.0, utils/casinoLobby.js): el mensaje fijo con el desplegable de juegos (interno).

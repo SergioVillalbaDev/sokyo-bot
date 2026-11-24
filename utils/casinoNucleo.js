@@ -248,7 +248,100 @@ function boletoRasca(azar = azarSeguro) {
     return { casillas, premio: premio ? { simbolo: premio.simbolo, mult: premio.mult } : null };
 }
 
+
+// ---------------------------------------------------------------------------
+// 🔻 Plinko (1.32.0): la bola cae por 8 filas de clavos (izquierda o derecha en cada una) y
+// acaba en una de 9 casillas. Los bordes pagan mucho y salen poco. Tres riesgos (~96 %).
+// ---------------------------------------------------------------------------
+const PLINKO_FILAS = 8;
+const PLINKO = {
+    bajo: [5.6, 2.1, 1.1, 1, 0.4, 1, 1.1, 2.1, 5.6],
+    medio: [13, 3, 1.3, 0.65, 0.4, 0.65, 1.3, 3, 13],
+    alto: [29, 4, 1.4, 0.3, 0.2, 0.3, 1.4, 4, 29],
+};
+const comb = (n, k) => { let r = 1; for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i; return r; };
+const rtpPlinko = (riesgo) => PLINKO[riesgo].reduce((a, m, k) => a + (m * comb(PLINKO_FILAS, k)) / 2 ** PLINKO_FILAS, 0);
+function tirarPlinko(riesgo = 'bajo', azar = azarSeguro) {
+    if (!PLINKO[riesgo]) riesgo = 'bajo';
+    const camino = []; let casilla = 0;
+    for (let i = 0; i < PLINKO_FILAS; i++) { const d = azar() < 0.5 ? 0 : 1; camino.push(d); casilla += d; }
+    return { riesgo, camino, casilla, mult: PLINKO[riesgo][casilla] };
+}
+
+// ---------------------------------------------------------------------------
+// 🎡 Rueda de la fortuna (1.32.0): 50 casillas con números (1, 2, 5, 10, 20 y 40). Apuestas a uno:
+// si sale, cobras lo que paga (cuanto menos sale, más paga; ~94 %).
+// ---------------------------------------------------------------------------
+const RUEDA = [
+    { n: 1, veces: 23, paga: 2.05, color: '#facc15' },
+    { n: 2, veces: 13, paga: 3.6, color: '#38bdf8' },
+    { n: 5, veces: 7, paga: 6.8, color: '#a78bfa' },
+    { n: 10, veces: 4, paga: 11.8, color: '#4ade80' },
+    { n: 20, veces: 2, paga: 23.5, color: '#fb923c' },
+    { n: 40, veces: 1, paga: 47, color: '#f43f5e' },
+];
+// Orden de las casillas en la rueda (repartidas para que no estén juntas las iguales).
+const CASILLAS_RUEDA = (() => {
+    const total = RUEDA.reduce((a, r) => a + r.veces, 0);
+    const huecos = new Array(total).fill(null);
+    for (const r of [...RUEDA].reverse()) {
+        const paso = total / r.veces;
+        for (let i = 0; i < r.veces; i++) {
+            let k = Math.floor(i * paso + paso / 2) % total;
+            while (huecos[k] !== null) k = (k + 1) % total;
+            huecos[k] = r.n;
+        }
+    }
+    return huecos;
+})();
+const rtpRueda = (n) => { const r = RUEDA.find((x) => x.n === n); return (r.veces * r.paga) / CASILLAS_RUEDA.length; };
+function girarRueda(azar = azarSeguro) {
+    const i = Math.floor(azar() * CASILLAS_RUEDA.length) % CASILLAS_RUEDA.length;
+    return { indice: i, numero: CASILLAS_RUEDA[i] };
+}
+const pagoRueda = (apuesta, sale) => (apuesta === sale ? RUEDA.find((r) => r.n === sale).paga : 0);
+
+// ---------------------------------------------------------------------------
+// 🎟️ Lotería semanal (1.32.0): boletos de PRECIO_BOLETO; el domingo se sortean 3 premios entre
+// los boletos (70 %, 20 % y 10 % del bote; cada persona gana uno como mucho). El bote es el
+// BOTE_LOTERIA de lo vendido (el resto sale de la economía) y empieza en BOTE_BASE.
+// ---------------------------------------------------------------------------
+const PRECIO_BOLETO = 100;
+const MAX_BOLETOS = 20;
+const BOTE_LOTERIA = 0.85;
+const BOTE_BASE = 300;
+const REPARTO_LOTERIA = [0.7, 0.2, 0.1];
+// La casa pone un extra (hasta BOTE_BASE) pero nunca más de un 10 % de lo vendido: jugar nunca sale a cuenta.
+const boteLoteria = (vendidos) => { const v = vendidos * PRECIO_BOLETO; return Math.floor(v * BOTE_LOTERIA) + Math.min(BOTE_BASE, Math.floor(v * 0.1)); };
+// `boletos` = { userId: n }. Devuelve [{ userId, puesto, premio }] (hasta 3, personas distintas).
+function sortearLoteria(boletos = {}, azar = azarSeguro) {
+    const quedan = new Map(Object.entries(boletos).filter(([, n]) => n > 0));
+    const total = [...quedan.values()].reduce((a, n) => a + n, 0);
+    const bote = boteLoteria(total);
+    const out = [];
+    for (let p = 0; p < REPARTO_LOTERIA.length && quedan.size; p++) {
+        const suma = [...quedan.values()].reduce((a, n) => a + n, 0);
+        let x = azar() * suma; let elegido = null;
+        for (const [u, n] of quedan) { x -= n; if (x < 0) { elegido = u; break; } }
+        elegido = elegido || [...quedan.keys()].pop();
+        out.push({ userId: elegido, puesto: p + 1, premio: Math.floor(bote * REPARTO_LOTERIA[p]) });
+        quedan.delete(elegido);
+    }
+    return { bote, ganadores: out };
+}
+// Domingo 20:00 UTC de la semana (lunes `semana`).
+const sorteoDe = (semana) => new Date(Date.parse(`${semana}T20:00:00Z`) + 6 * 86400000);
+
+// ---------------------------------------------------------------------------
+// 🫶 Juego responsable (1.32.0): tras RACHA_AVISO partidas seguidas sin ganar, un aviso (una vez
+// por racha) antes de la siguiente jugada.
+// ---------------------------------------------------------------------------
+const RACHA_AVISO = 10;
+const tocaAviso = (perfil = {}) => (perfil.rachaPerdidas || 0) >= RACHA_AVISO && (perfil.avisoRacha || 0) < Math.floor((perfil.rachaPerdidas || 0) / RACHA_AVISO) * RACHA_AVISO;
+
 module.exports = {
+    PLINKO_FILAS, PLINKO, rtpPlinko, tirarPlinko, RUEDA, CASILLAS_RUEDA, rtpRueda, girarRueda, pagoRueda,
+    PRECIO_BOLETO, MAX_BOLETOS, BOTE_LOTERIA, BOTE_BASE, REPARTO_LOTERIA, boteLoteria, sortearLoteria, sorteoDe, RACHA_AVISO, tocaAviso,
     HILO_VENTAJA, HILO_MAX_MULT, valorHilo, cartaHilo, pagoHilo, resultadoHilo,
     RASCA_PREMIOS, RASCA_SIMBOLOS, rtpRasca, boletoRasca,
     azarSeguro,

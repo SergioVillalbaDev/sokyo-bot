@@ -28,6 +28,8 @@ const RESUMEN = {
     carrera: ['Todo el canal apuesta por un corredor', 'The whole channel bets on a runner'],
     hilo: ['¿Mayor o menor? Encadena aciertos y retírate', 'Higher or lower? Chain wins and cash out'],
     rasca: ['Rasca 9 casillas: 3 iguales y ganas', 'Scratch 9 tiles: 3 of a kind wins'],
+    plinko: ['La bola cae rebotando: ¡los bordes pagan ×29!', 'The ball bounces down: the edges pay ×29!'],
+    rueda: ['Apuesta a un número: el 40 paga ×47', 'Bet on a number: 40 pays ×47'],
 };
 // Opciones de cada juego en su mesa (lo que va como «extra» en cas_rep).
 const OPCIONES = {
@@ -35,9 +37,11 @@ const OPCIONES = {
         ['docena1', '1.ª docena (×3)', '1st dozen (×3)'], ['docena2', '2.ª docena (×3)', '2nd dozen (×3)'], ['docena3', '3.ª docena (×3)', '3rd dozen (×3)'], ['numero-7', 'Número 7 (×36)', 'Number 7 (×36)'], ['numero-17', 'Número 17 (×36)', 'Number 17 (×36)'], ['numero-0', '🟢 Número 0 (×36)', '🟢 Number 0 (×36)']],
     moneda: [['cara', '👑 Cara', '👑 Heads'], ['cruz', '🦅 Cruz', '🦅 Tails']],
     minas: [['1', '1 mina (tranquilo)', '1 mine (calm)'], ['3', '3 minas', '3 mines'], ['5', '5 minas', '5 mines'], ['8', '8 minas (valiente)', '8 mines (brave)'], ['12', '12 minas (locura)', '12 mines (madness)']],
+    plinko: [['bajo', '🟢 Riesgo bajo', '🟢 Low risk'], ['medio', '🟠 Riesgo medio', '🟠 Medium risk'], ['alto', '🔴 Riesgo alto (×29)', '🔴 High risk (×29)']],
+    rueda: [['1', '1 (×2,05)', '1 (×2.05)'], ['2', '2 (×3,6)', '2 (×3.6)'], ['5', '5 (×6,8)', '5 (×6.8)'], ['10', '10 (×11,8)', '10 (×11.8)'], ['20', '20 (×23,5)', '20 (×23.5)'], ['40', '40 (×47)', '40 (×47)']],
     crash: [['', 'Me retiro yo', 'I cash out myself'], ['1.5', 'Retiro solo en ×1,5', 'Auto cash out at ×1.5'], ['2', 'Retiro solo en ×2', 'Auto cash out at ×2'], ['3', 'Retiro solo en ×3', 'Auto cash out at ×3'], ['5', 'Retiro solo en ×5', 'Auto cash out at ×5'], ['10', 'Retiro solo en ×10', 'Auto cash out at ×10']],
 };
-const EXTRA_INICIAL = { ruleta: 'rojo', moneda: 'cara', minas: '3', crash: '' };
+const EXTRA_INICIAL = { ruleta: 'rojo', moneda: 'cara', minas: '3', crash: '', plinko: 'bajo', rueda: '1' };
 // Fichas: mínimo, algunas redondas y el máximo.
 function fichas(min, max) {
     const l = [...new Set([min, 100, 250, 500, 1000, 2500, max].filter((x) => x >= min && x <= max))].sort((a, b) => a - b);
@@ -92,7 +96,10 @@ async function mensajeLobby(guild, cfg, { conCartel = true } = {}) {
         .addOptions([
             ...activos.map((j) => ({ value: j, emoji: J[j].emoji, label: t(idioma, J[j].es, J[j].en), description: t(idioma, ...RESUMEN[j]) })),
             ...(c.cofres !== false ? [{ value: 'cofres', emoji: '🎁', label: t(idioma, 'Cofres de mascotas', 'Pet chests'), description: t(idioma, 'Mascotas con habilidades exclusivas (hay una divina)', 'Pets with exclusive abilities (there’s a divine one)') }] : []),
-            ...(cfg?.compis?.anime ? [{ value: 'cartas', emoji: '🃏', label: t(idioma, 'Sobres de cartas de anime', 'Anime card packs'), description: t(idioma, '3 cartas por sobre que potencian a tu mascota', '3 cards per pack that power up your pet') }] : []),
+            ...(cfg?.compis?.anime ? [{ value: 'cartas', emoji: '🃏', label: t(idioma, 'Sobres de cartas de anime', 'Anime card packs'), description: t(idioma, '3 cartas por sobre: técnicas de combate y poderes', '3 cards per pack: battle techniques and powers') }] : []),
+            ...(c.juegos?.ruleta !== false ? [{ value: 'mesaruleta', emoji: '🎡', label: t(idioma, 'Ruleta en mesa (todo el canal)', 'Table roulette (whole channel)'), description: t(idioma, 'Una tirada para todos: 30 s para apostar', 'One spin for everyone: 30 s to bet') }] : []),
+            ...(c.juegos?.loteria !== false ? [{ value: 'loteria', emoji: '🎟️', label: t(idioma, 'Lotería de la semana', 'Weekly lottery'), description: t(idioma, 'Boletos de 🪙 100 · sorteo el domingo', '🪙 100 tickets · Sunday draw') }] : []),
+            { value: 'numeros', emoji: '📈', label: t(idioma, 'Mis números', 'My numbers'), description: t(idioma, 'Cómo te ha ido, con gráfica', 'How you’ve done, with a chart') },
         ]);
     const botones = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('cas_lb:diaria').setEmoji('🎁').setLabel(t(idioma, 'Tirada gratis', 'Free spin')).setStyle(ButtonStyle.Success),
@@ -164,6 +171,13 @@ async function mesa(juego, { cfg, idioma, guildId, userId, cantidad = null, extr
             new ActionRowBuilder().addComponents(Object.entries(S.SOBRES).map(([id, x]) => new ButtonBuilder().setCustomId(`crt_otro:${id}`).setEmoji(x.emoji).setStyle(ButtonStyle.Primary).setLabel(`${t(idioma, x.es, x.en)} · 🪙 ${fmt(x.precio, idioma)}`).setDisabled(saldo < x.precio))),
             new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('crt_album').setEmoji('📚').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi álbum', 'My album'))),
         ] };
+    }
+    if (juego === 'loteria') return require('./casinoExtra.js').vistaLoteria(await require('./casinoExtra.js').loteriaDe(guildId || cfg?.guildId), userId, idioma);
+    if (juego === 'numeros') { const r = await require('./casinoExtra.js').estadisticas(guildId || cfg?.guildId, userId, idioma); delete r.flags; return r; }
+    if (juego === 'mesaruleta') {
+        const e = new EmbedBuilder().setColor('#16a34a').setTitle(t(idioma, '🎡 Ruleta en mesa', '🎡 Table roulette'))
+            .setDescription(t(idioma, 'Abre una ruleta para **todo el canal**: durante 30 s cada uno apuesta a rojo, negro, par, impar o al 0, y luego gira **una sola vez para todos**.', 'Open a roulette for **the whole channel**: for 30 s everyone bets on red, black, even, odd or zero, then it spins **once for everyone**.'));
+        return { embeds: [e], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cas_lb:mesaruleta').setEmoji('🎡').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Abrir la mesa', 'Open the table')))] };
     }
     if (juego === 'cofres') {
         const e = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, '🎁 Cofres de mascotas', '🎁 Pet chests'))
@@ -267,7 +281,7 @@ async function manejar(interaction, client) {
         const rival = interaction.users.first();
         await interaction.deferReply();
         const r = await casino().duelo({ interaction, client, cfg, idioma, cantidad, rival });
-        if (r?.error) await interaction.editReply({ content: `❌ ${r.error}` });
+        if (r?.error) await interaction.editReply({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}` });
         return true;
     }
     if (interaction.isButton() && id.startsWith('cas_lm:')) {
@@ -298,10 +312,10 @@ async function manejar(interaction, client) {
         if (que === 'ranking') { await interaction.reply({ embeds: [await casino().embedBote(interaction.guild, idioma, userId)], flags: 64 }); return true; }
         if (que === 'guia') { await interaction.reply({ ...ayuda().guiaGeneral(idioma, cfg), flags: 64 }); return true; }
         if (que === 'coleccion') { await interaction.deferReply({ flags: 64 }); await interaction.editReply(await require('./cofres.js').verColeccion(interaction, idioma)); return true; }
-        if (que === 'diaria' || que === 'carrera') {
+        if (que === 'diaria' || que === 'carrera' || que === 'mesaruleta') {
             await interaction.deferReply();
-            const r = que === 'diaria' ? await casino().diaria({ interaction, client, cfg, idioma }) : await casino().carrera({ interaction, client, cfg, idioma });
-            if (r?.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }); }
+            const r = que === 'diaria' ? await casino().diaria({ interaction, client, cfg, idioma }) : que === 'carrera' ? await casino().carrera({ interaction, client, cfg, idioma }) : await require('./casinoExtra.js').mesa({ interaction, client, cfg, idioma });
+            if (r?.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 }); }
             return true;
         }
     }

@@ -1020,4 +1020,93 @@ async function gifDiez(lista, { color = '#7c3aed', textoNuevo = 'NEW' } = {}) {
     return aGif(frames, W, H);
 }
 
-module.exports = { gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+// ---------------------------------------------------------------------------
+// 🔻 Plinko (1.32.0): la bola cae fila a fila rebotando en los clavos y entra en su casilla.
+// ---------------------------------------------------------------------------
+async function gifPlinko({ camino, casilla, riesgo = 'bajo', mults, res = null }) {
+    if (!listo()) return null;
+    const W = 560; const H = 470; const FILAS = camino.length; const SEP = 44; const top = 70;
+    const cx = W / 2;
+    const clavo = (fila, k) => ({ x: cx + (k - fila / 2) * SEP, y: top + fila * SEP });
+    const colorMult = (m) => (m >= 10 ? '#dc2626' : m >= 3 ? '#f97316' : m >= 1.3 ? '#f59e0b' : m >= 1 ? '#65a30d' : '#475569');
+    const fondo = (ctx) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0f172a'); g.addColorStop(1, '#1e1b4b');
+        redondeado(ctx, 0, 0, W, H, 22); ctx.fillStyle = g; ctx.fill();
+        for (let f = 1; f <= FILAS; f++) for (let k = 0; k <= f; k++) {
+            const p = clavo(f, k); ctx.beginPath(); ctx.arc(p.x, p.y - SEP / 2, 4.5, 0, Math.PI * 2); ctx.fillStyle = '#e2e8f0'; ctx.fill();
+        }
+        // Casillas
+        const y = top + FILAS * SEP + 6; const ancho = SEP - 4;
+        mults.forEach((m, i) => {
+            const x = cx + (i - FILAS / 2) * SEP - ancho / 2;
+            redondeado(ctx, x, y, ancho, 34, 8); ctx.fillStyle = colorMult(m); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = `bold ${m >= 10 ? 12 : 13}px ${FUENTE}`; ctx.textAlign = 'center';
+            ctx.fillText(`×${String(m).replace('.', ',')}`, x + ancho / 2, y + 22);
+        });
+        ctx.fillStyle = '#cbd5e1'; ctx.font = `bold 15px ${FUENTE}`; ctx.textAlign = 'center';
+        ctx.fillText(`PLINKO · ${String(riesgo).toUpperCase()}`, cx, 30);
+    };
+    // Posiciones de la bola: arriba del todo y luego entre clavos según el camino.
+    const pts = [{ x: cx, y: top - SEP * 0.9 }];
+    let k = 0;
+    for (let f = 0; f < FILAS; f++) { k += camino[f]; pts.push({ x: cx + (k - (f + 1) / 2) * SEP, y: top + (f + 1) * SEP - SEP * 0.15 }); }
+    pts.push({ x: pts[pts.length - 1].x, y: top + FILAS * SEP + 22 });
+    const frames = [];
+    const SUB = 5;
+    for (let i = 0; i < pts.length - 1; i++) {
+        for (let j = 0; j < SUB; j++) {
+            const u = j / SUB; const a = pts[i]; const b = pts[i + 1];
+            const x = a.x + (b.x - a.x) * u; const y = a.y + (b.y - a.y) * u - Math.sin(u * Math.PI) * 12;
+            const { ctx } = lienzo(W, H); fondo(ctx);
+            const g = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, 11); g.addColorStop(0, '#fef9c3'); g.addColorStop(1, '#eab308');
+            ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#a16207'; ctx.stroke();
+            frames.push({ ctx, delay: 40 });
+        }
+    }
+    // Final: la casilla brilla y la pastilla del resultado
+    const { ctx } = lienzo(W, H); fondo(ctx);
+    const y = top + FILAS * SEP + 6; const ancho = SEP - 4; const x = cx + (casilla - FILAS / 2) * SEP - ancho / 2;
+    ctx.save(); ctx.shadowColor = '#fde68a'; ctx.shadowBlur = 24; redondeado(ctx, x - 3, y - 3, ancho + 6, 40, 10); ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
+    if (res) pastillaResultado(ctx, cx, top + FILAS * SEP / 2, { ...res, mult: mults[casilla] }, { tam: 30 });
+    frames.push({ ctx, delay: 60000 });
+    return aGif(frames, W, H);
+}
+
+// ---------------------------------------------------------------------------
+// 🎡 Rueda de la fortuna (1.32.0): gira, frena y la flecha de arriba marca el número.
+// ---------------------------------------------------------------------------
+async function gifRueda({ casillas, colores, indice, res = null }) {
+    if (!listo()) return null;
+    const W = 420; const H = 420; const cx = W / 2; const cy = H / 2 + 12; const R = 176;
+    const n = casillas.length; const paso = (Math.PI * 2) / n;
+    // Ángulo final: el centro de la casilla `indice` queda arriba (−π/2).
+    const fin = -Math.PI / 2 - (indice + 0.5) * paso - Math.PI * 2 * 5;
+    const TOTAL = 30;
+    const frames = [];
+    for (let f = 0; f <= TOTAL; f++) {
+        const u = facil(f / TOTAL);
+        const ang = fin * u;
+        const { ctx } = lienzo(W, H);
+        const g = ctx.createRadialGradient(cx, cy, 20, cx, cy, W); g.addColorStop(0, '#312e81'); g.addColorStop(1, '#020617');
+        redondeado(ctx, 0, 0, W, H, 24); ctx.fillStyle = g; ctx.fill();
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+        for (let i = 0; i < n; i++) {
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, i * paso, (i + 1) * paso); ctx.closePath();
+            ctx.fillStyle = colores[casillas[i]]; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(15,23,42,0.6)'; ctx.stroke();
+            ctx.save(); ctx.rotate((i + 0.5) * paso); ctx.translate(R - 20, 0); ctx.rotate(Math.PI / 2);
+            ctx.fillStyle = '#0f172a'; ctx.font = `900 ${casillas[i] >= 10 ? 12 : 14}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(String(casillas[i]), 0, 6);
+            ctx.restore();
+        }
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.lineWidth = 10; ctx.strokeStyle = '#facc15'; ctx.stroke();
+        for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R, cy + Math.sin(a) * R, 4, 0, Math.PI * 2); ctx.fillStyle = (i + f) % 2 ? '#fef08a' : '#f59e0b'; ctx.fill(); }
+        ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.fillStyle = '#1e1b4b'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#facc15'; ctx.stroke();
+        // Flecha
+        ctx.beginPath(); ctx.moveTo(cx - 18, cy - R - 26); ctx.lineTo(cx + 18, cy - R - 26); ctx.lineTo(cx, cy - R + 8); ctx.closePath(); ctx.fillStyle = '#ef4444'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#7f1d1d'; ctx.stroke();
+        if (f === TOTAL && res) pastillaResultado(ctx, cx, cy + 72, res, { tam: 24 });
+        frames.push({ ctx, delay: f === TOTAL ? 60000 : 40 + Math.round(u * u * 90) });
+    }
+    return aGif(frames, W, H);
+}
+
+module.exports = { gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
