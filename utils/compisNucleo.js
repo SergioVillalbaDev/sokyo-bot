@@ -12,6 +12,39 @@ const LLENO = 80;                 // cómo empieza un compañero nuevo
 const RITMO = { hambre: -3, alegria: -2, energia: 6 }; // por hora
 const lim = (v) => Math.max(0, Math.min(100, Math.round(v)));
 
+// ---------------------------------------------------------------------------
+// 1.32.0: personalidad y gustos. Salen del propio compañero (su id y cuándo llegó), así que cada uno
+// tiene los suyos para siempre sin guardar nada. La comida favorita y la odiada se DESCUBREN dándole
+// de comer (se apuntan en m.gustos).
+// ---------------------------------------------------------------------------
+function huella(m, sal = '') {
+    let h = 2166136261;
+    for (const ch of `${m.id}|${m.primera ? new Date(m.primera).getTime() : 0}|${sal}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    return h;
+}
+const PERSONALIDADES = {
+    gloton: { emoji: '🍩', es: 'Glotón', en: 'Foodie', ama: 'comer', desc: { es: 'Comer le da un 50 % más de afinidad', en: 'Eating gives 50% more affinity' } },
+    jugueton: { emoji: '🎾', es: 'Juguetón', en: 'Playful', ama: 'jugar', desc: { es: 'Jugar le da un 50 % más de afinidad', en: 'Playing gives 50% more affinity' } },
+    mimoso: { emoji: '🥰', es: 'Mimoso', en: 'Cuddly', ama: 'mimar', desc: { es: 'Los mimos le dan un 50 % más de afinidad', en: 'Cuddles give 50% more affinity' } },
+    dormilon: { emoji: '😴', es: 'Dormilón', en: 'Sleepy', desc: { es: 'Recupera energía un 30 % más rápido', en: 'Recovers energy 30% faster' } },
+    valiente: { emoji: '🦁', es: 'Valiente', en: 'Brave', desc: { es: 'Pega un 5 % más en los combates', en: 'Hits 5% harder in battles' } },
+    curioso: { emoji: '🔍', es: 'Curioso', en: 'Curious', desc: { es: 'Trae un 10 % más de oro de las expediciones', en: 'Brings 10% more expedition gold' } },
+    presumido: { emoji: '💅', es: 'Presumido', en: 'Vain', desc: { es: 'Con un accesorio puesto gana un 25 % más de afinidad', en: 'Wearing an accessory gives 25% more affinity' } },
+};
+const persDe = (m) => { const ids = Object.keys(PERSONALIDADES); return ids[huella(m, 'pers') % ids.length]; };
+const COMIDAS = {
+    carne: { emoji: '🍖', es: 'Carne', en: 'Meat', art: 'la carne' },
+    pescado: { emoji: '🐟', es: 'Pescado', en: 'Fish', art: 'el pescado' },
+    fruta: { emoji: '🍎', es: 'Fruta', en: 'Fruit', art: 'la fruta' },
+    dulce: { emoji: '🍰', es: 'Pastel', en: 'Cake', art: 'el pastel' },
+    verdura: { emoji: '🥕', es: 'Verdura', en: 'Veggies', art: 'la verdura' },
+};
+function gustosDe(m) {
+    const ids = Object.keys(COMIDAS);
+    const i = huella(m, 'comida') % ids.length;
+    return { favorita: ids[i], odiada: ids[(i + 2) % ids.length] };
+}
+
 // Cómo está ahora (lo guardado + el tiempo que ha pasado). Si está de expedición, no gasta.
 function estado(m, ahora = Date.now()) {
     const desde = m.actualizado ? new Date(m.actualizado).getTime() : ahora;
@@ -24,7 +57,7 @@ function estado(m, ahora = Date.now()) {
     return {
         hambre: lim(base('hambre') + (fuera ? 0 : RITMO.hambre * (1 - k('gloton')) * h)),
         alegria: lim(base('alegria') + (fuera ? 0 : RITMO.alegria * (1 - k('alegre')) * h)),
-        energia: lim(base('energia') + (fuera ? 0 : RITMO.energia * (1 + k('incansable')) * h)),
+        energia: lim(base('energia') + (fuera ? 0 : RITMO.energia * (1 + k('incansable')) * (m.id && persDe(m) === 'dormilon' ? 1.3 : 1) * h)),
     };
 }
 // Afinidad que gana de verdad (con la habilidad «afin», más).
@@ -34,6 +67,8 @@ function conAfinidad(m, n) {
 }
 // Qué le pasa, de lo más urgente a lo mejor.
 function humor(e) {
+    // 1.32.0: muy abandonado (casi sin comida ni alegría) se pone malito. Se cura con cuidarlo un poco.
+    if (e.hambre < 10 && e.alegria < 15) return 'enfermo';
     if (e.hambre < 25) return 'hambre';
     if (e.energia < 20) return 'cansado';
     if (e.alegria < 25) return 'aburrido';
@@ -46,6 +81,7 @@ const HUMOR = {
     aburrido: { emoji: '🥱', es: 'Se aburre', en: 'Bored' },
     feliz: { emoji: '💖', es: '¡Feliz!', en: 'Happy!' },
     normal: { emoji: '🙂', es: 'Tranquilo', en: 'Calm' },
+    enfermo: { emoji: '🤒', es: 'Está malito', en: 'Feeling sick' },
     fuera: { emoji: '🧭', es: 'De expedición', en: 'On an expedition' },
 };
 
@@ -76,6 +112,23 @@ const CUIDADOS = {
     jugar: { emoji: '🎾', sube: { alegria: 30, energia: -15, hambre: -5 }, afinidad: 6, siHaceFalta: 'alegria', energia: 15 },
     mimar: { emoji: '🤗', sube: { alegria: 12 }, afinidad: 3, siHaceFalta: 'alegria', espera: 10 * 60000 },
 };
+// Multiplicador de afinidad por su forma de ser (lo que le encanta y, si es presumido, el accesorio).
+function extraPers(m, accion) {
+    const p = PERSONALIDADES[persDe(m)];
+    return (p.ama === accion ? 1.5 : 1) * (persDe(m) === 'presumido' && m.acc ? 1.25 : 1);
+}
+// Darle una comida concreta (1.32.0): la favorita da el doble de afinidad y alegría; la odiada, la mitad.
+function comer(m, comida, ahora = Date.now()) {
+    if (!COMIDAS[comida]) return { fallo: 'accion' };
+    const r = cuidar(m, 'comer', ahora);
+    if (r.fallo) return r;
+    const g = gustosDe(m);
+    const reaccion = comida === g.favorita ? 'encanta' : comida === g.odiada ? 'odia' : 'normal';
+    if (reaccion === 'encanta') { r.afinidad = Math.round(r.afinidad * 2) || conAfinidad(m, 4); r.alegria = lim(r.alegria + 12); }
+    if (reaccion === 'odia') { r.afinidad = Math.floor(r.afinidad / 2); r.alegria = lim(r.alegria - 6); }
+    r.humor = humor(r);
+    return { ...r, comida, reaccion };
+}
 function cuidar(m, accion, ahora = Date.now()) {
     const c = CUIDADOS[accion];
     if (!c) return { fallo: 'accion' };
@@ -85,7 +138,7 @@ function cuidar(m, accion, ahora = Date.now()) {
     if (accion === 'comer' && e.hambre >= 95) return { fallo: 'lleno', e };
     const hacia = e[c.siHaceFalta] < 90;
     const esperaMimo = c.espera && m.ultMimo && ahora - new Date(m.ultMimo).getTime() < c.espera;
-    const gana = hacia && !esperaMimo ? conAfinidad(m, c.afinidad) : 0;
+    const gana = hacia && !esperaMimo ? Math.round(conAfinidad(m, c.afinidad) * extraPers(m, accion)) : 0;
     const nuevo = { ...e };
     for (const [k, v] of Object.entries(c.sube)) nuevo[k] = lim(nuevo[k] + v);
     return { ...nuevo, afinidad: gana, antes: e, humor: humor(nuevo) };
@@ -122,6 +175,7 @@ function salir(m, tipo, hoy, dia, ahora = Date.now()) {
     const usadas = hoy && hoy.dia === dia ? hoy.n || 0 : 0;
     if (usadas >= EXPEDICIONES_DIA) return { fallo: 'tope' };
     const e = estado(m, ahora);
+    if (humor(e) === 'enfermo') return { fallo: 'enfermo', e };
     if (e.energia < x.energia) return { fallo: 'energia', e };
     const hab = K.habilidad(m.id);
     const horas = x.horas * (1 - (hab && hab.tipo === 'rapido' ? hab.valor : 0));
@@ -134,7 +188,7 @@ function botin(m, azar = Math.random) {
     // Más oro según su rareza y estrellas (ventaja «expedicion») y su nivel de afinidad.
     const k = 1 + K.ventajas(m.id, m.estrellas || 1).expedicion + 0.01 * (nivel(m.afinidad || 0) - 1);
     // Una carta (p. ej. 🍀 suerte) puede haber dejado el botín multiplicado (m.botinX).
-    const oro = Math.round((x.oro[0] + azar() * (x.oro[1] - x.oro[0])) * k * Math.max(1, m.botinX || 1));
+    const oro = Math.round((x.oro[0] + azar() * (x.oro[1] - x.oro[0])) * k * Math.max(1, m.botinX || 1) * (persDe(m) === 'curioso' ? 1.1 : 1));
     const hab = K.habilidad(m.id);
     const tesoro = hab && hab.tipo === 'tesoro';
     const recuerdo = tesoro || azar() < x.recuerdo ? Math.floor(azar() * RECUERDOS.length) : null;
@@ -387,7 +441,74 @@ function frase(m, momento, { idioma = 'es', dueno = '', azar = Math.random, ahor
 }
 const totalFrases = () => [GENERAL, VOCES, EXTRA].reduce((t, g) => t + Object.values(g).reduce((a, l) => a + l.length, 0), 0);
 
+// ---------------------------------------------------------------------------
+// 1.32.0: sorpresas de las expediciones (a veces vuelve con una historia)
+// ---------------------------------------------------------------------------
+const PROB_EVENTO_EXP = 0.4;
+const EVENTOS_EXP = [
+    { id: 'cofrecito', peso: 3, emoji: '💰', oroX: 1.5, es: 'Encontró un cofrecito escondido entre unas rocas', en: 'Found a tiny chest hidden among some rocks' },
+    { id: 'amigo', peso: 3, emoji: '🦊', afinidad: 15, es: 'Hizo un amigo por el camino y vuelve contentísimo', en: 'Made a friend on the way and comes back thrilled' },
+    { id: 'lluvia', peso: 2, emoji: '🌧️', alegria: -10, recuerdo: true, es: 'Le pilló la lluvia… pero bajo un árbol encontró algo', en: 'Got caught in the rain… but found something under a tree' },
+    { id: 'atajo', peso: 2, emoji: '🗺️', energia: 20, es: 'Descubrió un atajo y vuelve con energía de sobra', en: 'Found a shortcut and comes back full of energy' },
+    { id: 'banquete', peso: 2, emoji: '🍱', hambre: 40, es: 'Unos viajeros le invitaron a comer', en: 'Some travellers invited it to eat' },
+    { id: 'estrella', peso: 1, emoji: '🌠', oroX: 2.5, afinidad: 10, es: '¡Vio caer una estrella fugaz y la siguió hasta un tesoro!', en: 'Saw a shooting star and followed it to a treasure!' },
+    { id: 'perdido', peso: 2, emoji: '🧭', oroX: 0.7, afinidad: 20, es: 'Se perdió un rato; trae menos oro pero te ha echado mucho de menos', en: 'Got lost for a while; brings less gold but missed you a lot' },
+];
+// ¿Pasa algo? (azar) → el evento o null.
+function eventoExpedicion(azar = Math.random) {
+    if (azar() >= PROB_EVENTO_EXP) return null;
+    const total = EVENTOS_EXP.reduce((a, e) => a + e.peso, 0);
+    let x = azar() * total;
+    for (const e of EVENTOS_EXP) { x -= e.peso; if (x < 0) return e; }
+    return EVENTOS_EXP[0];
+}
+
+// ---------------------------------------------------------------------------
+// 1.32.0: minijuegos con tu compañero (dan afinidad y algo de oro; con tope al día)
+// ---------------------------------------------------------------------------
+const MINIJUEGOS = {
+    vasos: { emoji: '🥤', energia: 8, opciones: 3, es: '¿Dónde está la golosina?', en: 'Where’s the treat?', desc: { es: 'Esconde una golosina bajo un vaso: ¡adivina cuál!', en: 'It hides a treat under a cup: guess which!' } },
+    pelota: { emoji: '🎾', energia: 10, opciones: 3, es: 'Atrapa la pelota', en: 'Catch the ball', desc: { es: 'Lanza la pelota: si va hacia donde salta, ¡la atrapa!', en: 'Throw the ball: if it goes where it jumps, it catches it!' } },
+};
+const MINIJUEGOS_PREMIADOS_DIA = 6;
+const PREMIO_MINIJUEGO = { gana: { afinidad: 6, alegria: 15, oro: [15, 35] }, pierde: { afinidad: 2, alegria: 6, oro: [0, 0] } };
+// Prepara una partida: { correcta } (0..opciones-1).
+// En «vasos» la golosina empieza bajo un vaso y los vasos se cambian de sitio (`cambios`): quien
+// sigue el vaso con la vista, acierta. `correcta` = dónde acaba. En «pelota» es a la suerte.
+function prepararMinijuego(id, azar = Math.random) {
+    const j = MINIJUEGOS[id];
+    if (!j) return { fallo: 'accion' };
+    if (id === 'vasos') {
+        const inicio = Math.floor(azar() * 3) % 3;
+        const cambios = [];
+        let pos = inicio;
+        const n = 4 + (Math.floor(azar() * 3) % 3);
+        for (let i = 0; i < n; i++) {
+            const a = Math.floor(azar() * 3) % 3; const b = (a + 1 + (Math.floor(azar() * 2) % 2)) % 3;
+            cambios.push([a, b]);
+            if (pos === a) pos = b; else if (pos === b) pos = a;
+        }
+        return { id, inicio, cambios, correcta: pos };
+    }
+    return { id, correcta: Math.floor(azar() * j.opciones) % j.opciones };
+}
+// Juega: comprueba energía y premia. `premiado` = si aún le quedan premios hoy.
+function jugarMinijuego(m, id, eleccion, correcta, { ahora = Date.now(), premiado = true, azar = Math.random } = {}) {
+    const j = MINIJUEGOS[id];
+    if (!j) return { fallo: 'accion' };
+    if (expedicionActiva(m, ahora)) return { fallo: 'fuera' };
+    const e = estado(m, ahora);
+    if (e.energia < j.energia) return { fallo: 'energia', e };
+    const gana = Number(eleccion) === Number(correcta);
+    const p = PREMIO_MINIJUEGO[gana ? 'gana' : 'pierde'];
+    const nuevo = { ...e, energia: lim(e.energia - j.energia), alegria: lim(e.alegria + p.alegria) };
+    const oro = premiado && p.oro[1] ? Math.round(p.oro[0] + azar() * (p.oro[1] - p.oro[0])) : 0;
+    return { ...nuevo, gana, afinidad: Math.round(conAfinidad(m, p.afinidad) * (premiado ? 1 : 0.5)), oro, humor: humor(nuevo) };
+}
+
 module.exports = {
+    PERSONALIDADES, persDe, COMIDAS, gustosDe, comer, extraPers, huella, EVENTOS_EXP, PROB_EVENTO_EXP, eventoExpedicion,
+    MINIJUEGOS, MINIJUEGOS_PREMIADOS_DIA, PREMIO_MINIJUEGO, prepararMinijuego, jugarMinijuego,
     LLENO, RITMO, HUMOR, NIVEL_MAX, CUIDADOS, EXPEDICIONES, EXPEDICIONES_DIA, RECUERDOS, MISIONES, PREMIO_MISION, PREMIO_TODAS, PREMIOS_RACHA,
     conAfinidad, estado, humor, nivel, umbral, progresoNivel, extraCuidado, cuidar, expedicionActiva, expedicionLista, salir, botin,
     ARQUETIPOS, FUERZA, efectoAnime, efectoCarta, aplicarEfecto, textoEfecto, INTERACCIONES, interaccionesDe, falta, interactuar, PODERES, PODER_ESPERA_H, poderDe, faltaPoder, usarPoder, buffXp, ordenDe,

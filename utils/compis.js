@@ -74,14 +74,24 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
             // Mientras está fuera no gasta: se cuenta desde que volvió.
             const e = P.estado({ ...m, exp: null, actualizado: m.exp.hasta }, ahora);
             Object.assign(m, e, { actualizado: new Date(ahora), exp: null });
+            // 1.32.0: a veces vuelve con una historia (más oro, un amigo, un atajo…).
+            const ev = P.eventoExpedicion();
+            if (ev) {
+                if (ev.oroX) { const antes = b.oro; b.oro = Math.round(b.oro * ev.oroX); oro += b.oro - antes; }
+                if (ev.afinidad) m.afinidad = (m.afinidad || 0) + ev.afinidad;
+                for (const k of ['alegria', 'energia', 'hambre']) if (ev[k]) m[k] = Math.max(0, Math.min(100, (m[k] ?? 80) + ev[k]));
+                if (ev.recuerdo && b.recuerdo === null) b.recuerdo = Math.floor(Math.random() * P.RECUERDOS.length);
+            }
             if (b.recuerdo !== null && !(m.recuerdos || []).includes(b.recuerdo)) m.recuerdos = [...(m.recuerdos || []), b.recuerdo];
             const rec = b.recuerdo !== null ? P.RECUERDOS[b.recuerdo] : null;
             mensajes.push(t(idioma, `${x.emoji} **¡Ha vuelto de «${x.es}»!** Trae 🪙 ${b.oro}${rec ? ` y un recuerdo: ${rec[0]} ${rec[1]}` : ''}.`, `${x.emoji} **Back from “${x.en}”!** Brought 🪙 ${b.oro}${rec ? ` and a souvenir: ${rec[0]} ${rec[2]}` : ''}.`));
+            if (ev) mensajes.push(`${ev.emoji} *${t(idioma, ev.es, ev.en)}*${ev.afinidad ? ` · 💞 +${ev.afinidad}` : ''}`);
             efecto = 'vuelta';
         };
         recoger();
         let frase = null; let fallo = null; let falloMin = 0; let falloRareza = 0;
         let semAcc = null; // misión semanal que cuenta (1.28.0)
+        let misJuego = 0; // 1.32.0: minijuegos (XP del pase)
         if (que === 'comer' || que === 'jugar' || que === 'mimar') {
             const r = P.cuidar(m, que, ahora);
             if (r.fallo) fallo = r.fallo;
@@ -96,6 +106,58 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
                 sumarMision(que);
                 if (r.humor === 'feliz') sumarMision('feliz');
             }
+        } else if (que.startsWith('comida:')) {
+            // 1.32.0: darle una comida concreta. La favorita le encanta; la odiada, no tanto.
+            const r = P.comer(m, que.slice(7), ahora);
+            if (r.fallo) fallo = r.fallo;
+            else {
+                Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora) });
+                m.afinidad = (m.afinidad || 0) + r.afinidad;
+                m.cuidados = (m.cuidados || 0) + 1;
+                const cm = P.COMIDAS[r.comida];
+                if (r.reaccion === 'encanta') {
+                    const nueva = !m.gustos?.favorita;
+                    m.gustos = { ...(m.gustos || {}), favorita: true };
+                    mensajes.push(t(idioma, `${cm.emoji} **¡Le ENCANTA ${cm.art}!** 💖 +${r.afinidad} de afinidad${nueva ? ' · ¡Has descubierto su comida favorita!' : ''}`, `${cm.emoji} **It LOVES ${cm.en.toLowerCase()}!** 💖 +${r.afinidad} affinity${nueva ? ' · You found its favourite food!' : ''}`));
+                    efecto = 'mimar';
+                } else if (r.reaccion === 'odia') {
+                    const nueva = !m.gustos?.odiada;
+                    m.gustos = { ...(m.gustos || {}), odiada: true };
+                    mensajes.push(t(idioma, `${cm.emoji} Pone cara rara… **no le gusta nada ${cm.art}**${nueva ? ' (ya lo sabes para otra vez)' : ''}.`, `${cm.emoji} Makes a face… **it really doesn’t like ${cm.en.toLowerCase()}**${nueva ? ' (now you know)' : ''}.`));
+                    efecto = 'comer';
+                } else { mensajes.push(t(idioma, `${cm.emoji} Se come ${cm.art} tan a gusto.`, `${cm.emoji} Happily eats the ${cm.en.toLowerCase()}.`)); efecto = 'comer'; }
+                frase = P.frase(m, 'comer', { idioma, dueno, ahora });
+                semAcc = 'cuidar';
+                sumarMision('comer');
+                if (r.humor === 'feliz') sumarMision('feliz');
+            }
+        } else if (que.startsWith('mj:')) {
+            // 1.32.0: minijuego ya jugado (la respuesta correcta la guarda el bot, no el botón).
+            const [, juego, eleccion, correcta] = que.split(':');
+            const hoy = col.mjHoy?.dia === dia ? col.mjHoy.n || 0 : 0;
+            const premiado = hoy < P.MINIJUEGOS_PREMIADOS_DIA;
+            const r = P.jugarMinijuego(m, juego, eleccion, correcta, { ahora, premiado });
+            if (r.fallo) fallo = r.fallo;
+            else {
+                Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora) });
+                m.afinidad = (m.afinidad || 0) + r.afinidad;
+                oro += r.oro;
+                colSet.mjHoy = { dia, n: hoy + 1 };
+                const j = P.MINIJUEGOS[juego];
+                mensajes.push(r.gana
+                    ? t(idioma, `${j.emoji} **¡Bien!** Lo habéis pasado genial. 💞 +${r.afinidad}${r.oro ? ` · 🪙 +${r.oro}` : ''}`, `${j.emoji} **Nice!** You had a great time. 💞 +${r.afinidad}${r.oro ? ` · 🪙 +${r.oro}` : ''}`)
+                    : t(idioma, `${j.emoji} ¡Casi! Aun así se lo ha pasado bien. 💞 +${r.afinidad}`, `${j.emoji} So close! It still had fun. 💞 +${r.afinidad}`));
+                if (!premiado) mensajes.push(t(idioma, `*Hoy ya has jugado ${P.MINIJUEGOS_PREMIADOS_DIA} veces con premio: ahora es solo por diversión.*`, `*You’ve played ${P.MINIJUEGOS_PREMIADOS_DIA} rewarded games today: now it’s just for fun.*`));
+                efecto = r.gana ? 'juego' : 'jugar';
+                frase = P.frase(m, 'jugar', { idioma, dueno, ahora });
+                sumarMision('jugar');
+                misJuego = 1;
+            }
+        } else if (que.startsWith('acc:')) {
+            // 1.32.0: ponerle (o quitarle) un accesorio del armario.
+            const acc = que.slice(4) || null;
+            if (acc && !(col.armario || []).includes(acc)) fallo = 'sinAccesorio';
+            else { m.acc = acc || null; mensajes.push(acc ? t(idioma, `🎀 Estrena accesorio: ${require('./sprites.js').ACCESORIOS[acc].emoji} **${require('./sprites.js').ACCESORIOS[acc].es}**. ¡Qué bien le queda!`, `🎀 New look: ${require('./sprites.js').ACCESORIOS[acc].emoji} **${require('./sprites.js').ACCESORIOS[acc].en}**. Looking sharp!`) : t(idioma, '🎀 Accesorio quitado.', '🎀 Accessory removed.')); efecto = acc ? 'mimar' : null; }
         } else if (que === 'hablar') {
             if (P.expedicionActiva(m, ahora)) fallo = 'fuera';
             else { frase = P.frase(m, 'hablar', { idioma, dueno, ahora }); efecto = 'hablar'; sumarMision('hablar'); }
@@ -223,7 +285,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
             efecto = 'evolucion';
         }
         // Guardar (solo lo que cambia).
-        for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados', 'cds', 'botinX']) {
+        for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados', 'cds', 'botinX', 'acc', 'gustos']) {
             if (m[k] !== m0[k]) set[`mascotas.$[m].${k}`] = m[k];
         }
         if (mis !== col.misiones) colSet.misiones = mis;
@@ -233,7 +295,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
         }
         if (oro) await require('./economia.js').en(guildId).darOro(userId, oro);
         if (cuida) require('./cofres.js').olvidar(guildId, userId);
-        if (semAcc || misCumplidas) mensajes.push(...await require('./pase.js').registrar(guildId, userId, [[semAcc, semAcc ? 1 : 0], ['mision', misCumplidas], ['misionSemanal', semCumplidas]], { idioma, ahora }).catch(() => []));
+        if (semAcc || misCumplidas || misJuego) mensajes.push(...await require('./pase.js').registrar(guildId, userId, [[semAcc, semAcc ? 1 : 0], ['mision', misCumplidas], ['misionSemanal', semCumplidas], ['minijuego', misJuego]], { idioma, ahora }).catch(() => []));
         return { col: { ...col, ...colSet }, m, mensajes, efecto, frase, fallo, falloMin, falloRareza, oro };
     });
 }
@@ -253,6 +315,8 @@ const FALLOS = {
     recargando: ['Esa carta se está recargando: lista en {min}.', 'That card is recharging: ready in {min}.'],
     topeCartas: ['Ya has usado tus {n} cartas de hoy. Mañana más.', 'You’ve used your {n} cards for today. More tomorrow.'],
     accion: ['No sé hacer eso.', 'I can’t do that.'],
+    enfermo: ['Está malito 🤒: así no puede salir. Dale de comer y mímalo un poco para que se cure.', 'It’s feeling sick 🤒: it can’t go out like this. Feed it and cuddle it a bit so it gets better.'],
+    sinAccesorio: ['Aún no tienes ese accesorio: cómpralo en 🎀 Armario.', 'You don’t own that accessory yet: buy it in 🎀 Wardrobe.'],
 };
 const textoFallo = (f, idioma, min = 0, n = 0) => { const x = FALLOS[f] || FALLOS.accion; return t(idioma, x[0], x[1]).replace('{min}', tiempo(min * 60000, idioma)).replace('{n}', n); };
 
@@ -291,7 +355,7 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         id: m.id, nombre: nombreDe(m, idioma), rarezaTexto: t(idioma, rz.es, rz.en).toUpperCase(), estrellas: m.estrellas,
         nivel: pr.nivel, progreso: pr.max ? 1 : pr.actual / pr.total, estado: e,
         humor: { emoji: P.HUMOR[h].emoji, texto: t(idioma, P.HUMOR[h].es, P.HUMOR[h].en) },
-        humorClave: h, variante: m.variante || null,
+        humorClave: h, variante: m.variante || null, acc: m.acc || null,
         etapaTexto: require('./sprites.js').tiene(m.id) ? (() => { const et = require('./sprites.js').ETAPAS[require('./sprites.js').etapaDe(pr.nivel)]; return t(idioma, et.es, et.en).toUpperCase(); })() : null,
         frase: res.frase || '…',
         fuera: fuera ? t(idioma, `${x.emoji} De «${x.es}». Vuelve en ${tiempo(new Date(m.exp.hasta).getTime() - ahora, idioma)}.`, `${x.emoji} On “${x.en}”. Back in ${tiempo(new Date(m.exp.hasta).getTime() - ahora, idioma)}.`) : null,
@@ -318,6 +382,14 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         .setDescription([
             ...(res.mensajes || []),
             res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin, res.falloRareza)}` : '',
+            h === 'enfermo' ? t(idioma, '🤒 **Está malito** porque lleva mucho sin que lo cuiden. Dale de comer y mímalo: se cura enseguida.', '🤒 **It’s feeling sick** after a long time without care. Feed it and cuddle it: it’ll be fine in no time.') : '',
+            (() => { const pe = P.PERSONALIDADES[P.persDe(m)]; return `${pe.emoji} **${t(idioma, pe.es, pe.en)}** · ${t(idioma, pe.desc.es, pe.desc.en)}`; })(),
+            (() => {
+                const g = P.gustosDe(m); const sabe = m.gustos || {};
+                const fav = sabe.favorita ? `${P.COMIDAS[g.favorita].emoji} ${t(idioma, P.COMIDAS[g.favorita].es, P.COMIDAS[g.favorita].en)}` : '❔';
+                const odi = sabe.odiada ? `${P.COMIDAS[g.odiada].emoji} ${t(idioma, P.COMIDAS[g.odiada].es, P.COMIDAS[g.odiada].en)}` : '❔';
+                return t(idioma, `🍽️ Le encanta: ${fav} · No le gusta: ${odi}${sabe.favorita && sabe.odiada ? '' : ' *(pruébalo en «Más cosas que hacer»)*'}`, `🍽️ Loves: ${fav} · Dislikes: ${odi}${sabe.favorita && sabe.odiada ? '' : ' *(try it in “More things to do”)*'}`);
+            })(),
             def.desc ? `*${def.desc}*` : '',
             def.serie ? `📺 ${def.serie}` : '',
             K.habilidad(m.id) ? t(idioma, `🌟 **Habilidad exclusiva:** ${K.habilidad(m.id).es}`, `🌟 **Exclusive ability:** ${K.habilidad(m.id).en}`) : '',
@@ -375,14 +447,22 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
             })))));
     }
     const extras = P.interaccionesDe(m);
-    if (!fuera && extras.length) {
-        filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_int:${ownerId}:${m.id}`)
-            .setPlaceholder(t(idioma, `🎀 Más cosas que hacer (${extras.length})…`, `🎀 More things to do (${extras.length})…`))
-            .addOptions(extras.map((id) => {
+    if (!fuera) {
+        // 1.32.0: también comidas (para descubrir su favorita) y minijuegos.
+        const g = P.gustosDe(m); const sabe = m.gustos || {};
+        const ops = [
+            ...Object.entries(P.MINIJUEGOS).map(([id, j]) => ({ value: `mj:${id}`, emoji: j.emoji, label: t(idioma, `Minijuego: ${j.es}`, `Minigame: ${j.en}`).slice(0, 100), description: t(idioma, `${j.desc.es} · ⚡${j.energia}`, `${j.desc.en} · ⚡${j.energia}`).slice(0, 100) })),
+            ...Object.entries(P.COMIDAS).map(([id, cm]) => ({ value: `comida:${id}`, emoji: cm.emoji, label: t(idioma, `Darle ${cm.art}`, `Give it ${cm.en.toLowerCase()}`),
+                description: (sabe.favorita && g.favorita === id ? t(idioma, '💖 ¡Su favorita!', '💖 Its favourite!') : sabe.odiada && g.odiada === id ? t(idioma, '🙅 No le gusta', '🙅 It dislikes it') : t(idioma, '¿Le gustará?', 'Will it like it?')) })),
+            ...extras.map((id) => {
                 const x = P.INTERACCIONES[id]; const f = P.falta(m, id, ahora);
                 return { value: id, emoji: x.emoji, label: t(idioma, x.es, x.en).slice(0, 100),
                     description: (f ? t(idioma, `⏳ Podrás en ${tiempo(f * 60000, idioma)}`, `⏳ Available in ${tiempo(f * 60000, idioma)}`) : t(idioma, `Listo · +${x.afinidad} de afinidad${x.oro ? ' · trae oro' : ''}`, `Ready · +${x.afinidad} affinity${x.oro ? ' · brings gold' : ''}`)).slice(0, 100) };
-            }))));
+            }),
+        ].slice(0, 25);
+        filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_int:${ownerId}:${m.id}`)
+            .setPlaceholder(t(idioma, '🎀 Más cosas que hacer: comidas, minijuegos…', '🎀 More things to do: food, minigames…'))
+            .addOptions(ops)));
     }
     const lista = [...(col.mascotas || [])].sort((a, b) => (b.id === col.equipada) - (a.id === col.equipada) || K.RAREZAS[K.def(b.id).rareza].orden - K.RAREZAS[K.def(a.id).rareza].orden).slice(0, 25);
     if (lista.length > 1) {
@@ -395,7 +475,7 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
     }
     filas.push(new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(cid('equipar')).setEmoji('✅').setLabel(equipado ? t(idioma, 'Equipado', 'Equipped') : t(idioma, 'Equipar', 'Equip')).setStyle(ButtonStyle.Secondary).setDisabled(equipado),
-        new ButtonBuilder().setCustomId(cid('apodo')).setEmoji('✏️').setLabel(t(idioma, 'Ponerle apodo', 'Nickname')).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(cid('armario')).setEmoji('🎀').setLabel(t(idioma, 'Armario', 'Wardrobe')).setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(cid('ver')).setEmoji('🔄').setLabel(t(idioma, 'Actualizar', 'Refresh')).setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(`grj:abrir:${ownerId}`).setEmoji('🧺').setLabel(t(idioma, 'Granja', 'Farm')).setStyle(ButtonStyle.Success),
         ...(cfg?.compis?.anime ? [new ButtonBuilder().setCustomId(cid('cartas')).setEmoji('🃏').setLabel(t(idioma, `Cartas (${(col.cartas || []).length})`, `Cards (${(col.cartas || []).length})`)).setStyle(ButtonStyle.Primary)] : []),
@@ -446,13 +526,29 @@ async function manejar(interaction) {
     else if (partes[0] === 'cmp_exp') { owner = partes[1]; comp = partes.slice(2).join(':'); que = `exp:${interaction.values[0]}`; }
     else if (partes[0] === 'cmp_sel') { owner = partes[1]; comp = interaction.values[0]; que = 'ver'; }
     else if (partes[0] === 'cmp_crt') { owner = partes[1]; comp = partes.slice(3).join(':'); que = `carta:${interaction.values[0]}`; }
-    else if (partes[0] === 'cmp_int') { owner = partes[1]; comp = partes.slice(2).join(':'); que = `int:${interaction.values[0]}`; }
+    else if (partes[0] === 'cmp_int') {
+        owner = partes[1]; comp = partes.slice(2).join(':');
+        const v = interaction.values[0];
+        que = v.startsWith('comida:') ? v : v.startsWith('mj:') ? `jugar_mj:${v.slice(3)}` : `int:${v}`;
+    }
+    else if (partes[0] === 'cmp_mj') { owner = partes[1]; que = 'mj_elegir'; }
+    else if (partes[0] === 'cmp_arm') { owner = partes[1]; comp = partes.slice(3).join(':'); que = 'armario_elegir'; }
     else if (partes[0] === 'cmp_apodo') { owner = partes[1]; comp = partes.slice(2).join(':'); que = 'apodo_guardar'; }
     else return false;
     if (interaction.user.id !== owner) {
         await interaction.reply({ content: t(idioma, '🐾 Este compañero no es tuyo. Mira el tuyo con `/compi`.', '🐾 This companion isn’t yours. See yours with `/companion`.'), flags: 64 });
         return true;
     }
+    if (que.startsWith('jugar_mj:')) { await empezarMinijuego(interaction, owner, comp, que.slice(9), idioma); return true; }
+    if (que === 'mj_elegir') { await terminarMinijuego(interaction, partes[2], Number(partes[3]), idioma, cfg); return true; }
+    if (que === 'armario') {
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
+        const m = elegir(col, comp);
+        if (!m) { await interaction.reply({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
+        await interaction.reply(await armario(interaction, col, m, owner, interaction.message?.id, idioma));
+        return true;
+    }
+    if (que === 'armario_elegir') { await elegirArmario(interaction, owner, partes[2], comp, interaction.values[0], idioma, cfg); return true; }
     if (que === 'cartas') {
         const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
         const m = elegir(col, comp);
@@ -505,6 +601,116 @@ async function manejar(interaction) {
     if (res.fallo === 'sin') { await interaction.followUp({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
     await interaction.editReply(await vista({ ownerId: owner, duenoNombre: interaction.user.displayName || interaction.user.username, idioma, res, cfg }));
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// 1.32.0: minijuegos. La respuesta buena se queda aquí (en memoria, 3 min); el botón solo dice qué eliges.
+// ---------------------------------------------------------------------------
+const partidasMj = new Map();
+async function empezarMinijuego(interaction, owner, comp, juego, idioma) {
+    const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
+    const m = elegir(col, comp);
+    if (!m) return interaction.reply({ content: textoFallo('sin', idioma), flags: 64 });
+    const j = P.MINIJUEGOS[juego];
+    if (!j) return interaction.reply({ content: textoFallo('accion', idioma), flags: 64 });
+    if (P.expedicionActiva(m)) return interaction.reply({ content: textoFallo('fuera', idioma), flags: 64 });
+    if (P.estado(m).energia < j.energia) return interaction.reply({ content: textoFallo('energia', idioma), flags: 64 });
+    await interaction.deferReply({ flags: 64 });
+    const pa = P.prepararMinijuego(juego);
+    const token = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    for (const [k, v] of partidasMj) if (v.hasta < Date.now()) partidasMj.delete(k);
+    partidasMj.set(token, { ...pa, owner, comp: m.id, guildId: interaction.guildId, msgId: interaction.message?.id || null, hasta: Date.now() + 3 * 60000 });
+    const d = { id: m.id, nivel: P.nivel(m.afinidad || 0), variante: m.variante, acc: m.acc };
+    const A = require('./compisArte.js');
+    const img = juego === 'vasos' ? await A.gifVasos(d, pa).catch(() => null) : A.inicioPelota(d);
+    const nombre = juego === 'vasos' ? 'vasos.gif' : 'pelota.png';
+    const etiquetas = juego === 'vasos' ? ['1', '2', '3'] : [t(idioma, 'Izquierda', 'Left'), t(idioma, 'Arriba', 'Up'), t(idioma, 'Derecha', 'Right')];
+    const emojis = juego === 'vasos' ? ['🥤', '🥤', '🥤'] : ['⬅️', '⬆️', '➡️'];
+    const e = new EmbedBuilder().setColor('#ec4899').setTitle(`${j.emoji} ${t(idioma, j.es, j.en)}`)
+        .setDescription(juego === 'vasos' ? t(idioma, '👀 Mira bien dónde esconde la golosina y sigue el vaso… ¿Dónde está?', '👀 Watch where it hides the treat and follow the cup… Where is it?') : t(idioma, '🎾 ¿Hacia dónde lanzas la pelota? Si saltáis al mismo lado, ¡la atrapa!', '🎾 Where do you throw the ball? If you both go the same way, it catches it!'));
+    if (img) e.setImage(`attachment://${nombre}`);
+    const fila = new ActionRowBuilder().addComponents(etiquetas.map((l, i) => new ButtonBuilder().setCustomId(`cmp_mj:${owner}:${token}:${i}`).setLabel(l).setEmoji(emojis[i]).setStyle(ButtonStyle.Primary)));
+    return interaction.editReply({ embeds: [e], files: img ? [new AttachmentBuilder(img, { name: nombre })] : [], components: [fila] });
+}
+async function terminarMinijuego(interaction, token, eleccion, idioma, cfg) {
+    const pa = partidasMj.get(token);
+    if (!pa || pa.hasta < Date.now()) { partidasMj.delete(token); return interaction.update({ content: t(idioma, '⌛ Esta partida ha caducado. Empieza otra desde /compi.', '⌛ This game expired. Start another one from /companion.'), embeds: [], components: [], attachments: [] }); }
+    partidasMj.delete(token);
+    await interaction.deferUpdate();
+    const nombre = interaction.member?.displayName || interaction.user.username;
+    const res = await accion(pa.guildId, pa.owner, pa.comp, `mj:${pa.id}:${eleccion}:${pa.correcta}`, { idioma, dueno: nombre, bromas: !!cfg?.bromas?.activo });
+    if (res.fallo) return interaction.editReply({ content: `⚠️ ${textoFallo(res.fallo, idioma)}`, embeds: [], components: [], attachments: [] });
+    const d = { id: res.m.id, nivel: P.nivel(res.m.afinidad || 0), variante: res.m.variante, acc: res.m.acc };
+    const A = require('./compisArte.js');
+    const img = pa.id === 'vasos' ? A.resultadoVasos(d, eleccion, pa.correcta) : await A.gifPelota(d, eleccion, pa.correcta).catch(() => null);
+    const archivo = pa.id === 'vasos' ? 'resultado.png' : 'pelota.gif';
+    const e = new EmbedBuilder().setColor(eleccion === pa.correcta ? '#22c55e' : '#f97316').setTitle(eleccion === pa.correcta ? t(idioma, '🎉 ¡Acertaste!', '🎉 You got it!') : t(idioma, '😅 ¡Uy, por poco!', '😅 Oops, so close!'))
+        .setDescription((res.mensajes || []).join('\n') || '—');
+    if (img) e.setImage(`attachment://${archivo}`);
+    const otra = new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_int:${pa.owner}:${pa.comp}`).setPlaceholder(t(idioma, '🎮 Otra partida…', '🎮 Play again…'))
+        .addOptions(Object.entries(P.MINIJUEGOS).map(([id, j]) => ({ value: `mj:${id}`, emoji: j.emoji, label: t(idioma, j.es, j.en) }))));
+    await interaction.editReply({ content: '', embeds: [e], files: img ? [new AttachmentBuilder(img, { name: archivo })] : [], attachments: [], components: [otra] });
+    // Pone al día la tarjeta pública de /compi (si se empezó desde ahí).
+    if (pa.msgId) {
+        const original = await interaction.channel?.messages.fetch(pa.msgId).catch(() => null);
+        if (original && !original.flags?.has?.(64)) await original.edit(await vista({ ownerId: pa.owner, duenoNombre: nombre, idioma, res: { ...res, efecto: null, mensajes: [] }, cfg })).catch(() => {});
+    }
+    return null;
+}
+
+// ---------------------------------------------------------------------------
+// 1.32.0: armario (accesorios que se ven en el dibujo) y apodo
+// ---------------------------------------------------------------------------
+async function armario(interaction, col, m, owner, msgId, idioma) {
+    const SPR = require('./sprites.js');
+    const tengo = new Set(col.armario || []);
+    const saldo = (await require('./economia.js').en(interaction.guildId).obtenerUsuario(owner)).balance;
+    const ops = [
+        ...(m.acc ? [{ value: '-', emoji: '✖️', label: t(idioma, 'Quitarle el accesorio', 'Remove the accessory') }] : []),
+        ...Object.entries(SPR.ACCESORIOS).map(([id, a]) => ({ value: id, emoji: a.emoji, default: m.acc === id,
+            label: `${t(idioma, a.es, a.en)}${m.acc === id ? t(idioma, ' (puesto)', ' (wearing)') : ''}`.slice(0, 100),
+            description: tengo.has(id) ? t(idioma, '✅ Tuyo · ponérselo', '✅ Yours · put it on') : t(idioma, `🪙 ${fmt(a.precio, idioma)} · comprar y ponérselo`, `🪙 ${fmt(a.precio, idioma)} · buy and put it on`) })),
+    ].slice(0, 25);
+    const e = new EmbedBuilder().setColor('#ec4899').setTitle(t(idioma, `🎀 Armario de ${corto(m, idioma)}`, `🎀 ${corto(m, idioma)}’s wardrobe`))
+        .setDescription(t(idioma, `Los accesorios se ven en su dibujo (y en los combates). Lo que compras es tuyo para **todos** tus compañeros. Tienes 🪙 ${fmt(saldo, idioma)}.${P.persDe(m) === 'presumido' ? '\n💅 Es presumido: con un accesorio puesto gana un 25 % más de afinidad.' : ''}`, `Accessories show on its drawing (and in battles). What you buy is yours for **all** your companions. You have 🪙 ${fmt(saldo, idioma)}.${P.persDe(m) === 'presumido' ? '\n💅 It’s vain: wearing an accessory gives 25% more affinity.' : ''}`));
+    return { embeds: [e], flags: 64, components: [
+        new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_arm:${owner}:${msgId || '0'}:${m.id}`).setPlaceholder(t(idioma, '🎀 Elige un accesorio…', '🎀 Pick an accessory…')).addOptions(ops)),
+        new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cmp:apodo:${owner}:${m.id}`).setEmoji('✏️').setLabel(t(idioma, 'Ponerle apodo', 'Nickname')).setStyle(ButtonStyle.Secondary)),
+    ] };
+}
+async function elegirArmario(interaction, owner, msgId, comp, valor, idioma, cfg) {
+    const SPR = require('./sprites.js');
+    await interaction.deferUpdate();
+    const guildId = interaction.guildId;
+    const acc = valor === '-' ? '' : valor;
+    let aviso = '';
+    if (acc) {
+        const a = SPR.ACCESORIOS[acc];
+        if (!a) return null;
+        const col = await ColeccionMascotas.findOne({ guildId, userId: owner }).select('armario').lean();
+        if (!(col?.armario || []).includes(acc)) {
+            // Se compra: primero el oro; si no se puede guardar, se devuelve.
+            const eco = require('./economia.js').en(guildId);
+            const saldo = await eco.cobrar(owner, a.precio);
+            if (saldo === null) return interaction.followUp({ content: t(idioma, `❌ No tienes 🪙 ${fmt(a.precio, idioma)} para ${a.es.toLowerCase()}.`, `❌ You don’t have 🪙 ${fmt(a.precio, idioma)} for the ${a.en.toLowerCase()}.`), flags: 64 });
+            const r = await ColeccionMascotas.updateOne({ guildId, userId: owner, armario: { $ne: acc } }, { $addToSet: { armario: acc } });
+            if (!r.modifiedCount) await eco.darOro(owner, a.precio);
+            else aviso = t(idioma, `🛍️ Comprado: ${a.emoji} **${a.es}** por 🪙 ${fmt(a.precio, idioma)}.`, `🛍️ Bought: ${a.emoji} **${a.en}** for 🪙 ${fmt(a.precio, idioma)}.`);
+        }
+    }
+    const nombre = interaction.member?.displayName || interaction.user.username;
+    const res = await accion(guildId, owner, comp, `acc:${acc}`, { idioma, dueno: nombre, bromas: !!cfg?.bromas?.activo });
+    if (res.fallo) return interaction.followUp({ content: `⚠️ ${textoFallo(res.fallo, idioma)}`, flags: 64 });
+    if (aviso) res.mensajes.unshift(aviso);
+    let editado = false;
+    if (msgId && msgId !== '0') {
+        const original = await interaction.channel?.messages.fetch(msgId).catch(() => null);
+        if (original) editado = !!(await original.edit(await vista({ ownerId: owner, duenoNombre: nombre, idioma, res, cfg })).catch(() => null));
+    }
+    const col = await ColeccionMascotas.findOne({ guildId, userId: owner }).lean();
+    const nuevo = await armario(interaction, col, elegir(col, comp) || res.m, owner, msgId, idioma);
+    nuevo.embeds[0].setDescription(`${(res.mensajes || []).join('\n')}${editado ? '' : t(idioma, '\n*(Mira cómo le queda con /compi)*', '\n*(See how it looks with /companion)*')}\n\n${nuevo.embeds[0].data.description}`.slice(0, 4000));
+    return interaction.editReply({ embeds: nuevo.embeds, components: nuevo.components });
 }
 
 // Para el panel: cómo van los compañeros de la gente del servidor.

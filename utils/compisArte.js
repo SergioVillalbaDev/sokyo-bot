@@ -126,7 +126,7 @@ function dibujoPropio(d, efecto) {
     if (!SPR.tiene(d.id)) return null;
     const etapa = SPR.etapaDe(d.nivel || 1);
     const humor = d.fuera ? 'dormido' : efecto && efecto !== 'hablar' && efecto !== 'nivel' ? 'feliz' : (d.humorClave || 'normal');
-    return { sprite: true, cuadro: (f, total) => SPR.imagen(d.id, { etapa, humor, variante: d.variante || null, t: total > 1 ? (f % 8) / 8 : 0, parpadeo: total > 1 && f % 8 === 6 && humor !== 'feliz' }) };
+    return { sprite: true, cuadro: (f, total) => SPR.imagen(d.id, { etapa, humor, variante: d.variante || null, acc: d.acc || null, t: total > 1 ? (f % 8) / 8 : 0, parpadeo: total > 1 && f % 8 === 6 && humor !== 'feliz' }) };
 }
 
 async function tarjeta(d, efecto = null) {
@@ -160,3 +160,112 @@ async function tarjeta(d, efecto = null) {
 }
 
 module.exports = { tarjeta, EFECTOS };
+
+// ---------------------------------------------------------------------------
+// 1.32.0: minijuegos (¿dónde está la golosina? y atrapa la pelota)
+// ---------------------------------------------------------------------------
+const MW = 640; const MH = 330;
+const XV = [170, 320, 470];
+function fondoJuego(ctx, color = '#1e1b4b') {
+    const g = ctx.createLinearGradient(0, 0, 0, MH); g.addColorStop(0, '#0f172a'); g.addColorStop(1, color);
+    A.redondeado(ctx, 0, 0, MW, MH, 22); ctx.fillStyle = g; ctx.fill();
+    ctx.fillStyle = 'rgba(148,163,184,0.12)'; ctx.fillRect(20, 262, MW - 40, 6);
+}
+function vaso(ctx, x, y, levantado = 0, n = null, resaltar = null) {
+    const yy = y - levantado;
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(x - 46, yy + 50); ctx.lineTo(x - 34, yy - 40); ctx.quadraticCurveTo(x, yy - 52, x + 34, yy - 40); ctx.lineTo(x + 46, yy + 50); ctx.closePath();
+    const g = ctx.createLinearGradient(x - 46, 0, x + 46, 0); g.addColorStop(0, '#be123c'); g.addColorStop(0.45, '#fb7185'); g.addColorStop(1, '#9f1239');
+    ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = resaltar || '#4c0519'; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x - 40, yy + 10, 80, 8);
+    if (n !== null) { ctx.fillStyle = '#fff'; ctx.font = `900 26px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(String(n), x, yy - 6); }
+    ctx.restore();
+}
+function golosina(ctx, x, y) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = '#f472b6'; ctx.beginPath(); ctx.moveTo(-22, -8); ctx.lineTo(-34, -18); ctx.lineTo(-34, 2); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(22, -8); ctx.lineTo(34, -18); ctx.lineTo(34, 2); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -8, 22, 14, 0, 0, Math.PI * 2); ctx.fillStyle = '#facc15'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#a16207'; ctx.stroke();
+    ctx.restore();
+}
+function mascotaJuego(ctx, d, humor, x, y, tam, f = 0) {
+    const img = SPR.tiene(d.id) ? SPR.imagen(d.id, { etapa: SPR.etapaDe(d.nivel || 1), humor, variante: d.variante, acc: d.acc, t: (f % 8) / 8 }) : null;
+    if (img) ctx.drawImage(img, x - tam / 2, y - tam / 2, tam, tam);
+}
+// GIF: la golosina se esconde y los vasos se cambian de sitio. Acaba con los vasos numerados.
+async function gifVasos(d, partida) {
+    if (!A.listo()) return null;
+    const frames = [];
+    const pos = [0, 1, 2]; // pos[vaso] = hueco
+    const dibuja = (extra, delay) => { const { ctx } = A.lienzo(MW, MH); fondoJuego(ctx); mascotaJuego(ctx, d, 'feliz', 70, 140, 130, frames.length); extra(ctx); frames.push({ ctx, delay }); };
+    // Enseña la golosina bajo el vaso de inicio y lo baja
+    for (let i = 0; i <= 8; i++) {
+        const lev = i < 4 ? 70 : 70 - (i - 3) * 14;
+        dibuja((ctx) => { golosina(ctx, XV[partida.inicio], 256); XV.forEach((x, k) => vaso(ctx, x, 210, k === partida.inicio ? Math.max(0, lev) : 0)); }, i < 4 ? 220 : 60);
+    }
+    // Cambios
+    const vasoEn = (h) => pos.indexOf(h);
+    for (const [a, b] of partida.cambios) {
+        const va = vasoEn(a); const vb = vasoEn(b);
+        const PASOS = 7;
+        for (let k = 1; k <= PASOS; k++) {
+            const u = k / PASOS; const s = 0.5 - Math.cos(u * Math.PI) / 2;
+            dibuja((ctx) => {
+                for (let v = 0; v < 3; v++) {
+                    let x = XV[pos[v]]; let y = 210;
+                    if (v === va) { x = XV[a] + (XV[b] - XV[a]) * s; y = 210 - Math.sin(u * Math.PI) * 34; }
+                    if (v === vb) { x = XV[b] + (XV[a] - XV[b]) * s; y = 210 + Math.sin(u * Math.PI) * 16; }
+                    vaso(ctx, x, y);
+                }
+            }, 45);
+        }
+        pos[va] = b; pos[vb] = a;
+    }
+    dibuja((ctx) => { XV.forEach((x, k) => vaso(ctx, x, 210, 0, k + 1)); }, 60000);
+    return A.aGif(frames, MW, MH);
+}
+// PNG del resultado: los vasos levantados, dónde estaba y la cara de tu compañero.
+function resultadoVasos(d, eleccion, correcta) {
+    if (!A.listo()) return null;
+    const { c, ctx } = A.lienzo(MW, MH);
+    fondoJuego(ctx, eleccion === correcta ? '#14532d' : '#450a0a');
+    mascotaJuego(ctx, d, eleccion === correcta ? 'feliz' : 'aburrido', 70, 140, 130);
+    golosina(ctx, XV[correcta], 256);
+    XV.forEach((x, k) => vaso(ctx, x, 210, k === correcta || k === eleccion ? 80 : 0, k + 1, k === eleccion ? (eleccion === correcta ? '#22c55e' : '#ef4444') : null));
+    return c.toBuffer('image/png');
+}
+// PNG para elegir hacia dónde lanzar la pelota.
+function inicioPelota(d) {
+    if (!A.listo()) return null;
+    const { c, ctx } = A.lienzo(MW, MH);
+    fondoJuego(ctx, '#0c4a6e');
+    mascotaJuego(ctx, d, 'feliz', MW / 2, 190, 170);
+    ctx.fillStyle = '#fff'; ctx.font = `900 40px ${FUENTE}`; ctx.textAlign = 'center';
+    ['⬅️', '⬆️', '➡️'].forEach((e, i) => ctx.fillText(e, XV[i] - (i - 1) * 40, 60));
+    return c.toBuffer('image/png');
+}
+// GIF: la pelota vuela hacia donde la lanzas y tu compañero salta hacia donde cree.
+async function gifPelota(d, eleccion, correcta) {
+    if (!A.listo()) return null;
+    const frames = []; const N = 16;
+    const atrapa = eleccion === correcta;
+    const xs = [MW / 2 - 170, MW / 2, MW / 2 + 170];
+    for (let i = 0; i <= N; i++) {
+        const u = i / N; const { ctx } = A.lienzo(MW, MH);
+        fondoJuego(ctx, '#0c4a6e');
+        const mx = MW / 2 + (xs[correcta] - MW / 2) * Math.min(1, u * 1.4);
+        const my = 190 - Math.sin(Math.min(1, u * 1.2) * Math.PI) * 60;
+        mascotaJuego(ctx, d, i === N ? (atrapa ? 'feliz' : 'aburrido') : 'feliz', mx, my, 160, i);
+        const bx = MW / 2 + (xs[eleccion] - MW / 2) * u; const by = 300 - Math.sin(u * Math.PI) * 240 + (atrapa ? 0 : u * 40);
+        if (!(atrapa && i === N)) { ctx.beginPath(); ctx.arc(bx, Math.min(by, 290), 16, 0, Math.PI * 2); ctx.fillStyle = '#bef264'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#3f6212'; ctx.stroke(); curva2(ctx, bx, Math.min(by, 290)); }
+        if (i === N) { ctx.fillStyle = atrapa ? '#4ade80' : '#fca5a5'; ctx.font = `900 34px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(atrapa ? '¡ATRAPADA!' : '¡UY!', MW / 2, 50); }
+        frames.push({ ctx, delay: i === N ? 60000 : 55 });
+    }
+    return A.aGif(frames, MW, MH);
+}
+function curva2(ctx, x, y) { ctx.beginPath(); ctx.arc(x - 6, y, 12, -0.9, 0.9); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+
+module.exports.gifVasos = gifVasos;
+module.exports.resultadoVasos = resultadoVasos;
+module.exports.inicioPelota = inicioPelota;
+module.exports.gifPelota = gifPelota;

@@ -83,10 +83,13 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
         col = await coleccion(guildId, userId);
         r = K.abrir(col, cofre, undefined, extrasDe(interaction.guildId, cfg), quitadosDe(cfg));
         const tiene = (col.mascotas || []).some((m) => m.id === r.id);
+        // 1.32.0: variante brillante (otros colores y destellos), 1 de cada PROB_BRILLANTE. Solo los que tienen dibujo propio.
+        const yaBrilla = (col.mascotas || []).some((m) => m.id === r.id && m.variante === 'brillante');
+        r.brillante = !yaBrilla && require('./sprites.js').tiene(r.id) && require('./casinoNucleo.js').azarSeguro() < K.PROB_BRILLANTE;
         const upd = {
             $inc: { abiertos: 1, gastado: def.precio, ...(r.rareza === 'divina' ? { divinas: 1 } : {}) },
-            $set: { sinEpica: r.sinEpica, ...(tiene ? { 'mascotas.$[m].estrellas': r.estrellas } : {}), ...(!col.equipada ? { equipada: r.id } : {}) },
-            ...(tiene ? {} : { $push: { mascotas: { id: r.id, estrellas: 1, primera: new Date(), actualizado: new Date() } } }),
+            $set: { sinEpica: r.sinEpica, ...(tiene ? { 'mascotas.$[m].estrellas': r.estrellas } : {}), ...(tiene && r.brillante ? { 'mascotas.$[m].variante': 'brillante' } : {}), ...(!col.equipada ? { equipada: r.id } : {}) },
+            ...(tiene ? {} : { $push: { mascotas: { id: r.id, estrellas: 1, primera: new Date(), actualizado: new Date(), ...(r.brillante ? { variante: 'brillante' } : {}) } } }),
         };
         const hecho = await ColeccionMascotas.updateOne({ _id: col._id, abiertos: col.abiertos }, upd, tiene ? { arrayFilters: [{ 'm.id': r.id }] } : {});
         if (hecho.modifiedCount) break;
@@ -102,7 +105,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
     const G = require('./granja.js');
     const hitos = r.nuevo ? await G.premiarHitos(guildId, userId).catch(() => []) : [];
     const delPase = await Pase.registrar(guildId, userId, 'cofre', { idioma }).catch(() => []);
-    const gif = await A.gifCofre(cofre, r.id, { nombre: nombre(r.id, idioma), rarezaTexto: t(idioma, rz.es, rz.en).toUpperCase(), estrellas: r.estrellas, nuevo: r.nuevo, textoNuevo: t(idioma, '¡NUEVA!', 'NEW!') }).catch(() => null);
+    const gif = await A.gifCofre(cofre, r.id, { nombre: nombre(r.id, idioma), rarezaTexto: `${r.brillante ? '✨ ' : ''}${t(idioma, rz.es, rz.en).toUpperCase()}`, estrellas: r.estrellas, nuevo: r.nuevo, textoNuevo: t(idioma, '¡NUEVA!', 'NEW!'), variante: r.brillante ? 'brillante' : null }).catch(() => null);
     const estado = r.nuevo
         ? t(idioma, '🆕 ¡Nuevo en tu colección!', '🆕 New in your collection!')
         : r.devuelto ? t(idioma, `Ya lo tenías con 5 ★: te devolvemos 🪙 ${fmt(r.devuelto, idioma)}.`, `You already had it at 5 ★: you get 🪙 ${fmt(r.devuelto, idioma)} back.`)
@@ -125,6 +128,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
         await interaction.editReply({ embeds: [e], files: [new AttachmentBuilder(gif, { name: 'cofre.gif' })], components: [fila], allowedMentions: { parse: [] } });
         const extras = [
             r.devuelto ? estado : '',
+            r.brillante ? t(idioma, `✨🌈 **¡¡BRILLANTE!!** Tu ${nombre(r.id, idioma)} tiene colores rarísimos (1 de cada ${Math.round(1 / K.PROB_BRILLANTE)}).`, `✨🌈 **SHINY!!** Your ${nombre(r.id, idioma)} has ultra-rare colours (1 in ${Math.round(1 / K.PROB_BRILLANTE)}).`) : '',
             r.piedad ? t(idioma, '🍀 ¡La suerte del décimo cofre! (épica asegurada)', '🍀 Tenth-chest luck! (epic guaranteed)') : '',
             ...G.textoHitos(hitos, idioma), ...delPase,
         ].filter(Boolean);
@@ -147,10 +151,12 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
         await interaction.editReply({ embeds: [e], components: [fila], allowedMentions: { parse: [] } });
     }
     // Las legendarias o mejores se anuncian (y la divina, a lo grande).
-    if (rz.orden >= 3 && cfg?.casino?.anunciosId) {
+    if ((rz.orden >= 3 || r.brillante) && cfg?.casino?.anunciosId) {
         const canal = interaction.guild?.channels.cache.get(cfg.casino.anunciosId);
         if (canal?.isTextBased() && canal.id !== interaction.channelId) {
-            await canal.send({ content: r.rareza === 'divina'
+            await canal.send({ content: r.brillante && r.rareza !== 'divina'
+                ? t(cfg, `✨🌈 <@${userId}> ha sacado un ${comp.emoji} **${comp.es} BRILLANTE** (1 de cada ${Math.round(1 / K.PROB_BRILLANTE)}).`, `✨🌈 <@${userId}> pulled a **SHINY** ${comp.emoji} **${comp.en}** (1 in ${Math.round(1 / K.PROB_BRILLANTE)}).`)
+                : r.rareza === 'divina'
                 ? t(cfg, `🌈👑 **¡¡HISTÓRICO!!** <@${userId}> ha sacado **${comp.emoji} ${comp.es}**, la mascota DIVINA. Probabilidad: 1 entre ${Math.round(100 / K.COFRES[cofre].prob.divina).toLocaleString('es-ES')}.`, `🌈👑 **HISTORIC!!** <@${userId}> pulled **${comp.emoji} ${comp.en}**, the DIVINE pet. Odds: 1 in ${Math.round(100 / K.COFRES[cofre].prob.divina).toLocaleString('en-US')}.`)
                 : t(cfg, `✨ <@${userId}> ha sacado ${comp.emoji} **${comp.es}** (${K.RAREZAS[r.rareza].es}) de un ${def.es.toLowerCase()}.`, `✨ <@${userId}> pulled ${comp.emoji} **${comp.en}** (${K.RAREZAS[r.rareza].en}) from a ${def.en.toLowerCase()}.`), allowedMentions: { users: [userId] } }).catch(() => {});
         }

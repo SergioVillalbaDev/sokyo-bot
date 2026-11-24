@@ -156,6 +156,7 @@ const COFRES = {
     legendario: { precio: 7500, emoji: '👑', es: 'Cofre legendario', en: 'Legendary chest', color: '#d97706', prob: { comun: 0, rara: 35, epica: 40, legendaria: 19, mitica: 5.8, divina: 0.2 } },
 };
 const PIEDAD = 10;        // a los 10 cofres seguidos sin épica o mejor, el siguiente la trae segura
+const PROB_BRILLANTE = 1 / 64; // 1.32.0: variante brillante (otros colores)
 const MAX_ESTRELLAS = 5;
 const DEVOLUCION_REPETIDO = 0.25; // con 5 estrellas, un repetido devuelve el 25 % del cofre en oro
 
@@ -269,4 +270,4 @@ function ventajas(id, estrellas = 1, extra = 0) {
     return v;
 }
 
-module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado, esExtra, ANIME, esAnime, idsAnime, KURUMI, PODERES_ANIME, HABILIDADES, habilidad, AREAS_HABILIDAD };
+module.exports = { PROB_BRILLANTE, RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado, esExtra, ANIME, esAnime, idsAnime, KURUMI, PODERES_ANIME, HABILIDADES, habilidad, AREAS_HABILIDAD };

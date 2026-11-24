@@ -859,7 +859,7 @@ function etapaDe(nivel = 1) { return nivel >= ETAPAS[2].desde ? 2 : nivel >= ETA
 const HUMOR_DIBUJO = { feliz: 'feliz', normal: 'normal', hambre: 'hambre', cansado: 'cansado', aburrido: 'aburrido', fuera: 'normal', enfermo: 'enfermo', dormido: 'dormido', enfadado: 'enfadado' };
 
 // Dibuja en `ctx` (de TAM×TAM). Devuelve false si no hay diseño.
-function dibujar(ctx, id, { etapa = 2, humor = 'normal', t = 0, parpadeo = false, variante = null, aura = true, sombra = true } = {}) {
+function dibujar(ctx, id, { etapa = 2, humor = 'normal', t = 0, parpadeo = false, variante = null, aura = true, sombra = true, acc = null } = {}) {
     let d = diseno(id);
     if (!d) return false;
     d = conVariante(d, variante);
@@ -885,6 +885,12 @@ function dibujar(ctx, id, { etapa = 2, humor = 'normal', t = 0, parpadeo = false
     const o = { s: 1, t, humor: h, parpadeo, etapa };
     const f = { chibi, ave, acuatico, pulpo, insecto, golem, robot, fantasma, humano }[d.forma];
     f(ctx, d, o);
+    // Accesorio (el de la cabeza va un poco hundido para que «se apoye»)
+    if (acc && ACCESORIOS[acc]) {
+        const [ax, ay] = (ANCLAS[d.forma] || ANCLAS.chibi)[ACCESORIOS[acc].slot];
+        const anchoForma = { chibi: 128, ave: 140, pulpo: 140, golem: 110, acuatico: 150, humano: 130, robot: 130, fantasma: 130, insecto: 90 }[d.forma] || 120;
+        dibujarAccesorio(ctx, acc, ax, ay + (ACCESORIOS[acc].slot === 'cabeza' ? 10 : 0), anchoForma * (etapa === 0 ? 1.08 : 1), t);
+    }
     // Detalles de humor (zzz, gotita, nota de enfermo)
     if (h === 'dormido' || h === 'cansado') {
         ctx.fillStyle = '#e0e7ff'; ctx.strokeStyle = '#312e81'; ctx.lineWidth = 3; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'left';
@@ -910,7 +916,7 @@ const cache = new Map();
 const MAX_CACHE = 220;
 function imagen(id, op = {}) {
     if (!canvasLib || !tiene(id)) return null;
-    const clave = `${id}|${op.etapa ?? 2}|${op.humor || 'normal'}|${Math.round((op.t || 0) * 16)}|${op.parpadeo ? 1 : 0}|${op.variante || ''}|${op.aura === false ? 0 : 1}`;
+    const clave = `${id}|${op.etapa ?? 2}|${op.humor || 'normal'}|${Math.round((op.t || 0) * 16)}|${op.parpadeo ? 1 : 0}|${op.variante || ''}|${op.aura === false ? 0 : 1}|${op.acc || ''}`;
     if (cache.has(clave)) { const v = cache.get(clave); cache.delete(clave); cache.set(clave, v); return v; }
     const c = canvasLib.createCanvas(TAM, TAM);
     const ctx = c.getContext('2d');
@@ -956,6 +962,123 @@ function huevo(ctx, { color = '#fef3c7', manchas = '#a78bfa', grietas = 0, t = 0
     ctx.restore();
 }
 
+
+// ---------------------------------------------------------------------------
+// Accesorios de los compañeros (1.32.0): se compran con oro y se ven en su dibujo
+// ---------------------------------------------------------------------------
+const ACCESORIOS = {
+    fiesta: { slot: 'cabeza', precio: 400, emoji: '🥳', es: 'Gorro de fiesta', en: 'Party hat' },
+    lazo: { slot: 'cabeza', precio: 450, emoji: '🎀', es: 'Lazo', en: 'Bow' },
+    flor: { slot: 'cabeza', precio: 450, emoji: '🌸', es: 'Flor', en: 'Flower' },
+    chistera: { slot: 'cabeza', precio: 900, emoji: '🎩', es: 'Chistera', en: 'Top hat' },
+    bruja: { slot: 'cabeza', precio: 1100, emoji: '🧙', es: 'Sombrero de mago', en: 'Wizard hat' },
+    vikingo: { slot: 'cabeza', precio: 1300, emoji: '⚔️', es: 'Casco vikingo', en: 'Viking helmet' },
+    auriculares: { slot: 'cabeza', precio: 800, emoji: '🎧', es: 'Auriculares', en: 'Headphones' },
+    corona: { slot: 'cabeza', precio: 5000, emoji: '👑', es: 'Corona real', en: 'Royal crown' },
+    gafas: { slot: 'cara', precio: 700, emoji: '🕶️', es: 'Gafas de sol', en: 'Sunglasses' },
+    corazones: { slot: 'cara', precio: 750, emoji: '😍', es: 'Gafas de corazón', en: 'Heart glasses' },
+    monoculo: { slot: 'cara', precio: 950, emoji: '🧐', es: 'Monóculo', en: 'Monocle' },
+    bufanda: { slot: 'cuello', precio: 600, emoji: '🧣', es: 'Bufanda', en: 'Scarf' },
+    pajarita: { slot: 'cuello', precio: 550, emoji: '🎀', es: 'Pajarita', en: 'Bow tie' },
+    medalla: { slot: 'cuello', precio: 1500, emoji: '🏅', es: 'Medalla de campeón', en: 'Champion medal' },
+    collar: { slot: 'cuello', precio: 1200, emoji: '💎', es: 'Collar de gemas', en: 'Gem necklace' },
+};
+// Dibuja el accesorio `acc` con su base en (x, y). `ancho` = ancho de la cabeza (para que encaje).
+function dibujarAccesorio(ctx, acc, x, y, ancho = 120, t = 0) {
+    const k = ancho / 120;
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    switch (acc) {
+        case 'fiesta': {
+            pico(ctx, [[-26, 8], [6, -66], [30, 8]], '#ec4899');
+            ctx.save(); ctx.beginPath(); ctx.moveTo(-26, 8); ctx.lineTo(6, -66); ctx.lineTo(30, 8); ctx.closePath(); ctx.clip();
+            for (let i = -3; i < 4; i++) { ctx.fillStyle = i % 2 ? '#fde047' : '#38bdf8'; ctx.fillRect(-40, -60 + i * 18, 90, 6); }
+            ctx.restore();
+            bola(ctx, '#fde047', 6, -68, 9, 9, { linea: 2.5 });
+            break;
+        }
+        case 'lazo': {
+            for (const d of [-1, 1]) pico(ctx, [[0, -6], [d * 34, -26], [d * 34, 12]], '#f43f5e');
+            bola(ctx, '#e11d48', 0, -6, 9, 9, { linea: 2.5 });
+            break;
+        }
+        case 'flor': {
+            ctx.translate(30, -4);
+            for (let i = 0; i < 5; i++) { const a = (i / 5) * PI2 + t; bola(ctx, '#f9a8d4', Math.cos(a) * 12, Math.sin(a) * 12, 10, 10, { linea: 2.5 }); }
+            bola(ctx, '#fde047', 0, 0, 8, 8, { linea: 2.5 });
+            break;
+        }
+        case 'chistera': {
+            bola(ctx, '#1f2937', 0, 4, 52, 10, { linea: 3 });
+            ctx.beginPath(); ctx.roundRect(-32, -60, 64, 64, 6); pintar(ctx, '#1f2937', 0, -30, 40, { linea: 3 });
+            ctx.fillStyle = '#dc2626'; ctx.fillRect(-32, -16, 64, 12);
+            brillo(ctx, -18, -44, 6, 14, 0.25);
+            break;
+        }
+        case 'bruja': {
+            bola(ctx, '#5b21b6', 0, 4, 60, 12, { linea: 3 });
+            ctx.beginPath(); ctx.moveTo(-34, 2); ctx.quadraticCurveTo(-6, -60, 26 + Math.sin(t * PI2) * 4, -96); ctx.quadraticCurveTo(14, -40, 34, 2); ctx.closePath();
+            pintar(ctx, '#6d28d9', 0, -40, 50, { linea: 3 });
+            estrella(ctx, 2, -30, 10, '#fde047', 5);
+            break;
+        }
+        case 'vikingo': {
+            for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(d * 36, -14); ctx.quadraticCurveTo(d * 70, -24, d * 62, -66); ctx.quadraticCurveTo(d * 52, -30, d * 28, -26); ctx.closePath(); pintar(ctx, '#fef3c7', d * 50, -40, 30, { linea: 3 }); }
+            ctx.beginPath(); ctx.arc(0, 6, 44, Math.PI, PI2); ctx.closePath(); pintar(ctx, '#94a3b8', 0, -16, 44, { linea: 3 });
+            ctx.fillStyle = '#a16207'; ctx.fillRect(-44, 0, 88, 9);
+            for (let i = -3; i <= 3; i++) { elipse(ctx, i * 12, 4, 2.5, 2.5); ctx.fillStyle = '#fde68a'; ctx.fill(); }
+            break;
+        }
+        case 'auriculares': {
+            ctx.beginPath(); ctx.arc(0, 30, 58, Math.PI * 1.08, Math.PI * 1.92); ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 9; ctx.stroke();
+            ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 5; ctx.stroke();
+            for (const d of [-1, 1]) bola(ctx, '#f472b6', d * 58, 34, 14, 20, { linea: 3 });
+            break;
+        }
+        case 'corona': {
+            ctx.beginPath(); ctx.moveTo(-36, 6);
+            for (let i = 0; i <= 4; i++) ctx.lineTo(-36 + i * 18, i % 2 === 0 ? -38 : -14);
+            ctx.lineTo(36, 6); ctx.closePath();
+            const g = ctx.createLinearGradient(0, -40, 0, 6); g.addColorStop(0, '#fef08a'); g.addColorStop(1, '#f59e0b');
+            ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#92400e'; ctx.stroke();
+            for (const [px, c] of [[-18, '#ef4444'], [0, '#3b82f6'], [18, '#22c55e']]) { elipse(ctx, px, -6, 5, 5); ctx.fillStyle = c; ctx.fill(); }
+            for (let i = 0; i <= 4; i += 2) { elipse(ctx, -36 + i * 18, -40, 4, 4); ctx.fillStyle = '#fff7ed'; ctx.fill(); }
+            break;
+        }
+        case 'gafas': case 'corazones': {
+            for (const d of [-1, 1]) {
+                if (acc === 'corazones') { ctx.save(); ctx.translate(d * 26, 2); corazon(ctx, 0, 4, 22, '#f43f5e'); ctx.restore(); }
+                else { ctx.beginPath(); ctx.roundRect(d * 26 - 20, -12, 40, 26, 10); ctx.fillStyle = '#0f172a'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#334155'; ctx.stroke(); brillo(ctx, d * 26 - 8, -4, 7, 3, 0.5); }
+            }
+            curva(ctx, [[-8, -2], [0, -6], [8, -2]], acc === 'corazones' ? '#be123c' : '#334155', 4);
+            break;
+        }
+        case 'monoculo': {
+            ctx.beginPath(); ctx.arc(26, 0, 17, 0, PI2); ctx.fillStyle = 'rgba(224,242,254,0.35)'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#ca8a04'; ctx.stroke();
+            curva(ctx, [[42, 6], [52, 40], [44, 70]], '#ca8a04', 2);
+            break;
+        }
+        case 'bufanda': {
+            ctx.beginPath(); ctx.ellipse(0, 0, 46, 13, 0, 0, PI2); pintar(ctx, '#ef4444', 0, 0, 46, { linea: 3 });
+            for (let i = -3; i <= 3; i++) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillRect(i * 13 - 2, -10, 4, 20); }
+            ctx.save(); ctx.translate(26, 8); ctx.rotate(0.2 + Math.sin(t * PI2) * 0.1); ctx.beginPath(); ctx.roundRect(-9, 0, 18, 40, 6); pintar(ctx, '#ef4444', 0, 20, 20, { linea: 3 }); ctx.restore();
+            break;
+        }
+        case 'pajarita': {
+            for (const d of [-1, 1]) pico(ctx, [[0, 0], [d * 22, -13], [d * 22, 13]], '#1d4ed8');
+            bola(ctx, '#1e40af', 0, 0, 6, 6, { linea: 2 });
+            break;
+        }
+        case 'medalla': case 'collar': {
+            ctx.beginPath(); ctx.ellipse(0, -2, 40, 18, 0, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = acc === 'medalla' ? '#2563eb' : '#e2e8f0'; ctx.lineWidth = 5; ctx.stroke();
+            if (acc === 'medalla') { bola(ctx, '#facc15', 0, 22, 13, 13, { linea: 3 }); estrella(ctx, 0, 22, 8, '#fef9c3', 5); }
+            else for (let i = -2; i <= 2; i++) { const a = Math.PI / 2 + i * 0.32; bola(ctx, ['#a855f7', '#38bdf8', '#f43f5e', '#38bdf8', '#a855f7'][i + 2], Math.cos(a) * 40, -2 + Math.sin(a) * 18, 5, 6, { linea: 1.5 }); }
+            break;
+        }
+        default: break;
+    }
+    ctx.restore();
+}
+
 // Dónde van los accesorios (gorro, gafas, bufanda) en el dibujo, en 0..1 del cuadro, según su forma y etapa.
 const ANCLAS = {
     chibi: { cabeza: [128, 44], cara: [128, 112], cuello: [128, 158] },
@@ -977,4 +1100,4 @@ function anclas(id, etapa = 2) {
     return out;
 }
 
-module.exports = { anclas, TAM, DISENOS, ESPECIES_SERVIDOR, JEFES, ETAPAS, tiene, diseno, dibujar, imagen, fotogramas, png, huevo, etapaDe, girarTono, aclarar, oscurecer, mezclar, alfa };
+module.exports = { ACCESORIOS, dibujarAccesorio, anclas, TAM, DISENOS, ESPECIES_SERVIDOR, JEFES, ETAPAS, tiene, diseno, dibujar, imagen, fotogramas, png, huevo, etapaDe, girarTono, aclarar, oscurecer, mezclar, alfa };

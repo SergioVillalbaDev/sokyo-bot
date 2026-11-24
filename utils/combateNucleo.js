@@ -78,7 +78,7 @@ function stats(m, ahora = Date.now()) {
     // Cómo está ahora: feliz pelea un poco mejor; con hambre o sin energía, peor.
     const e = m.hambre === undefined && m.actualizado === undefined ? null : P.estado(m, ahora);
     const humor = e ? P.humor(e) : 'normal';
-    const animo = humor === 'feliz' ? 1.05 : humor === 'hambre' || humor === 'cansado' ? 0.9 : 1;
+    const animo = (humor === 'feliz' ? 1.05 : humor === 'enfermo' ? 0.85 : humor === 'hambre' || humor === 'cansado' ? 0.9 : 1) * (P.persDe(m) === 'valiente' ? 1.05 : 1);
     const k = MULT_RAREZA[orden] * (1 + 0.06 * (est - 1)) * (1 + 0.015 * (nivel - 1)) * animo;
     const s = ESTILO[el];
     const r = (v) => Math.max(1, Math.round(v));
