@@ -98,22 +98,42 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
     await AperturaCofre.create({ guildId: interaction.guildId || null, userId, cofre, companero: r.id, rareza: r.rareza }).catch(() => {});
     const comp = K.def(r.id);
     const rz = K.RAREZAS[r.rareza];
-    const gif = await A.gifCofre(cofre, r.id, { nombre: nombre(r.id, idioma), rarezaTexto: t(idioma, rz.es, rz.en).toUpperCase(), estrellas: r.estrellas, nuevo: r.nuevo }).catch(() => null);
-    const e = new EmbedBuilder().setColor(def.color).setTitle(`${def.emoji} ${t(idioma, def.es, def.en)}`)
-        .setDescription(t(idioma, `<@${userId}> abre un ${def.es.toLowerCase()}… 🥁`, `<@${userId}> opens a ${def.en.toLowerCase()}… 🥁`));
-    if (gif) e.setImage('attachment://cofre.gif');
-    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'cofre.gif' })] : [], allowedMentions: { parse: [] } });
-    await espera(gif ? (r.rareza === 'divina' ? 5200 : 4000) : 600);
     const v = K.ventajas(r.id, r.estrellas);
     const G = require('./granja.js');
     const hitos = r.nuevo ? await G.premiarHitos(guildId, userId).catch(() => []) : [];
     const delPase = await Pase.registrar(guildId, userId, 'cofre', { idioma }).catch(() => []);
+    const gif = await A.gifCofre(cofre, r.id, { nombre: nombre(r.id, idioma), rarezaTexto: t(idioma, rz.es, rz.en).toUpperCase(), estrellas: r.estrellas, nuevo: r.nuevo, textoNuevo: t(idioma, '¡NUEVA!', 'NEW!') }).catch(() => null);
     const estado = r.nuevo
         ? t(idioma, '🆕 ¡Nuevo en tu colección!', '🆕 New in your collection!')
         : r.devuelto ? t(idioma, `Ya lo tenías con 5 ★: te devolvemos 🪙 ${fmt(r.devuelto, idioma)}.`, `You already had it at 5 ★: you get 🪙 ${fmt(r.devuelto, idioma)} back.`)
             : t(idioma, `Repetido: sube a **${'★'.repeat(r.estrellas)}**`, `Duplicate: now **${'★'.repeat(r.estrellas)}**`);
-    const fin = EmbedBuilder.from(e).setColor(rz.color)
-        .setDescription([
+    const pie = { text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${col.abiertos + 1} cofres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${col.abiertos + 1} chests opened`) };
+    const fila = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`cof_otro:${cofre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
+        new ButtonBuilder().setCustomId(`cof_eq:${r.id}`).setEmoji('✅').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Equipar', 'Equip')),
+        new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${r.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Cuidarla', 'Look after it')),
+        new ButtonBuilder().setCustomId(`grj:abrir:${userId}`).setEmoji('🧺').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Granja', 'Farm')),
+    );
+    const e = new EmbedBuilder().setColor(def.color).setTitle(`${def.emoji} ${t(idioma, def.es, def.en)}`).setFooter(pie);
+    if (gif) {
+        // 1.31.1: UN mensaje. La animación ya enseña qué sale (nombre, rareza, 🆕 o ★), así que no se
+        // edita después (antes, al editar, la imagen saltaba). Lo que sí hay que contar va aparte.
+        // Lo que sale, también en texto oculto (‖…‖): sin destripar la animación y para quien tiene los GIF en pausa.
+        const resumen = `||${comp.emoji} ${nombre(r.id, idioma)} · ${rarezaTxt(r.rareza, idioma)} · ${r.nuevo ? t(idioma, '🆕 ¡nueva!', '🆕 new!') : '★'.repeat(r.estrellas)}||`;
+        e.setImage('attachment://cofre.gif')
+            .setDescription([ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '', resumen].filter(Boolean).join('\n'));
+        await interaction.editReply({ embeds: [e], files: [new AttachmentBuilder(gif, { name: 'cofre.gif' })], components: [fila], allowedMentions: { parse: [] } });
+        const extras = [
+            r.devuelto ? estado : '',
+            r.piedad ? t(idioma, '🍀 ¡La suerte del décimo cofre! (épica asegurada)', '🍀 Tenth-chest luck! (epic guaranteed)') : '',
+            ...G.textoHitos(hitos, idioma), ...delPase,
+        ].filter(Boolean);
+        if (extras.length) {
+            await espera(r.rareza === 'divina' ? 5400 : 4200);
+            await interaction.followUp({ content: extras.join('\n'), allowedMentions: { parse: [] } }).catch(() => {});
+        }
+    } else {
+        e.setColor(rz.color).setDescription([
             r.rareza === 'divina' ? t(idioma, '🌈🌈🌈 **¡¡¡DIVINA!!!** 🌈🌈🌈', '🌈🌈🌈 **DIVINE!!!** 🌈🌈🌈') : '',
             `${comp.emoji} **${nombre(r.id, idioma)}** · ${rarezaTxt(r.rareza, idioma)}${comp.serie ? `\n📺 ${comp.serie}` : ''}`,
             estado,
@@ -123,15 +143,9 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
             ...G.textoHitos(hitos, idioma),
             ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '',
             ...delPase,
-        ].filter(Boolean).join('\n'))
-        .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} · ${col.abiertos + 1} cofres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0), idioma)} left · ${col.abiertos + 1} chests opened`) });
-    const fila = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`cof_otro:${cofre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
-        new ButtonBuilder().setCustomId(`cof_eq:${r.id}`).setEmoji('✅').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Equipar', 'Equip')),
-        new ButtonBuilder().setCustomId(`cmp:ver:${userId}:${r.id}`).setEmoji('🐾').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Cuidarla', 'Look after it')),
-        new ButtonBuilder().setCustomId(`grj:abrir:${userId}`).setEmoji('🧺').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Granja', 'Farm')),
-    );
-    await interaction.editReply({ embeds: [fin], components: [fila] });
+        ].filter(Boolean).join('\n'));
+        await interaction.editReply({ embeds: [e], components: [fila], allowedMentions: { parse: [] } });
+    }
     // Las legendarias o mejores se anuncian (y la divina, a lo grande).
     if (rz.orden >= 3 && cfg?.casino?.anunciosId) {
         const canal = interaction.guild?.channels.cache.get(cfg.casino.anunciosId);

@@ -128,7 +128,7 @@ async function tarjeta(d, efecto = null) {
         await dibujar(ctx, d, f, TOTAL, efecto, imgEfecto, img);
         frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : 70 });
     }
-    return { buffer: A.aGif(frames, W, HH), nombre: 'compi.gif' };
+    return { buffer: await A.aGif(frames, W, HH), nombre: 'compi.gif' };
 }
 
 module.exports = { tarjeta, EFECTOS };

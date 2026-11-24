@@ -80,16 +80,62 @@ function pintarCompanero(ctx, img, id, x, y, tam, borde = null) {
     if (borde) { ctx.beginPath(); ctx.arc(x + tam / 2, y + tam / 2, tam / 2, 0, Math.PI * 2); ctx.strokeStyle = borde; ctx.lineWidth = Math.max(2, tam / 30); ctx.stroke(); }
 }
 
-// Junta los fotogramas en un GIF que se reproduce una vez. frames: [{ ctx, delay }]
-function aGif(frames, W, H) {
+// Junta los fotogramas en un GIF (1.31.1: que no «se note» que es un GIF).
+//   · UNA paleta para toda la animación (sacada de varios fotogramas): los colores no
+//     bailan de un fotograma a otro, que era lo que más delataba al GIF.
+//   · Tramado ordenado suave (Bayer 4×4, fijo por posición): sin bandas en los degradados;
+//     como es fijo, lo que no se mueve sigue igual y comprime bien.
+//   · Cada fotograma guarda SOLO lo que cambia (el resto, transparente sobre el anterior):
+//     permite muchos más fotogramas (más fluido) sin que pese más.
+// frames: [{ ctx, delay }] · `repetir`: en bucle (carteles) o una sola vez (por defecto).
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v / 16 - 0.5));
+// Es asíncrona y cede el turno cada pocos fotogramas: en la Raspberry Pi, una animación larga
+// (la carrera, el blackjack) bloqueaba el bot varios segundos y otros comandos no llegaban a tiempo.
+const ceder = () => new Promise((r) => setImmediate(r));
+async function aGif(frames, W, H, { repetir = false, tramado = 7 } = {}) {
     const { GIFEncoder, quantize, applyPalette } = gifLib;
+    const fila = new Float32Array(16);
+    for (let k = 0; k < 16; k++) fila[k] = BAYER4[k] * tramado * 2;
+    const datos = [];
+    for (let n = 0; n < frames.length; n++) {
+        const d = frames[n].ctx.getImageData(0, 0, W, H).data;
+        frames[n].ctx = null; // el lienzo ya no hace falta: se suelta la memoria
+        if (tramado > 0) {
+            for (let y = 0, i = 0; y < H; y++) {
+                const by = (y & 3) * 4;
+                for (let x = 0; x < W; x++, i += 4) {
+                    const o = fila[by + (x & 3)];
+                    d[i] += o; d[i + 1] += o; d[i + 2] += o; // Uint8ClampedArray: se recorta solo a 0..255
+                }
+            }
+        }
+        datos.push(d);
+        if (n % 4 === 3) await ceder();
+    }
+    // Paleta común: de una muestra de hasta 10 fotogramas repartidos (siempre el primero y el último).
+    const nMuestra = Math.min(datos.length, 10);
+    const elegidos = [...new Set([...Array(nMuestra)].map((_, k) => Math.round((k * (datos.length - 1)) / Math.max(1, nMuestra - 1))))];
+    const muestra = new Uint8Array(elegidos.length * W * H * 4);
+    elegidos.forEach((k, j) => muestra.set(datos[k], j * W * H * 4));
+    const paleta = quantize(muestra, 255);
+    await ceder();
+    const TRANSP = paleta.length; // índice libre: «este píxel no cambia»
+    const paletaGif = [...paleta, [0, 0, 0]];
     const gif = GIFEncoder();
-    frames.forEach((f, i) => {
-        const data = f.ctx.getImageData(0, 0, W, H).data;
-        const palette = quantize(data, 256);
-        const index = applyPalette(data, palette);
-        gif.writeFrame(index, W, H, { palette, delay: f.delay, ...(i === 0 ? { repeat: -1 } : {}) });
-    });
+    let previo = null;
+    for (let i = 0; i < datos.length; i++) {
+        const index = applyPalette(datos[i], paleta);
+        datos[i] = null;
+        if (!previo) {
+            gif.writeFrame(index, W, H, { palette: paletaGif, delay: frames[i].delay, repeat: repetir ? 0 : -1, dispose: 1 });
+        } else {
+            const delta = new Uint8Array(index.length);
+            for (let p = 0; p < index.length; p++) delta[p] = index[p] === previo[p] ? TRANSP : index[p];
+            gif.writeFrame(delta, W, H, { delay: frames[i].delay, transparent: true, transparentIndex: TRANSP, dispose: 1 });
+        }
+        previo = index;
+        if (i % 3 === 2) await ceder();
+    }
     gif.finish();
     return Buffer.from(gif.bytes());
 }
@@ -108,7 +154,8 @@ const facil = (t) => 1 - Math.pow(1 - t, 3);
 // ---------------------------------------------------------------------------
 const cifra = (n, idioma = 'es') => Math.round(n || 0).toLocaleString(idioma === 'en' ? 'en-US' : 'es-ES');
 function textoResultado(res) {
-    const { premio = 0, apuesta = 0, idioma = 'es', bote = false, mult = 0 } = res || {};
+    const { premio = 0, apuesta = 0, idioma = 'es', bote = false, mult = 0, texto = null } = res || {};
+    if (texto) return { texto, color: '#15803d', borde: '#86efac' };
     if (bote) return { texto: `💎 ${idioma === 'en' ? 'JACKPOT' : 'BOTE'}  +🪙 ${cifra(premio, idioma)}`, color: '#a855f7', borde: '#f0abfc' };
     if (premio > apuesta) return { texto: `${mult ? `×${String(mult).replace('.', idioma === 'en' ? '.' : ',')}  ` : ''}+🪙 ${cifra(premio, idioma)}`, color: '#15803d', borde: '#86efac' };
     if (premio > 0) return { texto: `↩ 🪙 ${cifra(premio, idioma)}`, color: '#a16207', borde: '#fde68a' };
@@ -128,6 +175,11 @@ function pastillaResultado(ctx, cx, cy, res, { tam = 30, brillo = 0 } = {}) {
     ctx.lineWidth = 3; ctx.strokeStyle = r.borde; ctx.stroke();
     ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(r.texto, cx, cy + 1);
+    // 1.31.1: tu oro debajo (así el mensaje no tiene que editarse al acabar para decirlo).
+    if (res?.saldo != null) {
+        ctx.font = `bold ${Math.round(tam * 0.5)}px ${FUENTE}`; ctx.fillStyle = 'rgba(255,255,255,0.78)';
+        ctx.fillText(`🪙 ${cifra(res.saldo, res.idioma)}${res.vuelta ? `  ·  🐾 +${cifra(res.vuelta, res.idioma)}` : ''}`, cx, cy + h / 2 + tam * 0.55);
+    }
     ctx.restore();
 }
 
@@ -136,14 +188,15 @@ function pastillaResultado(ctx, cx, cy, res, { tam = 30, brillo = 0 } = {}) {
 // ---------------------------------------------------------------------------
 async function gifTragaperras(rodillos, { mult = 0, bote = false, resultado = null } = {}) {
     if (!listo()) return null;
-    const W = 480; const H = resultado ? 300 : 250;
+    const W = 480; const H = resultado ? 322 : 250;
     const sims = await Promise.all(C.SIMBOLOS.map((s) => imagen(s.svg)));
     const img = (id) => sims[C.SIMBOLOS.findIndex((s) => s.id === id)];
     // Tiras de cada rodillo: símbolos al azar y, al final, el que sale.
     const LARGO = 22;
     const tiras = rodillos.map((fin) => [...Array(LARGO - 1)].map(() => C.simboloAlAzar(Math.random)).concat(fin));
-    const PARA = [11, 15, 19];
-    const TOTAL = 30;
+    // 1.31.1: el doble de fotogramas, la mitad de rápidos: giro fluido (unos 25 por segundo).
+    const PARA = [22, 30, 38];
+    const TOTAL = 56;
     const SY = 96; // alto de cada símbolo
     const frames = [];
     for (let f = 0; f < TOTAL; f++) {
@@ -155,7 +208,7 @@ async function gifTragaperras(rodillos, { mult = 0, bote = false, resultado = nu
         ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 6; redondeado(ctx, 3, 3, W - 6, H - 6, 24); ctx.stroke();
         // Luces del borde (se encienden por turnos)
         for (let i = 0; i < 14; i++) {
-            const on = (i + f) % 3 === 0;
+            const on = (i + Math.floor(f / 2)) % 3 === 0;
             ctx.fillStyle = on ? '#fde68a' : '#92400e';
             ctx.beginPath(); ctx.arc(24 + i * 33, 14, 5, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(24 + i * 33, H - 14, 5, 0, Math.PI * 2); ctx.fill();
@@ -169,9 +222,9 @@ async function gifTragaperras(rodillos, { mult = 0, bote = false, resultado = nu
             let pos;
             if (f >= PARA[r]) {
                 const tras = f - PARA[r];
-                pos = fin + (tras === 0 ? 0.12 : tras === 1 ? -0.05 : 0); // rebote al parar
+                pos = fin + ([0.14, 0.07, -0.05, -0.02][tras] || 0); // rebote al parar
             } else {
-                pos = fin - (PARA[r] - f) * 0.85;
+                pos = fin - (PARA[r] - f) * 0.45;
             }
             const centro = y + h / 2;
             for (let k = Math.floor(pos) - 1; k <= Math.ceil(pos) + 1; k++) {
@@ -179,7 +232,7 @@ async function gifTragaperras(rodillos, { mult = 0, bote = false, resultado = nu
                 const yy = centro + (k - pos) * SY;
                 const im = img(tiras[r][k]);
                 if (!im) continue;
-                if (f < PARA[r]) { ctx.globalAlpha = 0.35; ctx.drawImage(im, x + 22, yy - 40 - 18, 80, 80); }
+                if (f < PARA[r]) { ctx.globalAlpha = 0.3; ctx.drawImage(im, x + 22, yy - 40 - 12, 80, 80); }
                 ctx.globalAlpha = 1;
                 ctx.drawImage(im, x + 22, yy - 40, 80, 80);
             }
@@ -191,19 +244,19 @@ async function gifTragaperras(rodillos, { mult = 0, bote = false, resultado = nu
         }
         // Línea de premio
         const fin = f >= PARA[2];
-        const brilla = fin && mult > 0 && (f - PARA[2]) % 2 === 0;
+        const brilla = fin && mult > 0 && Math.floor((f - PARA[2]) / 2) % 2 === 0;
         ctx.strokeStyle = brilla ? '#fde047' : 'rgba(251,191,36,0.55)';
         ctx.lineWidth = brilla ? 6 : 3;
         ctx.beginPath(); ctx.moveTo(26, 115); ctx.lineTo(W - 26, 115); ctx.stroke();
         if (fin && resultado) {
-            pastillaResultado(ctx, W / 2, 252, { ...resultado, mult, bote }, { tam: 28, brillo: brilla ? 1 : 0 });
+            pastillaResultado(ctx, W / 2, 248, { ...resultado, mult, bote }, { tam: 28, brillo: brilla ? 1 : 0 });
         } else if (fin && mult > 0) {
             ctx.font = `bold 34px ${FUENTE}`; ctx.textAlign = 'center';
             const texto = bote ? '💎 ¡BOTE! 💎' : `×${mult}`;
             ctx.lineWidth = 6; ctx.strokeStyle = '#7c2d12'; ctx.strokeText(texto, W / 2, 228);
             ctx.fillStyle = brilla ? '#fde047' : '#fff7ed'; ctx.fillText(texto, W / 2, 228);
         }
-        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : f < PARA[2] ? 70 : 160 });
+        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : f < PARA[2] ? 40 : 90 });
     }
     return aGif(frames, W, H);
 }
@@ -236,24 +289,24 @@ function rueda(R) {
 }
 async function gifRuleta(numero, { resultado = null } = {}) {
     if (!listo()) return null;
-    const W = 360; const H = resultado ? 420 : 360; const R = 170;
+    const W = 360; const H = resultado ? 436 : 360; const R = 170;
     const CY = 186; // centro de la rueda (la pastilla del resultado va debajo)
     const r = rueda(R);
     const n = C.ORDEN_RUEDA.length; const paso = (Math.PI * 2) / n;
     const idx = C.ORDEN_RUEDA.indexOf(numero);
     const final = -idx * paso; // así el número queda arriba
     const inicio = final - Math.PI * 2 * 5;
-    const TOTAL = 34;
+    const TOTAL = 52; // 1.31.1: más fotogramas (la rueda cambia entera en cada uno: no más, por el peso)
     const frames = [];
     const color = { verde: '#16a34a', rojo: '#dc2626', negro: '#111827' }[C.colorNumero(numero)];
     for (let f = 0; f < TOTAL; f++) {
         const { ctx } = lienzo(W, H);
         ctx.fillStyle = '#0b3d2e'; ctx.fillRect(0, 0, W, H);
-        const t = Math.min(1, f / (TOTAL - 6));
+        const t = Math.min(1, f / (TOTAL - 8));
         const ang = inicio + (final - inicio) * facil(t);
         ctx.save(); ctx.translate(W / 2, CY); ctx.rotate(ang); ctx.drawImage(r, -R, -R); ctx.restore();
         // La bola, arriba del todo (gira con la rueda al principio y se asienta)
-        const bolaY = CY - (R - 24) - (t < 1 ? 10 * Math.abs(Math.sin(f * 1.3)) : 0);
+        const bolaY = CY - (R - 24) - (t < 1 ? 10 * (1 - t) * Math.abs(Math.sin(f * 0.65)) : 0);
         ctx.beginPath(); ctx.arc(W / 2, bolaY - 18, 8, 0, Math.PI * 2); ctx.fillStyle = '#f8fafc'; ctx.fill();
         // Flecha
         ctx.beginPath(); ctx.moveTo(W / 2 - 12, 2); ctx.lineTo(W / 2 + 12, 2); ctx.lineTo(W / 2, 22); ctx.closePath(); ctx.fillStyle = '#fbbf24'; ctx.fill();
@@ -261,11 +314,11 @@ async function gifRuleta(numero, { resultado = null } = {}) {
             ctx.beginPath(); ctx.arc(W / 2, CY, 58, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
             ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 4; ctx.stroke();
             ctx.fillStyle = '#ffffff'; ctx.font = `bold 52px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(String(numero), W / 2, CY + 19);
-            if (resultado) pastillaResultado(ctx, W / 2, 386, resultado, { tam: 24, brillo: f % 2 });
+            if (resultado) pastillaResultado(ctx, W / 2, 384, resultado, { tam: 24, brillo: Math.floor(f / 2) % 2 });
         }
-        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 60 + Math.round(90 * t * t) : 200 });
+        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 30 + Math.round(70 * t * t) : 120 });
     }
-    return aGif(frames, W, H);
+    return aGif(frames, W, H, { tramado: 3 }); // poco tramado: la rueda gira entera y el tramado no comprime
 }
 
 // ---------------------------------------------------------------------------
@@ -273,16 +326,16 @@ async function gifRuleta(numero, { resultado = null } = {}) {
 // ---------------------------------------------------------------------------
 async function gifMoneda(resultado, { res = null, textos = null } = {}) {
     if (!listo()) return null;
-    const W = 260; const H = res ? 310 : 260;
+    const W = 260; const H = res ? 322 : 260;
     const [corona, estrella] = await Promise.all([imagen('1f451'), imagen('2b50')]);
-    const TOTAL = 26; const vueltas = 5;
+    const TOTAL = 44; const vueltas = 5; // 1.31.1: más fotogramas
     const frames = [];
     for (let f = 0; f < TOTAL; f++) {
         const { ctx } = lienzo(W, H);
         const g = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W / 1.2);
         g.addColorStop(0, '#312e81'); g.addColorStop(1, '#0f172a');
         ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-        const t = Math.min(1, f / (TOTAL - 5));
+        const t = Math.min(1, f / (TOTAL - 8));
         // Ángulo: varias vueltas y acaba mirando a la cara que toca.
         const finalAng = resultado === 'cara' ? 0 : Math.PI;
         const ang = finalAng + Math.PI * 2 * vueltas * (1 - facil(t));
@@ -303,9 +356,9 @@ async function gifMoneda(resultado, { res = null, textos = null } = {}) {
         if (t >= 1) {
             ctx.fillStyle = '#ffffff'; ctx.font = `bold 30px ${FUENTE}`; ctx.textAlign = 'center';
             ctx.fillText(resultado === 'cara' ? (textos?.cara || '👑 CARA') : (textos?.cruz || '⭐ CRUZ'), W / 2, 36);
-            if (res) pastillaResultado(ctx, W / 2, 274, res, { tam: 22, brillo: f % 2 });
+            if (res) pastillaResultado(ctx, W / 2, 270, res, { tam: 22, brillo: Math.floor(f / 2) % 2 });
         }
-        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 55 : 150 });
+        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 35 : 110 });
     }
     return aGif(frames, W, H);
 }
@@ -331,10 +384,10 @@ function carta(ctx, x, y, c, oculta = false) {
     ctx.font = `20px ${FUENTE}`; ctx.fillText(palo, x + 8, y + 48);
     ctx.textAlign = 'center'; ctx.font = `40px ${FUENTE}`; ctx.fillText(palo, x + w / 2 + 6, y + h - 18);
 }
-function mesaBlackjack({ jugador, banca, ocultar = true, textos = {}, resultado = null }) {
-    if (!canvasLib) return null;
-    const W = 640; const H = 380;
-    const { c, ctx } = lienzo(W, H);
+// Pinta la mesa en `ctx`. anim (1.31.1, para el GIF de la banca): { volteo: 0..1 de la carta
+// tapada, entra: 0..1 de la última carta de la banca, huecos: cartas de la banca al final (para
+// que la fila no se recoloque a saltos), puntos: los puntos que se enseñan de la banca }.
+function pintarMesa(ctx, W, H, { jugador, banca, ocultar = true, textos = {}, resultado = null, anim = null }) {
     const g = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W / 1.4);
     g.addColorStop(0, '#15803d'); g.addColorStop(1, '#052e16');
     redondeado(ctx, 0, 0, W, H, 26); ctx.fillStyle = g; ctx.fill();
@@ -345,15 +398,33 @@ function mesaBlackjack({ jugador, banca, ocultar = true, textos = {}, resultado 
         ctx.fillStyle = 'rgba(253,230,138,0.55)'; ctx.font = `bold 14px ${FUENTE}`; ctx.textAlign = 'center';
         ctx.fillText(textos.lema || 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', W / 2, H / 2 + 6);
     }
-    const fila = (mano, y, ocultarSegunda) => {
-        const total = mano.length * 60 + 12;
+    const fila = (mano, y, ocultarSegunda, huecos = mano.length, esBanca = false) => {
+        const total = huecos * 60 + 12;
         const x0 = W / 2 - total / 2;
-        mano.forEach((cc, i) => carta(ctx, x0 + i * 60, y, cc, ocultarSegunda && i === 1));
+        mano.forEach((cc, i) => {
+            const x = x0 + i * 60;
+            const ultima = esBanca && anim?.entra != null && i === mano.length - 1;
+            if (esBanca && i === 1 && anim?.volteo != null) {
+                // La carta tapada se da la vuelta (se estrecha y vuelve a abrirse ya destapada).
+                const k = anim.volteo; const esc = Math.max(0.04, Math.abs(Math.cos(k * Math.PI)));
+                ctx.save(); ctx.translate(x + 36, y); ctx.scale(esc, 1); carta(ctx, -36, 0, cc, k < 0.5); ctx.restore();
+                return;
+            }
+            if (ultima) {
+                // Entra deslizando desde el mazo (arriba a la derecha).
+                const k = facil(anim.entra);
+                ctx.save(); ctx.globalAlpha = Math.min(1, 0.2 + k);
+                carta(ctx, x + (1 - k) * 220, y - (1 - k) * 60, cc, false);
+                ctx.restore();
+                return;
+            }
+            carta(ctx, x, y, cc, ocultarSegunda && i === 1);
+        });
     };
-    fila(banca, 28, ocultar);
+    fila(banca, 28, ocultar, anim?.huecos || banca.length, true);
     fila(jugador, 236, false);
     ctx.fillStyle = '#fef3c7'; ctx.font = `bold 18px ${FUENTE}`; ctx.textAlign = 'left';
-    const pb = ocultar ? `${C.valorCarta(banca[0])} + ?` : String(C.puntos(banca).total);
+    const pb = anim?.puntos != null ? String(anim.puntos) : ocultar ? `${C.valorCarta(banca[0])} + ?` : String(C.puntos(banca).total);
     ctx.fillText(`${textos.banca || 'Banca'}: ${pb}`, 24, 30 + 6);
     ctx.fillText(`${textos.tu || 'Tú'}: ${C.puntos(jugador).total}`, 24, 236 + 6);
     // Al acabar: la pastilla con lo ganado/perdido y, encima, la palabra clave (BLACKJACK, EMPATE…).
@@ -365,7 +436,35 @@ function mesaBlackjack({ jugador, banca, ocultar = true, textos = {}, resultado 
         }
         pastillaResultado(ctx, W / 2, 196, resultado, { tam: 24, brillo: 1 });
     }
+}
+function mesaBlackjack(opc) {
+    if (!canvasLib) return null;
+    const W = 640; const H = 380;
+    const { c, ctx } = lienzo(W, H);
+    pintarMesa(ctx, W, H, opc);
     return c.toBuffer('image/png');
+}
+// 1.31.1: el final de la mano en UN GIF (antes, una edición del mensaje por carta: la imagen
+// saltaba cada vez). La banca destapa su carta, roba las que le tocan y sale el resultado.
+// bancaInicial: sus 2 cartas; banca: todas las del final; destapar: false si ya se veían.
+async function gifBlackjack({ jugador, bancaInicial, banca, textos = {}, resultado = null, destapar = true }) {
+    if (!listo()) return null;
+    const W = 640; const H = 380;
+    const frames = [];
+    const huecos = banca.length;
+    const foto = (opc, delay) => { const { ctx } = lienzo(W, H); pintarMesa(ctx, W, H, { jugador, textos, ...opc, anim: { huecos, ...opc.anim } }); frames.push({ ctx, delay }); };
+    foto({ banca: bancaInicial, ocultar: destapar, anim: { puntos: destapar ? `${C.valorCarta(bancaInicial[0])} + ?` : C.puntos(bancaInicial).total } }, 350);
+    if (destapar) {
+        for (let k = 1; k <= 10; k++) foto({ banca: bancaInicial, ocultar: false, anim: { volteo: k / 10, puntos: k < 5 ? `${C.valorCarta(bancaInicial[0])} + ?` : C.puntos(bancaInicial).total } }, 35);
+        foto({ banca: bancaInicial, ocultar: false, anim: { puntos: C.puntos(bancaInicial).total } }, 450);
+    }
+    for (let n = bancaInicial.length + 1; n <= banca.length; n++) {
+        const mano = banca.slice(0, n);
+        for (let k = 1; k <= 9; k++) foto({ banca: mano, ocultar: false, anim: { entra: k / 9, puntos: C.puntos(mano.slice(0, -1)).total } }, 35);
+        foto({ banca: mano, ocultar: false, anim: { puntos: C.puntos(mano).total } }, 450);
+    }
+    foto({ banca, ocultar: false, resultado, anim: { puntos: C.puntos(banca).total } }, 8000);
+    return aGif(frames, W, H);
 }
 
 // ---------------------------------------------------------------------------
@@ -393,7 +492,7 @@ function graficaCrash({ mult = 1, estado = 'vuela', punto = null, cobradoEn = nu
     const pasoRejilla = tope > 20 ? 5 : tope > 6 ? 2 : tope > 3 ? 0.5 : 0.25;
     for (let m = 1; m <= tope; m += pasoRejilla) {
         const y = yDe(m); ctx.beginPath(); ctx.moveTo(X0, y); ctx.lineTo(X1, y); ctx.stroke();
-        ctx.fillText(`×${Math.round(m * 100) / 100}`, 8, y + 4);
+        ctx.fillText(`×${idioma === 'en' ? Math.round(m * 100) / 100 : String(Math.round(m * 100) / 100).replace('.', ',')}`, 8, y + 4);
     }
     // Curva exponencial de 1 a `m` ocupando el ancho proporcional a su tiempo.
     const largo = (m) => Math.min(1, C.segundosHasta(m) / Math.max(C.segundosHasta(hasta), 0.001));
@@ -433,8 +532,9 @@ function graficaCrash({ mult = 1, estado = 'vuela', punto = null, cobradoEn = nu
     const enorme = boom ? (punto || mult) : cobrado ? (cobradoEn || mult) : mult;
     ctx.font = `900 54px ${FUENTE}`; ctx.fillStyle = boom ? '#fca5a5' : '#ffffff';
     ctx.shadowColor = color; ctx.shadowBlur = 18;
-    ctx.fillText(`×${enorme.toFixed(2)}`, 28, 62); ctx.shadowBlur = 0;
-    if (boom) { ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(24, 44); ctx.lineTo(28 + ctx.measureText(`×${enorme.toFixed(2)}`).width + 4, 44); ctx.stroke(); }
+    const textoMult = `×${idioma === 'en' ? enorme.toFixed(2) : enorme.toFixed(2).replace('.', ',')}`;
+    ctx.fillText(textoMult, 28, 62); ctx.shadowBlur = 0;
+    if (boom) { ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(24, 44); ctx.lineTo(28 + ctx.measureText(textoMult).width + 4, 44); ctx.stroke(); }
     // Lo que te llevarías / lo que te has llevado / lo que pierdes
     const res = boom ? { premio: 0, apuesta, idioma } : { premio: Math.floor(apuesta * (cobrado ? (cobradoEn || mult) : mult)), apuesta, idioma };
     if (estado === 'vuela') {
@@ -451,40 +551,142 @@ function graficaCrash({ mult = 1, estado = 'vuela', punto = null, cobradoEn = nu
 // (los dibujos miran a la izquierda), su cuota y el trofeo para el que gana.
 // pos = { caballo: 0..1, … } (0 = salida, 1 = meta).
 // ---------------------------------------------------------------------------
-function pistaCarrera({ pos = null, ganador = null, apostados = {} } = {}) {
-    if (!canvasLib) return null;
-    const W = 640; const carril = 52; const H = 24 + C.CORREDORES.length * carril + 14;
-    const { c, ctx } = lienzo(W, H);
+const CARRIL = 52;
+const altoPista = () => 24 + C.CORREDORES.length * CARRIL + 14;
+// Pinta la pista. `salto` (1.31.1): cuánto botan al galopar (0 = quietos); `fase` desplaza el bote de cada uno.
+function pintarPista(ctx, { pos = null, ganador = null, apostados = {}, salto = 0, fase = 0 } = {}) {
+    const W = 640; const H = altoPista();
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#3f6212'); g.addColorStop(1, '#14532d');
     redondeado(ctx, 0, 0, W, H, 22); ctx.fillStyle = g; ctx.fill();
-    const META = 70; const SALIDA = W - 90;
+    const META = 70; const SALIDA = W - 128; // la salida deja sitio a las cuotas
     C.CORREDORES.forEach((cor, i) => {
-        const y = 24 + i * carril;
+        const y = 24 + i * CARRIL;
         ctx.fillStyle = i % 2 ? 'rgba(120,53,15,0.55)' : 'rgba(146,64,14,0.55)';
-        ctx.fillRect(META - 20, y, SALIDA - META + 70, carril - 6);
-        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(META - 20, y + carril - 7, SALIDA - META + 70, 1);
+        ctx.fillRect(META - 20, y, W - META + 6, CARRIL - 6);
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(META - 20, y + CARRIL - 7, W - META + 6, 1);
         // Número del carril
         ctx.font = `bold 16px ${FUENTE}`; ctx.fillStyle = '#fef3c7'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(i + 1), 22, y + carril / 2 - 3);
+        ctx.fillText(String(i + 1), 22, y + CARRIL / 2 - 3);
         // Cuota y gente que le ha apostado
         ctx.font = `bold 13px ${FUENTE}`; ctx.fillStyle = '#fde68a'; ctx.textAlign = 'right';
-        ctx.fillText(`×${String(C.cuota(cor.id)).replace('.', ',')}${apostados[cor.id] ? `  👤${apostados[cor.id]}` : ''}`, W - 14, y + carril / 2 - 3);
-        // El corredor
+        ctx.fillText(`×${String(C.cuota(cor.id)).replace('.', ',')}${apostados[cor.id] ? `  👤${apostados[cor.id]}` : ''}`, W - 14, y + CARRIL / 2 - 3);
+        // El corredor (con su bote al galopar y una nube de polvo detrás)
         const avance = Math.max(0, Math.min(1, pos?.[cor.id] || 0));
         const x = SALIDA - avance * (SALIDA - META);
+        const bote = salto ? -Math.abs(Math.sin(fase + i * 1.7)) * salto : 0;
+        if (salto) {
+            ctx.globalAlpha = 0.25; ctx.fillStyle = '#fde68a';
+            for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(x + 26 + k * 9, y + CARRIL / 2 + 10 - k * 2, 5 - k, 0, Math.PI * 2); ctx.fill(); }
+            ctx.globalAlpha = 1;
+        }
         ctx.font = `36px ${FUENTE}`; ctx.textAlign = 'center';
         if (ganador && ganador !== cor.id) ctx.globalAlpha = 0.55;
-        ctx.fillText(cor.emoji, x, y + carril / 2 - 2);
+        ctx.fillText(cor.emoji, x, y + CARRIL / 2 - 2 + bote);
         ctx.globalAlpha = 1;
-        if (ganador === cor.id) { ctx.font = `28px ${FUENTE}`; ctx.fillText('🏆', x + 38, y + carril / 2 - 4); }
+        if (ganador === cor.id) { ctx.font = `28px ${FUENTE}`; ctx.fillText('🏆', x + 38, y + CARRIL / 2 - 4); }
     });
     // Meta a cuadros
     for (let yy = 24; yy < H - 14; yy += 10) {
         for (let k = 0; k < 2; k++) { ctx.fillStyle = ((yy / 10 + k) % 2 < 1) ? '#ffffff' : '#111827'; ctx.fillRect(META - 30 + k * 8, yy, 8, 10); }
     }
     ctx.textBaseline = 'alphabetic';
+}
+function pistaCarrera(opc = {}) {
+    if (!canvasLib) return null;
+    const { c, ctx } = lienzo(640, altoPista());
+    pintarPista(ctx, opc);
     return c.toBuffer('image/png');
+}
+// 1.31.1: la carrera ENTERA en un GIF fluido (antes, 9 imágenes cambiando cada 1,3 s: saltaba).
+// pasos: posiciones de utils/casinoNucleo.pasosCarrera; entre paso y paso se interpola. Al final,
+// un cartel con quién gana y lo que se lleva cada uno. ganadores: [{ nombre, premio }].
+async function gifCarrera({ pasos, ganador, apostados = {}, ganadores = [], idioma = 'es', textos = {} }) {
+    if (!listo()) return null;
+    const W = 640; const H = altoPista();
+    const SUB = 9; // fotogramas entre paso y paso
+    const frames = [];
+    const todos = [Object.fromEntries(C.CORREDORES.map((c) => [c.id, 0])), ...pasos];
+    // Salida: 3, 2, 1…
+    for (const n of ['3', '2', '1']) {
+        const { ctx } = lienzo(W, H);
+        pintarPista(ctx, { pos: todos[0], apostados });
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, W, H);
+        ctx.font = `900 96px ${FUENTE}`; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#facc15'; ctx.shadowBlur = 24; ctx.fillText(n, W / 2, H / 2); ctx.shadowBlur = 0; ctx.textBaseline = 'alphabetic';
+        frames.push({ ctx, delay: 420 });
+    }
+    let fase = 0;
+    for (let p = 1; p < todos.length; p++) {
+        for (let k = 1; k <= SUB; k++) {
+            const u = k / SUB; const pos = {};
+            for (const c of C.CORREDORES) pos[c.id] = todos[p - 1][c.id] + (todos[p][c.id] - todos[p - 1][c.id]) * u;
+            fase += 0.55;
+            const { ctx } = lienzo(W, H);
+            pintarPista(ctx, { pos, apostados, salto: 7, fase });
+            frames.push({ ctx, delay: 45 });
+            if (k % 3 === 0) await ceder();
+        }
+    }
+    // Llegada: el ganador destacado y el cartel con los premios.
+    const fin = todos[todos.length - 1];
+    const emo = C.CORREDORES.find((c) => c.id === ganador)?.emoji || '🏆';
+    const { ctx } = lienzo(W, H);
+    pintarPista(ctx, { pos: fin, ganador, apostados });
+    const lineas = ganadores.slice(0, 4);
+    const ch = 70 + Math.max(1, lineas.length) * 26;
+    redondeado(ctx, W / 2 - 190, H / 2 - ch / 2, 380, ch, 18); ctx.fillStyle = 'rgba(2,6,23,0.85)'; ctx.fill();
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.font = `900 30px ${FUENTE}`; ctx.fillStyle = '#fde047';
+    ctx.fillText(`🏆 ${emo}`, W / 2, H / 2 - ch / 2 + 42);
+    ctx.font = `bold 17px ${FUENTE}`;
+    if (!lineas.length) { ctx.fillStyle = '#cbd5e1'; ctx.fillText(textos.nadie || '😅', W / 2, H / 2 - ch / 2 + 74); }
+    lineas.forEach((l, i) => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`${String(l.nombre).slice(0, 18)}  +🪙 ${cifra(l.premio, idioma)}`, W / 2, H / 2 - ch / 2 + 74 + i * 26);
+    });
+    if (ganadores.length > 4) { ctx.font = `13px ${FUENTE}`; ctx.fillStyle = '#94a3b8'; ctx.fillText(`+${ganadores.length - 4}`, W / 2 + 170, H / 2 + ch / 2 - 10); }
+    frames.push({ ctx, delay: 9000 });
+    return aGif(frames, W, H);
+}
+
+// ---------------------------------------------------------------------------
+// 🚀 Cohete en bucle (1.31.1) para el crash en directo: sin números (esos van en el texto del
+// mensaje, que se actualiza sin tocar la imagen). Siempre el mismo GIF: se hace una vez y se guarda.
+// ---------------------------------------------------------------------------
+let coheteCache = null;
+async function gifCohete() {
+    if (!listo()) return null;
+    if (coheteCache) return coheteCache;
+    const W = 640; const H = 200; const TOTAL = 24;
+    const estrellas = [...Array(70)].map((_, i) => ({ x: (i * 97) % W, y: (i * 53) % H, v: 1 + (i % 3), r: i % 5 ? 1.2 : 2.2 }));
+    const frames = [];
+    for (let f = 0; f < TOTAL; f++) {
+        const { ctx } = lienzo(W, H);
+        const g = ctx.createLinearGradient(0, 0, W, H);
+        g.addColorStop(0, '#0b1026'); g.addColorStop(1, '#1e1b4b');
+        redondeado(ctx, 0, 0, W, H, 22); ctx.fillStyle = g; ctx.fill();
+        // Estrellas que pasan (en bucle exacto: recorren un múltiplo del ancho en TOTAL fotogramas)
+        for (const e of estrellas) {
+            const d = (e.v * W * f) / (TOTAL * 2);
+            const x = ((e.x - d) % W + W) % W; const y = ((e.y + d * 0.35) % H + H) % H;
+            ctx.fillStyle = `rgba(255,255,255,${0.35 + e.v * 0.18})`;
+            ctx.fillRect(x, y, e.r + e.v * 2.5, e.r);
+        }
+        const t = (f / TOTAL) * Math.PI * 2;
+        const cx = W / 2 + Math.sin(t) * 6; const cy = H / 2 + Math.cos(t * 2) * 5;
+        // Estela de fuego que late
+        for (let k = 6; k >= 1; k--) {
+            const l = 22 + k * 15 + Math.sin(t * 3 + k) * 6;
+            ctx.beginPath(); ctx.arc(cx - l * 0.92, cy + l * 0.42, 14 - k * 1.6, 0, Math.PI * 2);
+            ctx.fillStyle = k < 3 ? `rgba(253,224,71,${0.75 - k * 0.12})` : `rgba(249,115,22,${0.55 - k * 0.06})`; ctx.fill();
+        }
+        ctx.font = `72px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🚀', cx, cy); ctx.textBaseline = 'alphabetic';
+        frames.push({ ctx, delay: 50 });
+    }
+    coheteCache = await aGif(frames, W, H, { repetir: true });
+    return coheteCache;
 }
 
 // ---------------------------------------------------------------------------
@@ -508,21 +710,21 @@ function caraDado(ctx, cx, cy, lado, n, giro = 0) {
 async function gifDado(numeroDado) {
     if (!listo()) return null;
     const W = 300; const H = 240;
-    const TOTAL = 22; const frames = [];
-    const caras = [...Array(TOTAL)].map((_, i) => (i >= TOTAL - 6 ? numeroDado : 1 + ((i * 5 + numeroDado) % 6)));
+    const TOTAL = 38; const frames = []; // 1.31.1: más fotogramas; la cara cambia cada 2
+    const caras = [...Array(TOTAL)].map((_, i) => (i >= TOTAL - 9 ? numeroDado : 1 + ((Math.floor(i / 2) * 5 + numeroDado) % 6)));
     for (let f = 0; f < TOTAL; f++) {
         const { ctx } = lienzo(W, H);
         const g = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W / 1.1);
         g.addColorStop(0, '#166534'); g.addColorStop(1, '#052e16');
         redondeado(ctx, 0, 0, W, H, 22); ctx.fillStyle = g; ctx.fill();
         ctx.strokeStyle = '#a16207'; ctx.lineWidth = 6; redondeado(ctx, 3, 3, W - 6, H - 6, 20); ctx.stroke();
-        const t = Math.min(1, f / (TOTAL - 6));
+        const t = Math.min(1, f / (TOTAL - 9));
         const x = 50 + (W / 2 - 50) * facil(t);
         const bote = Math.abs(Math.sin(t * Math.PI * 3)) * 60 * (1 - t);
         const y = H / 2 + 20 - bote;
         ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, H / 2 + 72, 46 - bote / 4, 9, 0, 0, Math.PI * 2); ctx.fill();
         caraDado(ctx, x, y, 96, caras[f], (1 - facil(t)) * Math.PI * 4);
-        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 60 + Math.round(60 * t) : 140 });
+        frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : t < 1 ? 32 + Math.round(40 * t) : 100 });
     }
     return aGif(frames, W, H);
 }
@@ -584,7 +786,7 @@ function rayos(ctx, cx, cy, n, largo, giro, colores, alfa = 0.6) {
     }
     ctx.globalAlpha = 1;
 }
-async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true } = {}) {
+async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true, textoNuevo = '¡NUEVA!' } = {}) {
     if (!listo()) return null;
     const W = 420; const H = 360;
     const comp = K.def(companeroId);
@@ -650,7 +852,7 @@ async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', est
                 ctx.textAlign = 'center';
                 ctx.fillStyle = divina ? ARCOIRIS[(f + 3) % ARCOIRIS.length] : rareza.color;
                 ctx.font = `bold 16px ${FUENTE}`;
-                ctx.fillText(`${rarezaTexto || rareza.es.toUpperCase()}${nuevo ? '' : `  ${'★'.repeat(estrellas)}`}`, W / 2, 36);
+                ctx.fillText(`${nuevo ? `✨ ${textoNuevo} · ` : ''}${rarezaTexto || rareza.es.toUpperCase()}${nuevo ? '' : `  ${'★'.repeat(estrellas)}`}`, W / 2, 36);
                 ctx.fillStyle = '#ffffff'; ctx.font = `bold 21px ${FUENTE}`;
                 ctx.fillText((nombre || comp.es).slice(0, 30), W / 2, 61);
             }
@@ -759,17 +961,9 @@ async function bannerCasino({ titulo = 'CASINO', subtitulo = '', boteTexto = '',
         frames.push({ ctx, delay: 140 });
     }
     // Este GIF sí se repite: es un cartel.
-    const { GIFEncoder, quantize, applyPalette } = gifLib;
-    const gif = GIFEncoder();
-    frames.forEach((fr) => {
-        const data = fr.ctx.getImageData(0, 0, W, H).data;
-        const palette = quantize(data, 256);
-        gif.writeFrame(applyPalette(data, palette), W, H, { palette, delay: fr.delay });
-    });
-    gif.finish();
-    return Buffer.from(gif.bytes());
+    return aGif(frames, W, H, { repetir: true });
 }
 
 // Las que se dibujan sin esperar (PNG): si algo falla al pintar, null (el juego sigue con texto).
 const seguro = (fn) => (...a) => { try { return fn(...a); } catch (e) { console.error(`Arte (${fn.name}):`, e.message); return null; } };
-module.exports = { mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+module.exports = { mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

@@ -170,7 +170,9 @@ function pasosCarrera(ganador, pasos = 8, azar = azarSeguro) {
     for (let p = 1; p <= pasos; p++) {
         for (const c of CORREDORES) {
             const objetivo = p === pasos ? (c.id === ganador ? 1 : 0.72 + azar() * 0.24) : Math.min(0.95, pos[c.id] + (0.06 + azar() * 0.13));
-            pos[c.id] = p === pasos ? objetivo : Math.max(pos[c.id], objetivo);
+            // En la llegada nadie retrocede (1.31.1: con la animación fluida se veía): los que pierden
+            // se quedan donde estaban o un poco más allá, siempre por detrás del ganador.
+            pos[c.id] = p === pasos && c.id === ganador ? objetivo : Math.min(p === pasos ? 0.97 : 1, Math.max(pos[c.id], objetivo));
         }
         out.push({ ...pos });
     }

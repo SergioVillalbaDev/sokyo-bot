@@ -54,11 +54,6 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
         await AperturaCofre.create({ guildId: interaction.guildId || null, userId, cofre: `sobre:${sobre}`, companero: c.id, rareza: c.rareza }).catch(() => {});
     }
     const gif = await require('./cartasArte.js').gifSobre(sobre, r.cartas, { idioma, color: def.color, emoji: def.emoji }).catch((e) => { console.error('GIF sobre:', e.message); return null; });
-    const e = new EmbedBuilder().setColor(def.color).setTitle(`${def.emoji} ${t(idioma, def.es, def.en)}`)
-        .setDescription(t(idioma, `<@${userId}> abre un ${def.es.toLowerCase()}… 🥁`, `<@${userId}> opens a ${def.en.toLowerCase()}… 🥁`));
-    if (gif) e.setImage('attachment://sobre.gif');
-    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'sobre.gif' })] : [], components: [], allowedMentions: { parse: [] } });
-    await espera(gif ? 3200 + r.cartas.length * 650 : 500);
     const lineas = r.cartas.map((c) => {
         if (c.quitada) return t(idioma, `🪙 Carta de una serie desactivada aquí → **+${c.devuelto}** de oro`, `🪙 Card from a series turned off here → **+${c.devuelto}** gold`);
         const d = K.def(c.id);
@@ -66,22 +61,43 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
         return `${rz(c.rareza, idioma)} · **${d.es}** — ${d.serie} ${estado}`;
     });
     const divina = r.cartas.find((c) => c.rareza === 'divina');
-    const fin = EmbedBuilder.from(e).setColor(divina ? '#fde68a' : def.color)
-        .setDescription([
-            divina ? t(idioma, '🌈🌈🌈 **¡¡CARTA DIVINA!!** 🌈🌈🌈', '🌈🌈🌈 **DIVINE CARD!!** 🌈🌈🌈') : '',
-            ...lineas,
-            r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
-            ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
-            t(idioma, 'Úsalas sobre tu mascota con `/compi` → 🃏 o `/carta usar`.', 'Use them on your pet with `/companion` → 🃏 or `/card use`.'),
-            ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '',
-            ...delPase,
-        ].filter(Boolean).join('\n'))
-        .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
     const fila = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`crt_otro:${sobre}`).setEmoji(def.emoji).setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir otro (🪙 ${fmt(def.precio, idioma)})`, `Open another (🪙 ${fmt(def.precio, idioma)})`)),
         new ButtonBuilder().setCustomId('crt_album').setEmoji('📚').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi álbum', 'My album')),
     );
-    await interaction.editReply({ embeds: [fin], components: [fila] });
+    const e = new EmbedBuilder().setColor(def.color).setTitle(`${def.emoji} ${t(idioma, def.es, def.en)}`);
+    if (gif) {
+        // 1.31.1: UN mensaje. La animación ya enseña las cartas (nombre, rareza, ¡NUEVA! o ★); no se edita
+        // después (la imagen saltaba). Las colecciones completas y los niveles del pase, en un mensaje aparte.
+        e.setImage('attachment://sobre.gif')
+            .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
+        // Lo que sale, también en texto oculto (‖…‖): sin destripar la animación y para quien tiene los GIF en pausa.
+        const resumen = `||${r.cartas.map((c) => (c.quitada ? `🪙 +${c.devuelto}` : `${K.def(c.id).es} ${c.nuevo ? '🆕' : '★'.repeat(c.estrellas)}`)).join(' · ')}||`;
+        e.setDescription([ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '', resumen].filter(Boolean).join('\n'));
+        await interaction.editReply({ embeds: [e], files: [new AttachmentBuilder(gif, { name: 'sobre.gif' })], components: [fila], allowedMentions: { parse: [] } });
+        const extras = [
+            r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
+            ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
+            ...delPase,
+        ].filter(Boolean);
+        if (extras.length) {
+            await espera(3200 + r.cartas.length * 650);
+            await interaction.followUp({ content: extras.join('\n'), allowedMentions: { parse: [] } }).catch(() => {});
+        }
+    } else {
+        const fin = e.setColor(divina ? '#fde68a' : def.color)
+            .setDescription([
+                divina ? t(idioma, '🌈🌈🌈 **¡¡CARTA DIVINA!!** 🌈🌈🌈', '🌈🌈🌈 **DIVINE CARD!!** 🌈🌈🌈') : '',
+                ...lineas,
+                r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
+                ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
+                t(idioma, 'Úsalas sobre tu mascota con `/compi` → 🃏 o `/carta usar`.', 'Use them on your pet with `/companion` → 🃏 or `/card use`.'),
+                ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '',
+                ...delPase,
+            ].filter(Boolean).join('\n'))
+            .setFooter({ text: t(idioma, `Te quedan 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} · ${(col.sobresAbiertos || 0) + 1} sobres abiertos`, `You have 🪙 ${fmt(saldo + (r.devuelto || 0) + oroSeries, idioma)} left · ${(col.sobresAbiertos || 0) + 1} packs opened`) });
+        await interaction.editReply({ embeds: [fin], components: [fila], allowedMentions: { parse: [] } });
+    }
     // Las legendarias o mejores se anuncian; la divina, a lo grande.
     const top = r.cartas.filter((c) => c.id && K.RAREZAS[c.rareza].orden >= 3).sort((a, b) => K.RAREZAS[b.rareza].orden - K.RAREZAS[a.rareza].orden)[0];
     if (top && cfg?.casino?.anunciosId) {

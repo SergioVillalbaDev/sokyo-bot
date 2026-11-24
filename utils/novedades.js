@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.31.1': [
+        { tab: 'com-casino', es: '✨ **Animaciones mucho más suaves**: el doble de fotogramas, colores que ya no parpadean y degradados sin rayas. Ya casi no se nota que son GIF.', en: '✨ **Much smoother animations**: twice the frames, colours that no longer flicker and gradients without banding. You can barely tell they’re GIFs now.' },
+        { tab: 'com-casino', es: '🎯 **Sin saltos**: cada jugada es un solo mensaje que no se vuelve a cargar. La 🏇 carrera entera va en una animación con los premios al final, el 🚀 crash sube su número en grande con el cohete volando y la banca del 🃏 blackjack destapa y roba en una animación.', en: '🎯 **No more jumps**: every play is a single message that doesn’t reload. The whole 🏇 race is one animation with the prizes at the end, 🚀 crash ticks up a big number with the rocket flying, and the 🃏 blackjack dealer reveals and draws in one animation.' },
+        { tab: 'com-casino', es: '🙈 Si tienes los GIF en pausa en Discord, el resultado también va escrito, oculto (pulsa encima para verlo).', en: '🙈 If you have GIFs paused in Discord, the result is also written down, hidden (tap it to reveal).' },
+        { tab: 'com-casino', es: '🐛 Arreglado: una apuesta a la carrera hecha justo al cerrarse se devuelve, y los corredores ya no retroceden al llegar.', en: '🐛 Fixed: a race bet placed right as it closes is refunded, and runners no longer move backwards at the finish.' },
+    ],
     '1.31.0': [
         { tab: 'com-casino', es: '🎰 **Casino mucho más visual**: lo que ganas o pierdes sale dentro de la animación (+🪙 / −🪙), sin párrafos. El 🚀 crash tiene gráfica con el cohete subiendo y la 🏇 carrera, pista de verdad.', en: '🎰 **Much more visual casino**: what you win or lose shows inside the animation (+🪙 / −🪙), no paragraphs. 🚀 Crash has a chart with the rocket climbing and the 🏇 race a real track.' },
         { tab: 'com-compis', es: '🧺 **Granja, álbum, pase y logros en imagen**: tus mascotas trabajando, el granero llenándose, los próximos premios del pase y las insignias de logros. Las explicaciones, en el botón ❔.', en: '🧺 **Farm, album, pass and achievements as images**: your pets working, the barn filling up, the next pass rewards and achievement badges. Explanations live in the ❔ button.' },
