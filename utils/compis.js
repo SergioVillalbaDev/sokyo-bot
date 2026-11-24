@@ -292,7 +292,6 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         },
         pie: t(idioma, `De ${duenoNombre}${equipado ? ' · equipado' : ''} · ${(m.cuidados || 0)} cuidados`, `${duenoNombre}’s${equipado ? ' · equipped' : ''} · ${(m.cuidados || 0)} cares`),
     };
-    const img = await require('./compisArte.js').tarjeta(datos, res.efecto).catch((err) => { console.error('Tarjeta compi:', err.message); return null; });
     const dia = P.diaDe(ahora);
     const mis = col.misiones && col.misiones.dia === dia ? col.misiones : { prog: {}, hechas: [] };
     const misiones = P.misionesDelDia(dia).map((id) => {
@@ -334,7 +333,18 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         `🍖 🎾 🤗 💬${sabe.length ? ` · ${sabe.map((id) => P.INTERACCIONES[id].emoji).join(' ')}` : ''}`,
         RZ ? t(idioma, `🔒 Uno ${RZ.es.toLowerCase()} además: ${siguiente.filter(([, x]) => x.rareza === proxR).map(([, x]) => `${x.emoji} ${x.es}`).join(', ')}`, `🔒 A ${RZ.en.toLowerCase()} one also: ${siguiente.filter(([, x]) => x.rareza === proxR).map(([, x]) => `${x.emoji} ${x.en}`).join(', ')}`) : '',
     ].filter(Boolean).join('\n'), inline: false });
-    if (img) emb.setImage(`attachment://${img.nombre}`);
+    // 1.31.0: misiones, racha, expediciones, recuerdos y poder van dibujados en la franja de abajo de la
+    // tarjeta; si la imagen sale, esos campos de texto sobran (y «Sabe hacer» ya está en botones y menús).
+    datos.extra = {
+        misiones: P.misionesDelDia(dia).map((mid) => ({ emoji: P.MISIONES[mid].emoji, n: P.MISIONES[mid].n, prog: (mis.prog || {})[mid] || 0, hecha: (mis.hechas || []).includes(mid) })),
+        racha, exp: { n: col.expHoy?.dia === dia ? col.expHoy.n : 0, max: P.EXPEDICIONES_DIA }, recuerdos: recs, recTotal: P.RECUERDOS.length,
+        poder: { emoji: poder.emoji, listo: !faltaP },
+    };
+    const img = await require('./compisArte.js').tarjeta(datos, res.efecto).catch((err) => { console.error('Tarjeta compi:', err.message); return null; });
+    if (img) {
+        emb.setImage(`attachment://${img.nombre}`).setFooter(faltaP ? { text: t(idioma, `${poder.emoji} Poder listo en ${tiempo(faltaP * 60000, idioma)}`, `${poder.emoji} Power ready in ${tiempo(faltaP * 60000, idioma)}`) } : null)
+            .setFields(emb.data.fields.filter((f) => f.name.startsWith('💎')));
+    }
     const files = img ? [new AttachmentBuilder(img.buffer, { name: img.nombre })] : [];
     if (ajeno) return { embeds: [emb], files, components: [], attachments: [], allowedMentions: { parse: [] } };
     const cid = (a) => `cmp:${a}:${ownerId}:${m.id}`;
