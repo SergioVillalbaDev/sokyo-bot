@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.31.2': [
+        { tab: 'com-casino', es: '🚀 Arreglado: al pulsar «Retirarme» en el crash, a veces el mensaje volvía a enseñar el cohete y el botón daba ⌛. Ahora siempre se queda el resultado (y lo mismo en la carrera si alguien apuesta justo al salir).', en: '🚀 Fixed: pressing “Cash out” in crash sometimes brought the rocket back and the button showed ⌛. The result now always stays (same for the race if someone bets right as it starts).' },
+    ],
     '1.31.1': [
         { tab: 'com-casino', es: '✨ **Animaciones mucho más suaves**: el doble de fotogramas, colores que ya no parpadean y degradados sin rayas. Ya casi no se nota que son GIF.', en: '✨ **Much smoother animations**: twice the frames, colours that no longer flicker and gradients without banding. You can barely tell they’re GIFs now.' },
         { tab: 'com-casino', es: '🎯 **Sin saltos**: cada jugada es un solo mensaje que no se vuelve a cargar. La 🏇 carrera entera va en una animación con los premios al final, el 🚀 crash sube su número en grande con el cohete volando y la banca del 🃏 blackjack destapa y roba en una animación.', en: '🎯 **No more jumps**: every play is a single message that doesn’t reload. The whole 🏇 race is one animation with the prizes at the end, 🚀 crash ticks up a big number with the rocket flying, and the 🃏 blackjack dealer reveals and draws in one animation.' },

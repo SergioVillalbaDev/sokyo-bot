@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.31.1.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.31.2.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -738,6 +738,10 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     nuevas. Si cambian los módulos del setup, actualiza `TIPOS`/`PACKS`/`CANALES` en `InstalacionGuiada.jsx` y `ACTIVABLE`.
   - `/setup-rapido` tiene la opción `diversion` (mascota, casino, bromas, liga y clanes). El mensaje al entrar en un servidor
     (`utils/onboarding.js`) lleva al setup en 1 minuto.
+- 1.31.2 Ediciones del crash y de la carrera **en fila** (`editarEnFila` en `utils/casino.js`, test en
+  `visual131.test.js`): una edición no sale hasta que Discord ha aplicado la anterior, y la vista se calcula al salir
+  (null = ya no toca). Antes, una edición del vuelo lenta llegaba DESPUÉS del resultado y el mensaje volvía a enseñar
+  el cohete con «Retirarme» (al pulsarlo, ⌛). Toda edición nueva de un mensaje en directo debe pasar por esa fila.
 - 1.31.1 **GIF que no «se notan» y sin saltos** (tests en `test/visual131.test.js`):
   - `casinoArte.aGif` (async: devuelve una promesa; cede el turno cada pocos fotogramas para no bloquear el bot en
     la Pi): UNA paleta para toda la animación (muestra de hasta 10 fotogramas), tramado Bayer 4×4 suave (sin bandas;
