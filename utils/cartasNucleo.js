@@ -59,6 +59,9 @@ function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, 
         while (!id && K.RAREZAS[rareza].orden > 0) { rareza = ORDEN[K.RAREZAS[rareza].orden - 1]; id = cartaAlAzar(rareza, azar); }
         if (!id) continue;
         if (K.RAREZAS[rareza].orden >= 2) hayEpica = true;
+        // 1.32.0: holográfica (brilla y es un 5 % más fuerte en combate). Se tira SIEMPRE aquí, también
+        // si la carta es de una serie quitada: así quitar series no cambia nada de lo demás.
+        const holo = azar() < PROB_HOLO;
         if (quitados && quitados.has(id)) {
             salen.push({ id: null, rareza, quitada: true, nuevo: false, estrellas: 0, devuelto: Math.floor((def.precio / CARTAS_POR_SOBRE) * CAMBIO_QUITADA * (1 + K.RAREZAS[rareza].orden)) });
             continue;
@@ -71,8 +74,6 @@ function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, 
             else estrellas = antes + 1;
         }
         tengo.set(id, estrellas);
-        // 1.32.0: holográfica (brilla y es un 5 % más fuerte en combate). Se tira aparte: no cambia lo demás.
-        const holo = azar() < PROB_HOLO;
         salen.push({ id, rareza, nuevo: !antes, estrellas, devuelto, polvo, holo });
     }
     sinEpica = hayEpica ? 0 : sinEpica + 1;
