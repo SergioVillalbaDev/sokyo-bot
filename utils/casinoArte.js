@@ -30,8 +30,11 @@ async function imagen(svg) {
 // Dibujo de un compañero: el de Twemoji o, si es de un servidor, la foto que subió el admin
 // (solo de /uploads, nunca de internet). Las fotos se recortan en círculo al dibujarlas.
 const UPLOADS = path.join(__dirname, '..', 'api', 'uploads');
-async function imagenCompanero(id) {
+// 1.32.0: los del catálogo tienen dibujo propio (utils/sprites.js); `op` = { etapa, humor, variante }.
+async function imagenCompanero(id, op = {}) {
     const d = K.def(id);
+    const SPR = require('./sprites.js');
+    if (SPR.tiene(id)) { const im = SPR.imagen(id, { etapa: 2, ...op }); if (im) return im; }
     if (d.svg) return imagen(d.svg);
     if (d.imagen && String(d.imagen).startsWith('https://s4.anilist.co/')) return imagenAnime(d.imagen);
     if (!d.imagen || !String(d.imagen).startsWith('/uploads/')) return imagen('2b50');
@@ -71,6 +74,7 @@ async function imagenAnime(url) {
 function pintarCompanero(ctx, img, id, x, y, tam, borde = null) {
     if (!img) return;
     const d = K.def(id);
+    if (img._sprite) { const g = tam * 1.22; ctx.drawImage(img, x + (tam - g) / 2, y + (tam - g) * 0.7, g, g); return; }
     if (d.svg) { ctx.drawImage(img, x, y, tam, tam); return; }
     ctx.save(); ctx.beginPath(); ctx.arc(x + tam / 2, y + tam / 2, tam / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
     // Recorte cuadrado; en las fotos verticales (retratos) se coge la parte de arriba, donde está la cara.
@@ -786,14 +790,14 @@ function rayos(ctx, cx, cy, n, largo, giro, colores, alfa = 0.6) {
     }
     ctx.globalAlpha = 1;
 }
-async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true, textoNuevo = '¡NUEVA!' } = {}) {
+async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true, textoNuevo = '¡NUEVA!', variante: opcVariante = null } = {}) {
     if (!listo()) return null;
     const W = 420; const H = 360;
     const comp = K.def(companeroId);
     const rareza = K.RAREZAS[comp.rareza];
     const divina = comp.rareza === 'divina';
     const color = K.COFRES[cofre].color;
-    const [bicho, brillo, corona] = await Promise.all([imagenCompanero(companeroId), imagen('2728'), imagen('1f451')]);
+    const [bicho, brillo, corona] = await Promise.all([imagenCompanero(companeroId, { humor: 'feliz', variante: opcVariante }), imagen('2728'), imagen('1f451')]);
     const ARCOIRIS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#60a5fa', '#a78bfa', '#f472b6'];
     // Fases: tiembla (0-9), sube de rareza (10-19), estalla (20-23), aparece (24-35), queda (36…)
     const subeHasta = ORDEN_RAREZAS.indexOf(comp.rareza);

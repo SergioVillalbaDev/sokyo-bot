@@ -215,6 +215,13 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
         }
         const nivelDespues = P.nivel(m.afinidad || 0);
         if (nivelDespues > nivelAntes) { mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel'; }
+        // 1.32.0: al llegar a los niveles 10 y 20 evoluciona (bebé → joven → adulto) y cambia su dibujo.
+        const SPR = require('./sprites.js');
+        if (SPR.etapaDe(nivelDespues) > SPR.etapaDe(nivelAntes) && SPR.tiene(m.id)) {
+            const et = SPR.ETAPAS[SPR.etapaDe(nivelDespues)];
+            mensajes.push(t(idioma, `🌟 **¡${nombreDe(m, idioma)} ha evolucionado!** Ahora es **${et.es}**: más grande y con su forma nueva.`, `🌟 **${nombreDe(m, idioma)} evolved!** It’s now **${et.en}**: bigger and in its new form.`));
+            efecto = 'evolucion';
+        }
         // Guardar (solo lo que cambia).
         for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados', 'cds', 'botinX']) {
             if (m[k] !== m0[k]) set[`mascotas.$[m].${k}`] = m[k];
@@ -284,6 +291,8 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         id: m.id, nombre: nombreDe(m, idioma), rarezaTexto: t(idioma, rz.es, rz.en).toUpperCase(), estrellas: m.estrellas,
         nivel: pr.nivel, progreso: pr.max ? 1 : pr.actual / pr.total, estado: e,
         humor: { emoji: P.HUMOR[h].emoji, texto: t(idioma, P.HUMOR[h].es, P.HUMOR[h].en) },
+        humorClave: h, variante: m.variante || null,
+        etapaTexto: require('./sprites.js').tiene(m.id) ? (() => { const et = require('./sprites.js').ETAPAS[require('./sprites.js').etapaDe(pr.nivel)]; return t(idioma, et.es, et.en).toUpperCase(); })() : null,
         frase: res.frase || '…',
         fuera: fuera ? t(idioma, `${x.emoji} De «${x.es}». Vuelve en ${tiempo(new Date(m.exp.hasta).getTime() - ahora, idioma)}.`, `${x.emoji} On “${x.en}”. Back in ${tiempo(new Date(m.exp.hasta).getTime() - ahora, idioma)}.`) : null,
         etiquetas: {

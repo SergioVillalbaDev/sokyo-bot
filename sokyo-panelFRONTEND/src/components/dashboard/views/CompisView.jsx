@@ -11,7 +11,7 @@ import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, campo, CabeceraTarjeta, Campo, Aviso } from './crecimientoShared';
 import { useModulo } from '../../../hooks/useModulo';
 import { RAREZAS, COMPANEROS, INTERACCIONES, PODERES, GRANJA, PASE } from '../../../lib/casino';
-import { svgMascota } from '../../../lib/mascota';
+import { svgMascota, spriteCompanero } from '../../../lib/mascota';
 import { API_URL } from '../../../lib/api';
 
 const ORDEN_R = ['comun', 'rara', 'epica', 'legendaria', 'mitica', 'divina'];
@@ -273,7 +273,7 @@ export default function CompisView({ dash }) {
           <div className="flex -space-x-3">
             {['kaede', 'mika', 'vlad', 'marina', 'pixel'].map((id, i) => (
               <span key={id} className="grid h-14 w-14 place-items-center rounded-full border-2 border-card bg-elevated shadow-soft" style={{ zIndex: 5 - i }}>
-                <img src={svgMascota(COMPANEROS[id].svg)} alt="" className="h-10 w-10" />
+                <img src={spriteCompanero(id)} alt="" className="h-12 w-12" />
               </span>
             ))}
           </div>
@@ -512,7 +512,7 @@ export default function CompisView({ dash }) {
                   {r === 'divina' ? <span className="sk-divina-texto">{t('dashboard.casino_v.rareza.divina')}</span> : t(`dashboard.casino_v.rareza.${r}`)} · {deEsta.length}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {deEsta.map(([id, c]) => <Ficha key={id} src={svgMascota(c.svg)} rareza={c.rareza} titulo={nombreDe(id)} sub={c.tipo === 'personaje' ? t('dashboard.compis_v.personaje') : null} hab={c.hab ? (i18n.language.startsWith('en') ? c.hab.en : c.hab.es) : null} />)}
+                  {deEsta.map(([id, c]) => <Ficha key={id} src={spriteCompanero(id)} rareza={c.rareza} titulo={nombreDe(id)} sub={c.tipo === 'personaje' ? t('dashboard.compis_v.personaje') : null} hab={c.hab ? (i18n.language.startsWith('en') ? c.hab.en : c.hab.es) : null} />)}
                   {r !== 'divina' && lista.filter((c) => c.rareza === r && filtro !== 'animales').map((c) => <Ficha key={c.cid} foto src={foto(c.imagen)} rareza={r} titulo={c.nombre} sub={t('dashboard.compis_v.deAqui')} apagado={!c.activo} />)}
                 </div>
               </div>
@@ -538,7 +538,7 @@ export default function CompisView({ dash }) {
                   <span className="w-5 text-center text-sm font-black text-muted">{i + 1}</span>
                   <Avatar src={p.avatar} name={p.nombre} size={28} />
                   <span className="min-w-0 flex-1 truncate text-sm text-fg"><b>{p.nombre}</b> <span className="text-muted">·</span> {p.apodo || (propio ? propio.nombre : nombreDe(p.companero))}</span>
-                  <img src={propio ? foto(propio.imagen) : svgMascota(COMPANEROS[p.companero]?.svg)} alt="" className={`h-7 w-7 ${propio ? 'rounded-full object-cover' : ''}`} />
+                  <img src={propio ? foto(propio.imagen) : (COMPANEROS[p.companero] ? spriteCompanero(p.companero) : svgMascota('2b50'))} alt="" className={`h-7 w-7 ${propio ? 'rounded-full object-cover' : ''}`} />
                   <span className="shrink-0 rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-300">{t('dashboard.compis_v.nivel', { n: p.nivel })}</span>
                   {p.racha > 0 && <span className="shrink-0 text-xs font-bold text-orange-300">🔥 {p.racha}</span>}
                 </li>

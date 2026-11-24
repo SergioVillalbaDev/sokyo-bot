@@ -4,10 +4,11 @@
 const { FUENTE } = require('./fonts.js');
 const K = require('./cofresNucleo.js');
 const A = require('./casinoArte.js');
+const SPR = require('./sprites.js');
 
 const W = 760; const H = 380;
 const FRANJA = 104; // 1.31.0: franja de abajo con misiones, racha, expediciones y recuerdos
-const EFECTOS = { mimar: '2764', comer: '1f356', jugar: '1f3be', hablar: '1f4ac', vuelta: '2728', nivel: '2b50' };
+const EFECTOS = { mimar: '2764', comer: '1f356', jugar: '1f3be', hablar: '1f4ac', vuelta: '2728', nivel: '2b50', evolucion: '1f31f', cura: '1f48a', juego: '1f3c6' };
 
 function barra(ctx, x, y, w, valor, color, etiqueta) {
     A.redondeado(ctx, x, y, w, 16, 8); ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fill();
@@ -44,8 +45,16 @@ async function dibujar(ctx, d, f = 0, total = 1, efecto = null, imgEfecto = null
     ctx.strokeStyle = rz.color; ctx.lineWidth = 4; A.redondeado(ctx, 2, 2, W - 4, HH - 4, 24); ctx.stroke();
     // El compañero: respira (sube y baja) y, si está fuera, sale medio transparente.
     const t = total > 1 ? f / total : 0;
-    const salto = efecto === 'jugar' ? -Math.abs(Math.sin(t * Math.PI * 3)) * 30 : Math.sin(t * Math.PI * 2) * 4;
+    const salto = efecto === 'jugar' ? -Math.abs(Math.sin(t * Math.PI * 3)) * 30 : efecto === 'evolucion' ? 0 : (img && img.sprite ? 0 : Math.sin(t * Math.PI * 2) * 4);
     const tam = 210;
+    // 1.32.0: si tiene dibujo propio, cada fotograma es un dibujo distinto (respira, parpadea).
+    if (img && img.sprite) img = img.cuadro(f, total);
+    if (efecto === 'evolucion' && total > 1) { // destello que crece y se apaga
+        const k = Math.sin(Math.min(1, t * 1.6) * Math.PI);
+        const g = ctx.createRadialGradient(170, 205, 10, 170, 205, 200);
+        g.addColorStop(0, `rgba(255,255,255,${0.95 * k})`); g.addColorStop(0.4, `rgba(253,230,138,${0.6 * k})`); g.addColorStop(1, 'rgba(253,230,138,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 360, H);
+    }
     if (d.fuera) ctx.globalAlpha = 0.35;
     A.pintarCompanero(ctx, img, d.id, 170 - tam / 2, 205 - tam / 2 + salto, tam, rz.color);
     ctx.globalAlpha = 1;
@@ -69,7 +78,7 @@ async function dibujar(ctx, d, f = 0, total = 1, efecto = null, imgEfecto = null
     ctx.fillStyle = '#ffffff'; ctx.font = `bold 26px ${FUENTE}`; ctx.textAlign = 'left';
     ctx.fillText(String(d.nombre).slice(0, 26), X, 52);
     ctx.fillStyle = rz.color; ctx.font = `bold 15px ${FUENTE}`;
-    ctx.fillText(`${d.rarezaTexto}  ${'★'.repeat(d.estrellas || 1)}`, X, 76);
+    ctx.fillText(`${d.rarezaTexto}  ${'★'.repeat(d.estrellas || 1)}${d.etapaTexto ? `  ·  ${d.etapaTexto}` : ''}${d.variante === 'brillante' ? '  ✨' : ''}`, X, 76);
     // Nivel de afinidad
     ctx.fillStyle = '#c4b5fd'; ctx.font = `bold 14px ${FUENTE}`;
     ctx.fillText(d.etiquetas.nivel, X, 104);
@@ -112,11 +121,30 @@ function franja(ctx, x) {
     V.texto(ctx, recs.join('') || '·', rx, y + 68, { tam: 20, alin: 'right', peso: 'normal', color: '#64748b' });
 }
 
+// Dibujo propio (sprites.js) con su etapa, su humor y su variante: un objeto que da el dibujo de cada fotograma.
+function dibujoPropio(d, efecto) {
+    if (!SPR.tiene(d.id)) return null;
+    const etapa = SPR.etapaDe(d.nivel || 1);
+    const humor = d.fuera ? 'dormido' : efecto && efecto !== 'hablar' && efecto !== 'nivel' ? 'feliz' : (d.humorClave || 'normal');
+    return { sprite: true, cuadro: (f, total) => SPR.imagen(d.id, { etapa, humor, variante: d.variante || null, t: total > 1 ? (f % 8) / 8 : 0, parpadeo: total > 1 && f % 8 === 6 && humor !== 'feliz' }) };
+}
+
 async function tarjeta(d, efecto = null) {
     if (!A.listo()) return null;
-    const img = await A.imagenCompanero(d.id);
+    const propio = dibujoPropio(d, efecto);
+    const img = propio || await A.imagenCompanero(d.id);
     const imgEfecto = efecto && EFECTOS[efecto] ? await A.imagen(EFECTOS[efecto]) : null;
     const HH = d.extra ? H + FRANJA : H;
+    // Con dibujo propio, la tarjeta se mueve siempre (respira y parpadea, en bucle).
+    if (propio && !imgEfecto) {
+        const frames = [];
+        for (let f = 0; f < 8; f++) {
+            const { ctx } = A.lienzo(W, HH);
+            await dibujar(ctx, d, f, 8, null, null, propio);
+            frames.push({ ctx, delay: f === 6 ? 90 : 120 });
+        }
+        return { buffer: await A.aGif(frames, W, HH, { repetir: true }), nombre: 'compi.gif' };
+    }
     if (!imgEfecto) {
         const { c, ctx } = A.lienzo(W, HH);
         await dibujar(ctx, d, 0, 1, null, null, img);

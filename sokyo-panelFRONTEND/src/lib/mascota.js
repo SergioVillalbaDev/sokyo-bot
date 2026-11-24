@@ -39,3 +39,16 @@ export const LOGROS = [{"id":"nivel10","emoji":"🔟"},{"id":"adulta","emoji":"�
 export const ESPECIALES = ["dragon","zorro","golem","fenix","kraken"];
 export const ENERGIA_ENTRENO = 15;
 export const svgMascota = (id) => `/mascota/${id}.svg`;
+// 1.32.0: dibujos propios (los genera scripts/generarSprites.js desde utils/sprites.js).
+export const spriteCompanero = (id, brillante = false) => `/sprites/${id}${brillante ? '-brillante' : ''}.webp`;
+export const spriteEspecie = (id, etapa = 2) => `/sprites/srv-${id}-${etapa}.webp`;
+export const spriteHuevo = '/sprites/huevo.webp';
+export const ETAPA_FASE = { cria: 0, joven: 1, adulta: 2, legendaria: 2 };
+// Dónde van los accesorios en el dibujo de cada especie (0..1 del cuadro), igual que en el bot (sprites.anclas).
+const ANCLA_FORMA = { chibi: { cabeza: [128, 44], cara: [128, 112], cuello: [128, 158] }, ave: { cabeza: [128, 78], cara: [128, 140], cuello: [128, 186] }, pulpo: { cabeza: [128, 40], cara: [128, 130], cuello: [128, 172] }, golem: { cabeza: [128, 48], cara: [128, 108], cuello: [128, 146] } };
+const FORMA_ESPECIE = { dragon: 'chibi', zorro: 'chibi', golem: 'golem', fenix: 'ave', kraken: 'pulpo' };
+export function anclaSprite(especie, slot, etapa = 2) {
+  const [x, y] = (ANCLA_FORMA[FORMA_ESPECIE[especie]] || ANCLA_FORMA.chibi)[slot];
+  const k = etapa === 0 ? 0.8 : etapa === 1 ? 0.9 : 1;
+  return { x: (128 + (x - 128) * k) / 256, y: (240 + (y - 240) * k) / 256, k };
+}

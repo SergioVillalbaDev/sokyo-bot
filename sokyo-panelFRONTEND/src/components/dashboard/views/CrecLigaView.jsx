@@ -9,7 +9,7 @@ import { Toggle } from '../../ui/primitives';
 import { tarjeta, CabeceraTarjeta, Campo, SelectCanal, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useAutoguardado } from '../../../hooks/useAutoguardado';
-import { ESPECIES, svgMascota } from '../../../lib/mascota';
+import { ESPECIES, spriteEspecie } from '../../../lib/mascota';
 
 const DIV = {
   bronce: { emoji: '🥉', color: '#b45309' },
@@ -134,9 +134,9 @@ export default function CrecLigaView({ dash }) {
             <ul className="mt-4 space-y-2">
               {datos.combates.map((c) => (
                 <li key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-bg px-3 py-2">
-                  <img src={svgMascota((ESPECIES[c.yo.especie] || ESPECIES.dragon).svg)} alt="" className="h-8 w-8 shrink-0" />
+                  <img src={spriteEspecie(ESPECIES[c.yo.especie] ? c.yo.especie : 'dragon')} alt="" className="h-9 w-9 shrink-0" />
                   <span className="text-xs font-bold text-muted">VS</span>
-                  {c.rival.especie ? <img src={svgMascota((ESPECIES[c.rival.especie] || ESPECIES.dragon).svg)} alt="" className="h-8 w-8 shrink-0" /> : <span className="text-2xl" aria-hidden>👾</span>}
+                  {c.rival.especie ? <img src={spriteEspecie(ESPECIES[c.rival.especie] ? c.rival.especie : 'dragon')} alt="" className="h-9 w-9 shrink-0" /> : <span className="text-2xl" aria-hidden>👾</span>}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-fg">{c.rival.nombre || t('dashboard.liga_v.wild')}{c.rival.servidor ? <span className="font-normal text-muted"> · {c.rival.servidor}</span> : null}</span>
                     <span className="block text-[11px] text-muted">{new Date(c.hora).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} · 📣 {c.yo.animos} · 💪 {c.yo.poder} vs {c.rival.poder}</span>

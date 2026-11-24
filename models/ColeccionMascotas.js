@@ -18,6 +18,7 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         cuidados: { type: Number, default: 0 },
         cds: { type: Object, default: undefined }, // 1.21.0: cuándo se hizo cada interacción (para su espera)
         botinX: { type: Number, default: undefined }, // 1.24.0: una carta multiplicó el oro de su próxima expedición
+        variante: { type: String, default: undefined }, // 1.32.0: 'brillante' (colores raros, sale a veces en los cofres)
         _id: false,
     }], default: [] },
     equipada: { type: String, default: null },
