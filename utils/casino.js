@@ -407,6 +407,18 @@ function vistaCrash(p, idioma, mult, estado, { primera = false } = {}) {
     e.setDescription(texto);
     return { embeds: [e], components: comps, files: [], attachments: [] };
 }
+// Las ediciones del crash van EN FILA (1.31.1): una no sale hasta que Discord ha aplicado la anterior.
+// Si no, una edición del vuelo que tardaba podía llegar DESPUÉS de la del resultado y el mensaje volvía a
+// enseñar el cohete con «Retirarme» con la partida ya cerrada (al pulsarlo salía ⌛). `vista()` se calcula
+// al salir de la fila: devuelve null si ya no toca (p. ej., una del vuelo cuando ya ha terminado).
+function editarEnFila(p, vista) {
+    p.cola = (p.cola || Promise.resolve()).then(async () => {
+        const v = vista();
+        if (v) await p.interaction.editReply(v);
+    }).catch(() => {});
+    return p.cola;
+}
+const editarCrash = editarEnFila;
 async function crash({ interaction, client, cfg, idioma, cantidad, auto = null }) {
     const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'crash', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
@@ -426,10 +438,10 @@ async function crash({ interaction, client, cfg, idioma, cantidad, auto = null }
             if (mult >= p.punto) {
                 p.terminado = true; partidas.delete(p.id);
                 await cobrarJugada(client, cfg, p.jugada, 0, { punto: p.punto });
-                await interaction.editReply(vistaCrash(p, idioma, p.punto, 'boom')).catch(() => {});
+                await editarCrash(p, () => vistaCrash(p, idioma, p.punto, 'boom'));
                 return;
             }
-            await interaction.editReply(vistaCrash(p, idioma, mult, 'vuela')).catch(() => {});
+            await editarCrash(p, () => (p.terminado ? null : vistaCrash(p, idioma, mult, 'vuela')));
         }
     })().catch((e) => console.error('Crash:', e.message));
     return { ok: true };
@@ -444,13 +456,17 @@ async function retirarCrash(p, client, multFijo = null) {
     const { vuelta } = await cobrarJugada(client, p.cfg, p.jugada, p.premio, { punto: p.punto, cobrado: mult });
     const v = vistaCrash(p, p.idioma, mult, 'cobrado');
     v.embeds[0].setFooter({ text: pieSaldo(p.idioma, await saldoDe(p.jugada.guildId, p.userId), vuelta) });
-    await p.interaction.editReply(v).catch(() => {});
+    await editarCrash(p, () => v);
     return true;
 }
 async function botonCrash(interaction, client) {
     const id = interaction.customId.split(':')[1];
     const p = partidas.get(id);
-    if (!p) return interaction.reply({ content: '⌛', flags: 64 });
+    if (!p) {
+        const { idiomaInteraccion } = require('./preferencias.js');
+        const idioma = await idiomaInteraccion(interaction, null).catch(() => 'es');
+        return interaction.reply({ content: t(idioma, '⌛ Este cohete ya ha terminado: mira el resultado en el mensaje.', '⌛ This rocket has already finished: check the result in the message.'), flags: 64 });
+    }
     if (p.userId !== interaction.user.id) return interaction.reply({ content: t(p.idioma, 'Este cohete es de otra persona 🚀', 'This rocket belongs to someone else 🚀'), flags: 64 });
     await interaction.deferUpdate().catch(() => {});
     const ok = await retirarCrash(p, client);
@@ -784,7 +800,7 @@ async function correr(client, car) {
     const apuestas = [...car.apuestas.values()].filter((a) => a.jugada);
     if (!apuestas.length) {
         carreras.delete(car.canalId);
-        await car.interaction.editReply({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🏇 Nadie ha apostado: carrera cancelada.', '🏇 Nobody bet: race cancelled.'))], components: [], files: [], attachments: [] }).catch(() => {});
+        await editarEnFila(car, () => ({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🏇 Nadie ha apostado: carrera cancelada.', '🏇 Nobody bet: race cancelled.'))], components: [], files: [], attachments: [] }));
         return;
     }
     const ganador = C.ganadorCarrera();
@@ -811,18 +827,18 @@ async function correr(client, car) {
         const v = vistaCarrera(car, idioma, { fase: 'corre', imagen: false });
         v.embeds[0].setImage('attachment://carrera.gif')
             .setDescription(`${t(idioma, '📣 ¡Y salen!', '📣 And they’re off!')}\n${oculto(`🏆 ${emo}  ${lineas.map((l) => l.replace('🎉 ', '')).join(' · ') || '😅'}`)}`);
-        await car.interaction.editReply({ ...v, files: [new AttachmentBuilder(gif, { name: 'carrera.gif' })], attachments: [] }).catch(() => {});
+        await editarEnFila(car, () => ({ ...v, files: [new AttachmentBuilder(gif, { name: 'carrera.gif' })], attachments: [] }));
         return;
     }
     // Sin GIF: como antes, paso a paso.
-    await car.interaction.editReply(vistaCarrera(car, idioma, { fase: 'corre' })).catch(() => {});
+    await editarEnFila(car, () => vistaCarrera(car, idioma, { fase: 'corre' }));
     for (const pos of pasos) {
         await espera(1300);
-        await car.interaction.editReply(vistaCarrera(car, idioma, { pos, fase: 'corre' })).catch(() => {});
+        await editarEnFila(car, () => vistaCarrera(car, idioma, { pos, fase: 'corre' }));
     }
     const v = vistaCarrera(car, idioma, { pos: pasos[pasos.length - 1], ganador, fase: 'fin' });
     v.embeds[0].setDescription(`${v.files.length ? '' : `${pista(pasos[pasos.length - 1], ganador)}\n\n`}${t(idioma, `🏆 ¡Gana ${emo}!`, `🏆 ${emo} wins!`)}\n${lineas.join('\n') || '😅'}`);
-    await car.interaction.editReply(v).catch(() => {});
+    await editarEnFila(car, () => v);
 }
 async function botonCarrera(interaction) {
     const [, id, corredor] = interaction.customId.split(':');
@@ -851,7 +867,8 @@ async function modalCarrera(interaction, client) {
     }
     car.apuestas.set(interaction.user.id, { userId: interaction.user.id, corredor, cantidad, jugada: a.jugada });
     await interaction.reply({ content: t(idioma, `✅ Apuestas 🪙 ${fmt(cantidad, idioma)} por ${C.CORREDORES.find((c) => c.id === corredor).emoji}. ¡Suerte!`, `✅ You bet 🪙 ${fmt(cantidad, idioma)} on ${C.CORREDORES.find((c) => c.id === corredor).emoji}. Good luck!`), flags: 64 });
-    await car.interaction.editReply(vistaCarrera(car, idioma, { imagen: false })).catch(() => {});
+    // En la misma fila que la carrera y solo si aún no ha salido (si no, pisaría la animación).
+    await editarEnFila(car, () => (car.corriendo ? null : vistaCarrera(car, idioma, { imagen: false })));
 }
 
 // ---------------------------------------------------------------------------
@@ -978,5 +995,5 @@ async function resumenServidor(client, guildId) {
 module.exports = {
     JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverPendientes, textoFallo, barrerPartidas,
     tragaperras, ruleta, moneda, blackjack, crash, minas, hilo, rasca, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor, jugarRepetir,
-    _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash,
+    _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash, _editarEnFila: editarEnFila,
 };

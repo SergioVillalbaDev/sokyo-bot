@@ -144,3 +144,23 @@ test('generar la carrera no deja al bot parado (cede el turno entre fotogramas)'
     clearInterval(reloj);
     assert.ok(peor < 400, `el bot estuvo parado ${peor} ms seguidos`);
 });
+
+test('crash y carrera: una edición lenta nunca pisa el resultado (van en fila)', async () => {
+    const { _editarEnFila } = require('../utils/casino.js');
+    const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+    const llegadas = [];
+    // La primera (del vuelo) tarda mucho en llegar; la del resultado, poco. Sin la fila, llegaba antes la del resultado.
+    const p = { terminado: false, interaction: { async editReply(v) { await espera(v.lenta ? 120 : 5); llegadas.push(v.nombre); } } };
+    const vuelo = _editarEnFila(p, () => (p.terminado ? null : { nombre: 'vuelo', lenta: true }));
+    await espera(10); // la edición del vuelo ya va de camino a Discord…
+    p.terminado = true; // …y justo entonces se retira
+    const otraDelVuelo = _editarEnFila(p, () => (p.terminado ? null : { nombre: 'vuelo-tarde' }));
+    const final = _editarEnFila(p, () => ({ nombre: 'resultado' }));
+    await Promise.all([vuelo, otraDelVuelo, final]);
+    assert.deepEqual(llegadas, ['vuelo', 'resultado'], 'lo último es el resultado y la del vuelo que ya no toca no sale');
+    // Si una edición falla, la fila sigue.
+    const q = { interaction: { async editReply(v) { if (v.falla) throw new Error('Discord'); llegadas.push(v.nombre); } } };
+    await _editarEnFila(q, () => ({ falla: true }));
+    await _editarEnFila(q, () => ({ nombre: 'sigue' }));
+    assert.equal(llegadas.at(-1), 'sigue');
+});
