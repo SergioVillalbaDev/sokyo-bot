@@ -10,7 +10,7 @@ const P = require('./compisNucleo.js');
 
 const XP_NIVEL = 100;
 const NIVEL_MAX = 50;
-const XP = { cuidar: 5, expedicion: 15, carta: 10, granja: 10, cofre: 20, sobre: 20, casino: 3, mision: 10, misionSemanal: 50, hito: 40, serie: 40, logro: 25 };
+const XP = { cuidar: 5, expedicion: 15, carta: 10, granja: 10, cofre: 20, sobre: 20, casino: 3, mision: 10, misionSemanal: 50, hito: 40, serie: 40, logro: 25, combate: 8, victoria: 12, torre: 10, jefe: 10, minijuego: 4, diarioLogin: 15 };
 const TOPE_CASINO_DIA = 25; // partidas del casino que dan XP al día
 const ORO_EXTRA = 75;       // cada nivel por encima del máximo (prestigio)
 
@@ -101,6 +101,12 @@ const LOGROS = [
     { id: 'sobres100', emoji: '🎴', oro: 2000, es: 'Abrir 100 sobres', en: 'Open 100 packs', ok: (c) => (c.sobresAbiertos || 0) >= 100 },
     { id: 'pase25', emoji: '🎟️', oro: 1500, es: 'Nivel 25 del pase', en: 'Pass level 25', ok: (c) => (c.pase?.max || 0) >= 25 },
     { id: 'pase50', emoji: '🏆', oro: 5000, es: 'Pase completo (nivel 50)', en: 'Full pass (level 50)', ok: (c) => (c.pase?.max || 0) >= NIVEL_MAX },
+    // 1.32.0: combates (contadores en col.cbt, los suma utils/combate.js y utils/jefe.js)
+    { id: 'victoria1', emoji: '⚔️', oro: 200, es: 'Primera victoria en combate', en: 'First battle win', ok: (c) => (c.cbt?.victorias || 0) >= 1 },
+    { id: 'victoria50', emoji: '🗡️', oro: 2500, es: '50 victorias en combate', en: '50 battle wins', ok: (c) => (c.cbt?.victorias || 0) >= 50 },
+    { id: 'torre20', emoji: '🗼', oro: 1500, es: 'Piso 20 de la torre', en: 'Tower floor 20', ok: (c) => (c.cbt?.torre || 0) >= 20 },
+    { id: 'torre50', emoji: '🏯', oro: 6000, es: 'Cima de la torre (piso 50)', en: 'Top of the tower (floor 50)', ok: (c) => (c.cbt?.torre || 0) >= 50 },
+    { id: 'cazajefes', emoji: '🐉', oro: 1000, es: '20 ataques al jefe', en: '20 boss attacks', ok: (c) => (c.cbt?.jefe || 0) >= 20 },
 ];
 function logrosNuevos(col) {
     const ya = new Set(col?.logros || []);

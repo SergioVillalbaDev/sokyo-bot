@@ -20,7 +20,7 @@ function lineas(ctx, texto, ancho, max = 2) {
 }
 
 // Dibuja la cara de una carta en (x, y) con tamaño (w, h). `brillo` (0-1) mueve el holográfico.
-function dibujarCarta(ctx, x, y, w, h, id, { estrellas = 1, img = null, idioma = 'es', brillo = 0.5 } = {}) {
+function dibujarCarta(ctx, x, y, w, h, id, { estrellas = 1, img = null, idioma = 'es', brillo = 0.5, holo = false } = {}) {
     const d = K.def(id);
     const r = K.RAREZAS[d.rareza] || K.RAREZAS.comun;
     const divina = d.rareza === 'divina';
@@ -69,6 +69,30 @@ function dibujarCarta(ctx, x, y, w, h, id, { estrellas = 1, img = null, idioma =
             lineas(ctx, P.textoEfecto(e, idioma), w - 28 * s, Math.min(3, hueco)).forEach((l, i) => ctx.fillText(l, x + w / 2, py + 44 * s + i * 12 * s));
         }
     }
+    // 1.32.0: la técnica de combate, en una pastilla sobre la foto.
+    {
+        const C = require('./combateNucleo.js');
+        const tec = C.tecnicaDe(id, C.fuerzaCarta(id, estrellas, holo ? 0.05 : 0));
+        const txt = `⚔ ${idioma === 'en' ? tec.en : tec.es}`;
+        ctx.font = `bold ${10 * s}px ${FUENTE}`;
+        const tw = Math.min(fw - 8 * s, ctx.measureText(txt).width + 14 * s);
+        A.redondeado(ctx, x + w / 2 - tw / 2, fy + fh - 20 * s, tw, 16 * s, 8 * s); ctx.fillStyle = 'rgba(2,6,23,0.82)'; ctx.fill();
+        ctx.fillStyle = '#fde68a'; ctx.textAlign = 'center'; ctx.fillText(txt, x + w / 2, fy + fh - 8.5 * s, tw - 8 * s);
+    }
+    // Holográfica (1.32.0): arcoíris que se mueve por toda la carta y la etiqueta HOLO.
+    if (holo) {
+        ctx.save(); A.redondeado(ctx, x, y, w, h, 14 * s); ctx.clip();
+        ctx.globalCompositeOperation = 'overlay';
+        const off = brillo * w * 2;
+        const g = ctx.createLinearGradient(x - w + off, y, x + off, y + h);
+        ARCOIRIS.concat(ARCOIRIS).forEach((c, i, arr) => g.addColorStop(i / (arr.length - 1), c));
+        ctx.globalAlpha = 0.55; ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+        ctx.restore();
+        ctx.save(); ctx.font = `900 ${10 * s}px ${FUENTE}`; ctx.textAlign = 'center';
+        A.redondeado(ctx, x + w / 2 - 22 * s, y + 9 * s, 44 * s, 16 * s, 8 * s);
+        const g2 = ctx.createLinearGradient(x + w / 2 - 22 * s, 0, x + w / 2 + 22 * s, 0); ARCOIRIS.forEach((c, i) => g2.addColorStop(i / (ARCOIRIS.length - 1), c));
+        ctx.fillStyle = g2; ctx.fill(); ctx.fillStyle = '#0f172a'; ctx.fillText('HOLO', x + w / 2, y + 21 * s); ctx.restore();
+    }
     // Holográfico (legendaria, mítica, divina): una franja de luz que cruza la carta.
     if (r.orden >= 3) {
         ctx.save(); A.redondeado(ctx, x, y, w, h, 14 * s); ctx.clip();
@@ -91,12 +115,12 @@ function dibujarDorso(ctx, x, y, w, h, color) {
     ctx.fillStyle = '#fde68a'; ctx.textAlign = 'center'; ctx.font = `900 ${34 * s}px ${FUENTE}`; ctx.fillText('S', x + w / 2, y + h / 2 + 12 * s);
 }
 
-async function tarjetaCarta(id, { estrellas = 1, idioma = 'es' } = {}) {
+async function tarjetaCarta(id, { estrellas = 1, idioma = 'es', holo = false } = {}) {
     if (!A.listo()) return null;
     const img = await A.imagenCompanero(id);
     const W = 300; const H = 450;
     const { c, ctx } = A.lienzo(W, H);
-    dibujarCarta(ctx, 0, 0, W, H, id, { estrellas, img, idioma, brillo: 0.45 });
+    dibujarCarta(ctx, 0, 0, W, H, id, { estrellas, img, idioma, brillo: 0.45, holo });
     return c.toBuffer('image/png');
 }
 
@@ -159,7 +183,7 @@ async function gifSobre(sobre, cartas, { idioma = 'es', color = '#8b5cf6', emoji
                 A.redondeado(ctx, -CW / 2, 0, CW, CH, 14); ctx.fillStyle = '#1f2937'; ctx.fill();
                 ctx.fillStyle = '#fde047'; ctx.textAlign = 'center'; ctx.font = `900 40px ${FUENTE}`; ctx.fillText('🪙', 0, CH / 2);
                 ctx.font = `bold 14px ${FUENTE}`; ctx.fillStyle = '#e2e8f0'; ctx.fillText(`+${c.devuelto}`, 0, CH / 2 + 30);
-            } else dibujarCarta(ctx, -CW / 2, 0, CW, CH, c.id, { estrellas: c.estrellas, img: imgs[i], idioma, brillo: ((g * 0.08) % 1.4) });
+            } else dibujarCarta(ctx, -CW / 2, 0, CW, CH, c.id, { estrellas: c.estrellas, img: imgs[i], idioma, brillo: ((g * 0.08) % 1.4), holo: !!c.holo });
             ctx.restore();
             if (p >= 1 && c.nuevo) { ctx.fillStyle = '#22c55e'; ctx.textAlign = 'center'; ctx.font = `bold 14px ${FUENTE}`; ctx.fillText(idioma === 'en' ? 'NEW!' : '¡NUEVA!', x + CW / 2, y + CH + 22); }
             else if (p >= 1 && !c.quitada) { ctx.fillStyle = '#fde047'; ctx.textAlign = 'center'; ctx.font = `bold 14px ${FUENTE}`; ctx.fillText(`★`.repeat(c.estrellas), x + CW / 2, y + CH + 22); }

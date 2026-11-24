@@ -31,16 +31,30 @@ function rarezaAlAzar(sobre, azar, minimo = null) {
 // Una carta de esa rareza. Se tira SIEMPRE sobre todo el pack: si toca una de una serie quitada
 // en el servidor, no se cambia por otra (eso subiría la probabilidad de las demás: no vale quitarlo
 // todo menos tu favorita); quien abre recibe oro a cambio (abrirSobre).
-function cartaAlAzar(rareza, azar) {
-    const todas = [...K.ANIME.entries()].filter(([, c]) => c.rareza === rareza).map(([id]) => id);
+// 1.32.0: `destacada` = la serie de la semana: sus cartas pesan ×SERIE_DESTACADA_X dentro de su rareza.
+function cartaAlAzar(rareza, azar, destacada = null) {
+    const todas = [...K.ANIME.entries()].filter(([, c]) => c.rareza === rareza);
     if (!todas.length) return null;
-    return todas[Math.floor(azar() * todas.length) % todas.length];
+    if (!destacada) return todas[Math.floor(azar() * todas.length) % todas.length][0];
+    const peso = (c) => (c.serie === destacada ? SERIE_DESTACADA_X : 1);
+    const total = todas.reduce((a, [, c]) => a + peso(c), 0);
+    let x = azar() * total;
+    for (const [id, c] of todas) { x -= peso(c); if (x < 0) return id; }
+    return todas[todas.length - 1][0];
+}
+// Serie destacada de la semana (lunes UTC): rota entre las series con 4 cartas o más.
+const SERIE_DESTACADA_X = 3;
+function serieDestacada(semana) {
+    const grandes = [...series()].filter(([, ids]) => ids.length >= 4).map(([s]) => s).sort();
+    if (!grandes.length) return null;
+    let h = 2166136261; for (const ch of String(semana)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    return grandes[h % grandes.length];
 }
 const CAMBIO_QUITADA = 0.4; // una carta de serie quitada se cambia por el 40 % de lo que vale en el sobre
 
 // Abre un sobre sobre una colección ({ cartas, sinEpicaCartas }). Devuelve las 3 cartas
 // (con si son nuevas, sus estrellas y el oro devuelto) y la piedad nueva.
-function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, quitados = null) {
+function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, quitados = null, destacada = null) {
     const def = SOBRES[sobre];
     if (!def) return { fallo: 'sobre' };
     let sinEpica = col.sinEpicaCartas || 0;
@@ -55,25 +69,29 @@ function abrirSobre(col, sobre, azar = require('./casinoNucleo.js').azarSeguro, 
         if (ultima && def.garantia) minimo = def.garantia;
         if (ultima && piedad && !hayEpica && (!minimo || K.RAREZAS[minimo].orden < 2)) minimo = 'epica';
         let rareza = rarezaAlAzar(sobre, azar, minimo);
-        let id = cartaAlAzar(rareza, azar);
-        while (!id && K.RAREZAS[rareza].orden > 0) { rareza = ORDEN[K.RAREZAS[rareza].orden - 1]; id = cartaAlAzar(rareza, azar); }
+        let id = cartaAlAzar(rareza, azar, destacada);
+        while (!id && K.RAREZAS[rareza].orden > 0) { rareza = ORDEN[K.RAREZAS[rareza].orden - 1]; id = cartaAlAzar(rareza, azar, destacada); }
         if (!id) continue;
         if (K.RAREZAS[rareza].orden >= 2) hayEpica = true;
+        // 1.32.0: holográfica (brilla y es un 5 % más fuerte en combate). Se tira SIEMPRE aquí, también
+        // si la carta es de una serie quitada: así quitar series no cambia nada de lo demás.
+        const holo = azar() < PROB_HOLO;
         if (quitados && quitados.has(id)) {
             salen.push({ id: null, rareza, quitada: true, nuevo: false, estrellas: 0, devuelto: Math.floor((def.precio / CARTAS_POR_SOBRE) * CAMBIO_QUITADA * (1 + K.RAREZAS[rareza].orden)) });
             continue;
         }
         const antes = tengo.get(id) || 0;
-        let estrellas = 1; let devuelto = 0;
+        let estrellas = 1; let devuelto = 0; let polvo = 0;
         if (antes) {
-            if (antes >= MAX_ESTRELLAS) { estrellas = MAX_ESTRELLAS; devuelto = Math.floor((def.precio / CARTAS_POR_SOBRE) * DEVOLUCION); }
+            // 1.32.0: la repetida al máximo da también polvo (para crear la carta que quieras).
+            if (antes >= MAX_ESTRELLAS) { estrellas = MAX_ESTRELLAS; devuelto = Math.floor((def.precio / CARTAS_POR_SOBRE) * DEVOLUCION); polvo = POLVO[rareza]; }
             else estrellas = antes + 1;
         }
         tengo.set(id, estrellas);
-        salen.push({ id, rareza, nuevo: !antes, estrellas, devuelto });
+        salen.push({ id, rareza, nuevo: !antes, estrellas, devuelto, polvo, holo });
     }
     sinEpica = hayEpica ? 0 : sinEpica + 1;
-    return { cartas: salen, sinEpica, piedad, devuelto: salen.reduce((a, c) => a + c.devuelto, 0) };
+    return { cartas: salen, sinEpica, piedad, devuelto: salen.reduce((a, c) => a + c.devuelto, 0), polvo: salen.reduce((a, c) => a + (c.polvo || 0), 0) };
 }
 
 // Colecciones (1.25.0): las series con 2 cartas o más. Completar una da oro una vez
@@ -152,4 +170,45 @@ function usarCarta(col, cartaId, m, { ahora = Date.now(), dia, bromas = false, a
     return { ...r, carta: cartaId, emoji: P.ARQUETIPOS[d.poder.tipo].emoji, nombre: { es: d.poder.es, en: d.poder.en }, usadas: usadas + 1, limite };
 }
 
-module.exports = { PREMIO_SERIE, SINERGIA, REGALOS_DIA, series, seriesCompletas, nuevasSeries, progresoSeries, regalar, CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };
+// ---------------------------------------------------------------------------
+// 1.32.0: polvo, desencantar, crear e intercambiar
+// ---------------------------------------------------------------------------
+const PROB_HOLO = 0.03;
+const POLVO = { comun: 5, rara: 15, epica: 40, legendaria: 150, mitica: 500, divina: 2500 };   // al desencantar una copia
+const COSTE_CREAR = { comun: 60, rara: 180, epica: 500, legendaria: 1800, mitica: 6000 };      // la divina no se puede crear
+const INTERCAMBIOS_DIA = 5;
+// Quita UNA copia (si tenía varias estrellas, baja una; si solo una, desaparece). Devuelve { cartas, polvo, ultima }.
+function desencantar(cartas = [], id) {
+    const c = cartas.find((x) => x.id === id);
+    if (!c) return { fallo: 'sinCarta' };
+    const r = K.def(id).rareza;
+    const ultima = (c.estrellas || 1) <= 1;
+    const nuevas = ultima ? cartas.filter((x) => x.id !== id) : cartas.map((x) => (x.id === id ? { ...x, estrellas: (x.estrellas || 1) - 1 } : x));
+    return { cartas: nuevas, polvo: POLVO[r] || 0, ultima };
+}
+// Crea una copia de una carta con polvo (si ya la tienes, sube una estrella).
+function crear(cartas = [], id, polvo = 0) {
+    const d = K.ANIME.get(id);
+    if (!d) return { fallo: 'noExiste' };
+    const coste = COSTE_CREAR[d.rareza];
+    if (!coste) return { fallo: 'divina' };
+    const c = cartas.find((x) => x.id === id);
+    if (c && (c.estrellas || 1) >= MAX_ESTRELLAS) return { fallo: 'max' };
+    if (polvo < coste) return { fallo: 'polvo', coste, falta: coste - polvo };
+    const nuevas = c ? cartas.map((x) => (x.id === id ? { ...x, estrellas: (x.estrellas || 1) + 1 } : x)) : [...cartas, { id, estrellas: 1, primera: new Date() }];
+    return { cartas: nuevas, coste, nueva: !c };
+}
+// Cambio de una copia por otra entre dos personas. Si a alguien le llega una que ya tiene al máximo, recibe polvo.
+function intercambiar(cartasA = [], cartasB = [], idA, idB) {
+    if (!cartasA.some((c) => c.id === idA)) return { fallo: 'sinCartaA' };
+    if (!cartasB.some((c) => c.id === idB)) return { fallo: 'sinCartaB' };
+    if (idA === idB) return { fallo: 'iguales' };
+    const r1 = regalar(cartasA, cartasB, idA);
+    const r2 = regalar(r1.a, r1.de, idB);
+    // r1: A da idA a B → r1.de (A sin idA), r1.a (B con idA). r2: B da idB a A → r2.de (B final), r2.a (A final).
+    return { a: r2.a, b: r2.de, polvoA: r2.devuelto ? POLVO[K.def(idB).rareza] : 0, polvoB: r1.devuelto ? POLVO[K.def(idA).rareza] : 0 };
+}
+
+module.exports = {
+    SERIE_DESTACADA_X, serieDestacada,
+    PROB_HOLO, POLVO, COSTE_CREAR, INTERCAMBIOS_DIA, desencantar, crear, intercambiar, PREMIO_SERIE, SINERGIA, REGALOS_DIA, series, seriesCompletas, nuevasSeries, progresoSeries, regalar, CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };

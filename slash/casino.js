@@ -37,6 +37,16 @@ module.exports = {
         .addSubcommand((s) => s.setName('duel').setNameLocalizations(ES('duelo')).setDescription('⚔️ Challenge someone to a coin flip for gold').setDescriptionLocalizations(ES('⚔️ Reta a alguien a cara o cruz por oro'))
             .addUserOption((o) => o.setName('rival').setDescription('Who').setDescriptionLocalizations(ES('A quién')).setRequired(true)).addIntegerOption(cantidad))
         .addSubcommand((s) => s.setName('race').setNameLocalizations(ES('carrera')).setDescription('🏇 Start a race: everyone in the channel can bet').setDescriptionLocalizations(ES('🏇 Empieza una carrera: todo el canal puede apostar')))
+        .addSubcommand((s) => s.setName('plinko').setDescription('🔻 Drop the ball through the pegs (×29 on the edges)').setDescriptionLocalizations(ES('🔻 Deja caer la bola entre los clavos (×29 en los bordes)')).addIntegerOption(cantidad)
+            .addStringOption((o) => o.setName('risk').setNameLocalizations(ES('riesgo')).setDescription('How risky').setDescriptionLocalizations(ES('Cuánto riesgo')).addChoices(
+                { name: '🟢 Low', name_localizations: ES('🟢 Bajo'), value: 'bajo' }, { name: '🟠 Medium', name_localizations: ES('🟠 Medio'), value: 'medio' }, { name: '🔴 High', name_localizations: ES('🔴 Alto'), value: 'alto' })))
+        .addSubcommand((s) => s.setName('wheel').setNameLocalizations(ES('rueda')).setDescription('🎡 Wheel of fortune: bet on a number (up to ×47)').setDescriptionLocalizations(ES('🎡 Rueda de la fortuna: apuesta a un número (hasta ×47)')).addIntegerOption(cantidad)
+            .addIntegerOption((o) => o.setName('number').setNameLocalizations(ES('numero')).setDescription('Which number').setDescriptionLocalizations(ES('A qué número')).setRequired(true).addChoices(
+                ...require('../utils/casinoNucleo.js').RUEDA.map((r) => ({ name: `${r.n} (×${r.paga})`, name_localizations: ES(`${r.n} (×${String(r.paga).replace('.', ',')})`), value: r.n })))))
+        .addSubcommand((s) => s.setName('table').setNameLocalizations(ES('mesa')).setDescription('🎡 Table roulette: one spin for the whole channel').setDescriptionLocalizations(ES('🎡 Ruleta en mesa: una tirada para todo el canal')))
+        .addSubcommand((s) => s.setName('lottery').setNameLocalizations(ES('loteria')).setDescription('🎟️ Weekly lottery: buy tickets, Sunday draw').setDescriptionLocalizations(ES('🎟️ Lotería semanal: compra boletos, sorteo el domingo'))
+            .addIntegerOption((o) => o.setName('tickets').setNameLocalizations(ES('boletos')).setDescription('How many to buy (empty = just look)').setDescriptionLocalizations(ES('Cuántos comprar (vacío = solo mirar)')).setMinValue(1).setMaxValue(20)))
+        .addSubcommand((s) => s.setName('stats').setNameLocalizations(ES('numeros')).setDescription('📈 Your numbers with a chart').setDescriptionLocalizations(ES('📈 Tus números, con gráfica')))
         .addSubcommand((s) => s.setName('daily').setNameLocalizations(ES('diaria')).setDescription('🎁 Your free slots spin of the day').setDescriptionLocalizations(ES('🎁 Tu tirada gratis del día en la tragaperras')))
         .addSubcommand((s) => s.setName('menu').setDescription('🎲 Open the casino: every game, your gold and the jackpot').setDescriptionLocalizations(ES('🎲 Abre el casino: todos los juegos, tu oro y el bote')))
         .addSubcommand((s) => s.setName('help').setNameLocalizations(ES('ayuda')).setDescription('📖 How to play each game (with a button to try it)').setDescriptionLocalizations(ES('📖 Cómo se juega a cada juego (con un botón para probarlo)')))
@@ -60,6 +70,14 @@ module.exports = {
             return interaction.editReply(await require('../utils/casinoLobby.js').mensajeLobby(interaction.guild, { ...cfg, idioma }, { conCartel: true }));
         }
         if (sub === 'jackpot') return interaction.reply({ embeds: [await casino.embedBote(interaction.guild, idioma, interaction.user.id)], allowedMentions: { parse: [] } });
+        const X = require('../utils/casinoExtra.js');
+        if (sub === 'stats') { await interaction.deferReply({ flags: 64 }); return interaction.editReply(await X.estadisticas(interaction.guildId, interaction.user.id, idioma)); }
+        if (sub === 'lottery') {
+            await interaction.deferReply({ flags: interaction.options.getInteger('tickets') ? 64 : undefined });
+            const r = await X.loteria({ interaction, cfg, idioma, boletos: interaction.options.getInteger('tickets') || 0 });
+            if (r?.error) { await interaction.deleteReply().catch(() => {}); return interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 }); }
+            return undefined;
+        }
         await interaction.deferReply();
         const base = { interaction, client, cfg, idioma, cantidad: interaction.options.getInteger('bet') };
         let r;
@@ -74,9 +92,12 @@ module.exports = {
         else if (sub === 'duel') r = await casino.duelo({ ...base, rival: interaction.options.getUser('rival') });
         else if (sub === 'race') r = await casino.carrera(base);
         else if (sub === 'daily') r = await casino.diaria(base);
+        else if (sub === 'plinko') r = await X.plinko({ ...base, riesgo: interaction.options.getString('risk') || 'bajo' });
+        else if (sub === 'wheel') r = await X.rueda({ ...base, numero: interaction.options.getInteger('number') });
+        else if (sub === 'table') r = await X.mesa(base);
         if (r?.error) {
             await interaction.deleteReply().catch(() => {});
-            return interaction.followUp({ content: `❌ ${r.error}`, flags: 64 });
+            return interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 });
         }
         return undefined;
     },

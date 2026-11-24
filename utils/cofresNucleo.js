@@ -156,6 +156,7 @@ const COFRES = {
     legendario: { precio: 7500, emoji: '👑', es: 'Cofre legendario', en: 'Legendary chest', color: '#d97706', prob: { comun: 0, rara: 35, epica: 40, legendaria: 19, mitica: 5.8, divina: 0.2 } },
 };
 const PIEDAD = 10;        // a los 10 cofres seguidos sin épica o mejor, el siguiente la trae segura
+const PROB_BRILLANTE = 1 / 64; // 1.32.0: variante brillante (otros colores)
 const MAX_ESTRELLAS = 5;
 const DEVOLUCION_REPETIDO = 0.25; // con 5 estrellas, un repetido devuelve el 25 % del cofre en oro
 
@@ -252,6 +253,30 @@ function abrir(coleccion, cofre, azar = require('./casinoNucleo.js').azarSeguro,
     return { id, rareza, nuevo, estrellas, devuelto, piedad, sinEpica: RAREZAS[rareza].orden >= 2 ? 0 : sinEpica + 1 };
 }
 
+// 1.32.0: tirada ×10 (con descuento). Abre `n` cofres seguidos sobre una copia de la colección (así
+// las repetidas de la misma tirada suben estrellas y la piedad cuenta igual que abriéndolos de uno en uno).
+const DESCUENTO_X10 = 0.1;
+const precioVarios = (cofre, n) => Math.round(COFRES[cofre].precio * n * (n >= 10 ? 1 - DESCUENTO_X10 : 1));
+function abrirVarios(coleccion, cofre, n, azar = require('./casinoNucleo.js').azarSeguro, extra = [], quitados = null) {
+    if (!COFRES[cofre]) return { fallo: 'cofre' };
+    const c = { mascotas: (coleccion.mascotas || []).map((m) => ({ id: m.id, estrellas: m.estrellas || 1 })), sinEpica: coleccion.sinEpica || 0 };
+    const antes = new Set(c.mascotas.map((m) => m.id));
+    const res = [];
+    for (let i = 0; i < n; i++) {
+        const r = abrir(c, cofre, azar, extra, quitados);
+        res.push(r);
+        const ya = c.mascotas.find((m) => m.id === r.id);
+        if (ya) ya.estrellas = r.estrellas; else c.mascotas.push({ id: r.id, estrellas: 1 });
+        c.sinEpica = r.sinEpica;
+    }
+    const tocados = [...new Set(res.map((r) => r.id))];
+    return {
+        res, sinEpica: c.sinEpica, devuelto: res.reduce((a, r) => a + r.devuelto, 0),
+        subir: tocados.filter((id) => antes.has(id)).map((id) => ({ id, estrellas: c.mascotas.find((m) => m.id === id).estrellas })),
+        nuevos: tocados.filter((id) => !antes.has(id)).map((id) => ({ id, estrellas: c.mascotas.find((m) => m.id === id).estrellas })),
+    };
+}
+
 // Ventajas del compañero equipado (cada estrella de más suma un 20 % de lo base).
 // `extra`: lo que suma el cuidado (nivel de afinidad y si está feliz), de utils/compisNucleo.js.
 function ventajas(id, estrellas = 1, extra = 0) {
@@ -269,4 +294,4 @@ function ventajas(id, estrellas = 1, extra = 0) {
     return v;
 }
 
-module.exports = { RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado, esExtra, ANIME, esAnime, idsAnime, KURUMI, PODERES_ANIME, HABILIDADES, habilidad, AREAS_HABILIDAD };
+module.exports = { DESCUENTO_X10, precioVarios, abrirVarios, PROB_BRILLANTE, RAREZAS, COMPANEROS, COFRES, PIEDAD, MAX_ESTRELLAS, DEVOLUCION_REPETIDO, rarezaAlAzar, companeroAlAzar, abrir, ventajas, def, PERSONALIZADOS, RAREZAS_PERSONALIZADAS, registrarPersonalizado, olvidarPersonalizado, esPersonalizado, esExtra, ANIME, esAnime, idsAnime, KURUMI, PODERES_ANIME, HABILIDADES, habilidad, AREAS_HABILIDAD };

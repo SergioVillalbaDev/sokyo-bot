@@ -150,6 +150,9 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await require('./grupos.js').barrerGrupos(client); } catch (e) { console.error('Programador (grupos):', e.message); }
         try { await require('./bromas.js').barrerBromas(client); } catch (e) { console.error('Programador (bromas):', e.message); }
         try { require('./casino.js').barrerPartidas(client); } catch (e) { console.error('Programador (casino):', e.message); }
+        try { require('./combate.js').barrer(); } catch (e) { console.error('Programador (combates):', e.message); }
+        try { await require('./casinoExtra.js').barrerLoteria(client); } catch (e) { console.error('Programador (lotería):', e.message); }
+        try { await require('./mercado.js').barrerMercado(); } catch (e) { console.error('Programador (mercado):', e.message); }
     });
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);
@@ -181,6 +184,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         // 1.14.0: mascota del servidor y Liga Sokyo (cierre del mes y combates).
         try { await require('./mascota.js').barrerMascotas(client); } catch (e) { console.error('Programador (mascota):', e.message); }
         try { await require('./liga.js').barrerLiga(client); } catch (e) { console.error('Programador (Liga):', e.message); }
+        try { await require('./jefe.js').barrerJefes(client); } catch (e) { console.error('Programador (jefe semanal):', e.message); }
     });
     setTimeout(tickCrecimiento, 70 * 1000);
     setInterval(tickCrecimiento, 5 * 60 * 1000);

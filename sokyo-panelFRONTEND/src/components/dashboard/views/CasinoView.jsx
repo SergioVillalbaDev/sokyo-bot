@@ -5,16 +5,16 @@
 import { useState } from 'react';
 import Plegable from '../Plegable';
 import { useTranslation } from 'react-i18next';
-import { Dices, ShieldCheck, Trophy, Sparkles, Gift, TrendingUp, Settings2, BookOpen, Pin } from 'lucide-react';
+import { Dices, ShieldCheck, Trophy, Sparkles, Gift, TrendingUp, Settings2, BookOpen, Pin, Swords } from 'lucide-react';
 import { Avatar, Toggle } from '../../ui/primitives';
 import { tarjeta, CabeceraTarjeta, Campo, SelectCanal, Numero, Aviso, BotonGuardar } from './crecimientoShared';
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo } from '../../../hooks/useModulo';
 import { SIMBOLOS, JUEGOS, RAREZAS, COMPANEROS, COFRES, PIEDAD } from '../../../lib/casino';
-import { svgMascota } from '../../../lib/mascota';
+import { svgMascota, spriteCompanero } from '../../../lib/mascota';
 import { API_URL } from '../../../lib/api';
 
-const EMOJI_JUEGO = { tragaperras: '🎰', ruleta: '🎡', blackjack: '🃏', crash: '🚀', minas: '💣', moneda: '🪙', hilo: '🔼', rasca: '🎟️', duelo: '⚔️', carrera: '🏇' };
+const EMOJI_JUEGO = { tragaperras: '🎰', ruleta: '🎡', blackjack: '🃏', crash: '🚀', minas: '💣', moneda: '🪙', hilo: '🔼', rasca: '🎟️', duelo: '⚔️', carrera: '🏇', plinko: '🔻', rueda: '🎡', loteria: '🎫' };
 const ORDEN_R = ['comun', 'rara', 'epica', 'legendaria', 'mitica', 'divina'];
 
 // Tragaperras de adorno: tres rodillos que giran sin parar.
@@ -56,6 +56,8 @@ export default function CasinoView({ dash }) {
   const n = (v) => Math.round(Number(v || 0)).toLocaleString(i18n.language);
   const juegos = form.juegos || {};
   const setJuego = (j) => (v) => set('juegos')({ ...juegos, [j]: v });
+  const combate = form.combate || {};
+  const setCombate = (k) => (v) => set('combate')({ ...combate, [k]: v });
   const casa = (x) => (x.apostado || 0) - (x.premios || 0);
   const cof = datos.cofres || { porRareza: {}, ultimas: [], abiertos: 0, divinasMundo: 0 };
   const pct = (v) => `${(Math.round(v * 1000) / 10).toLocaleString(i18n.language)}${i18n.language.startsWith('es') ? ' %' : '%'}`;
@@ -181,6 +183,31 @@ export default function CasinoView({ dash }) {
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
       </div>
 
+      {/* 1.32.0: combates de compañeros (retos, torre, jefe semanal) */}
+      <div data-help="casino-combates" className={tarjeta}>
+        <CabeceraTarjeta icono={Swords} titulo={t('dashboard.casino_v.combate.titulo')} />
+        <p className="mt-1 text-xs text-muted">{t('dashboard.casino_v.combate.sub')}</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <FilaInterruptor titulo={t('dashboard.casino_v.combate.activo')} desc={t('dashboard.casino_v.combate.activoHint')}>
+            <Toggle checked={combate.activo !== false} onChange={setCombate('activo')} />
+          </FilaInterruptor>
+          <FilaInterruptor titulo={t('dashboard.casino_v.combate.jefe')} desc={t('dashboard.casino_v.combate.jefeHint')}>
+            <Toggle checked={combate.jefe !== false} onChange={setCombate('jefe')} />
+          </FilaInterruptor>
+          <FilaInterruptor titulo={t('dashboard.casino_v.combate.apuestas')} desc={t('dashboard.casino_v.combate.apuestasHint')}>
+            <Toggle checked={combate.apuestas !== false} onChange={setCombate('apuestas')} />
+          </FilaInterruptor>
+          <Campo etiqueta={t('dashboard.casino_v.combate.apuestaMax')}><Numero value={combate.apuestaMax ?? 5000} onChange={setCombate('apuestaMax')} min={0} max={10000000} /></Campo>
+          <Campo etiqueta={t('dashboard.casino_v.combate.canal')} ayuda={t('dashboard.casino_v.combate.canalHint')}>
+            <SelectCanal canales={canales} value={combate.canalId} onChange={setCombate('canalId')} vacio={t('dashboard.casino_v.combate.mismoCanal')} />
+          </Campo>
+        </div>
+        <ul className="mt-4 grid gap-1.5 text-xs text-muted sm:grid-cols-2">
+          {['c1', 'c2', 'c3', 'c4'].map((k) => <li key={k}>⚔️ {t(`dashboard.casino_v.combate.${k}`)}</li>)}
+        </ul>
+        <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>
+      </div>
+
       <Plegable id="casino-stats" emoji="📊" titulo={t('dashboard.plegable.casinoStats')} sub={t('dashboard.plegable.casinoStatsSub')}>
       <div className="grid gap-5 lg:grid-cols-2">
         <div data-help="casino-top" className={tarjeta}>
@@ -251,9 +278,9 @@ export default function CasinoView({ dash }) {
                   <span className="text-xs font-bold text-muted">{COFRES[cofre].prob[r]} %</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {lista.map(([id, c]) => (
+                  {lista.map(([id]) => (
                     <span key={id} className={`grid h-11 w-11 place-items-center rounded-xl ${divina ? 'bg-black/30 ring-2 ring-amber-300' : 'bg-elevated'}`} title={t(`dashboard.casino_v.comp.${id}`)}>
-                      <img src={svgMascota(c.svg)} alt="" className="h-8 w-8" />
+                      <img src={spriteCompanero(id)} alt="" className="h-10 w-10" />
                     </span>
                   ))}
                 </div>
@@ -272,7 +299,7 @@ export default function CasinoView({ dash }) {
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <Avatar src={a.avatar} name={a.nombre} size={22} />
                     <span className="min-w-0 flex-1 truncate text-fg"><b>{a.nombre}</b> <span className="text-muted">→</span> {a.custom ? a.custom.nombre : t(`dashboard.casino_v.comp.${a.companero}`)}</span>
-                    <img src={a.custom ? (/^https?:/.test(a.custom.imagen || '') ? a.custom.imagen : `${API_URL}${a.custom.imagen}`) : svgMascota(COMPANEROS[a.companero]?.svg)} alt="" className={`h-6 w-6 ${a.custom ? 'rounded-full object-cover object-top' : ''}`} />
+                    <img src={a.custom ? (/^https?:/.test(a.custom.imagen || '') ? a.custom.imagen : `${API_URL}${a.custom.imagen}`) : (COMPANEROS[a.companero] ? spriteCompanero(a.companero) : svgMascota('2b50'))} alt="" className={`h-6 w-6 ${a.custom ? 'rounded-full object-cover object-top' : ''}`} />
                     <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${RAREZAS[a.rareza].color}22`, color: RAREZAS[a.rareza].color }}>{t(`dashboard.casino_v.rareza.${a.rareza}`)}</span>
                   </li>
                 ))}

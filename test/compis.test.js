@@ -156,9 +156,11 @@ describe('1.21.0: interacciones por rareza, poderes y ventajas', () => {
     test('las rarezas dan más en bromas, Liga y expediciones', () => {
         const orden = ['gato', 'zorro', 'kaede', 'vlad', 'djinn', 'celestial'].map((id) => K.ventajas(id, 1));
         for (const k of ['bromas', 'liga', 'expedicion']) for (let i = 1; i < orden.length; i++) assert.ok(orden[i][k] >= orden[i - 1][k], k);
-        const pobre = P.botin({ id: 'gato', exp: { tipo: 'viaje' } }, () => 0.5).oro;
-        const rico = P.botin({ id: 'celestial', exp: { tipo: 'viaje' } }, () => 0.5).oro;
-        assert.equal(rico, pobre * 2);
+        // 1.32.0: la personalidad «curioso» trae un 10 % más: se descuenta para comparar solo la rareza.
+        const sinPers = (m) => P.botin(m, () => 0.5).oro / (P.persDe(m) === 'curioso' ? 1.1 : 1);
+        const pobre = sinPers({ id: 'gato', exp: { tipo: 'viaje' } });
+        const rico = sinPers({ id: 'celestial', exp: { tipo: 'viaje' } });
+        assert.ok(Math.abs(rico - pobre * 2) <= 2, `${rico} vs ${pobre * 2}`);
     });
 });
 

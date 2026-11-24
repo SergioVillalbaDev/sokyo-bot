@@ -845,6 +845,9 @@ const ServidorConfigSchema = new mongoose.Schema({
             carrera: { type: Boolean, default: true },
             hilo: { type: Boolean, default: true },     // 1.25.0: mayor o menor
             rasca: { type: Boolean, default: true },    // 1.25.0: rasca y gana
+            plinko: { type: Boolean, default: true },   // 1.32.0
+            rueda: { type: Boolean, default: true },    // 1.32.0: rueda de la fortuna
+            loteria: { type: Boolean, default: true },  // 1.32.0: lotería semanal
         },
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
         // Lobby (1.23.0, utils/casinoLobby.js): el mensaje fijo con el desplegable de juegos (interno).
@@ -854,6 +857,14 @@ const ServidorConfigSchema = new mongoose.Schema({
     compis: {
         anime: { type: Boolean, default: false },
         animeFuera: { type: [String], default: [] },   // series que no salen en los cofres de aquí
+    },
+    // Combates de compañeros (1.32.0, utils/combate.js y utils/jefe.js). Necesitan el casino activo.
+    combate: {
+        activo: { type: Boolean, default: true },
+        canalId: { type: String, default: null },           // donde sale el jefe semanal (vacío = el del casino)
+        jefe: { type: Boolean, default: true },             // jefe semanal del servidor
+        apuestas: { type: Boolean, default: true },         // permitir apostar oro en los retos
+        apuestaMax: { type: Number, default: 5000 },
     },
     // Mascota del servidor (1.14.0). El estado de la mascota está en models/Mascota.js.
     mascota: {

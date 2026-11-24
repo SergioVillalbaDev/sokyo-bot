@@ -101,24 +101,46 @@ async function generarTarjeta(m, idioma = 'es') {
     // La criatura, con su accesorio
     const tam = { huevo: 160, cria: 140, joven: 170, adulta: 195, legendaria: 210 }[fase.id] || 170;
     const x0 = cx - tam / 2; const y0 = cy - tam / 2;
-    const dibujo = await imagen(m.estado === 'huevo' || !esp ? '1f95a' : esp.svg);
-    if (dibujo) {
-        if (animo === 'hibernando') ctx.globalAlpha = 0.45;
-        ctx.drawImage(dibujo, x0, y0, tam, tam);
-        ctx.globalAlpha = 1;
+    // 1.32.0: dibujo propio de cada especie (utils/sprites.js), con su etapa y su humor; el huevo también.
+    const SPR = require('./sprites.js');
+    const propio = m.estado !== 'huevo' && esp && SPR.tiene(`srv:${m.especie}`);
+    if (m.estado === 'huevo' || !esp) {
+        const hc = canvasLib.createCanvas(SPR.TAM, SPR.TAM);
+        SPR.huevo(hc.getContext('2d'), { color: '#fef3c7', manchas: '#c4b5fd', grietas: m.estado === 'huevo' ? 0.5 : 0 });
+        ctx.drawImage(hc, cx - 95, cy - 100, 190, 190);
+    } else if (propio) {
+        const etapa = { cria: 0, joven: 1, adulta: 2, legendaria: 2 }[fase.id] ?? 1;
+        const humor = { hibernando: 'dormido', enferma: 'enfermo', feliz: 'feliz', hambrienta: 'hambre', triste: 'aburrido', cansada: 'cansado' }[animo] || 'normal';
+        const s = Math.round(tam * 1.25);
+        ctx.drawImage(SPR.imagen(`srv:${m.especie}`, { etapa, humor, variante: m.variante || null }), cx - s / 2, cy - s / 2 - 8, s, s);
+    } else {
+        const dibujo = await imagen(esp.svg);
+        if (dibujo) {
+            if (animo === 'hibernando') ctx.globalAlpha = 0.45;
+            ctx.drawImage(dibujo, x0, y0, tam, tam);
+            ctx.globalAlpha = 1;
+        }
     }
     const extra = async (svg, x, y, s) => { const i = await imagen(svg); if (i) ctx.drawImage(i, x, y, s, s); };
     const acc = m.estado === 'viva' && m.accesorio ? X.ACCESORIOS[m.accesorio] : null;
-    if (acc && esp) {
+    if (acc && esp && propio) {
+        const etapa = { cria: 0, joven: 1, adulta: 2, legendaria: 2 }[fase.id] ?? 1;
+        const S = Math.round(tam * 1.25); const a = SPR.anclas(`srv:${m.especie}`, etapa)[acc.slot];
+        const sz = S * X.TAM_ACCESORIO[acc.slot] * 0.75 * a.k;
+        await extra(acc.svg, cx - S / 2 + S * a.x - sz / 2, cy - S / 2 - 8 + S * a.y - sz / 2, sz);
+    } else if (acc && esp) {
         const pos = (X.POSICIONES[m.especie] || X.POSICIONES.zorro)[acc.slot];
         const s = tam * X.TAM_ACCESORIO[acc.slot];
         await extra(acc.svg, x0 + tam * pos.x - s / 2, y0 + tam * pos.y - s / 2, s);
+    } else if (fase.id === 'legendaria' && propio) {
+        const S = Math.round(tam * 1.25); const a = SPR.anclas(`srv:${m.especie}`, 2).cabeza;
+        await extra('1f451', cx - S / 2 + S * a.x - 32, cy - S / 2 - 8 + S * a.y - 40, 64);
     } else if (fase.id === 'legendaria') {
         await extra('1f451', cx - 36, y0 - 44, 72);
     }
     if (forma) await extra(forma.svg, cx + 78, cy + 66, 50);
-    if (animo === 'hibernando') await extra('1f4a4', cx + 66, cy - 120, 54);
-    if (animo === 'enferma') await extra('1f912', cx + 70, cy - 112, 50);
+    if (!propio && animo === 'hibernando') await extra('1f4a4', cx + 66, cy - 120, 54);
+    if (!propio && animo === 'enferma') await extra('1f912', cx + 70, cy - 112, 50);
     if (animo === 'feliz') { await extra('2728', cx - 128, cy - 104, 38); await extra('2728', cx + 92, cy - 76, 28); }
 
     // Textos

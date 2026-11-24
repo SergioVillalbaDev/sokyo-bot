@@ -32,6 +32,8 @@ const JUEGOS = {
     carrera: { emoji: '🏇', es: 'Carrera', en: 'Race' },
     hilo: { emoji: '🔼', es: 'Mayor o menor', en: 'Higher or lower' },
     rasca: { emoji: '🎟️', es: 'Rasca y gana', en: 'Scratch card' },
+    plinko: { emoji: '🔻', es: 'Plinko', en: 'Plinko' },             // 1.32.0
+    rueda: { emoji: '🎡', es: 'Rueda de la fortuna', en: 'Wheel of fortune' }, // 1.32.0
 };
 
 // ---------------------------------------------------------------------------
@@ -46,6 +48,7 @@ function textoFallo(f, idioma, cfgC = {}) {
         case 'min': return t(idioma, `La apuesta mínima es 🪙 ${f.min}.`, `The minimum bet is 🪙 ${f.min}.`);
         case 'max': return t(idioma, `La apuesta máxima es 🪙 ${f.max}.`, `The maximum bet is 🪙 ${f.max}.`);
         case 'limite': return t(idioma, `🛑 Has llegado a tu tope de pérdidas de hoy. Te quedan 🪙 ${f.queda}. Mañana más.`, `🛑 You’ve hit today’s loss limit. You have 🪙 ${f.queda} left. More tomorrow.`);
+        case 'aviso': return t(idioma, `🫶 Llevas **${f.racha} partidas seguidas sin ganar**. A la larga el casino siempre se queda un poco: ¿te tomas un respiro? Si quieres parar unos días, \`/casino pausa\`. Si quieres seguir, vuelve a jugar (este aviso no vuelve a salir hasta dentro de un rato).`, `🫶 You’ve played **${f.racha} games in a row without winning**. In the long run the casino always keeps a little: take a breather? To stop for a few days, \`/casino pause\`. To keep going, just play again (this won’t show again for a while).`);
         case 'oro': return t(idioma, `No tienes 🪙 ${f.cantidad}. Consigue oro con \`/diario\`, votando (\`/votar\`) o con tu tirada gratis (\`/casino diaria\`).`, `You don’t have 🪙 ${f.cantidad}. Get gold with \`/daily\`, by voting (\`/vote\`) or with your free spin (\`/casino daily\`).`);
         default: return '❌';
     }
@@ -60,6 +63,12 @@ async function apostar({ guildId, canalId, userId, cfg, juego, cantidad }) {
     const perfil = await PerfilCasino.findOne({ guildId, userId }).lean();
     const ok = C.comprobarApuesta(cantidad, c, perfil || {});
     if (ok.fallo) return ok;
+    // 1.32.0: juego responsable. Tras muchas seguidas sin ganar, un aviso (una vez por racha) y no se juega esa vez.
+    if (C.tocaAviso(perfil || {})) {
+        const marca = Math.floor((perfil.rachaPerdidas || 0) / C.RACHA_AVISO) * C.RACHA_AVISO;
+        const r = await PerfilCasino.updateOne({ guildId, userId, avisoRacha: { $ne: marca } }, { $set: { avisoRacha: marca } });
+        if (r.modifiedCount) return { fallo: 'aviso', racha: perfil.rachaPerdidas };
+    }
     const saldo = await require('./economia.js').en(guildId).cobrar(userId, ok.cantidad);
     if (saldo === null) return { fallo: 'oro', cantidad: ok.cantidad };
     const jugada = await JugadaCasino.create({ guildId, userId, juego, apuesta: ok.cantidad });
@@ -84,8 +93,8 @@ async function cobrarJugada(client, cfg, jugada, premio, detalle = null) {
     const p = await PerfilCasino.findOne({ guildId: jugada.guildId, userId: jugada.userId }).lean();
     const perdidoHoy = (p?.dia === hoy ? p.perdidoHoy || 0 : 0) + Math.max(0, jugada.apuesta - premio - vuelta) - Math.max(0, premio - jugada.apuesta);
     await PerfilCasino.updateOne({ guildId: jugada.guildId, userId: jugada.userId }, {
-        $set: { dia: hoy, perdidoHoy: Math.max(0, perdidoHoy), ...(premio > (p?.mayorPremio || 0) ? { mayorPremio: premio, mayorJuego: jugada.juego } : {}) },
-        $inc: { jugadas: 1, apostado: jugada.apuesta, ganado: premio },
+        $set: { dia: hoy, perdidoHoy: Math.max(0, perdidoHoy), ...(premio > (p?.mayorPremio || 0) ? { mayorPremio: premio, mayorJuego: jugada.juego } : {}), ...(premio >= jugada.apuesta ? { rachaPerdidas: 0, avisoRacha: 0 } : {}) },
+        $inc: { jugadas: 1, apostado: jugada.apuesta, ganado: premio, ...(premio < jugada.apuesta ? { rachaPerdidas: 1 } : {}) },
     }, { upsert: true });
     if (client && premio >= GRAN_PREMIO && premio >= jugada.apuesta * 10) await anunciarGranPremio(client, cfg, jugada, premio).catch(() => {});
     // 1.29.0: cada partida da un poco de XP del pase (con tope diario y sin importar la apuesta).
@@ -931,6 +940,7 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_duelo:')) { await botonDuelo(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_car:')) { await botonCarrera(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_carm:')) { await modalCarrera(interaction, client); return true; }
+    if (id.startsWith('cas_mr') || id.startsWith('cas_lot') || id.startsWith('cas_st')) return require('./casinoExtra.js').manejar(interaction, client);
     if (interaction.isButton() && id.startsWith('cas_rep:')) {
         // «Otra vez» y las fichas del lobby: ese juego y esa apuesta, para quien lo pulsa (mensaje nuevo).
         const [, juego, cant, extra] = id.split(':');
@@ -958,11 +968,13 @@ async function jugarRepetir(interaction, client, cfg, idioma, juego, cantidad, e
     else if (juego === 'minas') r = await minas({ ...base, numMinas: parseInt(extra, 10) || 3 });
     else if (juego === 'hilo') r = await hilo(base);
     else if (juego === 'rasca') r = await rasca(base);
+    else if (juego === 'plinko') r = await require('./casinoExtra.js').plinko({ ...base, riesgo: extra || 'bajo' });
+    else if (juego === 'rueda') r = await require('./casinoExtra.js').rueda({ ...base, numero: parseInt(extra, 10) || 1 });
     else r = { error: t(idioma, 'Ese juego no se puede repetir así.', 'That game can’t be replayed like this.') };
     if (r?.error) {
         // El error solo lo ve quien juega (no ensucia el canal).
         await interaction.deleteReply().catch(() => {});
-        await interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }).catch(() => {});
+        await interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 }).catch(() => {});
     }
     return r;
 }
@@ -993,6 +1005,7 @@ async function resumenServidor(client, guildId) {
 }
 
 module.exports = {
+    filaOtraVez, pieSaldo, saldoDe, oculto, masMenos, anunciarDespues, editarEnFila, fmt,
     JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverPendientes, textoFallo, barrerPartidas,
     tragaperras, ruleta, moneda, blackjack, crash, minas, hilo, rasca, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor, jugarRepetir,
     _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash, _editarEnFila: editarEnFila,

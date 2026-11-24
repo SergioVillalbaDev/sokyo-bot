@@ -30,8 +30,11 @@ async function imagen(svg) {
 // Dibujo de un compañero: el de Twemoji o, si es de un servidor, la foto que subió el admin
 // (solo de /uploads, nunca de internet). Las fotos se recortan en círculo al dibujarlas.
 const UPLOADS = path.join(__dirname, '..', 'api', 'uploads');
-async function imagenCompanero(id) {
+// 1.32.0: los del catálogo tienen dibujo propio (utils/sprites.js); `op` = { etapa, humor, variante }.
+async function imagenCompanero(id, op = {}) {
     const d = K.def(id);
+    const SPR = require('./sprites.js');
+    if (SPR.tiene(id)) { const im = SPR.imagen(id, { etapa: 2, ...op }); if (im) return im; }
     if (d.svg) return imagen(d.svg);
     if (d.imagen && String(d.imagen).startsWith('https://s4.anilist.co/')) return imagenAnime(d.imagen);
     if (!d.imagen || !String(d.imagen).startsWith('/uploads/')) return imagen('2b50');
@@ -71,6 +74,7 @@ async function imagenAnime(url) {
 function pintarCompanero(ctx, img, id, x, y, tam, borde = null) {
     if (!img) return;
     const d = K.def(id);
+    if (img._sprite) { const g = tam * 1.22; ctx.drawImage(img, x + (tam - g) / 2, y + (tam - g) * 0.7, g, g); return; }
     if (d.svg) { ctx.drawImage(img, x, y, tam, tam); return; }
     ctx.save(); ctx.beginPath(); ctx.arc(x + tam / 2, y + tam / 2, tam / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
     // Recorte cuadrado; en las fotos verticales (retratos) se coge la parte de arriba, donde está la cara.
@@ -786,14 +790,14 @@ function rayos(ctx, cx, cy, n, largo, giro, colores, alfa = 0.6) {
     }
     ctx.globalAlpha = 1;
 }
-async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true, textoNuevo = '¡NUEVA!' } = {}) {
+async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true, textoNuevo = '¡NUEVA!', variante: opcVariante = null } = {}) {
     if (!listo()) return null;
     const W = 420; const H = 360;
     const comp = K.def(companeroId);
     const rareza = K.RAREZAS[comp.rareza];
     const divina = comp.rareza === 'divina';
     const color = K.COFRES[cofre].color;
-    const [bicho, brillo, corona] = await Promise.all([imagenCompanero(companeroId), imagen('2728'), imagen('1f451')]);
+    const [bicho, brillo, corona] = await Promise.all([imagenCompanero(companeroId, { humor: 'feliz', variante: opcVariante }), imagen('2728'), imagen('1f451')]);
     const ARCOIRIS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#60a5fa', '#a78bfa', '#f472b6'];
     // Fases: tiembla (0-9), sube de rareza (10-19), estalla (20-23), aparece (24-35), queda (36…)
     const subeHasta = ORDEN_RAREZAS.indexOf(comp.rareza);
@@ -966,4 +970,143 @@ async function bannerCasino({ titulo = 'CASINO', subtitulo = '', boteTexto = '',
 
 // Las que se dibujan sin esperar (PNG): si algo falla al pintar, null (el juego sigue con texto).
 const seguro = (fn) => (...a) => { try { return fn(...a); } catch (e) { console.error(`Arte (${fn.name}):`, e.message); return null; } };
-module.exports = { mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+
+// 1.32.0: tirada ×10. Las 10 casillas se van destapando de menos a más rara; las épicas o mejores
+// con destello, las brillantes con estrellitas. Termina con todas a la vista.
+async function gifDiez(lista, { color = '#7c3aed', textoNuevo = 'NEW' } = {}) {
+    if (!listo()) return null;
+    const W = 720; const H = 400; const CW = 124; const CH = 168; const GX = 14; const GY = 20;
+    const x0 = (W - (5 * CW + 4 * GX)) / 2; const y0 = (H - (2 * CH + GY)) / 2;
+    const imgs = await Promise.all(lista.map((c) => imagenCompanero(c.id, { humor: 'feliz', variante: c.brillante ? 'brillante' : null }).catch(() => null)));
+    const [brilloImg] = await Promise.all([imagen('2728')]);
+    const frames = [];
+    const casilla = (ctx, i, k) => {
+        const c = lista[i]; const rz = K.RAREZAS[c.rareza];
+        const x = x0 + (i % 5) * (CW + GX); const y = y0 + Math.floor(i / 5) * (CH + GY);
+        if (k <= 0) { // tapada
+            redondeado(ctx, x, y, CW, CH, 14); const g = ctx.createLinearGradient(x, y, x + CW, y + CH); g.addColorStop(0, color); g.addColorStop(1, '#111827'); ctx.fillStyle = g; ctx.fill();
+            ctx.strokeStyle = '#fde68a55'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#fde68a'; ctx.font = `900 40px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText('?', x + CW / 2, y + CH / 2 + 14);
+            return;
+        }
+        const esc = k < 1 ? 0.6 + k * 0.5 : 1;
+        ctx.save(); ctx.translate(x + CW / 2, y + CH / 2); ctx.scale(esc, esc); ctx.translate(-(x + CW / 2), -(y + CH / 2));
+        redondeado(ctx, x, y, CW, CH, 14); const g = ctx.createLinearGradient(x, y, x, y + CH); g.addColorStop(0, `${rz.color}55`); g.addColorStop(1, '#0b1020'); ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = rz.color; ctx.lineWidth = rz.orden >= 3 ? 4 : 2.5; ctx.stroke();
+        if (rz.orden >= 2) { const h = ctx.createRadialGradient(x + CW / 2, y + 62, 4, x + CW / 2, y + 62, 70); h.addColorStop(0, `${rz.color}aa`); h.addColorStop(1, `${rz.color}00`); ctx.fillStyle = h; ctx.fillRect(x, y, CW, CH); }
+        if (imgs[i]) pintarCompanero(ctx, imgs[i], c.id, x + 18, y + 12, CW - 36, rz.color);
+        ctx.fillStyle = '#fff'; ctx.font = `bold 13px ${FUENTE}`; ctx.textAlign = 'center';
+        const d = K.def(c.id); ctx.fillText(String(d.es).split(',')[0].slice(0, 14), x + CW / 2, y + CH - 30);
+        ctx.fillStyle = c.nuevo ? '#4ade80' : '#fde047'; ctx.font = `900 13px ${FUENTE}`;
+        ctx.fillText(c.nuevo ? textoNuevo : '★'.repeat(c.estrellas || 1), x + CW / 2, y + CH - 12);
+        if (c.brillante && brilloImg) for (let s2 = 0; s2 < 3; s2++) ctx.drawImage(brilloImg, x + 6 + s2 * 40, y + 6 + (s2 % 2) * 10, 22, 22);
+        ctx.restore();
+    };
+    const fondo = (ctx) => { const g = ctx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, W); g.addColorStop(0, '#1e1b4b'); g.addColorStop(1, '#020617'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); };
+    const pinta = (hasta, k, destello = 0, delay = 60) => {
+        const { ctx } = lienzo(W, H); fondo(ctx);
+        for (let i = 0; i < lista.length; i++) casilla(ctx, i, i < hasta ? 1 : i === hasta ? k : 0);
+        if (destello) { ctx.fillStyle = `rgba(255,255,255,${destello})`; ctx.fillRect(0, 0, W, H); }
+        frames.push({ ctx, delay });
+    };
+    pinta(-1, 0, 0, 400);
+    for (let i = 0; i < lista.length; i++) {
+        const rz = K.RAREZAS[lista[i].rareza];
+        if (rz.orden >= 3) { pinta(i, 0, 0, 350); pinta(i, 0.3, 0.55, 70); }
+        for (const k of [0.35, 0.7, 1.05]) pinta(i, k, 0, 50);
+        pinta(i + 1, 1, 0, rz.orden >= 3 ? 450 : rz.orden >= 2 ? 250 : 120);
+    }
+    frames[frames.length - 1].delay = 60000;
+    return aGif(frames, W, H);
+}
+
+// ---------------------------------------------------------------------------
+// 🔻 Plinko (1.32.0): la bola cae fila a fila rebotando en los clavos y entra en su casilla.
+// ---------------------------------------------------------------------------
+async function gifPlinko({ camino, casilla, riesgo = 'bajo', mults, res = null }) {
+    if (!listo()) return null;
+    const W = 560; const H = 470; const FILAS = camino.length; const SEP = 44; const top = 70;
+    const cx = W / 2;
+    const clavo = (fila, k) => ({ x: cx + (k - fila / 2) * SEP, y: top + fila * SEP });
+    const colorMult = (m) => (m >= 10 ? '#dc2626' : m >= 3 ? '#f97316' : m >= 1.3 ? '#f59e0b' : m >= 1 ? '#65a30d' : '#475569');
+    const fondo = (ctx) => {
+        const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0f172a'); g.addColorStop(1, '#1e1b4b');
+        redondeado(ctx, 0, 0, W, H, 22); ctx.fillStyle = g; ctx.fill();
+        for (let f = 1; f <= FILAS; f++) for (let k = 0; k <= f; k++) {
+            const p = clavo(f, k); ctx.beginPath(); ctx.arc(p.x, p.y - SEP / 2, 4.5, 0, Math.PI * 2); ctx.fillStyle = '#e2e8f0'; ctx.fill();
+        }
+        // Casillas
+        const y = top + FILAS * SEP + 6; const ancho = SEP - 4;
+        mults.forEach((m, i) => {
+            const x = cx + (i - FILAS / 2) * SEP - ancho / 2;
+            redondeado(ctx, x, y, ancho, 34, 8); ctx.fillStyle = colorMult(m); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = `bold ${m >= 10 ? 12 : 13}px ${FUENTE}`; ctx.textAlign = 'center';
+            ctx.fillText(`×${String(m).replace('.', ',')}`, x + ancho / 2, y + 22);
+        });
+        ctx.fillStyle = '#cbd5e1'; ctx.font = `bold 15px ${FUENTE}`; ctx.textAlign = 'center';
+        ctx.fillText(`PLINKO · ${String(riesgo).toUpperCase()}`, cx, 30);
+    };
+    // Posiciones de la bola: arriba del todo y luego entre clavos según el camino.
+    const pts = [{ x: cx, y: top - SEP * 0.9 }];
+    let k = 0;
+    for (let f = 0; f < FILAS; f++) { k += camino[f]; pts.push({ x: cx + (k - (f + 1) / 2) * SEP, y: top + (f + 1) * SEP - SEP * 0.15 }); }
+    pts.push({ x: pts[pts.length - 1].x, y: top + FILAS * SEP + 22 });
+    const frames = [];
+    const SUB = 5;
+    for (let i = 0; i < pts.length - 1; i++) {
+        for (let j = 0; j < SUB; j++) {
+            const u = j / SUB; const a = pts[i]; const b = pts[i + 1];
+            const x = a.x + (b.x - a.x) * u; const y = a.y + (b.y - a.y) * u - Math.sin(u * Math.PI) * 12;
+            const { ctx } = lienzo(W, H); fondo(ctx);
+            const g = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, 11); g.addColorStop(0, '#fef9c3'); g.addColorStop(1, '#eab308');
+            ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#a16207'; ctx.stroke();
+            frames.push({ ctx, delay: 40 });
+        }
+    }
+    // Final: la casilla brilla y la pastilla del resultado
+    const { ctx } = lienzo(W, H); fondo(ctx);
+    const y = top + FILAS * SEP + 6; const ancho = SEP - 4; const x = cx + (casilla - FILAS / 2) * SEP - ancho / 2;
+    ctx.save(); ctx.shadowColor = '#fde68a'; ctx.shadowBlur = 24; redondeado(ctx, x - 3, y - 3, ancho + 6, 40, 10); ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
+    if (res) pastillaResultado(ctx, cx, top + FILAS * SEP / 2, { ...res, mult: mults[casilla] }, { tam: 30 });
+    frames.push({ ctx, delay: 60000 });
+    return aGif(frames, W, H);
+}
+
+// ---------------------------------------------------------------------------
+// 🎡 Rueda de la fortuna (1.32.0): gira, frena y la flecha de arriba marca el número.
+// ---------------------------------------------------------------------------
+async function gifRueda({ casillas, colores, indice, res = null }) {
+    if (!listo()) return null;
+    const W = 420; const H = 420; const cx = W / 2; const cy = H / 2 + 12; const R = 176;
+    const n = casillas.length; const paso = (Math.PI * 2) / n;
+    // Ángulo final: el centro de la casilla `indice` queda arriba (−π/2).
+    const fin = -Math.PI / 2 - (indice + 0.5) * paso - Math.PI * 2 * 5;
+    const TOTAL = 30;
+    const frames = [];
+    for (let f = 0; f <= TOTAL; f++) {
+        const u = facil(f / TOTAL);
+        const ang = fin * u;
+        const { ctx } = lienzo(W, H);
+        const g = ctx.createRadialGradient(cx, cy, 20, cx, cy, W); g.addColorStop(0, '#312e81'); g.addColorStop(1, '#020617');
+        redondeado(ctx, 0, 0, W, H, 24); ctx.fillStyle = g; ctx.fill();
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+        for (let i = 0; i < n; i++) {
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, i * paso, (i + 1) * paso); ctx.closePath();
+            ctx.fillStyle = colores[casillas[i]]; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(15,23,42,0.6)'; ctx.stroke();
+            ctx.save(); ctx.rotate((i + 0.5) * paso); ctx.translate(R - 20, 0); ctx.rotate(Math.PI / 2);
+            ctx.fillStyle = '#0f172a'; ctx.font = `900 ${casillas[i] >= 10 ? 12 : 14}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(String(casillas[i]), 0, 6);
+            ctx.restore();
+        }
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.lineWidth = 10; ctx.strokeStyle = '#facc15'; ctx.stroke();
+        for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R, cy + Math.sin(a) * R, 4, 0, Math.PI * 2); ctx.fillStyle = (i + f) % 2 ? '#fef08a' : '#f59e0b'; ctx.fill(); }
+        ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.fillStyle = '#1e1b4b'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#facc15'; ctx.stroke();
+        // Flecha
+        ctx.beginPath(); ctx.moveTo(cx - 18, cy - R - 26); ctx.lineTo(cx + 18, cy - R - 26); ctx.lineTo(cx, cy - R + 8); ctx.closePath(); ctx.fillStyle = '#ef4444'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#7f1d1d'; ctx.stroke();
+        if (f === TOTAL && res) pastillaResultado(ctx, cx, cy + 72, res, { tam: 24 });
+        frames.push({ ctx, delay: f === TOTAL ? 60000 : 40 + Math.round(u * u * 90) });
+    }
+    return aGif(frames, W, H);
+}
+
+module.exports = { gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

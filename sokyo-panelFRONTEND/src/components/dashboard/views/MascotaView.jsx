@@ -14,8 +14,8 @@ import { tarjeta, CabeceraTarjeta, Campo, SelectCanal, SelectRol, Numero, Aviso,
 import { Vacio, FilaInterruptor } from './modulosShared';
 import { useModulo } from '../../../hooks/useModulo';
 import {
-  ESPECIES, FORMAS, FASES, VENTAJAS, PERSONALIDADES, STATS, COMIDAS, ACCESORIOS, HABITATS, POSICIONES, TAM_ACCESORIO,
-  LOGROS, ENERGIA_ENTRENO, svgMascota,
+  ESPECIES, FORMAS, FASES, VENTAJAS, PERSONALIDADES, STATS, COMIDAS, ACCESORIOS, HABITATS, TAM_ACCESORIO,
+  LOGROS, ENERGIA_ENTRENO, svgMascota, spriteEspecie, spriteHuevo, anclaSprite, ETAPA_FASE,
 } from '../../../lib/mascota';
 
 const colorBarra = (v) => (v >= 60 ? '#22c55e' : v >= 30 ? '#f59e0b' : '#ef4444');
@@ -54,19 +54,20 @@ function Escena({ m, accesorio, habitat, tamano = 'grande' }) {
   const lado = tamano === 'grande'
     ? ({ cria: 112, joven: 136, adulta: 152, legendaria: 164 }[m.fase] || 136)
     : ({ cria: 64, joven: 76, adulta: 86, legendaria: 92 }[m.fase] || 76);
-  const pos = acc ? (POSICIONES[m.especie] || POSICIONES.zorro)[acc.slot] : null;
-  const tamAcc = acc ? lado * TAM_ACCESORIO[acc.slot] : 0;
+  const etapa = ETAPA_FASE[m.fase] ?? 1;
+  const pos = acc ? anclaSprite(m.especie in ESPECIES ? m.especie : 'dragon', acc.slot, etapa) : null;
+  const tamAcc = acc ? lado * TAM_ACCESORIO[acc.slot] * 0.75 * pos.k : 0;
   return (
     <div className={`relative grid ${caja} shrink-0 place-items-center overflow-hidden rounded-3xl`} style={{ background: `linear-gradient(180deg, ${hab.fondo[0]}, ${hab.fondo[1]})` }}>
       <img src={svgMascota(hab.decor[0])} alt="" className="absolute bottom-2 left-2 h-1/4 opacity-90" />
       <img src={svgMascota(hab.decor[1])} alt="" className="absolute right-3 top-3 h-[14%] opacity-90" />
       <div className="absolute inset-[12%] rounded-full" style={{ background: `radial-gradient(circle, ${color}66 0%, ${color}11 60%, transparent 72%)` }} />
       <div className="relative" style={{ width: lado, height: lado }}>
-        <img src={svgMascota(esp.svg)} alt="" className={`h-full w-full drop-shadow-2xl ${m.hibernando ? 'sk-mascota-dormida' : 'sk-mascota'}`} />
+        <img src={spriteEspecie(m.especie in ESPECIES ? m.especie : 'dragon', etapa)} alt="" className={`h-full w-full drop-shadow-2xl ${m.hibernando ? 'sk-mascota-dormida' : 'sk-mascota'}`} />
         {acc && (
           <img src={svgMascota(acc.svg)} alt="" className="absolute drop-shadow" style={{ width: tamAcc, height: tamAcc, left: lado * pos.x - tamAcc / 2, top: lado * pos.y - tamAcc / 2 }} />
         )}
-        {!acc && m.fase === 'legendaria' && <img src={svgMascota('1f451')} alt="" className="absolute left-1/2 -translate-x-1/2" style={{ width: lado * 0.34, top: -lado * 0.22 }} />}
+        {!acc && m.fase === 'legendaria' && <img src={svgMascota('1f451')} alt="" className="absolute left-1/2 -translate-x-1/2" style={{ width: lado * 0.3, top: lado * anclaSprite(m.especie in ESPECIES ? m.especie : 'dragon', 'cabeza', 2).y - lado * 0.2 }} />}
       </div>
       {forma && <img src={svgMascota(forma.svg)} alt="" className="absolute bottom-4 right-5 h-9 w-9 drop-shadow" />}
       {m.hibernando && <img src={svgMascota('1f4a4')} alt="" className="absolute right-6 top-8 h-10 w-10" />}
@@ -125,7 +126,7 @@ export default function MascotaView({ dash }) {
         <div className="grid items-center gap-6 md:grid-cols-[220px_1fr]">
           <div className="relative mx-auto grid h-52 w-52 place-items-center">
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-500/30 via-fuchsia-500/10 to-transparent blur-xl" />
-            <img src={svgMascota('1f95a')} alt="" className="sk-mascota-huevo relative h-36 w-36 drop-shadow-xl" />
+            <img src={spriteHuevo} alt="" className="sk-mascota-huevo relative h-36 w-36 drop-shadow-xl" />
           </div>
           <div>
             <h3 className="text-xl font-black text-fg">{t('dashboard.mascota_v.eggTitle')}</h3>
@@ -136,7 +137,7 @@ export default function MascotaView({ dash }) {
                 const pct = total ? (votos / total) * 100 : 0;
                 return (
                   <div key={id} className="flex items-center gap-3">
-                    <img src={svgMascota(e.svg)} alt="" className="h-7 w-7" />
+                    <img src={spriteEspecie(id, 2)} alt="" className="h-8 w-8" />
                     <span className="w-20 text-sm font-semibold text-fg">{t(`dashboard.mascota_v.especies.${id}`)}</span>
                     <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-elevated">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: e.color }} />
@@ -393,7 +394,7 @@ export default function MascotaView({ dash }) {
       <div data-help="mascota-habilidad" className={tarjeta}>
         <CabeceraTarjeta icono={Sparkles} titulo={t('dashboard.mascota_v.skillTitle')} />
         <div className="mt-4 flex items-center gap-4 rounded-2xl border border-line bg-bg p-4">
-          <img src={svgMascota(esp.svg)} alt="" className="h-14 w-14" />
+          <img src={spriteEspecie(m.especie in ESPECIES ? m.especie : 'dragon', 2)} alt="" className="h-16 w-16" />
           <div>
             <p className="text-sm font-bold text-fg">🌟 {t(`dashboard.mascota_v.skill.${m.especie}.n`)}</p>
             <p className="text-xs text-muted">{t(`dashboard.mascota_v.skill.${m.especie}.d`)}</p>

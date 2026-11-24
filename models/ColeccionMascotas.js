@@ -18,6 +18,9 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         cuidados: { type: Number, default: 0 },
         cds: { type: Object, default: undefined }, // 1.21.0: cuándo se hizo cada interacción (para su espera)
         botinX: { type: Number, default: undefined }, // 1.24.0: una carta multiplicó el oro de su próxima expedición
+        variante: { type: String, default: undefined }, // 1.32.0: 'brillante' (colores raros, sale a veces en los cofres)
+        acc: { type: String, default: undefined },      // 1.32.0: accesorio puesto (sprites.ACCESORIOS)
+        gustos: { type: Object, default: undefined },   // 1.32.0: comida favorita/odiada ya descubiertas ({ favorita: true, odiada: true })
         _id: false,
     }], default: [] },
     equipada: { type: String, default: null },
@@ -46,6 +49,15 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     // 1.25.0: series del Pack anime completadas (ya premiadas) y regalos de cartas de hoy.
     seriesCompletas: { type: [String], default: [] },
     regalosHoy: { dia: String, n: Number },
+    // 1.32.0 (utils/cartas.js, utils/combate.js): polvo de cartas (desencantar/crear), las holográficas,
+    // el mazo de combate (hasta 3 cartas) y los intercambios de hoy.
+    polvo: { type: Number, default: 0 },
+    holos: { type: [String], default: [] },
+    mazo: { type: [String], default: [] },
+    intercambiosHoy: { dia: String, n: Number },
+    armario: { type: [String], default: [] },                    // 1.32.0: accesorios comprados (para cualquiera de sus compañeros)
+    mjHoy: { dia: String, n: Number },                          // 1.32.0: minijuegos premiados hoy
+    cbt: { victorias: { type: Number, default: 0 }, torre: { type: Number, default: 0 }, jefe: { type: Number, default: 0 } }, // para los logros
     // 1.28.0 (utils/granja.js): granja (desde cuándo produce), oro sacado de ella, hitos del álbum
     // ya premiados («3», «5»… «todas») y misiones de la semana.
     granja: { desde: Date },

@@ -58,6 +58,18 @@ const GUIA = {
         como: ['Sale una carta. Di si la siguiente será **⬆️ mayor** o **⬇️ menor** (A=1, J=11, Q=12, K=13). Cada acierto multiplica lo que llevas; si es igual, empate y sigues. Pulsa **💰 Retirarme** cuando quieras: si fallas, lo pierdes.', 'A card is shown. Say whether the next one will be **⬆️ higher** or **⬇️ lower** (A=1, J=11, Q=12, K=13). Each correct guess multiplies what you have; a tie changes nothing. Press **💰 Cash out** whenever you want: miss and you lose it.'],
         paga: () => ['Cada botón dice lo que paga ese acierto: lo difícil paga más (p. ej. «mayor» desde un 10 paga ×3,88). Hasta ×100.', 'Each button shows what that guess pays: harder guesses pay more (e.g. “higher” from a 10 pays ×3.88). Up to ×100.'],
     },
+    plinko: {
+        emoji: '🔻', probar: 'bajo',
+        ej: ['/casino plinko apuesta:100 riesgo:Alto', '/casino plinko bet:100 risk:High'],
+        como: ['Dejas caer una bola desde arriba: rebota en 8 filas de clavos y cae en una casilla. Las de los bordes pagan mucho pero salen poco. Elige el riesgo: bajo (premios pequeños y seguros) o alto (todo o casi nada).', 'Drop a ball from the top: it bounces through 8 rows of pegs and lands in a slot. The edge slots pay a lot but are rare. Pick the risk: low (small, safe prizes) or high (all or almost nothing).'],
+        paga: () => { const f = (r) => C.PLINKO[r].slice(0, 5).map((m) => `×${String(m).replace('.', ',')}`).join(' · '); return [`🟢 ${f('bajo')}\n🟠 ${f('medio')}\n🔴 ${f('alto')}\n(de los bordes al centro)`, `🟢 ${f('bajo').replace(/,/g, '.')}\n🟠 ${f('medio').replace(/,/g, '.')}\n🔴 ${f('alto').replace(/,/g, '.')}\n(from the edges to the middle)`]; },
+    },
+    rueda: {
+        emoji: '🎡', probar: '1',
+        ej: ['/casino rueda apuesta:100 numero:5', '/casino wheel bet:100 number:5'],
+        como: ['Apuestas a un número de la rueda (1, 2, 5, 10, 20 o 40) y gira. Si la flecha se para en tu número, ganas lo que paga. Cuanto menos sale un número, más paga.', 'Bet on a number on the wheel (1, 2, 5, 10, 20 or 40) and it spins. If the arrow stops on your number, you win what it pays. The rarer the number, the more it pays.'],
+        paga: () => [C.RUEDA.map((r) => `**${r.n}** ×${String(r.paga).replace('.', ',')} (${r.veces}/50)`).join(' · '), C.RUEDA.map((r) => `**${r.n}** ×${r.paga} (${r.veces}/50)`).join(' · ')],
+    },
     rasca: {
         emoji: '🎟️', probar: '',
         ej: ['/casino rasca apuesta:100', '/casino scratch bet:100'],

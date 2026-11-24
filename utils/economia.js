@@ -144,6 +144,8 @@ async function cobrar(guildId, discordId, cantidad) {
 // (La web de "Mi cuenta" usa las mismas horas para su cuenta atrás.)
 const HORAS_DAILY = 20;
 const HORAS_RACHA = 48;
+// 1.32.0: regalos por racha del diario (un ticket del pase: sobre o cofre gratis).
+const REGALOS_RACHA = { 3: 'sobre_normal', 7: 'cofre_basico', 14: 'sobre_brillante', 21: 'cofre_basico', 30: 'cofre_epico' };
 async function reclamarDaily(guildId, discordId) {
     const u = await obtenerUsuario(guildId, discordId);
     const ahora = new Date();
@@ -163,6 +165,16 @@ async function reclamarDaily(guildId, discordId) {
     const compa = await require('./cofres.js').ventajasUsuario(guildId, discordId).catch(() => null);
     const extraCompa = compa?.diario > 0 ? Math.round(total * compa.diario) : 0;
     total += extraCompa;
+    // 1.32.0: evento de temporada (más oro) y regalos por racha (tickets de sobres/cofres gratis).
+    const evento = require('./eventos.js').eventoActivo(ahora.getTime());
+    const extraEvento = evento ? Math.round((base + bonus + jackpot) * evento.bonusDiario) : 0;
+    total += extraEvento;
+    let regalo = REGALOS_RACHA[racha] || (racha > 30 && racha % 30 === 0 ? REGALOS_RACHA[30] : null);
+    // Sin cartas de anime en el servidor, un sobre no sirve: va un cofre.
+    if (regalo && regalo.startsWith('sobre')) {
+        const cfgS = await require('../models/ServidorConfig.js').findOne({ guildId }).select('compis').lean().catch(() => null);
+        if (!cfgS?.compis?.anime) regalo = regalo === 'sobre_brillante' ? 'cofre_epico' : 'cofre_basico';
+    }
 
     // Puerta atómica: solo se aplica si `ultimoDaily` sigue siendo el mismo que
     // acabamos de leer. Si dos /daily llegan a la vez (doble clic, reintento de
@@ -174,7 +186,9 @@ async function reclamarDaily(guildId, discordId) {
         { returnDocument: 'after' }
     );
     if (!actualizado) return { ok: false, esperaHoras: HORAS_DAILY }; // otra petición ganó la carrera justo antes
-    return { ok: true, total, racha, jackpot, extraCompa, balance: actualizado.balance };
+    if (regalo) await require('../models/ColeccionMascotas.js').updateOne({ guildId, userId: discordId }, { $inc: { [`tickets.${regalo}`]: 1 } }, { upsert: true }).catch(() => {});
+    const delPase = await require('./pase.js').registrar(guildId, discordId, [['diarioLogin', 1]]).catch(() => []);
+    return { ok: true, total, racha, jackpot, extraCompa, extraEvento, evento, regalo, delPase, balance: actualizado.balance };
 }
 
 // Ranking de los usuarios con más oro.
