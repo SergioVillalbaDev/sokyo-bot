@@ -665,11 +665,15 @@ async function armario(interaction, col, m, owner, msgId, idioma) {
     const SPR = require('./sprites.js');
     const tengo = new Set(col.armario || []);
     const saldo = (await require('./economia.js').en(interaction.guildId).obtenerUsuario(owner)).balance;
+    const ev = require('./eventos.js').eventoActivo();
+    // Los de evento: solo si es su evento (o si ya lo tienes).
+    const visibles = Object.entries(SPR.ACCESORIOS).filter(([id, a]) => !a.evento || tengo.has(id) || ev?.id === a.evento)
+        .sort(([ia, a], [ib, b]) => (!!b.evento && !tengo.has(ib)) - (!!a.evento && !tengo.has(ia)));
     const ops = [
         ...(m.acc ? [{ value: '-', emoji: '✖️', label: t(idioma, 'Quitarle el accesorio', 'Remove the accessory') }] : []),
-        ...Object.entries(SPR.ACCESORIOS).map(([id, a]) => ({ value: id, emoji: a.emoji, default: m.acc === id,
+        ...visibles.map(([id, a]) => ({ value: id, emoji: a.emoji, default: m.acc === id,
             label: `${t(idioma, a.es, a.en)}${m.acc === id ? t(idioma, ' (puesto)', ' (wearing)') : ''}`.slice(0, 100),
-            description: tengo.has(id) ? t(idioma, '✅ Tuyo · ponérselo', '✅ Yours · put it on') : t(idioma, `🪙 ${fmt(a.precio, idioma)} · comprar y ponérselo`, `🪙 ${fmt(a.precio, idioma)} · buy and put it on`) })),
+            description: (tengo.has(id) ? t(idioma, '✅ Tuyo · ponérselo', '✅ Yours · put it on') : `${a.evento ? t(idioma, `${ev.emoji} Solo durante ${ev.es} · `, `${ev.emoji} ${ev.en} only · `) : ''}${t(idioma, `🪙 ${fmt(a.precio, idioma)} · comprar y ponérselo`, `🪙 ${fmt(a.precio, idioma)} · buy and put it on`)}`).slice(0, 100) })),
     ].slice(0, 25);
     const e = new EmbedBuilder().setColor('#ec4899').setTitle(t(idioma, `🎀 Armario de ${corto(m, idioma)}`, `🎀 ${corto(m, idioma)}’s wardrobe`))
         .setDescription(t(idioma, `Los accesorios se ven en su dibujo (y en los combates). Lo que compras es tuyo para **todos** tus compañeros. Tienes 🪙 ${fmt(saldo, idioma)}.${P.persDe(m) === 'presumido' ? '\n💅 Es presumido: con un accesorio puesto gana un 25 % más de afinidad.' : ''}`, `Accessories show on its drawing (and in battles). What you buy is yours for **all** your companions. You have 🪙 ${fmt(saldo, idioma)}.${P.persDe(m) === 'presumido' ? '\n💅 It’s vain: wearing an accessory gives 25% more affinity.' : ''}`));
@@ -688,6 +692,8 @@ async function elegirArmario(interaction, owner, msgId, comp, valor, idioma, cfg
         const a = SPR.ACCESORIOS[acc];
         if (!a) return null;
         const col = await ColeccionMascotas.findOne({ guildId, userId: owner }).select('armario').lean();
+        const ev = require('./eventos.js').eventoActivo();
+        if (a.evento && ev?.id !== a.evento && !(col?.armario || []).includes(acc)) return interaction.followUp({ content: t(idioma, '⌛ Ese accesorio era de un evento que ya ha acabado.', '⌛ That accessory belonged to an event that has ended.'), flags: 64 });
         if (!(col?.armario || []).includes(acc)) {
             // Se compra: primero el oro; si no se puede guardar, se devuelve.
             const eco = require('./economia.js').en(guildId);

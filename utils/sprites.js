@@ -982,6 +982,13 @@ const ACCESORIOS = {
     pajarita: { slot: 'cuello', precio: 550, emoji: '🎀', es: 'Pajarita', en: 'Bow tie' },
     medalla: { slot: 'cuello', precio: 1500, emoji: '🏅', es: 'Medalla de campeón', en: 'Champion medal' },
     collar: { slot: 'cuello', precio: 1200, emoji: '💎', es: 'Collar de gemas', en: 'Gem necklace' },
+    // De evento (utils/eventos.js): solo se compran mientras dura su evento; quien lo tiene, lo tiene siempre.
+    calabaza: { slot: 'cabeza', precio: 900, emoji: '🎃', es: 'Gorro de calabaza', en: 'Pumpkin hat', evento: 'halloween' },
+    hojas: { slot: 'cabeza', precio: 800, emoji: '🍁', es: 'Corona de hojas', en: 'Leaf crown', evento: 'otono' },
+    gorro_navidad: { slot: 'cabeza', precio: 900, emoji: '🎅', es: 'Gorro de Navidad', en: 'Santa hat', evento: 'navidad' },
+    corazones_amor: { slot: 'cara', precio: 800, emoji: '💘', es: 'Gafas de enamorado', en: 'Lovestruck glasses', evento: 'sanvalentin' },
+    corona_flores: { slot: 'cabeza', precio: 800, emoji: '🌷', es: 'Corona de flores', en: 'Flower crown', evento: 'primavera' },
+    gafas_sol_verano: { slot: 'cara', precio: 800, emoji: '🏖️', es: 'Gafas de verano', en: 'Summer shades', evento: 'verano' },
 };
 // Dibuja el accesorio `acc` con su base en (x, y). `ancho` = ancho de la cabeza (para que encaje).
 function dibujarAccesorio(ctx, acc, x, y, ancho = 120, t = 0) {
@@ -1072,6 +1079,40 @@ function dibujarAccesorio(ctx, acc, x, y, ancho = 120, t = 0) {
             ctx.beginPath(); ctx.ellipse(0, -2, 40, 18, 0, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = acc === 'medalla' ? '#2563eb' : '#e2e8f0'; ctx.lineWidth = 5; ctx.stroke();
             if (acc === 'medalla') { bola(ctx, '#facc15', 0, 22, 13, 13, { linea: 3 }); estrella(ctx, 0, 22, 8, '#fef9c3', 5); }
             else for (let i = -2; i <= 2; i++) { const a = Math.PI / 2 + i * 0.32; bola(ctx, ['#a855f7', '#38bdf8', '#f43f5e', '#38bdf8', '#a855f7'][i + 2], Math.cos(a) * 40, -2 + Math.sin(a) * 18, 5, 6, { linea: 1.5 }); }
+            break;
+        }
+        case 'calabaza': {
+            ctx.beginPath(); ctx.ellipse(0, -20, 44, 30, 0, 0, PI2); pintar(ctx, '#f97316', 0, -20, 44, { linea: 3 });
+            for (const d of [-1, 1]) { ctx.beginPath(); ctx.ellipse(d * 18, -20, 14, 28, 0, 0, PI2); ctx.strokeStyle = 'rgba(124,45,18,0.55)'; ctx.lineWidth = 2.5; ctx.stroke(); }
+            ctx.beginPath(); ctx.roundRect(-5, -60, 10, 16, 3); ctx.fillStyle = '#65a30d'; ctx.fill();
+            curva(ctx, [[4, -54], [20, -66], [26, -52]], '#4d7c0f', 4);
+            pico(ctx, [[-22, -28], [-12, -38], [-6, -26]], '#facc15', { linea: 1.5 }); pico(ctx, [[6, -26], [12, -38], [22, -28]], '#facc15', { linea: 1.5 });
+            break;
+        }
+        case 'hojas': case 'corona_flores': {
+            const cols = acc === 'hojas' ? ['#ea580c', '#f59e0b', '#b91c1c', '#ca8a04'] : ['#f9a8d4', '#fde047', '#c4b5fd', '#86efac'];
+            for (let i = -4; i <= 4; i++) {
+                const a = -Math.PI / 2 + i * 0.32; const x = Math.cos(a) * 52; const y = 30 + Math.sin(a) * 52;
+                if (acc === 'hojas') { ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2 + Math.sin(t * PI2 + i) * 0.1); pico(ctx, [[0, 0], [-9, -14], [0, -26], [9, -14]], cols[(i + 4) % 4], { linea: 2 }); ctx.restore(); }
+                else { bola(ctx, cols[(i + 4) % 4], x, y, 9, 9, { linea: 2 }); elipse(ctx, x, y, 3.5, 3.5); ctx.fillStyle = '#fef9c3'; ctx.fill(); }
+            }
+            break;
+        }
+        case 'gorro_navidad': {
+            ctx.beginPath(); ctx.moveTo(-40, 0); ctx.quadraticCurveTo(-10, -70, 30 + Math.sin(t * PI2) * 3, -58); ctx.quadraticCurveTo(48, -40, 54, -16); ctx.quadraticCurveTo(30, -36, 40, 0); ctx.closePath();
+            pintar(ctx, '#dc2626', 0, -30, 50, { linea: 3 });
+            ctx.beginPath(); ctx.roundRect(-48, -6, 96, 18, 9); pintar(ctx, '#f8fafc', 0, 2, 48, { linea: 2.5 });
+            bola(ctx, '#f8fafc', 54, -14, 10, 10, { linea: 2.5 });
+            break;
+        }
+        case 'corazones_amor': {
+            for (const d of [-1, 1]) { ctx.save(); ctx.translate(d * 26, 2); corazon(ctx, 0, 6, 24, '#ec4899'); corazon(ctx, 0, 4, 14, '#fbcfe8'); ctx.restore(); }
+            curva(ctx, [[-8, -2], [0, -6], [8, -2]], '#9d174d', 4);
+            break;
+        }
+        case 'gafas_sol_verano': {
+            for (const d of [-1, 1]) { ctx.beginPath(); ctx.ellipse(d * 26, 0, 21, 15, 0, 0, PI2); const g = ctx.createLinearGradient(0, -15, 0, 15); g.addColorStop(0, '#f97316'); g.addColorStop(1, '#a855f7'); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#facc15'; ctx.stroke(); brillo(ctx, d * 26 - 8, -5, 7, 3, 0.6); }
+            curva(ctx, [[-6, -2], [0, -6], [6, -2]], '#facc15', 4);
             break;
         }
         default: break;

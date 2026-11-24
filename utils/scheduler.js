@@ -152,6 +152,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { require('./casino.js').barrerPartidas(client); } catch (e) { console.error('Programador (casino):', e.message); }
         try { require('./combate.js').barrer(); } catch (e) { console.error('Programador (combates):', e.message); }
         try { await require('./casinoExtra.js').barrerLoteria(client); } catch (e) { console.error('Programador (lotería):', e.message); }
+        try { await require('./mercado.js').barrerMercado(); } catch (e) { console.error('Programador (mercado):', e.message); }
     });
     setTimeout(tick, 15 * 1000);
     setInterval(tick, intervaloMs);

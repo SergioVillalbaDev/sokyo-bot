@@ -54,6 +54,8 @@ const CATEGORIAS = [
         ['farm', 's', 'granja', 'Tus mascotas producen oro solas: recógelo, mira tu álbum (con premios por coleccionar) y las misiones de la semana.', 'Your pets make gold on their own: collect it, see your album (with collecting rewards) and the weekly missions.'],
         ['pass', 's', 'pase', 'Tu pase de temporada gratis: sube de nivel jugando y gana oro, sobres y cofres gratis. Y tus logros.', 'Your free season pass: level up by playing and win gold, free packs and chests. And your achievements.'],
         ['card', 's', 'carta', 'Cartas de anime: abre sobres, mira tu álbum, úsalas en tu mascota o como técnicas de combate, desencántalas en polvo, créalas e intercámbialas.', 'Anime cards: open packs, see your album, use them on your pet or as battle techniques, disenchant them into dust, craft and trade them.'],
+        ['profile', 's', 'perfil', 'Tu tarjeta de jugador: tu compañero, tu colección, tu rango de combate, tus logros y tu racha.', 'Your player card: your companion, collection, battle rank, achievements and streak.'],
+        ['market', 's', 'mercado', 'Compra y vende cartas de anime con otros miembros del servidor.', 'Buy and sell anime cards with other members of the server.'],
         ['fight', 's', 'combate', 'Combates por turnos con tu compañero y tu mazo: reta a alguien (con apuesta si quieres), sube la torre, ataca al jefe de la semana y sube de rango.', 'Turn-based battles with your companion and deck: challenge someone (with a bet if you want), climb the tower, hit the weekly boss and rank up.'],
         ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
     ] },
