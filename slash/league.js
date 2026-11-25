@@ -5,7 +5,7 @@ const { t } = require('../utils/i18n.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /liga ver · impulsar
+// /comunidad liga ver · impulsar
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('league')

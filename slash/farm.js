@@ -3,7 +3,7 @@ const { idiomaInteraccion } = require('../utils/preferencias.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /granja (1.28.0): tus mascotas producen oro solas; aquí se recoge y se ve el álbum. Lógica en utils/granja.js.
+// /mascotas granja (1.28.0): tus mascotas producen oro solas; aquí se recoge y se ve el álbum. Lógica en utils/granja.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('farm')

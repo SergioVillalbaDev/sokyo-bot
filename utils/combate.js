@@ -1,5 +1,5 @@
 // Combates de compañeros en Discord (1.32.0). Reglas en utils/combateNucleo.js; dibujos en
-// utils/combateArte.js. Comando /combate (slash/fight.js):
+// utils/combateArte.js. Comando /jugar combate (slash/fight.js):
 //   · retar @alguien [apuesta] → reto con Aceptar/Rechazar; al aceptar se cobra la apuesta a los dos
 //   · torre → el siguiente piso del mes (5 intentos al día); premios la primera vez que subes
 //   · practica → contra una criatura de tu nivel, sin premios ni riesgo
@@ -159,7 +159,7 @@ async function elegir(interaction, pid, accion, idioma) {
     const responder = (content) => (efimero ? interaction.update({ content, components: [] }) : interaction.reply({ content, flags: 64 }));
     if (!p) return responder(t(idioma, '⌛ Este combate ya ha terminado.', '⌛ This battle is over.'));
     const lado = ladoDe(p, interaction.user.id);
-    if (!lado) return responder(t(idioma, '👀 Este combate no es tuyo. Reta a alguien con `/combate retar`.', '👀 This isn’t your battle. Challenge someone with `/fight challenge`.'));
+    if (!lado) return responder(t(idioma, '👀 Este combate no es tuyo. Reta a alguien con `/jugar combate retar`.', '👀 This isn’t your battle. Challenge someone with `/games fight challenge`.'));
     if (p.ocupado) return responder(t(idioma, '⏳ Un segundo, se está resolviendo la ronda…', '⏳ One second, the round is resolving…'));
     const l = p.c[lado];
     if (!C.valida(l, accion)) {
@@ -182,7 +182,7 @@ async function menuCartas(interaction, pid, idioma) {
     const lado = ladoDe(p, interaction.user.id);
     if (!lado) return interaction.reply({ content: t(idioma, '👀 Este combate no es tuyo.', '👀 This isn’t your battle.'), flags: 64 });
     const l = p.c[lado];
-    if (!l.mazo.length) return interaction.reply({ content: t(idioma, '🃏 No llevas cartas. Prepara tu mazo con `/combate mazo` (hasta 3 cartas de anime de tu álbum).', '🃏 You have no cards. Build your deck with `/fight deck` (up to 3 anime cards from your album).'), flags: 64 });
+    if (!l.mazo.length) return interaction.reply({ content: t(idioma, '🃏 No llevas cartas. Prepara tu mazo con `/jugar combate mazo` (hasta 3 cartas de anime de tu álbum).', '🃏 You have no cards. Build your deck with `/games fight deck` (up to 3 anime cards from your album).'), flags: 64 });
     const fila = new ActionRowBuilder().addComponents(l.mazo.map((c, i) => new ButtonBuilder()
         .setCustomId(`cbt_a:${pid}:carta:${i}`).setStyle(c.usada ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(c.usada)
         .setLabel(`${K.def(c.id).es.split(' ')[0]} · ${t(idioma, c.tecnica.es, c.tecnica.en)}`.slice(0, 80)).setEmoji(c.usada ? '✖️' : '🃏')));
@@ -320,7 +320,7 @@ async function premiosTorre(p, gana) {
             for (const [k, v] of Object.entries(pr.tickets)) inc[`tickets.${k}`] = v;
             await ColeccionMascotas.updateOne({ guildId: p.guildId, userId }, { ...(Object.keys(inc).length ? { $inc: inc } : {}), $max: { 'cbt.torre': p.piso } }).catch(() => {});
             await require('./economia.js').en(p.guildId).darOro(userId, pr.oro);
-            lineas.push(t(idioma, `🗼 **¡Piso ${p.piso} superado!** +🪙 ${fmt(pr.oro, idioma)}${Object.keys(pr.tickets).length ? ` · 🎫 ${Object.keys(pr.tickets).map((k) => k.replace('_', ' ')).join(', ')} (en \`/pase\`)` : ''}`, `🗼 **Floor ${p.piso} cleared!** +🪙 ${fmt(pr.oro, idioma)}${Object.keys(pr.tickets).length ? ` · 🎫 ${Object.keys(pr.tickets).map((k) => k.replace('_', ' ')).join(', ')} (in \`/pass\`)` : ''}`));
+            lineas.push(t(idioma, `🗼 **¡Piso ${p.piso} superado!** +🪙 ${fmt(pr.oro, idioma)}${Object.keys(pr.tickets).length ? ` · 🎫 ${Object.keys(pr.tickets).map((k) => k.replace('_', ' ')).join(', ')} (en \`/jugar pase\`)` : ''}`, `🗼 **Floor ${p.piso} cleared!** +🪙 ${fmt(pr.oro, idioma)}${Object.keys(pr.tickets).length ? ` · 🎫 ${Object.keys(pr.tickets).map((k) => k.replace('_', ' ')).join(', ')} (in \`/games pass\`)` : ''}`));
             lineas.push(...await require('./pase.js').registrar(p.guildId, userId, [['torre', 1]], { idioma }).catch(() => []));
         }
         if (quedan > 0) bts.push(new ButtonBuilder().setCustomId(`cbt_torre:${userId}`).setEmoji('⬆️').setStyle(ButtonStyle.Success).setLabel(t(idioma, `Piso ${p.piso + 1} (${quedan} intentos)`, `Floor ${p.piso + 1} (${quedan} tries)`)));
@@ -338,7 +338,7 @@ function ocupado(guildId, userId) { const id = enJuego.get(`${guildId}:${userId}
 
 async function retar(interaction, cfg, idioma, rival, apuesta = 0) {
     const guildId = interaction.guildId; const yo = interaction.user;
-    if (!rival || rival.bot || rival.id === yo.id) return { error: t(idioma, 'Elige a otra persona (no un bot) para retar. Para entrenar solo: `/combate practica`.', 'Pick someone else (not a bot). To train alone: `/fight practice`.') };
+    if (!rival || rival.bot || rival.id === yo.id) return { error: t(idioma, 'Elige a otra persona (no un bot) para retar. Para entrenar solo: `/jugar combate practica`.', 'Pick someone else (not a bot). To train alone: `/games fight practice`.') };
     apuesta = Math.max(0, Math.floor(apuesta || 0));
     if (apuesta && cfg?.combate?.apuestas === false) return { error: t(idioma, 'En este servidor los combates son sin apuesta.', 'Battles on this server have no bets.') };
     if (apuesta > apuestaMax(cfg)) return { error: t(idioma, `La apuesta máxima aquí es de 🪙 ${fmt(apuestaMax(cfg), idioma)}.`, `The max bet here is 🪙 ${fmt(apuestaMax(cfg), idioma)}.`) };
@@ -346,7 +346,7 @@ async function retar(interaction, cfg, idioma, rival, apuesta = 0) {
     if (ocupado(guildId, rival.id)) return { error: t(idioma, 'Esa persona ya está en un combate.', 'That person is already in a battle.') };
     const memberRival = interaction.options?.getMember?.('member') || await interaction.guild.members.fetch(rival.id).catch(() => null);
     const [la, lb] = await Promise.all([luchadorDe(guildId, yo.id, nombreDe(interaction.member, yo), cfg), luchadorDe(guildId, rival.id, nombreDe(memberRival, rival), cfg)]);
-    if (!la) return { error: t(idioma, '🥚 Aún no tienes compañeros para combatir. Consigue uno con `/cofre abrir`.', '🥚 You have no companions to fight with yet. Get one with `/chest open`.') };
+    if (!la) return { error: t(idioma, '🥚 Aún no tienes compañeros para combatir. Consigue uno con `/jugar cofre abrir`.', '🥚 You have no companions to fight with yet. Get one with `/games chest open`.') };
     if (!lb) return { error: t(idioma, `🥚 ${nombreDe(memberRival, rival)} aún no tiene compañeros.`, `🥚 ${nombreDe(memberRival, rival)} has no companions yet.`) };
     if (apuesta) {
         const eco = require('./economia.js').en(guildId);
@@ -418,7 +418,7 @@ async function torre(interaction, cfg, idioma) {
     const guildId = interaction.guildId; const userId = interaction.user.id;
     if (ocupado(guildId, userId)) return { error: t(idioma, 'Ya estás en un combate. Termínalo primero.', 'You’re already in a battle. Finish it first.') };
     const yo = await luchadorDe(guildId, userId, nombreDe(interaction.member, interaction.user), cfg);
-    if (!yo) return { error: t(idioma, '🥚 Necesitas un compañero. Consigue uno con `/cofre abrir`.', '🥚 You need a companion. Get one with `/chest open`.') };
+    if (!yo) return { error: t(idioma, '🥚 Necesitas un compañero. Consigue uno con `/jugar cofre abrir`.', '🥚 You need a companion. Get one with `/games chest open`.') };
     const mes = mesDe(); const dia = diaDe();
     let pf = await perfilDe(guildId, userId);
     // Torre nueva cada mes.
@@ -446,7 +446,7 @@ async function practica(interaction, cfg, idioma) {
     const guildId = interaction.guildId; const userId = interaction.user.id;
     if (ocupado(guildId, userId)) return { error: t(idioma, 'Ya estás en un combate. Termínalo primero.', 'You’re already in a battle. Finish it first.') };
     const yo = await luchadorDe(guildId, userId, nombreDe(interaction.member, interaction.user), cfg);
-    if (!yo) return { error: t(idioma, '🥚 Necesitas un compañero. Consigue uno con `/cofre abrir`.', '🥚 You need a companion. Get one with `/chest open`.') };
+    if (!yo) return { error: t(idioma, '🥚 Necesitas un compañero. Consigue uno con `/jugar cofre abrir`.', '🥚 You need a companion. Get one with `/games chest open`.') };
     // Un rival del catálogo, de la misma rareza y nivel parecido.
     const rareza = K.def(yo.m.id).rareza;
     const ids = Object.keys(K.COMPANEROS).filter((id) => K.COMPANEROS[id].rareza === rareza && id !== yo.m.id);
@@ -463,14 +463,14 @@ async function mazo(guildId, userId, ids, idioma, cfg) {
     if (ids && ids.length) {
         if (!cfg?.compis?.anime) return { error: t(idioma, '🃏 Las cartas de anime no están activadas en este servidor.', '🃏 Anime cards aren’t turned on on this server.') };
         const validos = [...new Set(ids.filter(Boolean))].filter((id) => cartas.some((c) => c.id === id)).slice(0, C.MAZO_MAX);
-        if (!validos.length) return { error: t(idioma, 'No tienes esas cartas. Mira tu álbum con `/carta album`.', 'You don’t have those cards. See your album with `/card album`.') };
+        if (!validos.length) return { error: t(idioma, 'No tienes esas cartas. Mira tu álbum con `/jugar carta album`.', 'You don’t have those cards. See your album with `/games card album`.') };
         await ColeccionMascotas.updateOne({ guildId, userId }, { $set: { mazo: validos } });
         col.mazo = validos;
     }
     const m = C.prepararMazo(col?.mazo || [], cartas, col?.seriesCompletas || [], col?.holos || []);
     const e = new EmbedBuilder().setColor('#7c3aed').setTitle(t(idioma, '🎴 Tu mazo de combate', '🎴 Your battle deck'))
         .setDescription(m.length ? m.map((c, i) => `**${i + 1}.** ${(col.holos || []).includes(c.id) ? '🌈 ' : ''}**${K.def(c.id).es}** (${K.RAREZAS[K.def(c.id).rareza].emoji} ${'★'.repeat((cartas.find((x) => x.id === c.id) || {}).estrellas || 1)})\n　⚔️ ${t(idioma, c.tecnica.es, c.tecnica.en)}: ${C.textoTecnica(c.tecnica, idioma)}`).join('\n')
-            : t(idioma, 'Aún no tienes mazo. Elige hasta 3 cartas de tu álbum: `/combate mazo carta1:… carta2:… carta3:…`', 'No deck yet. Pick up to 3 cards from your album: `/fight deck card1:… card2:… card3:…`'))
+            : t(idioma, 'Aún no tienes mazo. Elige hasta 3 cartas de tu álbum: `/jugar combate mazo carta1:… carta2:… carta3:…`', 'No deck yet. Pick up to 3 cards from your album: `/games fight deck card1:… card2:… card3:…`'))
         .setFooter({ text: t(idioma, `Cada carta se usa una vez por combate. Dos de la misma serie: +${Math.round(C.SINERGIA_MAZO * 100)} % de fuerza. Más estrellas = más fuerte.`, `Each card is used once per battle. Two from the same series: +${Math.round(C.SINERGIA_MAZO * 100)}% power. More stars = stronger.`) });
     return { embeds: [e] };
 }
@@ -487,7 +487,7 @@ async function verPerfil(interaction, cfg, idioma, usuario = null) {
         lineaRecord: t(idioma, `${pf.victorias} V · ${pf.derrotas} D · racha ${pf.racha || 0} · #${pos} del servidor`, `${pf.victorias} W · ${pf.derrotas} L · streak ${pf.racha || 0} · #${pos} in server`),
         luchador: yo?.s || null, variante: yo?.l.variante, elementoTexto: yo ? t(idioma, C.ELEMENTOS[yo.l.el].es, C.ELEMENTOS[yo.l.el].en) : '',
         mazoTitulo: t(idioma, 'MAZO DE COMBATE', 'BATTLE DECK'), mazo: (yo?.l.mazo || []).map((c) => ({ id: c.id, tecnica: t(idioma, c.tecnica.es, c.tecnica.en) })),
-        mazoVacio: t(idioma, 'Sin cartas · /combate mazo', 'No cards · /fight deck'), lineaTorre: torreTxt,
+        mazoVacio: t(idioma, 'Sin cartas · /jugar combate mazo', 'No cards · /games fight deck'), lineaTorre: torreTxt,
     }).catch(() => null);
     const e = new EmbedBuilder().setColor(rango.color).setTitle(t(idioma, `📊 Combate · ${nombre}`, `📊 Battle · ${nombre}`));
     if (img) e.setImage('attachment://perfil.png');
@@ -500,7 +500,7 @@ async function ranking(interaction, idioma) {
     const top = await PerfilCombate.find({ guildId: interaction.guildId, $or: [{ victorias: { $gt: 0 } }, { derrotas: { $gt: 0 } }] }).sort({ elo: -1 }).limit(10).lean();
     const e = new EmbedBuilder().setColor('#f59e0b').setTitle(t(idioma, '🏆 Clasificación de combate', '🏆 Battle ranking'))
         .setDescription(top.length ? top.map((p, i) => { const r = C.rangoDe(p.elo); return `${['🥇', '🥈', '🥉'][i] || `**${i + 1}.**`} <@${p.userId}> · ${r.emoji} **${p.elo}** · ${p.victorias}V ${p.derrotas}D`; }).join('\n')
-            : t(idioma, 'Aún no ha combatido nadie. ¡Sé el primero con `/combate retar`!', 'Nobody has fought yet. Be the first with `/fight challenge`!'))
+            : t(idioma, 'Aún no ha combatido nadie. ¡Sé el primero con `/jugar combate retar`!', 'Nobody has fought yet. Be the first with `/games fight challenge`!'))
         .setFooter({ text: t(idioma, 'Rangos: 🥉 Bronce · 🥈 Plata 1100 · 🥇 Oro 1250 · 💠 Platino 1400 · 💎 Diamante 1550 · 👑 Maestro 1700', 'Ranks: 🥉 Bronze · 🥈 Silver 1100 · 🥇 Gold 1250 · 💠 Platinum 1400 · 💎 Diamond 1550 · 👑 Master 1700') });
     return { embeds: [e], allowedMentions: { parse: [] } };
 }
@@ -510,10 +510,10 @@ function ayuda(idioma) {
         t(idioma, '**Tu luchador es tu compañero equipado** (`/compi`). Pelea mejor si es más raro, tiene más estrellas y más nivel de afinidad, y si está feliz (con hambre pelea peor). ¡Cuídalo!', '**Your fighter is your equipped companion** (`/companion`). It fights better if it’s rarer, has more stars and affinity level, and if it’s happy (hungry ones fight worse). Take care of it!'),
         t(idioma, `**Cada ronda** elegís a la vez: ⚔️ atacar (+1⚡), 🛡️ defender (recibes menos de la mitad y +1⚡), ✨ especial de tu elemento (${C.ENERGIA_ESPECIAL}⚡) o 🃏 una carta de tu mazo (cada una, una vez). Actúa primero el más rápido.`, `**Each round** you both pick at once: ⚔️ attack (+1⚡), 🛡️ defend (take less than half and +1⚡), ✨ your element’s special (${C.ENERGIA_ESPECIAL}⚡) or 🃏 a deck card (each once). The faster one acts first.`),
         t(idioma, `**Elementos:** ${els}. Con ventaja pegas un ${Math.round((C.VENTAJA - 1) * 100)} % más.`, `**Elements:** ${els}. With the edge you hit ${Math.round((C.VENTAJA - 1) * 100)}% harder.`),
-        t(idioma, '**Cartas = técnicas:** cada carta de anime tiene la suya (golpes, curas, escudos, congelar, quemar…). Prepara 3 con `/combate mazo`.', '**Cards = techniques:** every anime card has one (hits, heals, shields, freeze, burn…). Pick 3 with `/fight deck`.'),
+        t(idioma, '**Cartas = técnicas:** cada carta de anime tiene la suya (golpes, curas, escudos, congelar, quemar…). Prepara 3 con `/jugar combate mazo`.', '**Cards = techniques:** every anime card has one (hits, heals, shields, freeze, burn…). Pick 3 with `/games fight deck`.'),
         t(idioma, `**Qué ganas:** 🪙 ${C.PREMIO_VICTORIA} por cada una de tus ${C.VICTORIAS_PREMIADAS} primeras victorias del día, ELO y rango, XP del pase y logros. Con apuesta, el ganador se lleva las dos (menos un ${Math.round(C.COMISION_APUESTA * 100)} %).`, `**Rewards:** 🪙 ${C.PREMIO_VICTORIA} for each of your first ${C.VICTORIAS_PREMIADAS} wins a day, ELO and rank, pass XP and achievements. With a bet, the winner takes both (minus ${Math.round(C.COMISION_APUESTA * 100)}%).`),
         t(idioma, `🗼 **Torre:** 50 pisos que se reinician cada mes, ${C.TORRE_INTENTOS_DIA} intentos al día, premio la primera vez que subes y tickets de sobres y cofres cada 5 y 10 pisos.`, `🗼 **Tower:** 50 floors that reset monthly, ${C.TORRE_INTENTOS_DIA} tries a day, a reward the first time you climb and pack and chest tickets every 5 and 10 floors.`),
-        t(idioma, `🐉 **Jefe de la semana:** todo el servidor le pega (${C.ATAQUES_JEFE_DIA} ataques al día). Si cae antes del domingo, premios para todos. \`/combate jefe\``, `🐉 **Weekly boss:** the whole server hits it (${C.ATAQUES_JEFE_DIA} attacks a day). If it falls before Sunday, rewards for everyone. \`/fight boss\``),
+        t(idioma, `🐉 **Jefe de la semana:** todo el servidor le pega (${C.ATAQUES_JEFE_DIA} ataques al día). Si cae antes del domingo, premios para todos. \`/jugar combate jefe\``, `🐉 **Weekly boss:** the whole server hits it (${C.ATAQUES_JEFE_DIA} attacks a day). If it falls before Sunday, rewards for everyone. \`/games fight boss\``),
     ].join('\n\n'))], flags: 64 };
 }
 
@@ -567,7 +567,7 @@ async function manejar(interaction) {
         return true;
     }
     if (tipo === 'cbt_torre' || tipo === 'cbt_otra') {
-        if (resto[0] !== interaction.user.id) { await interaction.reply({ content: t(idioma, 'Este botón es de otra persona. Usa `/combate torre` o `/combate practica`.', 'This button belongs to someone else. Use `/fight tower` or `/fight practice`.'), flags: 64 }); return true; }
+        if (resto[0] !== interaction.user.id) { await interaction.reply({ content: t(idioma, 'Este botón es de otra persona. Usa `/jugar combate torre` o `/jugar combate practica`.', 'This button belongs to someone else. Use `/games fight tower` or `/games fight practice`.'), flags: 64 }); return true; }
         const r = tipo === 'cbt_torre' ? await torre(interaction, cfg, idioma) : await practica(interaction, cfg, idioma);
         await interaction.reply({ content: r.error ? `❌ ${r.error}` : r.texto, flags: 64 });
         return true;

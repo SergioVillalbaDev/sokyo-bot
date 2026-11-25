@@ -163,7 +163,7 @@ function textoRecuerdo(r, idioma) {
 }
 
 // ---------------------------------------------------------------------------
-// Lo que dice al hablar con ella (/mascota hablar): según su ánimo y su personalidad,
+// Lo que dice al hablar con ella (/comunidad mascota hablar): según su ánimo y su personalidad,
 // y a veces se acuerda de algo del servidor.
 // ---------------------------------------------------------------------------
 const FRASES = {

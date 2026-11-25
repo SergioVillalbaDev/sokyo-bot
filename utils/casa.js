@@ -1,4 +1,4 @@
-// 🏠 Casa del compañero (1.33.0). `/casa [miembro]`: tu habitación (o la de otra persona) con tu compañero equipado.
+// 🏠 Casa del compañero (1.33.0). `/mascotas casa [miembro]`: tu habitación (o la de otra persona) con tu compañero equipado.
 // En la tuya: «🛒 Comprar…» (casa_buy:<dueño>, muebles y papeles), «🪑 Colocar o quitar…» (casa_put:<dueño>). En la de
 // otro: «❤️ Me gusta» (casa_like:<dueño>, una vez al día por casa). La comodidad sube la granja (casaNucleo.bonusGranja).
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, AttachmentBuilder } = require('discord.js');
@@ -25,9 +25,9 @@ async function vista(guildId, ownerId, viewerId, idioma, { nombre = '', aviso = 
     const e = new EmbedBuilder().setColor('#f59e0b').setTitle(t(idioma, `🏠 Casa de ${nombre}`, `🏠 ${nombre}’s house`));
     const lineas = [];
     if (aviso) lineas.push(aviso);
-    if (propia) lineas.push(t(idioma, `Compra muebles con tu oro y colócalos. Cada mueble da **comodidad**, y cada punto sube tu **granja un ${pct(H.BONUS_POR_CONFORT)} %** (hasta +${pct(H.BONUS_MAX)} %). Los demás pueden visitarla con \`/casa miembro:@tú\` y darle ❤️.`, `Buy furniture with your gold and place it. Every piece adds **comfort**, and each point boosts your **farm by ${pct(H.BONUS_POR_CONFORT)}%** (up to +${pct(H.BONUS_MAX)}%). Others can visit with \`/house member:@you\` and give it ❤️.`));
+    if (propia) lineas.push(t(idioma, `Compra muebles con tu oro y colócalos. Cada mueble da **comodidad**, y cada punto sube tu **granja un ${pct(H.BONUS_POR_CONFORT)} %** (hasta +${pct(H.BONUS_MAX)} %). Los demás pueden visitarla con \`/mascotas casa miembro:@tú\` y darle ❤️.`, `Buy furniture with your gold and place it. Every piece adds **comfort**, and each point boosts your **farm by ${pct(H.BONUS_POR_CONFORT)}%** (up to +${pct(H.BONUS_MAX)}%). Others can visit with \`/pets house member:@you\` and give it ❤️.`));
     if (!png) lineas.push(Object.entries(casa.puestos || {}).map(([, id]) => `${H.MUEBLES[id]?.emoji || ''} ${t(idioma, H.MUEBLES[id]?.es || id, H.MUEBLES[id]?.en || id)}`).join(' · ') || t(idioma, '*Aún sin muebles.*', '*No furniture yet.*'));
-    if (!m) lineas.push(t(idioma, 'Sin compañero, la casa está muy sola: consigue uno con `/cofre`.', 'Without a companion the house feels empty: get one with `/chest`.'));
+    if (!m) lineas.push(t(idioma, 'Sin compañero, la casa está muy sola: consigue uno con `/jugar cofre`.', 'Without a companion the house feels empty: get one with `/games chest`.'));
     e.setDescription(lineas.join('\n\n') || null);
     if (png) e.setImage('attachment://casa.png');
     const filas = [];
@@ -118,7 +118,7 @@ async function manejar(interaction) {
         await interaction.update(await vista(interaction.guildId, owner, interaction.user.id, idioma, { nombre: await nombreDe(owner), aviso: t(idioma, `❤️ ${interaction.user.displayName || interaction.user.username} le ha dado «me gusta».`, `❤️ ${interaction.user.displayName || interaction.user.username} liked it.`) }));
         return true;
     }
-    if (interaction.user.id !== owner) { await interaction.reply({ content: t(idioma, '🏠 Esta casa no es tuya: mira la tuya con `/casa`.', '🏠 This isn’t your house: see yours with `/house`.'), flags: 64 }); return true; }
+    if (interaction.user.id !== owner) { await interaction.reply({ content: t(idioma, '🏠 Esta casa no es tuya: mira la tuya con `/mascotas casa`.', '🏠 This isn’t your house: see yours with `/pets house`.'), flags: 64 }); return true; }
     await interaction.deferUpdate();
     const valor = interaction.values?.[0];
     const r = tipo === 'casa_buy' ? await comprar(interaction.guildId, owner, valor, idioma) : await colocar(interaction.guildId, owner, valor, idioma);

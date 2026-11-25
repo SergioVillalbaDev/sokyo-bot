@@ -3,7 +3,7 @@ const { idiomaInteraccion } = require('../utils/preferencias.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /guarderia (1.33.0): cría de compañeros. Todo en utils/guarderia.js.
+// /mascotas guarderia (1.33.0): cría de compañeros. Todo en utils/guarderia.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('nursery')

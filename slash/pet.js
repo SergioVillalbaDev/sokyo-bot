@@ -10,7 +10,7 @@ const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 const MEDALLAS = ['🥇', '🥈', '🥉'];
 
-// /mascota ver · alimentar · acariciar · jugar · cuidadores · proteger
+// /comunidad mascota ver · alimentar · acariciar · jugar · cuidadores · proteger
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('pet')
@@ -123,14 +123,14 @@ module.exports = {
             return interaction.reply({ embeds: [vida.embedTienda(m, idioma)], components: [vida.menuTienda(m, idioma)], flags: 64 });
         }
         if (sub === 'dress') {
-            if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return privado(t(idioma, 'Solo el staff (con «Gestionar servidor») puede cambiarle el aspecto. Si le compras algo en `/mascota tienda`, se lo pone al momento.', 'Only staff (with “Manage Server”) can change its look. If you buy it something in `/pet shop`, it wears it right away.'));
+            if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return privado(t(idioma, 'Solo el staff (con «Gestionar servidor») puede cambiarle el aspecto. Si le compras algo en `/comunidad mascota tienda`, se lo pone al momento.', 'Only staff (with “Manage Server”) can change its look. If you buy it something in `/community pet shop`, it wears it right away.'));
             const acc = interaction.options.getString('accessory');
             const hab = interaction.options.getString('habitat');
             if (!acc && !hab) return privado(t(idioma, 'Elige un accesorio o un hábitat.', 'Pick an accessory or a habitat.'));
             for (const [tipo, id] of [['accesorio', acc === 'ninguno' ? null : acc], ['habitat', hab]]) {
                 if ((tipo === 'accesorio' && acc === null) || (tipo === 'habitat' && !hab)) continue;
                 const r = await vida.vestir(gid, tipo, id);
-                if (r.fallo) return privado(r.fallo === 'noTiene' ? t(idioma, 'Todavía no lo tiene: se compra en `/mascota tienda`.', 'It doesn’t have that yet: buy it in `/pet shop`.') : t(idioma, 'Todavía no hay mascota.', 'There’s no pet yet.'));
+                if (r.fallo) return privado(r.fallo === 'noTiene' ? t(idioma, 'Todavía no lo tiene: se compra en `/comunidad mascota tienda`.', 'It doesn’t have that yet: buy it in `/community pet shop`.') : t(idioma, 'Todavía no hay mascota.', 'There’s no pet yet.'));
             }
             const m = await Mascota.findOne({ guildId: gid });
             await interaction.deferReply();

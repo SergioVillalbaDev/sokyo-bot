@@ -45,7 +45,7 @@ async function manejar(interaction, client) {
         const idioma = await idiomaInteraccion(interaction, cfg);
         const { mensajeAyuda } = require('./ayuda.js');
         const cat = interaction.values[0] === 'inicio' ? null : interaction.values[0];
-        const msg = mensajeAyuda(idioma, (cfg && cfg.prefijo) || '!', { categoria: cat });
+        const msg = mensajeAyuda(idioma, (cfg && cfg.prefijo) || '!', { categoria: cat, cfg: interaction.guildId ? cfg || {} : null });
         // La ayuda de !help es pública: quien no la pidió recibe la suya, aparte.
         if (interaction.message?.interaction || interaction.message?.flags?.has?.(64)) await interaction.update(msg);
         else if (interaction.message?.mentions?.repliedUser?.id === interaction.user.id) await interaction.update(msg);

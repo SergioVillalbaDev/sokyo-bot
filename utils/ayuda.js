@@ -1,141 +1,68 @@
-// Ayuda interactiva (/ayuda y !help): un menú con las categorías; al elegir una
-// salen sus comandos explicados en una línea y un botón a su sección del panel.
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+// Ayuda interactiva (/ayuda y !help). Desde 1.34.0 sale del catálogo de funciones (utils/catalogo.js), igual que
+// /menu, el botón ❔, la guía automática y la web /ayuda: un menú con las zonas; al elegir una, sus funciones con qué
+// son, sus comandos de verdad (en el idioma de quien lo lee) y si están encendidas en este servidor.
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { botonPanel } = require('./enlacesPanel.js');
 const { botonAbrirCuenta } = require('./cuenta.js');
+const C = require('./catalogo.js');
 const { t } = require('./i18n.js');
 
-// 's' = comando de barra (/), 'p' = con el prefijo del servidor, 'c' = clic derecho.
-// [nombre, tipo, nombre en español (si cambia), qué hace (es), qué hace (en)]
-const CATEGORIAS = [
-    { id: 'empezar', emoji: '✨', titulo: ['Lo básico', 'The basics'], tab: null, cmds: [
-        ['start', 's', 'empezar', '¿Nuevo? Te dice qué hacer ahora y te explica mascotas, cartas, oro y casino paso a paso.', 'New? Tells you what to do now and explains pets, cards, gold and the casino step by step.'],
-        ['help', 's', 'ayuda', 'Esta ayuda.', 'This help.'],
-        ['quicksetup', 's', 'setup-rapido', 'Deja el bot funcionando con unas preguntas (admins).', 'Get the bot working with a few questions (admins).'],
-        ['account', 's', 'cuenta', 'Tu web personal: tickets, oro, tienda, música y tarjeta.', 'Your personal web: tickets, gold, shop, music and card.'],
-        ['preferences', 's', 'preferencias', 'Tu idioma y qué mensajes privados quieres del bot.', 'Your language and which DMs you want from the bot.'],
-        ['remind', 's', 'recordar', 'Que el bot te recuerde algo dentro de un rato.', 'Have the bot remind you of something later.'],
-        ['reminders', 's', 'recordatorios', 'Tus recordatorios pendientes (y borrarlos).', 'Your pending reminders (and delete them).'],
-    ] },
-    { id: 'musica', emoji: '🎵', titulo: ['Música', 'Music'], tab: 'musica', cmds: [
-        ['play', 's', null, 'Pon una canción (escribe el nombre y elige de la lista).', 'Play a song (type the name and pick from the list).'],
-        ['queue', 's', 'cola', 'Lo que va a sonar, por páginas.', 'What’s coming up, page by page.'],
-        ['nowplaying', 's', 'sonando', 'Lo que suena ahora, con sus botones.', 'What’s playing now, with its buttons.'],
-        ['skip', 's', 'saltar', 'Siguiente canción (si hay más gente, se vota).', 'Next song (with more people, it’s a vote).'],
-        ['lyrics', 's', 'letra', 'La letra de la canción que suena.', 'The lyrics of the current song.'],
-        ['pause', 's', 'pausar', 'Pausar.', 'Pause.'], ['resume', 's', 'seguir', 'Seguir.', 'Resume.'],
-        ['stop', 's', 'parar', 'Parar y vaciar la cola.', 'Stop and clear the queue.'],
-        ['volume', 's', 'volumen', 'Cambiar el volumen.', 'Change the volume.'],
-        ['filter', 's', 'filtro', 'Efectos de sonido (Pro).', 'Sound effects (Pro).'],
-        ['247', 's', null, 'Que el bot se quede en el canal (Pro).', 'Keep the bot in the channel (Pro).'],
-    ] },
-    { id: 'social', emoji: '🎉', titulo: ['Comunidad', 'Community'], tab: 'com-grupos', cmds: [
-        ['group', 's', 'grupo', 'Busca gente para jugar: en la ventana cuentas a qué, cuántos, cuándo y qué vais a hacer; los demás se apuntan con un botón.', 'Look for people to play with: in the form you say what, how many, when and what you’ll do; others join with a button.'],
-        ['clan', 's', null, 'Funda un clan o únete a uno; cada semana gana el que más XP suma.', 'Found or join a clan; each week the one with the most XP wins.'],
-        ['birthday', 's', 'cumple', 'Guarda tu cumpleaños y el servidor te felicitará.', 'Save your birthday and the server will congratulate you.'],
-        ['confess', 's', 'confesar', 'Una confesión anónima: nadie sabrá que es tuya.', 'An anonymous confession: nobody will know it’s yours.'],
-        ['afk', 's', 'ausente', 'Avisa de que no estás si alguien te menciona.', 'Let people know you’re away if they mention you.'],
-        ['Traducir / Translate', 'c', null, 'Clic derecho en un mensaje → Apps: tradúcelo a tu idioma.', 'Right-click a message → Apps: translate it into your language.'],
-    ] },
-    { id: 'economia', emoji: '🪙', titulo: ['Oro y tienda', 'Gold and shop'], tab: 'com-dinamicas', cmds: [
-        ['daily', 's', 'diario', 'Tu recompensa diaria de oro.', 'Your daily gold reward.'],
-        ['shop', 's', 'tienda', 'Comprar objetos con oro.', 'Buy items with gold.'],
-        ['inventory', 's', 'inventario', 'Tu oro y tus objetos.', 'Your gold and items.'],
-        ['use', 's', 'usar', 'Usar un objeto de tu mochila.', 'Use an item from your bag.'],
-        ['rich', 's', 'ricos', 'Quién tiene más oro.', 'Who has the most gold.'],
-        ['givegold', 's', 'daroro', '(Admin) Dar o quitar oro.', '(Admin) Give or take gold.'],
-    ] },
-    { id: 'oro', emoji: '🐾', titulo: ['Mascota, bromas y Liga', 'Pet, pranks and League'], tab: 'com-mascota', cmds: [
-        ['pet', 's', 'mascota', 'La mascota del servidor: dale de comer, acaríciala, juega, entrénala, cómprale cosas en su tienda, habla con ella y mira su diario.', 'The server pet: feed it, pet it, play, train it, buy it things in its shop, talk to it and read its diary.'],
-        ['prank', 's', 'broma', 'Gasta oro en bromas: cambiar un apodo, payaso del día, reacciones o loro. Y escudos.', 'Spend gold on pranks: change a nickname, clown of the day, reactions or a parrot. And shields.'],
-        ['casino', 's', null, 'Tragaperras con bote, ruleta, blackjack, crash, minas, cara o cruz, duelos y carreras con oro. Empieza por /casino ayuda.', 'Slots with a jackpot, roulette, blackjack, crash, mines, coin flip, duels and races with gold. Start with /casino help.'],
-        ['chest', 's', 'cofre', 'Abre cofres con oro y colecciona mascotas, cada una con su habilidad exclusiva (hay una divina rarísima).', 'Open chests with gold and collect pets, each with its own exclusive ability (there’s an ultra-rare divine one).'],
-        ['companion', 's', 'compi', 'Tu mascota: dale de comer, juega, habla con ella, mándala de expedición, usa cartas en ella y cumple las misiones del día.', 'Your pet: feed it, play, talk, send it on expeditions, use cards on it and do the daily missions.'],
-        ['farm', 's', 'granja', 'Tus mascotas producen oro solas: recógelo, mira tu álbum (con premios por coleccionar) y las misiones de la semana.', 'Your pets make gold on their own: collect it, see your album (with collecting rewards) and the weekly missions.'],
-        ['pass', 's', 'pase', 'Tu pase de temporada gratis: sube de nivel jugando y gana oro, sobres y cofres gratis. Y tus logros.', 'Your free season pass: level up by playing and win gold, free packs and chests. And your achievements.'],
-        ['card', 's', 'carta', 'Cartas de anime: abre sobres, mira tu álbum, úsalas en tu mascota o como técnicas de combate, desencántalas en polvo, créalas e intercámbialas.', 'Anime cards: open packs, see your album, use them on your pet or as battle techniques, disenchant them into dust, craft and trade them.'],
-        ['profile', 's', 'perfil', 'Tu tarjeta de jugador: tu compañero, tu colección, tu rango de combate, tus logros y tu racha.', 'Your player card: your companion, collection, battle rank, achievements and streak.'],
-        ['market', 's', 'mercado', 'Compra y vende cartas de anime con otros miembros del servidor.', 'Buy and sell anime cards with other members of the server.'],
-        ['expedition', 's', 'expedicion', 'Expedición en grupo: abre una en el canal y los demás se apuntan con su compañero. Cuantos más vayan, más oro trae cada uno.', 'Group expedition: open one in the channel and others join with their companion. The more who go, the more gold each one brings.'],
-        ['house', 's', 'casa', 'La casa de tu compañero: compra muebles y decórala (cuanto más cómoda, más produce tu granja) y visita las de los demás.', 'Your companion’s house: buy furniture and decorate it (the comfier, the more your farm makes) and visit other people’s.'],
-        ['nursery', 's', 'guarderia', 'Guardería: dos compañeros tuyos de nivel 10 tienen un huevo; al abrirlo sale uno nuevo (a veces de mejor rareza o brillante).', 'Nursery: two of your level-10 companions have an egg; when it hatches you get a new one (sometimes rarer or shiny).'],
-        ['fight', 's', 'combate', 'Combates por turnos con tu compañero y tu mazo: reta a alguien (con apuesta si quieres), sube la torre, ataca al jefe de la semana y sube de rango.', 'Turn-based battles with your companion and deck: challenge someone (with a bet if you want), climb the tower, hit the weekly boss and rank up.'],
-        ['league', 's', 'liga', 'La Liga Sokyo: la clasificación de servidores del mes, e impulsar el tuyo con oro.', 'The Sokyo League: this month’s server ranking, and boost yours with gold.'],
-    ] },
-    { id: 'niveles', emoji: '📈', titulo: ['Niveles', 'Levels'], tab: 'config-niveles', cmds: [
-        ['level', 's', 'nivel', 'Tu nivel y tu tarjeta (o los de otra persona).', 'Your level and card (or someone else’s).'],
-        ['ranking', 's', null, 'Los que más XP tienen.', 'Who has the most XP.'],
-        ['season', 's', 'temporada', 'El ranking del mes (o la semana): premios para los 3 primeros.', 'The month’s (or week’s) ranking: prizes for the top 3.'],
-        ['xp', 's', null, '(Admin) Sumar XP, poner un nivel o reiniciar a alguien.', '(Admin) Add XP, set a level or reset someone.'],
-    ] },
-    { id: 'crecimiento', emoji: '🚀', titulo: ['Invitaciones', 'Invites'], tab: 'crec-invitaciones', cmds: [
-        ['invites', 's', 'invitaciones', 'A cuánta gente has invitado y el top.', 'How many people you invited and the top.'],
-        ['vote', 's', 'votar', 'Vota por el bot en top.gg y gana oro (cada 12 h).', 'Vote for the bot on top.gg and earn gold (every 12 h).'],
-        ['referrals', 's', 'referidos', 'Recomienda Sokyo y gana días de Premium.', 'Recommend Sokyo and earn Premium days.'],
-    ] },
-    { id: 'moderacion', emoji: '🛡️', titulo: ['Moderación', 'Moderation'], tab: 'mod-miembros', cmds: [
-        ['Sancionar / Sanction', 'c', null, 'Clic derecho en alguien → Apps: avisar, aislar, expulsar o banear.', 'Right-click someone → Apps: warn, time out, kick or ban.'],
-        ['Ver ficha / View profile', 'c', null, 'Clic derecho en alguien → Apps: sus sanciones, nivel y desde cuándo está.', 'Right-click someone → Apps: their sanctions, level and join date.'],
-        ['Reportar mensaje / Report message', 'c', null, 'Clic derecho en un mensaje → Apps: avisar al staff.', 'Right-click a message → Apps: tell the staff.'],
-        ['ban', 's', 'banear', 'Banear (pide confirmación y se puede deshacer).', 'Ban (asks to confirm and can be undone).'],
-        ['kick', 's', 'expulsar', 'Expulsar (pide confirmación).', 'Kick (asks to confirm).'],
-        ['timeout', 's', 'aislar', 'Aislar un rato.', 'Time out for a while.'],
-        ['warn', 's', 'avisar', 'Avisar (queda registrado y le llega por privado).', 'Warn (logged and sent by DM).'],
-        ['sanction', 's', 'sancionar', 'Aplicar un tipo de sanción de los del panel.', 'Apply one of the panel’s sanction types.'],
-        ['unban', 's', 'desbanear', 'Quitar un ban.', 'Unban.'],
-        ['history', 's', 'historial', 'Las sanciones de alguien.', 'Someone’s sanctions.'],
-        ['report', 's', 'reportar', 'Reportar a alguien al staff.', 'Report someone to the staff.'],
-    ] },
-    { id: 'tickets', emoji: '🎫', titulo: ['Ayuda del staff (tickets)', 'Staff help (tickets)'], tab: 'tickets-gestion', cmds: [
-        ['Abrir ticket con esto / Open ticket about this', 'c', null, 'Clic derecho en un mensaje → Apps: pedir ayuda sobre él.', 'Right-click a message → Apps: ask for help about it.'],
-        ['support-panel', 's', 'panel-soporte', '(Admin) Publicar el panel de soporte (botón «Abrir ticket») en un canal.', '(Admin) Post the support panel (“Open a ticket” button) in a channel.'],
-        ['user', 's', 'usuario', 'Los tickets de alguien: cuántos, abiertos y el último.', 'Someone’s tickets: how many, open and the latest.'],
-        ['account-panel', 's', 'panel-cuenta', '(Admin) Publicar el botón «Abrir mi cuenta» en un canal.', '(Admin) Post the “Open my account” button in a channel.'],
-    ] },
-    { id: 'utilidades', emoji: '🧰', titulo: ['Utilidades', 'Utility'], tab: null, cmds: [
-        ['ping', 's', null, 'Si el bot responde y lo rápido que va.', 'Whether the bot answers and how fast.'],
-        ['activity', 's', 'actividad', '(Staff) La actividad de alguien en el servidor (mensajes, voz, invitaciones).', '(Staff) Someone’s activity on the server (messages, voice, invites).'],
-        ['role', 's', 'rol', '(Staff) Crear un rol, dárselo o quitárselo a alguien.', '(Staff) Create a role, give it to or take it from someone.'],
-        ['emoji', 's', null, '(Staff) Añadir o quitar emojis del servidor.', '(Staff) Add or remove server emojis.'],
-        ['sticker', 's', null, '(Staff) Añadir o quitar stickers del servidor.', '(Staff) Add or remove server stickers.'],
-        ['dice', 's', 'dado', 'Tirar un dado.', 'Roll a die.'], ['coin', 's', 'moneda', 'Cara o cruz.', 'Heads or tails.'],
-        ['language', 's', 'idioma', '(Admin) El idioma del bot en este servidor.', '(Admin) The bot’s language on this server.'],
-        ['setup', 's', null, '(Admin) Primeros pasos del bot.', '(Admin) Bot first steps.'],
-    ] },
-];
+const ZONAS_AYUDA = ['basico', 'jugar', 'mascotas', 'comunidad', 'musica', 'crecimiento', 'staff'];
 
-function nombreComando(cmd, idioma, prefijo) {
-    const [nombre, tipo, es] = cmd;
-    if (tipo === 'c') return `🖱️ ${t(idioma, nombre.split(' / ')[0], nombre.split(' / ')[1] || nombre)}`;
-    return `\`${tipo === 's' ? '/' : prefijo}${(es && t(idioma, es, nombre)) || nombre}\``;
+// Cómo se escribe un comando del catálogo en el idioma de quien lo lee.
+function nombreComando(nombre, idioma) {
+    const P = require('./puertas.js');
+    const ruta = P.rutaDe(nombre, idioma);
+    if (ruta) return `\`${ruta}\``;
+    const m = P.comandos().get(nombre);
+    if (!m) return null;
+    const j = m.data.toJSON();
+    if (j.type === 2 || j.type === 3) return `🖱️ ${t(idioma, j.name_localizations?.['es-ES'] || j.name, j.name)}`;
+    return `\`/${t(idioma, j.name_localizations?.['es-ES'] || j.name, j.name)}\``;
+}
+function comandosDe(m, idioma) {
+    const lista = [...(m.comandos || []), ...(m.partes || []).map(([, c]) => c).filter((c) => !(m.comandos || []).includes(c))];
+    return [...new Set(lista.map((c) => nombreComando(c, idioma)).filter(Boolean))];
 }
 
-// Portada: qué es cada categoría y el menú para elegir.
-function mensajeAyuda(idioma, prefijo = '!', { categoria = null } = {}) {
-    const cat = CATEGORIAS.find((c) => c.id === categoria);
-    const embed = new EmbedBuilder().setColor('#a855f7');
-    if (!cat) {
+// Portada o una zona. `cfg` dice qué está encendido aquí (sin cfg, todo como encendido).
+function mensajeAyuda(idioma, prefijo = '!', { categoria = null, cfg = null } = {}) {
+    const zona = ZONAS_AYUDA.includes(categoria) ? categoria : null;
+    const on = (m) => !cfg || m.activo(cfg);
+    const embed = new EmbedBuilder().setColor(zona ? C.ZONAS[zona].color : '#a855f7');
+    if (!zona) {
         embed.setTitle(t(idioma, '📖 ¿Qué puedo hacer?', '📖 What can I do?'))
             .setDescription(t(idioma,
-                `👋 **¿Primera vez?** Escribe **/empezar**: te digo qué hacer paso a paso.\n\nElige una categoría en el menú de abajo y te explico sus comandos.\n\n• Escribe **/** y Discord te enseña los comandos y te ayuda a rellenarlos.\n• También funcionan con **${prefijo}** delante, como siempre (p. ej. \`${prefijo}ping\`).\n• 🖱️ Los de **clic derecho**: sobre una persona o un mensaje → **Apps**.\n\n✨ Todo lo tuyo (tickets, oro, tienda, tarjeta) está también en tu web: \`/cuenta\`.`,
-                `👋 **First time?** Type **/start**: I’ll tell you what to do step by step.\n\nPick a category in the menu below and I’ll explain its commands.\n\n• Type **/** and Discord shows the commands and helps you fill them in.\n• They also work with **${prefijo}** in front, as always (e.g. \`${prefijo}ping\`).\n• 🖱️ The **right-click** ones: on a person or a message → **Apps**.\n\n✨ All your stuff (tickets, gold, shop, card) is also on your web: \`/account\`.`))
-            .addFields(CATEGORIAS.map((c) => ({ name: `${c.emoji} ${t(idioma, c.titulo[0], c.titulo[1])}`, value: c.cmds.slice(0, 4).map((x) => nombreComando(x, idioma, prefijo)).join(' · ') + (c.cmds.length > 4 ? ' …' : ''), inline: false })));
+                `👉 **/menu** — tu menú: lo tuyo, lo que tienes listo y botones para todo. Es lo más fácil.\n👋 **/empezar** — si es tu primera vez, te guía paso a paso.\n🎮 **/jugar** · 🐾 **/mascotas** · 🏘️ **/comunidad** — escribe una y Discord te enseña todo lo de dentro.\n\nElige una zona en el menú de abajo. También funcionan con **${prefijo}** delante, como siempre.`,
+                `👉 **/menu** — your menu: your stuff, what’s ready and buttons for everything. The easiest way.\n👋 **/start** — first time? It guides you step by step.\n🎮 **/games** · 🐾 **/pets** · 🏘️ **/community** — type one and Discord shows everything inside.\n\nPick a zone in the menu below. They also work with **${prefijo}** in front, as always.`))
+            .addFields(ZONAS_AYUDA.map((z) => {
+                const ms = C.MODULOS.filter((m) => m.zona === z);
+                return { name: `${C.ZONAS[z].emoji} ${t(idioma, C.ZONAS[z].es, C.ZONAS[z].en)}`, value: ms.map((m) => `${on(m) ? '' : '⚪ '}${t(idioma, m.es, m.en)}`).join(' · ').slice(0, 1024), inline: false };
+            }));
+        if (cfg) embed.setFooter({ text: t(idioma, '⚪ = apagado en este servidor (un admin puede encenderlo con /configurar)', '⚪ = off on this server (an admin can turn it on with /configure)') });
     } else {
-        embed.setTitle(`${cat.emoji} ${t(idioma, cat.titulo[0], cat.titulo[1])}`)
-            .setDescription(cat.cmds.map((x) => `${nombreComando(x, idioma, prefijo)} — ${t(idioma, x[3], x[4])}`).join('\n'));
+        const ms = C.MODULOS.filter((m) => m.zona === zona);
+        embed.setTitle(`${C.ZONAS[zona].emoji} ${t(idioma, C.ZONAS[zona].es, C.ZONAS[zona].en)}`)
+            .setDescription(ms.map((m) => [
+                `**${m.emoji} ${t(idioma, m.es, m.en)}**${on(m) ? '' : t(idioma, ' · ⚪ apagado aquí', ' · ⚪ off here')} — ${t(idioma, m.frase.es, m.frase.en)}`,
+                comandosDe(m, idioma).join(' · '),
+            ].filter(Boolean).join('\n')).join('\n\n').slice(0, 4000));
     }
     const menu = new StringSelectMenuBuilder()
         .setCustomId('ayuda:cat')
-        .setPlaceholder(t(idioma, 'Elige una categoría…', 'Pick a category…'))
+        .setPlaceholder(t(idioma, 'Elige una zona…', 'Pick a zone…'))
         .addOptions([
-            { label: t(idioma, 'Portada', 'Overview'), value: 'inicio', emoji: '📖', default: !cat },
-            ...CATEGORIAS.map((c) => ({ label: t(idioma, c.titulo[0], c.titulo[1]), value: c.id, emoji: c.emoji, default: cat?.id === c.id })),
+            { label: t(idioma, 'Portada', 'Overview'), value: 'inicio', emoji: '📖', default: !zona },
+            ...ZONAS_AYUDA.map((z) => ({ label: t(idioma, C.ZONAS[z].es, C.ZONAS[z].en), value: z, emoji: C.ZONAS[z].emoji, default: zona === z })),
         ]);
     const filas = [new ActionRowBuilder().addComponents(menu)];
-    const botones = [botonAbrirCuenta(idioma)];
-    botones.push(botonPanel(idioma, cat?.tab || null, cat?.tab ? t(idioma, 'Configurarlo en el panel', 'Set it up in the panel') : t(idioma, 'Panel de control', 'Control panel')));
+    const tab = zona ? C.MODULOS.find((m) => m.zona === zona && m.tab)?.tab : null;
+    const botones = [new ButtonBuilder().setCustomId('menu:abrir:').setEmoji('🏠').setLabel(t(idioma, 'Mi menú', 'My menu')).setStyle(ButtonStyle.Success), botonAbrirCuenta(idioma),
+        botonPanel(idioma, tab || null, tab ? t(idioma, 'Configurarlo en el panel', 'Set it up in the panel') : t(idioma, 'Panel de control', 'Control panel'))];
+    const web = require('./ayudaWeb.js').enlace(null, idioma);
+    if (web) botones.push(new ButtonBuilder().setURL(web).setEmoji('🌐').setLabel(t(idioma, 'Guía en la web', 'Web guide')).setStyle(ButtonStyle.Link));
     filas.push(new ActionRowBuilder().addComponents(botones));
     return { embeds: [embed], components: filas };
 }
 
-module.exports = { mensajeAyuda, CATEGORIAS };
+module.exports = { mensajeAyuda, comandosDe, nombreComando, ZONAS_AYUDA };

@@ -1,4 +1,4 @@
-// 🧭 Expediciones en grupo (1.33.0). `/expedicion destino:<cueva|ruinas|volcan>` abre una en el canal: durante
+// 🧭 Expediciones en grupo (1.33.0). `/mascotas expedicion destino:<cueva|ruinas|volcan>` abre una en el canal: durante
 // UNIRSE_MS cada uno se apunta con su compañero equipado (expg_si:<id>); quien la abre puede salir antes (expg_ya:<id>)
 // si ya son GRUPO.min. Al salir, cada compañero se va como en una expedición normal (compis.accion 'exp:<destino>',
 // con energía, tope diario y misiones), pero con `bonus` = GRUPO.bonus(n): cuantos más, más oro trae cada uno.
@@ -85,7 +85,7 @@ function pintar(g, opc = {}) {
 async function comprobar(guildId, userId, destino, idioma) {
     const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
     const m = col?.mascotas?.find((x) => x.id === col.equipada) || col?.mascotas?.[0];
-    if (!m) return { error: t(idioma, 'Aún no tienes compañero: consigue uno con `/cofre`.', 'You don’t have a companion yet: get one with `/chest`.') };
+    if (!m) return { error: t(idioma, 'Aún no tienes compañero: consigue uno con `/jugar cofre`.', 'You don’t have a companion yet: get one with `/games chest`.') };
     const dia = P.diaDe();
     const r = P.salir(m, destino, col.expHoy, dia);
     if (r.fallo) return { error: require('./compis.js').textoFallo(r.fallo, idioma) };

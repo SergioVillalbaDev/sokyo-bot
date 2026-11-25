@@ -1,4 +1,4 @@
-// Mercado de cartas entre miembros (1.32.0). /mercado vender · ver · mias. Lo que se vende es UNA copia
+// Mercado de cartas entre miembros (1.32.0). /jugar mercado vender · ver · mias. Lo que se vende es UNA copia
 // (si tenías varias estrellas, bajas una). La casa se queda una COMISION (sale oro de la economía).
 // Botones: mkt_comprar:<id> (desde el menú mkt_ver), mkt_quitar:<id>. Ofertas en models/OfertaMercado.js.
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
@@ -56,7 +56,7 @@ async function darCarta(guildId, userId, carta, holo = false) {
 async function comprar(guildId, userId, ofertaId, idioma) {
     const o = await OfertaMercado.findOne({ _id: ofertaId, guildId }).lean().catch(() => null);
     if (!o || o.estado !== 'activa') return { error: t(idioma, '⌛ Esa carta ya no está a la venta.', '⌛ That card is no longer for sale.') };
-    if (o.vendedor === userId) return { error: t(idioma, 'Es tuya: quítala con `/mercado mias`.', 'It’s yours: remove it with `/market mine`.') };
+    if (o.vendedor === userId) return { error: t(idioma, 'Es tuya: quítala con `/jugar mercado mias`.', 'It’s yours: remove it with `/games market mine`.') };
     // Se reserva (nadie más la puede comprar), se cobra y se entrega. Si no llega el oro, vuelve a estar a la venta.
     const reservada = await OfertaMercado.findOneAndUpdate({ _id: o._id, estado: 'activa' }, { $set: { estado: 'vendida', comprador: userId, cerrada: new Date() } });
     if (!reservada) return { error: t(idioma, '⌛ Alguien se te ha adelantado.', '⌛ Someone beat you to it.') };
@@ -97,7 +97,7 @@ async function vista(guildId, userId, idioma, { buscar = '' } = {}) {
             const d = K.def(o.carta); const tec = C.tecnicaDe(o.carta);
             return `${rz(o.carta).emoji} ${o.holo ? '🌈 ' : ''}**${d.es}** · ${d.serie} · ⚔ ${t(idioma, tec.es, tec.en)} — **🪙 ${fmt(o.precio, idioma)}** · <@${o.vendedor}>`;
         }).join('\n') + (ofertas.length > 15 ? t(idioma, `\n…y ${ofertas.length - 15} más (búscalas por nombre).`, `\n…and ${ofertas.length - 15} more (search by name).`) : '')
-            : t(idioma, q ? 'No hay nada con ese nombre a la venta.' : 'No hay nada a la venta. ¡Pon tú algo con `/mercado vender`!', q ? 'Nothing with that name is for sale.' : 'Nothing for sale. Put something up with `/market sell`!'))
+            : t(idioma, q ? 'No hay nada con ese nombre a la venta.' : 'No hay nada a la venta. ¡Pon tú algo con `/jugar mercado vender`!', q ? 'Nothing with that name is for sale.' : 'Nothing for sale. Put something up with `/games market sell`!'))
         .setFooter({ text: t(idioma, `Comisión del ${Math.round(COMISION * 100)} % para quien vende · las ofertas caducan en ${CADUCA_DIAS} días`, `${Math.round(COMISION * 100)}% fee for the seller · listings expire in ${CADUCA_DIAS} days`) });
     const comps = [];
     const compr = lista.filter((o) => o.vendedor !== userId);

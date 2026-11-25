@@ -1,4 +1,4 @@
-// 🚪 Puertas (1.34.0): /jugar, /mascotas y /comunidad. En vez de 13 comandos sueltos, tres «puertas»: al escribir
+// 🚪 Puertas (1.34.0): /jugar, /mascotas, /comunidad. En vez de 13 comandos sueltos, tres «puertas»: al escribir
 // /jugar, Discord enseña lo que hay dentro (cofre, carta, combate…). Se construyen SOLAS con los comandos de siempre
 // (slash/chest.js, card.js…) según las `partes` de utils/catalogo.js: un comando con subcomandos pasa a ser un grupo
 // (/jugar cofre abrir) y uno sin ellos, un subcomando (/jugar pase). Al usarlas se llama al comando de siempre con

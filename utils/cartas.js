@@ -28,7 +28,7 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
     const economia = require('./economia.js').en(guildId);
     // 1.29.0: con un ticket del pase el sobre sale gratis.
     const Pase = require('./pase.js');
-    if (ticket && !(await Pase.usarTicket(guildId, userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
+    if (ticket && !(await Pase.usarTicket(guildId, userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/jugar pase`.', 'You no longer have that ticket. See yours with `/games pass`.') };
     const saldo = ticket ? (await economia.obtenerUsuario(userId)).balance : await economia.cobrar(userId, def.precio);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${fmt(def.precio, idioma)} para el ${def.es.toLowerCase()}.`, `You don’t have 🪙 ${fmt(def.precio, idioma)} for the ${def.en.toLowerCase()}.`) };
     const quitados = require('./cofres.js').quitadosDe(cfg);
@@ -83,7 +83,7 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
         const extras = [
             r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
             ...r.cartas.filter((c) => c.id && c.holo).map((c) => t(idioma, `🌈 **¡${K.def(c.id).es} te ha salido HOLOGRÁFICA!** Brilla y pega un 5 % más en combate.`, `🌈 **${K.def(c.id).en} came out HOLOGRAPHIC!** It shines and hits 5% harder in battle.`)),
-            r.polvo ? t(idioma, `✨ Repetidas al máximo: +${r.polvo} de polvo (créate la carta que quieras con \`/carta crear\`).`, `✨ Maxed duplicates: +${r.polvo} dust (craft any card with \`/card craft\`).`) : '',
+            r.polvo ? t(idioma, `✨ Repetidas al máximo: +${r.polvo} de polvo (créate la carta que quieras con \`/jugar carta crear\`).`, `✨ Maxed duplicates: +${r.polvo} dust (craft any card with \`/games card craft\`).`) : '',
             ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
             ...delPase,
         ].filter(Boolean);
@@ -98,7 +98,7 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
                 ...lineas,
                 r.piedad ? t(idioma, '🍀 ¡Sobre de la suerte! (épica asegurada)', '🍀 Lucky pack! (epic guaranteed)') : '',
                 ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
-                t(idioma, 'Úsalas sobre tu mascota con `/compi` → 🃏 o `/carta usar`.', 'Use them on your pet with `/companion` → 🃏 or `/card use`.'),
+                t(idioma, 'Úsalas sobre tu mascota con `/compi` → 🃏 o `/jugar carta usar`.', 'Use them on your pet with `/companion` → 🃏 or `/games card use`.'),
                 ticket ? t(idioma, '🎫 Abierto con un ticket del pase: ¡gratis!', '🎫 Opened with a pass ticket: free!') : '',
                 ...delPase,
             ].filter(Boolean).join('\n'))
@@ -129,7 +129,7 @@ async function verAlbum(interaction, idioma, usuario = null) {
         .setDescription([
             t(idioma, `**${cartas.length}** de ${K.ANIME.size} cartas · ${col.sobresAbiertos || 0} sobres abiertos`, `**${cartas.length}** of ${K.ANIME.size} cards · ${col.sobresAbiertos || 0} packs opened`),
             Object.keys(K.RAREZAS).filter((r) => porRareza[r]).map((r) => `${rz(r, idioma)} ${porRareza[r]}`).join(' · '),
-            cartas.length ? '' : t(idioma, 'Consigue cartas con `/carta abrir`.', 'Get cards with `/card open`.'),
+            cartas.length ? '' : t(idioma, 'Consigue cartas con `/jugar carta abrir`.', 'Get cards with `/games card open`.'),
             (col.seriesCompletas || []).length ? t(idioma, `📚 Colecciones completas (${col.seriesCompletas.length}): ${col.seriesCompletas.slice(0, 8).join(', ')}${col.seriesCompletas.length > 8 ? '…' : ''}`, `📚 Complete collections (${col.seriesCompletas.length}): ${col.seriesCompletas.slice(0, 8).join(', ')}${col.seriesCompletas.length > 8 ? '…' : ''}`) : '',
         ].filter(Boolean).join('\n'));
     const prog = S.progresoSeries(cartas, 6);
@@ -161,7 +161,7 @@ async function verCarta(guildId, userId, id, idioma) {
             P.textoEfecto(P.efectoCarta(id, c.estrellas || 1, null, (col.seriesCompletas || []).includes(d.serie) ? S.SINERGIA : 0), idioma),
             (col.seriesCompletas || []).includes(d.serie) ? t(idioma, `📚 Colección de ${d.serie} completa: +25 % de fuerza`, `📚 ${d.serie} collection complete: +25% power`) : '',
             t(idioma, `⚔️ **En combate:** ${tec.es} — ${C.textoTecnica(tec, 'es')}`, `⚔️ **In battle:** ${tec.en} — ${C.textoTecnica(tec, 'en')}`),
-            (col.mazo || []).includes(id) ? t(idioma, '🎴 Está en tu mazo de combate.', '🎴 It’s in your battle deck.') : t(idioma, '🎴 Ponla en tu mazo con `/combate mazo`.', '🎴 Put it in your deck with `/fight deck`.'),
+            (col.mazo || []).includes(id) ? t(idioma, '🎴 Está en tu mazo de combate.', '🎴 It’s in your battle deck.') : t(idioma, '🎴 Ponla en tu mazo con `/jugar combate mazo`.', '🎴 Put it in your deck with `/games fight deck`.'),
             holo ? t(idioma, '🌈 **Holográfica** (+5 % en combate)', '🌈 **Holographic** (+5% in battle)') : '',
             f ? t(idioma, `⏳ Se recarga en ${Math.ceil(f / 60)} h`, `⏳ Recharges in ${Math.ceil(f / 60)} h`) : t(idioma, '✅ Lista para usar en tu mascota (`/compi` → 🃏).', '✅ Ready to use on your pet (`/companion` → 🃏).'),
         ].filter(Boolean).join('\n'));
@@ -230,7 +230,7 @@ async function crear(guildId, userId, id, idioma) {
     if (r.fallo === 'noExiste') return { error: t(idioma, 'Esa carta no existe.', 'That card doesn’t exist.') };
     if (r.fallo === 'divina') return { error: t(idioma, 'La carta divina no se puede crear: solo sale en los sobres.', 'The divine card can’t be crafted: it only comes from packs.') };
     if (r.fallo === 'max') return { error: t(idioma, 'Ya la tienes con 5 ★.', 'You already have it at 5 ★.') };
-    if (r.fallo === 'polvo') return { error: t(idioma, `Te falta polvo: cuesta ✨ ${r.coste} y tienes ${col.polvo || 0}. Desencanta repetidas con \`/carta desencantar\`.`, `Not enough dust: it costs ✨ ${r.coste} and you have ${col.polvo || 0}. Disenchant duplicates with \`/card disenchant\`.`) };
+    if (r.fallo === 'polvo') return { error: t(idioma, `Te falta polvo: cuesta ✨ ${r.coste} y tienes ${col.polvo || 0}. Desencanta repetidas con \`/jugar carta desencantar\`.`, `Not enough dust: it costs ✨ ${r.coste} and you have ${col.polvo || 0}. Disenchant duplicates with \`/games card disenchant\`.`) };
     const nuevas = S.nuevasSeries(r.cartas, col.seriesCompletas || []);
     const ok = await ColeccionMascotas.updateOne({ _id: col._id, cartas: col.cartas || [], polvo: { $gte: r.coste } }, { $set: { cartas: r.cartas, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { polvo: -r.coste } });
     if (!ok.modifiedCount) return { error: t(idioma, 'Prueba otra vez.', 'Try again.') };
@@ -295,8 +295,8 @@ async function resolverIntercambio(interaction, idioma, id, acepta) {
 
 function embedProbabilidades(idioma) {
     const e = new EmbedBuilder().setColor('#8b5cf6').setTitle(t(idioma, '🃏 Sobres de cartas de anime', '🃏 Anime card packs'))
-        .setDescription(t(idioma, `Cada sobre trae **${S.CARTAS_POR_SOBRE} cartas**. Las cartas se usan sobre tu mascota para potenciarla (hasta ${S.CARTAS_DIA} al día; cada una se recarga en ${S.ESPERA_CARTA_H} h) o como técnicas en los combates (/combate mazo). Las repetidas suben estrellas y la carta es más fuerte. Cada ${S.PIEDAD} sobres sin épica, el siguiente la trae segura.`,
-            `Each pack has **${S.CARTAS_POR_SOBRE} cards**. Cards power up your pet (up to ${S.CARTAS_DIA} a day; each recharges in ${S.ESPERA_CARTA_H} h) or work as battle techniques (/fight deck). Duplicates add stars and make the card stronger. Every ${S.PIEDAD} packs without an epic, the next one guarantees it.`));
+        .setDescription(t(idioma, `Cada sobre trae **${S.CARTAS_POR_SOBRE} cartas**. Las cartas se usan sobre tu mascota para potenciarla (hasta ${S.CARTAS_DIA} al día; cada una se recarga en ${S.ESPERA_CARTA_H} h) o como técnicas en los combates (/jugar combate mazo). Las repetidas suben estrellas y la carta es más fuerte. Cada ${S.PIEDAD} sobres sin épica, el siguiente la trae segura.`,
+            `Each pack has **${S.CARTAS_POR_SOBRE} cards**. Cards power up your pet (up to ${S.CARTAS_DIA} a day; each recharges in ${S.ESPERA_CARTA_H} h) or work as battle techniques (/games fight deck). Duplicates add stars and make the card stronger. Every ${S.PIEDAD} packs without an epic, the next one guarantees it.`));
     if (textoDestacada(idioma)) e.addFields({ name: '🔥', value: textoDestacada(idioma) });
     for (const [, s] of Object.entries(S.SOBRES)) {
         e.addFields({ name: `${s.emoji} ${t(idioma, s.es, s.en)} · 🪙 ${fmt(s.precio, idioma)}`, value: Object.entries(s.prob).filter(([, p]) => p > 0).map(([r, p]) => `${rz(r, idioma)} ${p} %`).join(' · ') + (s.garantia ? t(idioma, `\nLa última carta, ${K.RAREZAS[s.garantia].es.toLowerCase()} o mejor.`, `\nThe last card is ${K.RAREZAS[s.garantia].en.toLowerCase()} or better.`) : '') });

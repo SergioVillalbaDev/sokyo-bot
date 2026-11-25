@@ -8,7 +8,7 @@ const { t } = require('../utils/i18n.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /carta abrir · album · ver · usar · probabilidades (1.24.0). Las cartas de anime salen en sobres
+// /jugar carta abrir · album · ver · usar · probabilidades (1.24.0). Las cartas de anime salen en sobres
 // y se usan sobre tu mascota. Lógica en utils/cartas.js y utils/cartasNucleo.js.
 module.exports = {
     data: new SlashCommandBuilder()

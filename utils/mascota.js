@@ -58,9 +58,9 @@ const emojiDe = (m) => (m && m.estado === 'viva' && N.ESPECIES[m.especie] ? N.ES
 function fraseAnimo(m, idioma) {
     const n = m.nombre || '?';
     switch (N.animoDe(m)) {
-        case 'hibernando': return t(idioma, `💤 ${n} está hibernando porque nadie la cuidaba. Dadle de comer con \`/mascota alimentar\` para despertarla.`, `💤 ${n} is hibernating because nobody looked after it. Feed it with \`/pet feed\` to wake it up.`);
+        case 'hibernando': return t(idioma, `💤 ${n} está hibernando porque nadie la cuidaba. Dadle de comer con \`/comunidad mascota alimentar\` para despertarla.`, `💤 ${n} is hibernating because nobody looked after it. Feed it with \`/community pet feed\` to wake it up.`);
         case 'enferma': return t(idioma, `🤒 ${n} está malita: hay demasiada toxicidad en el servidor. Bien comida y con buen ambiente se recupera.`, `🤒 ${n} is sick: there’s too much toxicity on the server. Well fed and with good vibes it recovers.`);
-        case 'hambrienta': return t(idioma, `🥺 ${n} tiene mucha hambre… \`/mascota alimentar\``, `🥺 ${n} is very hungry… \`/pet feed\``);
+        case 'hambrienta': return t(idioma, `🥺 ${n} tiene mucha hambre… \`/comunidad mascota alimentar\``, `🥺 ${n} is very hungry… \`/community pet feed\``);
         case 'triste': return t(idioma, `😔 ${n} se aburre: el servidor está muy callado. ¡Hablad, jugad con ella!`, `😔 ${n} is bored: the server is very quiet. Chat and play with it!`);
         case 'feliz': return t(idioma, `🥰 ${n} está feliz. ¡Qué bien la cuidáis!`, `🥰 ${n} is happy. You’re taking great care of it!`);
         default: return t(idioma, `🙂 ${n} está bien.`, `🙂 ${n} is doing fine.`);
@@ -98,7 +98,7 @@ function embedMascota(m, idioma, extra = {}) {
     if (c.victorias || c.derrotas) e.addFields({ name: t(idioma, '⚔️ Combates', '⚔️ Battles'), value: `${c.victorias || 0} ✅ · ${c.derrotas || 0} ❌${c.racha > 1 ? ` · 🔥 ${c.racha}` : ''}`, inline: true });
     if (m.cuidadorId) e.addFields({ name: t(idioma, '🏅 Cuidador del mes', '🏅 Carer of the month'), value: `<@${m.cuidadorId}>`, inline: true });
     if (extra.imagen) e.setImage('attachment://mascota.png');
-    e.setFooter({ text: t(idioma, '/mascota alimentar · acariciar · jugar · entrenar · tienda · hablar · diario', '/pet feed · pet · play · train · shop · talk · diary') });
+    e.setFooter({ text: t(idioma, '/comunidad mascota alimentar · acariciar · jugar · entrenar · tienda · hablar · diario', '/community pet feed · pet · play · train · shop · talk · diary') });
     return e;
 }
 
@@ -189,8 +189,8 @@ async function eclosionar(client, cfg, m) {
     const per = require('./mascotaExtras.js').PERSONALIDADES[hecho.personalidad];
     await enviarAlCanal(client, cfg, {
         content: t(cfg,
-            `🎉 **¡El huevo se ha abierto!** Ha nacido **${hecho.nombre}**, un ${esp.emoji} **${esp.es.toLowerCase()}** ${per.emoji} **${per.es.toLowerCase()}** (${per.desc.es.charAt(0).toLowerCase()}${per.desc.es.slice(1, -1)}). Cuidadla entre todos: \`/mascota alimentar\`, \`/mascota acariciar\`, \`/mascota jugar\` y \`/mascota entrenar\`. Cuanto más viva esté el servidor, más rápido crecerá.`,
-            `🎉 **The egg has hatched!** Meet **${hecho.nombre}**, a ${per.emoji} **${per.en.toLowerCase()}** ${esp.emoji} **${esp.en.toLowerCase()}** (${per.desc.en.charAt(0).toLowerCase()}${per.desc.en.slice(1, -1)}). Look after it together: \`/pet feed\`, \`/pet pet\`, \`/pet play\` and \`/pet train\`. The livelier the server, the faster it grows.`),
+            `🎉 **¡El huevo se ha abierto!** Ha nacido **${hecho.nombre}**, un ${esp.emoji} **${esp.es.toLowerCase()}** ${per.emoji} **${per.es.toLowerCase()}** (${per.desc.es.charAt(0).toLowerCase()}${per.desc.es.slice(1, -1)}). Cuidadla entre todos: \`/comunidad mascota alimentar\`, \`/comunidad mascota acariciar\`, \`/comunidad mascota jugar\` y \`/comunidad mascota entrenar\`. Cuanto más viva esté el servidor, más rápido crecerá.`,
+            `🎉 **The egg has hatched!** Meet **${hecho.nombre}**, a ${per.emoji} **${per.en.toLowerCase()}** ${esp.emoji} **${esp.en.toLowerCase()}** (${per.desc.en.charAt(0).toLowerCase()}${per.desc.en.slice(1, -1)}). Look after it together: \`/community pet feed\`, \`/community pet pet\`, \`/community pet play\` and \`/community pet train\`. The livelier the server, the faster it grows.`),
         embeds: [embedMascota(hecho, cfg, { imagen: !!adj })],
         files: adj ? [adj] : [],
     });
@@ -260,7 +260,7 @@ async function anunciarAvisos(client, cfg, m, avisos) {
                 embeds: [embedMascota(m, cfg, { imagen: !!adj })], files: adj ? [adj] : [],
             });
         } else if (a.tipo === 'hiberna') {
-            await enviarAlCanal(client, cfg, { content: t(cfg, `💤 **${m.nombre}** se ha ido a hibernar: tenía hambre y nadie le hacía caso. Cada día que pase dormida perderá un nivel. Despertadla con \`/mascota alimentar\`.`, `💤 **${m.nombre}** went into hibernation: it was hungry and nobody paid attention. Each day asleep it loses a level. Wake it up with \`/pet feed\`.`) });
+            await enviarAlCanal(client, cfg, { content: t(cfg, `💤 **${m.nombre}** se ha ido a hibernar: tenía hambre y nadie le hacía caso. Cada día que pase dormida perderá un nivel. Despertadla con \`/comunidad mascota alimentar\`.`, `💤 **${m.nombre}** went into hibernation: it was hungry and nobody paid attention. Each day asleep it loses a level. Wake it up with \`/community pet feed\`.`) });
         } else if (a.tipo === 'pierde') {
             await enviarAlCanal(client, cfg, { content: t(cfg, `📉 **${m.nombre}** sigue hibernando y ha bajado al nivel ${a.nivel}.`, `📉 **${m.nombre}** is still hibernating and dropped to level ${a.nivel}.`) });
         }
@@ -312,7 +312,7 @@ async function pasadaServidor(client, cfg) {
         m = (await Mascota.findOneAndUpdate({ _id: m._id, personalidad: null }, { $set: { personalidad: p } }, { returnDocument: 'after' })) || m;
         if (m.personalidad === p && cfg.mascota?.avisos !== false) {
             const per = X.PERSONALIDADES[p];
-            await enviarAlCanal(client, cfg, { content: t(cfg, `🧬 **${m.nombre}** ha descubierto quién es: es **${per.es.toLowerCase()}** ${per.emoji}. ${per.desc.es} Ahora también puede entrenar (\`/mascota entrenar\`), tiene tienda (\`/mascota tienda\`) y diario (\`/mascota diario\`).`, `🧬 **${m.nombre}** found out who it is: it’s **${per.en.toLowerCase()}** ${per.emoji}. ${per.desc.en} It can now train (\`/pet train\`), has a shop (\`/pet shop\`) and a diary (\`/pet diary\`).`) });
+            await enviarAlCanal(client, cfg, { content: t(cfg, `🧬 **${m.nombre}** ha descubierto quién es: es **${per.es.toLowerCase()}** ${per.emoji}. ${per.desc.es} Ahora también puede entrenar (\`/comunidad mascota entrenar\`), tiene tienda (\`/comunidad mascota tienda\`) y diario (\`/comunidad mascota diario\`).`, `🧬 **${m.nombre}** found out who it is: it’s **${per.en.toLowerCase()}** ${per.emoji}. ${per.desc.en} It can now train (\`/community pet train\`), has a shop (\`/community pet shop\`) and a diary (\`/community pet diary\`).`) });
         }
     }
     const ahora = new Date();
@@ -331,7 +331,7 @@ async function pasadaServidor(client, cfg) {
         // Aviso de hambre (como mucho cada 12 h).
         if (cfg.mascota.avisos !== false && !m.hibernando && m.hambre < 20 && (!m.ultimoAvisoHambre || ahora - new Date(m.ultimoAvisoHambre) > 12 * 3600000)) {
             await Mascota.updateOne({ _id: m._id }, { $set: { ultimoAvisoHambre: ahora } });
-            await enviarAlCanal(client, cfg, { content: t(cfg, `🥺 **${m.nombre}** tiene mucha hambre (${m.hambre}%). Si no come, acabará hibernando. \`/mascota alimentar\``, `🥺 **${m.nombre}** is very hungry (${m.hambre}%). If it doesn’t eat, it’ll go into hibernation. \`/pet feed\``) });
+            await enviarAlCanal(client, cfg, { content: t(cfg, `🥺 **${m.nombre}** tiene mucha hambre (${m.hambre}%). Si no come, acabará hibernando. \`/comunidad mascota alimentar\``, `🥺 **${m.nombre}** is very hungry (${m.hambre}%). If it doesn’t eat, it’ll go into hibernation. \`/community pet feed\``) });
         }
     }
     // Buenos días (una vez al día, a su hora).
@@ -366,7 +366,7 @@ async function cargarCache() {
 }
 
 // ---------------------------------------------------------------------------
-// Cuidados (los usan /mascota y los botones)
+// Cuidados (los usan los botones y «/comunidad mascota …»)
 // ---------------------------------------------------------------------------
 async function cuidado(guildId, userId, set = {}, inc = {}) {
     return CuidadoMascota.findOneAndUpdate(
@@ -429,7 +429,7 @@ const juegos = new Map(); // clave -> { guildId, userId, premio, exp }
 async function empezarJuego(guildId, userId, idioma) {
     const m = await viva(guildId);
     if (!m) return { error: t(idioma, 'Todavía no hay mascota (o sigue en el huevo).', 'There’s no pet yet (or it’s still an egg).') };
-    if (m.hibernando) return { error: t(idioma, `**${m.nombre}** está hibernando. Despiértala con \`/mascota alimentar\`.`, `**${m.nombre}** is hibernating. Wake it up with \`/pet feed\`.`) };
+    if (m.hibernando) return { error: t(idioma, `**${m.nombre}** está hibernando. Despiértala con \`/comunidad mascota alimentar\`.`, `**${m.nombre}** is hibernating. Wake it up with \`/community pet feed\`.`) };
     const doc = await CuidadoMascota.findOne({ guildId, userId, mes: N.mesClave() }).lean();
     if (doc?.ultimoJuego && Date.now() - new Date(doc.ultimoJuego).getTime() < HORAS_JUEGO * 3600000) {
         const vuelve = new Date(new Date(doc.ultimoJuego).getTime() + HORAS_JUEGO * 3600000);
@@ -452,8 +452,8 @@ async function empezarJuego(guildId, userId, idioma) {
 
 async function resolverJuego(interaction, clave, eleccion, idioma) {
     const j = juegos.get(clave);
-    if (!j || j.exp < Date.now()) return interaction.update({ content: t(idioma, '⌛ Este juego ha caducado. Juega otra vez con `/mascota jugar`.', '⌛ This game expired. Play again with `/pet play`.'), components: [] });
-    if (j.userId !== interaction.user.id) return interaction.reply({ content: t(idioma, 'Este juego es de otra persona: empieza el tuyo con `/mascota jugar`.', 'This game belongs to someone else: start yours with `/pet play`.'), flags: 64 });
+    if (!j || j.exp < Date.now()) return interaction.update({ content: t(idioma, '⌛ Este juego ha caducado. Juega otra vez con `/comunidad mascota jugar`.', '⌛ This game expired. Play again with `/community pet play`.'), components: [] });
+    if (j.userId !== interaction.user.id) return interaction.reply({ content: t(idioma, 'Este juego es de otra persona: empieza el tuyo con `/comunidad mascota jugar`.', 'This game belongs to someone else: start yours with `/community pet play`.'), flags: 64 });
     juegos.delete(clave);
     const m = await viva(j.guildId);
     if (!m) return interaction.update({ content: '?', components: [] });

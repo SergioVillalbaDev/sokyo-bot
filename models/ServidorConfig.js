@@ -696,12 +696,13 @@ const ServidorConfigSchema = new mongoose.Schema({
         logs: { type: [String], default: [] },
         mensajes: { type: [String], default: [] },
         config: { type: [String], default: [] },
-        // 1.34.0 (interno): qué comandos tiene registrados este servidor (utils/comandosServidor.js).
+    crecimiento: { type: [String], default: [] },
+    },
+
+    // 1.34.0 (interno): qué comandos tiene registrados este servidor (utils/comandosServidor.js).
     comandosServidor: { hash: { type: String, default: null }, fecha: { type: Date, default: null }, n: { type: Number, default: 0 }, error: { type: String, default: null } },
     // 1.34.0: canal «📖 Cómo funciona» que el bot escribe y pone al día solo (utils/guiaServidor.js).
     guiaCanal: { activo: { type: Boolean, default: false }, canalId: { type: String, default: null }, mensajeIds: { type: [String], default: [] }, hash: { type: String, default: null } },
-    crecimiento: { type: [String], default: [] },
-    },
 
     // --- PLAN / SUSCRIPCIÓN ---
     // `esPremium` se conserva como "tiene algún plan de pago activo" (lo leen muchas

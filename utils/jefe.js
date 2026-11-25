@@ -61,7 +61,7 @@ async function atacar(interaction, cfg, idioma) {
     if (!activo(cfg)) return { error: t(idioma, '🐉 El jefe semanal no está activado aquí.', '🐉 The weekly boss isn’t turned on here.') };
     const nombre = interaction.member?.displayName || interaction.user.username;
     const yo = await require('./combate.js').luchadorDe(guildId, userId, nombre, cfg);
-    if (!yo) return { error: t(idioma, '🥚 Necesitas un compañero para atacar. Consigue uno con `/cofre abrir`.', '🥚 You need a companion to attack. Get one with `/chest open`.') };
+    if (!yo) return { error: t(idioma, '🥚 Necesitas un compañero para atacar. Consigue uno con `/jugar cofre abrir`.', '🥚 You need a companion to attack. Get one with `/games chest open`.') };
     const j = await deEstaSemana(guildId, cfg);
     if (j.muerto) return { error: t(idioma, '💀 El jefe de esta semana ya ha caído. ¡El lunes llega otro!', '💀 This week’s boss has fallen. Another arrives on Monday!') };
     const dia = diaDe();
@@ -138,7 +138,7 @@ async function repartir(client, j) {
     await canal.send({ content: [
         j.muerto ? t(idioma, `💀 **¡${def.es} ha caído!**${j.matador ? ` Golpe final de <@${j.matador}>.` : ''}`, `💀 **${def.en} has fallen!**${j.matador ? ` Final blow by <@${j.matador}>.` : ''}`) : t(idioma, `🌫️ **${def.es} se ha marchado** sin caer. Premios a medias para quien le pegó.`, `🌫️ **${def.en} left** without falling. Half rewards for those who hit it.`),
         podio,
-        premios.length > 3 ? t(idioma, `…y premio para los otros ${premios.length - 3}. 🎫 Los tickets están en \`/pase\`.`, `…and rewards for the other ${premios.length - 3}. 🎫 Tickets are in \`/pass\`.`) : (premios.length ? t(idioma, '🎫 Los tickets están en `/pase`.', '🎫 Tickets are in `/pass`.') : ''),
+        premios.length > 3 ? t(idioma, `…y premio para los otros ${premios.length - 3}. 🎫 Los tickets están en \`/jugar pase\`.`, `…and rewards for the other ${premios.length - 3}. 🎫 Tickets are in \`/games pass\`.`) : (premios.length ? t(idioma, '🎫 Los tickets están en `/jugar pase`.', '🎫 Tickets are in `/games pass`.') : ''),
     ].filter(Boolean).join('\n'), allowedMentions: { users: premios.slice(0, 3).map((p) => p.userId) } }).catch(() => {});
     await refrescar(guild, cfg, true).catch(() => {});
 }

@@ -9,7 +9,7 @@ const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
 // /compi [compañero] [miembro]: tu compañero tipo tamagotchi (1.20.0). Los compañeros se
-// consiguen en los cofres (/cofre). Botones y lógica en utils/compis.js.
+// consiguen en los cofres (/jugar cofre). Botones y lógica en utils/compis.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('companion')

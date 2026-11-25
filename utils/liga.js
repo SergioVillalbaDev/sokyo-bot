@@ -1,7 +1,7 @@
 // Liga Sokyo (1.14.0): clasificación mensual de los servidores que la activan.
 // Puntos:
 //   · votos     → +10 por cada voto en top.gg de alguien del servidor
-//   · impulsos  → 1 punto por cada 20 de oro que gastan sus miembros (/liga impulsar,
+//   · impulsos  → 1 punto por cada 20 de oro que gastan sus miembros (/comunidad liga impulsar,
 //                 tope de 2000 de oro al día por persona)
 //   · combates  → la mascota del servidor combate cada día contra la de otro servidor
 //                 de fuerza parecida (o contra una criatura salvaje): +30 si gana, +10 si pierde
@@ -137,7 +137,7 @@ function embedClasificacion(top, idioma, { mio = null, titulo = null } = {}) {
             ].filter(Boolean).join('\n'),
         });
     }
-    e.setFooter({ text: t(idioma, `Puntos: votar por Sokyo, /liga impulsar y los combates de la mascota · el podio sale destacado el mes siguiente · acaba ${finDeMes().toISOString().slice(0, 10)}`, `Points: vote for Sokyo, /league boost and pet battles · the podium gets featured next month · ends ${finDeMes().toISOString().slice(0, 10)}`) });
+    e.setFooter({ text: t(idioma, `Puntos: votar por Sokyo, /comunidad liga impulsar y los combates de la mascota · el podio sale destacado el mes siguiente · acaba ${finDeMes().toISOString().slice(0, 10)}`, `Points: vote for Sokyo, /community league boost and pet battles · the podium gets featured next month · ends ${finDeMes().toISOString().slice(0, 10)}`) });
     return e;
 }
 
@@ -174,7 +174,7 @@ async function cerrarMes(client, ahora = new Date()) {
             ? (mio.posicion <= 3
                 ? t(cfg, `🏁 **¡La Liga de ${mes} ha terminado y estáis en el podio: ${MEDALLAS[mio.posicion - 1]} ${mio.posicion}.º!** Saldréis destacados todo este mes en el directorio de servidores y en la Red Sokyo. ¡Enhorabuena!`, `🏁 **The ${mes} League is over and you made the podium: ${MEDALLAS[mio.posicion - 1]} #${mio.posicion}!** You’ll be featured all month in the server directory and the Sokyo Network. Congrats!`)
                 : t(cfg, `🏁 **La Liga de ${mes} ha terminado.** Habéis quedado **${mio.posicion}.º** en ${d.emoji} **${d.es}** con ${mio.puntos} puntos. ¡Empieza un mes nuevo!`, `🏁 **The ${mes} League is over.** You finished **#${mio.posicion}** in ${d.emoji} **${d.en}** with ${mio.puntos} points. A new month starts now!`))
-            : t(cfg, `🏁 **La Liga de ${mes} ha terminado.** Este mes podéis entrar: votad por Sokyo, usad \`/liga impulsar\` y cuidad a la mascota para sus combates.`, `🏁 **The ${mes} League is over.** This month you can join in: vote for Sokyo, use \`/league boost\` and look after your pet for its battles.`);
+            : t(cfg, `🏁 **La Liga de ${mes} ha terminado.** Este mes podéis entrar: votad por Sokyo, usad \`/comunidad liga impulsar\` y cuidad a la mascota para sus combates.`, `🏁 **The ${mes} League is over.** This month you can join in: vote for Sokyo, use \`/community league boost\` and look after your pet for its battles.`);
         await canal.send({ content: texto, embeds: [embedClasificacion(top, cfg, { titulo: t(cfg, `🏆 Clasificación final · ${mes}`, `🏆 Final standings · ${mes}`) })], allowedMentions: { parse: [] } }).catch(() => {});
     }
     return true;
