@@ -51,7 +51,7 @@ test('lo que nombran los textos dentro de las puertas existe', () => {
 
 test('ya no se nombra ningún comando que ahora va dentro de una puerta', () => {
     const viejos = [...C.EN_PUERTA].flatMap((n) => { const j = P.comandos().get(n).data.toJSON(); return [j.name, j.name_localizations?.['es-ES']].filter(Boolean); });
-    const re = new RegExp(`(?<=[\`\\s(«"*'>])/(${viejos.join('|')})\\b(?![-/.])`, 'g');
+    const re = new RegExp(`(?<=[\`\\s(«"*'>])/(${viejos.join('|')})\\b(?![-/]|\\.[a-z])`, 'g');
     const malos = [];
     for (const f of archivos()) {
         if (['utils/catalogo.js', 'utils/puertas.js'].includes(f)) continue;

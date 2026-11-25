@@ -538,6 +538,8 @@ module.exports = (client) => {
     // Cumpleaños, salón de la fama, grupos, clanes, confesiones, solicitudes, ausente,
     // mensajes fijos y canales con contadores (1.9.0).
     app.use('/api', require('./routes/modulos.js')({ client, exigeArea, tieneAreaAcceso }));
+    // 1.34.0: catálogo de funciones, economía, uso y canal «Cómo funciona» (todo del catálogo).
+    app.use('/api', require('./routes/experiencia.js')({ client, exigeArea, idiomaPanel }));
     // Acceso de soporte (1.23.0): solo con su clave o un propietario del bot.
     app.use('/api/soporte', (req, res, next) => (req.staff?.soporte || req.staff?.owner ? next() : res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' })));
     app.use('/api', require('./routes/soporte.js')({ client }));

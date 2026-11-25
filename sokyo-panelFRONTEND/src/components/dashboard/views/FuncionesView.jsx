@@ -4,6 +4,7 @@
 // Con buscador y filtros. Así no hace falta recorrer el menú para descubrir qué hay.
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import GuiaCanal from '../GuiaCanal';
 import { Search, Zap, ArrowRight, Crown, Loader2, CheckCircle2, FolderTree } from 'lucide-react';
 import { navGroups, itemVisible, bloqueadoPorPlan, BASICOS } from '../navConfig';
 import { ACTIVABLE, activarSeccion } from '../../../lib/activar';
@@ -66,6 +67,8 @@ export default function FuncionesView({ dash, onRequestUpgrade }) {
 
   return (
     <div className="space-y-5">
+      {/* 1.34.0: el canal «📖 Cómo funciona» que el bot escribe y pone al día solo */}
+      <GuiaCanal dash={dash} />
       <div className="rounded-3xl border border-line bg-card p-5 shadow-soft">
         <p className="text-lg font-extrabold text-fg">{t('dashboard.funciones.titulo')}</p>
         <p className="mt-1 text-sm text-muted">{t('dashboard.funciones.sub')}</p>

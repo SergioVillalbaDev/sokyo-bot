@@ -376,7 +376,7 @@ async function barrerLiga(client) {
     try { await resolverCombates(client, ahora); } catch (e) { console.error('Liga · resolver:', e.message); }
 }
 
-// Para el panel y /liga.
+// Para el panel y /comunidad liga.
 async function estado(client, guildId) {
     const mes = N.mesClave();
     const mio = await posicionDe(guildId, mes);

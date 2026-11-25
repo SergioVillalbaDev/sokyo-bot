@@ -1674,6 +1674,7 @@ export function useDashboard() {
     else if (activeTab === 'roles-gestion') { cargarRolesDetalle(); cargarPermisosCatalogo(); cargarFuncionesRol(); }
     else if (activeTab === 'config-canales') { cargarEstructuraCanales(); cargarPermisosCanalCatalogo(); cargarRoles(); }
     else if (activeTab === 'com-micuenta') { cargarConfiguracion(); cargarCanales(); cargarPresetsAnuncio(); }
+    else if (activeTab === 'funciones') { cargarCanales(); }
     else if (activeTab === 'roles-autorol') { cargarConfiguracion(); cargarRolesDetalle(); }
     else if (activeTab === 'roles-paneles') { cargarRolesDetalle(); cargarPaneles(); cargarCanales(); cargarEmojisServidor(); }
     else if (activeTab === 'mod-centro') { cargarTiposSancion(); cargarStatsSancion(); cargarSanciones(); }
