@@ -696,7 +696,8 @@ const ServidorConfigSchema = new mongoose.Schema({
         logs: { type: [String], default: [] },
         mensajes: { type: [String], default: [] },
         config: { type: [String], default: [] },
-    crecimiento: { type: [String], default: [] },
+        crecimiento: { type: [String], default: [] },
+        comunidad: { type: [String], default: [] }, // 2.0.0: Comunidad y Diversión (sorteos, casino, mascotas…)
     },
 
     // 1.34.0 (interno): qué comandos tiene registrados este servidor (utils/comandosServidor.js).

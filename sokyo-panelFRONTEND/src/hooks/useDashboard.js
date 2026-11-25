@@ -185,6 +185,8 @@ export function useDashboard() {
   };
 
   const reportarError = (contexto) => (err) => {
+    // 403: a esta persona no le han dado esa parte del panel. No es un fallo: se queda vacío, sin banner.
+    if (err && err.status === 403) return;
     console.error(`Error ${contexto}:`, err);
     if (err && err.code === 'session_invalid') {
       setSesionCaducada(true);

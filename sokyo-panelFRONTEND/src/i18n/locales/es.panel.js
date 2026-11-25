@@ -1670,7 +1670,7 @@ export default {
         modYes: 'Puede moderar (sancionar, aislar, expulsar…)', modNo: 'No puede moderar',
         motivos: { concedido: 'Acceso dado a esta persona', propietarioBot: 'Propietario del bot', duenoServidor: 'Dueño del servidor', admin: 'Administrador', gestionarCanales: 'Gestionar canales', rolStaff: 'Rol del staff: {{rol}}', rolAcceso: 'Rol de acceso: {{rol}}' },
       },
-      areaNames: { tickets: 'Tickets', moderacion: 'Moderación', entrada: 'Llegada de miembros y niveles', roles: 'Roles', crecimiento: 'Crecimiento', musica: 'Reproductor de música', mensajes: 'Anuncios y respuestas automáticas', datos: 'Analítica y parte diario', logs: 'Registro de actividad', config: 'Servidor y ajustes', cuenta: 'Plan y facturación' },
+      areaNames: { tickets: 'Tickets', moderacion: 'Moderación', entrada: 'Llegada de miembros y niveles', roles: 'Roles', comunidad: 'Comunidad y diversión (sorteos, eventos, casino, mascotas…)', crecimiento: 'Crecimiento', musica: 'Reproductor de música', mensajes: 'Anuncios y respuestas automáticas', datos: 'Analítica y parte diario', logs: 'Registro de actividad', config: 'Servidor y ajustes', cuenta: 'Plan y facturación' },
       opens: 'Abre:',
       intro: 'Decide qué roles pueden entrar al panel y quién puede moderar.',
       adminNote: 'Los administradores y el propietario tienen acceso completo siempre, sin necesidad de añadirlos aquí.',

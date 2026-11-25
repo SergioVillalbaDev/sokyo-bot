@@ -15,7 +15,7 @@ const colorVisible = (c) => (!c || c === '#000000' ? '#99AAB5' : c);
 // Todas las secciones gobernables del panel (mismo orden que el nav). Incluye
 // 'cuenta' (facturación) para poder ocultársela a los moderadores.
 // Mismas claves que el backend (api/server.js → AREAS), en el orden del menú.
-const AREAS = ['tickets', 'moderacion', 'entrada', 'roles', 'crecimiento', 'musica', 'mensajes', 'datos', 'logs', 'config', 'cuenta'];
+const AREAS = ['tickets', 'moderacion', 'entrada', 'roles', 'comunidad', 'crecimiento', 'musica', 'mensajes', 'datos', 'logs', 'config', 'cuenta'];
 // Secciones del menú que abre cada área (para que se vea qué se está dando).
 const seccionesDeArea = (area) => navGroups.flatMap((g) => g.items.filter((it) => it.area === area));
 const areasVacias = () => Object.fromEntries(AREAS.map((a) => [a, []]));

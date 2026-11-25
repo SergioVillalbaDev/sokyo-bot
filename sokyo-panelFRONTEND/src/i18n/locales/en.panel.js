@@ -1670,7 +1670,7 @@ export default {
         modYes: 'Can moderate (sanction, timeout, kick…)', modNo: 'Can’t moderate',
         motivos: { concedido: 'Access given to this person', propietarioBot: 'Bot owner', duenoServidor: 'Server owner', admin: 'Administrator', gestionarCanales: 'Manage Channels', rolStaff: 'Staff role: {{rol}}', rolAcceso: 'Access role: {{rol}}' },
       },
-      areaNames: { tickets: 'Tickets', moderacion: 'Moderation', entrada: 'New members and levels', roles: 'Roles', crecimiento: 'Growth', musica: 'Music player', mensajes: 'Announcements and auto-replies', datos: 'Analytics and daily report', logs: 'Activity log', config: 'Server and settings', cuenta: 'Plan and billing' },
+      areaNames: { tickets: 'Tickets', moderacion: 'Moderation', entrada: 'New members and levels', roles: 'Roles', comunidad: 'Community & fun (giveaways, events, casino, pets…)', crecimiento: 'Growth', musica: 'Music player', mensajes: 'Announcements and auto-replies', datos: 'Analytics and daily report', logs: 'Activity log', config: 'Server and settings', cuenta: 'Plan and billing' },
       opens: 'Opens:',
       intro: 'Decide which roles can access the panel and who can moderate.',
       adminNote: 'Administrators and the owner always have full access — no need to add them here.',
