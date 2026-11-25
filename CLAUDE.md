@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.34.1.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.0.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -89,7 +89,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 ## Propietarios del bot
 `utils/propietarios.js`: los de `OWNER_IDS` del `.env` más los fijados en el código
 (`1433388927233953902`). Ven todos los servidores, cambian planes, usan `/sistema`
-y la búsqueda de empleo. Para quitar a alguien hay que borrarlo de ese archivo.
+Para quitar a alguien hay que borrarlo de ese archivo.
 Su grupo del menú, **Propietario** (el último, `owner: true` en `navConfig.js`), tiene
 Suscripciones y **Mensaje de entrada** (1.9.11, `OwnerEntradaView.jsx`): el mensaje que manda
 el bot al entrar en un servidor (`utils/onboarding.js` → `construirBienvenida` con los ajustes
@@ -355,6 +355,37 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.0.0 **Listo para lanzar** (PR #78; lista completa en `PLAN-LANZAMIENTO.md`, textos de venta en `MARKETING.md`):
+  - **Quitado**: búsqueda de empleo (slash `empleo`/`cv`/`buscoempleo`, modelos, scraping, PDF, IA de CV y las dependencias
+    puppeteer/mammoth/pdf-parse), `/dado` y `/moneda` sueltos (los del casino siguen), `/daroro` (nadie da oro, ni los admins),
+    y la **tienda global de objetos** (`models/Item.js`, `/usar`, `/inventario`, la forja de «Mi cuenta»: cualquiera con sesión
+    creaba objetos a 0 de oro que daban roles o XP ×N en cualquier servidor). `economia.js` ya no tiene objetos ni boost.
+  - **Tienda del servidor** (`utils/tiendaServidor.js`, `models/CompraTienda.js`, `ServidorConfig.tienda`): roles cosméticos que
+    pone el admin (área `roles`; `errorRol` prohíbe permisos de staff, roles de staff/panel/verificación, gestionados y por encima
+    del bot, al guardar y al comprar). Compras en fila por servidor (stock sin doble venta), cobro atómico y devolución si falla el
+    rol, para siempre o por horas (`RolTemporal`, alargable). Discord `/tienda` (`tnd_c`, `tnd_ok:<id>`), web «Mi cuenta» (`GET/POST
+    /api/portal/tienda[/comprar]`, `TiendaPortal.jsx`) y panel Diversión → Tienda del servidor (`com-tienda`, `TiendaView.jsx`,
+    `GET/PUT /config/:g/modulos/tienda`). Free 3 productos, Pro 25 (`limites.LIMITES_FREE.tiendaProductos`).
+  - **Áreas por ruta** (`utils/areasRutas.js` + middleware en `api/server.js` tras la autenticación): cada petición del staff a una
+    ruta de la tabla exige esa área en ese servidor (por ruta/query/cuerpo, por id del recurso o por canal). Área nueva
+    **`comunidad`** (Comunidad y diversión) en `accesoPanel.AREAS`, el modelo, el panel y `navConfig`. `test/areasRutas.test.js`
+    falla si una ruta que escribe no tiene permiso: **toda ruta nueva necesita su área** (o guardia en su línea). El panel trata un
+    403 como «no es tuyo» (sin banner): `lib/api.js` pone `err.status`.
+  - **Comprobado con la API real**: arnés con MongoDB (Docker `mongo:7` desde `mirror.gcr.io`, Docker Hub da 429) y un Discord
+    simulado de dos servidores que recorre las 343 rutas: 0 cruzan de servidor, 0 pasan sin área, 0 403 de más a quien tiene todo.
+  - **Sin trampas**: `limites.TOPES_ORO` + `topeOro()` para todos los premios en oro configurables (al guardar y `recortarPremios()`
+    al arrancar). Cumpleaños: se corrige el mismo día y luego cada 180 días (`puedeCambiar`), y cada servidor lo premia una vez
+    al año (`apuntarPremio`, `Cumpleanos.premios`); borrar no reinicia la espera.
+  - **Votos** (`utils/votos.js`): el premio base va SIEMPRE en cada servidor donde juega (Monedero/ActividadUsuario/Colección):
+    🪙 `ORO_POR_VOTO` (×2 finde), `cofre_basico` con el primer voto del día y `cofre_epico` cada 7 días seguidos (`rachaVotos`,
+    `premioVoto`), XP del pase `voto`, gracias por privado. «Crecimiento → Votos» solo añade extras (oro extra, rol, XP, mensaje).
+    `/votar` está en el módulo `oro` (siempre activo); botón en `/diario` y `/menu`.
+  - **Primera experiencia**: idioma del servidor según `guild.preferredLocale`; privado al dueño con «⚡ Configurar en 1 minuto»
+    (`/panel?servidor=<id>`, que el panel recuerda tras el login) y SIEMPRE saludo público (`construirSaludoPublico`); «Qué está
+    activo» por zonas del catálogo; `StaffLogin` con `error=nostaff` explica quién entra y lleva a «Mi cuenta».
+  - Clanes: el ganador de la semana cobra +15 % en `/diario` (`Clan.campeonHasta`). Descripción de Discord del bot puesta sola al
+    arrancar (`utils/descripcionBot.js`, `DESCRIPCION_AUTOMATICA=no` la apaga). Web: tarjeta «Juegos» con sprites, precios al día,
+    SEO con los juegos y sitemap con las páginas de `/ayuda/*`. Pro: 100 mascotas propias (Free 5).
 - #6 Crecimiento (invitaciones, bump de DISBOARD, página pública, directos).
 - #7 «Mi cuenta»: portal de usuarios con estilo cristal y entrada con `/cuenta`.
 - #8 Panel de admin rehecho (cristal, menú en 3 bloques, buscador Ctrl+K, mapa
@@ -887,7 +918,7 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   - Probado con MongoDB real (Docker `mongo:7` con replica set) y un script de interacciones simuladas que recorre las 22
     vistas (vivía en el scratchpad).
 - 1.30.0 **Todo por servidor**: en cada servidor todos empiezan de 0 y compiten con los de allí. **Oro**: `models/Monedero.js`
-  (`guildId + discordId`: balance, mochila, diario, boost de XP). `utils/economia.js` ya NO exporta `darOro`/`cobrar`/…: se usa
+  (`guildId + discordId`: balance y diario; la mochila y el boost de XP se quedaron sin uso en 2.0.0). `utils/economia.js` ya NO exporta `darOro`/`cobrar`/…: se usa
   SIEMPRE `economia.en(guildId).darOro(userId, n)` (lanza error sin servidor; así no se puede dar oro «en ningún sitio»). El
   viejo `models/Usuario.js` (oro global) se queda sin usar y sin borrar. **Colección** (`ColeccionMascotas`: mascotas, cartas,
   granja, pase, logros, tickets, misiones) con `guildId`; índice único `guildId + userId`. `utils/migrarPorServidor.js` (en

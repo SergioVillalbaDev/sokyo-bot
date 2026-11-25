@@ -66,7 +66,7 @@ export default function TiendaView({ dash }) {
             {productos.map((p, i) => (
               <li key={p.id} className="rounded-2xl border border-line bg-bg p-3">
                 <div className="flex flex-wrap items-start gap-3">
-                  <select aria-label={t('dashboard.tienda_v.emoji')} value={p.emoji} onChange={(e) => cambiar(i, 'emoji', e.target.value)} className={`${campo} w-16 text-center text-lg`}>
+                  <select aria-label={t('dashboard.tienda_v.emoji')} value={p.emoji} onChange={(e) => cambiar(i, 'emoji', e.target.value)} className="h-11 w-16 shrink-0 rounded-xl border border-line bg-bg px-1 text-center text-lg text-fg outline-none focus:border-brand">
                     {EMOJIS.map((e) => <option key={e} value={e}>{e}</option>)}
                   </select>
                   <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">

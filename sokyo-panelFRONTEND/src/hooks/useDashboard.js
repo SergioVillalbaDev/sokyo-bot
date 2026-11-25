@@ -1709,7 +1709,7 @@ export function useDashboard() {
     else if (activeTab === 'crec-contadores') { cargarConfiguracion(); cargarCategorias(); }
     else if (activeTab.startsWith('crec-')) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     // 1.9.0: las secciones nuevas eligen canales, roles o categorías del servidor.
-    else if (['com-cumpleanos', 'com-solicitudes', 'com-salon', 'com-clanes', 'com-confesiones'].includes(activeTab)) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
+    else if (['com-cumpleanos', 'com-solicitudes', 'com-salon', 'com-clanes', 'com-confesiones', 'com-tienda'].includes(activeTab)) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     else if (activeTab === 'com-grupos') { cargarConfiguracion(); cargarCanales(); cargarCategorias(); }
     else if (activeTab === 'prod-ausente' || activeTab === 'prod-fijos') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'voz-temporal') { cargarConfiguracion(); cargarCanales(); cargarCanalesVoz(); cargarCategorias(); cargarVozActivos(); }

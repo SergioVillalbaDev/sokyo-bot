@@ -95,7 +95,7 @@ sokyo-bot/
 - Sin Stripe configurado, el bot funciona igual y los planes se activan a mano.
 
 ### ⚙️ Otros comandos
-`/ping`, `/dado`, `/moneda`, `/emoji`, `/sticker`, `/usuario`, `/actividad`, `/setup`,
+`/ping`, `/emoji`, `/sticker`, `/usuario`, `/actividad`, `/setup`,
 `/panel-soporte`, `/rol`, `/idioma`. **Todos los comandos tienen versión con `/`** (Discord los enseña al
 escribir `/`) y siguen funcionando con `!` delante: las dos formas ejecutan la misma lógica
 (`utils/puenteSlash.js`).
@@ -106,13 +106,13 @@ escribir `/`) y siguen funcionando con `!` delante: las dos formas ejecutan la m
 - **Mi cuenta** (`/cuenta` en la web): la página de cada usuario, con diseño de cristal
   futurista. Inicio con su nivel, oro, gráfica de actividad de 14 días y servidores;
   recompensa diaria con un clic; sus tickets con chat y avisos de respuestas nuevas;
-  tienda (catálogo, mochila, cajas y crear objetos); música; y su tarjeta de nivel.
+  la tienda del servidor (roles que ponen los admins, con el oro de ese servidor); música; y su tarjeta de nivel.
   Menú inferior siempre a mano, buscador de acciones (`Ctrl + K`) y botón "atrás" que funciona.
 - **Entrar con un clic desde Discord:** `/cuenta` (`/account`) da un botón privado que abre
   la web con la sesión ya iniciada (código de un solo uso, caduca en 15 min; `!cuenta` lo
   manda por MD). También se entra con Discord (OAuth2) desde la propia página.
 - Accesos por todas partes: botón "Seguir en la web" en cada ticket nuevo, botones en
-  `/shop`, `/inventory`, `/daily` y `!level`, la sección de `!help`, la portada y las
+  `/shop`, `/daily` y `!level`, la sección de `!help`, la portada y las
   páginas públicas de los servidores. La antigua `tienda.html` lleva a `/cuenta#tienda`.
 - Soporte **multi-idioma** (Español / Inglés): el bot habla en Discord en el idioma del servidor (`sokyolanguage` o el panel) y los textos de fábrica se adaptan solos al cambiarlo.
 - **Sesiones de 30 días que se renuevan solas** mientras se use el panel o el portal; un fallo de red no cierra la sesión.
@@ -276,7 +276,7 @@ bash deploy/instalar-autodeploy.sh    # (una vez) lo hace solo cada 5 minutos co
   verificación, anuncios y mucho más.
 
 Algunos comandos rápidos: `/usuario` (estadísticas), `/nivel`, `/ranking`,
-`/avisar`, `/banear`, `/recordar`, `/dado`, `/moneda`. `/ayuda` los explica todos por categorías.
+`/avisar`, `/banear`, `/recordar`, `/menu`, `/votar`. `/ayuda` los explica todos por categorías.
 
 ---
 
