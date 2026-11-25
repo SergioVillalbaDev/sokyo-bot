@@ -34,7 +34,13 @@ async function emparejarServidor(guildId, semana) {
 
 // Rival de un clan esta semana; si no tiene y hay otro clan libre, se emparejan ahora (de una vez, sin pisarse).
 async function rivalDe(clan, semana = semanaISO()) {
-    if (clan.guerraSemana === semana && clan.rivalId) return Clan.findById(clan.rivalId).lean();
+    if (clan.guerraSemana === semana && clan.rivalId) {
+        const rival = await Clan.findById(clan.rivalId).lean();
+        if (rival) return rival;
+        // El rival se ha disuelto: este clan vuelve a estar libre y se busca otro.
+        await Clan.updateOne({ _id: clan._id, rivalId: clan.rivalId }, { $set: { rivalId: null } });
+        clan = { ...clan, rivalId: null };
+    }
     const libre = { guildId: clan.guildId, _id: { $ne: clan._id }, 'miembros.0': { $exists: true }, $or: [{ guerraSemana: { $ne: semana } }, { rivalId: null }] };
     const candidatos = await Clan.find(libre).lean();
     candidatos.sort((x, y) => Math.abs((x.puntosTotal || 0) - (clan.puntosTotal || 0)) - Math.abs((y.puntosTotal || 0) - (clan.puntosTotal || 0)));

@@ -142,7 +142,7 @@ function vistaBingo(b, idioma, { salidas = [], estado = 'venta', lineas = [] } =
     const comps = [];
     if (estado === 'venta') {
         comps.push(new ActionRowBuilder().addComponents(
-            ...[1, 2, 4].map((n) => new ButtonBuilder().setCustomId(`cas_bg:${b.id}:${n}`).setEmoji('🎫').setStyle(n === 1 ? ButtonStyle.Success : ButtonStyle.Primary).setLabel(t(idioma, `${n} ${n === 1 ? 'cartón' : 'cartones'} (🪙 ${fmt(b.precio * n, idioma)})`, `${n} card${n === 1 ? '' : 's'} (🪙 ${fmt(b.precio * n, idioma)})`))),
+            ...[1, 2, 4].filter((n) => n === 1 || b.precio * n <= (b.cfg.casino?.apuestaMax ?? 5000)).map((n) => new ButtonBuilder().setCustomId(`cas_bg:${b.id}:${n}`).setEmoji('🎫').setStyle(n === 1 ? ButtonStyle.Success : ButtonStyle.Primary).setLabel(t(idioma, `${n} ${n === 1 ? 'cartón' : 'cartones'} (🪙 ${fmt(b.precio * n, idioma)})`, `${n} card${n === 1 ? '' : 's'} (🪙 ${fmt(b.precio * n, idioma)})`))),
             new ButtonBuilder().setCustomId(`cas_bgv:${b.id}`).setEmoji('👀').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mis cartones', 'My cards'))));
     } else if (estado === 'juega') {
         comps.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_bgv:${b.id}`).setEmoji('👀').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mis cartones', 'My cards'))));
@@ -158,7 +158,7 @@ async function bingo({ interaction, client, cfg, idioma, cantidad }) {
     if (c.canalId && c.canalId !== interaction.channelId) return { error: K.textoFallo({ fallo: 'canal' }, idioma, c) };
     if (bingos.has(interaction.channelId)) return { error: t(idioma, 'Ya hay un bingo en este canal: ¡compra cartones en ese!', 'There’s already a bingo in this channel: buy cards in that one!') };
     // El precio del cartón tiene que valer como apuesta en este servidor (mínimo y máximo).
-    const ok = C.comprobarApuesta(cantidad || Math.max(c.apuestaMin ?? 10, 100), { ...c, limiteDiario: 0 }, {});
+    const ok = C.comprobarApuesta(cantidad || Math.min(c.apuestaMax ?? 5000, Math.max(c.apuestaMin ?? 10, 100)), { ...c, limiteDiario: 0 }, {});
     if (ok.fallo) return { error: K.textoFallo(ok, idioma, c) };
     const precio = ok.cantidad;
     const b = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, precio, empieza: Date.now() + BINGO_VENTA_MS, cartones: [], jugadas: new Map(), cfg, idioma, interaction, estado: 'venta' };
@@ -174,14 +174,16 @@ async function comprarCartones(interaction, client) {
     if (!b || b.estado !== 'venta') return interaction.reply({ content: t(idioma, '⌛ La venta de cartones ya ha cerrado.', '⌛ Card sales are closed.'), flags: 64 });
     if (b.comprando?.has(interaction.user.id)) return interaction.deferUpdate().catch(() => {});
     const tiene = cartonesDe(b, interaction.user.id).length;
-    const n = Math.min(parseInt(nTxt, 10) || 1, C.MAX_CARTONES - tiene);
+    // Los que caben en la apuesta máxima del servidor (se cobran de una vez).
+    const caben = Math.max(1, Math.floor((b.cfg.casino?.apuestaMax ?? 5000) / b.precio));
+    const n = Math.min(parseInt(nTxt, 10) || 1, C.MAX_CARTONES - tiene, caben);
     if (n <= 0) return interaction.reply({ content: t(idioma, `Ya tienes ${C.MAX_CARTONES} cartones: es el máximo.`, `You already have ${C.MAX_CARTONES} cards: that’s the max.`), flags: 64 });
     b.comprando = b.comprando || new Set(); b.comprando.add(interaction.user.id);
     try {
         const a = await K.apostar({ guildId: b.guildId, canalId: b.canalId, userId: interaction.user.id, cfg: b.cfg, juego: 'bingo', cantidad: b.precio * n });
         if (a.fallo) return interaction.reply({ content: K.textoFallo(a, idioma, b.cfg.casino), flags: 64 });
         if (b.estado !== 'venta') {
-            await K.cobrarJugada(client, b.cfg, a.jugada, a.jugada.apuesta, { bingo: 'tarde' }).catch(() => {});
+            await K.devolverJugada(a.jugada).catch(() => {});
             return interaction.reply({ content: t(idioma, '⌛ Ya había empezado: te devolvemos el oro.', '⌛ It had already started: your gold is refunded.'), flags: 64 });
         }
         // Si apostar ajustó la cantidad (p. ej. por el máximo), solo se dan los cartones que se han pagado.
@@ -317,7 +319,7 @@ async function modalMesa(interaction, client) {
     const a = await K.apostar({ guildId: m.guildId, canalId: m.canalId, userId: interaction.user.id, cfg: m.cfg, juego: 'ruleta', cantidad });
     if (a.fallo) { m.apuestas.delete(interaction.user.id); return interaction.reply({ content: K.textoFallo(a, idioma, m.cfg.casino), flags: 64 }); }
     if (m.girando || !mesas.has(m.canalId)) {
-        await K.cobrarJugada(client, m.cfg, a.jugada, a.jugada.apuesta, { mesa: 'tarde' }).catch(() => {});
+        await K.devolverJugada(a.jugada).catch(() => {});
         return interaction.reply({ content: t(idioma, '⌛ Ya estaba girando: te devolvemos el oro.', '⌛ It was already spinning: your gold is refunded.'), flags: 64 });
     }
     m.apuestas.set(interaction.user.id, { userId: interaction.user.id, apuesta, cantidad: a.jugada.apuesta, jugada: a.jugada });
@@ -407,7 +409,7 @@ async function modalCohete(interaction, client) {
     const a = await K.apostar({ guildId: k.guildId, canalId: k.canalId, userId: interaction.user.id, cfg: k.cfg, juego: 'crash', cantidad });
     if (a.fallo) { k.jugadores.delete(interaction.user.id); return interaction.reply({ content: K.textoFallo(a, idioma, k.cfg.casino), flags: 64 }); }
     if (k.estado !== 'apuestas') {
-        await K.cobrarJugada(client, k.cfg, a.jugada, a.jugada.apuesta, { cohete: 'tarde' }).catch(() => {});
+        await K.devolverJugada(a.jugada).catch(() => {});
         return interaction.reply({ content: t(idioma, '⌛ Ya había salido: te devolvemos el oro.', '⌛ It had already launched: your gold is refunded.'), flags: 64 });
     }
     k.jugadores.set(interaction.user.id, { userId: interaction.user.id, cantidad: a.jugada.apuesta, jugada: a.jugada, auto });

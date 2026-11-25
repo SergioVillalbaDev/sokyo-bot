@@ -163,18 +163,18 @@ async function abrir({ interaction, client, cfg, idioma, cantidad }) {
     if (c.juegos?.poker === false) return { error: K.textoFallo({ fallo: 'juego' }, idioma) };
     if (c.canalId && c.canalId !== interaction.channelId) return { error: K.textoFallo({ fallo: 'canal' }, idioma, c) };
     if (mesas.has(interaction.channelId)) return { error: t(idioma, 'Ya hay una mesa de póker en este canal: ¡siéntate en esa!', 'There’s already a poker table in this channel: sit at that one!') };
-    const ok = C.comprobarApuesta(cantidad || Math.max(c.apuestaMin ?? 10, 1000), { ...c, limiteDiario: 0 }, {});
+    const ok = C.comprobarApuesta(cantidad || Math.min(c.apuestaMax ?? 5000, Math.max(c.apuestaMin ?? 10, 1000)), { ...c, limiteDiario: 0 }, {});
     if (ok.fallo) return { error: K.textoFallo(ok, idioma, c) };
     const m = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, anfitrion: interaction.user.id, entrada: ok.cantidad, ciega: ciegaDe(ok.cantidad),
         jugadores: [], estado: 'sentarse', empieza: Date.now() + SENTARSE_MS, abierta: Date.now(), manos: 0, boton: -1, cfg, idioma, client };
     mesas.set(m.canalId, m);
+    // El que abre se sienta solo; si no puede (oro, límite, pausa, aviso…), la mesa no se abre.
+    const s = await sentar(m, interaction.user.id, interaction.member?.displayName || interaction.user.globalName || interaction.user.username).catch(() => ({ motivo: 'error' }));
+    if (!s?.ok) { mesas.delete(m.canalId); return { error: s?.fallo ? K.textoFallo(s.fallo, idioma, c) : t(idioma, 'No se ha podido abrir la mesa: prueba otra vez.', 'The table couldn’t be opened: try again.') }; }
     const msg = await interaction.editReply(vista(m));
     // Las ediciones van al mensaje (la interacción caduca a los 15 min).
     m.interaction = { editReply: (v) => (msg?.edit ? msg.edit(v) : interaction.editReply(v)) };
     m.temporizador = setTimeout(() => empezar(m).catch((e) => { console.error('Póker:', e.message); cerrar(m).catch(() => {}); }), SENTARSE_MS);
-    // El que abre se sienta solo.
-    await sentar(m, interaction.user.id, interaction.member?.displayName || interaction.user.globalName || interaction.user.username).catch(() => null);
-    await pintar(m);
     return { ok: true };
 }
 async function sentar(m, userId, nombre) {
@@ -186,7 +186,7 @@ async function sentar(m, userId, nombre) {
     if (a.fallo) { m.jugadores = m.jugadores.filter((j) => j.userId !== userId); return { motivo: 'fallo', fallo: a }; }
     const j = m.jugadores.find((x) => x.userId === userId);
     if (!j || m.estado !== 'sentarse') {
-        await K.cobrarJugada(m.client, m.cfg, a.jugada, a.jugada.apuesta, { poker: 'tarde' }).catch(() => {});
+        await K.devolverJugada(a.jugada).catch(() => {});
         return { motivo: 'tarde' };
     }
     j.jugada = a.jugada; j.fichas = a.jugada.apuesta;
@@ -220,7 +220,7 @@ async function siguienteTurno(m, texto = '') {
     const op = P.opciones(mano);
     const quien = m.jugadores.find((j) => j.userId === op.id);
     // Quien se ha levantado se retira solo al llegarle el turno.
-    if (quien?.seVa) { P.actuar(mano, op.id, 'retirarse'); return siguienteTurno(m, texto); }
+    if (quien?.seVa) { P.actuar(mano, op.id, 'abandonar'); return siguienteTurno(m, texto); }
     m.turnoHasta = Date.now() + TURNO_MS;
     const turno = `${mano.calle}:${mano.log.length}`;
     const agotado = async () => {
@@ -251,9 +251,12 @@ async function finMano(m) {
     await pintar(m, { texto: lineas.join('\n') });
     m.temporizador = setTimeout(() => nuevaMano(m, lineas.join('\n')).catch((e) => console.error('Póker:', e.message)), ENTRE_MANOS_MS);
 }
-async function cobrar(m, j) {
+async function cobrar(m, j, { devolver = false } = {}) {
     if (!j.jugada) return;
-    const jugada = j.jugada; j.jugada = null; j.cobrado = j.fichas;
+    const jugada = j.jugada; j.jugada = null;
+    // Sin haber jugado ninguna mano (o al cerrarse sin gente) se devuelve sin contar como partida.
+    if (devolver || m.manos === 0) { j.cobrado = jugada.apuesta; await casino().devolverJugada(jugada).catch((e) => console.error('Póker devolución:', e.message)); return; }
+    j.cobrado = j.fichas;
     await casino().cobrarJugada(m.client, m.cfg, jugada, j.fichas, { poker: true, manos: m.manos }).catch((e) => console.error('Póker cobro:', e.message));
 }
 async function cerrar(m, texto = null, devolver = false) {
@@ -261,7 +264,7 @@ async function cerrar(m, texto = null, devolver = false) {
     m.estado = 'fin';
     mesas.delete(m.canalId);
     const idioma = m.idioma;
-    for (const j of m.jugadores) { if (devolver && j.jugada) j.fichas = j.jugada.apuesta; await cobrar(m, j); }
+    for (const j of m.jugadores) await cobrar(m, j, { devolver });
     const resumen = m.jugadores.filter((j) => j.cobrado !== undefined).map((j) => `<@${j.userId}> · 🪙 ${fmt(j.cobrado, idioma)} (${j.cobrado >= m.entrada ? '+' : '−'}${fmt(Math.abs(j.cobrado - m.entrada), idioma)})`);
     await pintar(m, { fin: texto || [t(idioma, '🏁 **Mesa cerrada.** Cada uno cobra sus fichas:', '🏁 **Table closed.** Everyone cashes out their chips:'), ...resumen].join('\n') });
 }
@@ -313,10 +316,11 @@ async function manejar(interaction) {
             return true;
         }
         j.seVa = true;
-        const enMano = m.mano?.calle !== 'fin' && m.mano?.jugadores.some((q) => q.id === yo && !q.fuera);
+        // En mitad de una mano (aunque ya se haya retirado) sus fichas de verdad están en la mano: se cobra al acabarla.
+        const enMano = !!m.mano && m.mano.calle !== 'fin' && m.mano.jugadores.some((q) => q.id === yo);
         await responder(enMano ? t(idioma, '🚪 Te levantarás al acabar esta mano (si te toca, te retiras) y cobrarás tus fichas.', '🚪 You’ll leave when this hand ends (folding when it’s your turn) and cash out your chips.') : t(idioma, '🚪 Te levantas: cobras tus fichas.', '🚪 You leave: chips cashed out.'));
         if (!enMano) await cobrar(m, j);
-        else if (P.opciones(m.mano)?.id === yo && !m.ocupada) { m.ocupada = true; try { P.actuar(m.mano, yo, 'retirarse'); await siguienteTurno(m); } finally { m.ocupada = false; } }
+        else if (P.opciones(m.mano)?.id === yo && !m.ocupada) { m.ocupada = true; try { P.actuar(m.mano, yo, 'abandonar'); await siguienteTurno(m); } finally { m.ocupada = false; } }
         if (m.jugadores.filter((x) => x.jugada && !x.seVa && x.fichas > 0).length < 2 && m.mano?.calle === 'fin') await cerrar(m);
         return true;
     }

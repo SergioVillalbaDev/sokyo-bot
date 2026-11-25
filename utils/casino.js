@@ -114,6 +114,17 @@ async function anunciarGranPremio(client, cfg, jugada, premio, extra = '') {
     await canal.send({ content: t(cfg, `🎉💰 **¡GRAN PREMIO!** <@${jugada.userId}> ha ganado **🪙 ${fmt(premio, cfg)}** en ${j.emoji} ${j.es} (×${Math.round(premio / jugada.apuesta)}).${extra}`, `🎉💰 **BIG WIN!** <@${jugada.userId}> won **🪙 ${fmt(premio, cfg)}** at ${j.emoji} ${j.en} (×${Math.round(premio / jugada.apuesta)}).${extra}`), allowedMentions: { users: [jugada.userId] } }).catch(() => {});
 }
 
+// 1.33.0: devolver lo apostado sin que cuente como partida (llegar tarde a una mesa, levantarse del póker antes de
+// empezar…): no toca rachas, aviso de juego responsable, estadísticas ni XP del pase. Solo una vez por jugada.
+async function devolverJugada(jugada) {
+    const r = await JugadaCasino.updateOne({ _id: jugada._id, estado: 'en_curso' }, { $set: { estado: 'devuelta' } });
+    if (r.modifiedCount) await require('./economia.js').en(jugada.guildId).darOro(jugada.userId, jugada.apuesta);
+    return r.modifiedCount > 0;
+}
+// Apunta en la jugada lo que se ha cobrado de más a mitad de partida (doblar, dividir, seguro): así, si el bot se
+// reinicia antes de acabar, devolverPendientes lo devuelve entero.
+const sumarApuesta = (jugada, n) => JugadaCasino.updateOne({ _id: jugada._id, estado: 'en_curso' }, { $inc: { apuesta: n } }).catch(() => {});
+
 // Al arrancar: devuelve lo apostado en jugadas que se quedaron a medias.
 async function devolverPendientes() {
     const pendientes = await JugadaCasino.find({ estado: 'en_curso' }).limit(500);
@@ -417,7 +428,7 @@ async function botonBlackjack(interaction, client) {
             if (accion === 'seguro') {
                 const coste = Math.floor(p.apuesta / 2);
                 if (coste > 0 && (await eco.cobrar(p.userId, coste)) === null) await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${coste} para el seguro: sigues sin él.`, `You don’t have 🪙 ${coste} for insurance: playing without it.`), flags: 64 });
-                else p.seguro = coste;
+                else { p.seguro = coste; if (coste > 0) await sumarApuesta(p.jugada, coste); }
             }
             p.fase = 'juega';
             // Ahora sí se mira si la banca tiene blackjack.
@@ -428,6 +439,7 @@ async function botonBlackjack(interaction, client) {
         if (accion === 'dividir') {
             if (p.manos || !C.puedeDividir(p.jugador)) return;
             if ((await eco.cobrar(p.userId, p.apuesta)) === null) { await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${p.apuesta} para dividir.`, `You don’t have 🪙 ${p.apuesta} to split.`), flags: 64 }); return; }
+            await sumarApuesta(p.jugada, p.apuesta);
             const ases = p.jugador[0].startsWith('A');
             p.manos = [[p.jugador[0], p.mazo.pop()], [p.jugador[1], p.mazo.pop()]];
             p.jugador = p.manos[0];
@@ -441,6 +453,7 @@ async function botonBlackjack(interaction, client) {
             const yaDoblada = p.manos ? p.dobladas[p.mano] : p.doblada;
             if (mano.length !== 2 || yaDoblada) return;
             if ((await eco.cobrar(p.userId, p.apuesta)) === null) { await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${p.apuesta} para doblar.`, `You don’t have 🪙 ${p.apuesta} to double.`), flags: 64 }); return; }
+            await sumarApuesta(p.jugada, p.apuesta);
             if (p.manos) { p.dobladas[p.mano] = true; p.apuestas[p.mano] = p.apuesta * 2; } else p.doblada = true;
             mano.push(p.mazo.pop());
             return await siguienteMano(interaction, client, p, idioma);
@@ -1085,7 +1098,7 @@ async function resumenServidor(client, guildId) {
 
 module.exports = {
     filaOtraVez, pieSaldo, saldoDe, oculto, masMenos, anunciarDespues, editarEnFila, fmt,
-    JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverPendientes, textoFallo, barrerPartidas,
+    JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverJugada, sumarApuesta, devolverPendientes, textoFallo, barrerPartidas,
     tragaperras, ruleta, moneda, blackjack, crash, minas, hilo, rasca, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor, jugarRepetir,
     _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash, _editarEnFila: editarEnFila,
 };

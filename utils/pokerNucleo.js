@@ -134,6 +134,8 @@ function actuar(m, id, accion, hasta = 0) {
     const j = m.jugadores[m.turno];
     if (accion === 'pasar' && !op.pasar) accion = 'igualar';
     if (accion === 'allin') { accion = j.fichas > op.igualar ? 'subir' : 'igualar'; hasta = j.apuesta + j.fichas; }
+    // 'abandonar' = se retira siempre (quien se levanta de la mesa); 'retirarse' pasa si no tiene que poner nada.
+    if (accion === 'abandonar') { j.fuera = true; m.log.push([id, 'retirarse']); accion = 'hecho'; }
     if (accion === 'retirarse') { if (op.pasar) accion = 'pasar'; else { j.fuera = true; m.log.push([id, 'retirarse']); } }
     if (accion === 'pasar') m.log.push([id, 'pasar']);
     else if (accion === 'igualar') { poner(m, j, op.igualar); m.log.push([id, 'igualar', j.apuesta]); }

@@ -96,8 +96,10 @@ async function colocar(guildId, userId, valor, idioma) {
 async function darLike(guildId, dueno, visitante, idioma) {
     if (dueno === visitante) return { error: t(idioma, 'No puedes darte «me gusta» a ti mismo 😄', 'You can’t like your own house 😄') };
     const hoy = dia();
-    const r = await ColeccionMascotas.updateOne({ guildId, userId: dueno, [`casa.likeDe.${visitante}`]: { $ne: hoy } }, { $inc: { 'casa.likes': 1 }, $set: { [`casa.likeDe.${visitante}`]: hoy } });
-    if (!r.modifiedCount) return { error: t(idioma, 'Ya le has dado «me gusta» hoy. ¡Vuelve mañana!', 'You already liked it today. Come back tomorrow!') };
+    // Con upsert: la casa de alguien que aún no tiene nada aquí también se puede «gustar». Si ya le dio hoy, el filtro no
+    // encaja, se intenta crear otra y el índice único lo impide (E11000): eso es «ya le has dado».
+    const r = await ColeccionMascotas.updateOne({ guildId, userId: dueno, [`casa.likeDe.${visitante}`]: { $ne: hoy } }, { $inc: { 'casa.likes': 1 }, $set: { [`casa.likeDe.${visitante}`]: hoy } }, { upsert: true }).catch((e) => (e.code === 11000 ? { modifiedCount: 0, upsertedCount: 0 } : Promise.reject(e)));
+    if (!r.modifiedCount && !r.upsertedCount) return { error: t(idioma, 'Ya le has dado «me gusta» hoy. ¡Vuelve mañana!', 'You already liked it today. Come back tomorrow!') };
     return { ok: true };
 }
 

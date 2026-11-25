@@ -84,3 +84,13 @@ test('póker: miles de manos al azar nunca crean ni pierden fichas (salvo la com
         assert.ok(m.jugadores.every((j) => j.fichas >= 0));
     }
 });
+
+test('póker: quien se levanta («abandonar») se retira aunque pudiera pasar', () => {
+    const m = P.nuevaMano({ jugadores: [{ id: 'a', fichas: 500 }, { id: 'b', fichas: 500 }, { id: 'c', fichas: 500 }], boton: 0, ciega: 20 });
+    P.actuar(m, 'a', 'igualar'); P.actuar(m, 'b', 'igualar');
+    // c es la ciega grande y podría pasar.
+    assert.equal(P.opciones(m).id, 'c'); assert.equal(P.opciones(m).pasar, true);
+    P.actuar(m, 'c', 'abandonar');
+    assert.equal(m.jugadores[2].fuera, true);
+    assert.equal(m.calle, 'flop');
+});

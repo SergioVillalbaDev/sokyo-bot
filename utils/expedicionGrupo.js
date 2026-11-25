@@ -68,8 +68,18 @@ async function vista(g, { estado = 'abierta', texto = '' } = {}) {
     )] : [];
     return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'expedicion.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
 }
-// La vista se prepara antes (dibuja con await) y la fila solo la manda.
-const pintar = async (g, opc) => { const v = await vista(g, opc); return require('./casino.js').editarEnFila(g, () => v); };
+// Ediciones en fila: cada una se dibuja cuando le toca y, si el grupo ya no está como pedía (p. ej. una de «abierta»
+// que llega cuando ya han salido), no se manda. Así el mensaje nunca vuelve atrás.
+function pintar(g, opc = {}) {
+    const estado = opc.estado || 'abierta';
+    g.cola = (g.cola || Promise.resolve()).then(async () => {
+        if (estado === 'abierta' && g.estado !== 'abierta') return;
+        const v = await vista(g, opc);
+        if (estado === 'abierta' && g.estado !== 'abierta') return;
+        await g.interaction.editReply(v);
+    }).catch(() => {});
+    return g.cola;
+}
 
 // ¿Puede ir? Devuelve { compId, nombre, … } o { error }.
 async function comprobar(guildId, userId, destino, idioma) {
