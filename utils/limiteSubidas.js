@@ -38,9 +38,10 @@ function permitir(clave, bytes, { dir = null, ahora = Date.now() } = {}) {
 }
 
 // Deja solo los `quedar` archivos más nuevos que empiezan por `prefijo` (p. ej. los fondos de una persona).
-function limpiarViejos(dir, prefijo, quedar = 3) {
+function limpiarViejos(dir, prefijo, quedar = 3, { excepto = [] } = {}) {
     try {
-        const lista = fs.readdirSync(dir).filter((f) => f.startsWith(prefijo))
+        const guardar = new Set(excepto.filter(Boolean).map((x) => path.basename(String(x))));
+        const lista = fs.readdirSync(dir).filter((f) => f.startsWith(prefijo) && !guardar.has(f))
             .map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t);
         for (const { f } of lista.slice(quedar)) fs.unlinkSync(path.join(dir, f));
     } catch { /* limpiar es un extra */ }

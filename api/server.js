@@ -407,6 +407,8 @@ module.exports = (client) => {
             const sf = (req.path.match(/\/(\d{17,20})(?:\/|$)/) || [])[1];
             const canal = sf && client.channels.cache.get(sf);
             if (canal?.guildId) guildId = canal.guildId;
+            // Ticket cuyo canal ya no existe (transcripción de uno cerrado): su servidor, del propio ticket.
+            else if (sf && regla.area === 'tickets') guildId = (await Ticket.findOne({ canalId: sf }).select('guildId').lean().catch(() => null))?.guildId || null;
         }
         // Sin servidor concreto (listas de todos los suyos): solo si tiene esa área en todos.
         const servidores = guildId ? [guildId] : (req.staff.guilds || []);
@@ -852,7 +854,7 @@ module.exports = (client) => {
     });
 
     // Subir el fondo de la tarjeta desde el ordenador (dataURL base64).
-    app.post('/api/portal/tarjeta/upload', portalAuth, (req, res) => {
+    app.post('/api/portal/tarjeta/upload', portalAuth, async (req, res) => {
         try {
             const img = imagenDeDataUrl(req.body?.datos); // por sus bytes, no por el tipo que dice
             if (!img) return res.status(400).json({ error: ERROR_NO_IMAGEN });
@@ -863,7 +865,9 @@ module.exports = (client) => {
             if (freno) return res.status(429).json({ error: freno });
             const archivo = `tarjeta-${req.usuario.id}-${Date.now()}.${ext}`;
             fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
-            LS.limpiarViejos(uploadsDir, `tarjeta-${req.usuario.id}-`, 3);
+            // Nunca se borra el fondo que tiene guardado en su tarjeta.
+            const guardada = await TarjetaPersonal.findOne({ userId: req.usuario.id }).select('fondoImagen').lean().catch(() => null);
+            LS.limpiarViejos(uploadsDir, `tarjeta-${req.usuario.id}-`, 3, { excepto: [guardada?.fondoImagen] });
             res.json({ success: true, url: `/uploads/${archivo}` });
         } catch (error) {
             console.error('Error al subir fondo de tarjeta:', error);

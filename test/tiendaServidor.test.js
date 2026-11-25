@@ -6,6 +6,7 @@ const { PermissionsBitField, Collection } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
 const CompraTienda = require('../models/CompraTienda.js');
 const RolTemporal = require('../models/RolTemporal.js');
+const ContadorTienda = require('../models/ContadorTienda.js');
 const economia = require('../utils/economia.js');
 const T = require('../utils/tiendaServidor.js');
 
@@ -26,6 +27,11 @@ const cfg = { rolStaffId: 'STAFF', tienda: { activo: true, productos: [{ id: 'a1
 describe('tienda del servidor: qué roles se pueden vender', () => {
     const g = servidor();
     it('un rol de color sí', () => assert.strictEqual(T.errorRol(g, g.roles.cache.get('COLOR'), cfg), null));
+    it('nunca un rol que da el bot: acceso de la doble bienvenida, preguntas al entrar, premios de nivel…', () => {
+        for (const extra of [{ embudoAB: { rolVerificadoId: 'COLOR' } }, { preguntasEntrada: { preguntas: [{ opciones: [{ rolId: 'COLOR' }] }] } }, { recompensasNivel: [{ rolId: 'COLOR' }] }, { crecimiento: { votos: { rolId: 'COLOR' } } }]) {
+            assert.ok(T.errorRol(g, g.roles.cache.get('COLOR'), { ...cfg, ...extra }), JSON.stringify(extra));
+        }
+    });
     it('nunca uno con permisos de staff, el del staff, @everyone, uno gestionado ni uno por encima del bot', () => {
         for (const id of ['MOD', 'STAFF', 'G', 'BOT', 'ALTO']) assert.ok(T.errorRol(g, g.roles.cache.get(id), cfg), id);
         assert.ok(T.errorRol(g, undefined, cfg));
@@ -43,10 +49,12 @@ describe('tienda del servidor: qué roles se pueden vender', () => {
 describe('tienda del servidor: comprar', () => {
     let orig; let saldo; let compras; let rolesDados;
     beforeEach(() => {
-        orig = { find: ServidorConfig.findOne, agg: CompraTienda.aggregate, create: CompraTienda.create, en: economia.en, rt: [RolTemporal.findOne, RolTemporal.findOneAndUpdate, RolTemporal.deleteMany] };
+        orig = { find: ServidorConfig.findOne, cf: ContadorTienda.find, cu: ContadorTienda.updateOne, create: CompraTienda.create, en: economia.en, rt: [RolTemporal.findOne, RolTemporal.findOneAndUpdate, RolTemporal.deleteMany] };
         saldo = 500; compras = []; rolesDados = [];
         ServidorConfig.findOne = () => ({ lean: async () => cfg });
-        CompraTienda.aggregate = async () => { const n = compras.filter((c) => !c.devuelta).length; return n ? [{ _id: 'a1', n }] : []; };
+        let vendidosA1 = 0;
+        ContadorTienda.find = () => ({ lean: async () => (vendidosA1 ? [{ productoId: 'a1', vendidos: vendidosA1 }] : []) });
+        ContadorTienda.updateOne = async () => { vendidosA1++; };
         CompraTienda.create = async (d) => { compras.push(d); return d; };
         RolTemporal.findOne = () => ({ lean: async () => null });
         RolTemporal.findOneAndUpdate = async () => null;
@@ -58,7 +66,7 @@ describe('tienda del servidor: comprar', () => {
         });
     });
     afterEach(() => {
-        ServidorConfig.findOne = orig.find; CompraTienda.aggregate = orig.agg; CompraTienda.create = orig.create; economia.en = orig.en;
+        ServidorConfig.findOne = orig.find; ContadorTienda.find = orig.cf; ContadorTienda.updateOne = orig.cu; CompraTienda.create = orig.create; economia.en = orig.en;
         [RolTemporal.findOne, RolTemporal.findOneAndUpdate, RolTemporal.deleteMany] = orig.rt;
     });
     const miembro = (id, falla = false) => ({ id, roles: { cache: new Collection(), add: async (r) => { if (falla) throw new Error('no'); rolesDados.push([id, r]); } } });

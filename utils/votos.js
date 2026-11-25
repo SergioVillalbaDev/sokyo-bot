@@ -156,7 +156,9 @@ async function procesarVoto(client, { userId, finde, prueba }) {
     const proximo = new Date(Date.now() + HORAS_ENTRE_VOTOS * 3600 * 1000);
     const miembros = await servidoresDe(client, userId).catch(() => []);
     for (const m of miembros) await premioBase(m, premio).catch((e) => console.error('Votos · premio:', e.message));
-    const cfgs = miembros.length ? await ServidorConfig.find({ guildId: { $in: miembros.map((m) => m.guild.id) }, 'crecimiento.votos.activo': true }) : [];
+    // Los extras de «Crecimiento → Votos» (rol, XP, gracias): en cada servidor que los tenga donde sea miembro,
+    // aunque aún no haya jugado allí (premiarEnServidor comprueba que es miembro).
+    const cfgs = await ServidorConfig.find({ 'crecimiento.votos.activo': true });
     let servidores = 0;
     for (const cfg of cfgs) {
         if (await premiarEnServidor(client, cfg, userId, oro, proximo).catch((e) => { console.error('Votos · servidor:', e.message); return false; })) servidores++;

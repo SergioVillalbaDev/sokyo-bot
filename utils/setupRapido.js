@@ -362,7 +362,11 @@ async function aplicar(client, guild, respuestas, { idiomaTextos = respuestas.id
     // 18. Tienda del servidor (2.0.1): dos roles de color a la venta para que el oro sirva desde el primer día.
     //     Roles nuevos, sin ningún permiso (solo color), justo debajo del de Sokyo.
     if (mods.has('tienda')) await paso('tienda', 'com-tienda', async () => {
-        if (cfg.tienda?.activo && (cfg.tienda?.productos || []).length) return { omitido: true, detalle: tx('Ya tenía productos.', 'It already had products.') };
+        // Con productos ya puestos (aunque estuviera apagada), solo se enciende: nunca se tocan.
+        if ((cfg.tienda?.productos || []).length) {
+            if (!cfg.tienda?.activo) await set({ 'tienda.activo': true });
+            return { omitido: !!cfg.tienda?.activo, detalle: tx('Abierta con tus productos.', 'Opened with your products.') };
+        }
         const muestras = [
             { emoji: '🌟', nombre: tx('Nombre dorado', 'Golden name'), rol: tx('✨ Dorado', '✨ Golden'), color: 0xF5B942, precio: 2000, descripcion: tx('Tu nombre en dorado en todo el servidor.', 'Your name in gold across the server.') },
             { emoji: '💜', nombre: tx('Nombre violeta', 'Violet name'), rol: tx('💜 Violeta', '💜 Violet'), color: 0xA855F7, precio: 2000, descripcion: tx('Tu nombre en violeta en todo el servidor.', 'Your name in violet across the server.') },

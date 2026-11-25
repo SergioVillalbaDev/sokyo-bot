@@ -18,6 +18,11 @@ const SIN_AREA = {
     'POST /api/presets-tarjeta/preview': 'solo dibuja una imagen',
     'POST /api/broadcast/enviar': 'solo difusores (BROADCAST_IDS)',
     'POST /cambios/:id/deshacer': 'mira el área del cambio dentro (panelExtra.js)',
+    'POST /api/anuncios/presets': 'plantillas compartidas por varias secciones (CLAUDE.md)',
+    'PUT /api/anuncios/presets/:id': 'plantillas compartidas por varias secciones (CLAUDE.md)',
+    'DELETE /api/anuncios/presets/:id': 'plantillas compartidas por varias secciones (CLAUDE.md)',
+    'POST /api/paneles/upload': 'subida de imágenes de todo el panel, con freno (utils/limiteSubidas.js)',
+    'POST /api/sanciones/upload': 'subida de pruebas, con freno (utils/limiteSubidas.js)',
     'POST /config/:guildId/musica/control': 'controla la música (área musica en la tabla por /config/…/musica)',
 };
 
@@ -58,7 +63,9 @@ describe('tabla de áreas', () => {
         assert.strictEqual(AR.areaDeRuta('GET', '/api/sanciones/tipos').modelo, 'TipoSancion');
     });
     it('los desplegables (canales, roles, miembros) y la cabecera siguen abiertos', () => {
-        for (const r of ['/api/servidor/canales', '/api/servidor/roles', '/api/roles', '/api/servidor/miembros', '/api/stats/uso', '/api/guilds']) assert.strictEqual(AR.areaDeRuta('GET', r), null, r);
+        for (const r of ['/api/servidor/canales', '/api/servidor/roles', '/api/roles', '/api/servidor/miembros', '/api/stats/uso', '/api/guilds', '/api/anuncios/presets']) assert.strictEqual(AR.areaDeRuta('GET', r), null, r);
+        assert.strictEqual(AR.areaDeRuta('POST', '/api/paneles/upload'), null);
+        assert.strictEqual(AR.areaDeRuta('GET', '/api/anuncios').area, 'mensajes');
     });
     it('saca el servidor de la ruta, la query o el cuerpo, y el id del recurso', () => {
         assert.strictEqual(AR.guildDeRuta({ path: '/config/G1/modulos/casino', query: {}, body: {} }), 'G1');
