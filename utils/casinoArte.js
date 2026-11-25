@@ -880,6 +880,60 @@ async function gifCofre(cofre, companeroId, { nombre = '', rarezaTexto = '', est
     return aGif(frames, W, H);
 }
 
+// 🐣 Eclosión de un huevo de la guardería (1.33.0): el huevo tiembla, se agrieta, estalla en luz del color de su
+// rareza y sale el compañero con su cartel (como el cofre).
+async function gifEclosion(companeroId, { rareza: rz = null, nombre = '', rarezaTexto = '', estrellas = 1, nuevo = true, textoNuevo = '¡NUEVO!', variante = null } = {}) {
+    if (!listo()) return null;
+    const SPR = require('./sprites.js');
+    const W = 420; const H = 360;
+    const comp = K.def(companeroId);
+    const rareza = K.RAREZAS[rz || comp.rareza];
+    const [bicho, brillo] = await Promise.all([imagenCompanero(companeroId, { humor: 'feliz', variante, etapa: 0 }), imagen('2728')]);
+    const TOTAL = 40; const frames = [];
+    for (let f = 0; f < TOTAL; f++) {
+        const { ctx } = lienzo(W, H);
+        const fondo = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W);
+        fondo.addColorStop(0, '#3b0764'); fondo.addColorStop(1, '#020617');
+        ctx.fillStyle = fondo; ctx.fillRect(0, 0, W, H);
+        // Nido
+        ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.ellipse(W / 2, H - 70, 120, 28, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#a16207'; ctx.lineWidth = 4; for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.arc(W / 2 - 100 + i * 25, H - 74, 22, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+        if (f < 22) {
+            const k = f / 21;
+            const g = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, 170);
+            g.addColorStop(0, `${rareza.color}${Math.round(40 + 120 * k).toString(16).padStart(2, '0')}`); g.addColorStop(1, `${rareza.color}00`);
+            ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+            ctx.save(); ctx.translate(W / 2 - SPR.TAM / 2 + (f % 2 ? 1 : -1) * k * 5, H - 300);
+            SPR.huevo(ctx, { color: '#fef3c7', manchas: rareza.color, grietas: k, t: f / 8 });
+            ctx.restore();
+        } else if (f < 26) {
+            const k = (f - 22) / 3;
+            rayos(ctx, W / 2, H / 2, 16, 420, f * 0.2, [rareza.color, '#ffffff'], 0.5 + 0.3 * k);
+            ctx.globalAlpha = 0.9 * (1 - k * 0.6); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+        } else {
+            const k = Math.min(1, (f - 26) / 7);
+            const by = 200 - 30 * facil(k);
+            rayos(ctx, W / 2, by, 14, 420, f * 0.07, [rareza.color, '#ffffff'], 0.35);
+            // Cáscaras a los lados
+            ctx.fillStyle = '#fef3c7';
+            for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(W / 2 + s * 70, H - 80); ctx.lineTo(W / 2 + s * 120, H - 82); ctx.lineTo(W / 2 + s * 104, H - 118); ctx.lineTo(W / 2 + s * 88, H - 100); ctx.closePath(); ctx.fill(); }
+            const tam = 150 * facil(k);
+            if (bicho && tam > 2) pintarCompanero(ctx, bicho, companeroId, W / 2 - tam / 2, by - tam / 2, tam, rareza.color);
+            if (brillo && k >= 0.5) for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + f * 0.3; const ss = 22 + 8 * Math.sin(f + i); ctx.drawImage(brillo, W / 2 + Math.cos(a) * 115 - ss / 2, by + Math.sin(a) * 80 - ss / 2, ss, ss); }
+            if (k >= 1) {
+                redondeado(ctx, 20, 12, W - 40, 58, 16); ctx.fillStyle = 'rgba(2,6,23,0.85)'; ctx.fill();
+                ctx.strokeStyle = rareza.color; ctx.lineWidth = 3; ctx.stroke();
+                ctx.textAlign = 'center'; ctx.fillStyle = rareza.color; ctx.font = `bold 16px ${FUENTE}`;
+                ctx.fillText(`${nuevo ? `✨ ${textoNuevo} · ` : ''}${rarezaTexto || rareza.es.toUpperCase()}${nuevo ? '' : `  ${'★'.repeat(estrellas)}`}`, W / 2, 36);
+                ctx.fillStyle = '#ffffff'; ctx.font = `bold 21px ${FUENTE}`;
+                ctx.fillText((nombre || comp.es).slice(0, 30), W / 2, 61);
+            }
+        }
+        frames.push({ ctx, delay: f === TOTAL - 1 ? 60000 : f < 22 ? 60 + f * 4 : 80 });
+    }
+    return aGif(frames, W, H);
+}
+
 // Tarjeta (PNG) de la colección de alguien: sus compañeros por rareza.
 async function tarjetaColeccion(coleccion, { titulo = '' } = {}) {
     if (!canvasLib) return null;
@@ -1282,4 +1336,4 @@ function cartonesBingo({ cartones, salidas = [], titulo = '' }) {
     return c.toBuffer('image/png');
 }
 
-module.exports = { carta, gifDados, gifBaccarat, tableroBingo: seguro(tableroBingo), cartonesBingo: seguro(cartonesBingo), gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+module.exports = { gifEclosion, carta, gifDados, gifBaccarat, tableroBingo: seguro(tableroBingo), cartonesBingo: seguro(cartonesBingo), gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

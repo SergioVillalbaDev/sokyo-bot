@@ -506,7 +506,37 @@ function jugarMinijuego(m, id, eleccion, correcta, { ahora = Date.now(), premiad
     return { ...nuevo, gana, afinidad: Math.round(conAfinidad(m, p.afinidad) * (premiado ? 1 : 0.5)), oro, humor: humor(nuevo) };
 }
 
+// ---------------------------------------------------------------------------
+// 🥚 Guardería (1.33.0): dos compañeros tuyos de nivel CRIA.nivel o más pueden tener un huevo (pagando oro según
+// el mejor de los dos). Sale de la rareza del mejor padre (una divina cuenta como mítica) y a veces una más (nunca
+// divina). Tras criar, los padres descansan CRIA.descansoH. El huevo eclosiona a las CRIA.incubarH: lo que sale es
+// un compañero al azar de esa rareza (nuevo o ★ si ya lo tienes). Con un padre brillante es más fácil que brille.
+// ---------------------------------------------------------------------------
+const CRIA = {
+    nivel: 10, descansoH: 72, incubarH: 12, maxHuevos: 3,
+    coste: { comun: 400, rara: 1000, epica: 2500, legendaria: 6000, mitica: 14000, divina: 14000 },
+    subir: 0.15, subirIguales: 0.3, brillante: 1 / 64, brillantePadre: 1 / 16,
+};
+const ORDEN_RAREZAS = ['comun', 'rara', 'epica', 'legendaria', 'mitica', 'divina'];
+// Por qué no puede criar (o null): 'nivel' | 'descansa' | 'fuera' (de expedición).
+function motivoNoCria(m, ahora = Date.now()) {
+    if (nivel(m.afinidad || 0) < CRIA.nivel) return 'nivel';
+    if (m.criaHasta && new Date(m.criaHasta).getTime() > ahora) return 'descansa';
+    if (expedicionActiva(m, ahora)) return 'fuera';
+    return null;
+}
+const rarezaPadre = (m) => { const r = K.def(m.id).rareza; return r === 'divina' ? 'mitica' : r; };
+const costeCria = (a, b) => CRIA.coste[ORDEN_RAREZAS[Math.max(ORDEN_RAREZAS.indexOf(rarezaPadre(a)), ORDEN_RAREZAS.indexOf(rarezaPadre(b)))]];
+function rarezaCria(a, b, azar = Math.random) {
+    const ra = ORDEN_RAREZAS.indexOf(rarezaPadre(a)); const rb = ORDEN_RAREZAS.indexOf(rarezaPadre(b));
+    let i = Math.max(ra, rb);
+    if (i < 4 && azar() < (ra === rb ? CRIA.subirIguales : CRIA.subir)) i += 1;
+    return ORDEN_RAREZAS[i];
+}
+const probBrillanteCria = (a, b) => (a.variante === 'brillante' || b.variante === 'brillante' ? CRIA.brillantePadre : CRIA.brillante);
+
 module.exports = {
+    CRIA, motivoNoCria, rarezaPadre, costeCria, rarezaCria, probBrillanteCria,
     PERSONALIDADES, persDe, COMIDAS, gustosDe, comer, extraPers, huella, EVENTOS_EXP, PROB_EVENTO_EXP, eventoExpedicion,
     MINIJUEGOS, MINIJUEGOS_PREMIADOS_DIA, PREMIO_MINIJUEGO, prepararMinijuego, jugarMinijuego,
     LLENO, RITMO, HUMOR, NIVEL_MAX, CUIDADOS, EXPEDICIONES, EXPEDICIONES_DIA, RECUERDOS, MISIONES, PREMIO_MISION, PREMIO_TODAS, PREMIOS_RACHA,

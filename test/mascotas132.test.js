@@ -98,3 +98,24 @@ test('accesorios: cada uno con su sitio y su precio; se dibujan en todas las for
 test('variante brillante: rara, y solo una vez por compañero', () => {
     assert.ok(K.PROB_BRILLANTE > 0 && K.PROB_BRILLANTE < 0.05);
 });
+
+// 1.33.0: guardería.
+test('guardería: quién puede criar, rareza del huevo y coste', () => {
+    const P = require('../utils/compisNucleo.js');
+    const K = require('../utils/cofresNucleo.js');
+    const ids = Object.keys(K.COMPANEROS);
+    const de = (r) => ids.find((id) => K.COMPANEROS[id].rareza === r);
+    const af = P.umbral(P.CRIA.nivel);
+    const a = { id: de('comun'), afinidad: af }; const b = { id: de('comun'), afinidad: af };
+    assert.equal(P.motivoNoCria({ id: de('comun'), afinidad: 0 }), 'nivel');
+    assert.equal(P.motivoNoCria(a), null);
+    assert.equal(P.motivoNoCria({ ...a, criaHasta: new Date(Date.now() + 1000) }), 'descansa');
+    assert.equal(P.motivoNoCria({ ...a, exp: { tipo: 'paseo', desde: new Date(), hasta: new Date(Date.now() + 3600000) } }), 'fuera');
+    assert.equal(P.rarezaCria(a, b, () => 0.99), 'comun');
+    assert.equal(P.rarezaCria(a, b, () => 0.01), 'rara');
+    // Una divina cuenta como mítica y de la cría nunca sale divina.
+    const div = { id: de('divina'), afinidad: af };
+    for (let i = 0; i < 50; i++) assert.equal(P.rarezaCria(div, a, Math.random), 'mitica');
+    assert.equal(P.costeCria(a, { id: de('legendaria') }), P.CRIA.coste.legendaria);
+    assert.equal(P.probBrillanteCria({ ...a, variante: 'brillante' }, b), P.CRIA.brillantePadre);
+});

@@ -21,6 +21,8 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         variante: { type: String, default: undefined }, // 1.32.0: 'brillante' (colores raros, sale a veces en los cofres)
         acc: { type: String, default: undefined },      // 1.32.0: accesorio puesto (sprites.ACCESORIOS)
         gustos: { type: Object, default: undefined },   // 1.32.0: comida favorita/odiada ya descubiertas ({ favorita: true, odiada: true })
+        criaHasta: { type: Date, default: undefined },  // 1.33.0: descansa tras criar hasta esta fecha (guardería)
+        hijos: { type: Number, default: undefined },    // 1.33.0: huevos que ha tenido
         _id: false,
     }], default: [] },
     equipada: { type: String, default: null },
@@ -57,6 +59,9 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     intercambiosHoy: { dia: String, n: Number },
     armario: { type: [String], default: [] },                    // 1.32.0: accesorios comprados (para cualquiera de sus compañeros)
     mjHoy: { dia: String, n: Number },                          // 1.32.0: minijuegos premiados hoy
+    // 1.33.0: huevos de la guardería (uid, rareza que saldrá, padres, cuándo eclosiona y la suerte de brillar).
+    huevos: { type: [{ uid: String, rareza: String, padres: [String], listo: Date, creado: Date, brillo: Number, _id: false }], default: [] },
+    criados: { type: Number, default: 0 },
     cbt: { victorias: { type: Number, default: 0 }, torre: { type: Number, default: 0 }, jefe: { type: Number, default: 0 } }, // para los logros
     // 1.28.0 (utils/granja.js): granja (desde cuándo produce), oro sacado de ella, hitos del álbum
     // ya premiados («3», «5»… «todas») y misiones de la semana.

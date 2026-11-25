@@ -451,6 +451,7 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         // 1.32.0: también comidas (para descubrir su favorita) y minijuegos.
         const g = P.gustosDe(m); const sabe = m.gustos || {};
         const ops = [
+            { value: 'guarderia', emoji: '🥚', label: t(idioma, 'Guardería: tener un huevo', 'Nursery: have an egg'), description: t(idioma, `Dos compañeros de nivel ${P.CRIA.nivel}+ tienen un huevo`, `Two level ${P.CRIA.nivel}+ companions have an egg`) },
             ...Object.entries(P.MINIJUEGOS).map(([id, j]) => ({ value: `mj:${id}`, emoji: j.emoji, label: t(idioma, `Minijuego: ${j.es}`, `Minigame: ${j.en}`).slice(0, 100), description: t(idioma, `${j.desc.es} · ⚡${j.energia}`, `${j.desc.en} · ⚡${j.energia}`).slice(0, 100) })),
             ...Object.entries(P.COMIDAS).map(([id, cm]) => ({ value: `comida:${id}`, emoji: cm.emoji, label: t(idioma, `Darle ${cm.art}`, `Give it ${cm.en.toLowerCase()}`),
                 description: (sabe.favorita && g.favorita === id ? t(idioma, '💖 ¡Su favorita!', '💖 Its favourite!') : sabe.odiada && g.odiada === id ? t(idioma, '🙅 No le gusta', '🙅 It dislikes it') : t(idioma, '¿Le gustará?', 'Will it like it?')) })),
@@ -529,7 +530,7 @@ async function manejar(interaction) {
     else if (partes[0] === 'cmp_int') {
         owner = partes[1]; comp = partes.slice(2).join(':');
         const v = interaction.values[0];
-        que = v.startsWith('comida:') ? v : v.startsWith('mj:') ? `jugar_mj:${v.slice(3)}` : `int:${v}`;
+        que = v === 'guarderia' ? 'guarderia' : v.startsWith('comida:') ? v : v.startsWith('mj:') ? `jugar_mj:${v.slice(3)}` : `int:${v}`;
     }
     else if (partes[0] === 'cmp_mj') { owner = partes[1]; que = 'mj_elegir'; }
     else if (partes[0] === 'cmp_arm') { owner = partes[1]; comp = partes.slice(3).join(':'); que = 'armario_elegir'; }
@@ -548,6 +549,7 @@ async function manejar(interaction) {
         await interaction.reply(await armario(interaction, col, m, owner, interaction.message?.id, idioma));
         return true;
     }
+    if (que === 'guarderia') { await interaction.reply({ ...(await require('./guarderia.js').vista(interaction.guildId, owner, idioma)), flags: 64 }); return true; }
     if (que === 'armario_elegir') { await elegirArmario(interaction, owner, partes[2], comp, interaction.values[0], idioma, cfg); return true; }
     if (que === 'cartas') {
         const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
