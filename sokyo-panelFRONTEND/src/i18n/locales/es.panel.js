@@ -717,6 +717,12 @@ export default {
         kpis: { title: '🔢 Indicadores clave', desc: 'Tus grandes números: miembros, crecimiento neto, mensajes, satisfacción y actividad de voz. La foto general del servidor.' },
         graficas: { title: '📉 Gráficas detalladas', desc: 'A partir de aquí todo en gráficas: actividad por día y hora, canales y usuarios top, salud del chat, niveles, moderación, equipo y tickets.' },
       } },
+      'com-tienda': { steps: {
+        config: { title: '🛒 Abre tu tienda', desc: 'Enciéndela y mira cuánto se vende. Solo se pueden vender roles sin permisos de staff: Sokyo lo comprueba siempre.' },
+        productos: { title: '🎨 Tus productos', desc: 'Añade un producto, elige el rol (mejor uno de color o de título), ponle precio y si es para siempre o por días. También puedes limitar las unidades.' },
+        previa: { title: '👀 Así lo ven', desc: 'Esto es lo que sale al escribir /tienda en Discord. También pueden comprarlo desde «Mi cuenta».' },
+        ventas: { title: '🧾 Quién compra', desc: 'Las últimas compras: quién, qué y cuándo.' },
+      } },
       'datos-resumen': { steps: {
         toggle: { title: '📰 Activar el resumen', desc: 'Enciende el resumen diario. Cada día la IA escribe el parte del servidor y te lo envía.' },
         cuando: { title: '⏰ Cuándo y dónde', desc: 'Elige la hora (en UTC) a la que se envía y, opcionalmente, un canal donde publicarlo además del MD al dueño.' },

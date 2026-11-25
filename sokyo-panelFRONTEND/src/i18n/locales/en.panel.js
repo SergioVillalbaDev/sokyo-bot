@@ -717,6 +717,12 @@ export default {
         kpis: { title: '🔢 Key indicators', desc: 'Your big numbers: members, net growth, messages, satisfaction and voice activity. The server’s overall picture.' },
         graficas: { title: '📉 Detailed charts', desc: 'From here on, everything in charts: activity per day and hour, top channels and users, chat health, levels, moderation, team and tickets.' },
       } },
+      'com-tienda': { steps: {
+        config: { title: '🛒 Open your shop', desc: 'Turn it on and see how much is sold. Only roles without staff permissions can be sold: Sokyo always checks.' },
+        productos: { title: '🎨 Your products', desc: 'Add a product, pick the role (a colour or title role works best), set a price and whether it is forever or for some days. You can also limit units.' },
+        previa: { title: '👀 What they see', desc: 'This is what shows up when someone types /shop on Discord. They can also buy from “My account”.' },
+        ventas: { title: '🧾 Who buys', desc: 'The latest purchases: who, what and when.' },
+      } },
       'datos-resumen': { steps: {
         toggle: { title: '📰 Enable the summary', desc: 'Turn on the daily summary. Each day the AI writes the server briefing and sends it to you.' },
         cuando: { title: '⏰ When and where', desc: 'Pick the time (in UTC) it’s sent and, optionally, a channel to post it in besides the DM to the owner.' },
