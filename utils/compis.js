@@ -41,7 +41,7 @@ const elegir = (col, compId) => {
 // Hace una acción (ver, comer, jugar, mimar, hablar, exp:<tipo>) y lo guarda todo.
 // Devuelve { col, m, mensajes, efecto, frase, fallo }.
 // 1.30.0: todo es de la persona EN ESTE SERVIDOR (guildId obligatorio).
-async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '', ahora = Date.now(), bromas = false } = {}) {
+async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '', ahora = Date.now(), bromas = false, expGrupo = null } = {}) {
     if (!guildId) throw new Error('mascotas sin servidor');
     return enCola(`${guildId}:${userId}`, async () => {
         const col = await ColeccionMascotas.findOne({ guildId, userId }).lean();
@@ -70,6 +70,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
             const b = P.botin(m);
             if (m.botinX) m.botinX = null; // el ×N de una carta solo vale una vez
             const x = P.EXPEDICIONES[m.exp.tipo];
+            const bonusGrupo = m.exp.bonus || 1;
             oro += b.oro; m.afinidad = (m.afinidad || 0) + b.afinidad;
             // Mientras está fuera no gasta: se cuenta desde que volvió.
             const e = P.estado({ ...m, exp: null, actualizado: m.exp.hasta }, ahora);
@@ -84,7 +85,8 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
             }
             if (b.recuerdo !== null && !(m.recuerdos || []).includes(b.recuerdo)) m.recuerdos = [...(m.recuerdos || []), b.recuerdo];
             const rec = b.recuerdo !== null ? P.RECUERDOS[b.recuerdo] : null;
-            mensajes.push(t(idioma, `${x.emoji} **¡Ha vuelto de «${x.es}»!** Trae 🪙 ${b.oro}${rec ? ` y un recuerdo: ${rec[0]} ${rec[1]}` : ''}.`, `${x.emoji} **Back from “${x.en}”!** Brought 🪙 ${b.oro}${rec ? ` and a souvenir: ${rec[0]} ${rec[2]}` : ''}.`));
+            const conGrupo = bonusGrupo > 1 ? t(idioma, ` (con el grupo: ×${String(bonusGrupo).replace('.', ',')})`, ` (with the group: ×${bonusGrupo})`) : '';
+            mensajes.push(t(idioma, `${x.emoji} **¡Ha vuelto de «${x.es}»!** Trae 🪙 ${b.oro}${conGrupo}${rec ? ` y un recuerdo: ${rec[0]} ${rec[1]}` : ''}.`, `${x.emoji} **Back from “${x.en}”!** Brought 🪙 ${b.oro}${conGrupo}${rec ? ` and a souvenir: ${rec[0]} ${rec[2]}` : ''}.`));
             if (ev) mensajes.push(`${ev.emoji} *${t(idioma, ev.es, ev.en)}*${ev.afinidad ? ` · 💞 +${ev.afinidad}` : ''}`);
             efecto = 'vuelta';
         };
@@ -249,10 +251,11 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
                 if (!esCarta && mensajes.length === 0) mensajes.push(`${def.emoji} ${t(idioma, def.es, def.en)}`);
             }
         } else if (que.startsWith('exp:')) {
-            const r = P.salir(m, que.slice(4), col.expHoy, dia, ahora);
+            // Las de grupo solo salen desde /expedicion (con su bonus); aquí no.
+            const r = !!P.EXPEDICIONES[que.slice(4)]?.grupo !== !!expGrupo ? { fallo: 'tipo' } : P.salir(m, que.slice(4), col.expHoy, dia, ahora);
             if (r.fallo) fallo = r.fallo;
             else {
-                Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora), exp: r.exp });
+                Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora), exp: { ...r.exp, ...(expGrupo || {}) } });
                 colSet.expHoy = { dia, n: r.usadas };
                 semAcc = 'expedicion';
                 const x = P.EXPEDICIONES[r.exp.tipo];
@@ -441,7 +444,7 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
     if (!fuera) {
         filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_exp:${ownerId}:${m.id}`)
             .setPlaceholder(t(idioma, '🧭 Mandarlo de expedición…', '🧭 Send it on an expedition…'))
-            .addOptions(Object.entries(P.EXPEDICIONES).map(([id, ex]) => ({
+            .addOptions(Object.entries(P.EXPEDICIONES).filter(([, ex]) => !ex.grupo).map(([id, ex]) => ({
                 value: id, emoji: ex.emoji, label: `${t(idioma, ex.es, ex.en)} · ${ex.horas} h`.slice(0, 100),
                 description: t(idioma, `Gasta ⚡${ex.energia} · trae 🪙 ${ex.oro[0]}-${ex.oro[1]}+ y quizá un recuerdo`, `Uses ⚡${ex.energia} · brings 🪙 ${ex.oro[0]}-${ex.oro[1]}+ and maybe a souvenir`).slice(0, 100),
             })))));

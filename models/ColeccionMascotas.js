@@ -13,7 +13,7 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         id: String, estrellas: { type: Number, default: 1 }, primera: { type: Date, default: Date.now },
         hambre: Number, alegria: Number, energia: Number, actualizado: Date,
         afinidad: { type: Number, default: 0 }, apodo: String, ultMimo: Date,
-        exp: { tipo: String, desde: Date, hasta: Date },
+        exp: { tipo: String, desde: Date, hasta: Date, bonus: Number, grupo: String }, // 1.33.0: bonus y grupo (expedición en grupo)
         recuerdos: { type: [Number], default: [] },
         cuidados: { type: Number, default: 0 },
         cds: { type: Object, default: undefined }, // 1.21.0: cuándo se hizo cada interacción (para su espera)

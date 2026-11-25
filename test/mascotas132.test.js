@@ -119,3 +119,19 @@ test('guardería: quién puede criar, rareza del huevo y coste', () => {
     assert.equal(P.costeCria(a, { id: de('legendaria') }), P.CRIA.coste.legendaria);
     assert.equal(P.probBrillanteCria({ ...a, variante: 'brillante' }, b), P.CRIA.brillantePadre);
 });
+
+// 1.33.0: expediciones en grupo.
+test('expedición en grupo: más gente, más oro (hasta ×2) y no se mezclan con las de uno solo', () => {
+    const P = require('../utils/compisNucleo.js');
+    assert.equal(P.GRUPO.bonus(1), 1);
+    assert.equal(P.GRUPO.bonus(3), 1.4);
+    assert.equal(P.GRUPO.bonus(8), 2);
+    assert.equal(P.GRUPO.bonus(20), 2);
+    const m = { id: 'gato', afinidad: 0, exp: { tipo: 'cueva', hasta: new Date(0) } };
+    const solo = P.botin(m, () => 0).oro;
+    const grupo = P.botin({ ...m, exp: { ...m.exp, bonus: 1.6 } }, () => 0).oro;
+    assert.ok(grupo > solo * 1.5 && grupo <= solo * 1.61);
+    // Un bonus guardado de más no pasa de ×2.
+    assert.ok(P.botin({ ...m, exp: { ...m.exp, bonus: 9 } }, () => 0).oro <= solo * 2 + 1);
+    assert.ok(Object.values(P.EXPEDICIONES).filter((x) => x.grupo).length >= 3);
+});

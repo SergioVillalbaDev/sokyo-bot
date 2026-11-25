@@ -149,7 +149,13 @@ const EXPEDICIONES = {
     paseo: { emoji: '🌳', horas: 1, energia: 20, oro: [20, 40], afinidad: 8, recuerdo: 0.25, es: 'Paseo por el bosque', en: 'Forest walk' },
     aventura: { emoji: '⛰️', horas: 4, energia: 40, oro: [70, 130], afinidad: 20, recuerdo: 0.5, es: 'Aventura en la montaña', en: 'Mountain adventure' },
     viaje: { emoji: '🏝️', horas: 8, energia: 60, oro: [140, 240], afinidad: 40, recuerdo: 0.8, es: 'Gran viaje a la isla', en: 'Big island trip' },
+    // 1.33.0: solo en grupo (/expedicion): más lejos, más botín y más oro cuantos más vayan (GRUPO.bonus).
+    cueva: { grupo: true, emoji: '💎', horas: 2, energia: 30, oro: [60, 110], afinidad: 15, recuerdo: 0.5, es: 'Cueva de cristal', en: 'Crystal cave', color: ['#312e81', '#0e7490'] },
+    ruinas: { grupo: true, emoji: '🏛️', horas: 4, energia: 45, oro: [130, 220], afinidad: 28, recuerdo: 0.7, es: 'Ruinas olvidadas', en: 'Forgotten ruins', color: ['#78350f', '#a16207'] },
+    volcan: { grupo: true, emoji: '🌋', horas: 8, energia: 60, oro: [260, 420], afinidad: 50, recuerdo: 0.9, es: 'Volcán dormido', en: 'Sleeping volcano', color: ['#7f1d1d', '#ea580c'] },
 };
+// Expediciones en grupo (1.33.0): de GRUPO.min a GRUPO.max compañeros; cada uno trae su botín × bonus(n).
+const GRUPO = { min: 2, max: 8, bonus: (n) => Math.min(2, 1 + 0.2 * (Math.max(1, n) - 1)) };
 const EXPEDICIONES_DIA = 4;
 const RECUERDOS = [
     ['🐚', 'Concha brillante', 'Shiny shell'], ['🍄', 'Seta saltarina', 'Bouncy mushroom'], ['🪶', 'Pluma dorada', 'Golden feather'],
@@ -188,7 +194,7 @@ function botin(m, azar = Math.random) {
     // Más oro según su rareza y estrellas (ventaja «expedicion») y su nivel de afinidad.
     const k = 1 + K.ventajas(m.id, m.estrellas || 1).expedicion + 0.01 * (nivel(m.afinidad || 0) - 1);
     // Una carta (p. ej. 🍀 suerte) puede haber dejado el botín multiplicado (m.botinX).
-    const oro = Math.round((x.oro[0] + azar() * (x.oro[1] - x.oro[0])) * k * Math.max(1, m.botinX || 1) * (persDe(m) === 'curioso' ? 1.1 : 1));
+    const oro = Math.round((x.oro[0] + azar() * (x.oro[1] - x.oro[0])) * k * Math.max(1, m.botinX || 1) * (persDe(m) === 'curioso' ? 1.1 : 1) * Math.min(2, Math.max(1, m.exp?.bonus || 1)));
     const hab = K.habilidad(m.id);
     const tesoro = hab && hab.tipo === 'tesoro';
     const recuerdo = tesoro || azar() < x.recuerdo ? Math.floor(azar() * RECUERDOS.length) : null;
@@ -536,6 +542,7 @@ function rarezaCria(a, b, azar = Math.random) {
 const probBrillanteCria = (a, b) => (a.variante === 'brillante' || b.variante === 'brillante' ? CRIA.brillantePadre : CRIA.brillante);
 
 module.exports = {
+    GRUPO,
     CRIA, motivoNoCria, rarezaPadre, costeCria, rarezaCria, probBrillanteCria,
     PERSONALIDADES, persDe, COMIDAS, gustosDe, comer, extraPers, huella, EVENTOS_EXP, PROB_EVENTO_EXP, eventoExpedicion,
     MINIJUEGOS, MINIJUEGOS_PREMIADOS_DIA, PREMIO_MINIJUEGO, prepararMinijuego, jugarMinijuego,
