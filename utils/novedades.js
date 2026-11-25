@@ -6,6 +6,17 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '2.1.0': [
+        { tab: 'inicio', es: '🎁 **Tu primera mascota el primer día**: el primer `/diario` de cada persona trae un **cofre gratis** con su botón para abrirlo. `/empezar` y `/menu` te lo recuerdan.', en: '🎁 **Your first pet on day one**: everyone’s first `/daily` brings a **free chest** with a button to open it. `/start` and `/menu` remind you.' },
+        { tab: 'com-tienda', es: '⚡ La **configuración en 1 minuto** ya abre la tienda del servidor con dos roles de color a la venta (🪙 2.000), para que el oro sirva desde el primer día.', en: '⚡ The **1-minute setup** now opens the server shop with two colour roles for sale (🪙 2,000), so gold is useful from day one.' },
+        { tab: 'config-acceso', es: '🔒 **Más seguridad**: tope a las subidas de imágenes (nadie puede llenar el servidor), la web solo acepta sesiones de Discord, los límites de peticiones ven a cada persona por separado detrás de Cloudflare y lo subido nunca se ejecuta.', en: '🔒 **More security**: image uploads are capped (nobody can fill the server), the API only accepts Discord sessions, request limits see each person separately behind Cloudflare and uploads never run.' },
+        { tab: 'cuenta-plan', es: '💳 **Pagos arreglados**: con la versión actual de Stripe, una suscripción mensual a Pro podía quedarse como «de por vida». Ahora guarda bien su fecha. Y si un servidor vuelve a Free, su tienda vende los 3 primeros productos.', en: '💳 **Payments fixed**: with the current Stripe version, a monthly Pro subscription could end up as “lifetime”. It now stores its date properly. And if a server goes back to Free, its shop sells the first 3 products.' },
+        { tab: 'config-diagnostico', es: '🩺 «¿Algo no funciona?» ya no avisa de los tickets en servidores que no los usan.', en: '🩺 “Something not working?” no longer warns about tickets on servers that don’t use them.' },
+        { tab: 'com-tienda', es: '🖥️ Panel: tutorial guiado en la Tienda del servidor y el saludo de arriba ya no se corta.', en: '🖥️ Panel: guided tour in the Server shop and the greeting at the top no longer gets cut off.' },
+        { tab: 'inicio', es: '🌐 Web: preguntas frecuentes sobre los juegos y el oro, y mejor presencia en Google.', en: '🌐 Website: FAQs about the games and gold, and better presence on Google.' },
+        { tab: 'inicio', es: '🧪 **Probado a fondo**: un Discord simulado ha usado todos los comandos y pulsado cientos de botones (0 fallos), y se han revisado las 74 secciones del panel en móvil y ordenador, en español e inglés.', en: '🧪 **Thoroughly tested**: a simulated Discord used every command and pressed hundreds of buttons (0 failures), and all 74 panel sections were checked on mobile and desktop, in Spanish and English.' },
+        { tab: 'inicio', es: '📣 Este aviso ya llega entero aunque sea largo. Aquí va también **todo lo de la 2.0** 👇', en: '📣 This notice now arrives in full even when it’s long. Here’s **everything from 2.0** too 👇' },
+    ],
     '2.0.0': [
         { tab: 'inicio', es: '🚀 **Sokyo 2.0: listo para todos.** Al entrar en un servidor saluda a todos, habla el idioma del servidor y le manda al dueño un botón **⚡ Configurar en 1 minuto** que abre el panel de ese servidor.', en: '🚀 **Sokyo 2.0: ready for everyone.** When it joins a server it greets everyone, speaks the server’s language and sends the owner a **⚡ Set up in 1 minute** button that opens that server’s panel.' },
         { tab: 'com-tienda', es: '🛒 **Tienda del servidor** (`/tienda` y «Mi cuenta»): los admins ponen roles especiales (colores, títulos, VIP por días) y se compran con el oro que se gana jugando. Nunca roles con permisos de staff.', en: '🛒 **Server shop** (`/shop` and “My account”): admins put up special roles (colours, titles, VIP for days) bought with gold earned by playing. Never roles with staff permissions.' },
@@ -329,9 +340,29 @@ function mensajeNovedades(version) {
     return texto.length <= 2000 ? texto : `${texto.slice(0, 1990)}…`;
 }
 
+// La 2.1.0 lleva también el repaso de la 2.0 (para que el aviso cuente TODO lo de este lanzamiento).
+NOVEDADES['2.1.0'].push(...NOVEDADES['2.0.0'].map((n) => ({ ...n, es: `↩️ ${n.es}`, en: `↩️ ${n.en}` })));
+
+// 2.0.1: el aviso entero, repartido en mensajes de menos de 2000 letras (cortando siempre entre novedades),
+// para que lleguen TODOS los cambios aunque sean muchos.
+function partesNovedades(version) {
+    const lista = NOVEDADES[version];
+    if (!lista || !lista.length) return null;
+    const partes = [];
+    let actual = [`🚀 **Sokyo se ha actualizado (v${version})**`, '', '**Novedades:**'];
+    for (const l of lista) {
+        const linea = `• ${textoDe(l)}`.slice(0, 1900);
+        if ([...actual, linea].join('\n').length > 1900) { partes.push(actual.join('\n')); actual = []; }
+        actual.push(linea);
+    }
+    actual.push('', '¡Gracias por usar Sokyo!');
+    partes.push(actual.join('\n'));
+    return partes;
+}
+
 // Para el panel y la página pública /novedades: [{ texto, tab }] en el idioma pedido.
 function novedadesDe(version, idioma = 'es') {
     return (NOVEDADES[version] || []).map((n) => ({ texto: textoDe(n, idioma), tab: typeof n === 'string' ? null : n.tab || null }));
 }
 
-module.exports = { NOVEDADES, mensajeNovedades, novedadesDe };
+module.exports = { NOVEDADES, mensajeNovedades, partesNovedades, novedadesDe };

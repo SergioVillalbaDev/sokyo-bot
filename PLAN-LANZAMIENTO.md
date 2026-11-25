@@ -64,3 +64,14 @@ errores, recorrido de las 343 rutas de la API con MongoDB y un Discord simulado,
   «Comunidad y diversión» deja dar acceso al panel a los moderadores sin que toquen el casino o los sorteos.
 - Riesgo conocido y aceptado: cuentas secundarias que juegan para pasar oro a la principal (pasa en todos los bots de
   economía). Lo frenan la comisión del mercado, los topes diarios y que la Liga entre servidores tiene tope por persona.
+
+## Segunda ronda (2.1.0)
+- [x] Simulador de Discord en el repo: todos los comandos y cientos de botones, como usuario nuevo y con oro: 0 fallos.
+- [x] Revisión del bot real en producción (5 servidores) con la clave de soporte: sanos; arreglado un aviso falso.
+- [x] Primera mascota el primer día (cofre de bienvenida) y configuración rápida que abre la tienda.
+- [x] Sentido de cada función de ocio y comunidad: todas cumplen un papel; ninguna sobra.
+- [x] Seguridad: subidas con tope, API cerrada sin clave, IP real tras Cloudflare, subidas sin ejecución, sin operadores
+      de MongoDB en las peticiones, librerías sin vulnerabilidades en el bot.
+- [x] Recorrido de las 74 secciones del panel, Mi cuenta y la portada (es/en, móvil/escritorio, todo apagado y encendido).
+- [x] Pagos de punta a punta (firma, mensual, único, renovación, impago, cancelación): arreglado el «de por vida».
+- [x] Web: FAQ de juegos y oro, datos para Google y tutorial de la tienda.

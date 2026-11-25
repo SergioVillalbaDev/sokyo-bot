@@ -16,6 +16,8 @@ const SERVIDOR = process.env.ANUNCIO_SERVIDOR ?? 'Tokyto';
 // Con novedades apuntadas para esta versión (utils/novedades.js) se mandan esas;
 // si no, el texto de ANUNCIO_MENSAJE o el genérico.
 const MENSAJE = mensajeNovedades(version) || process.env.ANUNCIO_MENSAJE || '🚀 **Bot actualizado**\nYa están disponibles las últimas mejoras. ¡Gracias por usar Sokyo!';
+// 2.0.1: si las novedades no caben en un mensaje, van en varios (partesNovedades).
+const MENSAJES = require('./novedades.js').partesNovedades(version) || [MENSAJE];
 // Mandar el mismo DM a muchísima gente es lo que Discord considera spam: por encima
 // de este número de miembros solo se publica en el canal general.
 const MAX_DMS = Number(process.env.ANUNCIO_MAX_DMS) || 250;
@@ -108,7 +110,7 @@ async function anunciarEnServidor(client, guild, pausaMs) {
         for (const miembro of humanos) {
             if (!(await quiereDM(miembro.id, 'anuncios'))) { noQuieren++; continue; }
             try {
-                await miembro.send({ content: MENSAJE, components: [fila] });
+                for (const [i, parte] of MENSAJES.entries()) await miembro.send({ content: parte, ...(i === MENSAJES.length - 1 ? { components: [fila] } : {}) });
                 enviados++;
             } catch {
                 fallidos++; // DMs cerrados o el usuario bloqueó al bot
@@ -123,7 +125,7 @@ async function anunciarEnServidor(client, guild, pausaMs) {
         const canal = canalGeneral(guild);
         if (canal) {
             try {
-                await canal.send({ content: MENSAJE, allowedMentions: { parse: [] } });
+                for (const parte of MENSAJES) await canal.send({ content: parte, allowedMentions: { parse: [] } });
                 publicadoEn = canal.name;
             } catch (error) {
                 console.warn(`📣 No se pudo publicar el aviso en #${canal.name}:`, error.message);
