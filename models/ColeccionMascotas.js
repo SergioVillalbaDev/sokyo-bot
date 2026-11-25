@@ -13,7 +13,7 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         id: String, estrellas: { type: Number, default: 1 }, primera: { type: Date, default: Date.now },
         hambre: Number, alegria: Number, energia: Number, actualizado: Date,
         afinidad: { type: Number, default: 0 }, apodo: String, ultMimo: Date,
-        exp: { tipo: String, desde: Date, hasta: Date },
+        exp: { tipo: String, desde: Date, hasta: Date, bonus: Number, grupo: String }, // 1.33.0: bonus y grupo (expedición en grupo)
         recuerdos: { type: [Number], default: [] },
         cuidados: { type: Number, default: 0 },
         cds: { type: Object, default: undefined }, // 1.21.0: cuándo se hizo cada interacción (para su espera)
@@ -21,6 +21,8 @@ const ColeccionMascotasSchema = new mongoose.Schema({
         variante: { type: String, default: undefined }, // 1.32.0: 'brillante' (colores raros, sale a veces en los cofres)
         acc: { type: String, default: undefined },      // 1.32.0: accesorio puesto (sprites.ACCESORIOS)
         gustos: { type: Object, default: undefined },   // 1.32.0: comida favorita/odiada ya descubiertas ({ favorita: true, odiada: true })
+        criaHasta: { type: Date, default: undefined },  // 1.33.0: descansa tras criar hasta esta fecha (guardería)
+        hijos: { type: Number, default: undefined },    // 1.33.0: huevos que ha tenido
         _id: false,
     }], default: [] },
     equipada: { type: String, default: null },
@@ -57,6 +59,11 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     intercambiosHoy: { dia: String, n: Number },
     armario: { type: [String], default: [] },                    // 1.32.0: accesorios comprados (para cualquiera de sus compañeros)
     mjHoy: { dia: String, n: Number },                          // 1.32.0: minijuegos premiados hoy
+    // 1.33.0: huevos de la guardería (uid, rareza que saldrá, padres, cuándo eclosiona y la suerte de brillar).
+    huevos: { type: [{ uid: String, rareza: String, padres: [String], listo: Date, creado: Date, brillo: Number, _id: false }], default: [] },
+    criados: { type: Number, default: 0 },
+    // 1.33.0: casa del compañero (utils/casa.js): muebles comprados, dónde está cada uno, papel y «me gusta».
+    casa: { muebles: { type: [String], default: undefined }, puestos: { type: Object, default: undefined }, papel: { type: String, default: undefined }, papeles: { type: [String], default: undefined }, likes: { type: Number, default: undefined }, likeDe: { type: Object, default: undefined } },
     cbt: { victorias: { type: Number, default: 0 }, torre: { type: Number, default: 0 }, jefe: { type: Number, default: 0 } }, // para los logros
     // 1.28.0 (utils/granja.js): granja (desde cuándo produce), oro sacado de ella, hitos del álbum
     // ya premiados («3», «5»… «todas») y misiones de la semana.

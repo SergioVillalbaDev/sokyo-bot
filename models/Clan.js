@@ -13,6 +13,13 @@ const ClanSchema = new mongoose.Schema({
     puntosSemana: { type: Number, default: 0 },
     puntosTotal: { type: Number, default: 0 },
     victorias: { type: Number, default: 0 },
+    // 1.33.0: guerra de clanes (utils/guerraClanes.js): rival de la semana, copas ganadas y combates contra el rival.
+    rivalId: { type: String, default: null },
+    guerraSemana: { type: String, default: null },
+    copas: { type: Number, default: 0 },
+    copaSemana: { type: String, default: null },
+    guerraCerrada: { type: String, default: null },
+    guerraCombates: { type: Number, default: 0 },
     creadoFecha: { type: Date, default: Date.now },
 });
 

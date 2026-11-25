@@ -98,3 +98,40 @@ test('accesorios: cada uno con su sitio y su precio; se dibujan en todas las for
 test('variante brillante: rara, y solo una vez por compañero', () => {
     assert.ok(K.PROB_BRILLANTE > 0 && K.PROB_BRILLANTE < 0.05);
 });
+
+// 1.33.0: guardería.
+test('guardería: quién puede criar, rareza del huevo y coste', () => {
+    const P = require('../utils/compisNucleo.js');
+    const K = require('../utils/cofresNucleo.js');
+    const ids = Object.keys(K.COMPANEROS);
+    const de = (r) => ids.find((id) => K.COMPANEROS[id].rareza === r);
+    const af = P.umbral(P.CRIA.nivel);
+    const a = { id: de('comun'), afinidad: af }; const b = { id: de('comun'), afinidad: af };
+    assert.equal(P.motivoNoCria({ id: de('comun'), afinidad: 0 }), 'nivel');
+    assert.equal(P.motivoNoCria(a), null);
+    assert.equal(P.motivoNoCria({ ...a, criaHasta: new Date(Date.now() + 1000) }), 'descansa');
+    assert.equal(P.motivoNoCria({ ...a, exp: { tipo: 'paseo', desde: new Date(), hasta: new Date(Date.now() + 3600000) } }), 'fuera');
+    assert.equal(P.rarezaCria(a, b, () => 0.99), 'comun');
+    assert.equal(P.rarezaCria(a, b, () => 0.01), 'rara');
+    // Una divina cuenta como mítica y de la cría nunca sale divina.
+    const div = { id: de('divina'), afinidad: af };
+    for (let i = 0; i < 50; i++) assert.equal(P.rarezaCria(div, a, Math.random), 'mitica');
+    assert.equal(P.costeCria(a, { id: de('legendaria') }), P.CRIA.coste.legendaria);
+    assert.equal(P.probBrillanteCria({ ...a, variante: 'brillante' }, b), P.CRIA.brillantePadre);
+});
+
+// 1.33.0: expediciones en grupo.
+test('expedición en grupo: más gente, más oro (hasta ×2) y no se mezclan con las de uno solo', () => {
+    const P = require('../utils/compisNucleo.js');
+    assert.equal(P.GRUPO.bonus(1), 1);
+    assert.equal(P.GRUPO.bonus(3), 1.4);
+    assert.equal(P.GRUPO.bonus(8), 2);
+    assert.equal(P.GRUPO.bonus(20), 2);
+    const m = { id: 'gato', afinidad: 0, exp: { tipo: 'cueva', hasta: new Date(0) } };
+    const solo = P.botin(m, () => 0).oro;
+    const grupo = P.botin({ ...m, exp: { ...m.exp, bonus: 1.6 } }, () => 0).oro;
+    assert.ok(grupo > solo * 1.5 && grupo <= solo * 1.61);
+    // Un bonus guardado de más no pasa de ×2.
+    assert.ok(P.botin({ ...m, exp: { ...m.exp, bonus: 9 } }, () => 0).oro <= solo * 2 + 1);
+    assert.ok(Object.values(P.EXPEDICIONES).filter((x) => x.grupo).length >= 3);
+});

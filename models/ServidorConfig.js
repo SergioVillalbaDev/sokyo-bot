@@ -805,6 +805,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalId: { type: String, default: null },           // anuncio del ganador de la semana
         premioOro: { type: Number, default: 100 },          // para cada miembro del clan ganador
         premioXp: { type: Number, default: 0 },
+        premioGuerra: { type: Number, default: 150 },       // 1.33.0: oro para cada miembro del clan que gana su guerra
         lastSemana: { type: String, default: '' },          // (interno) semana ISO ya cerrada
     },
     // Bromas de oro (1.14.0): los miembros pagan oro para gastarse bromas durante un
@@ -848,6 +849,10 @@ const ServidorConfigSchema = new mongoose.Schema({
             plinko: { type: Boolean, default: true },   // 1.32.0
             rueda: { type: Boolean, default: true },    // 1.32.0: rueda de la fortuna
             loteria: { type: Boolean, default: true },  // 1.32.0: lotería semanal
+            dados: { type: Boolean, default: true },    // 1.33.0: sic bo
+            baccarat: { type: Boolean, default: true }, // 1.33.0
+            bingo: { type: Boolean, default: true },    // 1.33.0: bingo del canal
+            poker: { type: Boolean, default: true },    // 1.33.0: Texas Hold'em
         },
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
         // Lobby (1.23.0, utils/casinoLobby.js): el mensaje fijo con el desplegable de juegos (interno).
@@ -1010,6 +1015,7 @@ const ServidorConfigSchema = new mongoose.Schema({
             listado: { type: Boolean, default: true },        // aparecer en el directorio
             mostrarRanking: { type: Boolean, default: false }, // top de niveles (nombres de miembros)
             mostrarEventos: { type: Boolean, default: true },
+            mostrarVitrina: { type: Boolean, default: true },   // 1.33.0: vitrina de compañeros, coleccionistas y clanes
             canalInvitacionId: { type: String, default: null }, // canal de la invitación que crea el bot
             invitacionCodigo: { type: String, default: null },
             visitas: { type: Number, default: 0 },

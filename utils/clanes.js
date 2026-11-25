@@ -118,6 +118,13 @@ async function cerrarSemana(client, cfg, semanaCerrada) {
     const c = cfg.clanes;
     const [ganador] = await Clan.find({ guildId: cfg.guildId, puntosSemana: { $gt: 0 } }).sort({ puntosSemana: -1 }).limit(1);
     const top = await ranking(cfg.guildId, 5);
+    // 1.33.0: las guerras de la semana se resuelven antes de poner los puntos a cero.
+    const guerras = await require('./guerraClanes.js').cerrarGuerras(cfg, semanaCerrada).catch((e) => { console.error('Guerras de clanes:', e.message); return []; });
+    if (guerras.length && !ganador) {
+        const guild = client.guilds.cache.get(cfg.guildId);
+        const canal = guild && c.canalId ? guild.channels.cache.get(c.canalId) : null;
+        if (canal?.isTextBased()) await canal.send({ content: [t(cfg, '⚔️ **Guerras de clanes de la semana**', '⚔️ **This week’s clan wars**'), ...guerras].join('\n').slice(0, 2000), allowedMentions: { parse: [] } }).catch(() => {});
+    }
     if (ganador) {
         await Clan.updateOne({ _id: ganador._id }, { $inc: { victorias: 1 } });
         const guild = client.guilds.cache.get(cfg.guildId);
@@ -134,7 +141,7 @@ async function cerrarSemana(client, cfg, semanaCerrada) {
                 content: t(cfg,
                     `🏆 **${ganador.emoji} ${ganador.nombre}** gana la semana con **${ganador.puntosSemana.toLocaleString('es-ES')}** puntos.${premio ? ` Cada miembro se lleva ${premio}.` : ''} ¡Enhorabuena! ${ganador.miembros.map((m) => `<@${m}>`).join(' ')}`,
                     `🏆 **${ganador.emoji} ${ganador.nombre}** wins the week with **${ganador.puntosSemana.toLocaleString('en-US')}** points.${premio ? ` Each member gets ${premio}.` : ''} Congrats! ${ganador.miembros.map((m) => `<@${m}>`).join(' ')}`).slice(0, 2000),
-                embeds: [embedRanking(top, cfg, t(cfg, `🛡️ Clasificación final · ${semanaCerrada}`, `🛡️ Final standings · ${semanaCerrada}`))],
+                embeds: [embedRanking(top, cfg, t(cfg, `🛡️ Clasificación final · ${semanaCerrada}`, `🛡️ Final standings · ${semanaCerrada}`)), ...(guerras.length ? [new EmbedBuilder().setColor('#b91c1c').setTitle(t(cfg, '⚔️ Guerras de clanes', '⚔️ Clan wars')).setDescription(guerras.join('\n').slice(0, 4000))] : [])],
                 allowedMentions: { users: ganador.miembros.slice(0, 50) },
             }).catch(() => {});
         }
@@ -148,8 +155,10 @@ async function barrerClanes(client) {
     for (const cfg of cfgs) {
         const antes = cfg.clanes.lastSemana;
         const r = await ServidorConfig.updateOne({ guildId: cfg.guildId, 'clanes.lastSemana': antes }, { $set: { 'clanes.lastSemana': semana } });
-        if (!r.modifiedCount || !antes) continue; // la primera vez solo se apunta la semana
-        try { await cerrarSemana(client, cfg, antes); } catch (e) { console.error(`Clanes ${cfg.guildId}:`, e.message); }
+        if (!r.modifiedCount) continue;
+        // La primera vez solo se apunta la semana (y se emparejan las guerras).
+        if (antes) { try { await cerrarSemana(client, cfg, antes); } catch (e) { console.error(`Clanes ${cfg.guildId}:`, e.message); } }
+        await require('./guerraClanes.js').emparejarServidor(cfg.guildId, semana).catch((e) => console.error(`Guerras ${cfg.guildId}:`, e.message));
     }
 }
 

@@ -283,6 +283,9 @@ async function premiosPvP(p, g, pierde) {
         const antes = C.rangoDe(pg.elo); const ahora = C.rangoDe(r.a);
         lineas.push(t(idioma, `📈 <@${uG}> +${r.cambio} ELO (${r.a}) · 📉 <@${uP}> −${r.cambio} ELO (${r.b})`, `📈 <@${uG}> +${r.cambio} ELO (${r.a}) · 📉 <@${uP}> −${r.cambio} ELO (${r.b})`));
         if (ahora.desde > antes.desde) lineas.push(t(idioma, `🎖️ **¡<@${uG}> sube a ${ahora.emoji} ${ahora.es}!**`, `🎖️ **<@${uG}> ranks up to ${ahora.emoji} ${ahora.en}!**`));
+        // 1.33.0: si sois de clanes rivales esta semana, suma para la guerra.
+        const guerra = await require('./guerraClanes.js').combate(p.guildId, uG, uP, idioma).catch(() => null);
+        if (guerra) lineas.push(guerra);
     } else lineas.push(t(idioma, '*Ya habéis combatido mucho hoy entre vosotros: este no cuenta para la clasificación.*', '*You two have fought a lot today: this one doesn’t count for the ranking.*'));
     if (rachaG >= 3) lineas.push(t(idioma, `🔥 <@${uG}> lleva **${rachaG} victorias seguidas**.`, `🔥 <@${uG}> is on a **${rachaG}-win streak**.`));
     const eco = require('./economia.js').en(p.guildId);

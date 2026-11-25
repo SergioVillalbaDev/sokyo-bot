@@ -62,6 +62,205 @@ async function rueda({ interaction, client, cfg, idioma, cantidad, numero = 1 })
 }
 
 // ---------------------------------------------------------------------------
+// 🎲 Dados (sic bo, 1.33.0)
+// ---------------------------------------------------------------------------
+const NOMBRES_DADOS = {
+    grande: ['🔺', 'Grande (11-17)', 'Big (11-17)', '×2'], pequeno: ['🔻', 'Pequeño (4-10)', 'Small (4-10)', '×2'],
+    par: ['2️⃣', 'Par', 'Even', '×2'], impar: ['1️⃣', 'Impar', 'Odd', '×2'],
+    trio: ['🎯', 'Trío (tres iguales)', 'Triple (three of a kind)', `×${C.TRIO_PAGO}`], numero: ['🎲', 'Número', 'Number', '×2 · ×3 · ×13'],
+};
+const nombreDados = (apuesta, numero, idioma) => (apuesta === 'numero' ? t(idioma, `Al ${numero}`, `On ${numero}`) : t(idioma, NOMBRES_DADOS[apuesta][1], NOMBRES_DADOS[apuesta][2]));
+async function dados({ interaction, client, cfg, idioma, cantidad, apuesta = 'grande', numero = null }) {
+    if (!C.APUESTAS_DADOS.includes(apuesta)) apuesta = 'grande';
+    if (apuesta === 'numero' && !(numero >= 1 && numero <= 6)) return { error: t(idioma, 'Para apostar a un número, elige cuál en «numero» (1-6).', 'To bet on a number, pick it in “number” (1-6).') };
+    const K = casino();
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'dados', cantidad });
+    if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
+    const tirada = C.tirarDados();
+    const mult = C.pagoDados(apuesta, numero, tirada);
+    const premio = Math.floor(a.jugada.apuesta * mult);
+    const { vuelta } = await K.cobrarJugada(null, cfg, a.jugada, premio, { apuesta, numero, dados: tirada });
+    const saldo = await K.saldoDe(interaction.guildId, interaction.user.id);
+    const etiqueta = `${nombreDados(apuesta, numero, idioma)} · ${NOMBRES_DADOS[apuesta][3]}`.toUpperCase();
+    const gif = await A.gifDados({ dados: tirada, etiqueta, res: { premio, apuesta: a.jugada.apuesta, idioma, saldo, vuelta } }).catch((e) => { console.warn('GIF dados:', e.message); return null; });
+    const caras = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const linea = `${tirada.map((d) => caras[d - 1]).join(' ')} = **${tirada.reduce((x1, y) => x1 + y, 0)}** · ${K.masMenos(premio, a.jugada.apuesta, idioma)}`;
+    const e = new EmbedBuilder().setColor(premio > a.jugada.apuesta ? '#16a34a' : '#7f1d1d').setTitle(`🎲 ${t(idioma, 'Dados', 'Dice')} · ${NOMBRES_DADOS[apuesta][0]} ${nombreDados(apuesta, numero, idioma)} · 🪙 ${fmt(a.jugada.apuesta, idioma)}`)
+        .setFooter({ text: K.pieSaldo(idioma, saldo, vuelta) });
+    if (gif) e.setImage('attachment://dados.gif').setDescription(K.oculto(linea)); else e.setDescription(linea);
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'dados.gif' })] : [], components: [K.filaOtraVez('dados', a.jugada.apuesta, idioma, apuesta === 'numero' ? `numero-${numero}` : apuesta)], allowedMentions: { parse: [] } });
+    K.anunciarDespues(gif ? 2600 : 0, client, cfg, a.jugada, premio);
+    return { ok: true, premio };
+}
+
+// ---------------------------------------------------------------------------
+// 🂠 Baccarat (1.33.0)
+// ---------------------------------------------------------------------------
+const NOMBRES_BACCARAT = { jugador: ['🔵', 'Jugador', 'Player', '×2'], banca: ['🔴', 'Banca', 'Banker', '×1,95'], empate: ['🟢', 'Empate', 'Tie', '×9'] };
+async function baccarat({ interaction, client, cfg, idioma, cantidad, apuesta = 'jugador' }) {
+    if (!C.APUESTAS_BACCARAT[apuesta]) apuesta = 'jugador';
+    const K = casino();
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'baccarat', cantidad });
+    if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
+    const r = C.repartirBaccarat(C.baraja(undefined, 8));
+    const mult = C.pagoBaccarat(apuesta, r.ganador);
+    const premio = Math.floor(a.jugada.apuesta * mult);
+    const { vuelta } = await K.cobrarJugada(null, cfg, a.jugada, premio, { apuesta, jugador: r.jugador, banca: r.banca, ganador: r.ganador });
+    const saldo = await K.saldoDe(interaction.guildId, interaction.user.id);
+    const textos = { jugador: t(idioma, 'JUGADOR', 'PLAYER'), banca: t(idioma, 'BANCA', 'BANKER'), empate: t(idioma, 'EMPATE', 'TIE'), ganaJugador: t(idioma, 'GANA EL JUGADOR', 'PLAYER WINS'), ganaBanca: t(idioma, 'GANA LA BANCA', 'BANKER WINS') };
+    const gif = await A.gifBaccarat({ ...r, apuesta, textos, res: { premio, apuesta: a.jugada.apuesta, idioma, saldo, vuelta } }).catch((e) => { console.warn('GIF baccarat:', e.message); return null; });
+    const linea = `${textos.jugador} **${r.pj}** · ${textos.banca} **${r.pb}** → ${r.ganador === 'empate' ? textos.empate : r.ganador === 'jugador' ? textos.ganaJugador : textos.ganaBanca} · ${K.masMenos(premio, a.jugada.apuesta, idioma)}`;
+    const n = NOMBRES_BACCARAT[apuesta];
+    const e = new EmbedBuilder().setColor('#1e3a8a').setTitle(`🂠 Baccarat · ${n[0]} ${t(idioma, n[1], n[2])} (${idioma === 'en' ? n[3].replace(',', '.') : n[3]}) · 🪙 ${fmt(a.jugada.apuesta, idioma)}`)
+        .setFooter({ text: K.pieSaldo(idioma, saldo, vuelta) });
+    if (gif) e.setImage('attachment://baccarat.gif').setDescription(K.oculto(linea)); else e.setDescription(linea);
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'baccarat.gif' })] : [], components: [K.filaOtraVez('baccarat', a.jugada.apuesta, idioma, apuesta)], allowedMentions: { parse: [] } });
+    K.anunciarDespues(gif ? 3500 : 0, client, cfg, a.jugada, premio);
+    return { ok: true, premio };
+}
+
+// ---------------------------------------------------------------------------
+// 🎱 Bingo del canal (1.33.0): BINGO_VENTA_MS para comprar cartones (cas_bg:<id>:<n>), luego salen bolas
+// (3 cada BINGO_PASO_MS) hasta que alguien canta bingo. «🎫 Mis cartones» (cas_bgv:<id>) los enseña en
+// privado con lo que ya ha salido. Línea = LINEA_BINGO del bote; bingo = el resto. Ediciones en fila.
+// ---------------------------------------------------------------------------
+const BINGO_VENTA_MS = 45000;
+const BINGO_PASO_MS = Number(process.env.BINGO_PASO_MS) || 3000;
+const BOLAS_POR_PASO = 3;
+const bingos = new Map(); // canalId → partida
+const cartonesDe = (b, userId) => b.cartones.filter((c) => c.userId === userId);
+function vistaBingo(b, idioma, { salidas = [], estado = 'venta', lineas = [] } = {}) {
+    const jugadores = [...new Set(b.cartones.map((c) => c.userId))];
+    const vendido = b.cartones.length * b.precio;
+    const cab = estado === 'venta'
+        ? t(idioma, `**¡Compra tus cartones!** Cada uno cuesta 🪙 ${fmt(b.precio, idioma)} (hasta ${C.MAX_CARTONES}). Empieza <t:${Math.floor(b.empieza / 1000)}:R>.\nLas bolas salen solas y tus cartones se tachan solos: 🟩 **línea** = ${Math.round(C.LINEA_BINGO * 100)} % del bote · 🎉 **bingo** (cartón entero) = el resto.`, `**Buy your cards!** Each costs 🪙 ${fmt(b.precio, idioma)} (up to ${C.MAX_CARTONES}). Starts <t:${Math.floor(b.empieza / 1000)}:R>.\nBalls are drawn automatically and your cards mark themselves: 🟩 **line** = ${Math.round(C.LINEA_BINGO * 100)}% of the pot · 🎉 **bingo** (full card) = the rest.`)
+        : estado === 'juega' ? t(idioma, `Bola **${salidas.length}** de ${C.BOLAS_BINGO}`, `Ball **${salidas.length}** of ${C.BOLAS_BINGO}`)
+            : t(idioma, '🏁 **¡Bingo terminado!**', '🏁 **Bingo over!**');
+    const e = new EmbedBuilder().setColor(estado === 'fin' ? '#16a34a' : '#4338ca').setTitle(t(idioma, `🎱 Bingo · bote 🪙 ${fmt(C.boteBingo(vendido), idioma)}`, `🎱 Bingo · pot 🪙 ${fmt(C.boteBingo(vendido), idioma)}`))
+        .setDescription([cab, '', ...lineas, lineas.length ? '' : null,
+            jugadores.length ? jugadores.map((u) => `🎫 <@${u}> ×${cartonesDe(b, u).length}`).join(' · ') : t(idioma, '*Aún no ha comprado nadie.*', '*Nobody has bought yet.*')].filter((l) => l !== null).join('\n').slice(0, 4000));
+    const comps = [];
+    if (estado === 'venta') {
+        comps.push(new ActionRowBuilder().addComponents(
+            ...[1, 2, 4].filter((n) => n === 1 || b.precio * n <= (b.cfg.casino?.apuestaMax ?? 5000)).map((n) => new ButtonBuilder().setCustomId(`cas_bg:${b.id}:${n}`).setEmoji('🎫').setStyle(n === 1 ? ButtonStyle.Success : ButtonStyle.Primary).setLabel(t(idioma, `${n} ${n === 1 ? 'cartón' : 'cartones'} (🪙 ${fmt(b.precio * n, idioma)})`, `${n} card${n === 1 ? '' : 's'} (🪙 ${fmt(b.precio * n, idioma)})`))),
+            new ButtonBuilder().setCustomId(`cas_bgv:${b.id}`).setEmoji('👀').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mis cartones', 'My cards'))));
+    } else if (estado === 'juega') {
+        comps.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_bgv:${b.id}`).setEmoji('👀').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mis cartones', 'My cards'))));
+    }
+    const png = estado === 'venta' ? null : A.tableroBingo({ salidas, total: C.BOLAS_BINGO, titulo: '🎱 BINGO', sub: estado === 'fin' ? t(idioma, `Terminado en la bola ${salidas.length}`, `Finished on ball ${salidas.length}`) : t(idioma, `Bola ${salidas.length}`, `Ball ${salidas.length}`) });
+    if (png) e.setImage('attachment://bingo.png');
+    return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'bingo.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
+}
+async function bingo({ interaction, client, cfg, idioma, cantidad }) {
+    const c = cfg?.casino; const K = casino();
+    if (!c?.activo) return { error: K.textoFallo({ fallo: 'apagado' }, idioma) };
+    if (c.juegos?.bingo === false) return { error: K.textoFallo({ fallo: 'juego' }, idioma) };
+    if (c.canalId && c.canalId !== interaction.channelId) return { error: K.textoFallo({ fallo: 'canal' }, idioma, c) };
+    if (bingos.has(interaction.channelId)) return { error: t(idioma, 'Ya hay un bingo en este canal: ¡compra cartones en ese!', 'There’s already a bingo in this channel: buy cards in that one!') };
+    // El precio del cartón tiene que valer como apuesta en este servidor (mínimo y máximo).
+    const ok = C.comprobarApuesta(cantidad || Math.min(c.apuestaMax ?? 5000, Math.max(c.apuestaMin ?? 10, 100)), { ...c, limiteDiario: 0 }, {});
+    if (ok.fallo) return { error: K.textoFallo(ok, idioma, c) };
+    const precio = ok.cantidad;
+    const b = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, precio, empieza: Date.now() + BINGO_VENTA_MS, cartones: [], jugadas: new Map(), cfg, idioma, interaction, estado: 'venta' };
+    bingos.set(interaction.channelId, b);
+    await interaction.editReply(vistaBingo(b, idioma));
+    setTimeout(() => jugarBingoCanal(client, b).catch((e) => { console.error('Bingo:', e.message); bingos.delete(b.canalId); }), BINGO_VENTA_MS);
+    return { ok: true };
+}
+async function comprarCartones(interaction, client) {
+    const [, id, nTxt] = interaction.customId.split(':');
+    const b = [...bingos.values()].find((y) => y.id === id);
+    const idioma = b?.idioma || 'es'; const K = casino();
+    if (!b || b.estado !== 'venta') return interaction.reply({ content: t(idioma, '⌛ La venta de cartones ya ha cerrado.', '⌛ Card sales are closed.'), flags: 64 });
+    if (b.comprando?.has(interaction.user.id)) return interaction.deferUpdate().catch(() => {});
+    const tiene = cartonesDe(b, interaction.user.id).length;
+    // Los que caben en la apuesta máxima del servidor (se cobran de una vez).
+    const caben = Math.max(1, Math.floor((b.cfg.casino?.apuestaMax ?? 5000) / b.precio));
+    const n = Math.min(parseInt(nTxt, 10) || 1, C.MAX_CARTONES - tiene, caben);
+    if (n <= 0) return interaction.reply({ content: t(idioma, `Ya tienes ${C.MAX_CARTONES} cartones: es el máximo.`, `You already have ${C.MAX_CARTONES} cards: that’s the max.`), flags: 64 });
+    b.comprando = b.comprando || new Set(); b.comprando.add(interaction.user.id);
+    try {
+        const a = await K.apostar({ guildId: b.guildId, canalId: b.canalId, userId: interaction.user.id, cfg: b.cfg, juego: 'bingo', cantidad: b.precio * n });
+        if (a.fallo) return interaction.reply({ content: K.textoFallo(a, idioma, b.cfg.casino), flags: 64 });
+        if (b.estado !== 'venta') {
+            await K.devolverJugada(a.jugada).catch(() => {});
+            return interaction.reply({ content: t(idioma, '⌛ Ya había empezado: te devolvemos el oro.', '⌛ It had already started: your gold is refunded.'), flags: 64 });
+        }
+        // Si apostar ajustó la cantidad (p. ej. por el máximo), solo se dan los cartones que se han pagado.
+        const pagados = Math.floor(a.jugada.apuesta / b.precio);
+        const sobra = a.jugada.apuesta - pagados * b.precio;
+        if (sobra > 0) await require('./economia.js').en(b.guildId).darOro(interaction.user.id, sobra);
+        const lista = b.jugadas.get(interaction.user.id) || [];
+        lista.push(a.jugada); b.jugadas.set(interaction.user.id, lista);
+        for (let i = 0; i < pagados; i++) b.cartones.push({ id: `${interaction.user.id}:${b.cartones.length}`, userId: interaction.user.id, filas: C.cartonBingo() });
+        await interaction.reply({ ...verCartones(b, interaction.user.id, idioma, [], t(idioma, `✅ Tienes **${tiene + pagados}** ${tiene + pagados === 1 ? 'cartón' : 'cartones'}. ¡Suerte!`, `✅ You have **${tiene + pagados}** card${tiene + pagados === 1 ? '' : 's'}. Good luck!`)), flags: 64 });
+        await K.editarEnFila(b, () => (b.estado === 'venta' ? vistaBingo(b, idioma) : null));
+    } finally { b.comprando.delete(interaction.user.id); }
+    return undefined;
+}
+function verCartones(b, userId, idioma, salidas, texto = '') {
+    const mios = cartonesDe(b, userId);
+    if (!mios.length) return { content: t(idioma, 'No tienes cartones en este bingo.', 'You have no cards in this bingo.') };
+    const png = A.cartonesBingo({ cartones: mios, salidas, titulo: t(idioma, `Tus cartones · ${salidas.length} bolas`, `Your cards · ${salidas.length} balls`) });
+    if (!png) return { content: `${texto}\n${mios.map((c, i) => `#${i + 1}: ${c.filas.map((f) => f.map((n) => (salidas.includes(n) ? `~~${n}~~` : n)).join(' ')).join(' | ')}`).join('\n')}` };
+    return { content: texto || undefined, files: [new AttachmentBuilder(png, { name: 'cartones.png' })] };
+}
+async function jugarBingoCanal(client, b) {
+    const K = casino(); const idioma = b.idioma;
+    b.estado = 'juega';
+    if (!b.cartones.length) {
+        bingos.delete(b.canalId);
+        await K.editarEnFila(b, () => ({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🎱 Nadie ha comprado cartones: bingo cancelado.', '🎱 Nobody bought cards: bingo cancelled.'))], components: [], files: [], attachments: [] }));
+        return;
+    }
+    const bolas = C.bolasBingo();
+    const res = C.jugarBingo(b.cartones, bolas);
+    const dueño = (id) => b.cartones.find((c) => c.id === id).userId;
+    const quien = (ids) => [...new Set(ids.map(dueño))].map((u) => `<@${u}>`).join(', ');
+    const vendido = b.cartones.length * b.precio;
+    const premios = C.repartoBingo(vendido, res);
+    const bote = C.boteBingo(vendido);
+    const lineaTxt = () => t(idioma, `🟩 **¡Línea!** ${quien(res.linea.ganadores)} · 🪙 ${fmt(Math.floor(bote * C.LINEA_BINGO), idioma)}`, `🟩 **Line!** ${quien(res.linea.ganadores)} · 🪙 ${fmt(Math.floor(bote * C.LINEA_BINGO), idioma)}`);
+    const fin = res.bingo.bola + 1;
+    for (let n = BOLAS_POR_PASO; n < fin + BOLAS_POR_PASO; n += BOLAS_POR_PASO) {
+        const hasta = Math.min(n, fin);
+        b.salidas = bolas.slice(0, hasta);
+        if (hasta >= fin) break;
+        const lineas = res.linea && res.linea.bola < hasta ? [lineaTxt()] : [];
+        const salidas = b.salidas;
+        K.editarEnFila(b, () => vistaBingo(b, idioma, { salidas, estado: 'juega', lineas }));
+        await new Promise((r) => setTimeout(r, BINGO_PASO_MS));
+    }
+    // Se cobra todo y luego se enseña el final.
+    b.estado = 'fin';
+    bingos.delete(b.canalId);
+    const porPersona = {};
+    for (const [id, oro] of Object.entries(premios)) { const u = dueño(id); porPersona[u] = (porPersona[u] || 0) + oro; }
+    for (const [u, jugadas] of b.jugadas) {
+        let premio = porPersona[u] || 0;
+        for (const j of jugadas) {
+            // El premio va a la primera jugada de cada persona; las demás quedan en 0.
+            await K.cobrarJugada(client, b.cfg, j, premio, { bingo: true, cartones: cartonesDe(b, u).length }).catch(() => {});
+            premio = 0;
+        }
+    }
+    const lineas = [res.linea ? lineaTxt() : null, t(idioma, `🎉 **¡BINGO!** ${quien(res.bingo.ganadores)} · 🪙 ${fmt(bote - Math.floor(bote * C.LINEA_BINGO), idioma)}`, `🎉 **BINGO!** ${quien(res.bingo.ganadores)} · 🪙 ${fmt(bote - Math.floor(bote * C.LINEA_BINGO), idioma)}`)].filter(Boolean);
+    const salidas = bolas.slice(0, fin);
+    await K.editarEnFila(b, () => ({ ...vistaBingo(b, idioma, { salidas, estado: 'fin', lineas }), allowedMentions: { users: Object.keys(porPersona) } }));
+    // Los premios gordos (bote grande) se anuncian como los demás.
+    for (const [u, oro] of Object.entries(porPersona)) { const j = b.jugadas.get(u)?.[0]; if (j) K.anunciarDespues(0, client, b.cfg, { ...j.toObject?.() || j, apuesta: jugadasTotal(b, u) }, oro); }
+}
+const jugadasTotal = (b, u) => (b.jugadas.get(u) || []).reduce((a, j) => a + j.apuesta, 0);
+async function botonVerCartones(interaction) {
+    const id = interaction.customId.split(':')[1];
+    const b = [...bingos.values()].find((y) => y.id === id);
+    const { idiomaInteraccion } = require('./preferencias.js');
+    const idioma = await idiomaInteraccion(interaction, null).catch(() => b?.idioma || 'es');
+    if (!b) return interaction.reply({ content: t(idioma, '⌛ Este bingo ya ha terminado.', '⌛ This bingo is over.'), flags: 64 });
+    return interaction.reply({ ...verCartones(b, interaction.user.id, idioma, b.salidas || []), flags: 64 });
+}
+
+// ---------------------------------------------------------------------------
 // 🎡 Ruleta en mesa (todo el canal, una tirada)
 // ---------------------------------------------------------------------------
 const MESA_MS = 30000;
@@ -120,7 +319,7 @@ async function modalMesa(interaction, client) {
     const a = await K.apostar({ guildId: m.guildId, canalId: m.canalId, userId: interaction.user.id, cfg: m.cfg, juego: 'ruleta', cantidad });
     if (a.fallo) { m.apuestas.delete(interaction.user.id); return interaction.reply({ content: K.textoFallo(a, idioma, m.cfg.casino), flags: 64 }); }
     if (m.girando || !mesas.has(m.canalId)) {
-        await K.cobrarJugada(client, m.cfg, a.jugada, a.jugada.apuesta, { mesa: 'tarde' }).catch(() => {});
+        await K.devolverJugada(a.jugada).catch(() => {});
         return interaction.reply({ content: t(idioma, '⌛ Ya estaba girando: te devolvemos el oro.', '⌛ It was already spinning: your gold is refunded.'), flags: 64 });
     }
     m.apuestas.set(interaction.user.id, { userId: interaction.user.id, apuesta, cantidad: a.jugada.apuesta, jugada: a.jugada });
@@ -149,6 +348,116 @@ async function girarMesa(client, m) {
     v.embeds[0].setDescription(`${t(idioma, 'Ha salido', 'It landed on')} ${K.oculto(`${color} **${sale}**`)}\n\n${K.oculto(lineas.join('\n'))}`).setFooter(null);
     if (gif) v.embeds[0].setImage('attachment://ruleta.gif');
     await K.editarEnFila(m, () => ({ ...v, files: gif ? [new AttachmentBuilder(gif, { name: 'ruleta.gif' })] : [], attachments: [] }));
+}
+
+// ---------------------------------------------------------------------------
+// 🚀 Cohete del canal (crash compartido, 1.33.0): 20 s para subirse (cas_ck:<id> → ventana con la
+// cantidad y, si quieres, retiro automático), luego UN cohete para todos; cada uno se retira cuando
+// quiere con «🪂 Retirarme» (cas_ckr:<id>). Al explotar, quien siga dentro pierde. Ediciones en fila.
+// ---------------------------------------------------------------------------
+const COHETE_MS = 20000;
+const cohetes = new Map(); // canalId → cohete
+function vistaCohete(k, idioma, { mult = 1, estado = 'apuestas' } = {}) {
+    const lista = [...k.jugadores.values()].filter((j) => j.jugada);
+    const fila = (j) => {
+        if (j.cobradoEn) return `🪂 <@${j.userId}> ×${x(j.cobradoEn.toFixed(2))} → **+🪙 ${fmt(j.premio, idioma)}**`;
+        if (estado === 'boom') return `💥 <@${j.userId}> −🪙 ${fmt(j.cantidad, idioma)}`;
+        return `🚀 <@${j.userId}> · 🪙 ${fmt(j.cantidad, idioma)}${j.auto ? ` · 🎯 ×${x(j.auto)}` : ''}${estado === 'vuela' ? ` → 🪙 ${fmt(Math.floor(j.cantidad * mult), idioma)}` : ''}`;
+    };
+    const cab = estado === 'apuestas' ? t(idioma, `**¡Súbete al cohete!** Sale <t:${Math.floor(k.sale / 1000)}:R>. Cada uno se retira cuando quiere; si explota antes, pierde.`, `**Hop on the rocket!** Launching <t:${Math.floor(k.sale / 1000)}:R>. Everyone cashes out when they want; if it blows up first, they lose.`)
+        : estado === 'vuela' ? `# 🚀 ×${x(mult.toFixed(2))}` : `# 💥 ×${x(k.punto.toFixed(2))}`;
+    const e = new EmbedBuilder().setColor(estado === 'boom' ? '#7f1d1d' : estado === 'vuela' ? '#0ea5e9' : '#7c3aed').setTitle(t(idioma, '🚀 Cohete del canal', '🚀 Channel rocket'))
+        .setDescription([cab, '', lista.length ? lista.map(fila).join('\n') : t(idioma, '*Aún no se ha subido nadie.*', '*Nobody on board yet.*')].join('\n').slice(0, 4000));
+    const comps = estado === 'apuestas'
+        ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_ck:${k.id}`).setEmoji('🚀').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Subirme', 'Hop on')))]
+        : estado === 'vuela' ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_ckr:${k.id}`).setEmoji('🪂').setStyle(ButtonStyle.Danger).setLabel(t(idioma, 'Retirarme', 'Cash out')))] : [];
+    return { embeds: [e], components: comps, allowedMentions: { parse: [] } };
+}
+async function cohete({ interaction, client, cfg, idioma }) {
+    const c = cfg?.casino; const K = casino();
+    if (!c?.activo) return { error: K.textoFallo({ fallo: 'apagado' }, idioma) };
+    if (c.juegos?.crash === false) return { error: K.textoFallo({ fallo: 'juego' }, idioma) };
+    if (c.canalId && c.canalId !== interaction.channelId) return { error: K.textoFallo({ fallo: 'canal' }, idioma, c) };
+    if (cohetes.has(interaction.channelId)) return { error: t(idioma, 'Ya hay un cohete en este canal: ¡súbete a ese!', 'There’s already a rocket in this channel: hop on that one!') };
+    const k = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, sale: Date.now() + COHETE_MS, jugadores: new Map(), cfg, idioma, interaction, estado: 'apuestas' };
+    cohetes.set(interaction.channelId, k);
+    await interaction.editReply(vistaCohete(k, idioma));
+    setTimeout(() => despegar(client, k).catch((e) => { console.error('Cohete:', e.message); cohetes.delete(k.canalId); }), COHETE_MS);
+    return { ok: true };
+}
+async function botonCohete(interaction) {
+    const id = interaction.customId.split(':')[1];
+    const k = [...cohetes.values()].find((y) => y.id === id);
+    const idioma = k?.idioma || 'es';
+    if (!k || k.estado !== 'apuestas') return interaction.reply({ content: t(idioma, '⌛ El cohete ya ha salido.', '⌛ The rocket has already launched.'), flags: 64 });
+    if (k.jugadores.has(interaction.user.id)) return interaction.reply({ content: t(idioma, 'Ya estás dentro de este cohete.', 'You’re already on this rocket.'), flags: 64 });
+    return interaction.showModal(new ModalBuilder().setCustomId(`cas_ckm:${id}`).setTitle(t(idioma, '🚀 Subirme al cohete', '🚀 Hop on the rocket')).addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('cantidad').setLabel(t(idioma, 'Cuánto oro', 'How much gold')).setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(9)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('auto').setLabel(t(idioma, 'Retiro automático en ×… (opcional, p. ej. 2)', 'Auto cash-out at ×… (optional, e.g. 2)')).setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(6)),
+    ));
+}
+async function modalCohete(interaction, client) {
+    const id = interaction.customId.split(':')[1];
+    const k = [...cohetes.values()].find((y) => y.id === id);
+    const idioma = k?.idioma || 'es'; const K = casino();
+    if (!k || k.estado !== 'apuestas') return interaction.reply({ content: t(idioma, '⌛ El cohete ya ha salido.', '⌛ The rocket has already launched.'), flags: 64 });
+    if (k.jugadores.has(interaction.user.id)) return interaction.reply({ content: t(idioma, 'Ya estás dentro de este cohete.', 'You’re already on this rocket.'), flags: 64 });
+    const cantidad = parseInt(interaction.fields.getTextInputValue('cantidad').replace(/\D/g, ''), 10);
+    const autoTxt = String(interaction.fields.getTextInputValue('auto') || '').replace(',', '.').replace(/[^\d.]/g, '');
+    const auto = autoTxt ? Math.round(Math.min(100, Math.max(1.01, parseFloat(autoTxt) || 0)) * 100) / 100 : null;
+    k.jugadores.set(interaction.user.id, { userId: interaction.user.id, cantidad: 0, jugada: null }); // reserva
+    const a = await K.apostar({ guildId: k.guildId, canalId: k.canalId, userId: interaction.user.id, cfg: k.cfg, juego: 'crash', cantidad });
+    if (a.fallo) { k.jugadores.delete(interaction.user.id); return interaction.reply({ content: K.textoFallo(a, idioma, k.cfg.casino), flags: 64 }); }
+    if (k.estado !== 'apuestas') {
+        await K.devolverJugada(a.jugada).catch(() => {});
+        return interaction.reply({ content: t(idioma, '⌛ Ya había salido: te devolvemos el oro.', '⌛ It had already launched: your gold is refunded.'), flags: 64 });
+    }
+    k.jugadores.set(interaction.user.id, { userId: interaction.user.id, cantidad: a.jugada.apuesta, jugada: a.jugada, auto });
+    await interaction.reply({ content: t(idioma, `🚀 ¡Dentro! 🪙 ${fmt(a.jugada.apuesta, idioma)}${auto ? ` · te bajas solo en ×${x(auto)}` : ''}. Pulsa «🪂 Retirarme» cuando quieras.`, `🚀 You’re in! 🪙 ${fmt(a.jugada.apuesta, idioma)}${auto ? ` · auto cash-out at ×${auto}` : ''}. Press “🪂 Cash out” whenever you want.`), flags: 64 });
+    await K.editarEnFila(k, () => (k.estado === 'apuestas' ? vistaCohete(k, idioma) : null));
+}
+async function retirarCohete(client, k, j, multFijo = null) {
+    if (j.cobradoEn || j.cerrado) return false;
+    const mult = multFijo ?? C.multCrash((Date.now() - k.inicio) / 1000);
+    if (mult >= k.punto) return false;
+    j.cerrado = true; j.cobradoEn = mult; j.premio = Math.floor(j.cantidad * mult);
+    await casino().cobrarJugada(client, k.cfg, j.jugada, j.premio, { punto: k.punto, cobrado: mult, cohete: true });
+    return true;
+}
+async function botonRetirarCohete(interaction, client) {
+    const id = interaction.customId.split(':')[1];
+    const k = [...cohetes.values()].find((y) => y.id === id);
+    const idioma = k?.idioma || 'es';
+    const j = k?.jugadores.get(interaction.user.id);
+    if (!k || k.estado !== 'vuela') return interaction.reply({ content: t(idioma, '⌛ Este cohete ya ha terminado.', '⌛ This rocket is over.'), flags: 64 });
+    if (!j?.jugada) return interaction.reply({ content: t(idioma, 'No te subiste a este cohete. Espera al próximo: `/casino cohete`.', 'You didn’t board this rocket. Wait for the next one: `/casino rocket`.'), flags: 64 });
+    if (j.cobradoEn) return interaction.reply({ content: t(idioma, `Ya te retiraste en ×${x(j.cobradoEn.toFixed(2))}.`, `You already cashed out at ×${j.cobradoEn.toFixed(2)}.`), flags: 64 });
+    const ok = await retirarCohete(client, k, j);
+    return interaction.reply({ content: ok ? t(idioma, `🪂 ¡Retirado en ×${x(j.cobradoEn.toFixed(2))}! +🪙 ${fmt(j.premio, idioma)}`, `🪂 Cashed out at ×${j.cobradoEn.toFixed(2)}! +🪙 ${fmt(j.premio, idioma)}`) : t(idioma, '💥 ¡Demasiado tarde!', '💥 Too late!'), flags: 64 });
+}
+async function despegar(client, k) {
+    const idioma = k.idioma; const K = casino();
+    k.estado = 'cerrado';
+    const lista = [...k.jugadores.values()].filter((j) => j.jugada);
+    if (!lista.length) { cohetes.delete(k.canalId); await K.editarEnFila(k, () => ({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🚀 Nadie se ha subido: cohete cancelado.', '🚀 Nobody boarded: rocket cancelled.'))], components: [] })); return; }
+    k.punto = C.puntoCrash(); k.inicio = Date.now() + 1000; k.estado = 'vuela';
+    await K.editarEnFila(k, () => vistaCohete(k, idioma, { mult: 1, estado: 'vuela' }));
+    while (k.estado === 'vuela') {
+        await new Promise((r) => setTimeout(r, 1500));
+        const mult = C.multCrash((Date.now() - k.inicio) / 1000);
+        for (const j of lista) if (j.auto && !j.cobradoEn && j.auto < k.punto && mult >= j.auto) await retirarCohete(client, k, j, j.auto);
+        if (mult >= k.punto || lista.every((j) => j.cobradoEn)) {
+            k.estado = 'fin';
+            for (const j of lista) if (!j.cobradoEn && !j.cerrado) { j.cerrado = true; await K.cobrarJugada(client, k.cfg, j.jugada, 0, { punto: k.punto, cohete: true }); }
+            cohetes.delete(k.canalId);
+            // Si todos se retiraron antes, el cohete sigue hasta su punto (se enseña dónde habría explotado).
+            await K.editarEnFila(k, () => vistaCohete(k, idioma, { estado: 'boom' }));
+            const mejor = lista.filter((j) => j.premio).sort((a, b) => b.premio - a.premio)[0];
+            if (mejor && mejor.premio >= 1000 && mejor.premio >= mejor.cantidad * 10) K.anunciarDespues(0, client, k.cfg, mejor.jugada, mejor.premio);
+            return;
+        }
+        await K.editarEnFila(k, () => (k.estado === 'vuela' ? vistaCohete(k, idioma, { mult, estado: 'vuela' }) : null));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -306,6 +615,11 @@ async function manejar(interaction, client) {
     const { idiomaInteraccion } = require('./preferencias.js');
     if (interaction.isButton() && id.startsWith('cas_mr:')) { await botonMesa(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_mrm:')) { await modalMesa(interaction, client); return true; }
+    if (interaction.isButton() && id.startsWith('cas_ck:')) { await botonCohete(interaction); return true; }
+    if (interaction.isButton() && id.startsWith('cas_bg:')) { await comprarCartones(interaction, client); return true; }
+    if (interaction.isButton() && id.startsWith('cas_bgv:')) { await botonVerCartones(interaction); return true; }
+    if (interaction.isModalSubmit() && id.startsWith('cas_ckm:')) { await modalCohete(interaction, client); return true; }
+    if (interaction.isButton() && id.startsWith('cas_ckr:')) { await botonRetirarCohete(interaction, client); return true; }
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
     if (interaction.isButton() && id.startsWith('cas_lot:')) {
@@ -318,4 +632,4 @@ async function manejar(interaction, client) {
     return false;
 }
 
-module.exports = { RIESGOS, APUESTAS_MESA, plinko, rueda, mesa, loteria, comprarBoletos, vistaLoteria, barrerLoteria, estadisticas, graficaNeto, manejar, mesas, girarMesa, loteriaDe };
+module.exports = { dados, baccarat, bingo, bingos, jugarBingoCanal, NOMBRES_DADOS, NOMBRES_BACCARAT, cohete, cohetes, despegar, retirarCohete, RIESGOS, APUESTAS_MESA, plinko, rueda, mesa, loteria, comprarBoletos, vistaLoteria, barrerLoteria, estadisticas, graficaNeto, manejar, mesas, girarMesa, loteriaDe };

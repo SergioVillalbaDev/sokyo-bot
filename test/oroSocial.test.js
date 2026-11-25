@@ -214,3 +214,22 @@ describe('Liga Sokyo', () => {
         assert.equal(elegirCandidato(receptor, cands.map((c) => ({ ...c, destacado: false })), () => 0.1).guildId, 'a');
     });
 });
+
+// 1.33.0: táctica votada de la Liga.
+test('Liga: táctica más votada y su ventaja', () => {
+    const N = require('../utils/mascotaNucleo.js');
+    assert.equal(N.tacticaElegida({}), null);
+    assert.equal(N.tacticaElegida({ a: 'ataque', b: 'ataque', c: 'defensa' }), 'ataque');
+    assert.equal(N.tacticaElegida({ a: 'ataque', b: 'defensa' }), null); // empate
+    assert.equal(N.tacticaElegida({ a: 'trampa' }), null);
+    assert.equal(N.multTactica('ataque', 'astucia'), 1 + N.TACTICA_VENTAJA);
+    assert.equal(N.multTactica('astucia', 'ataque'), 1);
+    assert.equal(N.multTactica(null, 'ataque'), 1);
+    // Cada táctica gana exactamente a otra distinta.
+    const ganadas = Object.values(N.TACTICAS).map((x) => x.gana);
+    assert.equal(new Set(ganadas).size, 3);
+    // La ventaja se nota: con el mismo poder, quien acierta gana más a menudo.
+    let gana = 0;
+    for (let i = 0; i < 2000; i++) if (N.combatir({ poder: 100, mult: N.multTactica('ataque', 'astucia') }, { poder: 100 }, Math.random).ganador === 'a') gana++;
+    assert.ok(gana > 1100, String(gana));
+});

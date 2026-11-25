@@ -91,11 +91,16 @@ function jugarBanca(mano, mazo) {
     while (puntos(m).total < 17) m.push(mazo.pop());
     return m;
 }
-// Resultado y multiplicador (lo que se cobra sobre lo apostado).
-function resultadoBlackjack(jugador, banca) {
+// 1.33.0: se puede dividir con dos cartas del mismo valor (una vez). Tras dividir, 21 con dos cartas no es blackjack.
+const puedeDividir = (mano) => mano.length === 2 && valorCarta(mano[0]) === valorCarta(mano[1]);
+// Seguro: si la banca enseña un As, puedes asegurar la mitad de tu apuesta; paga 2 a 1 si tiene blackjack.
+const ofreceSeguro = (banca, jugador) => banca[0].startsWith('A') && !esBlackjack(jugador);
+const pagoSeguro = (banca) => (esBlackjack(banca) ? 3 : 0); // lo que se cobra sobre lo asegurado (vuelve lo puesto + 2 a 1)
+// Resultado y multiplicador (lo que se cobra sobre lo apostado). `dividida`: la mano viene de dividir.
+function resultadoBlackjack(jugador, banca, dividida = false) {
     const pj = puntos(jugador).total; const pb = puntos(banca).total;
     if (pj > 21) return { res: 'pasa', mult: 0 };
-    if (esBlackjack(jugador) && !esBlackjack(banca)) return { res: 'blackjack', mult: 2.5 };
+    if (esBlackjack(jugador) && !dividida && !esBlackjack(banca)) return { res: 'blackjack', mult: 2.5 };
     if (esBlackjack(banca) && !esBlackjack(jugador)) return { res: 'pierde', mult: 0 };
     if (pb > 21) return { res: 'gana', mult: 2 };
     if (pj > pb) return { res: 'gana', mult: 2 };
@@ -339,7 +344,116 @@ const sorteoDe = (semana) => new Date(Date.parse(`${semana}T20:00:00Z`) + 6 * 86
 const RACHA_AVISO = 10;
 const tocaAviso = (perfil = {}) => (perfil.rachaPerdidas || 0) >= RACHA_AVISO && (perfil.avisoRacha || 0) < Math.floor((perfil.rachaPerdidas || 0) / RACHA_AVISO) * RACHA_AVISO;
 
+// ---------------------------------------------------------------------------
+// 🎲 Dados (sic bo, 1.33.0): tres dados. «Grande» (11-17) y «Pequeño» (4-10) pagan ×2, igual que
+// par/impar; un trío (tres iguales) los hace perder a todos: de ahí sale la casa (97,2 %). «Trío»
+// (cualquiera) paga ×34 (94,4 %). Un número paga ×2 si sale en un dado, ×3 en dos y ×13 en los tres (96,3 %).
+// ---------------------------------------------------------------------------
+const APUESTAS_DADOS = ['grande', 'pequeno', 'par', 'impar', 'trio', 'numero'];
+const TRIO_PAGO = 34;
+const tirarDados = (azar = azarSeguro) => [0, 0, 0].map(() => 1 + (Math.floor(azar() * 6) % 6));
+function pagoDados(apuesta, numero, dados) {
+    const suma = dados.reduce((a, b) => a + b, 0);
+    const trio = dados[0] === dados[1] && dados[1] === dados[2];
+    if (apuesta === 'trio') return trio ? TRIO_PAGO : 0;
+    if (apuesta === 'numero') { const n = dados.filter((d) => d === numero).length; return [0, 2, 3, 13][n]; }
+    if (trio) return 0;
+    if (apuesta === 'grande') return suma >= 11 ? 2 : 0;
+    if (apuesta === 'pequeno') return suma <= 10 ? 2 : 0;
+    if (apuesta === 'par') return suma % 2 === 0 ? 2 : 0;
+    if (apuesta === 'impar') return suma % 2 === 1 ? 2 : 0;
+    return 0;
+}
+// Lo que devuelve cada apuesta a la larga (exacto: las 216 tiradas).
+function rtpDados(apuesta, numero = 1) {
+    let t = 0;
+    for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) for (let c = 1; c <= 6; c++) t += pagoDados(apuesta, numero, [a, b, c]);
+    return t / 216;
+}
+
+// ---------------------------------------------------------------------------
+// 🂠 Baccarat (punto y banca, 1.33.0): reglas de siempre (8 mazos; A=1, 10/J/Q/K=0, solo cuenta la
+// última cifra; con 8 o 9 de salida nadie roba; tercera carta según la tabla). Jugador paga ×2,
+// Banca ×1,95 (comisión del 5 %), Empate ×9; si hay empate, lo apostado a Jugador o Banca vuelve.
+// ---------------------------------------------------------------------------
+const APUESTAS_BACCARAT = { jugador: 2, banca: 1.95, empate: 9 };
+const valorBaccarat = (c) => { const v = c.slice(0, -1); return v === 'A' ? 1 : ['10', 'J', 'Q', 'K'].includes(v) ? 0 : parseInt(v, 10); };
+const puntosBaccarat = (mano) => mano.reduce((a, c) => a + valorBaccarat(c), 0) % 10;
+// ¿Roba la banca su tercera carta? (`p3` = la tercera del jugador o null si no robó).
+function bancaRoba(b, p3) {
+    if (p3 === null) return b <= 5;
+    const v = valorBaccarat(p3);
+    if (b <= 2) return true;
+    if (b === 3) return v !== 8;
+    if (b === 4) return v >= 2 && v <= 7;
+    if (b === 5) return v >= 4 && v <= 7;
+    if (b === 6) return v === 6 || v === 7;
+    return false;
+}
+function repartirBaccarat(mazo) {
+    const jugador = [mazo.pop(), mazo.pop()]; const banca = [mazo.pop(), mazo.pop()];
+    let pj = puntosBaccarat(jugador); let pb = puntosBaccarat(banca);
+    if (pj < 8 && pb < 8) {
+        let p3 = null;
+        if (pj <= 5) { p3 = mazo.pop(); jugador.push(p3); pj = puntosBaccarat(jugador); }
+        if (bancaRoba(pb, p3)) { banca.push(mazo.pop()); pb = puntosBaccarat(banca); }
+    }
+    return { jugador, banca, pj, pb, ganador: pj > pb ? 'jugador' : pb > pj ? 'banca' : 'empate' };
+}
+function pagoBaccarat(apuesta, ganador) {
+    if (apuesta === 'empate') return ganador === 'empate' ? APUESTAS_BACCARAT.empate : 0;
+    if (ganador === 'empate') return 1;
+    return apuesta === ganador ? APUESTAS_BACCARAT[apuesta] : 0;
+}
+
+// ---------------------------------------------------------------------------
+// 🎱 Bingo del canal (1.33.0): cartones de 15 números (3 filas de 5) del 1 al 60. Salen bolas hasta que
+// alguien completa el cartón. El primero en hacer una fila se lleva LINEA_BINGO del bote y quien canta
+// bingo el resto (empates: se reparte). El bote es BOTE_BINGO de lo vendido: jugar nunca sale a cuenta.
+// ---------------------------------------------------------------------------
+const BOLAS_BINGO = 60;
+const BOTE_BINGO = 0.9;
+const LINEA_BINGO = 0.25;
+const MAX_CARTONES = 4;
+function cartonBingo(azar = azarSeguro) {
+    const todos = [...Array(BOLAS_BINGO)].map((_, i) => i + 1);
+    for (let i = todos.length - 1; i > 0; i--) { const j = Math.floor(azar() * (i + 1)); [todos[i], todos[j]] = [todos[j], todos[i]]; }
+    const elegidos = todos.slice(0, 15);
+    return [0, 1, 2].map((f) => elegidos.slice(f * 5, f * 5 + 5).sort((a, b) => a - b));
+}
+function bolasBingo(azar = azarSeguro) {
+    const b = [...Array(BOLAS_BINGO)].map((_, i) => i + 1);
+    for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(azar() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
+    return b;
+}
+// `cartones` = [{ id, filas }]. Devuelve en qué bola (índice) se canta línea y bingo y quiénes.
+function jugarBingo(cartones, bolas) {
+    const salidas = new Set();
+    let linea = null; let bingo = null;
+    for (let i = 0; i < bolas.length && !bingo; i++) {
+        salidas.add(bolas[i]);
+        const fila = cartones.filter((c) => c.filas.some((f) => f.every((n) => salidas.has(n))));
+        if (!linea && fila.length) linea = { bola: i, ganadores: fila.map((c) => c.id) };
+        const llenos = cartones.filter((c) => c.filas.every((f) => f.every((n) => salidas.has(n))));
+        if (llenos.length) bingo = { bola: i, ganadores: llenos.map((c) => c.id) };
+    }
+    return { linea, bingo };
+}
+const boteBingo = (vendido) => Math.floor(vendido * BOTE_BINGO);
+// Premio de cada cartón: { id: oro }. Lo que sobra al repartir (redondeo) se lo queda la casa.
+function repartoBingo(vendido, res) {
+    const bote = boteBingo(vendido);
+    const out = {};
+    const dar = (ids, total) => { const cada = Math.floor(total / ids.length); for (const id of ids) out[id] = (out[id] || 0) + cada; };
+    if (res.linea) dar(res.linea.ganadores, Math.floor(bote * LINEA_BINGO));
+    if (res.bingo) dar(res.bingo.ganadores, bote - Math.floor(bote * LINEA_BINGO));
+    return out;
+}
+
 module.exports = {
+    APUESTAS_DADOS, TRIO_PAGO, tirarDados, pagoDados, rtpDados,
+    APUESTAS_BACCARAT, valorBaccarat, puntosBaccarat, bancaRoba, repartirBaccarat, pagoBaccarat,
+    BOLAS_BINGO, BOTE_BINGO, LINEA_BINGO, MAX_CARTONES, cartonBingo, bolasBingo, jugarBingo, boteBingo, repartoBingo,
     PLINKO_FILAS, PLINKO, rtpPlinko, tirarPlinko, RUEDA, CASILLAS_RUEDA, rtpRueda, girarRueda, pagoRueda,
     PRECIO_BOLETO, MAX_BOLETOS, BOTE_LOTERIA, BOTE_BASE, REPARTO_LOTERIA, boteLoteria, sortearLoteria, sorteoDe, RACHA_AVISO, tocaAviso,
     HILO_VENTAJA, HILO_MAX_MULT, valorHilo, cartaHilo, pagoHilo, resultadoHilo,
@@ -347,7 +461,7 @@ module.exports = {
     azarSeguro,
     SIMBOLOS, simbolo, simboloAlAzar, pagoTragaperras, tirarTragaperras,
     ROJOS, ORDEN_RUEDA, colorNumero, APUESTAS_RULETA, pagoRuleta, girarRuleta,
-    PALOS, baraja, valorCarta, puntos, esBlackjack, jugarBanca, resultadoBlackjack,
+    PALOS, baraja, valorCarta, puntos, esBlackjack, jugarBanca, resultadoBlackjack, puedeDividir, ofreceSeguro, pagoSeguro,
     CRASH_VENTAJA, puntoCrash, multCrash, segundosHasta,
     CASILLAS, colocarMinas, multMinas,
     MONEDA_PAGO, DUELO_COMISION, lanzarMoneda,
