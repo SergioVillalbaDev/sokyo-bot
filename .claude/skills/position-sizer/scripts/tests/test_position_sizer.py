@@ -1,0 +1,1007 @@
+"""Tests for position_sizer.py — Fixed Fractional, ATR-based, Kelly Criterion sizing."""
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+from position_sizer import (
+    SizingParameters,
+    calculate_atr_based,
+    calculate_fixed_fractional,
+    calculate_kelly,
+    calculate_position,
+    generate_markdown_report,
+    main,
+    validate_parameters,
+)
+
+# ─── Test: Basic Fixed Fractional ────────────────────────────────────────────
+
+
+class TestFixedFractional:
+    def test_fixed_fractional_basic(self):
+        """entry=155, stop=148.50, account=100k, risk=1% -> 153 shares."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+        )
+        result = calculate_fixed_fractional(params)
+        assert result["risk_per_share"] == 6.50
+        assert result["dollar_risk"] == 1000.0
+        assert result["shares"] == 153  # int(1000 / 6.50) = 153
+
+    def test_fixed_fractional_penny_stock(self):
+        """entry=0.85, stop=0.70, account=50k, risk=0.5% -> 1666 shares."""
+        params = SizingParameters(
+            account_size=50_000,
+            entry_price=0.85,
+            stop_price=0.70,
+            risk_pct=0.5,
+        )
+        result = calculate_fixed_fractional(params)
+        assert result["risk_per_share"] == 0.15
+        assert result["shares"] == 1666  # int(250 / 0.15) = 1666
+
+    def test_fixed_fractional_large_account(self):
+        """entry=500, stop=475, account=1M, risk=2% -> 800 shares."""
+        params = SizingParameters(
+            account_size=1_000_000,
+            entry_price=500.0,
+            stop_price=475.0,
+            risk_pct=2.0,
+        )
+        result = calculate_fixed_fractional(params)
+        assert result["shares"] == 800  # int(20000 / 25) = 800
+
+
+# ─── Test: ATR-based Sizing ──────────────────────────────────────────────────
+
+
+class TestATRBased:
+    def test_atr_based_sizing(self):
+        """entry=155, atr=3.20, mult=2.0, account=100k, risk=1%."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            risk_pct=1.0,
+            atr=3.20,
+            atr_multiplier=2.0,
+        )
+        result = calculate_atr_based(params)
+        assert result["stop_price"] == 148.60
+        assert result["risk_per_share"] == 6.40
+        assert result["shares"] == 156  # int(1000 / 6.40) = 156
+
+    def test_atr_multiplier_variations(self):
+        """1.5x, 2x, 3x multipliers produce different share counts."""
+        base = dict(account_size=100_000, entry_price=155.0, risk_pct=1.0, atr=3.20)
+        r15 = calculate_atr_based(SizingParameters(**base, atr_multiplier=1.5))
+        r20 = calculate_atr_based(SizingParameters(**base, atr_multiplier=2.0))
+        r30 = calculate_atr_based(SizingParameters(**base, atr_multiplier=3.0))
+        # Wider stop -> fewer shares
+        assert r15["shares"] > r20["shares"] > r30["shares"]
+
+    def test_atr_stop_price_calculation(self):
+        """stop_price = entry - (atr * atr_multiplier)."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=200.0,
+            risk_pct=1.0,
+            atr=5.0,
+            atr_multiplier=2.5,
+        )
+        result = calculate_atr_based(params)
+        assert result["stop_price"] == 187.50  # 200 - (5 * 2.5)
+
+
+# ─── Test: Kelly Criterion ───────────────────────────────────────────────────
+
+
+class TestKelly:
+    def test_kelly_criterion(self):
+        """win_rate=0.55, avg_win=2.5, avg_loss=1.0 -> 37% kelly, 18.5% half-kelly."""
+        params = SizingParameters(
+            account_size=100_000,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+        )
+        result = calculate_kelly(params)
+        # K = W - (1-W)/R = 0.55 - 0.45/2.5 = 0.55 - 0.18 = 0.37 = 37%
+        assert result["kelly_pct"] == 37.0
+        assert result["half_kelly_pct"] == 18.5
+
+    def test_half_kelly(self):
+        """half_kelly = kelly_pct / 2."""
+        params = SizingParameters(
+            account_size=100_000,
+            win_rate=0.60,
+            avg_win=2.0,
+            avg_loss=1.0,
+        )
+        result = calculate_kelly(params)
+        assert result["half_kelly_pct"] == result["kelly_pct"] / 2
+
+    def test_kelly_negative_expectancy(self):
+        """win_rate=0.30, avg_win=1.0, avg_loss=1.5 -> kelly=0, recommended=0."""
+        params = SizingParameters(
+            account_size=100_000,
+            win_rate=0.30,
+            avg_win=1.0,
+            avg_loss=1.5,
+        )
+        result = calculate_kelly(params)
+        # K = 0.30 - 0.70 / (1.0/1.5) = 0.30 - 0.70/0.6667 = 0.30 - 1.05 = -0.75
+        # Floored to 0
+        assert result["kelly_pct"] == 0.0
+        assert result["half_kelly_pct"] == 0.0
+
+    def test_kelly_budget_mode_no_entry(self):
+        """Kelly without --entry -> budget mode, no shares in output."""
+        params = SizingParameters(
+            account_size=100_000,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+        )
+        result = calculate_position(params)
+        assert result["mode"] == "budget"
+        assert "final_recommended_shares" not in result
+        assert "recommended_risk_budget" in result
+
+    def test_kelly_shares_mode_with_entry(self):
+        """Kelly with --entry and --stop -> shares mode."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+        )
+        result = calculate_position(params)
+        assert result["mode"] == "shares"
+        assert "final_recommended_shares" in result
+
+    def test_kelly_shares_no_stop_risk_note(self):
+        """Kelly with --entry but no --stop -> risk_dollars=None, risk_note present."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+        )
+        result = calculate_position(params)
+        assert result["mode"] == "shares"
+        assert result["final_recommended_shares"] > 0
+        assert result["final_risk_dollars"] is None
+        assert result["final_risk_pct"] is None
+        assert "risk_note" in result
+
+
+# ─── Test: Constraints & Final Recommendation ────────────────────────────────
+
+
+class TestConstraints:
+    def test_final_shares_no_constraints(self):
+        """No constraints -> risk-calculated shares unchanged."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+        )
+        result = calculate_position(params)
+        # 153 shares from fixed fractional, no constraints
+        assert result["final_recommended_shares"] == 153
+
+    def test_final_shares_position_limit(self):
+        """max_position_pct=10 -> max 64 shares at entry=155."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+            max_position_pct=10.0,
+        )
+        result = calculate_position(params)
+        # Max position: 100000 * 10% / 155 = 64 shares
+        assert result["final_recommended_shares"] == 64
+
+    def test_final_shares_sector_limit(self):
+        """max_sector_pct=30, current=22 -> max 51 shares."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+            max_sector_pct=30.0,
+            current_sector_exposure=22.0,
+        )
+        result = calculate_position(params)
+        # Remaining: (30 - 22)% * 100000 / 155 = 8000 / 155 = 51
+        assert result["final_recommended_shares"] == 51
+
+    def test_final_shares_multiple_constraints(self):
+        """Multiple constraints -> strictest wins (minimum)."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+            max_position_pct=10.0,
+            max_sector_pct=30.0,
+            current_sector_exposure=22.0,
+        )
+        result = calculate_position(params)
+        # Position limit: 64, sector limit: 51 -> min = 51
+        assert result["final_recommended_shares"] == 51
+
+    def test_binding_constraint_identification(self):
+        """Verify binding_constraint field shows the tightest constraint."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+            max_position_pct=10.0,
+            max_sector_pct=30.0,
+            current_sector_exposure=22.0,
+        )
+        result = calculate_position(params)
+        assert result["binding_constraint"] == "max_sector_pct"
+
+
+# ─── Test: Fractional Shares ─────────────────────────────────────────────────
+
+
+class TestFractionalShares:
+    def test_fractional_exact_precision_boundary_is_preserved(self):
+        """Binary float noise must not floor an exact decimal boundary twice."""
+        params = SizingParameters(
+            account_size=1_150,
+            entry_price=100.0,
+            stop_price=90.0,
+            risk_pct=1.0,
+            fractional_shares=True,
+            share_precision=2,
+        )
+        result = calculate_position(params)
+        assert result["calculations"]["fixed_fractional"]["shares"] == 1.15
+        assert result["final_recommended_shares"] == 1.15
+        assert result["final_risk_dollars"] == 11.5
+
+    def test_fractional_decimal_inputs_are_used_before_subtraction(self):
+        """Entry-stop subtraction must not pollute an exact share boundary."""
+        params = SizingParameters(
+            account_size=18.81,
+            entry_price=10.0,
+            stop_price=9.01,
+            risk_pct=1.0,
+            fractional_shares=True,
+            share_precision=2,
+        )
+        result = calculate_position(params)
+        assert result["calculations"]["fixed_fractional"]["shares"] == 0.19
+        assert result["final_recommended_shares"] == 0.19
+        assert result["final_risk_dollars"] == 0.19
+
+    def test_fractional_fixed_fractional_floors_to_precision(self):
+        """--fractional supports small-account sizing without exceeding risk."""
+        params = SizingParameters(
+            account_size=1_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+            fractional_shares=True,
+            share_precision=4,
+        )
+        result = calculate_position(params)
+        assert result["calculations"]["fixed_fractional"]["shares"] == 1.5384
+        assert result["final_recommended_shares"] == 1.5384
+        assert result["final_risk_dollars"] == 10.0
+        assert result["final_risk_pct"] == 1.0
+        assert result["parameters"]["fractional_shares"] is True
+        assert result["parameters"]["share_precision"] == 4
+
+    def test_fractional_atr_based_floors_to_precision(self):
+        """ATR mode uses the same fractional flooring logic."""
+        params = SizingParameters(
+            account_size=1_000,
+            entry_price=100.0,
+            risk_pct=1.0,
+            atr=3.0,
+            atr_multiplier=2.0,
+            fractional_shares=True,
+            share_precision=4,
+        )
+        result = calculate_position(params)
+        assert result["calculations"]["atr_based"]["shares"] == 1.6666
+        assert result["final_recommended_shares"] == 1.6666
+        assert result["final_risk_dollars"] == 10.0
+
+    def test_fractional_kelly_shares_with_stop(self):
+        """Kelly shares mode supports fractional output when a stop is provided."""
+        params = SizingParameters(
+            account_size=100,
+            entry_price=155.0,
+            stop_price=148.50,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+            fractional_shares=True,
+            share_precision=4,
+        )
+        result = calculate_position(params)
+        assert result["calculations"]["kelly"]["half_kelly_pct"] == 18.5
+        assert result["final_recommended_shares"] == 2.8461
+        assert result["final_risk_dollars"] == 18.5
+
+    def test_fractional_max_position_constraint(self):
+        """Max-position constraints floor fractional shares before binding."""
+        params = SizingParameters(
+            account_size=1_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+            max_position_pct=10.0,
+            fractional_shares=True,
+            share_precision=4,
+        )
+        result = calculate_position(params)
+        assert result["final_recommended_shares"] == 0.6451
+        assert result["final_position_value"] == 99.99
+        assert result["binding_constraint"] == "max_position_pct"
+        assert result["final_position_value"] <= 100.0
+
+    def test_fractional_max_sector_constraint(self):
+        """Max-sector constraints floor fractional shares before binding."""
+        params = SizingParameters(
+            account_size=1_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+            max_sector_pct=30.0,
+            current_sector_exposure=22.0,
+            fractional_shares=True,
+            share_precision=4,
+        )
+        result = calculate_position(params)
+        assert result["final_recommended_shares"] == 0.5161
+        assert result["final_position_value"] == 80.0
+        assert result["binding_constraint"] == "max_sector_pct"
+        assert result["final_position_value"] <= 80.0
+
+
+# ─── Test: Risk Reporting ────────────────────────────────────────────────────
+
+
+class TestRiskReporting:
+    @pytest.mark.parametrize(
+        ("entry", "atr", "fractional", "stop_price", "risk_per_share", "shares", "risk"),
+        [
+            (5.0, 0.024, False, 4.96, 0.04, 625, 25.00),
+            (5.0, 0.024, True, 4.96, 0.04, 625.0, 25.00),
+            (5.0, 0.022, False, 4.97, 0.03, 833, 24.99),
+            (5.0, 0.022, True, 4.97, 0.03, 833.3333, 25.00),
+            (5.004, 0.0025, False, 5.0, 0.004, 6250, 25.00),
+        ],
+    )
+    def test_atr_sizing_uses_reported_stop(
+        self, entry, atr, fractional, stop_price, risk_per_share, shares, risk
+    ):
+        result = calculate_position(
+            SizingParameters(
+                account_size=10_000,
+                entry_price=entry,
+                risk_pct=0.25,
+                atr=atr,
+                atr_multiplier=1.5,
+                fractional_shares=fractional,
+            )
+        )
+
+        assert result["parameters"]["stop_price"] == stop_price
+        assert result["calculations"]["atr_based"]["risk_per_share"] == risk_per_share
+        assert result["final_recommended_shares"] == shares
+        assert result["final_risk_dollars"] == risk
+        assert result["final_risk_pct"] == 0.25
+
+    @pytest.mark.parametrize(
+        ("max_position_pct", "shares", "risk"),
+        [(None, 50, 100.0), (10.0, 10, 20.0)],
+    )
+    def test_final_risk_uses_selected_atr_stop(self, max_position_pct, shares, risk):
+        params = SizingParameters(
+            account_size=10_000,
+            entry_price=100.0,
+            stop_price=90.0,
+            risk_pct=1.0,
+            atr=1.0,
+            max_position_pct=max_position_pct,
+        )
+        result = calculate_position(params)
+
+        assert result["parameters"]["stop_price"] == 98.0
+        assert result["final_recommended_shares"] == shares
+        assert result["final_risk_dollars"] == risk
+        assert result["final_risk_pct"] == risk / 100
+
+    @pytest.mark.parametrize("stop_price", [None, 90.0])
+    def test_kelly_risk_uses_selected_stop(self, stop_price):
+        params = SizingParameters(
+            account_size=10_000,
+            entry_price=100.0,
+            stop_price=stop_price,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+            atr=1.0,
+        )
+        result = calculate_position(params)
+
+        assert result["calculations"]["atr_based"] is None
+        if stop_price is None:
+            assert result["final_risk_dollars"] is None
+            assert result["final_risk_pct"] is None
+            assert "risk_note" in result
+        else:
+            assert result["final_risk_dollars"] == 1_850.0
+            assert result["final_risk_pct"] == 18.5
+
+    @pytest.mark.parametrize(
+        ("atr", "budget_pct", "stop_price", "shares", "reported_risk", "reported_pct"),
+        [
+            (1.73, 0.00865, 98.27, 0.5, 0.87, 0.01),
+            (1.54, 0.05005, 98.46, 3.25, 5.01, 0.05),
+        ],
+    )
+    def test_final_risk_decimal_half_up_atr(
+        self, atr, budget_pct, stop_price, shares, reported_risk, reported_pct
+    ):
+        """Fractional shares at a cent-precision stop produce a half-cent tie."""
+        params = SizingParameters(
+            account_size=10_000,
+            entry_price=100.0,
+            stop_price=90.0,
+            risk_pct=budget_pct,
+            atr=atr,
+            atr_multiplier=1.0,
+            fractional_shares=True,
+        )
+        result = calculate_position(params)
+
+        assert result["parameters"]["stop_price"] == stop_price
+        assert result["final_recommended_shares"] == shares
+        assert result["final_risk_dollars"] == reported_risk
+        assert result["final_risk_pct"] == reported_pct
+
+    def test_kelly_risk_stop_branch_uses_same_rule(self):
+        """Lock: Kelly shares mode with entry+stop reports entry-stop risk."""
+        params = SizingParameters(
+            account_size=10_000,
+            entry_price=100.0,
+            stop_price=90.0,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+        )
+        result = calculate_position(params)
+
+        assert result["mode"] == "shares"
+        assert result["final_recommended_shares"] == 185
+        assert result["final_risk_dollars"] == 1_850.0
+        assert result["final_risk_pct"] == 18.5
+        assert result["final_risk_dollars"] == round(result["final_recommended_shares"] * 10.0, 2)
+        assert result["final_risk_pct"] == round(
+            result["final_risk_dollars"] / params.account_size * 100, 2
+        )
+
+
+# ─── Test: Input Validation ──────────────────────────────────────────────────
+
+
+class TestValidation:
+    @pytest.mark.parametrize(
+        "multiplier", [0.0, -0.0, -2.0, float("nan"), float("inf"), -float("inf")]
+    )
+    @pytest.mark.parametrize("entry_point", [validate_parameters, calculate_position])
+    def test_invalid_atr_multiplier(self, multiplier, entry_point):
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=100.0,
+            risk_pct=1.0,
+            atr=1.0,
+            atr_multiplier=multiplier,
+            max_position_pct=10.0,
+        )
+        with pytest.raises(ValueError, match="atr_multiplier must be finite and positive"):
+            entry_point(params)
+
+    @pytest.mark.parametrize("multiplier", ["0", "-0.0", "-2.0"])
+    def test_cli_invalid_atr_multiplier_creates_no_reports(self, multiplier, tmp_path):
+        script = Path(__file__).resolve().parents[1] / "position_sizer.py"
+        output_dir = tmp_path / "reports"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(script),
+                "--account-size",
+                "100000",
+                "--entry",
+                "100",
+                "--risk-pct",
+                "1",
+                "--atr",
+                "1",
+                f"--atr-multiplier={multiplier}",
+                "--max-position-pct",
+                "10",
+                "--output-dir",
+                str(output_dir),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+        assert result.returncode == 1
+        assert result.stderr.strip() == "Error: atr_multiplier must be finite and positive"
+        assert "Traceback" not in result.stderr
+        assert result.stdout == ""
+        assert not output_dir.exists()
+
+    @pytest.mark.parametrize(
+        "mode_parameters",
+        [
+            {"entry_price": 100.0, "stop_price": 95.0, "risk_pct": 1.0},
+            {"win_rate": 0.55, "avg_win": 2.5, "avg_loss": 1.0},
+        ],
+        ids=["fixed_fractional", "kelly_budget"],
+    )
+    def test_unused_invalid_atr_multiplier_is_still_rejected(self, mode_parameters):
+        params = SizingParameters(account_size=100_000, atr_multiplier=0, **mode_parameters)
+        with pytest.raises(ValueError, match="atr_multiplier must be finite and positive"):
+            calculate_position(params)
+
+    # Every numeric CLI flag, with a base command that is otherwise valid.
+    _RISK_PCT_BASE = {
+        "--account-size": "100000",
+        "--entry": "100",
+        "--stop": "95",
+        "--risk-pct": "1",
+        "--atr": "2",
+        "--atr-multiplier": "2",
+        "--max-position-pct": "10",
+        "--max-sector-pct": "30",
+        "--current-sector-exposure": "5",
+    }
+    _KELLY_BASE = {
+        "--account-size": "100000",
+        "--win-rate": "0.55",
+        "--avg-win": "2",
+        "--avg-loss": "1",
+    }
+    _NUMERIC_FLAGS = [*_RISK_PCT_BASE, "--win-rate", "--avg-win", "--avg-loss"]
+
+    @staticmethod
+    def _run_cli(args: dict, tmp_path: Path) -> subprocess.CompletedProcess:
+        script = Path(__file__).resolve().parents[1] / "position_sizer.py"
+        argv = [sys.executable, str(script)]
+        for flag, value in args.items():
+            argv.append(f"{flag}={value}")
+        argv += ["--output-dir", str(tmp_path / "reports")]
+        return subprocess.run(argv, capture_output=True, text=True, cwd=tmp_path)
+
+    @pytest.mark.parametrize("value", ["nan", "inf", "-inf", "1e309"])
+    @pytest.mark.parametrize("flag", _NUMERIC_FLAGS)
+    def test_cli_non_finite_numeric_flag_is_usage_error(self, flag, value, tmp_path):
+        """nan/inf for any numeric flag exits 2 naming the flag (Issue #656)."""
+        base = self._KELLY_BASE if flag in self._KELLY_BASE else self._RISK_PCT_BASE
+        result = self._run_cli({**base, flag: value}, tmp_path)
+        assert result.returncode == 2
+        assert f"argument {flag}: " in result.stderr
+        assert "must be a finite number" in result.stderr
+        assert "Traceback" not in result.stderr
+        assert result.stdout == ""
+        assert not (tmp_path / "reports").exists()
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "account_size",
+            "entry_price",
+            "stop_price",
+            "risk_pct",
+            "atr",
+            "win_rate",
+            "avg_win",
+            "avg_loss",
+            "max_position_pct",
+            "max_sector_pct",
+            "current_sector_exposure",
+        ],
+    )
+    def test_non_finite_parameter_is_rejected(self, field, value):
+        """Library callers get a ValueError naming the non-finite field."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=100.0,
+            stop_price=95.0,
+            risk_pct=1.0,
+            max_position_pct=10.0,
+            max_sector_pct=30.0,
+            current_sector_exposure=5.0,
+        )
+        setattr(params, field, value)
+        with pytest.raises(ValueError, match=f"^{field} must be finite"):
+            validate_parameters(params)
+
+    def test_win_rate_of_one_is_rejected(self):
+        """win_rate=1.0 makes full Kelly 100% of the account; reject it."""
+        params = SizingParameters(account_size=100_000, win_rate=1.0, avg_win=2.0, avg_loss=1.0)
+        with pytest.raises(ValueError, match=r"win_rate must be between 0 and 1 \(exclusive\)"):
+            calculate_position(params)
+
+    def test_cli_win_rate_of_one_creates_no_reports(self, tmp_path):
+        result = self._run_cli({**self._KELLY_BASE, "--win-rate": "1.0"}, tmp_path)
+        assert result.returncode == 1
+        assert result.stderr.strip() == "Error: win_rate must be between 0 and 1 (exclusive)"
+        assert result.stdout == ""
+        assert not (tmp_path / "reports").exists()
+
+    def test_cli_finite_numeric_flags_still_accepted(self, tmp_path):
+        result = self._run_cli(self._RISK_PCT_BASE, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert "Final: " in result.stdout
+
+    @pytest.mark.parametrize("atr", ["0.001", "2.5", "2.6"])
+    def test_cli_rejects_invalid_rounded_atr_stop(self, atr, tmp_path):
+        result = self._run_cli(
+            {
+                "--account-size": "10000",
+                "--entry": "5",
+                "--risk-pct": "0.25",
+                "--atr": atr,
+            },
+            tmp_path,
+        )
+
+        assert result.returncode == 1
+        assert "ATR-derived stop price must be positive and below entry price" in result.stderr
+        assert not (tmp_path / "reports").exists()
+
+    def test_stop_above_entry_error(self):
+        """stop > entry -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=160.0,
+            risk_pct=1.0,
+        )
+        with pytest.raises(ValueError, match="stop_price must be below entry_price"):
+            validate_parameters(params)
+
+    @pytest.mark.parametrize("stop_price", [0.0, -1.0])
+    def test_stop_must_be_positive(self, stop_price):
+        """stop <= 0 -> ValueError (long stop at or below zero is meaningless)."""
+        params = SizingParameters(
+            account_size=10_000,
+            entry_price=100.0,
+            stop_price=stop_price,
+            risk_pct=1.0,
+        )
+        with pytest.raises(ValueError, match="stop_price must be positive"):
+            validate_parameters(params)
+
+    @pytest.mark.parametrize("stop_price", [0.0, -1.0])
+    def test_stop_must_be_positive_kelly_budget(self, stop_price):
+        """stop <= 0 is rejected in Kelly budget mode as well."""
+        params = SizingParameters(
+            account_size=10_000,
+            stop_price=stop_price,
+            win_rate=0.55,
+            avg_win=2.5,
+            avg_loss=1.0,
+        )
+        with pytest.raises(ValueError, match="stop_price must be positive"):
+            validate_parameters(params)
+
+    def test_zero_risk_error(self):
+        """risk_pct=0 -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=150.0,
+            risk_pct=0.0,
+        )
+        with pytest.raises(ValueError, match="risk_pct must be positive"):
+            validate_parameters(params)
+
+    def test_negative_risk_error(self):
+        """risk_pct=-1 -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=150.0,
+            risk_pct=-1.0,
+        )
+        with pytest.raises(ValueError, match="risk_pct must be positive"):
+            validate_parameters(params)
+
+    def test_win_rate_over_one_error(self):
+        """win_rate=1.5 -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            win_rate=1.5,
+            avg_win=2.0,
+            avg_loss=1.0,
+        )
+        with pytest.raises(ValueError, match="win_rate must be between"):
+            validate_parameters(params)
+
+    def test_avg_win_zero_error(self):
+        """avg_win=0 -> ValueError (would cause ZeroDivisionError in Kelly)."""
+        params = SizingParameters(
+            account_size=100_000,
+            win_rate=0.55,
+            avg_win=0.0,
+            avg_loss=1.0,
+        )
+        with pytest.raises(ValueError, match="avg_win must be positive"):
+            validate_parameters(params)
+
+    def test_avg_loss_zero_error(self):
+        """avg_loss=0 -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            win_rate=0.55,
+            avg_win=2.0,
+            avg_loss=0.0,
+        )
+        with pytest.raises(ValueError, match="avg_loss must be positive"):
+            validate_parameters(params)
+
+    def test_account_size_zero_error(self):
+        """account_size=0 -> ValueError."""
+        params = SizingParameters(
+            account_size=0,
+            entry_price=155.0,
+            stop_price=150.0,
+            risk_pct=1.0,
+        )
+        with pytest.raises(ValueError, match="account_size must be positive"):
+            validate_parameters(params)
+
+    def test_atr_negative_error(self):
+        """atr=-1 -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            risk_pct=1.0,
+            atr=-1.0,
+        )
+        with pytest.raises(ValueError, match="atr must be positive"):
+            validate_parameters(params)
+
+    def test_entry_zero_error(self):
+        """entry=0 -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=0.0,
+            stop_price=-1.0,
+            risk_pct=1.0,
+        )
+        with pytest.raises(ValueError, match="entry_price must be positive"):
+            validate_parameters(params)
+
+    def test_share_precision_below_zero_error(self):
+        """share_precision below zero -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=150.0,
+            risk_pct=1.0,
+            fractional_shares=True,
+            share_precision=-1,
+        )
+        with pytest.raises(ValueError, match="share_precision must be between 0 and 8"):
+            validate_parameters(params)
+
+    def test_share_precision_above_eight_error(self):
+        """share_precision above eight -> ValueError."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=150.0,
+            risk_pct=1.0,
+            fractional_shares=True,
+            share_precision=9,
+        )
+        with pytest.raises(ValueError, match="share_precision must be between 0 and 8"):
+            validate_parameters(params)
+
+    def test_risk_pct_and_kelly_mutual_exclusive(self):
+        """Both risk_pct and win_rate via CLI -> SystemExit (argparse error)."""
+        script = "skills/position-sizer/scripts/position_sizer.py"
+        result = subprocess.run(
+            [
+                sys.executable,
+                script,
+                "--account-size",
+                "100000",
+                "--entry",
+                "155",
+                "--stop",
+                "150",
+                "--risk-pct",
+                "1.0",
+                "--win-rate",
+                "0.55",
+                "--avg-win",
+                "2.5",
+                "--avg-loss",
+                "1.0",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parents[4]),
+        )
+        assert result.returncode != 0
+
+
+# ─── Test: Output ─────────────────────────────────────────────────────────────
+
+
+class TestOutput:
+    def test_report_generation_json(self):
+        """Verify JSON has required keys."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+        )
+        result = calculate_position(params)
+        assert "schema_version" in result
+        assert "mode" in result
+        assert "parameters" in result
+        assert "calculations" in result
+        assert "final_recommended_shares" in result
+        # Verify JSON-serializable
+        json_str = json.dumps(result)
+        parsed = json.loads(json_str)
+        assert parsed["schema_version"] == "1.0"
+
+    def test_report_generation_markdown(self):
+        """Verify markdown report is generated with key sections."""
+        params = SizingParameters(
+            account_size=100_000,
+            entry_price=155.0,
+            stop_price=148.50,
+            risk_pct=1.0,
+        )
+        result = calculate_position(params)
+        md = generate_markdown_report(result)
+        assert "# Position Sizing Report" in md
+        assert "## Parameters" in md
+        assert "## Final Recommendation" in md
+        assert "153" in md  # final shares
+
+    def test_main_writes_risk_pct_reports_in_process(self, monkeypatch, tmp_path, capsys):
+        """The CLI entry point writes both reports and prints its share summary."""
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "position_sizer.py",
+                "--account-size",
+                "100000",
+                "--entry",
+                "155",
+                "--stop",
+                "148.50",
+                "--risk-pct",
+                "1.0",
+                "--output-dir",
+                str(tmp_path),
+            ],
+        )
+
+        main()
+
+        stdout = capsys.readouterr().out
+        assert "Final: 153 shares" in stdout
+        assert "JSON report:" in stdout
+        assert "Markdown report:" in stdout
+
+        json_reports = list(tmp_path.glob("position_sizer_*.json"))
+        markdown_reports = list(tmp_path.glob("position_sizer_*.md"))
+        assert len(json_reports) == 1
+        assert len(markdown_reports) == 1
+
+        payload = json.loads(json_reports[0].read_text(encoding="utf-8"))
+        assert payload["mode"] == "shares"
+        assert payload["final_recommended_shares"] == 153
+
+        markdown = markdown_reports[0].read_text(encoding="utf-8")
+        assert "# Position Sizing Report" in markdown
+        assert "**Shares:** 153" in markdown
+
+    def test_cli_arguments(self):
+        """Verify argparse works for standard cases."""
+        script = "skills/position-sizer/scripts/position_sizer.py"
+        result = subprocess.run(
+            [
+                sys.executable,
+                script,
+                "--account-size",
+                "100000",
+                "--entry",
+                "155",
+                "--stop",
+                "148.50",
+                "--risk-pct",
+                "1.0",
+                "--output-dir",
+                "/tmp/position_sizer_test",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parents[4]),
+        )
+        assert result.returncode == 0
+        assert "153 shares" in result.stdout
+
+    def test_cli_fractional_arguments(self):
+        """Verify CLI supports fractional share output."""
+        script = "skills/position-sizer/scripts/position_sizer.py"
+        result = subprocess.run(
+            [
+                sys.executable,
+                script,
+                "--account-size",
+                "1000",
+                "--entry",
+                "155",
+                "--stop",
+                "148.50",
+                "--risk-pct",
+                "1.0",
+                "--fractional",
+                "--share-precision",
+                "4",
+                "--output-dir",
+                "/tmp/position_sizer_test",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parents[4]),
+        )
+        assert result.returncode == 0
+        assert "1.5384 shares" in result.stdout
+
+    def test_cli_missing_required(self):
+        """Missing --account-size -> SystemExit."""
+        script = "skills/position-sizer/scripts/position_sizer.py"
+        result = subprocess.run(
+            [
+                sys.executable,
+                script,
+                "--entry",
+                "155",
+                "--stop",
+                "150",
+                "--risk-pct",
+                "1.0",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parents[4]),
+        )
+        assert result.returncode != 0
