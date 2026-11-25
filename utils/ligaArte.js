@@ -70,7 +70,7 @@ async function gifCombateLiga(c, lado, { idioma = 'es', nombres = {} } = {}) {
     });
     // Al final, el que pierde se pone triste.
     const perdedor = c.ganador === 'a' ? 'b' : 'a';
-    const triste = lados[perdedor].guildId ? SPR.imagen(`srv:${lados[perdedor].especie}`, { etapa: 2, humor: 'triste' }) : SPR.imagen('jefe:sombra', { etapa: 2, humor: 'triste' });
+    const triste = lados[perdedor].guildId ? SPR.imagen(`srv:${lados[perdedor].especie}`, { etapa: 2, humor: 'cansado' }) : SPR.imagen('jefe:sombra', { etapa: 2, humor: 'cansado' });
     if (triste) img[perdedor] = triste;
     const { ctx } = A.lienzo(W, H);
     pinta(ctx, { rotulo: c.ganador === lado ? t(idioma, `🏆 ¡GANA ${nombre(lado).toUpperCase()}!`, `🏆 ${nombre(lado).toUpperCase()} WINS!`).slice(0, 34) : t(idioma, `💔 GANA ${nombre(c.ganador).toUpperCase()}`, `💔 ${nombre(c.ganador).toUpperCase()} WINS`).slice(0, 34) });
