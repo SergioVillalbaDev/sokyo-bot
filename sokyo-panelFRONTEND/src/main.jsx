@@ -12,6 +12,10 @@ import './ligero.css'
 // Googlebot) no necesita descargar el código del portal de usuarios.
 // eslint-disable-next-line react-refresh/only-export-components -- entry point, no es un módulo con Fast Refresh
 const Portal = lazy(() => import('./Portal.jsx'))
+// La Actividad de Discord (/actividad, 1.34.0): solo se descarga ahí, con el SDK de Discord.
+// eslint-disable-next-line react-refresh/only-export-components -- entry point
+const Actividad = lazy(() => import('./Actividad.jsx'))
+const esActividad = /^\/actividad\/?$/i.test(window.location.pathname)
 
 // /cuenta (o /account, /mi-cuenta) -> "Mi cuenta" de cada usuario. ?portal=1 es
 // la dirección antigua y sigue valiendo. Si no, la landing y el panel de staff.
@@ -35,6 +39,7 @@ document.addEventListener('wheel', (e) => {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {esPortal ? <Suspense fallback={null}><Portal /></Suspense> : <App />}
+    {esActividad ? <Suspense fallback={null}><Actividad /></Suspense>
+      : esPortal ? <Suspense fallback={null}><Portal /></Suspense> : <App />}
   </StrictMode>,
 )
