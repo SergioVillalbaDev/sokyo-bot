@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.34.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.34.1.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -802,6 +802,20 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     animado (`utils/ligaArte.js`).
   - **Vitrina** en la página pública (`vitrinaDe` en `utils/paginaPublica.js`, `crecimiento.pagina.mostrarVitrina`; nombres solo con
     `mostrarRanking`), con los dibujos de `public/sprites`.
+- 1.34.1 **Guía del casino rehecha y emojis vigilados** (tests en `test/guiaCasino.test.js` y `test/emojis.test.js`):
+  - **Emojis**: Discord rechaza el mensaje ENTERO si un botón u opción de menú lleva un emoji que no reconoce. El Baccarat
+    usaba 🂠 (no es emoji RGI) y la guía daba «Algo ha fallado» siempre; ahora 🎴 (y la Rueda, 🛞, para no repetir el 🎡 de la
+    ruleta). `test/emojis.test.js` revisa todos los `setEmoji('…')`/`emoji: '…'` del código y los `emoji` de los datos con
+    `/^\p{RGI_Emoji}$/v`: **todo emoji nuevo en botones o menús tiene que pasarlo** (la prueba local sin Discord no lo ve).
+  - **Guía** (`utils/casinoAyuda.js`): portada con mapa en imagen (`arteVistas.tarjetaGuiaCasino`: «solo para ti» / «con más
+    gente», FÁCIL marcados, apagados con 🚫) y ficha por juego con icono (`arteVistas.iconoJuego`). `GUIA` lleva `grupo`,
+    `facil`, `corto` (frase del menú), `abrir` (botón `cas_lb:*` para los de grupo), `activo` (interruptor del que depende:
+    cohete → crash, mesa → ruleta), `nombre`/`mapa`. Juegos añadidos: cohete, mesa y lotería (`cas_lot:1`). `guiaGeneral`
+    y `guiaJuego` son **async** (llevan imagen) y reciben `{ canalId, guildId }`: jugar («Probar» `cas_rep`, «Abrir ahora»)
+    solo si se está en el canal del casino; fuera, botón enlace «Ir al casino». Volver = `cas_guiav`. `manejarGuia`: en la
+    guía pública fija (la que publica el panel) responde en privado en vez de cambiar el mensaje de todos.
+  - Ramas: `main` está abandonada (es la rama por defecto de GitHub, así que las sesiones nuevas la clonan y no ven nada de
+    esto). Lo bueno está en `feature/frontend-redesign`; `main` lleva un `CLAUDE.md` que lo avisa.
 - 1.34.0 **Que se entienda todo** (tests en `test/menu.test.js`, `referenciasComandos.test.js`, `nombresComandos.test.js`,
   `actividad.test.js`):
   - **Catálogo único** (`utils/catalogo.js`): `ZONAS` (jugar, mascotas, comunidad, musica, crecimiento, staff, basico) y `MODULOS`

@@ -6,6 +6,10 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '1.34.1': [
+        { tab: 'com-casino', es: '🎰 **Guía del casino nueva**: un mapa con todos los juegos de un vistazo (los fáciles marcados), una ficha por juego con lo que paga y un botón para probarlo. Ya están el cohete, la ruleta en mesa y la lotería.', en: '🎰 **New casino guide**: a map with every game at a glance (easy ones marked), a card per game with its payouts and a button to try it. The rocket, table roulette and lottery are in too.' },
+        { tab: 'com-casino', es: '🐛 Arreglado: «Guía de todos los juegos» daba error siempre. Ahora sus botones solo te llevan a sitios que funcionan (si no estás en el canal del casino, te lleva a él).', en: '🐛 Fixed: “Guide to every game” always failed. Its buttons now only take you where things work (if you’re not in the casino channel, it takes you there).' },
+    ],
     '1.34.0': [
         { tab: 'funciones', es: '🏠 **Nuevo `/menu`**: tu oro, tu mascota, lo que tienes listo y botones para todo, por zonas (🎮 Jugar, 🐾 Mis mascotas, 🏘️ Comunidad). Es lo más fácil para empezar.', en: '🏠 **New `/menu`**: your gold, your pet, what’s ready and buttons for everything, by zone (🎮 Play, 🐾 My pets, 🏘️ Community). The easiest place to start.' },
         { tab: 'funciones', es: '🧹 **Menos comandos y más ordenados**: al escribir «/» solo sale lo que está encendido en el servidor, y los juegos van dentro de `/jugar`, `/mascotas` y `/comunidad` (por ejemplo, `/jugar cofre abrir`).', en: '🧹 **Fewer, tidier commands**: typing “/” only shows what’s on in the server, and the games live inside `/games`, `/pets` and `/community` (for example, `/games chest open`).' },

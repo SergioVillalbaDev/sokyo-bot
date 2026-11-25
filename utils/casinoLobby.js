@@ -325,7 +325,7 @@ async function manejar(interaction, client) {
         const que = id.split(':')[1];
         if (que === 'mio') { await interaction.reply({ ...(await miOro(interaction, cfg, idioma)), flags: 64 }); return true; }
         if (que === 'ranking') { await interaction.reply({ embeds: [await casino().embedBote(interaction.guild, idioma, userId)], flags: 64 }); return true; }
-        if (que === 'guia') { await interaction.reply({ ...ayuda().guiaGeneral(idioma, cfg), flags: 64 }); return true; }
+        if (que === 'guia') { await interaction.reply({ ...(await ayuda().guiaGeneral(idioma, cfg, { canalId: interaction.channelId, guildId: interaction.guildId })), flags: 64 }); return true; }
         if (que === 'coleccion') { await interaction.deferReply({ flags: 64 }); await interaction.editReply(await require('./cofres.js').verColeccion(interaction, idioma)); return true; }
         if (que === 'diaria' || que === 'carrera' || que === 'mesaruleta' || que === 'cohete') {
             await interaction.deferReply();
