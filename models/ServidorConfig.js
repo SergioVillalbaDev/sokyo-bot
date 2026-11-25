@@ -859,6 +859,7 @@ const ServidorConfigSchema = new mongoose.Schema({
             bingo: { type: Boolean, default: true },    // 1.33.0: bingo del canal
             poker: { type: Boolean, default: true },    // 1.33.0: Texas Hold'em
         },
+        hilos: { type: Boolean, default: true },            // 1.34.0: las partidas para todo el canal, en un hilo propio
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
         // Lobby (1.23.0, utils/casinoLobby.js): el mensaje fijo con el desplegable de juegos (interno).
         lobby: { canalId: { type: String, default: null }, mensajeId: { type: String, default: null }, fecha: { type: Date, default: null } },

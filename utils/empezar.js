@@ -280,6 +280,9 @@ async function vistaInicio(guildId, userId, idioma, cfg, mensajes = []) {
         ...(ui.boton ? [ui.boton] : []),
         new ButtonBuilder().setCustomId(`emp:ver:${userId}`).setEmoji('🔄').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, '¿Y después?', 'And then?')),
         new ButtonBuilder().setCustomId(`emp:tema:rutina:${userId}`).setEmoji('⏱️').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Rutina de 5 min', '5-min routine')),
+        // 1.34.0: cómo encaja todo y tu menú (lo mismo que /menu).
+        new ButtonBuilder().setCustomId(`menu:mapa:${userId}`).setEmoji('🗺️').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mapa del juego', 'Game map')),
+        new ButtonBuilder().setCustomId(`menu:abrir:${userId}`).setEmoji('🏠').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi menú', 'My menu')),
     );
     return { content: null, embeds: [e], components: [fila, menuTemas(userId, idioma)], allowedMentions: { parse: [] } };
 }

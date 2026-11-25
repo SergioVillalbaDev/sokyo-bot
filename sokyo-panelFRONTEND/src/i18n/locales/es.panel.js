@@ -2913,6 +2913,7 @@ export default {
       daily: 'Tope de pérdidas al día (por persona)', dailyHint: '0 = sin tope. Al llegar, no puede seguir hasta mañana.',
       min: 'Apuesta mínima', max: 'Apuesta máxima',
       chests: 'Cofres de mascotas', chestsHint: 'Comprar cofres con oro para coleccionar compañeros.',
+      threads: 'Partidas para todos en un hilo', threadsHint: 'Póker, bingo, cohete y ruleta en mesa van en un hilo propio para no llenar el canal.',
       safe: {
         pause: 'Cada uno puede tomarse un descanso con /casino pausa (1 a 30 días).',
         refund: 'Si el bot se reinicia a mitad de una partida, se devuelve lo apostado.',

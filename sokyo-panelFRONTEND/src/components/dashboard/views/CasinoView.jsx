@@ -176,6 +176,11 @@ export default function CasinoView({ dash }) {
               <Toggle checked={form.cofres !== false} onChange={set('cofres')} />
             </FilaInterruptor>
           </div>
+          <div className="self-end">
+            <FilaInterruptor titulo={t('dashboard.casino_v.threads')} desc={t('dashboard.casino_v.threadsHint')}>
+              <Toggle checked={form.hilos !== false} onChange={set('hilos')} />
+            </FilaInterruptor>
+          </div>
         </div>
         <ul className="mt-4 grid gap-1.5 text-xs text-muted sm:grid-cols-2">
           {['pause', 'refund', 'odds', 'cashback'].map((k) => <li key={k}>✔️ {t(`dashboard.casino_v.safe.${k}`)}</li>)}

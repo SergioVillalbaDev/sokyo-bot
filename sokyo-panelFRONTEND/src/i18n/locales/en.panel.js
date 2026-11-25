@@ -2908,6 +2908,7 @@ export default {
       daily: 'Daily loss limit (per person)', dailyHint: '0 = no limit. Once reached, they can’t keep playing until tomorrow.',
       min: 'Minimum bet', max: 'Maximum bet',
       chests: 'Pet chests', chestsHint: 'Buy chests with gold to collect companions.',
+      threads: 'Channel-wide games in a thread', threadsHint: 'Poker, bingo, rocket and table roulette go in their own thread so the channel doesn’t fill up.',
       safe: {
         pause: 'Anyone can take a break with /casino pause (1 to 30 days).',
         refund: 'If the bot restarts mid-game, the bet is refunded.',

@@ -163,7 +163,9 @@ async function bingo({ interaction, client, cfg, idioma, cantidad }) {
     const precio = ok.cantidad;
     const b = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, precio, empieza: Date.now() + BINGO_VENTA_MS, cartones: [], jugadas: new Map(), cfg, idioma, interaction, estado: 'venta' };
     bingos.set(interaction.channelId, b);
-    await interaction.editReply(vistaBingo(b, idioma));
+    // 1.34.0: en un hilo propio (si se puede) para no llenar el canal.
+    const pub = await require('./hilos.js').publicar(interaction, cfg, t(idioma, '🎱 Bingo', '🎱 Bingo'), vistaBingo(b, idioma), idioma);
+    b.interaction = { editReply: pub.editar };
     setTimeout(() => jugarBingoCanal(client, b).catch((e) => { console.error('Bingo:', e.message); bingos.delete(b.canalId); }), BINGO_VENTA_MS);
     return { ok: true };
 }
@@ -292,7 +294,8 @@ async function mesa({ interaction, client, cfg, idioma }) {
     if (mesas.has(interaction.channelId)) return { error: t(idioma, 'Ya hay una ruleta en mesa en este canal: ¡apuesta en ella!', 'There’s already a table roulette here: bet on it!') };
     const m = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, cierra: Date.now() + MESA_MS, apuestas: new Map(), cfg, idioma, interaction };
     mesas.set(interaction.channelId, m);
-    await interaction.editReply(vistaMesa(m, idioma));
+    const pub = await require('./hilos.js').publicar(interaction, cfg, t(idioma, '🎡 Ruleta en mesa', '🎡 Table roulette'), vistaMesa(m, idioma), idioma);
+    m.interaction = { editReply: pub.editar };
     setTimeout(() => girarMesa(client, m).catch((e) => { console.error('Ruleta en mesa:', e.message); mesas.delete(m.canalId); }), MESA_MS);
     return { ok: true };
 }
@@ -381,7 +384,8 @@ async function cohete({ interaction, client, cfg, idioma }) {
     if (cohetes.has(interaction.channelId)) return { error: t(idioma, 'Ya hay un cohete en este canal: ¡súbete a ese!', 'There’s already a rocket in this channel: hop on that one!') };
     const k = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, sale: Date.now() + COHETE_MS, jugadores: new Map(), cfg, idioma, interaction, estado: 'apuestas' };
     cohetes.set(interaction.channelId, k);
-    await interaction.editReply(vistaCohete(k, idioma));
+    const pub = await require('./hilos.js').publicar(interaction, cfg, t(idioma, '🚀 Cohete del canal', '🚀 Channel rocket'), vistaCohete(k, idioma), idioma);
+    k.interaction = { editReply: pub.editar };
     setTimeout(() => despegar(client, k).catch((e) => { console.error('Cohete:', e.message); cohetes.delete(k.canalId); }), COHETE_MS);
     return { ok: true };
 }
