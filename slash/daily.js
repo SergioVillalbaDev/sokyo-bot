@@ -46,7 +46,8 @@ module.exports = {
         const extra = [
             r.extraClan ? t(cfg, `🛡️ **Tu clan ganó la semana:** +🪙 ${r.extraClan}`, `🛡️ **Your clan won the week:** +🪙 ${r.extraClan}`) : '',
             r.extraEvento ? t(cfg, `${r.evento.emoji} **${r.evento.es}:** +🪙 ${r.extraEvento}`, `${r.evento.emoji} **${r.evento.en}:** +🪙 ${r.extraEvento}`) : '',
-            r.regalo ? t(cfg, `🎁 **¡Regalo por ${r.racha} días seguidos!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} Un ${P.NOMBRE_TICKET?.[r.regalo]?.[1] || 'ticket'} gratis (en \`/jugar pase\`).`, `🎁 **${r.racha}-day streak gift!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} A free ${P.NOMBRE_TICKET?.[r.regalo]?.[2] || 'ticket'} (in \`/games pass\`).`) : '',
+            r.bienvenida ? t(cfg, '🎁 **¡Bienvenido! Te regalo un cofre** para tu primera mascota. Ábrelo con el botón de abajo o en `/jugar pase`.', '🎁 **Welcome! Here’s a free chest** for your first pet. Open it with the button below or in `/games pass`.') : '',
+            r.regalo && !r.bienvenida ? t(cfg, `🎁 **¡Regalo por ${r.racha} días seguidos!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} Un ${P.NOMBRE_TICKET?.[r.regalo]?.[1] || 'ticket'} gratis (en \`/jugar pase\`).`, `🎁 **${r.racha}-day streak gift!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} A free ${P.NOMBRE_TICKET?.[r.regalo]?.[2] || 'ticket'} (in \`/games pass\`).`) : '',
             !r.regalo ? (() => { const sig = [3, 7, 14, 21, 30].find((d) => d > r.racha); return sig ? t(cfg, `🎁 Próximo regalo a los **${sig} días** de racha.`, `🎁 Next gift at a **${sig}-day** streak.`) : ''; })() : '',
             ...(r.delPase || []),
         ].filter(Boolean);
@@ -54,7 +55,9 @@ module.exports = {
         if (png) { embed.setFields([]).setFooter(null).setImage('attachment://diario.png'); embed.setDescription(extra.join('\n') || null); }
         // Desde «Mi cuenta» también se puede reclamar con un clic.
         // 2.0.0: lo siguiente que más da cada día es votar (oro + cofre gratis).
-        const web = new ActionRowBuilder().addComponents(
+        const web = new ActionRowBuilder();
+        if (r.ok && r.bienvenida) web.addComponents(new ButtonBuilder().setCustomId(`pse:tk:cofre_basico:${interaction.user.id}`).setStyle(ButtonStyle.Success).setEmoji('📦').setLabel(t(cfg, 'Abrir mi cofre gratis', 'Open my free chest')));
+        web.addComponents(
             new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(require('../utils/votos.js').urlVoto(client.user.id)).setEmoji('🗳️').setLabel(t(cfg, 'Votar: +oro y cofre gratis', 'Vote: +gold and free chest')),
             botonWeb(cfg, 'inicio', t(cfg, 'Mi cuenta', 'My account')),
         );

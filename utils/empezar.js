@@ -21,6 +21,9 @@ function siguientePaso({ usuario = {}, col = null, cfg = null, ahora = Date.now(
     const cartas = !!cfg?.compis?.anime;
     const tickets = Object.entries(col?.tickets || {}).filter(([, v]) => v > 0);
     if (diarioListo) return { id: 'diario' };
+    // 2.0.1: sin mascotas pero con un cofre gratis (bienvenida, voto, racha): lo primero es abrirlo.
+    const cofreGratis = tickets.find(([k]) => k.startsWith('cofre_'));
+    if (!mascotas.length && cofres && cofreGratis) return { id: 'cofreGratis', clave: cofreGratis[0] };
     if (!mascotas.length) return cofres ? (oro >= K.COFRES.basico.precio ? { id: 'primerCofre' } : { id: 'ahorrar', falta: K.COFRES.basico.precio - oro }) : { id: 'sinCofres' };
     if (tickets.length) return { id: 'tickets', clave: tickets[0][0] };
     const a = G.acumulado(col, ahora);
@@ -242,6 +245,7 @@ function pasoUI(paso, userId, idioma) {
     case 'primerCofre': return { texto: t(idioma, `🎁 **Consigue tu primera mascota.** Un cofre básico cuesta 🪙 ${fmt(K.COFRES.basico.precio, idioma)} y ya los tienes.`, `🎁 **Get your first pet.** A basic chest costs 🪙 ${fmt(K.COFRES.basico.precio, idioma)} and you have it.`), boton: b('cof_otro:basico', '📦', 'Abrir mi primer cofre', 'Open my first chest') };
     case 'ahorrar': return { texto: t(idioma, `🪙 **Te faltan 🪙 ${fmt(paso.falta, idioma)} para tu primer cofre de mascota.** El atajo: **/votar** te da un cofre básico gratis (y oro) hoy mismo. Si no, el /diario de mañana o la tirada gratis del casino.`, `🪙 **You need 🪙 ${fmt(paso.falta, idioma)} more for your first pet chest.** The shortcut: **/vote** gives you a free basic chest (and gold) today. Otherwise, tomorrow’s /daily or the casino’s free spin.`), boton: b(`emp:tema:casino:${userId}`, '🎰', 'Ver la tirada gratis', 'See the free spin', ButtonStyle.Primary) };
     case 'sinCofres': return { texto: t(idioma, '🐾 Aquí los cofres de mascotas están apagados. Pide a un admin que active el casino y los cofres en el panel.', '🐾 Pet chests are off here. Ask an admin to turn on the casino and chests in the panel.'), boton: null };
+    case 'cofreGratis': return { texto: t(idioma, '🎁 **¡Tienes un cofre gratis!** Ábrelo y conoce a tu primera mascota.', '🎁 **You have a free chest!** Open it and meet your first pet.'), boton: b(`pse:tk:${paso.clave}:${userId}`, '📦', 'Abrir mi cofre gratis', 'Open my free chest', ButtonStyle.Success) };
     case 'tickets': return { texto: t(idioma, '🎫 **¡Tienes tickets gratis del pase!** Ábrelos: no cuestan nada.', '🎫 **You have free pass tickets!** Open them: they cost nothing.'), boton: b(`pse:abrir:${userId}`, '🎟️', 'Ver mis tickets', 'See my tickets') };
     case 'granjaEmpezar': return { texto: t(idioma, '🧺 **Pon en marcha tu granja.** Tus mascotas empezarán a producir oro solas.', '🧺 **Start your farm.** Your pets will start making gold on their own.'), boton: b(`grj:abrir:${userId}`, '🧺', 'Abrir mi granja', 'Open my farm') };
     case 'granjaRecoger': return { texto: t(idioma, `🧺 **Tu granja tiene 🪙 ${fmt(paso.oro, idioma)} esperando.** Recógelos.`, `🧺 **Your farm has 🪙 ${fmt(paso.oro, idioma)} waiting.** Collect it.`), boton: b(`grj:abrir:${userId}`, '🧺', 'Ir a recoger', 'Go collect') };
