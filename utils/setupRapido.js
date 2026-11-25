@@ -17,10 +17,10 @@ const F = PermissionsBitField.Flags;
 // bromas, Liga Sokyo y clanes. `uno: true` activa una sola cosa (los botones «Activar»
 // de la lista del Inicio) sin tocar el idioma ni el rol del staff.
 const MODULOS = ['bienvenidas', 'registro', 'niveles', 'automod', 'tickets', 'temporadas', 'cumpleanos', 'votos',
-    'sugerencias', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'clanes'];
+    'sugerencias', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'clanes', 'tienda'];
 const TIPOS = {
-    gaming: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'votos', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'clanes'],
-    comunidad: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'cumpleanos', 'votos', 'sugerencias', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga'],
+    gaming: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'votos', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'clanes', 'tienda'],
+    comunidad: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'cumpleanos', 'votos', 'sugerencias', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'tienda'],
     creador: ['bienvenidas', 'registro', 'niveles', 'automod', 'votos', 'sugerencias', 'salon', 'contadores', 'mascota', 'liga'],
     estudio: ['bienvenidas', 'registro', 'automod', 'cumpleanos', 'sugerencias', 'contadores'],
     soporte: ['bienvenidas', 'registro', 'automod', 'tickets', 'sugerencias', 'contadores'],
@@ -98,6 +98,7 @@ function permisosQueFaltan(guild, respuestas) {
     if (crea && !yo.permissions.has(F.ManageChannels)) falta.push('ManageChannels');
     if (respuestas.modulos.includes('automod') && !yo.permissions.has(F.ManageMessages)) falta.push('ManageMessages');
     if (respuestas.modulos.includes('automod') && !yo.permissions.has(F.ModerateMembers)) falta.push('ModerateMembers');
+    if (respuestas.modulos.includes('tienda') && !yo.permissions.has(F.ManageRoles)) falta.push('ManageRoles');
     return falta;
 }
 
@@ -358,6 +359,23 @@ async function aplicar(client, guild, respuestas, { idiomaTextos = respuestas.id
         return {};
     });
 
+    // 18. Tienda del servidor (2.0.1): dos roles de color a la venta para que el oro sirva desde el primer día.
+    //     Roles nuevos, sin ningún permiso (solo color), justo debajo del de Sokyo.
+    if (mods.has('tienda')) await paso('tienda', 'com-tienda', async () => {
+        if (cfg.tienda?.activo && (cfg.tienda?.productos || []).length) return { omitido: true, detalle: tx('Ya tenía productos.', 'It already had products.') };
+        const muestras = [
+            { emoji: '🌟', nombre: tx('Nombre dorado', 'Golden name'), rol: tx('✨ Dorado', '✨ Golden'), color: 0xF5B942, precio: 2000, descripcion: tx('Tu nombre en dorado en todo el servidor.', 'Your name in gold across the server.') },
+            { emoji: '💜', nombre: tx('Nombre violeta', 'Violet name'), rol: tx('💜 Violeta', '💜 Violet'), color: 0xA855F7, precio: 2000, descripcion: tx('Tu nombre en violeta en todo el servidor.', 'Your name in violet across the server.') },
+        ];
+        const productos = [];
+        for (const [i, m] of muestras.entries()) {
+            const rol = guild.roles.cache.find((r) => r.name === m.rol) || await guild.roles.create({ name: m.rol, color: m.color, permissions: [], reason: 'Sokyo: tienda del servidor (setup rápido)' });
+            productos.push({ id: `rapido${i + 1}`, nombre: m.nombre, descripcion: m.descripcion, emoji: m.emoji, rolId: rol.id, horas: 0, precio: m.precio, stock: null, activo: true });
+        }
+        await set({ 'tienda.activo': true, 'tienda.productos': productos });
+        return { detalle: tx('2 colores a la venta (🪙 2.000 cada uno). Cámbialos en el panel.', '2 colours for sale (🪙 2,000 each). Change them in the panel.') };
+    });
+
     // Al final, lo que haya quedado suelto (p. ej. el contador) va a su categoría.
     try {
         const doc = await ServidorConfig.findOne({ guildId: guild.id });
@@ -375,7 +393,7 @@ const NOMBRE_PASO = {
     tickets: ['Tickets', 'Tickets'], temporadas: ['Temporadas', 'Seasons'], cumpleanos: ['Cumpleaños', 'Birthdays'], votos: ['Premios por votar', 'Vote rewards'],
     sugerencias: ['Sugerencias', 'Suggestions'], salon: ['Salón de la fama', 'Hall of fame'], contadores: ['Contador de miembros', 'Member counter'],
     mascota: ['Mascota del servidor', 'Server pet'], casino: ['Casino y cofres', 'Casino & chests'], bromas: ['Bromas', 'Pranks'],
-    liga: ['Liga Sokyo', 'Sokyo League'], clanes: ['Clanes', 'Clans'],
+    liga: ['Liga Sokyo', 'Sokyo League'], clanes: ['Clanes', 'Clans'], tienda: ['Tienda del servidor', 'Server shop'],
 };
 function resumenTexto(idioma, resultado) {
     return resultado.pasos.map((p) => `${ICONO[p.estado]} **${t(idioma, ...NOMBRE_PASO[p.id])}**${p.detalle ? ` · ${p.detalle}` : ''}`).join('\n');

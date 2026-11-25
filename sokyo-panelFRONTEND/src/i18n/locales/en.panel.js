@@ -2678,6 +2678,7 @@ export default {
         bromas: ['Members can spend gold on pranks: nickname, reactions and a parrot.', 'The clown stays off until you pick its role.'],
         liga: ['The server joins this month’s Sokyo League.', 'Battles show up in the pet’s channel.'],
         clanes: ['Members can found clans with /clan.', 'Every week the clan with the most XP wins.'],
+        tienda: ['Creates two colour roles (golden and violet) and puts them up for 🪙 2,000.', 'Your members buy them with /shop: gold gets a visible use.'],
       },
     },
     guia: {
@@ -2713,7 +2714,7 @@ export default {
         salon: 'The best messages will go to {{canal}}.', mascota: 'The pet will live in {{canal}}.', casino: 'The casino will be in {{canal}}.',
         m_automod: 'I’ll delete spam, scams and invites (without banning anyone).', m_niveles: 'People will earn XP and level up.',
         m_contadores: 'I’ll add a channel at the top showing how many members you are.', m_bromas: 'Members will be able to prank each other with gold.',
-        m_clanes: 'Clans that compete every week can be founded.', m_liga: 'The server will join the Sokyo League.',
+        m_tienda: 'The server shop will open with two colours for sale.', m_clanes: 'Clans that compete every week can be founded.', m_liga: 'The server will join the Sokyo League.',
         staff: 'The staff will be @{{rol}}.',
       },
       dejarlo: 'Set it up!', trabajando: 'Getting your server ready…',
@@ -2739,8 +2740,9 @@ export default {
       qStaff: 'Your staff role (optional)', noStaff: 'No staff role',
       auto: 'Automatic (recommended)', new: 'Create a new one',
       canal: { sugerencias: 'Suggestions channel', salon: 'Hall of fame channel', mascota: 'Pet channel (and League)', casino: 'Casino channel', bienvenida: 'Welcome channel', registro: 'Log channel (private)', anuncios: 'Rewards & announcements channel', soporte: 'Ticket panel channel' },
-      paso: { sugerencias: 'Suggestions', salon: 'Hall of fame', contadores: 'Member counter', mascota: 'Server pet', casino: 'Casino & chests', bromas: 'Pranks', liga: 'Sokyo League', clanes: 'Clans', idioma: 'Bot language', staff: 'Staff role', registro: 'Private log', bienvenidas: 'Welcome messages', niveles: 'Levels & XP', automod: 'Basic automod', tickets: 'Support tickets', temporadas: 'Seasons', cumpleanos: 'Birthdays', votos: 'Vote rewards' },
+      paso: { sugerencias: 'Suggestions', salon: 'Hall of fame', contadores: 'Member counter', mascota: 'Server pet', casino: 'Casino & chests', bromas: 'Pranks', liga: 'Sokyo League', tienda: 'Server shop', clanes: 'Clans', idioma: 'Bot language', staff: 'Staff role', registro: 'Private log', bienvenidas: 'Welcome messages', niveles: 'Levels & XP', automod: 'Basic automod', tickets: 'Support tickets', temporadas: 'Seasons', cumpleanos: 'Birthdays', votos: 'Vote rewards' },
       desc: {
+        tienda: 'Colour roles bought with gold earned by playing.',
         sugerencias: 'What’s written in its channel becomes a suggestion with votes.', salon: 'Messages with 3 ⭐ are saved in a channel.', contadores: 'A channel at the top showing how many members you are.', mascota: 'An egg appears so the server votes on what it’ll be.', casino: 'Gold games in their channel, with the guide posted.', bromas: 'Gold pranks: nicknames, reactions and a parrot.', liga: 'Compete every month with other servers.', clanes: 'Teams that compete every week for XP.', 
         bienvenidas: 'Greets everyone who joins.', registro: 'Staff-only channel with joins, leaves, deleted messages and sanctions.',
         niveles: 'XP for chatting and levels.', automod: 'Deletes spam, invites, mass mentions and scams (never bans on its own).',

@@ -181,7 +181,9 @@ async function main() {
     if (error) fallo('setup', error);
     else {
         const r = await setup.aplicar(client, GA, respuestas).catch((e) => { fallo('setup', e.stack); return null; });
-        for (const d of r?.detalles || r?.resultado || []) if (d?.estado === 'error') fallo('setup', JSON.stringify(d));
+        for (const d of r?.pasos || []) if (d?.estado === 'error') fallo('setup', JSON.stringify(d));
+        if (!(r?.pasos || []).length) fallo('setup', 'el setup no hizo ningún paso');
+        fs.writeFileSync(path.join(__dirname, 'setup.txt'), (r?.pasos || []).map((d) => `${d.estado} ${d.id} ${d.detalle || ''}`).join('\n'));
     }
     // Lo que el setup no toca: pack anime, tienda, combates, dinámicas.
     const casino = GA.channels.cache.find((c) => c.name === 'casino');

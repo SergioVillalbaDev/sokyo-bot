@@ -11,8 +11,8 @@ import { apiFetch } from '../../lib/api';
 
 // Lo recomendado por tipo de servidor (TIPOS en utils/setupRapido.js).
 const TIPOS = {
-  gaming: { emoji: '🎮', modulos: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'votos', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'clanes'] },
-  comunidad: { emoji: '💬', modulos: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'cumpleanos', 'votos', 'sugerencias', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga'] },
+  gaming: { emoji: '🎮', modulos: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'votos', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'clanes', 'tienda'] },
+  comunidad: { emoji: '💬', modulos: ['bienvenidas', 'registro', 'niveles', 'automod', 'temporadas', 'cumpleanos', 'votos', 'sugerencias', 'salon', 'contadores', 'mascota', 'casino', 'bromas', 'liga', 'tienda'] },
   creador: { emoji: '📺', modulos: ['bienvenidas', 'registro', 'niveles', 'automod', 'votos', 'sugerencias', 'salon', 'contadores', 'mascota', 'liga'] },
   estudio: { emoji: '📚', modulos: ['bienvenidas', 'registro', 'automod', 'cumpleanos', 'sugerencias', 'contadores'] },
   soporte: { emoji: '🛟', modulos: ['bienvenidas', 'registro', 'automod', 'tickets', 'sugerencias', 'contadores'] },
@@ -22,12 +22,12 @@ const PACKS = [
   { id: 'proteger', emoji: '🛡️', color: '#ef4444', modulos: ['automod', 'registro'] },
   { id: 'bienvenida', emoji: '👋', color: '#22c55e', modulos: ['bienvenidas'] },
   { id: 'participar', emoji: '🎉', color: '#f59e0b', modulos: ['niveles', 'temporadas', 'cumpleanos', 'votos', 'sugerencias', 'salon', 'contadores'] },
-  { id: 'diversion', emoji: '🎮', color: '#a855f7', modulos: ['mascota', 'casino', 'bromas', 'liga', 'clanes'] },
+  { id: 'diversion', emoji: '🎮', color: '#a855f7', modulos: ['mascota', 'casino', 'bromas', 'liga', 'clanes', 'tienda'] },
   { id: 'ayuda', emoji: '🎫', color: '#3b82f6', modulos: ['tickets'] },
 ];
 const EMOJI = {
   bienvenidas: '👋', registro: '📋', automod: '🛡️', tickets: '🎫', niveles: '📈', temporadas: '🏆', cumpleanos: '🎂', votos: '🗳️',
-  sugerencias: '💡', salon: '⭐', contadores: '👥', mascota: '🐾', casino: '🎰', bromas: '🃏', liga: '🥇', clanes: '🛡',
+  sugerencias: '💡', salon: '⭐', contadores: '👥', mascota: '🐾', casino: '🎰', bromas: '🃏', liga: '🥇', clanes: '🛡', tienda: '🛒',
 };
 // Canal que necesita cada cosa y cómo se llamará si lo crea Sokyo (CANALES/NOMBRES del bot).
 const CANALES = [
@@ -292,7 +292,7 @@ export default function InstalacionGuiada({ guildId, canales = [], roles = [], o
     const frases = [
       t('dashboard.guia.res.idioma', { idioma: es ? 'español' : 'English' }),
       ...necesarios.map((c) => t(`dashboard.guia.res.${c.clave}`, { canal: donde[c.clave] && donde[c.clave] !== 'auto' ? `#${(canales.find((x) => x.id === donde[c.clave])?.nombre) || ''}` : `#${nombreCanal(c)}` })),
-      ...modulos.filter((m) => ['automod', 'niveles', 'contadores', 'bromas', 'clanes', 'liga'].includes(m)).map((m) => t(`dashboard.guia.res.m_${m}`)),
+      ...modulos.filter((m) => ['automod', 'niveles', 'contadores', 'bromas', 'clanes', 'liga', 'tienda'].includes(m)).map((m) => t(`dashboard.guia.res.m_${m}`)),
       rolStaffId ? t('dashboard.guia.res.staff', { rol: roles.find((r) => r.id === rolStaffId)?.nombre || '' }) : null,
     ].filter(Boolean);
     pantalla = (

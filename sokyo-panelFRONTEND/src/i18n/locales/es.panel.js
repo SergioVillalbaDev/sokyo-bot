@@ -2683,6 +2683,7 @@ export default {
         bromas: ['Los miembros pueden gastar oro en bromas: apodo, reacciones y loro.', 'El payaso queda apagado hasta que elijas su rol.'],
         liga: ['El servidor entra en la Liga Sokyo de este mes.', 'Los combates salen en el canal de la mascota.'],
         clanes: ['Los miembros pueden fundar clanes con /clan.', 'Cada semana gana el clan que más XP sume.'],
+        tienda: ['Crea dos roles de color (dorado y violeta) y los pone a la venta por 🪙 2.000.', 'Tus miembros los compran con /tienda: el oro sirve para algo que se ve.'],
       },
     },
     guia: {
@@ -2718,7 +2719,7 @@ export default {
         salon: 'Los mejores mensajes irán a {{canal}}.', mascota: 'La mascota vivirá en {{canal}}.', casino: 'El casino estará en {{canal}}.',
         m_automod: 'Borraré spam, estafas e invitaciones (sin banear a nadie).', m_niveles: 'La gente ganará XP y subirá de nivel.',
         m_contadores: 'Pondré arriba un canal con cuántos miembros sois.', m_bromas: 'Los miembros podrán gastarse bromas con oro.',
-        m_clanes: 'Se podrán fundar clanes que compiten cada semana.', m_liga: 'El servidor entrará en la Liga Sokyo.',
+        m_tienda: 'Se abrirá la tienda del servidor con dos colores a la venta.', m_clanes: 'Se podrán fundar clanes que compiten cada semana.', m_liga: 'El servidor entrará en la Liga Sokyo.',
         staff: 'El staff será @{{rol}}.',
       },
       dejarlo: '¡Déjalo listo!', trabajando: 'Preparando tu servidor…',
@@ -2744,8 +2745,9 @@ export default {
       qStaff: 'Rol de tu staff (opcional)', noStaff: 'Sin rol de staff',
       auto: 'Automático (recomendado)', new: 'Crear uno nuevo',
       canal: { sugerencias: 'Canal de sugerencias', salon: 'Canal del salón de la fama', mascota: 'Canal de la mascota (y de la Liga)', casino: 'Canal del casino', bienvenida: 'Canal de bienvenidas', registro: 'Canal de registro (privado)', anuncios: 'Canal de premios y avisos', soporte: 'Canal del panel de tickets' },
-      paso: { sugerencias: 'Sugerencias', salon: 'Salón de la fama', contadores: 'Contador de miembros', mascota: 'Mascota del servidor', casino: 'Casino y cofres', bromas: 'Bromas', liga: 'Liga Sokyo', clanes: 'Clanes', idioma: 'Idioma del bot', staff: 'Rol del staff', registro: 'Registro privado', bienvenidas: 'Bienvenidas', niveles: 'Niveles y XP', automod: 'Automod básico', tickets: 'Tickets de soporte', temporadas: 'Temporadas', cumpleanos: 'Cumpleaños', votos: 'Premios por votar' },
+      paso: { sugerencias: 'Sugerencias', salon: 'Salón de la fama', contadores: 'Contador de miembros', mascota: 'Mascota del servidor', casino: 'Casino y cofres', bromas: 'Bromas', liga: 'Liga Sokyo', tienda: 'Tienda del servidor', clanes: 'Clanes', idioma: 'Idioma del bot', staff: 'Rol del staff', registro: 'Registro privado', bienvenidas: 'Bienvenidas', niveles: 'Niveles y XP', automod: 'Automod básico', tickets: 'Tickets de soporte', temporadas: 'Temporadas', cumpleanos: 'Cumpleaños', votos: 'Premios por votar' },
       desc: {
+        tienda: 'Roles de color que se compran con el oro que se gana jugando.',
         sugerencias: 'Lo que se escribe en su canal se convierte en una sugerencia con votos.', salon: 'Los mensajes con 3 ⭐ se guardan en un canal.', contadores: 'Un canal arriba que dice cuántos miembros sois.', mascota: 'Sale un huevo para que el servidor vote qué será.', casino: 'Juegos con oro en su canal y la guía publicada.', bromas: 'Bromas con oro: apodos, reacciones y loro.', liga: 'Competir cada mes con otros servidores.', clanes: 'Equipos que compiten cada semana por XP.', 
         bienvenidas: 'Saluda a cada persona que entra.', registro: 'Canal solo para el staff con entradas, salidas, mensajes borrados y sanciones.',
         niveles: 'XP por hablar y niveles.', automod: 'Borra spam, invitaciones, menciones masivas y estafas (nunca banea solo).',
