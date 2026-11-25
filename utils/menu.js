@@ -135,9 +135,11 @@ async function vistaMenu(interaction, cfg, idioma) {
     if (!botones.length && paso?.boton) botones.push(paso.boton);
     if (botones.length) filas.push(new ActionRowBuilder().addComponents(botones));
     filas.push(filaZonas(userId, idioma));
-    if (interaction.memberPermissions?.has?.(PermissionFlagsBits.ManageGuild)) {
-        filas.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cfg:ver:${userId}`).setEmoji('⚙️').setLabel(t(idioma, 'Configurar el bot (admins)', 'Set up the bot (admins)')).setStyle(ButtonStyle.Secondary)));
-    }
+    // Resumen diario por privado (opcional) y, para admins, configurar.
+    const resumen = await require('./resumenDiario.js').estado(guildId, userId).catch(() => false);
+    const extra = [new ButtonBuilder().setCustomId(`menu:res:${userId}`).setEmoji(resumen ? '🔔' : '🔕').setLabel(resumen ? t(idioma, 'Resumen diario: sí', 'Daily summary: on') : t(idioma, 'Resumen diario por privado', 'Daily summary by DM')).setStyle(ButtonStyle.Secondary)];
+    if (interaction.memberPermissions?.has?.(PermissionFlagsBits.ManageGuild)) extra.push(new ButtonBuilder().setCustomId(`cfg:ver:${userId}`).setEmoji('⚙️').setLabel(t(idioma, 'Configurar el bot', 'Set up the bot')).setStyle(ButtonStyle.Secondary));
+    filas.push(new ActionRowBuilder().addComponents(extra));
     return { embeds: [emb], components: filas, files: [], attachments: [] };
 }
 
@@ -260,6 +262,12 @@ async function manejar(interaction, client) {
     if (tipo === 'ayuda') { await responder(vistaAyuda(idioma, cfg, partes.length > 3 ? partes[2] : null, interaction.user.id)); return true; }
     if (tipo === 'ay') { await responder(vistaAyuda(idioma, cfg, interaction.values[0], interaction.user.id)); return true; }
     if (!mio) { await interaction.reply({ ...(await vistaMenu(interaction, cfg, idioma)), flags: 64 }); return true; }
+    if (tipo === 'res') {
+        const on = await require('./resumenDiario.js').alternar(interaction.guildId, interaction.user.id);
+        await interaction.update(await vistaMenu(interaction, cfg, idioma)).catch(() => {});
+        await interaction.followUp({ content: on ? t(idioma, '🔔 Hecho: cada día (si tienes algo listo) te llegará un resumen por privado. Lo apagas aquí mismo.', '🔔 Done: every day (if you have something ready) you’ll get a summary by DM. Turn it off right here.') : t(idioma, '🔕 Resumen diario apagado.', '🔕 Daily summary turned off.'), flags: 64 }).catch(() => {});
+        return true;
+    }
     if (tipo === 'sel') { const [mod, clave] = interaction.values[0].split(':'); await lanzar(interaction, client, cfg, idioma, mod, clave); return true; }
     if (tipo === 'a') { await lanzar(interaction, client, cfg, idioma, partes[2], partes[3]); return true; }
     if (tipo === 'p') {

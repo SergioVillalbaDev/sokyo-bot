@@ -1,93 +1,49 @@
-// ============================================================================
-// Briefing diario (Pro): arma el PARTE DE ESTADÍSTICAS del servidor (crecimiento,
-// actividad, tickets, moderación, niveles e ideas de crecimiento) y lo entrega
-// por MD al dueño —o al destinatario configurado en el panel— y, opcionalmente,
-// a un canal. Lo usan el programador (envío a la hora fijada) y la API (botón
-// "enviar prueba"). NO usa IA: son los números directos de la analítica.
-// ============================================================================
-const { EmbedBuilder } = require('discord.js');
-const ServidorConfig = require('../models/ServidorConfig.js');
-const { construirAnalitica } = require('./analitica.js');
-const { aplicarPieMarca } = require('./marca.js');
+// 🔔 Resumen diario por privado (1.34.0). Opcional: se enciende y apaga en /menu (menu:res). Una vez al día, a partir
+// de su hora (17:00 UTC por defecto), manda por privado lo que tiene listo en ese servidor, con las mismas cuentas que
+// /menu (utils/menu.js → estadoJugador y avisos). Si no hay nada que hacer, no manda nada. El privado no lleva botones
+// del servidor (en privado no funcionan): dice qué hay y lleva un enlace para volver.
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const ResumenDiario = require('../models/ResumenDiario.js');
 const { t } = require('./i18n.js');
-const billing = require('./billing.js');
 
-const n = (v) => (v === null || v === undefined ? '—' : String(v));
-const signo = (v) => (typeof v === 'number' && v > 0 ? `+${v}` : n(v));
+const hoy = (ahora = Date.now()) => new Date(ahora).toISOString().slice(0, 10);
 
-// Construye el embed de estadísticas a partir de la analítica de `dias` días.
-function construirEmbed(data, guild, cfg) {
-    const r = data.resumen || {};
-    const s = data.servidor || {};
-    const c = data.comunidad || {};
-    const tk = (data.tickets && data.tickets.totales) || {};
-    const mod = data.moderacion || {};
-    const niv = data.niveles || {};
-    const act = data.actividad || {};
-
-    const embed = new EmbedBuilder()
-        .setTitle(t(cfg, `📊 Informe del servidor · ${guild.name}`, `📊 Server report · ${guild.name}`))
-        .setColor(cfg && cfg.colorEmbed ? cfg.colorEmbed : '#5865F2')
-        .setDescription(t(cfg, `Estadísticas de los últimos **${data.dias} días**.`, `Stats from the last **${data.dias} days**.`))
-        .addFields(
-            { name: t(cfg, '👥 Miembros', '👥 Members'), value: `${n(s.miembros)}${s.boosts ? t(cfg, ` · 🚀 ${s.boosts} boosts`, ` · 🚀 ${s.boosts} boosts`) : ''}`, inline: true },
-            { name: t(cfg, '📈 Crecimiento', '📈 Growth'), value: t(cfg, `${signo(c.neto)} neto\n↗ ${n(c.totalEntradas)} entraron · ↘ ${n(c.totalSalidas)} se fueron`, `${signo(c.neto)} net\n↗ ${n(c.totalEntradas)} joined · ↘ ${n(c.totalSalidas)} left`), inline: true },
-            { name: t(cfg, '💬 Actividad', '💬 Activity'), value: t(cfg, `${n(act.total)} mensajes\n${n(r.activos)} activos${r.pctActivos != null ? ` (${r.pctActivos}%)` : ''}${act.horaPico ? ` · pico ${act.horaPico}` : ''}`, `${n(act.total)} messages\n${n(r.activos)} active${r.pctActivos != null ? ` (${r.pctActivos}%)` : ''}${act.horaPico ? ` · peak ${act.horaPico}` : ''}`), inline: true },
-            { name: t(cfg, '🔊 Voz', '🔊 Voice'), value: t(cfg, `${n(r.vozActivos)} activos`, `${n(r.vozActivos)} active`), inline: true },
-            { name: t(cfg, '🎫 Tickets', '🎫 Tickets'), value: t(cfg, `${n(tk.total)} totales\n🟢 ${n(tk.abiertos)} abiertos · 🔒 ${n(tk.cerrados)} cerrados${tk.csat != null ? `\n⭐ CSAT ${tk.csat}` : ''}`, `${n(tk.total)} total\n🟢 ${n(tk.abiertos)} open · 🔒 ${n(tk.cerrados)} closed${tk.csat != null ? `\n⭐ CSAT ${tk.csat}` : ''}`), inline: true },
-            { name: t(cfg, '🛡️ Moderación', '🛡️ Moderation'), value: t(cfg, `${n(mod.total)} sanciones${mod.automod != null ? ` · ${mod.automod} automod` : ''}${mod.reportesPendientes ? `\n⚠ ${mod.reportesPendientes} reportes pendientes` : ''}`, `${n(mod.total)} sanctions${mod.automod != null ? ` · ${mod.automod} automod` : ''}${mod.reportesPendientes ? `\n⚠ ${mod.reportesPendientes} reports pending` : ''}`), inline: true },
-            { name: t(cfg, '🏆 Niveles', '🏆 Levels'), value: t(cfg, `${n(niv.conXp)}/${n(niv.total)} con XP · nivel medio ${n(niv.nivelMedio)}`, `${n(niv.conXp)}/${n(niv.total)} with XP · avg lvl ${n(niv.nivelMedio)}`), inline: true },
-        )
-        .setTimestamp();
-
-    // Ideas de crecimiento (las 3 primeras), si las hay.
-    const insights = Array.isArray(data.insights) ? data.insights.slice(0, 3) : [];
-    if (insights.length) {
-        const linea = insights.map((i) => {
-            const icono = i.tipo === 'warn' ? '⚠️' : i.tipo === 'ok' ? '✅' : '💡';
-            return `${icono} **${i.titulo}** — ${i.texto}`;
-        }).join('\n\n').slice(0, 1024);
-        embed.addFields({ name: t(cfg, '🌱 Ideas de crecimiento', '🌱 Growth tips'), value: linea, inline: false });
-    }
-
-    aplicarPieMarca(embed, cfg);
-    if (guild.iconURL()) embed.setThumbnail(guild.iconURL({ size: 64 }));
-    return embed;
+async function estado(guildId, userId) {
+    const r = await ResumenDiario.findOne({ guildId, userId }).lean();
+    return !!r?.activo;
+}
+async function alternar(guildId, userId) {
+    const r = await ResumenDiario.findOne({ guildId, userId }).lean();
+    const activo = !r?.activo;
+    await ResumenDiario.updateOne({ guildId, userId }, { $set: { activo } }, { upsert: true });
+    return activo;
 }
 
-// Genera y entrega el parte de un servidor. `prueba` no marca el día (para test).
-async function enviarResumen(client, gid, { prueba = false } = {}) {
-    const guild = client.guilds.cache.get(gid);
-    if (!guild) return { error: 'Servidor no encontrado' };
-    const cfg = await ServidorConfig.findOne({ guildId: gid });
-    if (!billing.esPro(cfg)) return { error: t(cfg, 'El parte diario es una función Pro.', 'The daily report is a Pro feature.') };
-
-    const data = await construirAnalitica(client, gid, cfg, 7);
-    const embed = construirEmbed(data, guild, cfg);
-    const payload = { embeds: [embed] };
-
-    let entregado = false;
-
-    // Destinatario del MD: el configurado en el panel, o el dueño del servidor.
-    const destinatarioId = cfg && cfg.resumenDiario && cfg.resumenDiario.destinatarioId;
-    try {
-        let destino = null;
-        if (destinatarioId) destino = await client.users.fetch(destinatarioId).catch(() => null);
-        if (!destino) destino = await guild.fetchOwner().catch(() => null);
-        if (destino) { await destino.send(payload); entregado = true; }
-    } catch { /* MD cerrados o usuario no encontrado */ }
-
-    // Canal opcional, además del MD.
-    const canalId = cfg && cfg.resumenDiario && cfg.resumenDiario.canalId;
-    if (canalId) {
-        const canal = await client.channels.fetch(canalId).catch(() => null);
-        if (canal && canal.isTextBased()) { await canal.send(payload).catch(() => {}); entregado = true; }
+async function pasada(client, ahora = Date.now()) {
+    const dia = hoy(ahora); const hora = new Date(ahora).getUTCHours();
+    const lista = await ResumenDiario.find({ activo: true, ultimo: { $ne: dia }, hora: { $lte: hora } }).limit(200).lean();
+    const menu = require('./menu.js');
+    const { getConfigCached } = require('./config.js');
+    for (const r of lista) {
+        // Se marca antes: un reinicio a mitad no lo repite.
+        const m = await ResumenDiario.updateOne({ _id: r._id, ultimo: { $ne: dia } }, { $set: { ultimo: dia } });
+        if (!m.modifiedCount) continue;
+        const guild = client.guilds.cache.get(r.guildId);
+        if (!guild) continue;
+        const cfg = await getConfigCached(r.guildId).catch(() => ({})) || {};
+        const idioma = await require('./preferencias.js').idiomaMiembro(r.userId, { cfg }).catch(() => 'es');
+        const e = await menu.estadoJugador(r.guildId, r.userId, cfg, ahora).catch(() => null);
+        if (!e) continue;
+        const avisos = menu.avisos(e, r.userId, idioma);
+        if (!avisos.length) continue;
+        const u = await client.users.fetch(r.userId).catch(() => null);
+        if (!u) continue;
+        const emb = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, `🔔 Tu resumen en ${guild.name}`, `🔔 Your summary on ${guild.name}`))
+            .setDescription([...avisos.map((a) => a.texto), '', t(idioma, '👉 Escribe **/menu** en el servidor para hacerlo todo con botones.', '👉 Type **/menu** on the server to do it all with buttons.')].join('\n'))
+            .setFooter({ text: t(idioma, 'Lo apagas en /menu → 🔔 Resumen diario', 'Turn it off in /menu → 🔔 Daily summary') });
+        const fila = new ActionRowBuilder().addComponents(new ButtonBuilder().setURL(`https://discord.com/channels/${r.guildId}`).setEmoji('🏠').setLabel(t(idioma, 'Ir al servidor', 'Go to the server')).setStyle(ButtonStyle.Link));
+        await u.send({ embeds: [emb], components: [fila] }).catch(() => {});
     }
-
-    if (!prueba) {
-        await ServidorConfig.updateOne({ guildId: gid }, { $set: { 'resumenDiario.lastDia': new Date().toISOString().slice(0, 10) } });
-    }
-    return entregado ? { ok: true } : { error: t(cfg, 'No se ha podido entregar (el destinatario tiene los MD cerrados y no hay canal configurado).', 'Couldn’t deliver it (the recipient has DMs closed and no channel is configured).') };
 }
 
-module.exports = { enviarResumen };
+module.exports = { estado, alternar, pasada };
