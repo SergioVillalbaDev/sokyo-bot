@@ -216,7 +216,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
                 nivelesActivo: !!cfg.nivelesActivo,
                 clanes: await Promise.all(lista.map(async (c) => ({
                     id: String(c._id), nombre: c.nombre, emoji: c.emoji, miembros: c.miembros.length,
-                    puntosSemana: c.puntosSemana, puntosTotal: c.puntosTotal, victorias: c.victorias,
+                    puntosSemana: c.puntosSemana, puntosTotal: c.puntosTotal, victorias: c.victorias, copas: c.copas || 0,
                     lider: await usuario(guild, c.liderId), fecha: c.creadoFecha,
                 }))),
             });
@@ -233,6 +233,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (b.costeCrear !== undefined) set['clanes.costeCrear'] = entero(b.costeCrear, 0, 1000000, 0);
             if (b.premioOro !== undefined) set['clanes.premioOro'] = entero(b.premioOro, 0, 1000000, 100);
             if (b.premioXp !== undefined) set['clanes.premioXp'] = entero(b.premioXp, 0, 100000, 0);
+            if (b.premioGuerra !== undefined) set['clanes.premioGuerra'] = entero(b.premioGuerra, 0, 1000000, 150);
             const nueva = await guardar(guild.id, set);
             res.json({ success: true, config: nueva.clanes });
         } catch (e) { console.error('PUT clanes:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }

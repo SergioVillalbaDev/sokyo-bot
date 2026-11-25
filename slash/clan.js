@@ -29,6 +29,9 @@ module.exports = {
             .setDescription('A clan’s members and points (yours if you don’t pick one)')
             .setDescriptionLocalizations(ES('Los miembros y puntos de un clan (el tuyo si no eliges)'))
             .addStringOption((o) => o.setName('name').setNameLocalizations(ES('nombre')).setDescription('Which clan').setDescriptionLocalizations(ES('Qué clan')).setAutocomplete(true)))
+        .addSubcommand((s) => s.setName('war').setNameLocalizations(ES('guerra'))
+            .setDescription('⚔️ This week’s clan war: your rival and the score')
+            .setDescriptionLocalizations(ES('⚔️ La guerra de clanes de esta semana: tu rival y cómo vais')))
         .addSubcommand((s) => s.setName('ranking')
             .setDescription('This week’s clan standings')
             .setDescriptionLocalizations(ES('La clasificación de clanes de esta semana')))
@@ -55,6 +58,13 @@ module.exports = {
 
         if (sub === 'ranking') {
             return interaction.reply({ embeds: [clanes.embedRanking(await clanes.ranking(gid, 10), idioma)], allowedMentions: { parse: [] } });
+        }
+        if (sub === 'war') {
+            if (!cfg?.clanes?.activo) return privado(t(idioma, '🛡️ Los clanes no están activados en este servidor.', '🛡️ Clans aren’t turned on on this server.'));
+            await interaction.deferReply();
+            const v = await require('../utils/guerraClanes.js').vista(gid, uid, idioma);
+            if (v.flags) { await interaction.deleteReply().catch(() => {}); return interaction.followUp(v); }
+            return interaction.editReply({ ...v, allowedMentions: { parse: [] } });
         }
         if (sub === 'info') {
             const nombre = interaction.options.getString('name');

@@ -805,6 +805,7 @@ const ServidorConfigSchema = new mongoose.Schema({
         canalId: { type: String, default: null },           // anuncio del ganador de la semana
         premioOro: { type: Number, default: 100 },          // para cada miembro del clan ganador
         premioXp: { type: Number, default: 0 },
+        premioGuerra: { type: Number, default: 150 },       // 1.33.0: oro para cada miembro del clan que gana su guerra
         lastSemana: { type: String, default: '' },          // (interno) semana ISO ya cerrada
     },
     // Bromas de oro (1.14.0): los miembros pagan oro para gastarse bromas durante un

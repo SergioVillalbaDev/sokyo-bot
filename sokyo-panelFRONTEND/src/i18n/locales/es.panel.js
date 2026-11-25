@@ -3168,6 +3168,7 @@ export default {
       title: 'Clanes', channel: 'Canal del clan de la semana', channelHint: 'Donde se anuncia el ganador cada lunes.', noChannel: 'Sin anuncio',
       max: 'Miembros por clan (máx.)', cost: 'Coste de fundar un clan (oro)', costHint: '0 = gratis.',
       prizeGold: 'Premio en oro', prizeXp: 'Premio en XP', prizeHint: 'El premio es para cada miembro del clan ganador.',
+      warPrize: 'Premio de la guerra de clanes (oro)', warHint: 'Cada semana los clanes se emparejan de dos en dos. El que gane su guerra (más puntos, y +300 por cada combate ganado a un rival) se lleva una copa y este oro para cada miembro. En Discord: /clan guerra.',
       ranking: 'Clasificación de esta semana', emptyTitle: 'Todavía no hay clanes', emptySub: 'Cuando alguien use /clan crear en Discord, aparecerá aquí.',
       members_one: '{{count}} miembro', members_other: '{{count}} miembros', thisWeek: 'esta semana',
       delete: 'Borrar el clan', confirmDelete: '¿Borrar el clan «{{n}}»? Sus miembros quedarán sin clan.',
