@@ -33,6 +33,7 @@ async function manejar(interaction, client) {
         if (id.startsWith('crt_')) return await require('./cartas.js').manejar(interaction, client);
         // 1.32.0: combates (retos, rondas, torre, jefe semanal).
         if (id.startsWith('cbt_')) return await require('./combate.js').manejar(interaction, client);
+        if (id.startsWith('pkr_')) return await require('./poker.js').manejar(interaction, client);
         if (id.startsWith('mkt_')) return await require('./mercado.js').manejar(interaction, client);
         // 1.28.0: granja y álbum de mascotas.
         if (id.startsWith('grj:')) return await require('./granja.js').manejar(interaction, client);

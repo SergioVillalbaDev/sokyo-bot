@@ -82,6 +82,12 @@ const GUIA = {
         como: ['Dos manos, **Jugador** y **Banca**, reciben 2 o 3 cartas (las reparte el bot con las reglas de siempre). Gana la que se acerque más a **9**: el As vale 1, las figuras y el 10 valen 0 y solo cuenta la última cifra (7 + 8 = 5). Tú solo eliges quién gana.', 'Two hands, **Player** and **Banker**, get 2 or 3 cards (dealt by the bot with the usual rules). Whoever is closest to **9** wins: Ace is 1, face cards and 10 are 0, and only the last digit counts (7 + 8 = 5). You just pick who wins.'],
         paga: () => ['Jugador ×2 · Banca ×1,95 · Empate ×9. Si hay empate y apostaste a Jugador o Banca, recuperas lo apostado.', 'Player ×2 · Banker ×1.95 · Tie ×9. On a tie, bets on Player or Banker are returned.'],
     },
+    poker: {
+        emoji: '♠️', probar: null,
+        ej: ['/casino poker entrada:1000', '/casino poker buyin:1000'],
+        como: ['Abre una mesa en el canal: de 2 a 6 personas pagan la **entrada** y la reciben en fichas. Cada uno tiene 2 cartas (míralas con **👀 Mis cartas**) y en la mesa salen 5 para todos. Por turnos: **pasar**, **igualar**, **subir** o **retirarte**. Gana la mejor mano de 5 cartas o quien se queda solo. Se juegan manos seguidas; al levantarte cobras tus fichas.', 'Open a table in the channel: 2 to 6 players pay the **buy-in** and get it as chips. Everyone gets 2 cards (see them with **👀 My cards**) and 5 shared cards come out on the table. In turns: **check**, **call**, **raise** or **fold**. Best 5-card hand wins, or whoever is left alone. Hands keep coming; when you leave you cash out your chips.'],
+        paga: () => ['Te llevas las fichas que ganas a los demás. La casa solo se queda un 2 % de los botes que llegan al flop. Manos, de mejor a peor: escalera de color, póker, full, color, escalera, trío, doble pareja, pareja, carta alta.', 'You keep the chips you win from others. The house only takes 2% of pots that reach the flop. Hands, best to worst: straight flush, four of a kind, full house, flush, straight, three of a kind, two pair, pair, high card.'],
+    },
     bingo: {
         emoji: '🎱', probar: null,
         ej: ['/casino bingo carton:100', '/casino bingo card:100'],

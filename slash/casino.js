@@ -54,6 +54,8 @@ module.exports = {
                 { name: '🔵 Player (×2)', name_localizations: ES('🔵 Jugador (×2)'), value: 'jugador' }, { name: '🔴 Banker (×1.95)', name_localizations: ES('🔴 Banca (×1,95)'), value: 'banca' }, { name: '🟢 Tie (×9)', name_localizations: ES('🟢 Empate (×9)'), value: 'empate' })))
         .addSubcommand((s) => s.setName('bingo').setDescription('🎱 Channel bingo: buy cards, line and bingo prizes').setDescriptionLocalizations(ES('🎱 Bingo del canal: compra cartones, premio a línea y bingo'))
             .addIntegerOption((o) => o.setName('card').setNameLocalizations(ES('carton')).setDescription('Price of each card (default 100)').setDescriptionLocalizations(ES('Precio de cada cartón (100 si lo dejas vacío)')).setMinValue(1).setMaxValue(10000000)))
+        .addSubcommand((s) => s.setName('poker').setDescription('♠️ Texas Hold\'em table for 2-6 players').setDescriptionLocalizations(ES('♠️ Mesa de póker Texas Hold\'em para 2-6 personas'))
+            .addIntegerOption((o) => o.setName('buyin').setNameLocalizations(ES('entrada')).setDescription('What each player pays to sit (default 1000)').setDescriptionLocalizations(ES('Lo que paga cada uno para sentarse (1000 si lo dejas vacío)')).setMinValue(1).setMaxValue(10000000)))
         .addSubcommand((s) => s.setName('rocket').setNameLocalizations(ES('cohete')).setDescription('🚀 Channel rocket: one crash for everyone').setDescriptionLocalizations(ES('🚀 Cohete del canal: un crash para todos')))
         .addSubcommand((s) => s.setName('table').setNameLocalizations(ES('mesa')).setDescription('🎡 Table roulette: one spin for the whole channel').setDescriptionLocalizations(ES('🎡 Ruleta en mesa: una tirada para todo el canal')))
         .addSubcommand((s) => s.setName('lottery').setNameLocalizations(ES('loteria')).setDescription('🎟️ Weekly lottery: buy tickets, Sunday draw').setDescriptionLocalizations(ES('🎟️ Lotería semanal: compra boletos, sorteo el domingo'))
@@ -110,6 +112,7 @@ module.exports = {
         else if (sub === 'rocket') r = await X.cohete(base);
         else if (sub === 'dice') r = await X.dados({ ...base, apuesta: interaction.options.getString('on'), numero: interaction.options.getInteger('number') });
         else if (sub === 'baccarat') r = await X.baccarat({ ...base, apuesta: interaction.options.getString('on') });
+        else if (sub === 'poker') r = await require('../utils/poker.js').abrir({ ...base, cantidad: interaction.options.getInteger('buyin') });
         else if (sub === 'bingo') r = await X.bingo({ ...base, cantidad: interaction.options.getInteger('card') });
         if (r?.error) {
             await interaction.deleteReply().catch(() => {});

@@ -2865,7 +2865,7 @@ export default {
         crash: '/casino crash apuesta:100 auto:2', minas: '/casino minas apuesta:100 minas:3', moneda: '/casino moneda lado:Cara apuesta:100',
         duelo: '/casino duelo rival:@alguien apuesta:500', carrera: '/casino carrera', hilo: '/casino mayormenor apuesta:100', rasca: '/casino rasca apuesta:100',
         plinko: '/casino plinko apuesta:100 riesgo:Alto', rueda: '/casino rueda apuesta:100 numero:5', loteria: '/casino loteria boletos:5',
-        dados: '/casino dados apuesta:100 a:Grande', baccarat: '/casino baccarat apuesta:100 a:Banca', bingo: '/casino bingo carton:100',
+        dados: '/casino dados apuesta:100 a:Grande', baccarat: '/casino baccarat apuesta:100 a:Banca', bingo: '/casino bingo carton:100', poker: '/casino poker entrada:1000',
       },
       lobbyTitle: 'Lobby del casino', lobbySub: 'Un mensaje fijo en el canal del casino con un cartel animado, el bote, los premios gordos y un desplegable con todos los juegos. Al elegir uno se abre una mesa (solo para quien la abre) con fichas para apostar de un toque. Se pone al día solo cada 5 minutos.', lobbyPost: 'Publicar el lobby', lobbyRepost: 'Volver a publicar el lobby', lobbySending: 'Publicando…', lobbyDone: '¡Listo! El lobby está fijado en el canal del casino.', lobbyNeed: 'Activa el casino y elige su canal (abajo, en «Dónde y cuánto»).',
       postGuide: 'Publicar la guía en el canal del casino', postGuideHint: 'Un mensaje con los pasos, los comandos y un menú para ver cada juego.', postGuideNeed: 'Elige antes el canal del casino (abajo, en «Dónde y cuánto»).',
@@ -2892,6 +2892,7 @@ export default {
         loteria: { n: 'Lotería semanal', d: 'Boletos de 🪙 100 y sorteo el domingo a las 20:00 UTC con tres premios.' },
         dados: { n: 'Dados', d: 'Tres dados: grande, pequeño, par, impar, un trío (×34) o un número.' },
         baccarat: { n: 'Baccarat', d: 'Jugador, banca o empate: gana quien se acerque más a 9.' },
+        poker: { n: 'Póker Texas Hold\'em', d: 'Mesa de 2 a 6 personas con entrada: ciegas, all-in y botes laterales. Cada uno cobra sus fichas al levantarse.' },
         bingo: { n: 'Bingo del canal', d: 'Todos compran cartones 45 s; las bolas salen solas. Premio a la línea y al bingo.' },
       },
       combate: {

@@ -851,6 +851,7 @@ const ServidorConfigSchema = new mongoose.Schema({
             dados: { type: Boolean, default: true },    // 1.33.0: sic bo
             baccarat: { type: Boolean, default: true }, // 1.33.0
             bingo: { type: Boolean, default: true },    // 1.33.0: bingo del canal
+            poker: { type: Boolean, default: true },    // 1.33.0: Texas Hold'em
         },
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
         // Lobby (1.23.0, utils/casinoLobby.js): el mensaje fijo con el desplegable de juegos (interno).

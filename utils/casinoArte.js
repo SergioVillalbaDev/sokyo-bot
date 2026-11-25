@@ -1282,4 +1282,4 @@ function cartonesBingo({ cartones, salidas = [], titulo = '' }) {
     return c.toBuffer('image/png');
 }
 
-module.exports = { gifDados, gifBaccarat, tableroBingo: seguro(tableroBingo), cartonesBingo: seguro(cartonesBingo), gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+module.exports = { carta, gifDados, gifBaccarat, tableroBingo: seguro(tableroBingo), cartonesBingo: seguro(cartonesBingo), gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

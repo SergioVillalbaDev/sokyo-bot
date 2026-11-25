@@ -37,6 +37,7 @@ const JUEGOS = {
     dados: { emoji: '🎲', es: 'Dados', en: 'Dice' },                  // 1.33.0: sic bo
     baccarat: { emoji: '🂠', es: 'Baccarat', en: 'Baccarat' },         // 1.33.0
     bingo: { emoji: '🎱', es: 'Bingo', en: 'Bingo' },                  // 1.33.0: para todo el canal
+    poker: { emoji: '♠️', es: 'Póker', en: 'Poker' },                 // 1.33.0: Texas Hold'em, 2-6 personas
 };
 
 // ---------------------------------------------------------------------------
@@ -1045,6 +1046,7 @@ async function jugarRepetir(interaction, client, cfg, idioma, juego, cantidad, e
     else if (juego === 'plinko') r = await require('./casinoExtra.js').plinko({ ...base, riesgo: extra || 'bajo' });
     else if (juego === 'rueda') r = await require('./casinoExtra.js').rueda({ ...base, numero: parseInt(extra, 10) || 1 });
     else if (juego === 'dados') { const [ap, num] = String(extra || 'grande').split('-'); r = await require('./casinoExtra.js').dados({ ...base, apuesta: ap, numero: num ? parseInt(num, 10) : null }); }
+    else if (juego === 'poker') r = await require('./poker.js').abrir(base);
     else if (juego === 'bingo') r = await require('./casinoExtra.js').bingo(base);
     else if (juego === 'baccarat') r = await require('./casinoExtra.js').baccarat({ ...base, apuesta: extra || 'jugador' });
     else r = { error: t(idioma, 'Ese juego no se puede repetir así.', 'That game can’t be replayed like this.') };

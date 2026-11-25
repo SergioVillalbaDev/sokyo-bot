@@ -33,6 +33,7 @@ const RESUMEN = {
     dados: ['Tres dados: grande, pequeño o un trío (×34)', 'Three dice: big, small or a triple (×34)'],
     baccarat: ['Jugador o banca: el clásico de los casinos', 'Player or banker: the casino classic'],
     bingo: ['Bingo para todo el canal: línea y cartón lleno', 'Bingo for the whole channel: line and full card'],
+    poker: ['Texas Hold\'em de 2 a 6 personas con fichas', 'Texas Hold\'em for 2-6 players with chips'],
 };
 // Opciones de cada juego en su mesa (lo que va como «extra» en cas_rep).
 const OPCIONES = {
@@ -228,6 +229,7 @@ async function mesa(juego, { cfg, idioma, guildId, userId, cantidad = null, extr
         filas.push(new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId(`cas_ldu:${cant}`).setPlaceholder(t(idioma, '⚔️ ¿A quién retas?', '⚔️ Who do you challenge?'))));
         return { embeds: [e], components: filas };
     }
+    if (juego === 'poker') e.setDescription(t(idioma, 'Elige **la entrada** (lo que paga cada uno para sentarse) y se abre una mesa en el canal: 60 s para sentarse.', 'Pick **the buy-in** (what everyone pays to sit) and a table opens in the channel: 60 s to sit down.'));
     if (juego === 'bingo') e.setDescription(t(idioma, 'Elige **el precio de cada cartón** y se abre el bingo para todo el canal (45 s para comprar).', 'Pick **the price of each card** and a bingo opens for the whole channel (45 s to buy).'));
     if (OPCIONES[juego]) {
         filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cas_lx:${juego}:extra`)
