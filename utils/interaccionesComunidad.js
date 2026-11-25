@@ -33,6 +33,9 @@ async function manejar(interaction, client) {
         if (id.startsWith('crt_')) return await require('./cartas.js').manejar(interaction, client);
         // 1.32.0: combates (retos, rondas, torre, jefe semanal).
         if (id.startsWith('cbt_')) return await require('./combate.js').manejar(interaction, client);
+        if (id.startsWith('menu:')) return await require('./menu.js').manejar(interaction, client);
+        if (id.startsWith('cfg:')) return await require('./configurar.js').manejar(interaction, client);
+        if (id.startsWith('ayu_no')) return await require('./navegacion.js').manejarNoEntiendo(interaction, client);
         if (id.startsWith('casa_')) return await require('./casa.js').manejar(interaction, client);
         if (id.startsWith('expg_')) return await require('./expedicionGrupo.js').manejar(interaction, client);
         if (id.startsWith('grd_')) return await require('./guarderia.js').manejar(interaction, client);

@@ -121,6 +121,15 @@ module.exports = (client) => {
         contentSecurityPolicy: false,
         crossOriginResourcePolicy: { policy: 'cross-origin' },
     }));
+    // La Actividad de Discord (1.34.0, api/routes/actividad.js) se ve DENTRO de Discord: solo esa página puede ir en un
+    // marco, y solo dentro de Discord (helmet pone X-Frame-Options: SAMEORIGIN en todo lo demás).
+    app.use((req, res, next) => {
+        if (/^\/actividad\/?$/.test(req.path)) {
+            res.removeHeader('X-Frame-Options');
+            res.setHeader('Content-Security-Policy', "frame-ancestors https://discord.com https://*.discord.com https://*.discordsays.com");
+        }
+        next();
+    });
 
     // --- WEBHOOK DE STRIPE ---
     // DEBE ir ANTES de express.json: Stripe firma el cuerpo CRUDO y hay que
@@ -538,6 +547,8 @@ module.exports = (client) => {
     // Cumpleaños, salón de la fama, grupos, clanes, confesiones, solicitudes, ausente,
     // mensajes fijos y canales con contadores (1.9.0).
     app.use('/api', require('./routes/modulos.js')({ client, exigeArea, tieneAreaAcceso }));
+    // 1.34.0: catálogo de funciones, economía, uso y canal «Cómo funciona» (todo del catálogo).
+    app.use('/api', require('./routes/experiencia.js')({ client, exigeArea, idiomaPanel }));
     // Acceso de soporte (1.23.0): solo con su clave o un propietario del bot.
     app.use('/api/soporte', (req, res, next) => (req.staff?.soporte || req.staff?.owner ? next() : res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' })));
     app.use('/api', require('./routes/soporte.js')({ client }));
@@ -758,6 +769,8 @@ module.exports = (client) => {
 
     // "Mi cuenta": resumen del usuario (inicio del portal) y recompensa diaria.
     app.use('/api', require('./routes/cuenta.js')({ portalAuth, client, usuarioEsPremium }));
+    // Actividad de Discord (1.34.0): inicio de sesión con el SDK de Discord y el estado del jugador.
+    app.use('/api', require('./routes/actividad.js')({ client, portalAuth, firmarToken, JWT_SECRET, DURACION_SESION, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET }));
 
     // Tarjeta de rango personalizada del usuario (premium). Leer / guardar.
     app.get('/api/portal/tarjeta', portalAuth, async (req, res) => {

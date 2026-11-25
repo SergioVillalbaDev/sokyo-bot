@@ -5,7 +5,7 @@ const { idiomaInteraccion } = require('../utils/preferencias.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /cofre abrir [cantidad] · coleccion · probabilidades · historial
+// /jugar cofre abrir [cantidad] · coleccion · probabilidades · historial
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('chest')

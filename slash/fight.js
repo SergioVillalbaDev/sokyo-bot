@@ -9,7 +9,7 @@ const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 const opcionCarta = (o, n) => o.setName(`card${n}`).setNameLocalizations(ES(`carta${n}`)).setDescription(`Card ${n}`).setDescriptionLocalizations(ES(`Carta ${n}`)).setAutocomplete(true);
 
-// /combate (1.32.0): combates por turnos con tu compañero y tu mazo de cartas. Lógica en utils/combate.js.
+// /jugar combate (1.32.0): combates por turnos con tu compañero y tu mazo de cartas. Lógica en utils/combate.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('fight')

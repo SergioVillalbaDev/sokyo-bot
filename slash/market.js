@@ -7,7 +7,7 @@ const { t } = require('../utils/i18n.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /mercado (1.32.0): comprar y vender cartas de anime entre miembros del servidor. Lógica en utils/mercado.js.
+// /jugar mercado (1.32.0): comprar y vender cartas de anime entre miembros del servidor. Lógica en utils/mercado.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('market')

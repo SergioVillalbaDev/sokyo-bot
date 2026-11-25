@@ -69,8 +69,8 @@ async function iniciarTemporada(guildId, duracion, numero, { guild = null } = {}
     if (canal?.isTextBased()) {
         const fin = Math.floor(tp.fin.getTime() / 1000);
         await canal.send({
-            content: t(cfg, `🏁 ¡Empieza la **temporada ${numero}**! Todos empezáis de cero: el que más XP gane hasta <t:${fin}:D> se lleva el premio. Mira el ranking con \`/temporada\`.`,
-                `🏁 **Season ${numero}** starts now! Everyone starts from zero: whoever earns the most XP until <t:${fin}:D> wins. Check the ranking with \`/season\`.`),
+            content: t(cfg, `🏁 ¡Empieza la **temporada ${numero}**! Todos empezáis de cero: el que más XP gane hasta <t:${fin}:D> se lleva el premio. Mira el ranking con \`/comunidad temporada\`.`,
+                `🏁 **Season ${numero}** starts now! Everyone starts from zero: whoever earns the most XP until <t:${fin}:D> wins. Check the ranking with \`/community season\`.`),
             allowedMentions: { parse: [] },
         }).catch(() => {});
     }

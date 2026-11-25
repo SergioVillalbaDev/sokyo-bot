@@ -1,4 +1,4 @@
-// /perfil (1.32.0): la tarjeta de jugador de alguien en este servidor, para presumir. Su compañero
+// /jugar perfil (1.32.0): la tarjeta de jugador de alguien en este servidor, para presumir. Su compañero
 // equipado grande (con su accesorio y si es brillante), su título y casillas con lo importante:
 // oro, colección, cartas, rango de combate, torre, pase, logros y racha del diario.
 const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');

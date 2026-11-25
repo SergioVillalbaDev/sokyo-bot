@@ -831,6 +831,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (b.apuestaMax !== undefined) set['casino.apuestaMax'] = entero(b.apuestaMax, 1, 10000000, 5000);
             if (b.limiteDiario !== undefined) set['casino.limiteDiario'] = entero(b.limiteDiario, 0, 100000000, 20000);
             if (b.cofres !== undefined) set['casino.cofres'] = !!b.cofres;
+            if (b.hilos !== undefined) set['casino.hilos'] = !!b.hilos;
             if (b.juegos && typeof b.juegos === 'object') {
                 for (const j of ['tragaperras', 'ruleta', 'blackjack', 'crash', 'minas', 'moneda', 'duelo', 'carrera', 'hilo', 'rasca', 'plinko', 'rueda', 'loteria', 'dados', 'baccarat', 'bingo', 'poker']) {
                     if (b.juegos[j] !== undefined) set[`casino.juegos.${j}`] = !!b.juegos[j];

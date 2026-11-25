@@ -13,7 +13,7 @@ const { remapearIds } = require('../utils/copiarConfig.js');
 const { opcionesCuando } = require('../utils/recordatorios.js');
 const { limpiarTitulo, votarSaltar, mensajeCola } = require('../utils/musicaExtra.js');
 const { diagnosticar } = require('../utils/diagnostico.js');
-const { mensajeAyuda, CATEGORIAS } = require('../utils/ayuda.js');
+const { mensajeAyuda, ZONAS_AYUDA } = require('../utils/ayuda.js');
 const { explicarError } = require('../utils/erroresDiscord.js');
 const { mensajeNovedades, novedadesDe, NOVEDADES } = require('../utils/novedades.js');
 const { version } = require('../package.json');
@@ -203,13 +203,17 @@ describe('diagnóstico', () => {
 describe('ayuda por categorías', () => {
     it('cada categoría cabe en un mensaje de Discord', () => {
         for (const idioma of ['es', 'en']) {
-            for (const cat of [null, ...CATEGORIAS.map((c) => c.id)]) {
-                const m = mensajeAyuda(idioma, '!', { categoria: cat });
+            for (const cat of [null, ...ZONAS_AYUDA]) {
+                for (const cfg of [null, {}]) {
+                const m = mensajeAyuda(idioma, '!', { categoria: cat, cfg });
                 const e = m.embeds[0].data;
                 assert.ok((e.description || '').length <= 4096);
                 assert.ok((e.fields || []).length <= 25);
                 for (const fila of m.components) assert.ok(fila.components.length <= 5);
                 assert.ok(m.components[0].components[0].options.length <= 25);
+                const total = (e.title || '').length + (e.description || '').length + (e.fields || []).reduce((a, f) => a + f.name.length + f.value.length, 0) + ((e.footer || {}).text || '').length;
+                assert.ok(total <= 6000, `${cat}: ${total}`);
+                }
             }
         }
     });

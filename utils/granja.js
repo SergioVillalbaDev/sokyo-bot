@@ -74,7 +74,7 @@ async function recoger(guildId, userId, idioma = 'es', ahora = Date.now()) {
 }
 
 const FALLOS = {
-    sin: ['Aún no tienes mascotas. Consigue la primera con `/cofre abrir`. ¿Perdido? `/empezar` te guía.', 'You don’t have pets yet. Get your first one with `/chest open`. Lost? `/start` guides you.'],
+    sin: ['Aún no tienes mascotas. Consigue la primera con `/jugar cofre abrir`. ¿Perdido? `/empezar` te guía.', 'You don’t have pets yet. Get your first one with `/games chest open`. Lost? `/start` guides you.'],
     vacia: ['Aún no hay nada que recoger: espera un poco.', 'Nothing to collect yet: wait a bit.'],
     ocupado: ['Prueba otra vez.', 'Try again.'],
 };
@@ -162,7 +162,7 @@ async function vistaAlbum(guildId, userId, idioma) {
     const n = G.distintas(col);
     const orden = Object.entries(K.RAREZAS).sort((a, b) => a[1].orden - b[1].orden);
     const e = new EmbedBuilder().setColor('#a855f7').setTitle(t(idioma, `📖 Álbum de mascotas · ${n}/${G.TOTAL()}`, `📖 Pet album · ${n}/${G.TOTAL()}`))
-        .setDescription([...textoHitos(hitos, idioma), t(idioma, 'Las que te faltan salen como ❔. Consíguelas en los cofres (`/cofre abrir`).', 'Missing ones show as ❔. Get them from chests (`/chest open`).')].join('\n'));
+        .setDescription([...textoHitos(hitos, idioma), t(idioma, 'Las que te faltan salen como ❔. Consíguelas en los cofres (`/jugar cofre abrir`).', 'Missing ones show as ❔. Get them from chests (`/games chest open`).')].join('\n'));
     for (const [r, R] of orden) {
         if (!pr[r]) continue;
         const ids = Object.entries(K.COMPANEROS).filter(([, d]) => d.rareza === r).map(([id]) => id);

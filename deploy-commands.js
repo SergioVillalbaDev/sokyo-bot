@@ -3,12 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { REST, Routes } = require('discord.js');
 
-const commands = [];
-const dir = path.join(__dirname, 'slash');
-for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
-    const cmd = require(path.join(dir, file));
-    if (cmd.data) commands.push(cmd.data.toJSON());
-}
+// 1.34.0: globales solo los que valen también por privado (utils/catalogo.js → GLOBALES). Los demás los registra el
+// bot en cada servidor según lo que tenga activo (utils/comandosServidor.js). El modo dev registra en GUILD_ID todos.
+const CS = require('./utils/comandosServidor.js');
+const commands = CS.comandosGlobales();
+const todosServidor = () => CS.comandosPara(new Proxy({}, { get: () => ({ activo: true }) }));
+void fs; void path;
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
@@ -39,14 +39,17 @@ const modoClearDev = process.argv[2] === 'clear-dev';
             console.log(`Registrando ${commands.length} slash commands en el servidor de pruebas...`);
             await rest.put(
                 Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.GUILD_ID),
-                { body: commands },
+                { body: todosServidor() },
             );
             console.log('✅ Comandos registrados en el servidor de pruebas (instantáneo).');
         } else {
-            console.log(`Registrando ${commands.length} slash commands GLOBALMENTE (todos los servidores)...`);
+            // El botón de la Actividad (Entry Point, tipo 4) lo crea Discord al activar las Actividades: se conserva.
+            const actuales = await rest.get(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID)).catch(() => []);
+            const entrada = (actuales || []).filter((c) => c.type === 4).map(({ id, application_id, version, ...c }) => c);
+            console.log(`Registrando ${commands.length} slash commands GLOBALMENTE (+${entrada.length} de la Actividad)...`);
             await rest.put(
                 Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
-                { body: commands },
+                { body: [...commands, ...entrada] },
             );
             console.log('✅ Comandos registrados globalmente. Pueden tardar hasta ~1h en aparecer en todos los servidores.');
         }

@@ -3,7 +3,7 @@ const { idiomaInteraccion } = require('../utils/preferencias.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /casa [miembro] (1.33.0): la casa de tu compañero (o visitar la de otra persona). Todo en utils/casa.js.
+// /mascotas casa [miembro] (1.33.0): la casa de tu compañero (o visitar la de otra persona). Todo en utils/casa.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('house')

@@ -1,6 +1,6 @@
 // ⚔️ Guerra de clanes (1.33.0). Cada semana (lunes UTC, con el cierre de utils/clanes.js) los clanes se emparejan
 // de dos en dos por puntos totales parecidos (`emparejar`, pura). Cada clan tiene un rival (`rivalId`): gana su guerra
-// el que hace más puntos esa semana (los de siempre, por XP) y, además, cada combate ganado (/combate) a alguien del
+// el que hace más puntos esa semana (los de siempre, por XP) y, además, cada combate ganado (/jugar combate) a alguien del
 // clan rival suma PUNTOS_COMBATE (solo los que cuentan para el ELO). El ganador suma una copa y cada miembro se lleva
 // `clanes.premioGuerra` de oro. Un clan nuevo a media semana se empareja al mirar `/clan guerra` si hay otro libre.
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
@@ -130,7 +130,7 @@ async function vista(guildId, userId, idioma) {
     const png = await dibujo(yo, rival, idioma, t(idioma, `Termina el lunes · cada combate ganado a un rival: +${PUNTOS_COMBATE}`, `Ends on Monday · every fight won against a rival: +${PUNTOS_COMBATE}`)).catch(() => null);
     e.setDescription([
         t(idioma, `${yo.emoji} **${yo.nombre}** contra ${rival.emoji} **${rival.nombre}** · acaba <t:${Math.floor(lunes / 1000)}:R>.`, `${yo.emoji} **${yo.nombre}** vs ${rival.emoji} **${rival.nombre}** · ends <t:${Math.floor(lunes / 1000)}:R>.`),
-        t(idioma, `**Cómo se suman puntos:** cada XP que ganáis cuenta 1 y cada combate (\`/combate\`) que ganéis a alguien de ${rival.nombre}, **+${PUNTOS_COMBATE}**. El clan que gane se lleva una 🏆 copa y oro para cada miembro.`, `**How to score:** every XP you earn counts 1 and every fight (\`/fight\`) you win against someone from ${rival.nombre}, **+${PUNTOS_COMBATE}**. The winning clan gets a 🏆 cup and gold for each member.`),
+        t(idioma, `**Cómo se suman puntos:** cada XP que ganáis cuenta 1 y cada combate (\`/jugar combate\`) que ganéis a alguien de ${rival.nombre}, **+${PUNTOS_COMBATE}**. El clan que gane se lleva una 🏆 copa y oro para cada miembro.`, `**How to score:** every XP you earn counts 1 and every fight (\`/games fight\`) you win against someone from ${rival.nombre}, **+${PUNTOS_COMBATE}**. The winning clan gets a 🏆 cup and gold for each member.`),
         png ? '' : `${fmt(yo.puntosSemana, idioma)} — ${fmt(rival.puntosSemana, idioma)}`,
     ].filter(Boolean).join('\n\n'));
     if (png) e.setImage('attachment://guerra.png');

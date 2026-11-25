@@ -5,7 +5,7 @@
 //   · reaccion → el bot reacciona con un emoji a cada mensaje suyo
 //   · loro     → el bot repite sus 3 próximos mensajes en «mOdO bUrLa»
 // La víctima puede devolvérsela pagando el doble, y cualquiera puede comprarse un
-// escudo. Quien no quiere jugar se sale con /broma salir (y entonces tampoco puede
+// escudo. Quien no quiere jugar se sale con /comunidad broma salir (y entonces tampoco puede
 // gastarlas). El staff decide qué bromas hay, sus precios y qué roles son intocables.
 // Al acabar, el bot lo deja todo como estaba (barrerBromas, cada 30 s).
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
@@ -73,7 +73,7 @@ function textoError(codigo, idioma, extra = {}) {
         tipo: ['Esa broma no está disponible en este servidor.', 'That prank isn’t available on this server.'],
         tuyo: ['No puedes gastarte una broma a ti mismo 😄', 'You can’t prank yourself 😄'],
         bot: ['A los bots no se les pueden gastar bromas.', 'You can’t prank bots.'],
-        autorFuera: ['Te saliste de las bromas. Para volver a jugar: `/broma volver`.', 'You opted out of pranks. To play again: `/prank rejoin`.'],
+        autorFuera: ['Te saliste de las bromas. Para volver a jugar: `/comunidad broma volver`.', 'You opted out of pranks. To play again: `/community prank rejoin`.'],
         objetivoFuera: ['Esa persona no juega a las bromas.', 'That person doesn’t take part in pranks.'],
         inmune: ['A esa persona no se le pueden gastar bromas (tiene un rol protegido).', 'That person can’t be pranked (they have a protected role).'],
         escudo: [`🛡️ Esa persona tiene un escudo hasta ${extra.hasta || 'dentro de un rato'}.`, `🛡️ That person has a shield until ${extra.hasta || 'a while from now'}.`],
@@ -150,7 +150,7 @@ function anuncio(broma, cfg, idioma) {
         .setDescription(broma.devolucionDe
             ? t(idioma, `↩️ <@${broma.autorId}> se la ha **devuelto** a <@${broma.objetivoId}>: ${detalle} hasta <t:${fin}:t>. ${info.emoji}`, `↩️ <@${broma.autorId}> **got revenge** on <@${broma.objetivoId}>: they ${detalle} until <t:${fin}:t>. ${info.emoji}`)
             : t(idioma, `🃏 <@${broma.autorId}> le ha gastado una broma a <@${broma.objetivoId}>: ${detalle} hasta <t:${fin}:t>. ${info.emoji}`, `🃏 <@${broma.autorId}> pranked <@${broma.objetivoId}>: they ${detalle} until <t:${fin}:t>. ${info.emoji}`))
-        .setFooter({ text: t(idioma, 'Cuesta oro · /broma para gastar las tuyas · /broma salir si no quieres jugar', 'Costs gold · /prank to make yours · /prank optout if you don’t want to play') });
+        .setFooter({ text: t(idioma, 'Cuesta oro · gasta las tuyas con «/comunidad broma» · ¿no quieres jugar? /comunidad broma salir', 'Costs gold · pull yours with “/community prank” · don’t want to play? /community prank optout') });
     const botones = [];
     if (cfg.bromas.devolver !== false && !broma.devolucionDe) {
         botones.push(new ButtonBuilder().setCustomId(`brm_dev:${broma._id}`).setStyle(ButtonStyle.Danger).setEmoji('↩️')

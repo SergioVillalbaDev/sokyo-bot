@@ -159,6 +159,19 @@ async function diagnosticar(client, guildId, cfg, idioma) {
         }
     }
 
+    // 1.34.0: los comandos de este servidor (solo los de lo encendido) no se han podido registrar.
+    comprobados++;
+    if (cfg?.comandosServidor?.error) {
+        const sinPermiso = cfg.comandosServidor.error === 'sin-permiso';
+        add({
+            id: 'comandos', nivel: 'error',
+            titulo: t(idioma, 'Los comandos del bot no se han podido poner en este servidor', 'The bot’s commands couldn’t be set up on this server'),
+            detalle: sinPermiso ? t(idioma, 'El bot entró con una invitación antigua que no le deja crear comandos con «/».', 'The bot joined with an old invite that doesn’t let it create “/” commands.') : String(cfg.comandosServidor.error).slice(0, 200),
+            solucion: t(idioma, 'Pulsa «Dar los permisos» (vuelve a invitarlo sin echarlo): en unos segundos saldrán los comandos.', 'Press “Grant permissions” (re-invite it without kicking it): the commands will show up in a few seconds.'),
+            tab: null, arreglo: urlInvitar(guildId, TODOS) ? { accion: 'invitar', url: urlInvitar(guildId, TODOS) } : null,
+        });
+    }
+
     // 2) Canales y roles guardados que ya no existen o no se pueden usar.
     const tope = me?.roles?.highest?.position ?? 0;
     const revisarRol = (rolId, ruta, tab, nombreEs, nombreEn, dar, quitar) => {

@@ -4,7 +4,7 @@ const P = require('../utils/compisNucleo.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /expedicion (1.33.0): expedición en grupo para todo el canal. Todo en utils/expedicionGrupo.js.
+// /mascotas expedicion (1.33.0): expedición en grupo para todo el canal. Todo en utils/expedicionGrupo.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('expedition')

@@ -5,7 +5,7 @@ const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 const MEDALLAS = ['🥇', '🥈', '🥉'];
 
-// /temporada — el ranking de la temporada en curso, cuándo acaba y en qué puesto vas.
+// /comunidad temporada — el ranking de la temporada en curso, cuándo acaba y en qué puesto vas.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('season')

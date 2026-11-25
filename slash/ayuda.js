@@ -12,6 +12,6 @@ module.exports = {
 
     async execute(interaction, client, cfg) {
         const idioma = await idiomaInteraccion(interaction, cfg);
-        await interaction.reply({ ...mensajeAyuda(idioma, (cfg && cfg.prefijo) || '!'), flags: 64 });
+        await interaction.reply({ ...mensajeAyuda(idioma, (cfg && cfg.prefijo) || '!', { cfg: interaction.guildId ? cfg || {} : null }), flags: 64 });
     },
 };

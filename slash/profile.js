@@ -3,7 +3,7 @@ const { idiomaInteraccion } = require('../utils/preferencias.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /perfil [miembro] (1.32.0): tarjeta de jugador para presumir. Lógica en utils/perfilJugador.js.
+// /jugar perfil [miembro] (1.32.0): tarjeta de jugador para presumir. Lógica en utils/perfilJugador.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('profile')

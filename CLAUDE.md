@@ -30,7 +30,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **App Android** (`app-android/`): Trusted Web Activity `studio.sokyo.panel` que
   abre `/panel`. Ver *App Android*.
 - Otros documentos: `README.md`, `COBRO.md` (Stripe), `DESPLIEGUE-SPRINTS.md`,
-  `RESUMEN-SESION.md` (historial antiguo).
+  `RESUMEN-SESION.md` (historial antiguo), `ACTIVIDAD.md` (Actividad de Discord).
 
 ## Desplegar (Raspberry Pi, dashboard.sokyo.studio detrás de Cloudflare)
 - En la Pi, un cron ejecuta `deploy/deploy.sh` cada 5 min: trae
@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.33.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.34.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -283,8 +283,8 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   parten en palabras (motivos); `junto: true` las pasa enteras (nombre de un rol con espacios) y
   `efimero: true` en el comando hace que solo lo vea quien lo usa (`/reportar`). Las ayudas de uso de
   los comandos enseñan la forma con `/` (nombre en español en el texto en español).
-- **Discord 1.8.0**: clic derecho (`slash/ctx*.js`), `/ayuda` por categorías
-  (`utils/ayuda.js`: si añades un comando, apúntalo ahí), todos los slash con nombre en
+- **Discord 1.8.0**: clic derecho (`slash/ctx*.js`), `/ayuda` por zonas
+  (desde 1.34.0 sale de `utils/catalogo.js`: si añades un comando, apúntalo en el catálogo), todos los slash con nombre en
   español, errores explicados con botón al panel (`utils/erroresDiscord.js`),
   `!ban`/`!kick` piden confirmación y ban/aislar tienen «Deshacer» 15 min, botones y
   ventanas nuevos en `utils/interaccionesExtra.js`, `/recordar` y `/recordatorios`,
@@ -802,6 +802,40 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     animado (`utils/ligaArte.js`).
   - **Vitrina** en la página pública (`vitrinaDe` en `utils/paginaPublica.js`, `crecimiento.pagina.mostrarVitrina`; nombres solo con
     `mostrarRanking`), con los dibujos de `public/sprites`.
+- 1.34.0 **Que se entienda todo** (tests en `test/menu.test.js`, `referenciasComandos.test.js`, `nombresComandos.test.js`,
+  `actividad.test.js`):
+  - **Catálogo único** (`utils/catalogo.js`): `ZONAS` (jugar, mascotas, comunidad, musica, crecimiento, staff, basico) y `MODULOS`
+    (id, emoji, zona, es/en, `tab` del panel, `campo` on/off, `activar` = `setup:<clave>`|`campo`, `activo(cfg)`, `comandos`,
+    `partes` [[puerta, cmd]], `frase`, `pasos`, opcional `necesita`). De ahí salen los comandos de cada servidor, las puertas,
+    `/menu`, `/ayuda`, el botón ❔, la guía del canal, la web `/ayuda`, `/configurar`, la cabecera del panel y la Actividad.
+    **Un comando nuevo va en el catálogo** (un test falla si alguno queda fuera) y, si es de juego, quizá en una puerta.
+  - **Puertas** (`utils/puertas.js`, `slash/games.js`, `pets.js`, `community.js`): `/jugar` (cofre, carta, mercado, combate,
+    pase, perfil), `/mascotas` (ver = companion, granja, casa, guardería, expedición) y `/comunidad` (mascota, liga, broma,
+    temporada). Se arman con el JSON de los comandos de siempre (con subcomandos → grupo) y los ejecutan tal cual (`adaptar`).
+    Esos 13 comandos ya no se registran sueltos (`EN_PUERTA`); `test/referenciasComandos.test.js` falla si un texto los nombra
+    (salvo `utils/novedades.js`) o nombra una ruta de puerta que no existe. Para escribirlos en un texto: `P.rutaDe(cmd, idioma)`.
+  - **Comandos por servidor** (`utils/comandosServidor.js`): cada servidor ve solo lo encendido (`guild.commands.set`, con hash
+    para no repetir). Globales solo `catalogo.GLOBALES` (cuenta, preferencias, recordar, recordatorios, ayuda, Traducir) y el
+    comando de entrada de la Actividad (tipo 4, se respeta). Se resincroniza al arrancar, al entrar y 8 s después de cambiar la
+    config (enganche de `ServidorConfig`; las escrituras de su propio estado, `comandosServidor`/`guiaCanal.mensajeIds|hash`,
+    no lo disparan). Si falla (50001 = invitación sin permiso de comandos, lo avisa el Diagnóstico) no se repite con la misma
+    lista hasta `reintentar` (cada hora).
+  - **`/menu`** (`utils/menu.js`): `estadoJugador` (oro, diario, mascota, granja, huevos, expediciones, pase, jefe, guerra,
+    lo siguiente con `empezar.siguientePaso`), avisos, zonas y `ACCIONES` por módulo que lanzan el comando de verdad (`simular` +
+    `lanzar`). Por privado no hay menú. **Desbloqueo poco a poco** (`utils/progreso.js`, `ETAPAS`, `col.etapasVistas`).
+    **Resumen diario por privado** opcional (`utils/resumenJugador.js`, modelo `ResumenJugador`; NO confundir con
+    `utils/resumenDiario.js`, el parte Pro del servidor).
+  - **Fila de ayuda** (`utils/navegacion.js`, al principio de `interactionCreate`): las respuestas llevan «🏠 Menú · ❔» (el módulo
+    sale del prefijo del customId, `PREFIJOS`) y los ❌/⚠️ «❔ ¿Cómo funciona?»; «🤔 No lo entiendo» guarda `ComentarioAyuda`.
+    Uso sin ids de personas: `utils/uso.js` → `UsoFuncion` (`cmd:`, `mod:`, `menu:`, `paso:`).
+  - **Guía** `utils/guiaServidor.js` (canal «📖 Cómo funciona», se reescribe sola al cambiar lo encendido), mapa
+    `utils/mapaJuego.js`, web `utils/ayudaWeb.js` (`/ayuda`, `/ayuda/:id`), `/configurar` (`utils/configurar.js`, admins; dice
+    qué falta si depende de otra función), hilos para partidas largas (`utils/hilos.js`, `casino.hilos`).
+  - **Panel**: cabecera de sección con estado y comandos (`CabeceraSeccion.jsx`, `GET /api/catalogo`), objetivos en el menú
+    (`navConfig.OBJETIVOS`, `sokyoObjetivo`), Juegos y economía (`com-economia`), Uso de las funciones (`datos-uso`), tarjeta de la
+    guía en el Centro de funciones (`GuiaCanal.jsx`); rutas en `api/routes/experiencia.js`.
+  - **Actividad de Discord preparada** (`/actividad`, `src/Actividad.jsx`, `api/routes/actividad.js`, `ACTIVIDAD.md`): falta
+    activarla en el portal de Discord (pasos en `ACTIVIDAD.md`).
 - 1.31.2 Ediciones del crash y de la carrera **en fila** (`editarEnFila` en `utils/casino.js`, test en
   `visual131.test.js`): una edición no sale hasta que Discord ha aplicado la anterior, y la vista se calcula al salir
   (null = ya no toca). Antes, una edición del vuelo lenta llegaba DESPUÉS del resultado y el mensaje volvía a enseñar

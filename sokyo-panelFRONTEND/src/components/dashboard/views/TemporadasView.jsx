@@ -1,6 +1,6 @@
 // Diversión · Temporadas — un ranking de XP que vuelve a empezar cada mes (o semana) sin
 // tocar los niveles: premios de oro al podio y rol de campeón al primero.
-// Lógica del bot en utils/temporadas.js (y /temporada en Discord).
+// Lógica del bot en utils/temporadas.js (y /comunidad temporada en Discord).
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Medal, Flag, Loader2 } from 'lucide-react';

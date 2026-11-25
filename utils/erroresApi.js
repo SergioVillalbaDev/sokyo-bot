@@ -4,6 +4,9 @@
 // test/erroresApi.test.js comprueba que TODOS los errores fijos del código tienen aquí su
 // traducción: si añades un `error: '…'` nuevo, añádelo también aquí.
 const EN = {
+    'Ese canal no vale.': 'That channel won’t work.',
+    'El bot no puede escribir en ese canal.': 'The bot can’t write in that channel.',
+    'No se ha podido publicar.': 'It couldn’t be posted.',
     'El casino no está activado': 'The casino isn’t turned on',
     'Elige primero el canal del casino': 'Pick the casino channel first',
     'El bot no está en ese servidor': 'The bot isn’t on that server',
@@ -19,6 +22,13 @@ const EN = {
     'Ya tienes 100 compañeros propios: borra alguno antes': 'You already have 100 custom companions: delete one first',
     'Sube una foto para tu compañero': 'Upload a picture for your companion',
     'Fallo interno': 'Internal error',
+    'Sin acceso a ese servidor': 'No access to that server',
+    'Falta el código de Discord': 'Missing the Discord code',
+    'La actividad aún no está configurada': 'The activity isn’t set up yet',
+    'Discord no ha aceptado el inicio de sesión': 'Discord didn’t accept the sign-in',
+    'No se pudo hablar con Discord': 'Couldn’t reach Discord',
+    'Sokyo no está en este servidor': 'Sokyo isn’t on this server',
+    'Esta función está apagada en este servidor': 'This feature is off on this server',
     'Servidor no encontrado': 'Server not found',
     'Servidor no encontrado.': 'Server not found.',
     'No se pudo guardar': 'Couldn’t save',

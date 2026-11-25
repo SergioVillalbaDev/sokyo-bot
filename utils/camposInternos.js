@@ -12,6 +12,7 @@ const RAICES_INTERNAS = new Set([
     '_id', '__v', 'guildId', 'createdAt', 'updatedAt', 'ultimaVersionAnunciada', 'autoAsignarIndex',
     'iaUsos', 'iaMesRef', 'esPremium', 'plan', 'premiumHasta', 'premiumCancelaAlFinal',
     'stripeCustomerId', 'stripeSubscriptionId', 'soporteCompradorId', 'trialUsado',
+    'comandosServidor', // 1.34.0: lo que el bot ha registrado en el servidor
 ]);
 // Rutas concretas: dónde está publicado el mensaje de «Mi cuenta» es del bot, pero
 // cómo es (texto, embed, botones; 1.9.12) es un ajuste más (se deshace y se copia).
@@ -23,6 +24,8 @@ const RUTAS_INTERNAS = new Set([
     'opcionesEntrada.expulsarDesde',
     // Lobby del casino (1.23.0): dónde está publicado lo lleva el bot.
     'casino.lobby.canalId', 'casino.lobby.fecha',
+    // Guía automática (1.34.0): dónde están sus mensajes y qué se publicó.
+    'guiaCanal.mensajeIds', 'guiaCanal.hash',
 ]);
 
 // ruta = 'dinamicas.qotd.lastDia' (o una lista de partes)

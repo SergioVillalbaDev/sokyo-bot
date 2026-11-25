@@ -6,7 +6,7 @@ const { t } = require('../utils/i18n.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 const conObjetivo = (s) => s.addUserOption((o) => o.setName('member').setNameLocalizations(ES('miembro')).setDescription('Who gets pranked').setDescriptionLocalizations(ES('A quién se la gastas')).setRequired(true));
 
-// /broma apodo · payaso · reaccion · loro · escudo · precios · salir · volver
+// /comunidad broma apodo · payaso · reaccion · loro · escudo · precios · salir · volver
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('prank')
@@ -62,7 +62,7 @@ module.exports = {
             const activa = await bromas.salir(interaction.guildId, interaction.user.id, sub === 'optout');
             if (activa) await bromas.finalizar(client, activa);
             return privado(sub === 'optout'
-                ? t(idioma, '👋 Ya no juegas a las bromas: nadie podrá gastártelas (ni tú a los demás). Para volver: `/broma volver`.', '👋 You’re out of pranks: nobody can prank you (and you can’t prank others). To come back: `/prank rejoin`.')
+                ? t(idioma, '👋 Ya no juegas a las bromas: nadie podrá gastártelas (ni tú a los demás). Para volver: `/comunidad broma volver`.', '👋 You’re out of pranks: nobody can prank you (and you can’t prank others). To come back: `/community prank rejoin`.')
                 : t(idioma, '🃏 ¡Vuelves a jugar a las bromas!', '🃏 You’re back in the prank game!'));
         }
         const tipo = { nickname: 'apodo', clown: 'payaso', reaction: 'reaccion', parrot: 'loro' }[sub];

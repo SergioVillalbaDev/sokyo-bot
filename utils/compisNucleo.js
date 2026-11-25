@@ -149,7 +149,7 @@ const EXPEDICIONES = {
     paseo: { emoji: '🌳', horas: 1, energia: 20, oro: [20, 40], afinidad: 8, recuerdo: 0.25, es: 'Paseo por el bosque', en: 'Forest walk' },
     aventura: { emoji: '⛰️', horas: 4, energia: 40, oro: [70, 130], afinidad: 20, recuerdo: 0.5, es: 'Aventura en la montaña', en: 'Mountain adventure' },
     viaje: { emoji: '🏝️', horas: 8, energia: 60, oro: [140, 240], afinidad: 40, recuerdo: 0.8, es: 'Gran viaje a la isla', en: 'Big island trip' },
-    // 1.33.0: solo en grupo (/expedicion): más lejos, más botín y más oro cuantos más vayan (GRUPO.bonus).
+    // 1.33.0: solo en grupo (/mascotas expedicion): más lejos, más botín y más oro cuantos más vayan (GRUPO.bonus).
     cueva: { grupo: true, emoji: '💎', horas: 2, energia: 30, oro: [60, 110], afinidad: 15, recuerdo: 0.5, es: 'Cueva de cristal', en: 'Crystal cave', color: ['#312e81', '#0e7490'] },
     ruinas: { grupo: true, emoji: '🏛️', horas: 4, energia: 45, oro: [130, 220], afinidad: 28, recuerdo: 0.7, es: 'Ruinas olvidadas', en: 'Forgotten ruins', color: ['#78350f', '#a16207'] },
     volcan: { grupo: true, emoji: '🌋', horas: 8, energia: 60, oro: [260, 420], afinidad: 50, recuerdo: 0.9, es: 'Volcán dormido', en: 'Sleeping volcano', color: ['#7f1d1d', '#ea580c'] },

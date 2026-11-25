@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Home, LayoutDashboard, LayoutGrid, LogOut, Crown, X, Search, Smartphone, Star, Eye, EyeOff } from 'lucide-react';
-import { navSections, gruposVisibles, tabDeMenu, bloqueadoPorPlan, ubicacion } from './navConfig';
+import { navSections, gruposVisibles, tabDeMenu, bloqueadoPorPlan, ubicacion, OBJETIVOS } from './navConfig';
 import { useFavoritos, alternarFavorito } from '../../lib/favoritos';
 import { Avatar } from '../ui/primitives';
 import { cn } from '../../lib/cn';
@@ -47,7 +47,10 @@ export default function Sidebar({
   const tabMenu = tabDeMenu(activeTab);
   const favoritos = useFavoritos();
   const todos = gruposVisibles(permisos, esOwner);
-  const grupos = gruposVisibles(permisos, esOwner, { sencillo, extra: new Set([tabMenu, ...favoritos]) });
+  // Elegir por objetivo (1.34.0): se recuerda en el navegador. null = el menú de siempre.
+  const [objetivo, setObjetivo] = useState(() => { try { return localStorage.getItem('sokyoObjetivo') || null; } catch { return null; } });
+  const elegirObjetivo = (o) => { const v = objetivo === o ? null : o; setObjetivo(v); try { if (v) localStorage.setItem('sokyoObjetivo', v); else localStorage.removeItem('sokyoObjetivo'); } catch { /* no es crítico */ } };
+  const grupos = gruposVisibles(permisos, esOwner, { sencillo, objetivo, extra: new Set([tabMenu, ...favoritos]) });
   const ocultas = todos.reduce((n, g) => n + g.items.length, 0) - grupos.reduce((n, g) => n + g.items.length, 0);
   const porId = Object.fromEntries(grupos.map((g) => [g.id, g]));
 
@@ -160,6 +163,17 @@ export default function Sidebar({
 
         {/* Navegación */}
         <nav className="-mr-1.5 mt-3 flex-1 overflow-y-auto pr-1.5" aria-label={t('dashboard.sidebar.navAria')}>
+          {/* ¿Qué quieres hacer? (1.34.0): filtra el menú por objetivo. Pulsar el elegido lo quita. */}
+          {!plegado && (
+            <div className="mb-2 flex flex-wrap gap-1.5 px-1" role="group" aria-label={t('dashboard.objetivos.aria')}>
+              {Object.entries(OBJETIVOS).map(([id, o]) => (
+                <button key={id} type="button" onClick={() => elegirObjetivo(id)} aria-pressed={objetivo === id}
+                  className={cn('sk-foco rounded-full border px-2.5 py-1 text-[11.5px] font-bold transition-colors', objetivo === id ? 'border-brand bg-brand text-on-brand' : 'border-line text-muted hover:border-brand/50 hover:text-fg')}>
+                  {o.emoji} {t(`dashboard.objetivos.${id}`)}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={() => irA('inicio')}
             aria-current={activeTab === 'inicio' ? 'page' : undefined}

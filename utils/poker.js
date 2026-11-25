@@ -171,9 +171,9 @@ async function abrir({ interaction, client, cfg, idioma, cantidad }) {
     // El que abre se sienta solo; si no puede (oro, límite, pausa, aviso…), la mesa no se abre.
     const s = await sentar(m, interaction.user.id, interaction.member?.displayName || interaction.user.globalName || interaction.user.username).catch(() => ({ motivo: 'error' }));
     if (!s?.ok) { mesas.delete(m.canalId); return { error: s?.fallo ? K.textoFallo(s.fallo, idioma, c) : t(idioma, 'No se ha podido abrir la mesa: prueba otra vez.', 'The table couldn’t be opened: try again.') }; }
-    const msg = await interaction.editReply(vista(m));
-    // Las ediciones van al mensaje (la interacción caduca a los 15 min).
-    m.interaction = { editReply: (v) => (msg?.edit ? msg.edit(v) : interaction.editReply(v)) };
+    // Las ediciones van al mensaje (la interacción caduca a los 15 min), en un hilo propio si se puede (1.34.0).
+    const pub = await require('./hilos.js').publicar(interaction, cfg, t(idioma, '♠️ Póker', '♠️ Poker'), vista(m), idioma);
+    m.interaction = { editReply: pub.editar };
     m.temporizador = setTimeout(() => empezar(m).catch((e) => { console.error('Póker:', e.message); cerrar(m).catch(() => {}); }), SENTARSE_MS);
     return { ok: true };
 }

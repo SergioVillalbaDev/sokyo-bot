@@ -4,7 +4,7 @@
 //   granja, cartas, cofres, sobres, misiones…). Cada nivel da oro y, cada pocos, TICKETS de sobres
 //   y cofres gratis. El casino también da algo de XP, pero con tope diario y lo mismo apuestes
 //   1 que 5000: no premia apostar más.
-// · Logros: metas de una vez con su premio en oro (y una insignia en /pase logros).
+// · Logros: metas de una vez con su premio en oro (y una insignia en /jugar pase logros).
 const K = require('./cofresNucleo.js');
 const P = require('./compisNucleo.js');
 

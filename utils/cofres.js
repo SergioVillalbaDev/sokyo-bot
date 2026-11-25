@@ -163,7 +163,7 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
     const economia = require('./economia.js').en(guildId);
     // 1.29.0: con un ticket del pase el cofre sale gratis.
     const Pase = require('./pase.js');
-    if (ticket && !(await Pase.usarTicket(guildId, userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/pase`.', 'You no longer have that ticket. See yours with `/pass`.') };
+    if (ticket && !(await Pase.usarTicket(guildId, userId, ticket))) return { error: t(idioma, 'Ya no tienes ese ticket. Mira los tuyos con `/jugar pase`.', 'You no longer have that ticket. See yours with `/games pass`.') };
     const saldo = ticket ? (await economia.obtenerUsuario(userId)).balance : await economia.cobrar(userId, def.precio);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${fmt(def.precio, idioma)} para el ${def.es.toLowerCase()}.`, `You don’t have 🪙 ${fmt(def.precio, idioma)} for the ${def.en.toLowerCase()}.`) };
     // Se calcula sobre la colección y se guarda solo si nadie la ha tocado a la vez.
@@ -221,6 +221,9 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
             r.brillante ? t(idioma, `✨🌈 **¡¡BRILLANTE!!** Tu ${nombre(r.id, idioma)} tiene colores rarísimos (1 de cada ${Math.round(1 / K.PROB_BRILLANTE)}).`, `✨🌈 **SHINY!!** Your ${nombre(r.id, idioma)} has ultra-rare colours (1 in ${Math.round(1 / K.PROB_BRILLANTE)}).`) : '',
             r.piedad ? t(idioma, '🍀 ¡La suerte del décimo cofre! (épica asegurada)', '🍀 Tenth-chest luck! (epic guaranteed)') : '',
             ...G.textoHitos(hitos, idioma), ...delPase,
+            // 1.34.0: el siguiente paso justo cuando toca (mismas etapas que utils/progreso.js).
+            r.nuevo && (col.mascotas || []).length === 0 ? t(idioma, '👉 **¡Tu primera mascota!** Cuídala en `/compi` y ponla a trabajar en tu granja: `/mascotas granja`.', '👉 **Your first pet!** Look after it in `/companion` and put it to work on your farm: `/pets farm`.') : '',
+            r.nuevo && (col.mascotas || []).length === 2 ? t(idioma, '👉 **Ya tienes 3 mascotas:** se abre su **casa**. Decórala y tu granja producirá más: `/mascotas casa`.', '👉 **You have 3 pets now:** their **house** opens. Decorate it and your farm makes more: `/pets house`.') : '',
         ].filter(Boolean);
         if (extras.length) {
             await espera(r.rareza === 'divina' ? 5400 : 4200);
@@ -272,7 +275,7 @@ async function verColeccion(interaction, idioma, usuario = null) {
     const e = new EmbedBuilder().setColor(eq ? K.RAREZAS[K.def(eq.id).rareza].color : '#6366f1')
         .setTitle(t(idioma, `🐾 Colección de ${quien.username}`, `🐾 ${quien.username}’s collection`))
         .setDescription([
-            eq ? t(idioma, `Equipado: ${K.def(eq.id).emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`, `Equipped: ${K.def(eq.id).emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`) : t(idioma, 'Sin compañero equipado. Abre un cofre con `/cofre abrir`.', 'No companion equipped. Open a chest with `/chest open`.'),
+            eq ? t(idioma, `Equipado: ${K.def(eq.id).emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`, `Equipped: ${K.def(eq.id).emoji} **${nombre(eq.id, idioma)}** ${'★'.repeat(eq.estrellas)}\n${textoVentajas(K.ventajas(eq.id, eq.estrellas), idioma)}`) : t(idioma, 'Sin compañero equipado. Abre un cofre con `/jugar cofre abrir`.', 'No companion equipped. Open a chest with `/games chest open`.'),
             eq && K.def(eq.id).titulo ? `**${t(idioma, K.def(eq.id).titulo.es, K.def(eq.id).titulo.en)}**` : '',
             t(idioma, `📦 ${col.abiertos} cofres abiertos`, `📦 ${col.abiertos} chests opened`),
         ].filter(Boolean).join('\n'));
@@ -294,7 +297,7 @@ function embedProbabilidades(idioma, cfg = null) {
     }
     if (cfg?.compis?.anime) {
         const n = K.idsAnime(cfg.compis.animeFuera || []).length;
-        e.addFields({ name: t(idioma, '🃏 Cartas de anime', '🃏 Anime cards'), value: t(idioma, `Los personajes de anime (${n} aquí) no salen en los cofres: son **cartas** que potencian a tu mascota. Se consiguen en sobres con \`/carta abrir\`.`, `Anime characters (${n} here) don’t drop from chests: they’re **cards** that power up your pet. Get them in packs with \`/card open\`.`) });
+        e.addFields({ name: t(idioma, '🃏 Cartas de anime', '🃏 Anime cards'), value: t(idioma, `Los personajes de anime (${n} aquí) no salen en los cofres: son **cartas** que potencian a tu mascota. Se consiguen en sobres con \`/jugar carta abrir\`.`, `Anime characters (${n} here) don’t drop from chests: they’re **cards** that power up your pet. Get them in packs with \`/games card open\`.`) });
     }
     e.addFields({ name: t(idioma, '✨ Ventajas por rareza', '✨ Perks by rarity'), value: Object.keys(K.RAREZAS).map((r) => `${rarezaTxt(r, idioma)}: ${textoVentajas({ xp: K.RAREZAS[r].xp, diario: K.RAREZAS[r].diario, vuelta: K.RAREZAS[r].vuelta }, idioma)}`).join('\n') });
     return e;

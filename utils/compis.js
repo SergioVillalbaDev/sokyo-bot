@@ -251,7 +251,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
                 if (!esCarta && mensajes.length === 0) mensajes.push(`${def.emoji} ${t(idioma, def.es, def.en)}`);
             }
         } else if (que.startsWith('exp:')) {
-            // Las de grupo solo salen desde /expedicion (con su bonus); aquí no.
+            // Las de grupo solo salen desde /mascotas expedicion (con su bonus); aquí no.
             const r = !!P.EXPEDICIONES[que.slice(4)]?.grupo !== !!expGrupo ? { fallo: 'tipo' } : P.salir(m, que.slice(4), col.expHoy, dia, ahora);
             if (r.fallo) fallo = r.fallo;
             else {
@@ -279,7 +279,12 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
             if (s.oro) semCumplidas = 1;
         }
         const nivelDespues = P.nivel(m.afinidad || 0);
-        if (nivelDespues > nivelAntes) { mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel'; }
+        if (nivelDespues > nivelAntes) {
+            mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel';
+            // 1.34.0: el siguiente paso, justo cuando se abre (mismas etapas que utils/progreso.js).
+            if (nivelAntes < 5 && nivelDespues >= 5) mensajes.push(t(idioma, '👉 ¡Ya puede **pelear**! Prueba la torre o reta a alguien: `/jugar combate torre`.', '👉 It can **fight** now! Try the tower or challenge someone: `/games fight tower`.'));
+            if (nivelAntes < P.CRIA.nivel && nivelDespues >= P.CRIA.nivel) mensajes.push(t(idioma, '👉 ¡Ya puede ir a la **guardería**! Con otra de nivel 10 tendrá un huevo: `/mascotas guarderia`.', '👉 It can go to the **nursery** now! With another level-10 pet it’ll have an egg: `/pets nursery`.'));
+        }
         // 1.32.0: al llegar a los niveles 10 y 20 evoluciona (bebé → joven → adulto) y cambia su dibujo.
         const SPR = require('./sprites.js');
         if (SPR.etapaDe(nivelDespues) > SPR.etapaDe(nivelAntes) && SPR.tiene(m.id)) {
@@ -304,7 +309,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
 }
 
 const FALLOS = {
-    sin: ['Aún no tienes compañeros. Consigue el primero abriendo un cofre con `/cofre abrir`. ¿Perdido? `/empezar` te guía paso a paso.', 'You don’t have companions yet. Get your first one by opening a chest with `/chest open`. Lost? `/start` guides you step by step.'],
+    sin: ['Aún no tienes compañeros. Consigue el primero abriendo un cofre con `/jugar cofre abrir`. ¿Perdido? `/empezar` te guía paso a paso.', 'You don’t have companions yet. Get your first one by opening a chest with `/games chest open`. Lost? `/start` guides you step by step.'],
     fuera: ['Está de expedición. Vuelve cuando termine.', 'It’s on an expedition. Come back when it’s done.'],
     energia: ['Está muy cansado para eso. Deja que descanse un rato (la energía se recupera sola).', 'Too tired for that. Let it rest a while (energy comes back on its own).'],
     lleno: ['¡Está llenísimo! Prueba a jugar con él.', 'It’s completely full! Try playing with it.'],
@@ -313,8 +318,8 @@ const FALLOS = {
     tipo: ['Esa expedición no existe.', 'That expedition doesn’t exist.'],
     espera: ['Aún no: podrás repetirlo en {min}.', 'Not yet: you can do it again in {min}.'],
     rareza: ['Eso solo lo hacen las mascotas más raras.', 'Only rarer pets can do that.'],
-    sinCarta: ['No tienes esa carta. Consigue cartas con `/carta abrir`.', 'You don’t have that card. Get cards with `/card open`.'],
-    sinMascota: ['Necesitas una mascota para usar cartas. Consíguela con `/cofre abrir`.', 'You need a pet to use cards. Get one with `/chest open`.'],
+    sinCarta: ['No tienes esa carta. Consigue cartas con `/jugar carta abrir`.', 'You don’t have that card. Get cards with `/games card open`.'],
+    sinMascota: ['Necesitas una mascota para usar cartas. Consíguela con `/jugar cofre abrir`.', 'You need a pet to use cards. Get one with `/games chest open`.'],
     recargando: ['Esa carta se está recargando: lista en {min}.', 'That card is recharging: ready in {min}.'],
     topeCartas: ['Ya has usado tus {n} cartas de hoy. Mañana más.', 'You’ve used your {n} cards for today. More tomorrow.'],
     accion: ['No sé hacer eso.', 'I can’t do that.'],
@@ -454,6 +459,10 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         // 1.32.0: también comidas (para descubrir su favorita) y minijuegos.
         const g = P.gustosDe(m); const sabe = m.gustos || {};
         const ops = [
+            // 1.34.0: todo lo de tus mascotas, a mano desde aquí (lo mismo que /mascotas …).
+            { value: 'ir:granja', emoji: '🧺', label: t(idioma, 'Mi granja', 'My farm'), description: t(idioma, 'Tus mascotas producen oro solas: recógelo', 'Your pets make gold on their own: collect it') },
+            { value: 'ir:casa', emoji: '🏠', label: t(idioma, 'Mi casa', 'My house'), description: t(idioma, 'Decórala: cuanto más cómoda, más produce la granja', 'Decorate it: the comfier, the more the farm makes') },
+            { value: 'ir:expedicion', emoji: '🗺️', label: t(idioma, 'Expedición en grupo', 'Group expedition'), description: t(idioma, 'Todo el canal junto: más gente, más oro', 'The whole channel together: more people, more gold') },
             { value: 'guarderia', emoji: '🥚', label: t(idioma, 'Guardería: tener un huevo', 'Nursery: have an egg'), description: t(idioma, `Dos compañeros de nivel ${P.CRIA.nivel}+ tienen un huevo`, `Two level ${P.CRIA.nivel}+ companions have an egg`) },
             ...Object.entries(P.MINIJUEGOS).map(([id, j]) => ({ value: `mj:${id}`, emoji: j.emoji, label: t(idioma, `Minijuego: ${j.es}`, `Minigame: ${j.en}`).slice(0, 100), description: t(idioma, `${j.desc.es} · ⚡${j.energia}`, `${j.desc.en} · ⚡${j.energia}`).slice(0, 100) })),
             ...Object.entries(P.COMIDAS).map(([id, cm]) => ({ value: `comida:${id}`, emoji: cm.emoji, label: t(idioma, `Darle ${cm.art}`, `Give it ${cm.en.toLowerCase()}`),
@@ -501,7 +510,7 @@ function selectorCartas(col, m, ownerId, msgId, idioma) {
         .setDescription([
             t(idioma, `Hoy: **${usadas}/${limite}** cartas usadas · ${listas} listas · cada carta se recarga en ${S.ESPERA_CARTA_H} h.`, `Today: **${usadas}/${limite}** cards used · ${listas} ready · each card recharges in ${S.ESPERA_CARTA_H} h.`),
             K.habilidad(m.id) && ['cartas', 'divino'].includes(K.habilidad(m.id).tipo) ? t(idioma, `🌟 ${corto(m, idioma)} hace las cartas más fuertes: ${K.habilidad(m.id).es}`, `🌟 ${corto(m, idioma)} makes cards stronger: ${K.habilidad(m.id).en}`) : '',
-            lista.length ? '' : t(idioma, 'No tienes cartas. Consíguelas con `/carta abrir`.', 'You have no cards. Get them with `/card open`.'),
+            lista.length ? '' : t(idioma, 'No tienes cartas. Consíguelas con `/jugar carta abrir`.', 'You have no cards. Get them with `/games card open`.'),
         ].filter(Boolean).join('\n'));
     const comps = [];
     if (lista.length) {
@@ -533,7 +542,7 @@ async function manejar(interaction) {
     else if (partes[0] === 'cmp_int') {
         owner = partes[1]; comp = partes.slice(2).join(':');
         const v = interaction.values[0];
-        que = v === 'guarderia' ? 'guarderia' : v.startsWith('comida:') ? v : v.startsWith('mj:') ? `jugar_mj:${v.slice(3)}` : `int:${v}`;
+        que = v.startsWith('ir:') ? v : v === 'guarderia' ? 'guarderia' : v.startsWith('comida:') ? v : v.startsWith('mj:') ? `jugar_mj:${v.slice(3)}` : `int:${v}`;
     }
     else if (partes[0] === 'cmp_mj') { owner = partes[1]; que = 'mj_elegir'; }
     else if (partes[0] === 'cmp_arm') { owner = partes[1]; comp = partes.slice(3).join(':'); que = 'armario_elegir'; }
@@ -552,6 +561,7 @@ async function manejar(interaction) {
         await interaction.reply(await armario(interaction, col, m, owner, interaction.message?.id, idioma));
         return true;
     }
+    if (que.startsWith('ir:')) { await require('./menu.js').lanzar(interaction, interaction.client, cfg || {}, idioma, 'mascotas', que.slice(3)); return true; }
     if (que === 'guarderia') { await interaction.reply({ ...(await require('./guarderia.js').vista(interaction.guildId, owner, idioma)), flags: 64 }); return true; }
     if (que === 'armario_elegir') { await elegirArmario(interaction, owner, partes[2], comp, interaction.values[0], idioma, cfg); return true; }
     if (que === 'cartas') {

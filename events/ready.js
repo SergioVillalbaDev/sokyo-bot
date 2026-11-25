@@ -57,6 +57,11 @@ module.exports = {
             require('../utils/migrarPorServidor.js').migrar().then((q) => { if (q) console.log('🗂️ Colecciones por servidor: índice viejo quitado'); }),
         ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
 
+        // 1.34.0: cada servidor, solo los comandos de lo que tiene activo (y la guía automática al día).
+        require('../utils/comandosServidor.js').iniciar(client);
+        esperarMongo().then(() => require('../utils/comandosServidor.js').sincronizarTodos(client)).catch((e) => console.error('Comandos por servidor:', e.message));
+        esperarMongo().then(() => require('../utils/guiaServidor.js').ponerAlDiaTodas(client)).catch((e) => console.error('Guía automática:', e.message));
+
         // Mensaje de entrada (panel → Propietario): se tiene a mano para /setup y el botón de idioma.
         esperarMongo().then(() => require('../utils/onboarding.js').cargarMensajeEntrada()).catch(() => {});
 

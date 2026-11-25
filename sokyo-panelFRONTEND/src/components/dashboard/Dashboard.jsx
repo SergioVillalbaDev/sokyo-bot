@@ -1,6 +1,7 @@
 // Contenedor del Dashboard — une el layout (Sidebar + Header) con las vistas.
 // Toda la lógica vive en useDashboard(); aquí solo se decide QUÉ vista mostrar.
 import AvisoApagado from './AvisoApagado';
+import CabeceraSeccion from './CabeceraSeccion';
 import { useState, useEffect, useRef, useCallback, useSyncExternalStore, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -99,6 +100,8 @@ const CARGAR_VISTA = {
   CompisView: () => import('./views/CompisView'),
   CrecLigaView: () => import('./views/CrecLigaView'),
   StaffActividadView: () => import('./views/StaffActividadView'),
+  EconomiaView: () => import('./views/EconomiaView'),
+  UsoView: () => import('./views/UsoView'),
 };
 const V = Object.fromEntries(Object.entries(CARGAR_VISTA).map(([nombre, cargar]) => [nombre, lazy(cargar)]));
 
@@ -397,6 +400,8 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'com-compis') return <V.CompisView dash={dash} />;
     if (activeTab === 'crec-liga') return <V.CrecLigaView dash={dash} />;
     if (activeTab === 'datos-staff') return <V.StaffActividadView dash={dash} />;
+    if (activeTab === 'com-economia') return <V.EconomiaView dash={dash} />;
+    if (activeTab === 'datos-uso') return <V.UsoView dash={dash} />;
     if (activeTab.startsWith('logs-')) return <V.LogsView dash={dash} />;
     return <InicioView dash={dash} onBuscar={() => setBuscador(true)} onRequestUpgrade={setUpgradeFeature} />;
   };
@@ -455,6 +460,8 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
           )}
 
           {/* «Esto está apagado» con «⚡ Activarlo ahora» (1.17.1) */}
+          {/* Cabecera común (1.34.0): estado, comandos de Discord y guía de la sección */}
+          <CabeceraSeccion key={`cab:${guildId}:${activeTab}`} tab={activeTab} dash={dash} />
           <AvisoApagado key={`${guildId}:${activeTab}`} tab={activeTab} dash={dash} />
           <AnimatePresence mode="wait">
             <motion.div

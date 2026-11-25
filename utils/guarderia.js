@@ -1,5 +1,5 @@
 // 🥚 Guardería de compañeros (1.33.0). Reglas en utils/compisNucleo.js (CRIA, rarezaCria…).
-// `/guarderia` (o «🥚 Guardería» en el menú de /compi) abre en privado: dos desplegables para elegir los padres
+// `/mascotas guarderia` (o «🥚 Guardería» en el menú de /compi) abre en privado: dos desplegables para elegir los padres
 // (grd_a:<dueño>, grd_b:<dueño>), «Criar» (grd_criar:<dueño>) y los huevos que tienes (grd_abrir:<dueño>:<uid>
 // cuando ya están listos). Lo que sale del huevo entra en la colección como en un cofre (nuevo o ★).
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, AttachmentBuilder } = require('discord.js');
@@ -65,7 +65,7 @@ async function vista(guildId, userId, idioma, aviso = '') {
         botones.push(new ButtonBuilder().setCustomId(`grd_abrir:${userId}:${h.uid}`).setEmoji('🐣').setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir huevo ${t(idioma, K.RAREZAS[h.rareza].es, K.RAREZAS[h.rareza].en).toLowerCase()}`, `Hatch ${K.RAREZAS[h.rareza].en.toLowerCase()} egg`).slice(0, 80)));
     }
     if (botones.length) filas.push(new ActionRowBuilder().addComponents(botones.slice(0, 5)));
-    if (!mascotas.length) e.setDescription(t(idioma, 'Aún no tienes compañeros. Consíguelos en los cofres: `/cofre`.', 'You have no companions yet. Get them from chests: `/chest`.'));
+    if (!mascotas.length) e.setDescription(t(idioma, 'Aún no tienes compañeros. Consíguelos en los cofres: `/jugar cofre`.', 'You have no companions yet. Get them from chests: `/games chest`.'));
     return { embeds: [e], components: filas, files: [], attachments: [] };
 }
 
@@ -136,7 +136,7 @@ async function manejar(interaction) {
     const { idiomaInteraccion } = require('./preferencias.js');
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
-    if (interaction.user.id !== owner) { await interaction.reply({ content: t(idioma, '🥚 Esta guardería no es tuya: abre la tuya con `/guarderia`.', '🥚 This nursery isn’t yours: open yours with `/nursery`.'), flags: 64 }); return true; }
+    if (interaction.user.id !== owner) { await interaction.reply({ content: t(idioma, '🥚 Esta guardería no es tuya: abre la tuya con `/mascotas guarderia`.', '🥚 This nursery isn’t yours: open yours with `/pets nursery`.'), flags: 64 }); return true; }
     const k = clave(interaction.guildId, owner);
     if (tipo === 'grd_a' || tipo === 'grd_b') {
         const sel = elegidos.get(k) || {};

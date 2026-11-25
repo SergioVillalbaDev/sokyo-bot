@@ -12,6 +12,6 @@ module.exports = {
     async execute(message, args, client) {
         const cfg = await getConfigCached(message.guildId).catch(() => null);
         const idioma = await idiomaMiembro(message.author.id, { cfg });
-        await message.reply(mensajeAyuda(idioma, (cfg && cfg.prefijo) || '!')).catch(() => {});
+        await message.reply(mensajeAyuda(idioma, (cfg && cfg.prefijo) || '!', { cfg: cfg || {} })).catch(() => {});
     },
 };

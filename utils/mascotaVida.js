@@ -43,7 +43,7 @@ async function comprobarLogros(client, cfg, m) {
 async function entrenar(client, cfg, guildId, userId, stat, idioma) {
     const m = await Mascota.findOne({ guildId, estado: 'viva' });
     if (!m) return sinMascota(idioma);
-    if (m.hibernando) return { error: t(idioma, `**${m.nombre}** está hibernando: despiértala con \`/mascota alimentar\`.`, `**${m.nombre}** is hibernating: wake it up with \`/pet feed\`.`) };
+    if (m.hibernando) return { error: t(idioma, `**${m.nombre}** está hibernando: despiértala con \`/comunidad mascota alimentar\`.`, `**${m.nombre}** is hibernating: wake it up with \`/community pet feed\`.`) };
     const mes = N.mesClave();
     await CuidadoMascota.updateOne({ guildId, userId, mes }, { $setOnInsert: { puntos: 0 } }, { upsert: true }).catch(() => {});
     const doc = await CuidadoMascota.findOne({ guildId, userId, mes }).lean();
@@ -123,7 +123,7 @@ async function comprar(client, cfg, guildId, userId, id, idioma, quien = null) {
     }
     const campo = a.tipo === 'accesorio' ? 'accesorios' : 'habitats';
     const puesto = a.tipo === 'accesorio' ? 'accesorio' : 'habitat';
-    if ((m[campo] || []).includes(id)) return { error: t(idioma, 'Ya lo tiene. Póselo con `/mascota vestir`.', 'It already has it. Equip it with `/pet dress`.') };
+    if ((m[campo] || []).includes(id)) return { error: t(idioma, 'Ya lo tiene. Póselo con `/comunidad mascota vestir`.', 'It already has it. Equip it with `/community pet dress`.') };
     if (a.soloLogro) return { error: t(idioma, 'Esto no se compra: se gana con un logro.', 'This can’t be bought: it’s earned with an achievement.') };
     const saldo = await economia.cobrar(userId, a.precio);
     if (saldo === null) return { error: t(idioma, `No tienes 🪙 ${a.precio}.`, `You don’t have 🪙 ${a.precio}.`) };

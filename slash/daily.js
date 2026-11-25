@@ -45,7 +45,7 @@ module.exports = {
         const P = require('../utils/pase.js');
         const extra = [
             r.extraEvento ? t(cfg, `${r.evento.emoji} **${r.evento.es}:** +🪙 ${r.extraEvento}`, `${r.evento.emoji} **${r.evento.en}:** +🪙 ${r.extraEvento}`) : '',
-            r.regalo ? t(cfg, `🎁 **¡Regalo por ${r.racha} días seguidos!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} Un ${P.NOMBRE_TICKET?.[r.regalo]?.[1] || 'ticket'} gratis (en \`/pase\`).`, `🎁 **${r.racha}-day streak gift!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} A free ${P.NOMBRE_TICKET?.[r.regalo]?.[2] || 'ticket'} (in \`/pass\`).`) : '',
+            r.regalo ? t(cfg, `🎁 **¡Regalo por ${r.racha} días seguidos!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} Un ${P.NOMBRE_TICKET?.[r.regalo]?.[1] || 'ticket'} gratis (en \`/jugar pase\`).`, `🎁 **${r.racha}-day streak gift!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} A free ${P.NOMBRE_TICKET?.[r.regalo]?.[2] || 'ticket'} (in \`/games pass\`).`) : '',
             !r.regalo ? (() => { const sig = [3, 7, 14, 21, 30].find((d) => d > r.racha); return sig ? t(cfg, `🎁 Próximo regalo a los **${sig} días** de racha.`, `🎁 Next gift at a **${sig}-day** streak.`) : ''; })() : '',
             ...(r.delPase || []),
         ].filter(Boolean);

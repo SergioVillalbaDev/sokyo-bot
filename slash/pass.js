@@ -3,7 +3,7 @@ const { idiomaInteraccion } = require('../utils/preferencias.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /pase (1.29.0): el pase de temporada gratis, tus tickets y tus logros. Lógica en utils/pase.js.
+// /jugar pase (1.29.0): el pase de temporada gratis, tus tickets y tus logros. Lógica en utils/pase.js.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('pass')

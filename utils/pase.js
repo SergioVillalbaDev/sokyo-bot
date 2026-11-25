@@ -1,5 +1,5 @@
 // Pase de temporada, logros y tickets (1.29.0) en Discord. Reglas en utils/paseNucleo.js.
-// /pase (slash/pass.js) y botones pse:ver|log|tk:<ticket>:<owner>. `registrar` se llama desde
+// /jugar pase (slash/pass.js) y botones pse:ver|log|tk:<ticket>:<owner>. `registrar` se llama desde
 // compis, granja, cofres, cartas y el casino: suma XP, da los premios de nivel y revisa logros.
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const ColeccionMascotas = require('../models/ColeccionMascotas.js');
@@ -43,7 +43,7 @@ async function registrar(guildId, userId, acciones, { idioma = 'es', ahora = Dat
             const extra = [premios.oro ? `+🪙 ${fmt(premios.oro, idioma)}` : '', textoTickets(premios.tickets, idioma)].filter(Boolean).join(' · ');
             mensajes.push(tope > X.NIVEL_MAX
                 ? t(idioma, `🎟️ **¡Nivel ${tope} del pase!** ${extra}`, `🎟️ **Pass level ${tope}!** ${extra}`)
-                : t(idioma, `🎟️ **¡Nivel ${tope} del pase!** ${extra}${premios.tickets && Object.keys(premios.tickets).length ? ' (gratis, en `/pase`)' : ''}`, `🎟️ **Pass level ${tope}!** ${extra}${Object.keys(premios.tickets).length ? ' (free, in `/pass`)' : ''}`));
+                : t(idioma, `🎟️ **¡Nivel ${tope} del pase!** ${extra}${premios.tickets && Object.keys(premios.tickets).length ? ' (gratis, en `/jugar pase`)' : ''}`, `🎟️ **Pass level ${tope}!** ${extra}${Object.keys(premios.tickets).length ? ' (free, in `/games pass`)' : ''}`));
             if (premios.titulo) mensajes.push(t(idioma, '🏆 **¡Pase completo!** Ganas el título de Leyenda de la temporada.', '🏆 **Pass complete!** You earn the Season Legend title.'));
         }
         break;
@@ -171,7 +171,7 @@ async function manejar(interaction, client) {
     const userId = interaction.user.id;
     if (que === 'info') { await interaction.reply({ content: textoXp(idioma, userId), flags: 64 }); return true; }
     if (que === 'tk') {
-        if (owner !== userId) { await interaction.reply({ content: t(idioma, 'Esos tickets no son tuyos. Mira los tuyos con `/pase`.', 'Those tickets aren’t yours. See yours with `/pass`.'), flags: 64 }); return true; }
+        if (owner !== userId) { await interaction.reply({ content: t(idioma, 'Esos tickets no son tuyos. Mira los tuyos con `/jugar pase`.', 'Those tickets aren’t yours. See yours with `/games pass`.'), flags: 64 }); return true; }
         const def = X.TICKETS[partes[2]];
         if (!def) return false;
         await interaction.deferReply();
