@@ -31,7 +31,6 @@ const TOPES_ORO = {
     'cumpleanos.oro': 2000,
     'clanes.premioOro': 1000,
     'clanes.premioGuerra': 2000,
-    'clanes.costeCrear': 100000,
     'crecimiento.invitaciones.oroPorInvitacion': 300,
     'crecimiento.bump.oroPorBump': 150,
     'crecimiento.votos.oroExtra': 1000,

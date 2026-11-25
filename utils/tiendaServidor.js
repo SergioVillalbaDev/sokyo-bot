@@ -111,7 +111,10 @@ function comprar(guild, member, productoId, idioma = 'es') {
         const malRol = errorRol(guild, rol, cfg, idioma);
         if (malRol) return { ok: false, error: t(idioma, `Ahora mismo no se puede comprar: ${malRol} Avisa a un admin.`, `It can’t be bought right now: ${malRol} Tell an admin.`) };
         const lo = member.roles.cache.has(rol.id);
-        if (lo && !producto.horas) return { ok: false, error: t(idioma, `Ya tienes **${rol.name}** para siempre.`, `You already have **${rol.name}** forever.`) };
+        // ¿El que tiene caduca? (si lo tiene sin RolTemporal, es suyo para siempre)
+        const previo = lo ? await RolTemporal.findOne({ guildId: guild.id, userId: member.id, roleId: rol.id }).lean() : null;
+        const caduca = !!(previo && new Date(previo.expiraEn) > new Date());
+        if (lo && !caduca) return { ok: false, error: t(idioma, `Ya tienes **${rol.name}** para siempre.`, `You already have **${rol.name}** forever.`) };
         if (typeof producto.stock === 'number') {
             const v = (await vendidos(guild.id, [producto.id]))[producto.id] || 0;
             if (v >= producto.stock) return { ok: false, error: t(idioma, '¡Agotado! No quedan unidades.', 'Sold out! None left.') };
@@ -131,9 +134,8 @@ function comprar(guild, member, productoId, idioma = 'es') {
         let hasta = null;
         let extendido = false;
         if (producto.horas) {
-            const previo = await RolTemporal.findOne({ guildId: guild.id, userId: member.id, roleId: rol.id }).lean();
-            const base = previo && previo.expiraEn > new Date() ? previo.expiraEn.getTime() : Date.now();
-            extendido = !!(lo && previo);
+            const base = caduca ? new Date(previo.expiraEn).getTime() : Date.now();
+            extendido = caduca;
             hasta = new Date(base + producto.horas * 3600000);
             await RolTemporal.findOneAndUpdate({ guildId: guild.id, userId: member.id, roleId: rol.id }, { $set: { expiraEn: hasta } }, { upsert: true });
         } else {

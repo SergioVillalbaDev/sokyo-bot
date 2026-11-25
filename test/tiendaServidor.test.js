@@ -81,6 +81,17 @@ describe('tienda del servidor: comprar', () => {
         assert.strictEqual(rolesDados.length, 1);
         assert.strictEqual(saldo, 400);
     });
+    it('si ya lo tiene para siempre, no cobra ni pone fecha de caducidad', async () => {
+        const conRol = miembro('U1'); conRol.roles.cache.set('COLOR', {});
+        const r = await T.comprar(servidor(), conRol, 'a1');
+        assert.ok(!r.ok); assert.strictEqual(saldo, 500);
+    });
+    it('si lo tiene por días, puede comprar la versión para siempre', async () => {
+        const conRol = miembro('U1'); conRol.roles.cache.set('COLOR', {});
+        RolTemporal.findOne = () => ({ lean: async () => ({ expiraEn: new Date(Date.now() + 86400000) }) });
+        const r = await T.comprar(servidor(), conRol, 'a1');
+        assert.ok(r.ok, r.error); assert.strictEqual(saldo, 400);
+    });
     it('sin oro suficiente no da nada', async () => {
         saldo = 50;
         const r = await T.comprar(servidor(), miembro('U1'), 'a1');

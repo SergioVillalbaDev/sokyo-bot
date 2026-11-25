@@ -11,7 +11,14 @@ module.exports = {
             let config = await ServidorConfig.findOne({ guildId: guild.id });
             // 2.0.0: un servidor nuevo habla el idioma de su comunidad desde el primer mensaje
             // (Discord dice el idioma del servidor: es-ES, es-419…). Se cambia con /idioma o en el panel.
-            if (!config) config = await ServidorConfig.create({ guildId: guild.id, idioma: /^es/i.test(guild.preferredLocale || '') ? 'es' : 'en' });
+            if (!config) {
+                config = await ServidorConfig.create({ guildId: guild.id, idioma: /^es/i.test(guild.preferredLocale || '') ? 'es' : 'en' });
+                // Los textos de fábrica (panel de tickets, verificación…) en ese idioma desde el primer momento.
+                if (config.idioma === 'es') {
+                    await require('../utils/textosPorDefecto.js').adaptarTextosAlIdioma(guild.id, 'es').catch(() => {});
+                    config = await ServidorConfig.findOne({ guildId: guild.id }) || config;
+                }
+            }
             // Si vuelve a un servidor con el seguimiento de invitaciones activo.
             if (config.crecimiento?.invitaciones?.activo) cargarInvitaciones(guild).catch(() => {});
             // 1.34.0: sus comandos (solo los de lo que tenga activo).

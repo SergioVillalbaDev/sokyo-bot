@@ -171,6 +171,9 @@ async function procesarVoto(client, { userId, finde, prueba }) {
 }
 
 async function agradecer(client, userId, premio, racha, n) {
+    // Respeta «no quiero privados del bot» (/preferencias → avisos).
+    const pref = await require('../models/PreferenciasMiembro.js').findOne({ userId }).lean().catch(() => null);
+    if (pref?.dms?.anuncios === false) return;
     const user = await client.users.fetch(userId).catch(() => null);
     if (!user) return;
     const idioma = await require('./preferencias.js').idiomaMiembro(userId, {}).catch(() => 'en');
