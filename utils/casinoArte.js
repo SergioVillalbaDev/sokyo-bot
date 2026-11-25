@@ -1122,4 +1122,164 @@ async function gifRueda({ casillas, colores, indice, res = null }) {
     return aGif(frames, W, H);
 }
 
-module.exports = { gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };
+// ---------------------------------------------------------------------------
+// 🎲 Dados (sic bo, 1.33.0): tres dados ruedan en un cuenco, frenan y se ve la suma.
+// ---------------------------------------------------------------------------
+async function gifDados({ dados, etiqueta = '', res = null }) {
+    if (!listo()) return null;
+    const W = 460; const H = 300; const TOTAL = 34; const frames = [];
+    const xs = [W / 2 - 112, W / 2, W / 2 + 112];
+    for (let f = 0; f < TOTAL; f++) {
+        const { ctx } = lienzo(W, H);
+        const g = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W / 1.2);
+        g.addColorStop(0, '#7f1d1d'); g.addColorStop(1, '#1c0a0a');
+        redondeado(ctx, 0, 0, W, H, 24); ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 7; redondeado(ctx, 4, 4, W - 8, H - 8, 21); ctx.stroke();
+        // Cuenco
+        ctx.beginPath(); ctx.ellipse(W / 2, H / 2 + 10, 200, 92, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(250,204,21,0.35)'; ctx.stroke();
+        const t = Math.min(1, f / (TOTAL - 8));
+        dados.forEach((d, i) => {
+            const fase = i * 1.7;
+            const bote = Math.abs(Math.sin(t * Math.PI * 3 + fase)) * 46 * (1 - t);
+            const x = xs[i] + Math.sin(t * 9 + fase) * 26 * (1 - t);
+            const y = H / 2 + 6 - bote;
+            const cara = t >= 1 ? d : 1 + ((Math.floor(f / 2) * (i + 2) + d) % 6);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, H / 2 + 58, 38 - bote / 4, 7, 0, 0, Math.PI * 2); ctx.fill();
+            caraDado(ctx, x, y, 78, cara, (1 - facil(t)) * Math.PI * (3 + i));
+        });
+        ctx.fillStyle = '#fde68a'; ctx.textAlign = 'center'; ctx.font = `bold 15px ${FUENTE}`;
+        ctx.fillText(etiqueta, W / 2, 30);
+        if (t >= 1) {
+            ctx.font = `900 22px ${FUENTE}`; ctx.fillStyle = '#ffffff';
+            ctx.fillText(`= ${dados.reduce((a, b) => a + b, 0)}`, W / 2, H - 70);
+            if (res && f === TOTAL - 1) pastillaResultado(ctx, W / 2, H - 34, res, { tam: 20 });
+        }
+        frames.push({ ctx, delay: f === TOTAL - 1 ? 60000 : t < 1 ? 34 + Math.round(36 * t) : 90 });
+    }
+    return aGif(frames, W, H);
+}
+
+// ---------------------------------------------------------------------------
+// 🂠 Baccarat (1.33.0): se reparten las cartas una a una (jugador, banca, jugador, banca y las terceras).
+// ---------------------------------------------------------------------------
+async function gifBaccarat({ jugador, banca, pj, pb, ganador, apuesta = '', textos = {}, res = null }) {
+    if (!listo()) return null;
+    const W = 640; const H = 330; const frames = [];
+    const orden = [['j', 0], ['b', 0], ['j', 1], ['b', 1]];
+    if (jugador[2]) orden.push(['j', 2]);
+    if (banca[2]) orden.push(['b', 2]);
+    const { puntosBaccarat } = require('./casinoNucleo.js');
+    const pintar = (ctx, n, entra = 1) => {
+        const g = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W / 1.4);
+        g.addColorStop(0, '#1e3a8a'); g.addColorStop(1, '#0b1026');
+        redondeado(ctx, 0, 0, W, H, 26); ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 9; redondeado(ctx, 5, 5, W - 10, H - 10, 22); ctx.stroke();
+        ctx.strokeStyle = 'rgba(253,230,138,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(W / 2, 50); ctx.lineTo(W / 2, H - 60); ctx.stroke();
+        const lados = { j: { x: W / 4, mano: jugador, nombre: textos.jugador || 'JUGADOR', color: '#60a5fa' }, b: { x: (3 * W) / 4, mano: banca, nombre: textos.banca || 'BANCA', color: '#f87171' } };
+        for (const k of ['j', 'b']) {
+            const L = lados[k];
+            const vistas = orden.slice(0, n).filter(([q]) => q === k).map(([, i]) => i);
+            const ganaEste = n >= orden.length && ((k === 'j' && ganador === 'jugador') || (k === 'b' && ganador === 'banca'));
+            ctx.textAlign = 'center'; ctx.font = `900 17px ${FUENTE}`; ctx.fillStyle = L.color;
+            ctx.fillText(`${L.nombre}${apuesta === (k === 'j' ? 'jugador' : 'banca') ? ' ★' : ''}`, L.x, 38);
+            const total = vistas.length;
+            vistas.forEach((i, idx) => {
+                const ultima = idx === total - 1 && orden[n - 1]?.[0] === k;
+                // Las cartas no se recolocan al llegar la tercera: la fila se centra para las que habrá al final.
+                const alFinal = L.mano.length;
+                const x0 = L.x - (alFinal * 78 - 6) / 2 + idx * 78;
+                const y0 = 58 + (ultima ? (1 - entra) * -60 : 0) + (i === 2 ? 10 : 0);
+                ctx.save(); ctx.globalAlpha = ultima ? Math.max(0.2, entra) : 1;
+                carta(ctx, x0, y0, L.mano[i]);
+                ctx.restore();
+            });
+            const pts = puntosBaccarat(vistas.map((i) => L.mano[i]));
+            ctx.save();
+            if (ganaEste) { ctx.shadowColor = '#fde68a'; ctx.shadowBlur = 22; }
+            ctx.beginPath(); ctx.arc(L.x, 214, 30, 0, Math.PI * 2); ctx.fillStyle = ganaEste ? '#ca8a04' : 'rgba(15,23,42,0.8)'; ctx.fill();
+            ctx.restore();
+            ctx.lineWidth = 3; ctx.strokeStyle = L.color; ctx.beginPath(); ctx.arc(L.x, 214, 30, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = `900 28px ${FUENTE}`; ctx.textBaseline = 'middle'; ctx.fillText(String(total ? pts : '·'), L.x, 215); ctx.textBaseline = 'alphabetic';
+        }
+    };
+    for (let n = 1; n <= orden.length; n++) {
+        for (let k = 1; k <= 4; k++) { const { ctx } = lienzo(W, H); pintar(ctx, n, k / 4); frames.push({ ctx, delay: k === 4 ? (n >= 4 ? 520 : 300) : 45 }); }
+    }
+    const { ctx } = lienzo(W, H); pintar(ctx, orden.length);
+    ctx.textAlign = 'center'; ctx.font = `900 22px ${FUENTE}`; ctx.fillStyle = '#fde68a';
+    ctx.fillText(ganador === 'empate' ? (textos.empate || 'EMPATE') : ganador === 'jugador' ? (textos.ganaJugador || 'GANA EL JUGADOR') : (textos.ganaBanca || 'GANA LA BANCA'), W / 2, 270);
+    if (res) pastillaResultado(ctx, W / 2, H - 28, res, { tam: 18 });
+    frames.push({ ctx, delay: 60000 });
+    void pj; void pb;
+    return aGif(frames, W, H);
+}
+
+// ---------------------------------------------------------------------------
+// 🎱 Bingo (1.33.0): el tablero de bolas (1-60, las que han salido iluminadas, las últimas grandes) y el cartón.
+// ---------------------------------------------------------------------------
+const colorBola = (n) => ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'][Math.floor((n - 1) / 10) % 6];
+function bola(ctx, x, y, r, n) {
+    const g = ctx.createRadialGradient(x - r / 3, y - r / 3, r / 6, x, y, r);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, colorBola(n)); g.addColorStop(1, '#0f172a');
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.56, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.fillStyle = '#0f172a'; ctx.font = `900 ${Math.round(r * 0.62)}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(n), x, y + 1); ctx.textBaseline = 'alphabetic';
+}
+function tableroBingo({ salidas = [], total = 60, titulo = 'BINGO', sub = '' }) {
+    if (!canvasLib) return null;
+    const W = 720; const H = 360;
+    const { c, ctx } = lienzo(W, H);
+    const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#312e81'); g.addColorStop(1, '#0f172a');
+    redondeado(ctx, 0, 0, W, H, 24); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 6; redondeado(ctx, 3, 3, W - 6, H - 6, 22); ctx.stroke();
+    ctx.fillStyle = '#facc15'; ctx.font = `900 26px ${FUENTE}`; ctx.textAlign = 'left'; ctx.fillText(titulo, 26, 42);
+    ctx.fillStyle = '#c7d2fe'; ctx.font = `bold 14px ${FUENTE}`; ctx.fillText(sub, 26, 64);
+    // Las tres últimas, grandes
+    const ult = salidas.slice(-3).reverse();
+    ult.forEach((n, i) => { ctx.save(); ctx.globalAlpha = i ? 0.75 : 1; bola(ctx, W - 60 - i * 82, 52, i ? 28 : 36, n); ctx.restore(); });
+    // Tablero 6 × 10
+    const hecho = new Set(salidas);
+    const cw = 66; const ch = 42; const x0 = (W - cw * 10) / 2; const y0 = 100;
+    for (let n = 1; n <= total; n++) {
+        const col = (n - 1) % 10; const fil = Math.floor((n - 1) / 10);
+        const x = x0 + col * cw; const y = y0 + fil * ch;
+        redondeado(ctx, x + 3, y + 3, cw - 6, ch - 6, 10);
+        ctx.fillStyle = hecho.has(n) ? colorBola(n) : 'rgba(255,255,255,0.06)'; ctx.fill();
+        ctx.fillStyle = hecho.has(n) ? '#ffffff' : 'rgba(226,232,240,0.45)'; ctx.font = `900 18px ${FUENTE}`; ctx.textAlign = 'center';
+        ctx.fillText(String(n), x + cw / 2, y + ch / 2 + 6);
+    }
+    return c.toBuffer('image/png');
+}
+// Cartones de una persona (hasta 4), con lo que ha salido tachado y las filas completas en verde.
+function cartonesBingo({ cartones, salidas = [], titulo = '' }) {
+    if (!canvasLib) return null;
+    const hecho = new Set(salidas);
+    const cw = 62; const ch = 52; const pad = 18; const anchoC = cw * 5 + pad * 2; const altoC = ch * 3 + 30 + pad;
+    const cols = Math.min(2, cartones.length); const filas = Math.ceil(cartones.length / 2);
+    const W = cols * anchoC + (cols + 1) * 14; const H = filas * altoC + (filas + 1) * 14 + 30;
+    const { c, ctx } = lienzo(W, H);
+    redondeado(ctx, 0, 0, W, H, 20); ctx.fillStyle = '#1e1b4b'; ctx.fill();
+    ctx.fillStyle = '#facc15'; ctx.font = `900 18px ${FUENTE}`; ctx.textAlign = 'left'; ctx.fillText(titulo, 16, 28);
+    cartones.forEach((cart, k) => {
+        const bx = 14 + (k % 2) * (anchoC + 14); const by = 40 + Math.floor(k / 2) * (altoC + 14);
+        redondeado(ctx, bx, by, anchoC, altoC, 16); ctx.fillStyle = '#fef3c7'; ctx.fill();
+        ctx.fillStyle = '#92400e'; ctx.font = `900 14px ${FUENTE}`; ctx.textAlign = 'left'; ctx.fillText(`#${k + 1}`, bx + pad, by + 22);
+        const marcados = cart.filas.flat().filter((n) => hecho.has(n)).length;
+        ctx.textAlign = 'right'; ctx.fillText(`${marcados}/15`, bx + anchoC - pad, by + 22);
+        cart.filas.forEach((fila, f) => {
+            const llena = fila.every((n) => hecho.has(n));
+            fila.forEach((n, i) => {
+                const x = bx + pad + i * cw; const y = by + 30 + f * ch;
+                redondeado(ctx, x + 3, y + 3, cw - 6, ch - 6, 10); ctx.fillStyle = llena ? '#bbf7d0' : '#ffffff'; ctx.fill();
+                ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = '#1f2937'; ctx.font = `900 22px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(String(n), x + cw / 2, y + ch / 2 + 8);
+                if (hecho.has(n)) { ctx.beginPath(); ctx.arc(x + cw / 2, y + ch / 2, 19, 0, Math.PI * 2); ctx.fillStyle = 'rgba(220,38,38,0.45)'; ctx.fill(); }
+            });
+        });
+    });
+    return c.toBuffer('image/png');
+}
+
+module.exports = { gifDados, gifBaccarat, tableroBingo: seguro(tableroBingo), cartonesBingo: seguro(cartonesBingo), gifPlinko, gifRueda, gifDiez, mesaHilo: seguro(mesaHilo), bannerCasino, gifTragaperras, gifRuleta, gifMoneda, mesaBlackjack: seguro(mesaBlackjack), gifBlackjack, graficaCrash: seguro(graficaCrash), pistaCarrera: seguro(pistaCarrera), gifCarrera, gifCohete, gifDado, pastillaResultado, textoResultado, gifCofre, tarjetaColeccion, listo, imagen, imagenCompanero, pintarCompanero, lienzo, redondeado, aGif, facil };

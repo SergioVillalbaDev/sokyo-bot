@@ -34,6 +34,9 @@ const JUEGOS = {
     rasca: { emoji: '🎟️', es: 'Rasca y gana', en: 'Scratch card' },
     plinko: { emoji: '🔻', es: 'Plinko', en: 'Plinko' },             // 1.32.0
     rueda: { emoji: '🎡', es: 'Rueda de la fortuna', en: 'Wheel of fortune' }, // 1.32.0
+    dados: { emoji: '🎲', es: 'Dados', en: 'Dice' },                  // 1.33.0: sic bo
+    baccarat: { emoji: '🂠', es: 'Baccarat', en: 'Baccarat' },         // 1.33.0
+    bingo: { emoji: '🎱', es: 'Bingo', en: 'Bingo' },                  // 1.33.0: para todo el canal
 };
 
 // ---------------------------------------------------------------------------
@@ -1011,7 +1014,7 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_duelo:')) { await botonDuelo(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_car:')) { await botonCarrera(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_carm:')) { await modalCarrera(interaction, client); return true; }
-    if (id.startsWith('cas_mr') || id.startsWith('cas_lot') || id.startsWith('cas_st') || id.startsWith('cas_ck')) return require('./casinoExtra.js').manejar(interaction, client);
+    if (id.startsWith('cas_mr') || id.startsWith('cas_lot') || id.startsWith('cas_st') || id.startsWith('cas_ck') || id.startsWith('cas_bg')) return require('./casinoExtra.js').manejar(interaction, client);
     if (interaction.isButton() && id.startsWith('cas_rep:')) {
         // «Otra vez» y las fichas del lobby: ese juego y esa apuesta, para quien lo pulsa (mensaje nuevo).
         const [, juego, cant, extra] = id.split(':');
@@ -1041,6 +1044,9 @@ async function jugarRepetir(interaction, client, cfg, idioma, juego, cantidad, e
     else if (juego === 'rasca') r = await rasca(base);
     else if (juego === 'plinko') r = await require('./casinoExtra.js').plinko({ ...base, riesgo: extra || 'bajo' });
     else if (juego === 'rueda') r = await require('./casinoExtra.js').rueda({ ...base, numero: parseInt(extra, 10) || 1 });
+    else if (juego === 'dados') { const [ap, num] = String(extra || 'grande').split('-'); r = await require('./casinoExtra.js').dados({ ...base, apuesta: ap, numero: num ? parseInt(num, 10) : null }); }
+    else if (juego === 'bingo') r = await require('./casinoExtra.js').bingo(base);
+    else if (juego === 'baccarat') r = await require('./casinoExtra.js').baccarat({ ...base, apuesta: extra || 'jugador' });
     else r = { error: t(idioma, 'Ese juego no se puede repetir así.', 'That game can’t be replayed like this.') };
     if (r?.error) {
         // El error solo lo ve quien juega (no ensucia el canal).

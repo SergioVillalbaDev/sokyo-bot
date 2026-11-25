@@ -848,6 +848,9 @@ const ServidorConfigSchema = new mongoose.Schema({
             plinko: { type: Boolean, default: true },   // 1.32.0
             rueda: { type: Boolean, default: true },    // 1.32.0: rueda de la fortuna
             loteria: { type: Boolean, default: true },  // 1.32.0: lotería semanal
+            dados: { type: Boolean, default: true },    // 1.33.0: sic bo
+            baccarat: { type: Boolean, default: true }, // 1.33.0
+            bingo: { type: Boolean, default: true },    // 1.33.0: bingo del canal
         },
         cofres: { type: Boolean, default: true },           // cofres de mascotas con oro
         // Lobby (1.23.0, utils/casinoLobby.js): el mensaje fijo con el desplegable de juegos (interno).

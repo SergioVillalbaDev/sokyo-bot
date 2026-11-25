@@ -70,6 +70,24 @@ const GUIA = {
         como: ['Apuestas a un número de la rueda (1, 2, 5, 10, 20 o 40) y gira. Si la flecha se para en tu número, ganas lo que paga. Cuanto menos sale un número, más paga.', 'Bet on a number on the wheel (1, 2, 5, 10, 20 or 40) and it spins. If the arrow stops on your number, you win what it pays. The rarer the number, the more it pays.'],
         paga: () => [C.RUEDA.map((r) => `**${r.n}** ×${String(r.paga).replace('.', ',')} (${r.veces}/50)`).join(' · '), C.RUEDA.map((r) => `**${r.n}** ×${r.paga} (${r.veces}/50)`).join(' · ')],
     },
+    dados: {
+        emoji: '🎲', probar: 'grande',
+        ej: ['/casino dados apuesta:100 a:Grande', '/casino dice bet:100 on:Big'],
+        como: ['Se tiran **tres dados**. Apuesta a **Grande** (suma 11-17), **Pequeño** (4-10), **Par** o **Impar**; o a un **Trío** (los tres iguales) o a un **número** concreto. Ojo: si sale un trío, Grande, Pequeño, Par e Impar pierden.', 'Three **dice** are rolled. Bet on **Big** (total 11-17), **Small** (4-10), **Even** or **Odd**; or on a **Triple** (all three the same) or a specific **number**. Careful: if a triple comes up, Big, Small, Even and Odd lose.'],
+        paga: () => [`Grande, Pequeño, Par, Impar ×2 · Trío ×${C.TRIO_PAGO} · Un número: ×2 si sale en un dado, ×3 en dos y ×13 en los tres`, `Big, Small, Even, Odd ×2 · Triple ×${C.TRIO_PAGO} · One number: ×2 on one die, ×3 on two and ×13 on all three`],
+    },
+    baccarat: {
+        emoji: '🂠', probar: 'jugador',
+        ej: ['/casino baccarat apuesta:100 a:Banca', '/casino baccarat bet:100 on:Banker'],
+        como: ['Dos manos, **Jugador** y **Banca**, reciben 2 o 3 cartas (las reparte el bot con las reglas de siempre). Gana la que se acerque más a **9**: el As vale 1, las figuras y el 10 valen 0 y solo cuenta la última cifra (7 + 8 = 5). Tú solo eliges quién gana.', 'Two hands, **Player** and **Banker**, get 2 or 3 cards (dealt by the bot with the usual rules). Whoever is closest to **9** wins: Ace is 1, face cards and 10 are 0, and only the last digit counts (7 + 8 = 5). You just pick who wins.'],
+        paga: () => ['Jugador ×2 · Banca ×1,95 · Empate ×9. Si hay empate y apostaste a Jugador o Banca, recuperas lo apostado.', 'Player ×2 · Banker ×1.95 · Tie ×9. On a tie, bets on Player or Banker are returned.'],
+    },
+    bingo: {
+        emoji: '🎱', probar: null,
+        ej: ['/casino bingo carton:100', '/casino bingo card:100'],
+        como: ['Abre un bingo para **todo el canal**: durante 45 s cada uno compra hasta 4 cartones de 15 números. Luego salen las bolas solas y los cartones se tachan solos (míralos con **👀 Mis cartones**). El primero que completa una **fila** canta línea; el primero que llena el **cartón entero**, bingo.', 'Open a bingo for **the whole channel**: for 45 s everyone buys up to 4 cards of 15 numbers. Then balls are drawn automatically and cards mark themselves (see them with **👀 My cards**). First to complete a **row** gets the line; first to fill the **whole card**, bingo.'],
+        paga: () => [`El bote es el ${Math.round(C.BOTE_BINGO * 100)} % de lo vendido: la línea se lleva el ${Math.round(C.LINEA_BINGO * 100)} % y el bingo el resto (si cantan dos a la vez, se reparte). Cuantos más cartones haya, más bote.`, `The pot is ${Math.round(C.BOTE_BINGO * 100)}% of all cards sold: the line takes ${Math.round(C.LINEA_BINGO * 100)}% and the bingo the rest (split on ties). More cards, bigger pot.`],
+    },
     rasca: {
         emoji: '🎟️', probar: '',
         ej: ['/casino rasca apuesta:100', '/casino scratch bet:100'],

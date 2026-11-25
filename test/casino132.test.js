@@ -86,3 +86,47 @@ test('blackjack: 21 con dos cartas tras dividir no es blackjack (paga 1 a 1)', (
     assert.equal(C.resultadoBlackjack(['A♠', 'K♥'], ['10♣', '8♦']).mult, 2.5);
     assert.equal(C.resultadoBlackjack(['A♠', 'K♥'], ['10♣', '8♦'], true).mult, 2);
 });
+
+// 1.33.0: dados, baccarat y bingo.
+test('dados: la casa siempre se queda algo y el trío hace perder lo de fuera', () => {
+    const C = require('../utils/casinoNucleo.js');
+    for (const a of ['grande', 'pequeno', 'par', 'impar', 'trio']) { const r = C.rtpDados(a); assert.ok(r > 0.93 && r < 0.98, `${a} ${r}`); }
+    for (let n = 1; n <= 6; n++) assert.ok(Math.abs(C.rtpDados('numero', n) - 0.963) < 0.001);
+    assert.equal(C.pagoDados('grande', null, [4, 4, 4]), 0);
+    assert.equal(C.pagoDados('trio', null, [4, 4, 4]), C.TRIO_PAGO);
+    assert.equal(C.pagoDados('numero', 2, [2, 2, 5]), 3);
+    assert.equal(C.pagoDados('pequeno', null, [1, 2, 3]), 2);
+});
+
+test('baccarat: reglas de la tercera carta y lo que devuelve a la larga', () => {
+    const C = require('../utils/casinoNucleo.js');
+    assert.equal(C.puntosBaccarat(['7♠', '8♥']), 5);
+    assert.equal(C.puntosBaccarat(['K♠', 'A♥']), 1);
+    assert.equal(C.bancaRoba(3, '8♠'), false);
+    assert.equal(C.bancaRoba(6, '7♠'), true);
+    assert.equal(C.bancaRoba(6, null), false);
+    // Natural: nadie roba.
+    const r = C.repartirBaccarat(['2♠', '5♣', '9♠', 'K♦', '8♥']); // salen del final: jugador 8♥ K♦ (8), banca 9♠ 5♣ (4)
+    assert.deepEqual([r.jugador.length, r.banca.length, r.ganador], [2, 2, 'jugador']);
+    let semilla = 7; const azar = () => ((semilla = (semilla * 16807) % 2147483647) / 2147483647);
+    const T = 60000; const n = { jugador: 0, banca: 0, empate: 0 }; let mazo = C.baraja(azar, 8);
+    for (let i = 0; i < T; i++) { if (mazo.length < 10) mazo = C.baraja(azar, 8); n[C.repartirBaccarat(mazo).ganador]++; }
+    for (const a of ['jugador', 'banca', 'empate']) {
+        const rtp = (n.jugador * C.pagoBaccarat(a, 'jugador') + n.banca * C.pagoBaccarat(a, 'banca') + n.empate * C.pagoBaccarat(a, 'empate')) / T;
+        assert.ok(rtp > 0.8 && rtp < 1, `${a} ${rtp}`);
+    }
+});
+
+test('bingo: cartones de 15 distintos, línea antes que bingo y el reparto nunca supera el bote', () => {
+    const C = require('../utils/casinoNucleo.js');
+    let semilla = 3; const azar = () => ((semilla = (semilla * 16807) % 2147483647) / 2147483647);
+    for (let k = 0; k < 200; k++) {
+        const cartones = [...Array(1 + (k % 6))].map((_, i) => ({ id: String(i), filas: C.cartonBingo(azar) }));
+        for (const c of cartones) { const t = c.filas.flat(); assert.equal(new Set(t).size, 15); assert.ok(t.every((x) => x >= 1 && x <= C.BOLAS_BINGO)); }
+        const res = C.jugarBingo(cartones, C.bolasBingo(azar));
+        assert.ok(res.bingo && res.linea && res.linea.bola <= res.bingo.bola);
+        const vendido = cartones.length * 100;
+        const total = Object.values(C.repartoBingo(vendido, res)).reduce((a, b) => a + b, 0);
+        assert.ok(total <= C.boteBingo(vendido) && total < vendido, `${total} ${vendido}`);
+    }
+});

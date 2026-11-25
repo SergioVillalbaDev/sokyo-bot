@@ -30,6 +30,9 @@ const RESUMEN = {
     rasca: ['Rasca 9 casillas: 3 iguales y ganas', 'Scratch 9 tiles: 3 of a kind wins'],
     plinko: ['La bola cae rebotando: ¡los bordes pagan ×29!', 'The ball bounces down: the edges pay ×29!'],
     rueda: ['Apuesta a un número: el 40 paga ×47', 'Bet on a number: 40 pays ×47'],
+    dados: ['Tres dados: grande, pequeño o un trío (×34)', 'Three dice: big, small or a triple (×34)'],
+    baccarat: ['Jugador o banca: el clásico de los casinos', 'Player or banker: the casino classic'],
+    bingo: ['Bingo para todo el canal: línea y cartón lleno', 'Bingo for the whole channel: line and full card'],
 };
 // Opciones de cada juego en su mesa (lo que va como «extra» en cas_rep).
 const OPCIONES = {
@@ -39,9 +42,12 @@ const OPCIONES = {
     minas: [['1', '1 mina (tranquilo)', '1 mine (calm)'], ['3', '3 minas', '3 mines'], ['5', '5 minas', '5 mines'], ['8', '8 minas (valiente)', '8 mines (brave)'], ['12', '12 minas (locura)', '12 mines (madness)']],
     plinko: [['bajo', '🟢 Riesgo bajo', '🟢 Low risk'], ['medio', '🟠 Riesgo medio', '🟠 Medium risk'], ['alto', '🔴 Riesgo alto (×29)', '🔴 High risk (×29)']],
     rueda: [['1', '1 (×2,05)', '1 (×2.05)'], ['2', '2 (×3,6)', '2 (×3.6)'], ['5', '5 (×6,8)', '5 (×6.8)'], ['10', '10 (×11,8)', '10 (×11.8)'], ['20', '20 (×23,5)', '20 (×23.5)'], ['40', '40 (×47)', '40 (×47)']],
+    dados: [['grande', '🔺 Grande 11-17 (×2)', '🔺 Big 11-17 (×2)'], ['pequeno', '🔻 Pequeño 4-10 (×2)', '🔻 Small 4-10 (×2)'], ['par', 'Par (×2)', 'Even (×2)'], ['impar', 'Impar (×2)', 'Odd (×2)'], ['trio', '🎯 Trío (×34)', '🎯 Triple (×34)'],
+        ...[1, 2, 3, 4, 5, 6].map((n) => [`numero-${n}`, `🎲 Al ${n} (×2/×3/×13)`, `🎲 On ${n} (×2/×3/×13)`])],
+    baccarat: [['jugador', '🔵 Jugador (×2)', '🔵 Player (×2)'], ['banca', '🔴 Banca (×1,95)', '🔴 Banker (×1.95)'], ['empate', '🟢 Empate (×9)', '🟢 Tie (×9)']],
     crash: [['', 'Me retiro yo', 'I cash out myself'], ['1.5', 'Retiro solo en ×1,5', 'Auto cash out at ×1.5'], ['2', 'Retiro solo en ×2', 'Auto cash out at ×2'], ['3', 'Retiro solo en ×3', 'Auto cash out at ×3'], ['5', 'Retiro solo en ×5', 'Auto cash out at ×5'], ['10', 'Retiro solo en ×10', 'Auto cash out at ×10']],
 };
-const EXTRA_INICIAL = { ruleta: 'rojo', moneda: 'cara', minas: '3', crash: '', plinko: 'bajo', rueda: '1' };
+const EXTRA_INICIAL = { ruleta: 'rojo', moneda: 'cara', minas: '3', crash: '', plinko: 'bajo', rueda: '1', dados: 'grande', baccarat: 'jugador' };
 // Fichas: mínimo, algunas redondas y el máximo.
 function fichas(min, max) {
     const l = [...new Set([min, 100, 250, 500, 1000, 2500, max].filter((x) => x >= min && x <= max))].sort((a, b) => a - b);
@@ -222,6 +228,7 @@ async function mesa(juego, { cfg, idioma, guildId, userId, cantidad = null, extr
         filas.push(new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId(`cas_ldu:${cant}`).setPlaceholder(t(idioma, '⚔️ ¿A quién retas?', '⚔️ Who do you challenge?'))));
         return { embeds: [e], components: filas };
     }
+    if (juego === 'bingo') e.setDescription(t(idioma, 'Elige **el precio de cada cartón** y se abre el bingo para todo el canal (45 s para comprar).', 'Pick **the price of each card** and a bingo opens for the whole channel (45 s to buy).'));
     if (OPCIONES[juego]) {
         filas.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cas_lx:${juego}:extra`)
             .addOptions(OPCIONES[juego].map(([v, es, en]) => ({ value: v || 'nada', label: t(idioma, es, en), default: v === extra })))));

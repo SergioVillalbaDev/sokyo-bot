@@ -43,6 +43,17 @@ module.exports = {
         .addSubcommand((s) => s.setName('wheel').setNameLocalizations(ES('rueda')).setDescription('🎡 Wheel of fortune: bet on a number (up to ×47)').setDescriptionLocalizations(ES('🎡 Rueda de la fortuna: apuesta a un número (hasta ×47)')).addIntegerOption(cantidad)
             .addIntegerOption((o) => o.setName('number').setNameLocalizations(ES('numero')).setDescription('Which number').setDescriptionLocalizations(ES('A qué número')).setRequired(true).addChoices(
                 ...require('../utils/casinoNucleo.js').RUEDA.map((r) => ({ name: `${r.n} (×${r.paga})`, name_localizations: ES(`${r.n} (×${String(r.paga).replace('.', ',')})`), value: r.n })))))
+        .addSubcommand((s) => s.setName('dice').setNameLocalizations(ES('dados')).setDescription('🎲 Three dice: big, small, triple or a number').setDescriptionLocalizations(ES('🎲 Tres dados: grande, pequeño, trío o un número')).addIntegerOption(cantidad)
+            .addStringOption((o) => o.setName('on').setNameLocalizations(ES('a')).setDescription('What you bet on').setDescriptionLocalizations(ES('A qué apuestas')).setRequired(true).addChoices(
+                { name: '🔺 Big 11-17 (×2)', name_localizations: ES('🔺 Grande 11-17 (×2)'), value: 'grande' }, { name: '🔻 Small 4-10 (×2)', name_localizations: ES('🔻 Pequeño 4-10 (×2)'), value: 'pequeno' },
+                { name: 'Even (×2)', name_localizations: ES('Par (×2)'), value: 'par' }, { name: 'Odd (×2)', name_localizations: ES('Impar (×2)'), value: 'impar' },
+                { name: '🎯 Any triple (×34)', name_localizations: ES('🎯 Trío, tres iguales (×34)'), value: 'trio' }, { name: '🎲 One number (×2/×3/×13)', name_localizations: ES('🎲 Un número (×2/×3/×13)'), value: 'numero' }))
+            .addIntegerOption((o) => o.setName('number').setNameLocalizations(ES('numero')).setDescription('For “One number”: 1-6').setDescriptionLocalizations(ES('Para «Un número»: 1-6')).setMinValue(1).setMaxValue(6)))
+        .addSubcommand((s) => s.setName('baccarat').setDescription('🂠 Baccarat: player, banker or tie').setDescriptionLocalizations(ES('🂠 Baccarat: jugador, banca o empate')).addIntegerOption(cantidad)
+            .addStringOption((o) => o.setName('on').setNameLocalizations(ES('a')).setDescription('Who wins').setDescriptionLocalizations(ES('Quién gana')).setRequired(true).addChoices(
+                { name: '🔵 Player (×2)', name_localizations: ES('🔵 Jugador (×2)'), value: 'jugador' }, { name: '🔴 Banker (×1.95)', name_localizations: ES('🔴 Banca (×1,95)'), value: 'banca' }, { name: '🟢 Tie (×9)', name_localizations: ES('🟢 Empate (×9)'), value: 'empate' })))
+        .addSubcommand((s) => s.setName('bingo').setDescription('🎱 Channel bingo: buy cards, line and bingo prizes').setDescriptionLocalizations(ES('🎱 Bingo del canal: compra cartones, premio a línea y bingo'))
+            .addIntegerOption((o) => o.setName('card').setNameLocalizations(ES('carton')).setDescription('Price of each card (default 100)').setDescriptionLocalizations(ES('Precio de cada cartón (100 si lo dejas vacío)')).setMinValue(1).setMaxValue(10000000)))
         .addSubcommand((s) => s.setName('rocket').setNameLocalizations(ES('cohete')).setDescription('🚀 Channel rocket: one crash for everyone').setDescriptionLocalizations(ES('🚀 Cohete del canal: un crash para todos')))
         .addSubcommand((s) => s.setName('table').setNameLocalizations(ES('mesa')).setDescription('🎡 Table roulette: one spin for the whole channel').setDescriptionLocalizations(ES('🎡 Ruleta en mesa: una tirada para todo el canal')))
         .addSubcommand((s) => s.setName('lottery').setNameLocalizations(ES('loteria')).setDescription('🎟️ Weekly lottery: buy tickets, Sunday draw').setDescriptionLocalizations(ES('🎟️ Lotería semanal: compra boletos, sorteo el domingo'))
@@ -97,6 +108,9 @@ module.exports = {
         else if (sub === 'wheel') r = await X.rueda({ ...base, numero: interaction.options.getInteger('number') });
         else if (sub === 'table') r = await X.mesa(base);
         else if (sub === 'rocket') r = await X.cohete(base);
+        else if (sub === 'dice') r = await X.dados({ ...base, apuesta: interaction.options.getString('on'), numero: interaction.options.getInteger('number') });
+        else if (sub === 'baccarat') r = await X.baccarat({ ...base, apuesta: interaction.options.getString('on') });
+        else if (sub === 'bingo') r = await X.bingo({ ...base, cantidad: interaction.options.getInteger('card') });
         if (r?.error) {
             await interaction.deleteReply().catch(() => {});
             return interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 });

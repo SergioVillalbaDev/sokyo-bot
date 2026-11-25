@@ -2860,6 +2860,7 @@ export default {
         crash: '/casino crash bet:100 auto:2', minas: '/casino mines bet:100 mines:3', moneda: '/casino coinflip side:Heads bet:100',
         duelo: '/casino duel rival:@someone bet:500', carrera: '/casino race', hilo: '/casino higherlower bet:100', rasca: '/casino scratch bet:100',
         plinko: '/casino plinko bet:100 risk:High', rueda: '/casino wheel bet:100 number:5', loteria: '/casino lottery tickets:5',
+        dados: '/casino dice bet:100 on:Big', baccarat: '/casino baccarat bet:100 on:Banker', bingo: '/casino bingo card:100',
       },
       lobbyTitle: 'Casino lobby', lobbySub: 'A pinned message in the casino channel with an animated sign, the jackpot, big wins and a menu with every game. Picking one opens a table (only for whoever opens it) with chips to bet in one tap. It updates itself every 5 minutes.', lobbyPost: 'Post the lobby', lobbyRepost: 'Post the lobby again', lobbySending: 'Posting…', lobbyDone: 'Done! The lobby is pinned in the casino channel.', lobbyNeed: 'Turn on the casino and pick its channel (below, in “Where and how much”).',
       postGuide: 'Post the guide in the casino channel', postGuideHint: 'A message with the steps, the commands and a menu to see each game.', postGuideNeed: 'Pick the casino channel first (below, in “Where and how much”).',
@@ -2884,6 +2885,9 @@ export default {
         plinko: { n: 'Plinko', d: 'The ball bounces between pegs; three risk levels (edges pay up to ×29).' },
         rueda: { n: 'Wheel of fortune', d: 'Bet on a number on the wheel: 40 pays ×47.' },
         loteria: { n: 'Weekly lottery', d: '🪙 100 tickets and a Sunday 20:00 UTC draw with three prizes.' },
+        dados: { n: 'Dice', d: 'Three dice: big, small, even, odd, a triple (×34) or a number.' },
+        baccarat: { n: 'Baccarat', d: 'Player, banker or tie: closest to 9 wins.' },
+        bingo: { n: 'Channel bingo', d: 'Everyone buys cards for 45 s; balls are drawn automatically. Prizes for line and bingo.' },
       },
       combate: {
         titulo: 'Pet battles', sub: 'Members battle with their companion and card deck: challenges between them, the 50-floor tower and a boss every week for the whole server. In Discord: /fight.',

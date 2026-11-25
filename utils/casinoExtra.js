@@ -62,6 +62,203 @@ async function rueda({ interaction, client, cfg, idioma, cantidad, numero = 1 })
 }
 
 // ---------------------------------------------------------------------------
+// 🎲 Dados (sic bo, 1.33.0)
+// ---------------------------------------------------------------------------
+const NOMBRES_DADOS = {
+    grande: ['🔺', 'Grande (11-17)', 'Big (11-17)', '×2'], pequeno: ['🔻', 'Pequeño (4-10)', 'Small (4-10)', '×2'],
+    par: ['2️⃣', 'Par', 'Even', '×2'], impar: ['1️⃣', 'Impar', 'Odd', '×2'],
+    trio: ['🎯', 'Trío (tres iguales)', 'Triple (three of a kind)', `×${C.TRIO_PAGO}`], numero: ['🎲', 'Número', 'Number', '×2 · ×3 · ×13'],
+};
+const nombreDados = (apuesta, numero, idioma) => (apuesta === 'numero' ? t(idioma, `Al ${numero}`, `On ${numero}`) : t(idioma, NOMBRES_DADOS[apuesta][1], NOMBRES_DADOS[apuesta][2]));
+async function dados({ interaction, client, cfg, idioma, cantidad, apuesta = 'grande', numero = null }) {
+    if (!C.APUESTAS_DADOS.includes(apuesta)) apuesta = 'grande';
+    if (apuesta === 'numero' && !(numero >= 1 && numero <= 6)) return { error: t(idioma, 'Para apostar a un número, elige cuál en «numero» (1-6).', 'To bet on a number, pick it in “number” (1-6).') };
+    const K = casino();
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'dados', cantidad });
+    if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
+    const tirada = C.tirarDados();
+    const mult = C.pagoDados(apuesta, numero, tirada);
+    const premio = Math.floor(a.jugada.apuesta * mult);
+    const { vuelta } = await K.cobrarJugada(null, cfg, a.jugada, premio, { apuesta, numero, dados: tirada });
+    const saldo = await K.saldoDe(interaction.guildId, interaction.user.id);
+    const etiqueta = `${nombreDados(apuesta, numero, idioma)} · ${NOMBRES_DADOS[apuesta][3]}`.toUpperCase();
+    const gif = await A.gifDados({ dados: tirada, etiqueta, res: { premio, apuesta: a.jugada.apuesta, idioma, saldo, vuelta } }).catch((e) => { console.warn('GIF dados:', e.message); return null; });
+    const caras = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const linea = `${tirada.map((d) => caras[d - 1]).join(' ')} = **${tirada.reduce((x1, y) => x1 + y, 0)}** · ${K.masMenos(premio, a.jugada.apuesta, idioma)}`;
+    const e = new EmbedBuilder().setColor(premio > a.jugada.apuesta ? '#16a34a' : '#7f1d1d').setTitle(`🎲 ${t(idioma, 'Dados', 'Dice')} · ${NOMBRES_DADOS[apuesta][0]} ${nombreDados(apuesta, numero, idioma)} · 🪙 ${fmt(a.jugada.apuesta, idioma)}`)
+        .setFooter({ text: K.pieSaldo(idioma, saldo, vuelta) });
+    if (gif) e.setImage('attachment://dados.gif').setDescription(K.oculto(linea)); else e.setDescription(linea);
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'dados.gif' })] : [], components: [K.filaOtraVez('dados', a.jugada.apuesta, idioma, apuesta === 'numero' ? `numero-${numero}` : apuesta)], allowedMentions: { parse: [] } });
+    K.anunciarDespues(gif ? 2600 : 0, client, cfg, a.jugada, premio);
+    return { ok: true, premio };
+}
+
+// ---------------------------------------------------------------------------
+// 🂠 Baccarat (1.33.0)
+// ---------------------------------------------------------------------------
+const NOMBRES_BACCARAT = { jugador: ['🔵', 'Jugador', 'Player', '×2'], banca: ['🔴', 'Banca', 'Banker', '×1,95'], empate: ['🟢', 'Empate', 'Tie', '×9'] };
+async function baccarat({ interaction, client, cfg, idioma, cantidad, apuesta = 'jugador' }) {
+    if (!C.APUESTAS_BACCARAT[apuesta]) apuesta = 'jugador';
+    const K = casino();
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'baccarat', cantidad });
+    if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
+    const r = C.repartirBaccarat(C.baraja(undefined, 8));
+    const mult = C.pagoBaccarat(apuesta, r.ganador);
+    const premio = Math.floor(a.jugada.apuesta * mult);
+    const { vuelta } = await K.cobrarJugada(null, cfg, a.jugada, premio, { apuesta, jugador: r.jugador, banca: r.banca, ganador: r.ganador });
+    const saldo = await K.saldoDe(interaction.guildId, interaction.user.id);
+    const textos = { jugador: t(idioma, 'JUGADOR', 'PLAYER'), banca: t(idioma, 'BANCA', 'BANKER'), empate: t(idioma, 'EMPATE', 'TIE'), ganaJugador: t(idioma, 'GANA EL JUGADOR', 'PLAYER WINS'), ganaBanca: t(idioma, 'GANA LA BANCA', 'BANKER WINS') };
+    const gif = await A.gifBaccarat({ ...r, apuesta, textos, res: { premio, apuesta: a.jugada.apuesta, idioma, saldo, vuelta } }).catch((e) => { console.warn('GIF baccarat:', e.message); return null; });
+    const linea = `${textos.jugador} **${r.pj}** · ${textos.banca} **${r.pb}** → ${r.ganador === 'empate' ? textos.empate : r.ganador === 'jugador' ? textos.ganaJugador : textos.ganaBanca} · ${K.masMenos(premio, a.jugada.apuesta, idioma)}`;
+    const n = NOMBRES_BACCARAT[apuesta];
+    const e = new EmbedBuilder().setColor('#1e3a8a').setTitle(`🂠 Baccarat · ${n[0]} ${t(idioma, n[1], n[2])} (${idioma === 'en' ? n[3].replace(',', '.') : n[3]}) · 🪙 ${fmt(a.jugada.apuesta, idioma)}`)
+        .setFooter({ text: K.pieSaldo(idioma, saldo, vuelta) });
+    if (gif) e.setImage('attachment://baccarat.gif').setDescription(K.oculto(linea)); else e.setDescription(linea);
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'baccarat.gif' })] : [], components: [K.filaOtraVez('baccarat', a.jugada.apuesta, idioma, apuesta)], allowedMentions: { parse: [] } });
+    K.anunciarDespues(gif ? 3500 : 0, client, cfg, a.jugada, premio);
+    return { ok: true, premio };
+}
+
+// ---------------------------------------------------------------------------
+// 🎱 Bingo del canal (1.33.0): BINGO_VENTA_MS para comprar cartones (cas_bg:<id>:<n>), luego salen bolas
+// (3 cada BINGO_PASO_MS) hasta que alguien canta bingo. «🎫 Mis cartones» (cas_bgv:<id>) los enseña en
+// privado con lo que ya ha salido. Línea = LINEA_BINGO del bote; bingo = el resto. Ediciones en fila.
+// ---------------------------------------------------------------------------
+const BINGO_VENTA_MS = 45000;
+const BINGO_PASO_MS = Number(process.env.BINGO_PASO_MS) || 3000;
+const BOLAS_POR_PASO = 3;
+const bingos = new Map(); // canalId → partida
+const cartonesDe = (b, userId) => b.cartones.filter((c) => c.userId === userId);
+function vistaBingo(b, idioma, { salidas = [], estado = 'venta', lineas = [] } = {}) {
+    const jugadores = [...new Set(b.cartones.map((c) => c.userId))];
+    const vendido = b.cartones.length * b.precio;
+    const cab = estado === 'venta'
+        ? t(idioma, `**¡Compra tus cartones!** Cada uno cuesta 🪙 ${fmt(b.precio, idioma)} (hasta ${C.MAX_CARTONES}). Empieza <t:${Math.floor(b.empieza / 1000)}:R>.\nLas bolas salen solas y tus cartones se tachan solos: 🟩 **línea** = ${Math.round(C.LINEA_BINGO * 100)} % del bote · 🎉 **bingo** (cartón entero) = el resto.`, `**Buy your cards!** Each costs 🪙 ${fmt(b.precio, idioma)} (up to ${C.MAX_CARTONES}). Starts <t:${Math.floor(b.empieza / 1000)}:R>.\nBalls are drawn automatically and your cards mark themselves: 🟩 **line** = ${Math.round(C.LINEA_BINGO * 100)}% of the pot · 🎉 **bingo** (full card) = the rest.`)
+        : estado === 'juega' ? t(idioma, `Bola **${salidas.length}** de ${C.BOLAS_BINGO}`, `Ball **${salidas.length}** of ${C.BOLAS_BINGO}`)
+            : t(idioma, '🏁 **¡Bingo terminado!**', '🏁 **Bingo over!**');
+    const e = new EmbedBuilder().setColor(estado === 'fin' ? '#16a34a' : '#4338ca').setTitle(t(idioma, `🎱 Bingo · bote 🪙 ${fmt(C.boteBingo(vendido), idioma)}`, `🎱 Bingo · pot 🪙 ${fmt(C.boteBingo(vendido), idioma)}`))
+        .setDescription([cab, '', ...lineas, lineas.length ? '' : null,
+            jugadores.length ? jugadores.map((u) => `🎫 <@${u}> ×${cartonesDe(b, u).length}`).join(' · ') : t(idioma, '*Aún no ha comprado nadie.*', '*Nobody has bought yet.*')].filter((l) => l !== null).join('\n').slice(0, 4000));
+    const comps = [];
+    if (estado === 'venta') {
+        comps.push(new ActionRowBuilder().addComponents(
+            ...[1, 2, 4].map((n) => new ButtonBuilder().setCustomId(`cas_bg:${b.id}:${n}`).setEmoji('🎫').setStyle(n === 1 ? ButtonStyle.Success : ButtonStyle.Primary).setLabel(t(idioma, `${n} ${n === 1 ? 'cartón' : 'cartones'} (🪙 ${fmt(b.precio * n, idioma)})`, `${n} card${n === 1 ? '' : 's'} (🪙 ${fmt(b.precio * n, idioma)})`))),
+            new ButtonBuilder().setCustomId(`cas_bgv:${b.id}`).setEmoji('👀').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mis cartones', 'My cards'))));
+    } else if (estado === 'juega') {
+        comps.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_bgv:${b.id}`).setEmoji('👀').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mis cartones', 'My cards'))));
+    }
+    const png = estado === 'venta' ? null : A.tableroBingo({ salidas, total: C.BOLAS_BINGO, titulo: '🎱 BINGO', sub: estado === 'fin' ? t(idioma, `Terminado en la bola ${salidas.length}`, `Finished on ball ${salidas.length}`) : t(idioma, `Bola ${salidas.length}`, `Ball ${salidas.length}`) });
+    if (png) e.setImage('attachment://bingo.png');
+    return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'bingo.png' })] : [], attachments: [], allowedMentions: { parse: [] } };
+}
+async function bingo({ interaction, client, cfg, idioma, cantidad }) {
+    const c = cfg?.casino; const K = casino();
+    if (!c?.activo) return { error: K.textoFallo({ fallo: 'apagado' }, idioma) };
+    if (c.juegos?.bingo === false) return { error: K.textoFallo({ fallo: 'juego' }, idioma) };
+    if (c.canalId && c.canalId !== interaction.channelId) return { error: K.textoFallo({ fallo: 'canal' }, idioma, c) };
+    if (bingos.has(interaction.channelId)) return { error: t(idioma, 'Ya hay un bingo en este canal: ¡compra cartones en ese!', 'There’s already a bingo in this channel: buy cards in that one!') };
+    // El precio del cartón tiene que valer como apuesta en este servidor (mínimo y máximo).
+    const ok = C.comprobarApuesta(cantidad || Math.max(c.apuestaMin ?? 10, 100), { ...c, limiteDiario: 0 }, {});
+    if (ok.fallo) return { error: K.textoFallo(ok, idioma, c) };
+    const precio = ok.cantidad;
+    const b = { id: require('crypto').randomBytes(5).toString('hex'), canalId: interaction.channelId, guildId: interaction.guildId, precio, empieza: Date.now() + BINGO_VENTA_MS, cartones: [], jugadas: new Map(), cfg, idioma, interaction, estado: 'venta' };
+    bingos.set(interaction.channelId, b);
+    await interaction.editReply(vistaBingo(b, idioma));
+    setTimeout(() => jugarBingoCanal(client, b).catch((e) => { console.error('Bingo:', e.message); bingos.delete(b.canalId); }), BINGO_VENTA_MS);
+    return { ok: true };
+}
+async function comprarCartones(interaction, client) {
+    const [, id, nTxt] = interaction.customId.split(':');
+    const b = [...bingos.values()].find((y) => y.id === id);
+    const idioma = b?.idioma || 'es'; const K = casino();
+    if (!b || b.estado !== 'venta') return interaction.reply({ content: t(idioma, '⌛ La venta de cartones ya ha cerrado.', '⌛ Card sales are closed.'), flags: 64 });
+    if (b.comprando?.has(interaction.user.id)) return interaction.deferUpdate().catch(() => {});
+    const tiene = cartonesDe(b, interaction.user.id).length;
+    const n = Math.min(parseInt(nTxt, 10) || 1, C.MAX_CARTONES - tiene);
+    if (n <= 0) return interaction.reply({ content: t(idioma, `Ya tienes ${C.MAX_CARTONES} cartones: es el máximo.`, `You already have ${C.MAX_CARTONES} cards: that’s the max.`), flags: 64 });
+    b.comprando = b.comprando || new Set(); b.comprando.add(interaction.user.id);
+    try {
+        const a = await K.apostar({ guildId: b.guildId, canalId: b.canalId, userId: interaction.user.id, cfg: b.cfg, juego: 'bingo', cantidad: b.precio * n });
+        if (a.fallo) return interaction.reply({ content: K.textoFallo(a, idioma, b.cfg.casino), flags: 64 });
+        if (b.estado !== 'venta') {
+            await K.cobrarJugada(client, b.cfg, a.jugada, a.jugada.apuesta, { bingo: 'tarde' }).catch(() => {});
+            return interaction.reply({ content: t(idioma, '⌛ Ya había empezado: te devolvemos el oro.', '⌛ It had already started: your gold is refunded.'), flags: 64 });
+        }
+        // Si apostar ajustó la cantidad (p. ej. por el máximo), solo se dan los cartones que se han pagado.
+        const pagados = Math.floor(a.jugada.apuesta / b.precio);
+        const sobra = a.jugada.apuesta - pagados * b.precio;
+        if (sobra > 0) await require('./economia.js').en(b.guildId).darOro(interaction.user.id, sobra);
+        const lista = b.jugadas.get(interaction.user.id) || [];
+        lista.push(a.jugada); b.jugadas.set(interaction.user.id, lista);
+        for (let i = 0; i < pagados; i++) b.cartones.push({ id: `${interaction.user.id}:${b.cartones.length}`, userId: interaction.user.id, filas: C.cartonBingo() });
+        await interaction.reply({ ...verCartones(b, interaction.user.id, idioma, [], t(idioma, `✅ Tienes **${tiene + pagados}** ${tiene + pagados === 1 ? 'cartón' : 'cartones'}. ¡Suerte!`, `✅ You have **${tiene + pagados}** card${tiene + pagados === 1 ? '' : 's'}. Good luck!`)), flags: 64 });
+        await K.editarEnFila(b, () => (b.estado === 'venta' ? vistaBingo(b, idioma) : null));
+    } finally { b.comprando.delete(interaction.user.id); }
+    return undefined;
+}
+function verCartones(b, userId, idioma, salidas, texto = '') {
+    const mios = cartonesDe(b, userId);
+    if (!mios.length) return { content: t(idioma, 'No tienes cartones en este bingo.', 'You have no cards in this bingo.') };
+    const png = A.cartonesBingo({ cartones: mios, salidas, titulo: t(idioma, `Tus cartones · ${salidas.length} bolas`, `Your cards · ${salidas.length} balls`) });
+    if (!png) return { content: `${texto}\n${mios.map((c, i) => `#${i + 1}: ${c.filas.map((f) => f.map((n) => (salidas.includes(n) ? `~~${n}~~` : n)).join(' ')).join(' | ')}`).join('\n')}` };
+    return { content: texto || undefined, files: [new AttachmentBuilder(png, { name: 'cartones.png' })] };
+}
+async function jugarBingoCanal(client, b) {
+    const K = casino(); const idioma = b.idioma;
+    b.estado = 'juega';
+    if (!b.cartones.length) {
+        bingos.delete(b.canalId);
+        await K.editarEnFila(b, () => ({ embeds: [new EmbedBuilder().setColor('#475569').setDescription(t(idioma, '🎱 Nadie ha comprado cartones: bingo cancelado.', '🎱 Nobody bought cards: bingo cancelled.'))], components: [], files: [], attachments: [] }));
+        return;
+    }
+    const bolas = C.bolasBingo();
+    const res = C.jugarBingo(b.cartones, bolas);
+    const dueño = (id) => b.cartones.find((c) => c.id === id).userId;
+    const quien = (ids) => [...new Set(ids.map(dueño))].map((u) => `<@${u}>`).join(', ');
+    const vendido = b.cartones.length * b.precio;
+    const premios = C.repartoBingo(vendido, res);
+    const bote = C.boteBingo(vendido);
+    const lineaTxt = () => t(idioma, `🟩 **¡Línea!** ${quien(res.linea.ganadores)} · 🪙 ${fmt(Math.floor(bote * C.LINEA_BINGO), idioma)}`, `🟩 **Line!** ${quien(res.linea.ganadores)} · 🪙 ${fmt(Math.floor(bote * C.LINEA_BINGO), idioma)}`);
+    const fin = res.bingo.bola + 1;
+    for (let n = BOLAS_POR_PASO; n < fin + BOLAS_POR_PASO; n += BOLAS_POR_PASO) {
+        const hasta = Math.min(n, fin);
+        b.salidas = bolas.slice(0, hasta);
+        if (hasta >= fin) break;
+        const lineas = res.linea && res.linea.bola < hasta ? [lineaTxt()] : [];
+        const salidas = b.salidas;
+        K.editarEnFila(b, () => vistaBingo(b, idioma, { salidas, estado: 'juega', lineas }));
+        await new Promise((r) => setTimeout(r, BINGO_PASO_MS));
+    }
+    // Se cobra todo y luego se enseña el final.
+    b.estado = 'fin';
+    bingos.delete(b.canalId);
+    const porPersona = {};
+    for (const [id, oro] of Object.entries(premios)) { const u = dueño(id); porPersona[u] = (porPersona[u] || 0) + oro; }
+    for (const [u, jugadas] of b.jugadas) {
+        let premio = porPersona[u] || 0;
+        for (const j of jugadas) {
+            // El premio va a la primera jugada de cada persona; las demás quedan en 0.
+            await K.cobrarJugada(client, b.cfg, j, premio, { bingo: true, cartones: cartonesDe(b, u).length }).catch(() => {});
+            premio = 0;
+        }
+    }
+    const lineas = [res.linea ? lineaTxt() : null, t(idioma, `🎉 **¡BINGO!** ${quien(res.bingo.ganadores)} · 🪙 ${fmt(bote - Math.floor(bote * C.LINEA_BINGO), idioma)}`, `🎉 **BINGO!** ${quien(res.bingo.ganadores)} · 🪙 ${fmt(bote - Math.floor(bote * C.LINEA_BINGO), idioma)}`)].filter(Boolean);
+    const salidas = bolas.slice(0, fin);
+    await K.editarEnFila(b, () => ({ ...vistaBingo(b, idioma, { salidas, estado: 'fin', lineas }), allowedMentions: { users: Object.keys(porPersona) } }));
+    // Los premios gordos (bote grande) se anuncian como los demás.
+    for (const [u, oro] of Object.entries(porPersona)) { const j = b.jugadas.get(u)?.[0]; if (j) K.anunciarDespues(0, client, b.cfg, { ...j.toObject?.() || j, apuesta: jugadasTotal(b, u) }, oro); }
+}
+const jugadasTotal = (b, u) => (b.jugadas.get(u) || []).reduce((a, j) => a + j.apuesta, 0);
+async function botonVerCartones(interaction) {
+    const id = interaction.customId.split(':')[1];
+    const b = [...bingos.values()].find((y) => y.id === id);
+    const { idiomaInteraccion } = require('./preferencias.js');
+    const idioma = await idiomaInteraccion(interaction, null).catch(() => b?.idioma || 'es');
+    if (!b) return interaction.reply({ content: t(idioma, '⌛ Este bingo ya ha terminado.', '⌛ This bingo is over.'), flags: 64 });
+    return interaction.reply({ ...verCartones(b, interaction.user.id, idioma, b.salidas || []), flags: 64 });
+}
+
+// ---------------------------------------------------------------------------
 // 🎡 Ruleta en mesa (todo el canal, una tirada)
 // ---------------------------------------------------------------------------
 const MESA_MS = 30000;
@@ -417,6 +614,8 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_mr:')) { await botonMesa(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_mrm:')) { await modalMesa(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_ck:')) { await botonCohete(interaction); return true; }
+    if (interaction.isButton() && id.startsWith('cas_bg:')) { await comprarCartones(interaction, client); return true; }
+    if (interaction.isButton() && id.startsWith('cas_bgv:')) { await botonVerCartones(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_ckm:')) { await modalCohete(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_ckr:')) { await botonRetirarCohete(interaction, client); return true; }
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
@@ -431,4 +630,4 @@ async function manejar(interaction, client) {
     return false;
 }
 
-module.exports = { cohete, cohetes, despegar, retirarCohete, RIESGOS, APUESTAS_MESA, plinko, rueda, mesa, loteria, comprarBoletos, vistaLoteria, barrerLoteria, estadisticas, graficaNeto, manejar, mesas, girarMesa, loteriaDe };
+module.exports = { dados, baccarat, bingo, bingos, jugarBingoCanal, NOMBRES_DADOS, NOMBRES_BACCARAT, cohete, cohetes, despegar, retirarCohete, RIESGOS, APUESTAS_MESA, plinko, rueda, mesa, loteria, comprarBoletos, vistaLoteria, barrerLoteria, estadisticas, graficaNeto, manejar, mesas, girarMesa, loteriaDe };
