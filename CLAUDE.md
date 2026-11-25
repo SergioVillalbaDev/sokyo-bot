@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 1.32.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 1.33.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -774,6 +774,34 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
     regalos por racha en `economia.reclamarDaily` (`REGALOS_RACHA`, tickets; sin pack anime, cofres) y XP del pase por el diario,
     `/perfil` (`utils/perfilJugador.js`). Pase: XP `combate`, `victoria`, `torre`, `jefe`, `minijuego`, `diarioLogin` y 5 logros de
     combate (contadores en `col.cbt`); la copia del panel (`lib/casino.js` `PASE`) está al día.
+- 1.33.0 **Más casino, más compañeros, guerra de clanes y Liga con táctica** (tests en `test/poker.test.js`, `casa.test.js`,
+  `guerraClanes.test.js` y más en `casino132`, `mascotas132`, `oroSocial`):
+  - **Casino**: blackjack con ✂️ dividir y 🛡️ seguro (`puedeDividir`/`ofreceSeguro`/`pagoSeguro` en `casinoNucleo`; `p.manos`,
+    `p.apuestas`, `p.seguro`; tras dividir, 21 no es blackjack); 🎲 dados/sic bo (`pagoDados`, trío hace perder lo de fuera),
+    🂠 baccarat (`repartirBaccarat` con la tabla de la 3.ª carta) y 🎱 bingo del canal (`cartonBingo`, `jugarBingo`, bote = 90 %
+    de lo vendido, línea 25 %; botones `cas_bg:*`, `cas_bgv:*`) en `utils/casinoExtra.js`; 🚀 cohete del canal (crash compartido,
+    `cas_ck*`). ♠️ **Póker** Texas Hold'em: reglas en `utils/pokerNucleo.js` (mejor mano de 7, botes laterales, `actuar`;
+    'abandonar' = retirarse siempre), Discord en `utils/poker.js` (`pkr_*`, entrada = fichas, ciega = entrada/50, comisión 2 % de los
+    botes disputados con flop, ediciones sobre el MENSAJE porque una mesa dura más de 15 min). Lo que se cobra a mitad de partida
+    (doblar, dividir, seguro) se apunta en la jugada con `sumarApuesta`; las devoluciones que no son partidas (llegar tarde,
+    levantarse antes de empezar) van por `devolverJugada` (no tocan racha, aviso responsable ni pase). Juegos en `cfg.casino.juegos`
+    (`dados`, `baccarat`, `bingo`, `poker`) y en el panel (`lib/casino.js JUEGOS`).
+  - **Guardería** (`utils/guarderia.js`, `/guarderia` = `slash/nursery.js`, `grd_*`, y en el menú de `/compi`): `CRIA` en
+    `compisNucleo` (nivel 10, coste por rareza, descanso 72 h, huevo a las 12 h, a veces una rareza más, nunca divina, más brillo con
+    un padre brillante). `ColeccionMascotas.huevos`, `mascotas.criaHasta`. Eclosión con `casinoArte.gifEclosion`.
+  - **Casa** (`utils/casa.js`, `casaNucleo.js`, `casaArte.js` con los muebles DIBUJADOS en canvas; `/casa` = `slash/house.js`,
+    `casa_*`): muebles por huecos (suelo 4, pared 3, alfombra, techo), papeles, «me gusta» una vez al día. La comodidad sube la granja
+    (`bonusGranja`, hasta +25 %, en `granjaNucleo.acumulado`).
+  - **Expediciones en grupo** (`utils/expedicionGrupo.js`, `/expedicion` = `slash/expedition.js`, `expg_*`): destinos `grupo: true` en
+    `EXPEDICIONES` (no salen en el menú normal), `GRUPO.bonus(n)` hasta ×2 guardado en `exp.bonus`; la salida usa `compis.accion`
+    con `expGrupo`.
+  - **Guerra de clanes** (`utils/guerraClanes.js`, `/clan guerra`): parejas por puntos totales cada lunes (`barrerClanes`), +300 por
+    combate ganado a un rival (desde `combate.premiosPvP`, solo si cuenta para el ELO), copa + `clanes.premioGuerra` al ganador
+    (cada guerra se cierra una vez: `guerraCerrada`); un clan nuevo o sin rival se empareja al mirar la guerra.
+  - **Liga**: táctica votada (`TACTICAS`, `tacticaElegida`, `multTactica` en `mascotaNucleo`; botones `liga_tac:*`) y combate
+    animado (`utils/ligaArte.js`).
+  - **Vitrina** en la página pública (`vitrinaDe` en `utils/paginaPublica.js`, `crecimiento.pagina.mostrarVitrina`; nombres solo con
+    `mostrarRanking`), con los dibujos de `public/sprites`.
 - 1.31.2 Ediciones del crash y de la carrera **en fila** (`editarEnFila` en `utils/casino.js`, test en
   `visual131.test.js`): una edición no sale hasta que Discord ha aplicado la anterior, y la vista se calcula al salir
   (null = ya no toca). Antes, una edición del vuelo lenta llegaba DESPUÉS del resultado y el mensaje volvía a enseñar
