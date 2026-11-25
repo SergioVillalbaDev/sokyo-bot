@@ -940,7 +940,7 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_duelo:')) { await botonDuelo(interaction, client); return true; }
     if (interaction.isButton() && id.startsWith('cas_car:')) { await botonCarrera(interaction); return true; }
     if (interaction.isModalSubmit() && id.startsWith('cas_carm:')) { await modalCarrera(interaction, client); return true; }
-    if (id.startsWith('cas_mr') || id.startsWith('cas_lot') || id.startsWith('cas_st')) return require('./casinoExtra.js').manejar(interaction, client);
+    if (id.startsWith('cas_mr') || id.startsWith('cas_lot') || id.startsWith('cas_st') || id.startsWith('cas_ck')) return require('./casinoExtra.js').manejar(interaction, client);
     if (interaction.isButton() && id.startsWith('cas_rep:')) {
         // «Otra vez» y las fichas del lobby: ese juego y esa apuesta, para quien lo pulsa (mensaje nuevo).
         const [, juego, cant, extra] = id.split(':');

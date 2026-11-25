@@ -43,6 +43,7 @@ module.exports = {
         .addSubcommand((s) => s.setName('wheel').setNameLocalizations(ES('rueda')).setDescription('🎡 Wheel of fortune: bet on a number (up to ×47)').setDescriptionLocalizations(ES('🎡 Rueda de la fortuna: apuesta a un número (hasta ×47)')).addIntegerOption(cantidad)
             .addIntegerOption((o) => o.setName('number').setNameLocalizations(ES('numero')).setDescription('Which number').setDescriptionLocalizations(ES('A qué número')).setRequired(true).addChoices(
                 ...require('../utils/casinoNucleo.js').RUEDA.map((r) => ({ name: `${r.n} (×${r.paga})`, name_localizations: ES(`${r.n} (×${String(r.paga).replace('.', ',')})`), value: r.n })))))
+        .addSubcommand((s) => s.setName('rocket').setNameLocalizations(ES('cohete')).setDescription('🚀 Channel rocket: one crash for everyone').setDescriptionLocalizations(ES('🚀 Cohete del canal: un crash para todos')))
         .addSubcommand((s) => s.setName('table').setNameLocalizations(ES('mesa')).setDescription('🎡 Table roulette: one spin for the whole channel').setDescriptionLocalizations(ES('🎡 Ruleta en mesa: una tirada para todo el canal')))
         .addSubcommand((s) => s.setName('lottery').setNameLocalizations(ES('loteria')).setDescription('🎟️ Weekly lottery: buy tickets, Sunday draw').setDescriptionLocalizations(ES('🎟️ Lotería semanal: compra boletos, sorteo el domingo'))
             .addIntegerOption((o) => o.setName('tickets').setNameLocalizations(ES('boletos')).setDescription('How many to buy (empty = just look)').setDescriptionLocalizations(ES('Cuántos comprar (vacío = solo mirar)')).setMinValue(1).setMaxValue(20)))
@@ -95,6 +96,7 @@ module.exports = {
         else if (sub === 'plinko') r = await X.plinko({ ...base, riesgo: interaction.options.getString('risk') || 'bajo' });
         else if (sub === 'wheel') r = await X.rueda({ ...base, numero: interaction.options.getInteger('number') });
         else if (sub === 'table') r = await X.mesa(base);
+        else if (sub === 'rocket') r = await X.cohete(base);
         if (r?.error) {
             await interaction.deleteReply().catch(() => {});
             return interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 });
