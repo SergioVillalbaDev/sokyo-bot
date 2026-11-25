@@ -1179,11 +1179,11 @@ export default {
       tiers: {
         free: {
           name: 'Free', desc: 'Para comunidades que empiezan.',
-          features: ['Sistema de tickets completo', 'Panel web + Portal del cliente', 'Automod y seguridad básicos', 'Niveles, economía y comandos', 'Incluye la marca Sokyo'],
+          features: ['Tickets, moderación, bienvenidas y roles', 'Mascotas, cartas, combates y casino completos', 'Panel web + Mi cuenta para tus miembros', 'Tienda del servidor (3 productos)', 'Incluye la marca Sokyo'],
         },
         pro: {
           name: 'Sokyo Pro', desc: 'Para servidores que van en serio.',
-          features: ['Todo lo del plan Free', 'Sin la marca Sokyo', 'Tarjetas animadas y temas premium', 'Automod y seguridad al completo', 'Transcripts en HTML', 'Estadísticas avanzadas', 'Soporte prioritario'],
+          features: ['Todo lo del plan Free', 'Moderación con IA y seguridad al completo', 'Sin la marca Sokyo', 'Tienda con 25 productos y 100 mascotas propias', 'Música 24/7, transcripciones y estadísticas', 'Tarjetas animadas, temas premium y soporte prioritario'],
         },
         agency: {
           name: 'Sokyo Agencia', desc: 'Para quien gestiona varios servidores.',
@@ -3209,6 +3209,7 @@ export default {
       estados: { abierto: 'Abierto', lleno: 'Completo', cerrado: 'Cerrado' }, open: 'Ver en Discord', close: 'Cerrar',
     },
     tienda_v: {
+      proHint: 'El plan Free tiene 3 productos. Con Pro, hasta 25: colores, títulos, VIP por días…',
       intro: 'Pon a la venta roles cosméticos (un color, un título, un canal VIP…). Tus miembros los compran con el oro que ganan jugando: /tienda en Discord o «Mi cuenta» en la web. Así el oro tiene un uso que se ve en todo el servidor.',
       title: 'Tienda del servidor', products: 'Productos', add: 'Añadir producto',
       statProducts: 'Productos', statSales: 'Ventas (30 días)', statGold: 'Oro gastado (30 días)',

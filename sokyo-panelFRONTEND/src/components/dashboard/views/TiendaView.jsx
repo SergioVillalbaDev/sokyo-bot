@@ -16,7 +16,8 @@ const nuevoId = () => Math.random().toString(36).slice(2, 8);
 
 export default function TiendaView({ dash }) {
   const { t, i18n } = useTranslation();
-  const { roles } = dash;
+  const { roles, esPremium, setActiveTab } = dash;
+  const tope = esPremium ? 25 : 3; // utils/limites.js: tiendaProductos (Free 3 · Pro 25)
   const relativo = useRelativo();
   const { datos, form, set, guardar, estado, autoguardado } = useModulo(dash, 'tienda');
 
@@ -41,7 +42,7 @@ export default function TiendaView({ dash }) {
       <div data-help="tienda-config" className={tarjeta}>
         <CabeceraTarjeta icono={ShoppingBag} titulo={t('dashboard.tienda_v.title')} activo={form.activo} onActivo={set('activo')} />
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-line bg-bg p-3"><div className="text-xs text-muted">{t('dashboard.tienda_v.statProducts')}</div><div className="text-xl font-bold text-fg">{productos.length}/25</div></div>
+          <div className="rounded-2xl border border-line bg-bg p-3"><div className="text-xs text-muted">{t('dashboard.tienda_v.statProducts')}</div><div className="text-xl font-bold text-fg">{productos.length}/{tope}</div></div>
           <div className="rounded-2xl border border-line bg-bg p-3"><div className="text-xs text-muted">{t('dashboard.tienda_v.statSales')}</div><div className="text-xl font-bold text-fg">{n(datos.mes?.compras)}</div></div>
           <div className="rounded-2xl border border-line bg-bg p-3"><div className="text-xs text-muted">{t('dashboard.tienda_v.statGold')}</div><div className="text-xl font-bold text-fg">🪙 {n(datos.mes?.oro)}</div></div>
         </div>
@@ -50,8 +51,14 @@ export default function TiendaView({ dash }) {
 
       <div data-help="tienda-productos" className={tarjeta}>
         <CabeceraTarjeta icono={ShoppingBag} titulo={t('dashboard.tienda_v.products')} extra={
-          <button type="button" onClick={anadir} disabled={productos.length >= 25} className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"><Plus size={15} /> {t('dashboard.tienda_v.add')}</button>
+          <button type="button" onClick={anadir} disabled={productos.length >= tope} className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"><Plus size={15} /> {t('dashboard.tienda_v.add')}</button>
         } />
+        {!esPremium && productos.length >= tope && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-fg">
+            <span>⭐ {t('dashboard.tienda_v.proHint')}</span>
+            <button type="button" onClick={() => setActiveTab?.('cuenta-plan')} className="rounded-xl bg-gradient-brand px-4 py-2 text-sm font-bold text-on-brand">{t('dashboard.plan.upgrade')}</button>
+          </div>
+        )}
         {productos.length === 0 ? (
           <Vacio icono={ShoppingBag} titulo={t('dashboard.tienda_v.emptyTitle')} sub={t('dashboard.tienda_v.emptySub')} />
         ) : (

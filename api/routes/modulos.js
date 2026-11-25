@@ -899,7 +899,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             const ColeccionMascotas = require('../../models/ColeccionMascotas.js');
             const duenos = await Promise.all(lista.map((c) => ColeccionMascotas.countDocuments({ guildId: guild.id, 'mascotas.id': `s:${guild.id}:${c.cid}` })));
             const cfg = await cfgDe(guild.id);
-            res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: MAX_COMPIS, ...resumen,
+            res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: Math.min(MAX_COMPIS, require('../../utils/limites.js').limite(cfg, 'compisPropios')), ...resumen,
                 anime: { activo: !!cfg.compis?.anime, fuera: cfg.compis?.animeFuera || [], total: KC.ANIME.size, cofres: cfg.casino?.activo && cfg.casino?.cofres !== false } });
         } catch (e) { console.error('GET compis:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
@@ -907,6 +907,8 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
         try {
             const guild = guildDe(req, res); if (!guild) return;
             if (await CompaneroServidor.countDocuments({ guildId: guild.id }) >= MAX_COMPIS) return res.status(400).json({ error: 'Ya tienes 100 compañeros propios: borra alguno antes' });
+            const topeFree = require('../../utils/limites.js').limite(await cfgDe(guild.id), 'compisPropios');
+            if (await CompaneroServidor.countDocuments({ guildId: guild.id }) >= topeFree) return res.status(402).json({ error: 'Con el plan Free puedes tener 5 mascotas propias. Con Pro, hasta 100.', codigo: 'pro', tope: topeFree });
             const r = camposCompi({ rareza: 'rara', ...(req.body || {}) }, true);
             if (r.error) return res.status(400).json({ error: r.error });
             if (!r.set.imagenBuffer) return res.status(400).json({ error: 'Sube una foto para tu compañero' });
@@ -1008,6 +1010,8 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (b.productos !== undefined) {
                 // Los productos a medias (sin nombre o sin rol) se quedan en el panel hasta que estén completos.
                 const completos = (Array.isArray(b.productos) ? b.productos : []).filter((p) => p && String(p.nombre || '').trim() && p.rolId && Number(p.precio) > 0);
+                const tope = require('../../utils/limites.js').limite(cfg, 'tiendaProductos');
+                if (completos.length > tope) return res.status(402).json({ error: 'Con el plan Free la tienda tiene hasta 3 productos. Con Pro, hasta 25.', codigo: 'pro', tope });
                 const r = require('../../utils/tiendaServidor.js').validarProductos(guild, cfg, completos, idioma);
                 if (r.error) return res.status(400).json({ error: r.error });
                 const err = await errorRolesNuevos(client, req.staff, guild.id, r.productos.map((p) => p.rolId), (cfg.tienda?.productos || []).map((p) => p.rolId));

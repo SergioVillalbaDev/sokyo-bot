@@ -12,6 +12,9 @@ const LIMITES_FREE = {
     autoRespuestas: 5,      // FAQs / triggers automáticos
     anunciosProgramados: 3, // anuncios con fecha
     rolesPorNivel: 3,       // recompensas de rol por nivel
+    // 2.0.0: ocio. Lo gratis se juega entero; Pro da más cosas propias del servidor.
+    tiendaProductos: 3,     // productos en la tienda del servidor (Pro: 25)
+    compisPropios: 5,       // mascotas propias del servidor con vuestras fotos (Pro: 100)
 };
 
 // Límite numérico para una clave según el plan del servidor (Infinity = sin tope).

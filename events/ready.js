@@ -28,6 +28,8 @@ module.exports = {
             () => ({ name: '🎧 Lofi & Bangers', type: ActivityType.Listening }),
             () => ({ name: '🎉 Giveaways & Polls', type: ActivityType.Watching }),
             () => ({ name: '🤖 5 Bots, 1 Brain', type: ActivityType.Watching }),
+            () => ({ name: '🐾 Pets, Cards & Battles', type: ActivityType.Playing }),
+            () => ({ name: '🎰 /menu · /help', type: ActivityType.Playing }),
         ];
         let presenciaIdx = 0;
         const rotarPresencia = () => {
@@ -36,6 +38,9 @@ module.exports = {
         };
         rotarPresencia();
         setInterval(rotarPresencia, 25000);
+
+        // 2.0.0: la descripción del bot en Discord, al día con lo que hace (utils/descripcionBot.js).
+        require('../utils/descripcionBot.js').ponerDescripcion(client).catch((e) => console.error('Descripción del bot:', e.message));
 
         // Textos de fábrica de cada servidor en su idioma (p. ej. "Abrir un ticket" en español).
         esperarMongo().then(adaptarTodos).catch((e) => console.error('Adaptar textos al idioma:', e.message));

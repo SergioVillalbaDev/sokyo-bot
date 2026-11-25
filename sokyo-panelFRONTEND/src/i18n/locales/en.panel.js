@@ -1179,11 +1179,11 @@ export default {
       tiers: {
         free: {
           name: 'Free', desc: 'For communities just getting started.',
-          features: ['Full ticket system', 'Web panel + client Portal', 'Basic automod & security', 'Levels, economy & commands', 'Includes Sokyo branding'],
+          features: ['Tickets, moderation, welcomes & roles', 'Pets, cards, battles & casino in full', 'Web panel + My account for your members', 'Server shop (3 products)', 'Includes Sokyo branding'],
         },
         pro: {
           name: 'Sokyo Pro', desc: 'For servers that mean business.',
-          features: ['Everything in Free', 'No Sokyo branding', 'Animated rank cards & premium themes', 'Full automod & security', 'HTML transcripts', 'Advanced analytics', 'Priority support'],
+          features: ['Everything in Free', 'AI moderation & full security', 'No Sokyo branding', 'Shop with 25 products & 100 custom pets', '24/7 music, transcripts & analytics', 'Animated cards, premium themes & priority support'],
         },
         agency: {
           name: 'Sokyo Agency', desc: 'For those managing several servers.',
@@ -3204,6 +3204,7 @@ export default {
       estados: { abierto: 'Open', lleno: 'Full', cerrado: 'Closed' }, open: 'View in Discord', close: 'Close',
     },
     tienda_v: {
+      proHint: 'The Free plan has 3 products. With Pro, up to 25: colours, titles, VIP for days…',
       intro: 'Put cosmetic roles up for sale (a colour, a title, a VIP channel…). Your members buy them with the gold they earn by playing: /shop on Discord or “My account” on the web. That gives gold a use the whole server can see.',
       title: 'Server shop', products: 'Products', add: 'Add product',
       statProducts: 'Products', statSales: 'Sales (30 days)', statGold: 'Gold spent (30 days)',

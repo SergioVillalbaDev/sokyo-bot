@@ -80,7 +80,7 @@ const GUIA_COMPLETA = {
         ].join('\n') },
         { name: '🎮 Para divertirse (todo con el oro de este servidor)', value: [
             '🐾 **Mascotas** que cuidas, con granja, casa y expediciones · 🃏 **cartas** y ⚔️ **combates**',
-            '🎰 **Casino** con 20 juegos · 🎟️ **pase de temporada** gratis · 🛒 **tienda** de roles del servidor',
+            '🎰 **Casino** con 17 juegos · 🎟️ **pase de temporada** gratis · 🛒 **tienda** de roles del servidor',
             '📈 **Niveles**, 🛡️ clanes con guerra semanal y 🏅 la Liga contra otros servidores',
         ].join('\n') },
     ],
@@ -92,7 +92,7 @@ const GUIA_COMPLETA = {
         ].join('\n') },
         { name: '🎮 To have fun (all with this server’s gold)', value: [
             '🐾 **Pets** you look after, with a farm, house and expeditions · 🃏 **cards** and ⚔️ **battles**',
-            '🎰 **Casino** with 20 games · 🎟️ free **season pass** · 🛒 server role **shop**',
+            '🎰 **Casino** with 17 games · 🎟️ free **season pass** · 🛒 server role **shop**',
             '📈 **Levels**, 🛡️ clans with a weekly war and 🏅 the League against other servers',
         ].join('\n') },
     ],

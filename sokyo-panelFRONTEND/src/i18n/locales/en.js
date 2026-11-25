@@ -245,6 +245,7 @@ export default {
       titleHighlight: 'in a single bot',
       subtitle: 'Pieces that fit together and are managed from the same panel. No more five different bots fighting over permissions.',
       items: {
+        juegos: { title: 'Games that hook people, solo or together', desc: 'Every member looks after their pets, sends them on expeditions, collects cards, fights in the tower and against the weekly boss, and tries their luck at the casino. All with your server’s gold: here everyone starts from zero and competes with each other.' },
         tickets: { title: 'Real support tickets', desc: 'Categories, priorities with response times, staff assignment, internal notes, transcripts and a rating when closed. Every ticket is its own private channel and can be followed on the web too.' },
         moderacion: { title: 'Moderation & automod', desc: 'Sanctions with history, automatic filters and AI moderation that acts on its own.' },
         niveles: { title: 'Levels & cards', desc: 'XP for chatting, a leaderboard and customizable level cards.' },
@@ -257,6 +258,7 @@ export default {
       },
       prioridades: ['Urgent', 'High', 'Normal', 'Low'],
       samples: {
+        juegos: ['🐾 57 pets that grow', '🃏 643 anime cards', '⚔️ Battles, tower and weekly boss', '🎰 17 casino games', '🎟️ Free season pass', '🛡️ Clans with a weekly war', '🏅 League against other servers'],
         tickets: ['Response times', 'Internal notes', '★★★★★ ratings', 'Follow on the web'],
         chat: [{ n: 'Carlos', t: 'My purchase didn’t arrive 😥' }, { n: 'Ana · Staff', t: 'Sorted! You’ve got your role now 🙌' }],
         moderacion: ['Suspicious link blocked', 'Mention spam blocked'],
@@ -340,13 +342,13 @@ export default {
           name: 'Free', price: '€0', period: 'forever',
           desc: 'Perfect for small communities getting started.',
           cta: 'Start free',
-          features: ['Full ticket system', 'Web panel + My account for your members', 'Basic automod & security', 'Levels, economy & music', 'Includes Sokyo branding'],
+          features: ['Tickets, moderation, welcomes & roles', 'Pets, cards, battles & casino in full', 'Web panel + My account for your members', 'Levels, music & season pass', 'Server shop (3 products)', 'Includes Sokyo branding'],
         },
         pro: {
           name: 'Sokyo Pro', price: '€7', period: '/mo',
           desc: 'For servers that mean business.',
           cta: 'Upgrade to Pro',
-          features: ['Everything in Free', 'No Sokyo branding (white-label)', 'Animated rank cards & premium themes', 'Full automod & security', 'Unlimited panels, FAQs & announcements', 'Advanced statistics', 'Priority support'],
+          features: ['Everything in Free', 'AI moderation & full security', 'No Sokyo branding (white-label)', 'Shop with 25 products & 100 custom pets', '24/7 music & filters', 'Unlimited panels, FAQs & announcements', 'Stats, daily report & transcripts', 'Animated cards, premium themes & priority support'],
         },
         agency: {
           name: 'Sokyo Agency', price: '€25', period: '/mo',

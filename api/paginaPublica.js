@@ -70,7 +70,10 @@ module.exports = function montarPaginaPublica(app, client) {
         try {
             const base = pagina.urlBase(req);
             const lista = await pagina.datosDirectorio(client);
-            const urls = [`${base}/`, `${base}/servidores`, `${base}/novedades`, `${base}/estado`, ...lista.map((s) => `${base}/s/${s.slug}`)];
+            // 2.0.0: también la ayuda (una página por función del catálogo), que es lo que más busca la gente.
+            const { paginaModulo } = require('../utils/ayudaWeb.js');
+            const ayuda = require('../utils/catalogo.js').MODULOS.map((m) => m.id).filter((id) => { try { return !!paginaModulo({ lang: 'es', url: '', id }); } catch { return false; } });
+            const urls = [`${base}/`, `${base}/ayuda`, ...ayuda.map((id) => `${base}/ayuda/${id}`), `${base}/servidores`, `${base}/novedades`, `${base}/estado`, ...lista.map((s) => `${base}/s/${s.slug}`)];
             const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
                 .map((u) => `  <url><loc>${pagina.esc(u)}</loc></url>`).join('\n')}\n</urlset>\n`;
             res.set('Content-Type', 'application/xml; charset=utf-8').set('Cache-Control', 'public, max-age=3600').send(xml);
