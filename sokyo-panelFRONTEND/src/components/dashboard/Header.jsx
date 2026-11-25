@@ -238,7 +238,7 @@ export default function Header({ dash, onOpenMenu, onBuscar, puedeVolver = false
       aria-label={t('dashboard.videoAyuda.boton')}
       title={t('dashboard.videoAyuda.boton')}
     >
-      <PlayCircle size={15} /> <span className="hidden sm:inline">{t('dashboard.videoAyuda.boton')}</span>
+      <PlayCircle size={15} /> <span className="hidden 2xl:inline">{t('dashboard.videoAyuda.boton')}</span>
     </button>
   ) : null;
 
@@ -275,7 +275,7 @@ export default function Header({ dash, onOpenMenu, onBuscar, puedeVolver = false
             )}
           </nav>
           <div className="mt-0.5 flex min-w-0 items-center gap-2">
-            <h1 className="sk-titulo text-[17px] font-extrabold leading-tight tracking-tight text-fg sm:text-2xl sm:leading-8">{titulo}</h1>
+            <h1 className="sk-titulo min-w-[7rem] text-[17px] font-extrabold leading-tight tracking-tight text-fg sm:text-2xl sm:leading-8">{titulo}</h1>
             <span className="hidden sm:block">{ayudaSeccion}</span>
             {botonVideo}
           </div>

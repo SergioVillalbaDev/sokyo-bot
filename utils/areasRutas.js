@@ -35,13 +35,14 @@ const REGLAS = [
     // ---- Moderación
     [TODOS, /^\/reportes(\/|$)/, 'moderacion', 'Reporte'],
     [TODOS, /^\/sanciones\/tipos(\/|$)/, 'moderacion', 'TipoSancion'],
-    [TODOS, /^\/sanciones(\/|$)/, 'moderacion', 'Sancion'],
+    [TODOS, /^\/sanciones(?!\/upload)(\/|$)/, 'moderacion', 'Sancion'],
     // ---- Roles
-    [TODOS, /^\/paneles(\/|$)/, 'roles', 'RolePanel'],
+    // /paneles/upload es la subida de imágenes de TODO el panel (bienvenidas, eventos…): sin área (tiene su freno).
+    [TODOS, /^\/paneles(?!\/upload)(\/|$)/, 'roles', 'RolePanel'],
     [ESCRIBIR, /^\/roles(\/|$)/, 'roles'],
     // ---- Mensajes y anuncios
-    [TODOS, /^\/anuncios\/presets(\/|$)/, 'mensajes', 'AnuncioPreset'],
-    [TODOS, /^\/anuncios(\/|$)/, 'mensajes', 'AnuncioProgramado'],
+    // Las plantillas (/anuncios/presets) NO llevan área: las comparten Bienvenida, Verificación, Mi cuenta y Mensajes.
+    [TODOS, /^\/anuncios(?!\/presets)(\/|$)/, 'mensajes', 'AnuncioProgramado'],
     [ESCRIBIR, /^\/embed\//, 'mensajes'],
     // ---- Datos y registro
     [TODOS, /^\/stats\/analitica(\/|$)/, 'datos'], // /stats/uso no: lo lee la cabecera del panel (plan) para todos

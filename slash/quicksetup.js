@@ -54,7 +54,7 @@ module.exports = {
         elegir('tickets', ['tickets']);
         elegir('levels', ['niveles', 'temporadas']);
         elegir('automod', ['automod']);
-        elegir('fun', ['mascota', 'casino', 'bromas', 'liga', 'clanes']);
+        elegir('fun', ['mascota', 'casino', 'bromas', 'liga', 'clanes', 'tienda']);
         const rol = interaction.options.getRole('staff_role');
         const { respuestas, error } = setup.validar({ idioma, tipo, modulos: [...modulos], rolStaffId: rol ? rol.id : null }, interaction.guild);
         if (error) return interaction.reply({ content: `❌ ${error}`, flags: 64 });

@@ -11,6 +11,7 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, 
 const ServidorConfig = require('../models/ServidorConfig.js');
 const CompraTienda = require('../models/CompraTienda.js');
 const RolTemporal = require('../models/RolTemporal.js');
+const ContadorTienda = require('../models/ContadorTienda.js');
 const { errorRolPeligroso } = require('./permisos.js');
 const { t } = require('./i18n.js');
 
@@ -27,10 +28,12 @@ function enFila(guildId, fn) {
     return siguiente;
 }
 
-// Roles que nunca se venden: los del staff / panel / moderación de la configuración.
+// Roles que nunca se venden: los del staff / panel / moderación y TODOS los que el bot da por su cuenta
+// (acceso de la verificación y de la doble bienvenida, preguntas al entrar, recompensas de nivel e
+// invitaciones, campeón, votante…). Venderlos sería saltarse la verificación o comprar un premio.
 function rolesSensibles(cfg) {
     return new Set([cfg?.rolStaffId, ...(cfg?.rolesModeracion || []), ...(cfg?.rolesPanelAcceso || []),
-        cfg?.verificacion?.rolVerificadoId].filter(Boolean));
+        ...require('./permisos.js').rolesQueDaElBot(cfg || {})].filter(Boolean));
 }
 
 // ¿Se puede vender este rol aquí? Devuelve el motivo si no, o null si sí.
@@ -40,7 +43,7 @@ function errorRol(guild, rol, cfg, idioma = 'es') {
     if (rol.managed) return t(idioma, `«${rol.name}» lo gestiona una integración (un bot o las mejoras): no se puede vender.`, `“${rol.name}” is managed by an integration: it can’t be sold.`);
     const peligro = errorRolPeligroso(rol);
     if (peligro) return t(idioma, `«${rol.name}» tiene permisos de staff: en la tienda solo puede haber roles cosméticos.`, `“${rol.name}” has staff permissions: the shop can only sell cosmetic roles.`);
-    if (rolesSensibles(cfg).has(rol.id)) return t(idioma, `«${rol.name}» es un rol del staff, de la verificación o del acceso al panel: no se vende.`, `“${rol.name}” is a staff, verification or panel-access role: it isn’t for sale.`);
+    if (rolesSensibles(cfg).has(rol.id)) return t(idioma, `«${rol.name}» es un rol del staff, de la verificación o un premio que da el bot: no se vende.`, `“${rol.name}” is a staff or verification role, or a reward the bot gives: it isn’t for sale.`);
     const yo = guild.members.me;
     if (yo && rol.position >= yo.roles.highest.position) return t(idioma, `«${rol.name}» está por encima del rol de Sokyo: súbelo en Ajustes del servidor → Roles o elige otro.`, `“${rol.name}” is above Sokyo’s role: move Sokyo higher in Server Settings → Roles or pick another.`);
     if (yo && !yo.permissions.has(PermissionsBitField.Flags.ManageRoles)) return t(idioma, 'A Sokyo le falta el permiso «Gestionar roles».', 'Sokyo is missing the “Manage Roles” permission.');
@@ -77,19 +80,23 @@ function validarProductos(guild, cfg, lista, idioma = 'es') {
     return { productos };
 }
 
-// Unidades vendidas de cada producto (solo los que llevan stock).
+// Unidades vendidas de cada producto (solo los que llevan stock). En ContadorTienda, que no caduca.
 async function vendidos(guildId, ids) {
     if (!ids.length) return {};
-    const filas = await CompraTienda.aggregate([
-        { $match: { guildId, productoId: { $in: ids }, devuelta: false } },
-        { $group: { _id: '$productoId', n: { $sum: 1 } } },
-    ]);
-    return Object.fromEntries(filas.map((f) => [f._id, f.n]));
+    const filas = await ContadorTienda.find({ guildId, productoId: { $in: ids } }).lean();
+    return Object.fromEntries(filas.map((f) => [f.productoId, f.vendidos || 0]));
 }
 
 // Productos a la venta con lo que queda de cada uno (para Discord, la web y el panel).
-async function catalogo(guildId, cfg) {
+// En Free solo se venden los primeros (limites.tiendaProductos): si un servidor deja Pro, la tienda sigue
+// abierta con lo de arriba del todo.
+function aLaVenta(cfg) {
     const lista = (cfg?.tienda?.productos || []).filter((p) => p.activo !== false);
+    return lista.slice(0, require('./limites.js').limite(cfg, 'tiendaProductos'));
+}
+
+async function catalogo(guildId, cfg) {
+    const lista = aLaVenta(cfg);
     const conStock = lista.filter((p) => typeof p.stock === 'number').map((p) => p.id);
     const v = await vendidos(guildId, conStock);
     return lista.map((p) => ({ ...(p.toObject ? p.toObject() : p), quedan: typeof p.stock === 'number' ? Math.max(0, p.stock - (v[p.id] || 0)) : null }));
@@ -105,7 +112,7 @@ function comprar(guild, member, productoId, idioma = 'es') {
     return enFila(guild.id, async () => {
         const cfg = await ServidorConfig.findOne({ guildId: guild.id }).lean();
         if (!cfg?.tienda?.activo) return { ok: false, error: t(idioma, 'La tienda de este servidor está cerrada.', 'This server’s shop is closed.') };
-        const producto = (cfg.tienda.productos || []).find((p) => p.id === productoId && p.activo !== false);
+        const producto = aLaVenta(cfg).find((p) => p.id === productoId);
         if (!producto) return { ok: false, error: t(idioma, 'Ese producto ya no está a la venta.', 'That product is no longer for sale.') };
         const rol = guild.roles.cache.get(producto.rolId);
         const malRol = errorRol(guild, rol, cfg, idioma);
@@ -142,6 +149,7 @@ function comprar(guild, member, productoId, idioma = 'es') {
             await RolTemporal.deleteMany({ guildId: guild.id, userId: member.id, roleId: rol.id }); // ahora es suyo para siempre
         }
         await CompraTienda.create({ guildId: guild.id, userId: member.id, productoId: producto.id, nombre: producto.nombre, rolId: rol.id, precio: producto.precio, hasta });
+        if (typeof producto.stock === 'number') await ContadorTienda.updateOne({ guildId: guild.id, productoId: producto.id }, { $inc: { vendidos: 1 } }, { upsert: true });
         require('./uso.js').sumar(guild.id, 'tienda:compra');
         return { ok: true, producto, rol, saldo, hasta, extendido };
     });

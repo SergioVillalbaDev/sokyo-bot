@@ -29,3 +29,6 @@ lavalink/.youtube-cuenta.json*
 backups/
 # Caché de las fotos del Pack anime (se descargan de AniList al usarse).
 cache/
+scripts/simulador/informe.txt
+scripts/simulador/transcripcion.txt
+scripts/simulador/setup.txt

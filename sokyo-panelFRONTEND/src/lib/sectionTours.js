@@ -28,6 +28,13 @@ export const sectionTours = {
     { id: 'graficas', sel: '[data-help="analitica-graficas"]', side: 'top', align: 'start' },
   ],
 
+  'com-tienda': [
+    { id: 'config', sel: '[data-help="tienda-config"]', side: 'bottom', align: 'start' },
+    { id: 'productos', sel: '[data-help="tienda-productos"]', side: 'top', align: 'start' },
+    { id: 'previa', sel: '[data-help="tienda-previa"]', side: 'top', align: 'start' },
+    { id: 'ventas', sel: '[data-help="tienda-ventas"]', side: 'top', align: 'start' },
+  ],
+
   'datos-resumen': [
     { id: 'toggle', sel: '[data-help="resumen-toggle"]', side: 'bottom', align: 'start' },
     { id: 'cuando', sel: '[data-help="resumen-cuando"]', side: 'top', align: 'start' },

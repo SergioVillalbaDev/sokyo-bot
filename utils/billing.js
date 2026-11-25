@@ -172,6 +172,14 @@ function construirEvento(rawBody, signature) {
     return stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
 }
 
+// Fin del periodo pagado de una suscripción. 2.0.1: en la API actual de Stripe (desde 2025) ya no está en
+// la suscripción sino en cada línea (items.data[].current_period_end); antes se leía de la suscripción, salía
+// vacío y una suscripción MENSUAL se guardaba como «de por vida». Devuelve Date o null si no se sabe.
+function finPeriodo(sub) {
+    const s = sub?.current_period_end || Math.max(0, ...((sub?.items?.data || []).map((i) => i?.current_period_end || 0)));
+    return s ? new Date(s * 1000) : null;
+}
+
 // Procesa un evento de Stripe ya verificado y actualiza la BD.
 // `client` (opcional): si se pasa, sincroniza el acceso al servidor de soporte
 // prioritario (lo concede en el primer pago, lo revoca al cancelar/caducar).
@@ -196,7 +204,9 @@ async function procesarEvento(event, client = null) {
                 const subId = obj.subscription || null;
                 if (subId) {
                     const sub = await stripe.subscriptions.retrieve(subId);
-                    hasta = sub.current_period_end ? new Date(sub.current_period_end * 1000) : null;
+                    // Si no se sabe la fecha, un mes de margen (el webhook de la suscripción la pondrá bien):
+                    // nunca «de por vida» por una suscripción.
+                    hasta = finPeriodo(sub) || new Date(Date.now() + 32 * 86400000);
                 }
                 await activarPlan(guildId, {
                     plan, premiumHasta: hasta, stripeCustomerId: obj.customer,
@@ -222,7 +232,7 @@ async function procesarEvento(event, client = null) {
                 // el invite (eso ya pasó en checkout.session.completed la primera vez).
                 await activarPlan(guildId, {
                     plan,
-                    premiumHasta: sub.current_period_end ? new Date(sub.current_period_end * 1000) : undefined,
+                    premiumHasta: finPeriodo(sub) || undefined,
                     stripeCustomerId: sub.customer,
                     stripeSubscriptionId: sub.id,
                     cancelaAlFinal: !!sub.cancel_at_period_end,
@@ -264,7 +274,7 @@ async function barrerPremiumCaducado(client = null) {
     return res.modifiedCount || 0;
 }
 
-module.exports = {
+module.exports = { finPeriodo,
     getStripe, precioId, premiumActivo, nivel, esPro, esAgency,
     cuotaIA, estadoIA, consumirIA,
     PLANES_VALIDOS, INTERVALOS_VALIDOS,

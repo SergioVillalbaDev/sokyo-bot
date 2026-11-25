@@ -9,7 +9,7 @@ export const ACTIVABLE = {
   'prod-bienvenidas': 'bienvenidas', 'logs-todos': 'registro', 'config-niveles': 'niveles', 'mod-automod': 'automod',
   'tickets-config': 'tickets', 'com-temporadas': 'temporadas', 'com-cumpleanos': 'cumpleanos', 'crec-votos': 'votos',
   'com-sugerencias': 'sugerencias', 'com-salon': 'salon', 'crec-contadores': 'contadores', 'com-mascota': 'mascota',
-  'com-casino': 'casino', 'com-compis': 'casino', 'com-bromas': 'bromas', 'crec-liga': 'liga', 'com-clanes': 'clanes',
+  'com-casino': 'casino', 'com-compis': 'casino', 'com-bromas': 'bromas', 'crec-liga': 'liga', 'com-clanes': 'clanes', 'com-tienda': 'tienda',
 };
 
 // Devuelve { ok, pasos, creados } o { ok: false, motivo: 'admin'|'permisos'|'espera'|'error', permisos, detalle }.

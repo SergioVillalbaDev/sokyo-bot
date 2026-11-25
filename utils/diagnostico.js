@@ -241,7 +241,8 @@ async function diagnosticar(client, guildId, cfg, idioma) {
     medio(cfg?.confesiones?.activo && !cfg?.confesiones?.canalId, 'medio:confesiones', 'com-confesiones', 'Las confesiones están encendidas pero sin canal', 'Confessions are on but have no channel', 'Elige en qué canal se publican.', 'Choose which channel they’re posted in.');
     medio(cfg?.clanes?.activo && !cfg?.nivelesActivo, 'medio:clanes', 'config-niveles', 'Los clanes están encendidos pero los niveles no', 'Clans are on but levels are off', 'Los clanes suman puntos con la XP: activa los niveles.', 'Clans earn points from XP: turn on levels.');
     medio(cfg?.solicitudes?.activo && !(cfg?.solicitudes?.formularios || []).length, 'medio:solicitudes', 'com-solicitudes', 'Las solicitudes están encendidas pero no hay ningún formulario', 'Applications are on but there are no forms', 'Crea al menos un formulario con sus preguntas.', 'Create at least one form with its questions.');
-    medio(!cfg?.rolStaffId, 'medio:staff', 'tickets-config', 'Los tickets no tienen rol de staff', 'Tickets have no staff role', 'Elige qué rol atiende los tickets (si no, solo los que pueden «Gestionar canales»).', 'Choose which role handles tickets (otherwise, only those who can “Manage channels”).');
+    // 2.0.0: solo si de verdad usa tickets (si no, el aviso asustaba en servidores que no los tienen).
+    medio(!cfg?.rolStaffId && !!(cfg?.categoriaTicketsId || cfg?.panelTickets?.mensajeId), 'medio:staff', 'tickets-config', 'Los tickets no tienen rol de staff', 'Tickets have no staff role', 'Elige qué rol atiende los tickets (si no, solo los que pueden «Gestionar canales»).', 'Choose which role handles tickets (otherwise, only those who can “Manage channels”).');
 
     // 3.0) Imágenes subidas desde el panel en Eventos, Sorteos, Encuestas, Juegos y la voz
     // temporal: Discord las descarga de la dirección pública del panel (FRONTEND_URL,

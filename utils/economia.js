@@ -77,11 +77,13 @@ async function reclamarDaily(guildId, discordId) {
     const extraEvento = evento ? Math.round((base + bonus + jackpot) * evento.bonusDiario) : 0;
     total += extraEvento;
     let regalo = REGALOS_RACHA[racha] || (racha > 30 && racha % 30 === 0 ? REGALOS_RACHA[30] : null);
+    const cfgS = await require('../models/ServidorConfig.js').findOne({ guildId }).select('compis casino').lean().catch(() => null);
+    // 2.0.1: el PRIMER /diario de cada persona trae un cofre gratis de bienvenida (si hay cofres): su primera
+    // mascota el primer día, sin esperar a juntar 500 de oro.
+    const bienvenida = !u.ultimoDaily && !regalo && cfgS?.casino?.activo && cfgS?.casino?.cofres !== false;
+    if (bienvenida) regalo = 'cofre_basico';
     // Sin cartas de anime en el servidor, un sobre no sirve: va un cofre.
-    if (regalo && regalo.startsWith('sobre')) {
-        const cfgS = await require('../models/ServidorConfig.js').findOne({ guildId }).select('compis').lean().catch(() => null);
-        if (!cfgS?.compis?.anime) regalo = regalo === 'sobre_brillante' ? 'cofre_epico' : 'cofre_basico';
-    }
+    if (regalo && regalo.startsWith('sobre') && !cfgS?.compis?.anime) regalo = regalo === 'sobre_brillante' ? 'cofre_epico' : 'cofre_basico';
 
     // Puerta atómica: solo se aplica si `ultimoDaily` sigue siendo el mismo que
     // acabamos de leer. Si dos /daily llegan a la vez (doble clic, reintento de
@@ -95,7 +97,7 @@ async function reclamarDaily(guildId, discordId) {
     if (!actualizado) return { ok: false, esperaHoras: HORAS_DAILY }; // otra petición ganó la carrera justo antes
     if (regalo) await require('../models/ColeccionMascotas.js').updateOne({ guildId, userId: discordId }, { $inc: { [`tickets.${regalo}`]: 1 } }, { upsert: true }).catch(() => {});
     const delPase = await require('./pase.js').registrar(guildId, discordId, [['diarioLogin', 1]]).catch(() => []);
-    return { ok: true, total, racha, jackpot, extraCompa, extraClan, extraEvento, evento, regalo, delPase, balance: actualizado.balance };
+    return { ok: true, total, racha, jackpot, extraCompa, extraClan, extraEvento, evento, regalo, bienvenida, delPase, balance: actualizado.balance };
 }
 
 // Ranking de los usuarios con más oro.

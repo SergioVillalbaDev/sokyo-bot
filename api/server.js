@@ -152,6 +152,14 @@ module.exports = (client) => {
     });
 
     app.use(express.json({ limit: '12mb' })); // suficiente para imágenes/gifs en base64
+    // 2.0.1: nada de operadores de MongoDB en lo que llega ({ "$ne": null } en vez de un id): se quitan las
+    // claves que empiezan por «$» a cualquier profundidad. Ninguna petición buena las lleva.
+    const sinDolar = (v, n = 0) => {
+        if (n > 20 || !v || typeof v !== 'object') return v;
+        for (const k of Object.keys(v)) { if (k.startsWith('$')) delete v[k]; else sinDolar(v[k], n + 1); }
+        return v;
+    };
+    app.use((req, res, next) => { sinDolar(req.body); next(); });
     // Con el panel en inglés, los errores de la API salen en inglés (utils/erroresApi.js).
     app.use('/api', require('../utils/erroresApi.js').middlewareErrores);
 
@@ -184,7 +192,10 @@ module.exports = (client) => {
     // Carpeta donde se guardan las imágenes subidas para los paneles, servida públicamente.
     const uploadsDir = path.join(__dirname, 'uploads');
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-    app.use('/uploads', express.static(uploadsDir));
+    // 2.0.1: lo subido solo se ve como imagen; aunque alguien colara otra cosa, el navegador no la ejecuta.
+    app.use('/uploads', express.static(uploadsDir, {
+        setHeaders: (res) => { res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox"); res.setHeader('X-Content-Type-Options', 'nosniff'); },
+    }));
 
     // Páginas estáticas propias (p. ej. la tienda en public/tienda.html), servidas
     // en el MISMO origen que la API para evitar problemas de CORS con el token.
@@ -204,7 +215,7 @@ module.exports = (client) => {
     });
 
     if (!API_KEY) {
-        console.warn('⚠️  API_KEY no está definida en el .env: la API queda SIN protección. Define API_KEY para protegerla.');
+        console.warn('⚠️  API_KEY no está definida en el .env: la API solo acepta sesiones de Discord (sin acceso por clave).');
     }
     if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
         console.warn('⚠️  DISCORD_CLIENT_ID/SECRET no definidos: el Portal del Cliente (login con Discord) estará desactivado.');
@@ -214,7 +225,7 @@ module.exports = (client) => {
     // Evita que alguien martillee la API (fuerza bruta del login, abuso de endpoints…).
     // OJO: el webhook de Stripe se registró ANTES, así que NO pasa por estos límites.
     // El panel hace polling, por eso el límite general es holgado.
-    const limitadorGeneral = rateLimit({
+    const limitadorGeneral = rateLimit({ keyGenerator: require('../utils/ipCliente.js').claveLimite,
         windowMs: 60 * 1000,           // ventana de 1 minuto
         max: 600,                      // 600 peticiones/min por IP
         standardHeaders: true,
@@ -223,7 +234,7 @@ module.exports = (client) => {
     });
 
     // Mucho más estricto en el login/OAuth: ahí no hay polling y es lo que más se abusa.
-    const limitadorAuth = rateLimit({
+    const limitadorAuth = rateLimit({ keyGenerator: require('../utils/ipCliente.js').claveLimite,
         windowMs: 60 * 1000,
         max: 30,                       // 30 intentos/min por IP
         standardHeaders: true,
@@ -336,7 +347,12 @@ module.exports = (client) => {
         }
 
         // (2) API key del propietario
-        if (!API_KEY) return next(); // sin key configurada: API abierta (ver aviso de arranque)
+        // 2.0.1: sin API_KEY la API ya NO queda abierta: solo se entra con sesión (lo de arriba). Para probar en
+        // local sin clave, SOKYO_API_ABIERTA=si en el .env.
+        if (!API_KEY) {
+            if (process.env.SOKYO_API_ABIERTA === 'si') return next();
+            return res.status(401).json({ error: 'Inicia sesión con Discord para usar el panel.', code: bearer ? 'session_invalid' : 'sin_sesion' });
+        }
         const enviada = req.headers['x-api-key'] || bearer;
         if (enviada !== API_KEY) {
             // Distinguimos el motivo para que el panel muestre el mensaje correcto:
@@ -391,6 +407,8 @@ module.exports = (client) => {
             const sf = (req.path.match(/\/(\d{17,20})(?:\/|$)/) || [])[1];
             const canal = sf && client.channels.cache.get(sf);
             if (canal?.guildId) guildId = canal.guildId;
+            // Ticket cuyo canal ya no existe (transcripción de uno cerrado): su servidor, del propio ticket.
+            else if (sf && regla.area === 'tickets') guildId = (await Ticket.findOne({ canalId: sf }).select('guildId').lean().catch(() => null))?.guildId || null;
         }
         // Sin servidor concreto (listas de todos los suyos): solo si tiene esa área en todos.
         const servidores = guildId ? [guildId] : (req.staff.guilds || []);
@@ -836,14 +854,20 @@ module.exports = (client) => {
     });
 
     // Subir el fondo de la tarjeta desde el ordenador (dataURL base64).
-    app.post('/api/portal/tarjeta/upload', portalAuth, (req, res) => {
+    app.post('/api/portal/tarjeta/upload', portalAuth, async (req, res) => {
         try {
             const img = imagenDeDataUrl(req.body?.datos); // por sus bytes, no por el tipo que dice
             if (!img) return res.status(400).json({ error: ERROR_NO_IMAGEN });
             const { buffer, ext } = img;
             if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 8 MB' });
+            const LS = require('../utils/limiteSubidas.js');
+            const freno = LS.permitir(`u:${req.usuario.id}`, buffer.length, { dir: uploadsDir });
+            if (freno) return res.status(429).json({ error: freno });
             const archivo = `tarjeta-${req.usuario.id}-${Date.now()}.${ext}`;
             fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
+            // Nunca se borra el fondo que tiene guardado en su tarjeta.
+            const guardada = await TarjetaPersonal.findOne({ userId: req.usuario.id }).select('fondoImagen').lean().catch(() => null);
+            LS.limpiarViejos(uploadsDir, `tarjeta-${req.usuario.id}-`, 3, { excepto: [guardada?.fondoImagen] });
             res.json({ success: true, url: `/uploads/${archivo}` });
         } catch (error) {
             console.error('Error al subir fondo de tarjeta:', error);
@@ -3615,6 +3639,8 @@ app.get('/api/stats/uso', async (req, res) => {
             if (!img) return res.status(400).json({ error: ERROR_NO_IMAGEN });
             const { buffer, ext } = img;
             if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera el máximo de 8 MB' });
+            const freno = require('../utils/limiteSubidas.js').permitir(`s:${req.staff?.id || 'api'}`, buffer.length, { dir: uploadsDir });
+            if (freno) return res.status(429).json({ error: freno });
             const archivo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
             fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
             res.json({ success: true, archivo, url: `/uploads/${archivo}` });
@@ -4096,11 +4122,13 @@ app.get('/api/stats/uso', async (req, res) => {
     // --- Subir una prueba (imagen) ---
     app.post('/api/sanciones/upload', (req, res) => {
         try {
-            const m = /^data:(image\/(png|jpe?g|gif|webp));base64,(.+)$/i.exec(req.body?.datos || '');
-            if (!m) return res.status(400).json({ error: 'Formato no válido (solo imagen)' });
-            const ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
-            const buffer = Buffer.from(m[3], 'base64');
+            // Por sus bytes, no por el tipo que dice (como las demás subidas).
+            const img = imagenDeDataUrl(req.body?.datos);
+            if (!img) return res.status(400).json({ error: 'Formato no válido (solo imagen)' });
+            const { buffer, ext } = img;
             if (buffer.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 8 MB' });
+            const freno = require('../utils/limiteSubidas.js').permitir(`s:${req.staff?.id || 'api'}`, buffer.length, { dir: uploadsDir });
+            if (freno) return res.status(429).json({ error: freno });
             const archivo = `prueba-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
             fs.writeFileSync(path.join(uploadsDir, archivo), buffer);
             res.json({ success: true, archivo, url: `/uploads/${archivo}` });

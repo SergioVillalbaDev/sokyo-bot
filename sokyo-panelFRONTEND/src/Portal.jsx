@@ -49,7 +49,7 @@ const sesionGuardada = () => {
 };
 
 function Portal() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [token, setToken] = useState(sesionGuardada);
   const [usuario, setUsuario] = useState(null);
   const [resumen, setResumen] = useState(null);
@@ -116,14 +116,14 @@ function Portal() {
 
   const portalFetch = useCallback((path, options = {}) => fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
+    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, 'X-Sokyo-Lang': i18n.language === 'en' ? 'en' : 'es' },
   }).then((res) => {
     // Sesión renovada por el servidor (X-Sokyo-Token): se guarda para la próxima
     // visita; la actual sigue con la que tiene, que aún es válida.
     const renovada = res.headers.get('X-Sokyo-Token');
     try { if (renovada && sesionGuardada() === token) localStorage.setItem('portalToken', renovada); } catch { /* nada */ }
     return res;
-  }), [token]);
+  }), [token, i18n]);
 
   const avisar = useCallback((texto, tipo = 'ok') => {
     const id = `${Date.now()}-${Math.random()}`;

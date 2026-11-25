@@ -17,7 +17,8 @@ const nuevoId = () => Math.random().toString(36).slice(2, 8);
 export default function TiendaView({ dash }) {
   const { t, i18n } = useTranslation();
   const { roles, esPremium, setActiveTab } = dash;
-  const tope = esPremium ? 25 : 3; // utils/limites.js: tiendaProductos (Free 3 · Pro 25)
+  // utils/limites.js: tiendaProductos (Free 3 · Pro 25). Mientras se carga el plan (null), no se trata como Free.
+  const tope = esPremium === false ? 3 : 25;
   const relativo = useRelativo();
   const { datos, form, set, guardar, estado, autoguardado } = useModulo(dash, 'tienda');
 
@@ -53,7 +54,7 @@ export default function TiendaView({ dash }) {
         <CabeceraTarjeta icono={ShoppingBag} titulo={t('dashboard.tienda_v.products')} extra={
           <button type="button" onClick={anadir} disabled={productos.length >= tope} className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"><Plus size={15} /> {t('dashboard.tienda_v.add')}</button>
         } />
-        {!esPremium && productos.length >= tope && (
+        {esPremium === false && productos.length >= tope && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-fg">
             <span>⭐ {t('dashboard.tienda_v.proHint')}</span>
             <button type="button" onClick={() => setActiveTab?.('cuenta-plan')} className="rounded-xl bg-gradient-brand px-4 py-2 text-sm font-bold text-on-brand">{t('dashboard.plan.upgrade')}</button>

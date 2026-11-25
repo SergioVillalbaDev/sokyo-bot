@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.0.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.1.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -349,12 +349,37 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
 ## Cómo se ha probado hasta ahora
 - `npm test` (node:test, `test/*.test.js`), `npm --prefix sokyo-panelFRONTEND run lint`
   y `run build`.
+- **Simulador de Discord** (2.1.0, `scripts/simulador/`, en el repo): con MongoDB en Docker (`docker run -d --name mongo7
+  -p 27017:27017 mirror.gcr.io/library/mongo:7 --replSet rs0` + `rs.initiate`; Docker Hub da 429, por eso `mirror.gcr.io`;
+  si el demonio no está, `dockerd &`), `node scripts/simulador/simular.js`. Monta un servidor con la configuración rápida
+  (todo activo), lanza cada comando que vería (`comandosServidor.comandosPara` + globales) como usuario nuevo (sin oro) y
+  con oro, y pulsa en cadena botones, menús y ventanas. Cada mensaje se valida con los límites de Discord
+  (`validar.js`: longitudes, filas, emojis, customId repetidos, adjuntos) y las interacciones siguen las reglas de
+  discord.js (responder dos veces, editar sin responder, >3 s). Informe en `scripts/simulador/informe.txt`;
+  `SIM_TRANSCRIPCION=1` escribe lo que ve el usuario nuevo en `transcripcion.txt`. **Pásalo antes de cada versión.**
+- Seguridad de la API: arnés que recorre las 343 rutas con la sesión de un staff de otro servidor y con un staff sin
+  áreas (vivía en el scratchpad; la tabla está en `utils/areasRutas.js` y `test/areasRutas.test.js` vigila las nuevas).
 - Prueba real: `api/server.js` con un cliente de Discord simulado y MongoDB en Docker
   (`mongo:7`), y Playwright (viene instalado) para recorrer las 41 secciones en móvil
   y escritorio con varios temas. El rendimiento se mide con Lighthouse en perfil
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.1.0 **Probado a fondo y pulido para el lanzamiento**:
+  - **Simulador de Discord** (ver *Cómo se ha probado*): 582 interacciones, 60 comandos, 0 fallos.
+  - **Cofre de bienvenida**: el primer `/diario` de cada persona trae `cofre_basico` (si hay cofres), con botón
+    `pse:tk:cofre_basico:<id>`; `empezar.siguientePaso` → `cofreGratis` si no tiene mascotas y tiene un ticket de cofre.
+  - **Setup rápido con tienda** (`tienda` en `MODULOS`/`TIPOS`, `InstalacionGuiada`, `ACTIVABLE`): crea dos roles de color
+    sin permisos y los pone a la venta (pide «Gestionar roles»).
+  - **Seguridad**: `utils/limiteSubidas.js` (20/h y 100 MB/día por persona, carpeta ≤3 GB, 3 fondos por persona);
+    sin `API_KEY` la API solo acepta sesiones (`SOKYO_API_ABIERTA=si` para local); `utils/ipCliente.js` (CF-Connecting-IP
+    solo si llega por el túnel) en todos los `rateLimit`; `/uploads` con CSP sandbox; se quitan las claves `$…` de los
+    cuerpos. `npm audit`: 0 en el bot; en el panel, `zod` vía el SDK de la Actividad (solo navegador).
+  - **Pagos**: `billing.finPeriodo(sub)` lee `items.data[].current_period_end` (API de Stripe 2025+); sin fecha, 32 días,
+    nunca «de por vida». `test/pagos.test.js` firma eventos de verdad. En Free la tienda vende los 3 primeros (`aLaVenta`).
+  - Diagnóstico: «tickets sin rol de staff» solo si usa tickets. Panel: el saludo no se corta (vídeo solo icono <2xl),
+    tour de `com-tienda`. Web: FAQ de juegos/oro y `FAQPage` en el JSON-LD.
+  - **Aviso «Bot actualizado» en varios mensajes** (`novedades.partesNovedades`): la 2.1.0 lleva también el repaso de la 2.0.
 - 2.0.0 **Listo para lanzar** (PR #78; lista completa en `PLAN-LANZAMIENTO.md`, textos de venta en `MARKETING.md`):
   - **Quitado**: búsqueda de empleo (slash `empleo`/`cv`/`buscoempleo`, modelos, scraping, PDF, IA de CV y las dependencias
     puppeteer/mammoth/pdf-parse), `/dado` y `/moneda` sueltos (los del casino siguen), `/daroro` (nadie da oro, ni los admins),
