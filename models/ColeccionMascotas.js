@@ -62,6 +62,8 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     // 1.33.0: huevos de la guardería (uid, rareza que saldrá, padres, cuándo eclosiona y la suerte de brillar).
     huevos: { type: [{ uid: String, rareza: String, padres: [String], listo: Date, creado: Date, brillo: Number, _id: false }], default: [] },
     criados: { type: Number, default: 0 },
+    // 1.33.0: casa del compañero (utils/casa.js): muebles comprados, dónde está cada uno, papel y «me gusta».
+    casa: { muebles: { type: [String], default: undefined }, puestos: { type: Object, default: undefined }, papel: { type: String, default: undefined }, papeles: { type: [String], default: undefined }, likes: { type: Number, default: undefined }, likeDe: { type: Object, default: undefined } },
     cbt: { victorias: { type: Number, default: 0 }, torre: { type: Number, default: 0 }, jefe: { type: Number, default: 0 } }, // para los logros
     // 1.28.0 (utils/granja.js): granja (desde cuándo produce), oro sacado de ella, hitos del álbum
     // ya premiados («3», «5»… «todas») y misiones de la semana.

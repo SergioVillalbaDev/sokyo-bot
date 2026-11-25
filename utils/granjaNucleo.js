@@ -82,7 +82,8 @@ function trabajando(col, ahora = Date.now()) {
 // Lo que hay para recoger. Sin `granja.desde` (primera vez) no hay nada: empieza a contar ahora.
 function acumulado(col, ahora = Date.now()) {
     const equipo = trabajando(col, ahora);
-    const porHora = Math.round(equipo.reduce((a, x) => a + x.oroH, 0) * 10) / 10;
+    // 1.33.0: la comodidad de la casa sube la producción (hasta +25 %).
+    const porHora = Math.round(equipo.reduce((a, x) => a + x.oroH, 0) * (1 + require('./casaNucleo.js').bonusGranja(col?.casa || {})) * 10) / 10;
     const desde = col?.granja?.desde ? new Date(col.granja.desde).getTime() : null;
     if (!desde) return { oro: 0, horas: 0, porHora, equipo, lleno: false, nueva: true, llenoEn: TOPE_H * HORA };
     const horas = Math.max(0, Math.min(TOPE_H, (ahora - desde) / HORA));
