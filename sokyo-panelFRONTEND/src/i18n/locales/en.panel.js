@@ -2312,6 +2312,7 @@ export default {
         inviteHint: 'The “Join” button uses a permanent invite created by the bot. Joins from the page show up in Invites.',
         optionsTitle: 'What’s shown',
         listed: 'List it in the server directory', showEvents: 'Show upcoming events',
+        showShowcase: 'Show the companion showcase', showcaseHint: 'The rarest pets on the server, the server pet and the clans with the most cups. Collectors’ names only show if you also show the top.',
         showRanking: 'Show the level leaderboard (member names)', rankingOff: 'Needs the level system turned on.',
         linkTitle: 'Your link', view: 'View page', copy: 'Copy link', copied: 'Copied', directory: 'View the directory',
         visits_one: '{{count}} visit', visits_other: '{{count}} visits', invite: 'Invite', noInvite: 'Created when the page is published.', saveFirst: 'Save an address to get a link.',

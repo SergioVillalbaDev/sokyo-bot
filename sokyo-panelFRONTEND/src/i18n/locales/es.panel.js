@@ -2317,6 +2317,7 @@ export default {
         inviteHint: 'El botón «Unirse» usa una invitación permanente que crea el bot. Las entradas desde la página se ven en Invitaciones.',
         optionsTitle: 'Qué se muestra',
         listed: 'Aparecer en el directorio de servidores', showEvents: 'Mostrar los próximos eventos',
+        showShowcase: 'Mostrar la vitrina de compañeros', showcaseHint: 'Las mascotas más raras del servidor, la mascota del servidor y los clanes con más copas. Los nombres de los coleccionistas solo salen si también muestras el top.',
         showRanking: 'Mostrar el top de niveles (nombres de miembros)', rankingOff: 'Necesita el sistema de niveles activado.',
         linkTitle: 'Tu enlace', view: 'Ver página', copy: 'Copiar enlace', copied: 'Copiado', directory: 'Ver el directorio',
         visits_one: '{{count}} visita', visits_other: '{{count}} visitas', invite: 'Invitación', noInvite: 'Se crea al publicar la página.', saveFirst: 'Guarda una dirección para tener enlace.',

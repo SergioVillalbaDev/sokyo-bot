@@ -170,7 +170,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
     const datosPagina = async (req, guild, p) => ({
         config: {
             activo: p.activo, slug: p.slug, descripcion: p.descripcion, etiquetas: p.etiquetas, listado: p.listado,
-            mostrarRanking: p.mostrarRanking, mostrarEventos: p.mostrarEventos, canalInvitacionId: p.canalInvitacionId,
+            mostrarRanking: p.mostrarRanking, mostrarEventos: p.mostrarEventos, mostrarVitrina: p.mostrarVitrina !== false, canalInvitacionId: p.canalInvitacionId,
         },
         url: p.slug ? `${pagina.urlBase(req)}/s/${p.slug}` : null,
         base: `${pagina.urlBase(req)}/s/`,
@@ -207,7 +207,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             }
             if (b.descripcion !== undefined) set['crecimiento.pagina.descripcion'] = texto(b.descripcion, 1000).trim();
             if (b.etiquetas !== undefined) set['crecimiento.pagina.etiquetas'] = pagina.limpiarEtiquetas(b.etiquetas);
-            for (const k of ['activo', 'listado', 'mostrarRanking', 'mostrarEventos']) if (b[k] !== undefined) set[`crecimiento.pagina.${k}`] = !!b[k];
+            for (const k of ['activo', 'listado', 'mostrarRanking', 'mostrarEventos', 'mostrarVitrina']) if (b[k] !== undefined) set[`crecimiento.pagina.${k}`] = !!b[k];
             const canal = canalDe(guild, b.canalInvitacionId);
             if (canal === false) return res.status(400).json({ error: 'Ese canal no existe o no es de texto' });
             if (canal !== undefined) set['crecimiento.pagina.canalInvitacionId'] = canal;

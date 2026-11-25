@@ -140,7 +140,40 @@ async function datosServidor(client, slug) {
         invitacion: codigo ? `https://discord.gg/${codigo}` : null,
         eventos: eventos.map((e) => ({ titulo: e.titulo, descripcion: e.descripcion || '', fecha: e.fechaInicio, portada: e.portada || null })),
         ranking: ranking.filter((r) => r.usuarioTag).map((r) => ({ nombre: r.usuarioTag, nivel: r.nivel || 0 })),
+        vitrina: p.mostrarVitrina !== false ? await vitrinaDe(guild, cfg, !!(p.mostrarRanking && cfg.nivelesActivo)).catch(() => null) : null,
     };
+}
+
+// 1.33.0: vitrina del servidor (10 min en caché): los compañeros más raros que hay, cuántas especies, brillantes,
+// la mascota del servidor, los mejores coleccionistas (solo con nombres si el servidor enseña el top) y los clanes.
+const cacheVitrina = new Map();
+async function vitrinaDe(guild, cfg, conNombres) {
+    const c = cacheVitrina.get(guild.id);
+    if (c && Date.now() - c.t < 10 * 60 * 1000 && c.conNombres === conNombres) return c.v;
+    const K = require('./cofresNucleo.js');
+    const SPR = require('./sprites.js');
+    const ColeccionMascotas = require('../models/ColeccionMascotas.js');
+    const [porId, coleccionistas, mascota, clanes] = await Promise.all([
+        ColeccionMascotas.aggregate([{ $match: { guildId: guild.id } }, { $unwind: '$mascotas' }, { $group: { _id: '$mascotas.id', n: { $sum: 1 }, brillan: { $sum: { $cond: [{ $eq: ['$mascotas.variante', 'brillante'] }, 1, 0] } } } }]),
+        conNombres ? ColeccionMascotas.aggregate([{ $match: { guildId: guild.id } }, { $project: { userId: 1, n: { $size: { $ifNull: ['$mascotas', []] } } } }, { $sort: { n: -1 } }, { $limit: 3 }]) : [],
+        require('../models/Mascota.js').findOne({ guildId: guild.id, estado: 'viva' }).select('nombre especie nivel').lean().catch(() => null),
+        cfg.clanes?.activo ? require('../models/Clan.js').find({ guildId: guild.id, copas: { $gt: 0 } }).sort({ copas: -1 }).limit(3).select('nombre emoji copas').lean() : [],
+    ]);
+    const orden = (id) => K.RAREZAS[K.def(id)?.rareza]?.orden ?? -1;
+    const delCatalogo = porId.filter((x) => K.COMPANEROS[x._id]);
+    const raras = [...delCatalogo].sort((a, b) => orden(b._id) - orden(a._id) || b.n - a.n).slice(0, 12).map((x) => {
+        const d = K.def(x._id); const r = K.RAREZAS[d.rareza];
+        return { id: x._id, nombre: { es: d.es, en: d.en }, rareza: { es: r.es, en: r.en, color: r.color }, n: x.n, brilla: x.brillan > 0, dibujo: SPR.tiene(x._id) ? `/sprites/${x._id}${x.brillan > 0 ? '-brillante' : ''}.webp` : null };
+    });
+    const v = {
+        especies: delCatalogo.length, total: Object.keys(K.COMPANEROS).length,
+        brillantes: porId.reduce((a, x) => a + x.brillan, 0), raras,
+        mascota: mascota ? { nombre: mascota.nombre, nivel: mascota.nivel || 1, especie: mascota.especie } : null,
+        coleccionistas: coleccionistas.filter((x) => x.n > 0).map((x) => ({ nombre: guild.members.cache.get(x.userId)?.displayName || null, n: x.n })).filter((x) => x.nombre),
+        clanes: clanes.map((x) => ({ nombre: x.nombre, emoji: x.emoji, copas: x.copas })),
+    };
+    cacheVitrina.set(guild.id, { t: Date.now(), v, conNombres });
+    return v;
 }
 
 // Servidores del directorio (publicados y listados), de más a menos miembros.
@@ -209,6 +242,13 @@ const TEXTO = {
         copiado: '¡Enlace copiado!',
         eventos: 'Próximos eventos',
         ranking: 'Los más activos',
+        vitrina: 'Vitrina de compañeros',
+        especies: (a, b) => `${a} de ${b} especies`,
+        brillantes: (n) => `✨ ${n} brillante${n === 1 ? '' : 's'}`,
+        mascotaSrv: (n, l) => `Mascota del servidor: ${n} (nivel ${l})`,
+        coleccionistas: 'Mejores coleccionistas',
+        compas: (n) => `${n} compañero${n === 1 ? '' : 's'}`,
+        clanesTop: 'Clanes con más copas',
         nivel: (n) => `Nivel ${n}`,
         explorar: 'Explorar servidores',
         hecho: 'Página creada con',
@@ -240,6 +280,13 @@ const TEXTO = {
         copiado: 'Link copied!',
         eventos: 'Upcoming events',
         ranking: 'Most active',
+        vitrina: 'Companion showcase',
+        especies: (a, b) => `${a} of ${b} species`,
+        brillantes: (n) => `✨ ${n} shiny`,
+        mascotaSrv: (n, l) => `Server pet: ${n} (level ${l})`,
+        coleccionistas: 'Top collectors',
+        compas: (n) => `${n} companion${n === 1 ? '' : 's'}`,
+        clanesTop: 'Clans with the most cups',
         nivel: (n) => `Level ${n}`,
         explorar: 'Browse servers',
         hecho: 'Page made with',
@@ -308,6 +355,12 @@ h1{margin:12px 0 4px;font-size:clamp(26px,5vw,36px);line-height:1.15;letter-spac
 .fila b{display:block}
 .tenue{color:var(--muted);font-size:13px}
 .pos{width:28px;text-align:center;font-weight:800;color:var(--accent)}
+.vitrina{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));margin-top:12px}
+.pieza{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;background:var(--card);border:1px solid var(--line);border-top:3px solid var(--rz);border-radius:16px;padding:10px 8px}
+.pieza img{width:96px;height:96px}
+.pieza .sin{font-size:48px;line-height:96px}
+.pieza b{font-size:14px}
+.sub{font-size:15px;margin:16px 0 8px}
 .srv{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;text-decoration:none;transition:border-color .15s,transform .15s}
 .srv:hover{border-color:#34385e;transform:translateY(-2px)}
 .srv-cab{display:flex;align-items:center;gap:12px;min-width:0}
@@ -405,6 +458,15 @@ ${e.descripcion ? `<div class="tenue">${esc(e.descripcion.slice(0, 160))}</div>`
     const ranking = d.ranking.length ? `<section class="seccion"><h2>🏆 ${esc(L.ranking)}</h2><div class="lista">${d.ranking.map((r, i) => `
 <div class="fila"><span class="pos">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div><b>${esc(r.nombre)}</b><span class="tenue">${esc(L.nivel(r.nivel))}</span></div></div>`).join('')}</div></section>` : '';
 
+    const vt = d.vitrina;
+    const lng = d.idioma;
+    const vitrina = vt && (vt.raras.length || vt.mascota || vt.clanes.length) ? `<section class="seccion"><h2>🐾 ${esc(L.vitrina)}</h2>
+<p class="tenue">${esc([L.especies(vt.especies, vt.total), vt.brillantes ? L.brillantes(vt.brillantes) : '', vt.mascota ? L.mascotaSrv(vt.mascota.nombre, vt.mascota.nivel) : ''].filter(Boolean).join(' · '))}</p>
+${vt.raras.length ? `<div class="vitrina">${vt.raras.map((r) => `<div class="pieza" style="--rz:${esc(r.rareza.color)}">${r.dibujo ? `<img src="${esc(r.dibujo)}" alt="" loading="lazy" width="96" height="96">` : '<span class="sin">🐾</span>'}<b>${esc(r.nombre[lng])}${r.brilla ? ' ✨' : ''}</b><span class="tenue">${esc(r.rareza[lng])} · ×${r.n}</span></div>`).join('')}</div>` : ''}
+${vt.coleccionistas.length ? `<h3 class="sub">📚 ${esc(L.coleccionistas)}</h3><div class="lista">${vt.coleccionistas.map((c, i) => `<div class="fila"><span class="pos">${['🥇', '🥈', '🥉'][i]}</span><div><b>${esc(c.nombre)}</b><span class="tenue">${esc(L.compas(c.n))}</span></div></div>`).join('')}</div>` : ''}
+${vt.clanes.length ? `<h3 class="sub">🏆 ${esc(L.clanesTop)}</h3><div class="lista">${vt.clanes.map((c, i) => `<div class="fila"><span class="pos">${['🥇', '🥈', '🥉'][i]}</span><div><b>${esc(c.emoji)} ${esc(c.nombre)}</b><span class="tenue">🏆 ${c.copas}</span></div></div>`).join('')}</div>` : ''}
+</section>` : '';
+
     const cuerpo = `${cabecera(L)}
 <main>
 <article class="tarjeta">
@@ -420,7 +482,7 @@ ${d.descripcion ? `<p class="desc">${esc(d.descripcion)}</p>` : ''}
 </div>
 </div>
 </article>
-${eventos}${ranking}
+${eventos}${vitrina}${ranking}
 </main>
 ${pie(L)}
 <script>

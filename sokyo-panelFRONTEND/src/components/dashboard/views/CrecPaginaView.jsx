@@ -132,6 +132,7 @@ export default function CrecPaginaView({ dash }) {
         <div className="mt-4 grid gap-3">
           <Opcion etiqueta={t('dashboard.crec_v.pagina.listed')} checked={form.listado} onChange={set('listado')} />
           <Opcion etiqueta={t('dashboard.crec_v.pagina.showEvents')} checked={form.mostrarEventos} onChange={set('mostrarEventos')} />
+          <Opcion etiqueta={t('dashboard.crec_v.pagina.showShowcase')} ayuda={t('dashboard.crec_v.pagina.showcaseHint')} checked={form.mostrarVitrina !== false} onChange={set('mostrarVitrina')} />
           <Opcion etiqueta={t('dashboard.crec_v.pagina.showRanking')} ayuda={nivelesActivos ? null : t('dashboard.crec_v.pagina.rankingOff')}
             checked={form.mostrarRanking && nivelesActivos} onChange={set('mostrarRanking')} disabled={!nivelesActivos} />
         </div>

@@ -1015,6 +1015,7 @@ const ServidorConfigSchema = new mongoose.Schema({
             listado: { type: Boolean, default: true },        // aparecer en el directorio
             mostrarRanking: { type: Boolean, default: false }, // top de niveles (nombres de miembros)
             mostrarEventos: { type: Boolean, default: true },
+            mostrarVitrina: { type: Boolean, default: true },   // 1.33.0: vitrina de compañeros, coleccionistas y clanes
             canalInvitacionId: { type: String, default: null }, // canal de la invitación que crea el bot
             invitacionCodigo: { type: String, default: null },
             visitas: { type: Number, default: 0 },
