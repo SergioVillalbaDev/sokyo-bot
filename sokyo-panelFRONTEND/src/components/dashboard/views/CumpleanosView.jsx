@@ -57,7 +57,7 @@ export default function CumpleanosView({ dash }) {
             <SelectRol roles={roles} value={form.rolId} onChange={set('rolId')} vacio={t('dashboard.cumple_v.noRole')} />
           </Campo>
           <div className="grid grid-cols-2 gap-3">
-            <Campo etiqueta={t('dashboard.cumple_v.gold')}><Numero value={form.oro ?? 0} onChange={set('oro')} max={1000000} /></Campo>
+            <Campo etiqueta={t('dashboard.cumple_v.gold')}><Numero value={form.oro ?? 0} onChange={set('oro')} max={2000} /></Campo>
             <Campo etiqueta={t('dashboard.cumple_v.xp')}><Numero value={form.xp ?? 0} onChange={set('xp')} max={100000} disabled={!datos.nivelesActivo} /></Campo>
           </div>
         </div>

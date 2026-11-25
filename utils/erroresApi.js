@@ -31,6 +31,7 @@ const EN = {
     'Esta función está apagada en este servidor': 'This feature is off on this server',
     'Servidor no encontrado': 'Server not found',
     'No estás en ese servidor.': 'You aren’t on that server.',
+    'Ya pusiste tu cumpleaños. Se puede cambiar una vez cada 6 meses.': 'You already set your birthday. It can be changed once every 6 months.',
     'Servidor no encontrado.': 'Server not found.',
     'No se pudo guardar': 'Couldn’t save',
     'Error del servidor': 'Server error',

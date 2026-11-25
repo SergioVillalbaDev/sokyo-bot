@@ -55,6 +55,8 @@ module.exports = {
             require('../utils/migrarCartas.js').migrar().then((n) => { if (n) console.log(`🃏 ${n} colecciones: personajes anime pasados a cartas`); }),
             // 1.30.0: colecciones por servidor (quita el índice viejo de una por persona).
             require('../utils/migrarPorServidor.js').migrar().then((q) => { if (q) console.log('🗂️ Colecciones por servidor: índice viejo quitado'); }),
+            // 2.0.0: los premios en oro que pone cada servidor, al tope (utils/limites.js TOPES_ORO).
+            require('../utils/limites.js').recortarPremios(),
         ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
 
         // 1.34.0: cada servidor, solo los comandos de lo que tiene activo (y la guía automática al día).

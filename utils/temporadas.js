@@ -25,7 +25,7 @@ function finDeTemporada(desde, duracion = 'mensual') {
 // Los premios de oro siempre son 3 números enteros >= 0.
 function oroPodio(oro) {
     const lista = Array.isArray(oro) ? oro : [];
-    return [0, 1, 2].map((i) => Math.max(0, Math.min(10000000, parseInt(lista[i], 10) || 0)));
+    return [0, 1, 2].map((i) => require('./limites.js').topeOro('temporadas.oro', lista[i]));
 }
 
 // Ranking de la temporada. Con `guild`, solo cuenta quien sigue en el servidor y no tiene

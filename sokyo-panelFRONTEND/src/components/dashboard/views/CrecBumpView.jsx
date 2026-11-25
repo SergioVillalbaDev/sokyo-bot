@@ -79,7 +79,7 @@ export default function CrecBumpView({ dash }) {
             <SelectRol roles={roles} value={form.rolId} onChange={set('rolId')} vacio={t('dashboard.crec_v.noMention')} />
           </Campo>
           <Campo etiqueta={`🪙 ${t('dashboard.crec_v.bump.gold')}`}>
-            <Numero value={form.oroPorBump} onChange={set('oroPorBump')} min={0} max={10000} />
+            <Numero value={form.oroPorBump} onChange={set('oroPorBump')} min={0} max={150} />
           </Campo>
           <Campo etiqueta={t('dashboard.crec_v.bump.reminder')} className="sm:col-span-2">
             <textarea rows={2} maxLength={500} value={form.mensajeRecordatorio || ''} onChange={(ev) => set('mensajeRecordatorio')(ev.target.value)} className={campo} />

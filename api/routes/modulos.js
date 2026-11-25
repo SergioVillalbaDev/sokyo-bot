@@ -101,7 +101,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             }
             if (b.hora !== undefined) set['cumpleanos.hora'] = entero(b.hora, 0, 23, 9);
             if (b.mensaje !== undefined) set['cumpleanos.mensaje'] = texto(b.mensaje, 1000).trim() || cfg.cumpleanos.mensaje;
-            if (b.oro !== undefined) set['cumpleanos.oro'] = entero(b.oro, 0, 1000000, 0);
+            if (b.oro !== undefined) set['cumpleanos.oro'] = require('../../utils/limites.js').topeOro('cumpleanos.oro', b.oro);
             if (b.xp !== undefined) set['cumpleanos.xp'] = entero(b.xp, 0, 100000, 0);
             const nueva = await guardar(guild.id, set);
             res.json({ success: true, config: nueva.cumpleanos });
@@ -231,9 +231,9 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (!ponerCanal(set, 'clanes.canalId', guild, b.canalId, res)) return;
             if (b.maxMiembros !== undefined) set['clanes.maxMiembros'] = entero(b.maxMiembros, 2, 100, 10);
             if (b.costeCrear !== undefined) set['clanes.costeCrear'] = entero(b.costeCrear, 0, 1000000, 0);
-            if (b.premioOro !== undefined) set['clanes.premioOro'] = entero(b.premioOro, 0, 1000000, 100);
+            if (b.premioOro !== undefined) set['clanes.premioOro'] = require('../../utils/limites.js').topeOro('clanes.premioOro', b.premioOro);
             if (b.premioXp !== undefined) set['clanes.premioXp'] = entero(b.premioXp, 0, 100000, 0);
-            if (b.premioGuerra !== undefined) set['clanes.premioGuerra'] = entero(b.premioGuerra, 0, 1000000, 150);
+            if (b.premioGuerra !== undefined) set['clanes.premioGuerra'] = require('../../utils/limites.js').topeOro('clanes.premioGuerra', b.premioGuerra);
             const nueva = await guardar(guild.id, set);
             res.json({ success: true, config: nueva.clanes });
         } catch (e) { console.error('PUT clanes:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }

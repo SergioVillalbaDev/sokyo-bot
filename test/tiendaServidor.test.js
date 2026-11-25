@@ -89,3 +89,26 @@ describe('tienda del servidor: comprar', () => {
         assert.strictEqual(saldo, 50);
     });
 });
+
+describe('cumpleaños sin trampas', () => {
+    const { puedeCambiar } = require('../utils/cumpleanos.js');
+    const DIA = 86400000;
+    it('se corrige el mismo día; después, solo pasados 180 días', () => {
+        const ahora = Date.now();
+        assert.ok(puedeCambiar(null, 5, 5, ahora).ok);
+        assert.ok(puedeCambiar({ dia: 1, mes: 1, fijadoEn: new Date(ahora - 3600000) }, 5, 5, ahora).ok);
+        assert.strictEqual(puedeCambiar({ dia: 1, mes: 1, fijadoEn: new Date(ahora - 2 * DIA) }, 5, 5, ahora).ok, false);
+        assert.ok(puedeCambiar({ dia: 1, mes: 1, fijadoEn: new Date(ahora - 181 * DIA) }, 5, 5, ahora).ok);
+        assert.ok(puedeCambiar({ dia: 5, mes: 5, fijadoEn: new Date(ahora - 2 * DIA) }, 5, 5, ahora).ok, 'la misma fecha no es un cambio');
+    });
+});
+
+describe('topes de los premios en oro', () => {
+    const L = require('../utils/limites.js');
+    it('nada de premios de un millón', () => {
+        assert.strictEqual(L.topeOro('cumpleanos.oro', 1000000), 2000);
+        assert.strictEqual(L.topeOro('clanes.premioOro', -5), 0);
+        assert.strictEqual(L.topeOro('crecimiento.votos.oroExtra', 'abc'), 0);
+        assert.deepStrictEqual(require('../utils/temporadas.js').oroPodio([1e9, 300, null]), [5000, 300, 0]);
+    });
+});

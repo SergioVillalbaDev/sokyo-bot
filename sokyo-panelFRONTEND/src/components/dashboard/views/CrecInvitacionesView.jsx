@@ -103,7 +103,7 @@ export default function CrecInvitacionesView({ dash }) {
         <CabeceraTarjeta icono={Gift} titulo={t('dashboard.crec_v.inv.rewardsTitle')} />
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <Campo etiqueta={`🪙 ${t('dashboard.crec_v.inv.gold')}`}>
-            <Numero value={form.oroPorInvitacion} onChange={set('oroPorInvitacion')} min={0} max={10000} />
+            <Numero value={form.oroPorInvitacion} onChange={set('oroPorInvitacion')} min={0} max={300} />
           </Campo>
           <Campo etiqueta={`✨ ${t('dashboard.crec_v.inv.xp')}`} ayuda={nivelesActivos ? null : t('dashboard.crec_v.inv.xpOff')}>
             <Numero value={form.xpPorInvitacion} onChange={set('xpPorInvitacion')} min={0} max={100000} disabled={!nivelesActivos} />

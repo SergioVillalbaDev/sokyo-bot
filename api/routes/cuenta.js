@@ -257,7 +257,7 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
     router.get('/portal/cumple', portalAuth, async (req, res) => {
         try {
             const c = await require('../../utils/cumpleanos.js').cumpleDe(req.usuario.id);
-            res.json(c ? { dia: c.dia, mes: c.mes } : { dia: null, mes: null });
+            res.json({ dia: c?.dia ?? null, mes: c?.mes ?? null });
         } catch (e) {
             console.error('portal/cumple:', e);
             res.status(500).json({ error: 'No se pudo cargar tu cumpleaños.' });
@@ -272,6 +272,7 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
                 return res.json({ dia: null, mes: null });
             }
             const r = await cumple.guardarCumple(req.usuario.id, dia, mes);
+            if (!r.ok && r.motivo === 'espera') return res.status(400).json({ error: 'Ya pusiste tu cumpleaños. Se puede cambiar una vez cada 6 meses.', hasta: r.hasta });
             if (!r.ok) return res.status(400).json({ error: 'Esa fecha no existe.' });
             res.json({ dia: r.dia, mes: r.mes });
         } catch (e) {

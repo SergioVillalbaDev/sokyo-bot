@@ -25,7 +25,7 @@ describe('temporadas', () => {
     it('los premios siempre son 3 enteros válidos', () => {
         assert.deepStrictEqual(temporadas.oroPodio([500, '200', -5, 9]), [500, 200, 0]);
         assert.deepStrictEqual(temporadas.oroPodio(null), [0, 0, 0]);
-        assert.deepStrictEqual(temporadas.oroPodio([1e12]), [10000000, 0, 0]);
+        assert.deepStrictEqual(temporadas.oroPodio([1e12]), [5000, 0, 0]);
     });
 });
 

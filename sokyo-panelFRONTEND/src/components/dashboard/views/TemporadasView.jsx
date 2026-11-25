@@ -54,7 +54,7 @@ export default function TemporadasView({ dash }) {
           </Campo>
           <div className="grid grid-cols-3 gap-3 sm:col-span-2">
             {[0, 1, 2].map((i) => (
-              <Campo key={i} etiqueta={`${MEDALLAS[i]} ${t('dashboard.temp_v.gold')}`}><Numero value={oro[i] ?? 0} onChange={setOro(i)} max={10000000} /></Campo>
+              <Campo key={i} etiqueta={`${MEDALLAS[i]} ${t('dashboard.temp_v.gold')}`}><Numero value={oro[i] ?? 0} onChange={setOro(i)} max={5000} /></Campo>
             ))}
           </div>
           <Campo etiqueta={t('dashboard.temp_v.role')} ayuda={t('dashboard.temp_v.roleHint')} className="sm:col-span-2">

@@ -34,6 +34,7 @@ module.exports = {
 
         if (sub === 'set') {
             const r = await guardarCumple(interaction.user.id, interaction.options.getInteger('day'), interaction.options.getInteger('month'));
+            if (!r.ok && r.motivo === 'espera') return interaction.reply({ content: t(idioma, `⏳ Ya pusiste tu cumpleaños. Para que nadie se lo cambie cada día para cobrar el regalo, se puede cambiar de nuevo <t:${Math.floor(r.hasta.getTime() / 1000)}:R>. Si te equivocaste, pide al staff que te ayude.`, `⏳ You already set your birthday. So nobody changes it every day to collect the gift, you can change it again <t:${Math.floor(r.hasta.getTime() / 1000)}:R>. If you made a mistake, ask the staff for help.`), flags: 64 });
             if (!r.ok) return interaction.reply({ content: t(idioma, '❌ Esa fecha no existe. Revisa el día y el mes.', '❌ That date doesn’t exist. Check the day and month.'), flags: 64 });
             const aviso = interaction.guildId && !cfg?.cumpleanos?.activo
                 ? t(idioma, '\n-# Este servidor aún no tiene las felicitaciones activadas; los que sí, te felicitarán.', '\n-# This server hasn’t turned on birthday wishes yet; the ones that have will congratulate you.')
@@ -44,7 +45,7 @@ module.exports = {
         if (sub === 'remove') {
             const antes = await cumpleDe(interaction.user.id);
             await borrarCumple(interaction.user.id);
-            return interaction.reply({ content: antes ? t(idioma, '🗑️ He borrado tu cumpleaños.', '🗑️ I deleted your birthday.') : t(idioma, 'No tenías ningún cumpleaños guardado.', 'You didn’t have a birthday saved.'), flags: 64 });
+            return interaction.reply({ content: antes?.dia ? t(idioma, '🗑️ He borrado tu cumpleaños.', '🗑️ I deleted your birthday.') : t(idioma, 'No tenías ningún cumpleaños guardado.', 'You didn’t have a birthday saved.'), flags: 64 });
         }
 
         // lista
@@ -60,7 +61,7 @@ module.exports = {
             .setColor('#f472b6')
             .setTitle(t(idioma, '🎂 Próximos cumpleaños', '🎂 Upcoming birthdays'))
             .setDescription(lineas.length ? lineas.join('\n') : t(idioma, 'Nadie ha guardado su cumpleaños todavía. ¡Sé el primero con `/cumple guardar`!', 'Nobody has saved their birthday yet. Be the first with `/birthday set`!'))
-            .setFooter({ text: mio ? t(idioma, `El tuyo: ${textoFecha(mio.dia, mio.mes, 'es')}`, `Yours: ${textoFecha(mio.dia, mio.mes, 'en')}`) : t(idioma, 'Guarda el tuyo con /cumple guardar', 'Save yours with /birthday set') });
+            .setFooter({ text: mio?.dia ? t(idioma, `El tuyo: ${textoFecha(mio.dia, mio.mes, 'es')}`, `Yours: ${textoFecha(mio.dia, mio.mes, 'en')}`) : t(idioma, 'Guarda el tuyo con /cumple guardar', 'Save yours with /birthday set') });
         return interaction.editReply({ embeds: [embed] });
     },
 };
