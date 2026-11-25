@@ -74,7 +74,7 @@ const TODO = new Proxy({}, { get: (o, k) => (k === 'casino' ? { activo: true, co
 
 function montar(app) {
     const rateLimit = require('express-rate-limit');
-    const lim = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
+    const lim = rateLimit({ keyGenerator: require('./ipCliente.js').claveLimite, windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
     const lang = (req) => (['es', 'en'].includes(req.query.lang) ? req.query.lang : (req.acceptsLanguages('es', 'en') || 'es'));
     const base2 = (req) => require('./paginaPublica.js').urlBase(req);
     app.get('/ayuda', lim, (req, res) => res.set('Content-Type', 'text/html; charset=utf-8').set('Cache-Control', 'public, max-age=300').send(paginaIndice({ lang: lang(req), url: `${base2(req)}/ayuda` })));

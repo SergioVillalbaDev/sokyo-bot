@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const pagina = require('../utils/paginaPublica.js');
 
 module.exports = function montarPaginaPublica(app, client) {
-    const limitador = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
+    const limitador = rateLimit({ keyGenerator: require('../utils/ipCliente.js').claveLimite, windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
 
     // Idioma del directorio: ?lang=es|en, o el del navegador.
     const idiomaDe = (req) => (['es', 'en'].includes(req.query.lang) ? req.query.lang : (req.acceptsLanguages('es', 'en') || 'en'));

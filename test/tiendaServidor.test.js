@@ -123,3 +123,17 @@ describe('topes de los premios en oro', () => {
         assert.deepStrictEqual(require('../utils/temporadas.js').oroPodio([1e9, 300, null]), [5000, 300, 0]);
     });
 });
+
+describe('freno a las subidas de imágenes', () => {
+    const LS = require('../utils/limiteSubidas.js');
+    it('20 por hora y 100 MB al día por persona', () => {
+        LS._reiniciar();
+        for (let i = 0; i < 20; i++) assert.strictEqual(LS.permitir('u:1', 1000, { ahora: 1e12 + i }), null);
+        assert.ok(LS.permitir('u:1', 1000, { ahora: 1e12 + 30 }));
+        assert.strictEqual(LS.permitir('u:2', 1000, { ahora: 1e12 }), null, 'otra persona no se ve afectada');
+        assert.strictEqual(LS.permitir('u:1', 1000, { ahora: 1e12 + 3600001 }), null, 'a la hora vuelve a poder');
+        LS._reiniciar();
+        for (let i = 0; i < 12; i++) LS.permitir('u:3', 8 * 1024 * 1024, { ahora: 1e12 + i * 3600001 });
+        assert.ok(LS.permitir('u:3', 8 * 1024 * 1024, { ahora: 1e12 + 13 * 3600001 }), 'más de 100 MB en un día');
+    });
+});

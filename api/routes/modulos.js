@@ -885,6 +885,8 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
     };
     const guardarFoto = (guildId, img) => {
         if (!fs.existsSync(dirUploads)) fs.mkdirSync(dirUploads, { recursive: true });
+        const freno = require('../../utils/limiteSubidas.js').permitir(`g:${guildId}`, img.buffer.length, { dir: dirUploads });
+        if (freno) throw Object.assign(new Error(freno), { limiteSubidas: true });
         const archivo = `compi-${guildId}-${Date.now()}.${img.ext}`;
         fs.writeFileSync(path.join(dirUploads, archivo), img.buffer);
         return `/uploads/${archivo}`;
@@ -918,7 +920,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             const c = await CompaneroServidor.create({ guildId: guild.id, cid, ...set });
             KC.registrarPersonalizado({ ...c.toObject(), id: `s:${guild.id}:${cid}` });
             res.json({ success: true, compi: formaCompi(c) });
-        } catch (e) { console.error('POST compis:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+        } catch (e) { if (e.limiteSubidas) return res.status(429).json({ error: e.message }); console.error('POST compis:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
     // Pack anime (1.22.0): la lista entera (para la galería) y activarlo / quitar series.
     router.get(ruta('compis/anime'), async (req, res) => {
@@ -957,7 +959,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (!c) return res.status(404).json({ error: 'No encontrado' });
             KC.registrarPersonalizado({ ...c.toObject(), id: `s:${guild.id}:${c.cid}` });
             res.json({ success: true, compi: formaCompi(c) });
-        } catch (e) { console.error('PUT compis:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+        } catch (e) { if (e.limiteSubidas) return res.status(429).json({ error: e.message }); console.error('PUT compis:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
     // Borrar solo si nadie lo tiene; si alguien lo tiene, se quita de los cofres (activo: false).
     router.delete(ruta('compis/:cid'), async (req, res) => {
