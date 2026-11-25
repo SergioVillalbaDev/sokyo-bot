@@ -77,5 +77,15 @@ async function sincronizarTodos(client) {
     }
 }
 const iniciar = (client) => { clienteActual = client; };
+// Los que fallaron (p. ej. invitación antigua) se reintentan de vez en cuando: si el admin lo vuelve a invitar con
+// permiso para comandos, no hay ningún aviso de Discord, así que se mira cada hora.
+let ultimoReintento = 0;
+async function reintentar(client, ahora = Date.now()) {
+    if (ahora - ultimoReintento < 60 * 60 * 1000) return;
+    ultimoReintento = ahora;
+    const ServidorConfig = require('../models/ServidorConfig.js');
+    const fallidos = await ServidorConfig.find({ 'comandosServidor.error': { $ne: null } }).select('guildId').limit(50).lean();
+    for (const c of fallidos) { const g = client.guilds.cache.get(c.guildId); if (g) await sincronizar(g, { forzar: true }).catch(() => {}); }
+}
 
-module.exports = { comandosPara, comandosGlobales, sincronizar, sincronizarTodos, programar, iniciar, hashDe };
+module.exports = { comandosPara, comandosGlobales, sincronizar, sincronizarTodos, programar, iniciar, reintentar, hashDe };
