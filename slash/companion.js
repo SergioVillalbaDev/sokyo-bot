@@ -14,8 +14,8 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('companion')
         .setNameLocalizations(ES('compi'))
-        .setDescription('Your companion: feed it, play, talk and send it on expeditions')
-        .setDescriptionLocalizations(ES('Tu compañero: dale de comer, juega, habla con él y mándalo de expedición'))
+        .setDescription('🐾 Your pets: feed them, play, talk and send them on expeditions')
+        .setDescriptionLocalizations(ES('🐾 Tus mascotas: dales de comer, juega, habla con ellas y mándalas de expedición'))
         .setContexts(InteractionContextType.Guild)
         .addStringOption((o) => o.setName('companion').setNameLocalizations(ES('compañero')).setDescription('Which one (by default, the one you have equipped)').setDescriptionLocalizations(ES('Cuál (si no, el que llevas equipado)')).setAutocomplete(true))
         .addUserOption((o) => o.setName('member').setNameLocalizations(ES('miembro')).setDescription('See someone else’s companion').setDescriptionLocalizations(ES('Ver el compañero de otra persona'))),

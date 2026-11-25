@@ -221,6 +221,9 @@ async function abrir({ interaction, client, cfg, idioma, cofre, ticket = null })
             r.brillante ? t(idioma, `✨🌈 **¡¡BRILLANTE!!** Tu ${nombre(r.id, idioma)} tiene colores rarísimos (1 de cada ${Math.round(1 / K.PROB_BRILLANTE)}).`, `✨🌈 **SHINY!!** Your ${nombre(r.id, idioma)} has ultra-rare colours (1 in ${Math.round(1 / K.PROB_BRILLANTE)}).`) : '',
             r.piedad ? t(idioma, '🍀 ¡La suerte del décimo cofre! (épica asegurada)', '🍀 Tenth-chest luck! (epic guaranteed)') : '',
             ...G.textoHitos(hitos, idioma), ...delPase,
+            // 1.34.0: el siguiente paso justo cuando toca (mismas etapas que utils/progreso.js).
+            r.nuevo && (col.mascotas || []).length === 0 ? t(idioma, '👉 **¡Tu primera mascota!** Cuídala en `/compi` y ponla a trabajar en tu granja: `/mascotas granja`.', '👉 **Your first pet!** Look after it in `/companion` and put it to work on your farm: `/pets farm`.') : '',
+            r.nuevo && (col.mascotas || []).length === 2 ? t(idioma, '👉 **Ya tienes 3 mascotas:** se abre su **casa**. Decórala y tu granja producirá más: `/mascotas casa`.', '👉 **You have 3 pets now:** their **house** opens. Decorate it and your farm makes more: `/pets house`.') : '',
         ].filter(Boolean);
         if (extras.length) {
             await espera(r.rareza === 'divina' ? 5400 : 4200);

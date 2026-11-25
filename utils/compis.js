@@ -279,7 +279,12 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
             if (s.oro) semCumplidas = 1;
         }
         const nivelDespues = P.nivel(m.afinidad || 0);
-        if (nivelDespues > nivelAntes) { mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel'; }
+        if (nivelDespues > nivelAntes) {
+            mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel';
+            // 1.34.0: el siguiente paso, justo cuando se abre (mismas etapas que utils/progreso.js).
+            if (nivelAntes < 5 && nivelDespues >= 5) mensajes.push(t(idioma, '👉 ¡Ya puede **pelear**! Prueba la torre o reta a alguien: `/jugar combate torre`.', '👉 It can **fight** now! Try the tower or challenge someone: `/games fight tower`.'));
+            if (nivelAntes < P.CRIA.nivel && nivelDespues >= P.CRIA.nivel) mensajes.push(t(idioma, '👉 ¡Ya puede ir a la **guardería**! Con otra de nivel 10 tendrá un huevo: `/mascotas guarderia`.', '👉 It can go to the **nursery** now! With another level-10 pet it’ll have an egg: `/pets nursery`.'));
+        }
         // 1.32.0: al llegar a los niveles 10 y 20 evoluciona (bebé → joven → adulto) y cambia su dibujo.
         const SPR = require('./sprites.js');
         if (SPR.etapaDe(nivelDespues) > SPR.etapaDe(nivelAntes) && SPR.tiene(m.id)) {

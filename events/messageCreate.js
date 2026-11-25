@@ -146,14 +146,19 @@ module.exports = {
         // Solo una mención al bot (@Sokyo): saludo con lo más útil, entrar a «Mi
         // cuenta» con un clic, y cómo ver los comandos.
         if (client.user && new RegExp(`^<@!?${client.user.id}>$`).test(message.content.trim())) {
-            const { EmbedBuilder, ActionRowBuilder } = require('discord.js');
+            const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
             const { botonAbrirCuenta } = require('../utils/cuenta.js');
+            // 1.34.0: lo primero, el menú (lo tuyo y a dónde ir); luego la ayuda y la cuenta.
             const embed = new EmbedBuilder()
                 .setColor('#a855f7')
                 .setDescription(t(cfg,
-                    `👋 ¡Hola, **${message.author.displayName || message.author.username}**! Soy Sokyo.\n\n✨ **Tu cuenta** (tickets, tienda, música y tu tarjeta): pulsa el botón y entras con un clic.\n📖 **Comandos**: escribe \`${prefijo}help\`.`,
-                    `👋 Hi, **${message.author.displayName || message.author.username}**! I’m Sokyo.\n\n✨ **Your account** (tickets, shop, music and your card): press the button and you’re in with one click.\n📖 **Commands**: type \`${prefijo}help\`.`));
-            await message.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(botonAbrirCuenta(cfg))], allowedMentions: { repliedUser: false } }).catch(() => {});
+                    `👋 ¡Hola, **${message.author.displayName || message.author.username}**! Soy Sokyo.\n\n🏠 **Tu menú**: lo tuyo, lo que tienes listo y botones para todo (también con **/menu**).\n❔ **¿Qué puedo hacer?**: todo explicado por zonas (o **/ayuda**).\n✨ **Tu cuenta** en la web: tickets, tienda, música y tu tarjeta.`,
+                    `👋 Hi, **${message.author.displayName || message.author.username}**! I’m Sokyo.\n\n🏠 **Your menu**: your stuff, what’s ready and buttons for everything (also with **/menu**).\n❔ **What can I do?**: everything explained by zone (or **/help**).\n✨ **Your account** on the web: tickets, shop, music and your card.`));
+            const fila = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('menu:abrir:').setEmoji('🏠').setLabel(t(cfg, 'Abrir mi menú', 'Open my menu')).setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('menu:ayuda:').setEmoji('❔').setLabel(t(cfg, '¿Qué puedo hacer?', 'What can I do?')).setStyle(ButtonStyle.Secondary),
+                botonAbrirCuenta(cfg));
+            await message.reply({ embeds: [embed], components: [fila], allowedMentions: { repliedUser: false } }).catch(() => {});
             return;
         }
         if (!message.content.startsWith(prefijo)) {
