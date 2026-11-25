@@ -54,6 +54,9 @@ module.exports = function montarPaginaPublica(app, client) {
             enviar(res, 500, pagina.paginaNoEncontrada(idiomaDe(req)));
         }
     });
+    // 1.34.0: la ayuda pública (utils/ayudaWeb.js), hecha con el catálogo de funciones.
+    require('../utils/ayudaWeb.js').montar(app);
+
     app.get('/novedades', limitador, (req, res) => {
         try {
             enviar(res, 200, require('../utils/paginasEstado.js').paginaNovedades({ lang: idiomaDe(req), base: pagina.urlBase(req) }), 300);

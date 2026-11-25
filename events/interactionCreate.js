@@ -175,6 +175,8 @@ async function abrirTicketFormulario(interaction, client, { motivo, asunto, desc
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
+        // 1.34.0: fila «🏠 Menú · ❔» en los mensajes de juegos/mascotas/comunidad y contar qué se usa.
+        await require('../utils/navegacion.js').envolver(interaction).catch((e) => console.warn('Navegación:', e.message));
 
         // --- SLASH COMMANDS ---
         if (interaction.isChatInputCommand()) {

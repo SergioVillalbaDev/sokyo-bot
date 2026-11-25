@@ -4,6 +4,9 @@
 // test/erroresApi.test.js comprueba que TODOS los errores fijos del código tienen aquí su
 // traducción: si añades un `error: '…'` nuevo, añádelo también aquí.
 const EN = {
+    'Ese canal no vale.': 'That channel won’t work.',
+    'El bot no puede escribir en ese canal.': 'The bot can’t write in that channel.',
+    'No se ha podido publicar.': 'It couldn’t be posted.',
     'El casino no está activado': 'The casino isn’t turned on',
     'Elige primero el canal del casino': 'Pick the casino channel first',
     'El bot no está en ese servidor': 'The bot isn’t on that server',

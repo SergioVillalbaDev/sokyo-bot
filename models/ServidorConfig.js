@@ -696,7 +696,11 @@ const ServidorConfigSchema = new mongoose.Schema({
         logs: { type: [String], default: [] },
         mensajes: { type: [String], default: [] },
         config: { type: [String], default: [] },
-        crecimiento: { type: [String], default: [] },
+        // 1.34.0 (interno): qué comandos tiene registrados este servidor (utils/comandosServidor.js).
+    comandosServidor: { hash: { type: String, default: null }, fecha: { type: Date, default: null }, n: { type: Number, default: 0 }, error: { type: String, default: null } },
+    // 1.34.0: canal «📖 Cómo funciona» que el bot escribe y pone al día solo (utils/guiaServidor.js).
+    guiaCanal: { activo: { type: Boolean, default: false }, canalId: { type: String, default: null }, mensajeIds: { type: [String], default: [] }, hash: { type: String, default: null } },
+    crecimiento: { type: [String], default: [] },
     },
 
     // --- PLAN / SUSCRIPCIÓN ---
@@ -1048,6 +1052,11 @@ function _invalidarCache(guildId) {
     try {
         require('../utils/config.js').invalidateConfig(guildId);
     } catch (_) { /* el caché se refrescará por TTL de todas formas */ }
+    // 1.34.0: lo que depende de los módulos activos se pone al día solo (comandos del servidor y guía automática).
+    if (guildId && typeof guildId === 'string') {
+        try { require('../utils/comandosServidor.js').programar(guildId); } catch (_) { /* nada */ }
+        try { require('../utils/guiaServidor.js').programar(guildId); } catch (_) { /* nada */ }
+    }
 }
 
 ServidorConfigSchema.post('save', function () {

@@ -12,6 +12,8 @@ module.exports = {
             if (!config) config = await ServidorConfig.create({ guildId: guild.id });
             // Si vuelve a un servidor con el seguimiento de invitaciones activo.
             if (config.crecimiento?.invitaciones?.activo) cargarInvitaciones(guild).catch(() => {});
+            // 1.34.0: sus comandos (solo los de lo que tenga activo).
+            require('../utils/comandosServidor.js').sincronizar(guild).catch(() => {});
 
             // 1.5. PRUEBA GRATUITA de Pro (7 días) la PRIMERA vez que entra el bot.
             // Deja que prueben las funciones premium; al caducar, el barrido los
