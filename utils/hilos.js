@@ -9,14 +9,20 @@ async function publicar(interaction, cfg, titulo, payload, idioma = 'es') {
     const puede = cfg?.casino?.hilos !== false && canal && !canal.isThread?.() && typeof canal.threads?.create === 'function'
         && canal.permissionsFor?.(interaction.guild?.members?.me)?.has?.(['CreatePublicThreads', 'SendMessagesInThreads']);
     if (puede) {
+        let hilo = null;
         try {
             const aviso = await interaction.editReply({ content: t(idioma, `${titulo} — la partida está en el hilo de abajo 👇`, `${titulo} — the game is in the thread below 👇`), embeds: [], components: [], files: [] });
-            const hilo = await aviso.startThread({ name: titulo.replace(/[*_`]/g, '').slice(0, 90), autoArchiveDuration: 60 });
+            hilo = await aviso.startThread({ name: titulo.replace(/[*_`]/g, '').slice(0, 90), autoArchiveDuration: 60 });
             const msg = await hilo.send(payload);
             return { msg, hilo, editar: (v) => msg.edit(v) };
-        } catch (e) { console.warn('Hilo de la partida:', e.message); }
+        } catch (e) {
+            // Si el hilo llegó a crearse pero la partida no entró, se borra: no puede quedar un hilo vacío.
+            console.warn('Hilo de la partida:', e.message);
+            if (hilo) await hilo.delete().catch(() => {});
+        }
     }
-    const msg = await interaction.editReply(payload);
+    // En el canal; `content` vacío borra el «la partida está en el hilo» si se llegó a poner.
+    const msg = await interaction.editReply({ content: null, ...payload });
     return { msg, hilo: null, editar: (v) => (msg?.edit ? msg.edit(v) : interaction.editReply(v)) };
 }
 

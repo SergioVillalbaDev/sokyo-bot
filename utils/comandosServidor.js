@@ -41,6 +41,8 @@ async function sincronizar(guild, { forzar = false } = {}) {
     const lista = comandosPara(cfg || {});
     const h = hashDe(lista);
     if (!forzar && (hashes.get(guild.id) === h || cfg?.comandosServidor?.hash === h)) { hashes.set(guild.id, h); return { ok: true, igual: true, n: lista.length }; }
+    // Ya falló con esta misma lista: no se insiste hasta el reintento de cada hora (`reintentar`, con forzar).
+    if (!forzar && cfg?.comandosServidor?.error && cfg.comandosServidor.intento === h) return { ok: false, error: cfg.comandosServidor.error, igual: true };
     try {
         await guild.commands.set(lista);
         hashes.set(guild.id, h);
@@ -49,7 +51,7 @@ async function sincronizar(guild, { forzar = false } = {}) {
     } catch (e) {
         // 50001 = el bot entró sin permiso para comandos (invitación antigua): el Diagnóstico lo avisa con el enlace.
         const error = e.code === 50001 ? 'sin-permiso' : String(e.message || e).slice(0, 200);
-        await ServidorConfig.updateOne({ guildId: guild.id }, { $set: { 'comandosServidor.error': error, 'comandosServidor.fecha': new Date() } }).catch(() => {});
+        await ServidorConfig.updateOne({ guildId: guild.id }, { $set: { 'comandosServidor.error': error, 'comandosServidor.intento': h, 'comandosServidor.fecha': new Date() } }).catch(() => {});
         console.warn(`Comandos de ${guild.id}:`, error);
         return { ok: false, error };
     }

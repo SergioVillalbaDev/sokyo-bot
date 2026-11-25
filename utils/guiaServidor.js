@@ -60,7 +60,13 @@ async function ponerAlDia(guild, { forzar = false } = {}) {
         if (!png) m.embeds.forEach((e) => { if (e.data.image) delete e.data.image; });
         const previo = ids[i] ? await canal.messages.fetch(ids[i]).catch(() => null) : null;
         const msg = previo ? await previo.edit(payload).catch(() => null) : await canal.send(payload).catch(() => null);
-        if (!msg) return { ok: false, motivo: 'permisos' };
+        if (!msg) {
+            // Se guardan ya los que salieron (y los viejos que quedan): así el siguiente intento los edita en vez de
+            // mandarlos otra vez. El hash no cambia, para que se vuelva a intentar.
+            const guardar = [...nuevos, ...ids.slice(nuevos.length)];
+            await ServidorConfig.updateOne({ guildId: guild.id }, { $set: { 'guiaCanal.mensajeIds': guardar } }).catch(() => {});
+            return { ok: false, motivo: 'permisos' };
+        }
         nuevos.push(msg.id);
     }
     // Lo que sobra (se apagó una zona entera) se borra.

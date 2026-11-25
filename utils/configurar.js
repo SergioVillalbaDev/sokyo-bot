@@ -11,7 +11,6 @@ const { t } = require('./i18n.js');
 
 const ZONAS_CFG = ['jugar', 'mascotas', 'comunidad', 'musica', 'crecimiento', 'staff'];
 const conmutable = (m) => !!m.campo;
-const valor = (cfg, ruta) => ruta.split('.').reduce((o, k) => (o == null ? o : o[k]), cfg);
 
 function vista(cfg, idioma, userId, zona = null, modId = null, aviso = '') {
     const e = new EmbedBuilder().setColor('#64748b').setTitle(t(idioma, '⚙️ Configurar el bot', '⚙️ Set up the bot'));
@@ -68,9 +67,21 @@ async function cambiar(interaction, client, modId, encender, idioma) {
     } else if (m.campo) {
         await ServidorConfig.updateOne({ guildId: interaction.guildId }, { $set: { [m.campo]: !!encender } }, { upsert: true });
     } else return t(idioma, '🛠️ Esto se configura en el panel.', '🛠️ This is set up in the panel.');
-    const despues = await ServidorConfig.findOne({ guildId: interaction.guildId }).lean() || {};
+    let despues = await ServidorConfig.findOne({ guildId: interaction.guildId }).lean() || {};
+    // El setup no toca lo ya encendido: si la función tiene su propio interruptor apagado (p. ej. los cofres con el
+    // casino ya encendido), se enciende también.
+    if (encender && !m.activo(despues) && m.campo && m.activar !== 'campo') {
+        await ServidorConfig.updateOne({ guildId: interaction.guildId }, { $set: { [m.campo]: true } });
+        despues = await ServidorConfig.findOne({ guildId: interaction.guildId }).lean() || {};
+    }
     await apuntar(interaction.guildId, interaction.user, antes, despues);
-    void valor;
+    // Lo que depende de otra función (los combates, de los cofres): se dice qué falta en vez de «encendido».
+    if (encender && !m.activo(despues)) {
+        const falta = m.necesita ? C.modulo(m.necesita) : null;
+        return falta
+            ? t(idioma, `⚠️ **${m.es}** necesita que antes esté encendido **${falta.emoji} ${falta.es}**. Enciéndelo y se activará solo.`, `⚠️ **${m.en}** needs **${falta.emoji} ${falta.en}** to be on first. Turn it on and this will work too.`)
+            : t(idioma, `⚠️ **${m.es}** aún no está del todo encendido: termina de configurarlo en el panel.`, `⚠️ **${m.en}** isn’t fully on yet: finish setting it up in the panel.`);
+    }
     return encender
         ? t(idioma, `✅ **${m.es}** encendido. Sus comandos aparecerán en unos segundos (escribe «/» para verlos).`, `✅ **${m.en}** turned on. Its commands will show up in a few seconds (type “/” to see them).`)
         : t(idioma, `⏸️ **${m.es}** apagado. Puedes deshacerlo en el panel → Historial de cambios.`, `⏸️ **${m.en}** turned off. You can undo it in the panel → Change history.`);

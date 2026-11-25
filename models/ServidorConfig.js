@@ -700,7 +700,7 @@ const ServidorConfigSchema = new mongoose.Schema({
     },
 
     // 1.34.0 (interno): qué comandos tiene registrados este servidor (utils/comandosServidor.js).
-    comandosServidor: { hash: { type: String, default: null }, fecha: { type: Date, default: null }, n: { type: Number, default: 0 }, error: { type: String, default: null } },
+    comandosServidor: { hash: { type: String, default: null }, fecha: { type: Date, default: null }, n: { type: Number, default: 0 }, error: { type: String, default: null }, intento: { type: String, default: null } },
     // 1.34.0: canal «📖 Cómo funciona» que el bot escribe y pone al día solo (utils/guiaServidor.js).
     guiaCanal: { activo: { type: Boolean, default: false }, canalId: { type: String, default: null }, mensajeIds: { type: [String], default: [] }, hash: { type: String, default: null } },
 
@@ -1050,12 +1050,20 @@ ServidorConfigSchema.index(
 // configuración, para que los cambios del panel se apliquen sin esperar al TTL.
 // Require perezoso dentro del hook para evitar el ciclo de dependencias
 // (config.js -> este modelo -> config.js).
-function _invalidarCache(guildId) {
+// Escrituras del propio bot sobre su estado (comandos registrados, ids de la guía): no cambian qué hay encendido, así
+// que no hace falta volver a registrar comandos ni rehacer la guía (si no, un fallo al registrar se reintentaba sin fin).
+const SOLO_ESTADO = /^(comandosServidor|guiaCanal\.(mensajeIds|hash))(\.|$)/;
+function soloEstado(update) {
+    if (!update || typeof update !== 'object') return false;
+    const claves = Object.entries(update).flatMap(([k, v]) => (k.startsWith('$') && v && typeof v === 'object' ? Object.keys(v) : [k]));
+    return claves.length > 0 && claves.every((k) => SOLO_ESTADO.test(k));
+}
+function _invalidarCache(guildId, { interno = false } = {}) {
     try {
         require('../utils/config.js').invalidateConfig(guildId);
     } catch (_) { /* el caché se refrescará por TTL de todas formas */ }
     // 1.34.0: lo que depende de los módulos activos se pone al día solo (comandos del servidor y guía automática).
-    if (guildId && typeof guildId === 'string') {
+    if (guildId && typeof guildId === 'string' && !interno) {
         try { require('../utils/comandosServidor.js').programar(guildId); } catch (_) { /* nada */ }
         try { require('../utils/guiaServidor.js').programar(guildId); } catch (_) { /* nada */ }
     }
@@ -1070,7 +1078,7 @@ ServidorConfigSchema.post('save', function () {
 ['findOneAndUpdate', 'updateOne', 'updateMany', 'findOneAndDelete'].forEach((op) => {
     ServidorConfigSchema.post(op, function () {
         const filtro = (typeof this.getFilter === 'function' && this.getFilter()) || {};
-        _invalidarCache(filtro.guildId);
+        _invalidarCache(filtro.guildId, { interno: soloEstado(typeof this.getUpdate === 'function' && this.getUpdate()) });
     });
 });
 

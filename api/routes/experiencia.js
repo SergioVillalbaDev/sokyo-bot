@@ -68,7 +68,15 @@ module.exports = function rutasExperiencia({ client, exigeArea, idiomaPanel }) {
             const de = (pre) => filas.filter((f) => f._id.startsWith(pre)).map((f) => ({ clave: f._id.slice(pre.length), n: f.n })).sort((a, b) => b.n - a.n);
             const cfg = await cfgDe(guildId) || {};
             const usados = new Map(de('mod:').map((x) => [x.clave, x.n]));
-            for (const x of de('cmd:')) { const m = C.moduloDeComando(x.clave.split(' ')[0]) || null; if (m) usados.set(m.id, (usados.get(m.id) || 0) + x.n); }
+            // «/jugar cofre …» se apunta como «games chest …»: en las puertas, el módulo es el de la parte (2.ª palabra).
+            const P = require('../../utils/puertas.js');
+            const puertaEn = new Map(Object.keys(P.PUERTAS).map((p) => [P.PUERTAS[p].en, p]));
+            const moduloDe = (clave) => {
+                const [primera, segunda] = clave.split(' ');
+                if (!puertaEn.has(primera)) return C.moduloDeComando(primera);
+                return P.partesDe(puertaEn.get(primera)).find((x) => x.nombre === segunda)?.modulo || null;
+            };
+            for (const x of de('cmd:')) { const m = moduloDe(x.clave); if (m) usados.set(m.id, (usados.get(m.id) || 0) + x.n); }
             const ComentarioAyuda = require('../../models/ComentarioAyuda.js');
             res.json({
                 comandos: de('cmd:').slice(0, 15),

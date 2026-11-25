@@ -224,7 +224,7 @@ export function gruposVisibles(permisos, esOwner, { sencillo = false, extra = nu
   return navGroups
     .filter((g) => !g.owner || esOwner)
     .map((g) => ({ ...g, items: g.items.filter((it) => itemVisible(it, permisos) && (deObjetivo
-      ? deObjetivo.has(it.tab) || (extra && extra.has(it.tab))
+      ? g.owner || deObjetivo.has(it.tab) || (extra && extra.has(it.tab))
       : (!sencillo || g.owner || BASICOS.has(it.tab) || (extra && extra.has(it.tab))))) }))
     .filter((g) => g.items.length > 0);
 }

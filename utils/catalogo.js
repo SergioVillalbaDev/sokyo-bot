@@ -41,7 +41,7 @@ const MODULOS = [
         frase: { es: 'Sobres de cartas que dan poderes a tu mascota y técnicas de combate.', en: 'Card packs that power up your pet and give battle techniques.' },
         pasos: { es: ['`/jugar carta abrir` → un sobre de 3 cartas.', 'Úsalas en tu mascota desde `/compi` (🃏 Cartas) o en tu mazo de combate.', 'Repetidas: desencántalas en polvo, intercámbialas o véndelas en `/jugar mercado`.'],
             en: ['`/games card open` → a pack of 3 cards.', 'Use them on your pet from `/companion` (🃏 Cards) or in your battle deck.', 'Duplicates: disenchant into dust, trade them or sell them in `/games market`.'] } },
-    { id: 'combates', campo: 'combate.activo', activar: 'campo', emoji: '⚔️', zona: 'jugar', es: 'Combates', en: 'Battles', tab: 'com-casino',
+    { id: 'combates', campo: 'combate.activo', activar: 'campo', necesita: 'cofres', emoji: '⚔️', zona: 'jugar', es: 'Combates', en: 'Battles', tab: 'com-casino',
         activo: activoSi((c) => conCofres(c) && c.combate?.activo !== false), partes: [['jugar', 'fight']],
         frase: { es: 'Combates por turnos con tu mascota: retos, torre y jefe semanal.', en: 'Turn-based battles with your pet: challenges, tower and weekly boss.' },
         pasos: { es: ['`/jugar combate retar` a alguien (con apuesta si quieres).', '`/jugar combate torre`: 50 pisos al mes · `/jugar combate jefe`: todo el servidor contra uno.', 'Cuanto mejor cuidas a tu mascota, más fuerte pelea.'],

@@ -136,7 +136,7 @@ async function vistaMenu(interaction, cfg, idioma) {
     if (botones.length) filas.push(new ActionRowBuilder().addComponents(botones));
     filas.push(filaZonas(userId, idioma));
     // Resumen diario por privado (opcional) y, para admins, configurar.
-    const resumen = await require('./resumenDiario.js').estado(guildId, userId).catch(() => false);
+    const resumen = await require('./resumenJugador.js').estado(guildId, userId).catch(() => false);
     const extra = [new ButtonBuilder().setCustomId(`menu:res:${userId}`).setEmoji(resumen ? '🔔' : '🔕').setLabel(resumen ? t(idioma, 'Resumen diario: sí', 'Daily summary: on') : t(idioma, 'Resumen diario por privado', 'Daily summary by DM')).setStyle(ButtonStyle.Secondary)];
     if (interaction.memberPermissions?.has?.(PermissionFlagsBits.ManageGuild)) extra.push(new ButtonBuilder().setCustomId(`cfg:ver:${userId}`).setEmoji('⚙️').setLabel(t(idioma, 'Configurar el bot', 'Set up the bot')).setStyle(ButtonStyle.Secondary));
     filas.push(new ActionRowBuilder().addComponents(extra));
@@ -251,6 +251,11 @@ async function manejar(interaction, client) {
     const { idiomaInteraccion } = require('./preferencias.js');
     const cfg = await getConfigCached(interaction.guildId).catch(() => null) || {};
     const idioma = await idiomaInteraccion(interaction, cfg);
+    // Por privado no hay oro ni mascotas: el menú es de cada servidor.
+    if (!interaction.guildId) {
+        await interaction.reply({ content: t(idioma, '🏠 Tu menú es de cada servidor: escribe **/menu** dentro de un servidor donde esté Sokyo.', '🏠 Your menu belongs to each server: type **/menu** inside a server that has Sokyo.'), flags: 64 }).catch(() => {});
+        return true;
+    }
     const partes = id.split(':');
     const tipo = partes[1]; const dueno = partes[partes.length - 1];
     const mio = !dueno || dueno === interaction.user.id;
@@ -263,7 +268,7 @@ async function manejar(interaction, client) {
     if (tipo === 'ay') { await responder(vistaAyuda(idioma, cfg, interaction.values[0], interaction.user.id)); return true; }
     if (!mio) { await interaction.reply({ ...(await vistaMenu(interaction, cfg, idioma)), flags: 64 }); return true; }
     if (tipo === 'res') {
-        const on = await require('./resumenDiario.js').alternar(interaction.guildId, interaction.user.id);
+        const on = await require('./resumenJugador.js').alternar(interaction.guildId, interaction.user.id);
         await interaction.update(await vistaMenu(interaction, cfg, idioma)).catch(() => {});
         await interaction.followUp({ content: on ? t(idioma, '🔔 Hecho: cada día (si tienes algo listo) te llegará un resumen por privado. Lo apagas aquí mismo.', '🔔 Done: every day (if you have something ready) you’ll get a summary by DM. Turn it off right here.') : t(idioma, '🔕 Resumen diario apagado.', '🔕 Daily summary turned off.'), flags: 64 }).catch(() => {});
         return true;

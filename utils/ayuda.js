@@ -57,7 +57,8 @@ function mensajeAyuda(idioma, prefijo = '!', { categoria = null, cfg = null } = 
         ]);
     const filas = [new ActionRowBuilder().addComponents(menu)];
     const tab = zona ? C.MODULOS.find((m) => m.zona === zona && m.tab)?.tab : null;
-    const botones = [new ButtonBuilder().setCustomId('menu:abrir:').setEmoji('🏠').setLabel(t(idioma, 'Mi menú', 'My menu')).setStyle(ButtonStyle.Success), botonAbrirCuenta(idioma),
+    // «Mi menú» solo en un servidor (cfg): por privado no hay menú.
+    const botones = [...(cfg ? [new ButtonBuilder().setCustomId('menu:abrir:').setEmoji('🏠').setLabel(t(idioma, 'Mi menú', 'My menu')).setStyle(ButtonStyle.Success)] : []), botonAbrirCuenta(idioma),
         botonPanel(idioma, tab || null, tab ? t(idioma, 'Configurarlo en el panel', 'Set it up in the panel') : t(idioma, 'Panel de control', 'Control panel'))];
     const web = require('./ayudaWeb.js').enlace(null, idioma);
     if (web) botones.push(new ButtonBuilder().setURL(web).setEmoji('🌐').setLabel(t(idioma, 'Guía en la web', 'Web guide')).setStyle(ButtonStyle.Link));

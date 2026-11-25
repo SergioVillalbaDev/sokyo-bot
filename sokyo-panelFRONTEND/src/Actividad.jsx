@@ -104,7 +104,7 @@ export default function Actividad() {
     try {
       const r = await pedir(`/portal/actividad/${que}`, { method: 'POST', body: JSON.stringify({ guildId }) })
       if (que === 'diario') setAviso(r.ok ? t('actividad.diarioHecho', { n: fmt(r.total, idioma), racha: r.racha }) : t('actividad.diarioEspera', { h: r.esperaHoras }))
-      else setAviso(r.nueva ? t('actividad.granjaEmpezada') : r.ok ? t('actividad.granjaHecho', { n: fmt(r.oro, idioma) }) : t('actividad.granjaVacia'))
+      else setAviso(r.nueva ? t('actividad.granjaEmpezada') : r.ok ? t('actividad.granjaHecho', { n: fmt(r.oro, idioma) }) : r.fallo === 'sin' ? t('actividad.sinMascota') : t('actividad.granjaVacia'))
       await cargar()
     } catch (e) {
       setAviso(e.message)

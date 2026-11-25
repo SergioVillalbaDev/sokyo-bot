@@ -186,7 +186,7 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
         try { await require('./liga.js').barrerLiga(client); } catch (e) { console.error('Programador (Liga):', e.message); }
         try { await require('./jefe.js').barrerJefes(client); } catch (e) { console.error('Programador (jefe semanal):', e.message); }
         try { await require('./comandosServidor.js').reintentar(client); } catch (e) { console.error('Programador (comandos):', e.message); }
-        try { await require('./resumenDiario.js').pasada(client); } catch (e) { console.error('Programador (resumen diario):', e.message); }
+        try { await require('./resumenJugador.js').pasada(client); } catch (e) { console.error('Programador (resumen del jugador):', e.message); }
     });
     setTimeout(tickCrecimiento, 70 * 1000);
     setInterval(tickCrecimiento, 5 * 60 * 1000);
