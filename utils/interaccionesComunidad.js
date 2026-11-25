@@ -43,6 +43,7 @@ async function manejar(interaction, client) {
         // 1.29.0: pase de temporada, logros y la guía para empezar.
         if (id.startsWith('pse:')) return await require('./pase.js').manejar(interaction, client);
         if (id.startsWith('emp:')) return await require('./empezar.js').manejar(interaction, client);
+        if (interaction.isButton() && id.startsWith('liga_tac:')) { await require('./liga.js').votarTactica(interaction); return true; }
         if (interaction.isButton() && id.startsWith('liga_animar:')) { await require('./liga.js').animar(interaction); return true; }
         if (interaction.isButton() && /^tkayuda_(si|no):/.test(id)) {
             await manejarAyudaPrevia(interaction, client);

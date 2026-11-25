@@ -7,7 +7,7 @@
 //                 de fuerza parecida (o contra una criatura salvaje): +30 si gana, +10 si pierde
 // Divisiones: Bronce, Plata, Oro, Diamante y Leyenda. Al acabar el mes, el podio sale
 // destacado todo el mes siguiente en el directorio /servidores y en la Red Sokyo.
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const LigaServidor = require('../models/LigaServidor.js');
 const LigaMes = require('../models/LigaMes.js');
 const ImpulsoLiga = require('../models/ImpulsoLiga.js');
@@ -199,7 +199,16 @@ function anuncioCombate(combate, lado, idioma, client) {
             `${emojiLado(yo)} **${yo.nombre}** (nv ${yo.nivel}) contra ${emojiLado(otro)} **${nombreLado(otro, idioma)}**${otro.nivel ? ` (nv ${otro.nivel})` : ''}${servidorOtro ? ` de **${servidorOtro}**` : ''}.\nEmpieza <t:${hora}:R>. **Cada ánimo da +2 % de fuerza** (hasta +30 %).`,
             `${emojiLado(yo)} **${yo.nombre}** (lv ${yo.nivel}) vs ${emojiLado(otro)} **${nombreLado(otro, idioma)}**${otro.nivel ? ` (lv ${otro.nivel})` : ''}${servidorOtro ? ` from **${servidorOtro}**` : ''}.\nStarts <t:${hora}:R>. **Each cheer gives +2% power** (up to +30%).`))
         .addFields({ name: t(idioma, '📣 Ánimos', '📣 Cheers'), value: String((yo.animos || []).length), inline: true }, { name: t(idioma, '💪 Fuerza', '💪 Power'), value: `${yo.poder} vs ${otro.poder}`, inline: true });
-    const fila = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`liga_animar:${combate._id}:${lado}`).setEmoji('📣').setLabel(t(idioma, '¡Animar!', 'Cheer!')).setStyle(ButtonStyle.Success));
+    // 1.33.0: táctica votada (piedra-papel-tijera: la que gana a la del rival da +15 % de fuerza; el rival no la ve).
+    const votos = Object.values(yo.votos || {});
+    const cuenta = (k) => votos.filter((v) => v === k).length;
+    const va = N.tacticaElegida(yo.votos);
+    e.addFields({ name: t(idioma, '🧠 Táctica (votad)', '🧠 Tactic (vote)'), value: va ? `${N.TACTICAS[va].emoji} ${t(idioma, N.TACTICAS[va].es, N.TACTICAS[va].en)}` : t(idioma, 'Ninguna aún (o empate)', 'None yet (or a tie)'), inline: true });
+    e.setFooter({ text: t(idioma, `🗡️ Ataque gana a 🌀 Astucia · 🌀 Astucia gana a 🛡️ Defensa · 🛡️ Defensa gana a 🗡️ Ataque · acertar da +${Math.round(N.TACTICA_VENTAJA * 100)} %`, `🗡️ Attack beats 🌀 Cunning · 🌀 Cunning beats 🛡️ Defence · 🛡️ Defence beats 🗡️ Attack · guessing right gives +${Math.round(N.TACTICA_VENTAJA * 100)}%`) });
+    const fila = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`liga_animar:${combate._id}:${lado}`).setEmoji('📣').setLabel(t(idioma, '¡Animar!', 'Cheer!')).setStyle(ButtonStyle.Success),
+        ...Object.entries(N.TACTICAS).map(([k, x]) => new ButtonBuilder().setCustomId(`liga_tac:${combate._id}:${lado}:${k}`).setEmoji(x.emoji).setLabel(`${t(idioma, x.es, x.en)} (${cuenta(k)})`).setStyle(va === k ? ButtonStyle.Primary : ButtonStyle.Secondary)),
+    );
     return { embeds: [e], components: [fila], allowedMentions: { parse: [] } };
 }
 
@@ -249,6 +258,25 @@ async function animar(interaction) {
     return true;
 }
 
+// 1.33.0: votar la táctica de tu servidor (se puede cambiar de voto hasta que empiece).
+async function votarTactica(interaction) {
+    const [, id, lado, tac] = interaction.customId.split(':');
+    const { getConfigCached } = require('./config.js');
+    const { idiomaInteraccion } = require('./preferencias.js');
+    const cfg = await getConfigCached(interaction.guildId).catch(() => null);
+    const idioma = await idiomaInteraccion(interaction, cfg);
+    if (!N.TACTICAS[tac] || !['a', 'b'].includes(lado)) return interaction.reply({ content: '❌', flags: 64 });
+    const r = await CombateMascota.findOneAndUpdate({ _id: id, estado: 'pendiente', [`${lado}.guildId`]: interaction.guildId }, { $set: { [`${lado}.votos.${interaction.user.id}`]: tac } }, { returnDocument: 'after' }).catch(() => null);
+    if (!r) {
+        const sigue = await CombateMascota.exists({ _id: id, estado: 'pendiente' }).catch(() => null);
+        return interaction.reply({ content: sigue ? t(idioma, 'Solo vota la táctica el servidor de esa mascota.', 'Only that pet’s server votes its tactic.') : t(idioma, 'Este combate ya ha terminado.', 'This battle is already over.'), flags: 64 });
+    }
+    await interaction.update(anuncioCombate(r, lado, cfg, interaction.client)).catch(() => {});
+    const x = N.TACTICAS[tac];
+    await interaction.followUp({ content: t(idioma, `🧠 Has votado ${x.emoji} **${x.es}** (${x.desc.es}). Puedes cambiarlo hasta que empiece.`, `🧠 You voted ${x.emoji} **${x.en}** (${x.desc.en}). You can change it until it starts.`), flags: 64 }).catch(() => {});
+    return true;
+}
+
 // Cuenta el combate ronda a ronda desde el lado de cada servidor: quién gana la ronda,
 // con qué ataque, y los golpes críticos, esquivas y habilidades especiales.
 function relato(combate, lado, idioma) {
@@ -295,9 +323,11 @@ async function premiarMascota(guildId, gana, rival = '?') {
 async function resolverCombates(client, ahora = new Date()) {
     const pendientes = await CombateMascota.find({ estado: 'pendiente', hora: { $lte: ahora } }).limit(200);
     for (const c of pendientes) {
-        const fuerza = (l) => ({ poder: c[l].poder, animos: (c[l].animos || []).length, stats: c[l].stats || {}, especie: c[l].especie });
+        // 1.33.0: la táctica votada (la salvaje elige una al azar, fija por combate).
+        const tac = { a: c.a.guildId ? N.tacticaElegida(c.a.votos) : Object.keys(N.TACTICAS)[Math.floor(N.azarCon(`${c._id}t`)() * 3)], b: c.b.guildId ? N.tacticaElegida(c.b.votos) : Object.keys(N.TACTICAS)[Math.floor(N.azarCon(`${c._id}t`)() * 3)] };
+        const fuerza = (l) => ({ poder: c[l].poder, animos: (c[l].animos || []).length, stats: c[l].stats || {}, especie: c[l].especie, mult: N.multTactica(tac[l], tac[l === 'a' ? 'b' : 'a']) });
         const r = N.combatir(fuerza('a'), fuerza('b'), N.azarCon(String(c._id)));
-        const hecho = await CombateMascota.findOneAndUpdate({ _id: c._id, estado: 'pendiente' }, { $set: { estado: 'hecho', ganador: r.ganador, rondas: r.rondas } }, { returnDocument: 'after' });
+        const hecho = await CombateMascota.findOneAndUpdate({ _id: c._id, estado: 'pendiente' }, { $set: { estado: 'hecho', ganador: r.ganador, rondas: r.rondas, 'a.tactica': tac.a, 'b.tactica': tac.b } }, { returnDocument: 'after' });
         if (!hecho) continue;
         for (const l of ['a', 'b']) {
             const gid = hecho[l].guildId;
@@ -319,13 +349,24 @@ async function resolverCombates(client, ahora = new Date()) {
                 .setTitle(gana
                     ? t(cfg, `🏆 ¡${yo.nombre} gana el combate!`, `🏆 ${yo.nombre} wins the battle!`)
                     : t(cfg, `💔 ${yo.nombre} ha perdido esta vez`, `💔 ${yo.nombre} lost this time`))
-                .setDescription(`${emojiLado(yo)} **${yo.nombre}** vs ${emojiLado(otro)} **${nombreLado(otro, cfg)}**\n\n${relato(hecho, l, cfg)}`)
+                .setDescription([`${emojiLado(yo)} **${yo.nombre}** vs ${emojiLado(otro)} **${nombreLado(otro, cfg)}**`, textoTacticas(hecho, l, cfg), '', relato(hecho, l, cfg)].filter((x) => x !== null).join('\n'))
                 .setFooter({ text: gana
                     ? t(cfg, `+${PUNTOS_VICTORIA} puntos de Liga · +40 XP para la mascota · ${(yo.animos || []).length} ánimos`, `+${PUNTOS_VICTORIA} League points · +40 pet XP · ${(yo.animos || []).length} cheers`)
                     : t(cfg, `+${PUNTOS_DERROTA} puntos de Liga por luchar · +15 XP · mañana, revancha`, `+${PUNTOS_DERROTA} League points for fighting · +15 XP · rematch tomorrow`) });
-            await canal.send({ embeds: [e], allowedMentions: { parse: [] } }).catch(() => {});
+            // 1.33.0: el combate, animado.
+            const gif = await require('./ligaArte.js').gifCombateLiga(hecho, l, { idioma: cfg?.idioma === 'en' ? 'en' : 'es' }).catch((err) => { console.warn('GIF Liga:', err.message); return null; });
+            if (gif) e.setImage('attachment://combate.gif');
+            await canal.send({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'combate.gif' })] : [], allowedMentions: { parse: [] } }).catch(() => {});
         }
     }
+}
+// Qué táctica llevó cada uno y si acertó.
+function textoTacticas(c, lado, idioma) {
+    const yo = c[lado]; const otro = c[lado === 'a' ? 'b' : 'a'];
+    const nom = (k) => (k ? `${N.TACTICAS[k].emoji} ${t(idioma, N.TACTICAS[k].es, N.TACTICAS[k].en)}` : t(idioma, 'sin táctica', 'no tactic'));
+    const acierto = N.multTactica(yo.tactica, otro.tactica) > 1 ? t(idioma, ` · ✅ ¡acertasteis! (+${Math.round(N.TACTICA_VENTAJA * 100)} %)`, ` · ✅ good call! (+${Math.round(N.TACTICA_VENTAJA * 100)}%)`)
+        : N.multTactica(otro.tactica, yo.tactica) > 1 ? t(idioma, ' · ❌ el rival os la ganó', ' · ❌ the rival countered you') : '';
+    return t(idioma, `🧠 Vuestra táctica: ${nom(yo.tactica)} · la del rival: ${nom(otro.tactica)}${acierto}`, `🧠 Your tactic: ${nom(yo.tactica)} · the rival’s: ${nom(otro.tactica)}${acierto}`);
 }
 
 async function barrerLiga(client) {
@@ -368,5 +409,5 @@ async function estado(client, guildId) {
 module.exports = {
     DIVISIONES, PUNTOS_VOTO, ORO_POR_PUNTO, TOPE_ORO_DIA, PUNTOS_VICTORIA, PUNTOS_DERROTA, HORA_ANUNCIO, HORA_COMBATE,
     divisionDe, siguienteDivision, mesAnterior, finDeMes, sumarPuntos, alVotar, impulsar, posicionDe, clasificacion,
-    destacados, embedClasificacion, cerrarMes, prepararCombates, animar, resolverCombates, barrerLiga, estado, anuncioCombate,
+    destacados, embedClasificacion, cerrarMes, prepararCombates, animar, votarTactica, textoTacticas, resolverCombates, barrerLiga, estado, anuncioCombate,
 };

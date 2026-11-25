@@ -209,7 +209,8 @@ function azarCon(semilla) {
 function combatir(a, b, azar = Math.random) {
     const { ESPECIALES } = require('./mascotaExtras.js');
     const st = (l, k) => (l.stats && l.stats[k]) || 5;
-    const base = (l) => l.poder * (1 + extraAnimos(l.animos));
+    // 1.33.0: `mult` = la táctica votada (multTactica).
+    const base = (l) => l.poder * (1 + extraAnimos(l.animos)) * (l.mult || 1);
     const usada = { a: false, b: false };
     const rondas = [];
     let va = 0; let vb = 0;
@@ -237,6 +238,26 @@ function combatir(a, b, azar = Math.random) {
     }
     return { ganador: va > vb ? 'a' : 'b', rondas };
 }
+
+// ---------------------------------------------------------------------------
+// 1.33.0: táctica de la Liga, votada por el servidor antes del combate. Como piedra-papel-tijera: la que gana a la
+// del rival da +TACTICA_VENTAJA de fuerza. Sin votos (o empate de votos) no hay táctica.
+// ---------------------------------------------------------------------------
+const TACTICAS = {
+    ataque: { emoji: '🗡️', gana: 'astucia', es: 'Ataque', en: 'Attack', desc: { es: 'Gana a Astucia', en: 'Beats Cunning' } },
+    defensa: { emoji: '🛡️', gana: 'ataque', es: 'Defensa', en: 'Defence', desc: { es: 'Gana a Ataque', en: 'Beats Attack' } },
+    astucia: { emoji: '🌀', gana: 'defensa', es: 'Astucia', en: 'Cunning', desc: { es: 'Gana a Defensa', en: 'Beats Defence' } },
+};
+const TACTICA_VENTAJA = 0.15;
+// `votos` = { userId: táctica }. La más votada, o null si no hay votos o hay empate arriba.
+function tacticaElegida(votos = {}) {
+    const n = {};
+    for (const v of Object.values(votos || {})) if (TACTICAS[v]) n[v] = (n[v] || 0) + 1;
+    const orden = Object.entries(n).sort((a, b) => b[1] - a[1]);
+    if (!orden.length || (orden[1] && orden[1][1] === orden[0][1])) return null;
+    return orden[0][0];
+}
+const multTactica = (mia, suya) => (mia && suya && TACTICAS[mia]?.gana === suya ? 1 + TACTICA_VENTAJA : 1);
 
 // Empareja las mascotas del día por fuerza parecida. `lista`: [{ guildId, poder }].
 // Devuelve [[a, b|null], …] (null = contra una criatura salvaje).
@@ -277,6 +298,7 @@ function ganadoresVotacion(v = {}, azar = Math.random) {
 }
 
 module.exports = {
+    TACTICAS, TACTICA_VENTAJA, tacticaElegida, multTactica,
     ESPECIES, SALVAJE, FORMAS, FASES, VENTAJAS, NIVEL_MAX,
     xpParaSubir, sumarXp, faseDe, formaDe, enForma, ventajasDe, bonusXp, descuentoBromas, animoDe,
     pasarTiempo, comida, despierta, poderDe, extraAnimos, azarCon, combatir, emparejar, salvajePara,

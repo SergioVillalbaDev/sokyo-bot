@@ -12,6 +12,8 @@ const LadoSchema = new mongoose.Schema({
     stats: { fuerza: Number, defensa: Number, agilidad: Number },
     accesorio: String,
     animos: { type: [String], default: [] },   // quién ha animado
+    votos: { type: Object, default: undefined }, // 1.33.0: táctica votada por cada miembro ({ userId: 'ataque' })
+    tactica: { type: String, default: null },    // 1.33.0: la que ganó la votación (al resolverse)
     canalId: { type: String, default: null },
     mensajeId: { type: String, default: null },
 }, { _id: false });
