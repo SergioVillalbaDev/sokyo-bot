@@ -10,8 +10,8 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('vote')
         .setNameLocalizations(ES('votar'))
-        .setDescription('Vote for Sokyo on top.gg and earn gold (and rewards on this server)')
-        .setDescriptionLocalizations(ES('Vota por Sokyo en top.gg y gana oro (y premios en este servidor)'))
+        .setDescription('Vote for Sokyo every 12 h: gold, a free chest every day and an epic one every 7 days')
+        .setDescriptionLocalizations(ES('Vota por Sokyo cada 12 h: oro, un cofre gratis al día y uno épico cada 7 días'))
         .addBooleanOption((o) => o.setName('remind').setNameLocalizations(ES('recordar'))
             .setDescription('Get a DM when you can vote again (every 12 h)')
             .setDescriptionLocalizations(ES('Recibe un privado cuando puedas volver a votar (cada 12 h)'))),
@@ -22,6 +22,8 @@ module.exports = {
         if (recordar !== null) await votos.ponerRecordatorio(interaction.user.id, recordar);
         const conAviso = await votos.tieneRecordatorio(interaction.user.id);
         const { proximo, total } = await votos.estadoVoto(interaction.user.id);
+        const racha = await votos.rachaVotos(interaction.user.id).catch(() => 0);
+        const faltan = 7 - (racha % 7 || 7);
         const oro = votos.ORO_POR_VOTO();
         const v = cfg?.crecimiento?.votos;
         const extras = [];
@@ -33,10 +35,14 @@ module.exports = {
             .setColor(0xff3366)
             .setTitle(t(idioma, '🗳️ Vota por Sokyo', '🗳️ Vote for Sokyo'))
             .setDescription([
-                t(idioma, `Cada voto te da **${oro} de oro** (el doble el fin de semana)`, `Each vote gives you **${oro} gold** (double on weekends)`)
-                    + (extras.length ? t(idioma, ` y, en este servidor, ${extras.join(' y ')}.`, ` and, on this server, ${extras.join(' and ')}.`) : '.'),
-                t(idioma, 'Se puede votar cada 12 horas. ¡Así el bot llega a más gente!', 'You can vote every 12 hours. It helps the bot reach more people!'),
+                t(idioma, 'Tarda 10 segundos y lo ganas **en cada servidor donde juegas con Sokyo**:', 'It takes 10 seconds and you get it **on every server where you play with Sokyo**:'),
+                t(idioma, `🪙 **${oro} de oro** por voto (el doble el fin de semana) · se vota cada 12 h`, `🪙 **${oro} gold** per vote (double on weekends) · vote every 12 h`),
+                t(idioma, '📦 **Un cofre básico gratis** con tu primer voto de cada día', '📦 **A free basic chest** with your first vote each day'),
+                t(idioma, '💜 **Un cofre épico** cada 7 días seguidos votando', '💜 **An epic chest** every 7 days in a row'),
+                t(idioma, '🎟️ XP para tu pase de temporada', '🎟️ XP for your season pass'),
+                extras.length ? t(idioma, `✨ Y en este servidor, además: ${extras.join(' y ')}.`, `✨ And on this server, also: ${extras.join(' and ')}.`) : null,
                 '',
+                racha ? t(idioma, `🔥 Racha: **${racha} ${racha === 1 ? 'día' : 'días'}**${faltan ? ` · cofre épico en ${faltan} ${faltan === 1 ? 'día' : 'días'}` : ' · ¡hoy toca cofre épico!'}`, `🔥 Streak: **${racha} day${racha === 1 ? '' : 's'}**${faltan ? ` · epic chest in ${faltan} day${faltan === 1 ? '' : 's'}` : ' · epic chest today!'}`) : null,
                 proximo
                     ? t(idioma, `⏳ Ya has votado: puedes volver a votar <t:${Math.floor(proximo.getTime() / 1000)}:R>.`, `⏳ You’ve already voted: you can vote again <t:${Math.floor(proximo.getTime() / 1000)}:R>.`)
                     : t(idioma, '✅ ¡Ya puedes votar!', '✅ You can vote now!'),

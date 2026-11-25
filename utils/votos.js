@@ -52,7 +52,49 @@ function rellenar(plantilla, datos) {
         .replaceAll('{server}', datos.servidor);
 }
 
-// Premios en un servidor concreto: rol temporal, XP y gracias en su canal.
+// 2.0.0: lo que da CADA voto, en CADA servidor con Sokyo donde juega quien vota (no hace falta
+// que el servidor active nada): oro (el doble en fin de semana), un cofre básico gratis con el
+// primer voto del día y un cofre épico cada 7 días seguidos votando, y XP del pase.
+const premioVoto = ({ oro, primeroDelDia, racha }) => ({
+    oro,
+    cofre: primeroDelDia ? 'cofre_basico' : null,
+    epico: primeroDelDia && racha > 0 && racha % 7 === 0 ? 'cofre_epico' : null,
+});
+const diaUTC = (d) => Math.floor(new Date(d).getTime() / 86400000);
+// Días seguidos (UTC) con al menos un voto, contando hoy.
+async function rachaVotos(userId, ahora = new Date()) {
+    const votos = await Voto.find({ userId, fecha: { $gt: new Date(ahora.getTime() - 60 * 86400000) } }).select('fecha').lean();
+    const dias = new Set(votos.map((v) => diaUTC(v.fecha)));
+    let n = 0;
+    for (let d = diaUTC(ahora); dias.has(d); d--) n++;
+    return n;
+}
+// Servidores donde juega (tiene oro, nivel o mascotas) y donde sigue: ahí van los premios.
+async function servidoresDe(client, userId) {
+    const [a, b, c] = await Promise.all([
+        require('../models/Monedero.js').find({ discordId: userId }).select('guildId').lean().catch(() => []),
+        require('../models/ActividadUsuario.js').find({ userId }).select('guildId').lean().catch(() => []),
+        require('../models/ColeccionMascotas.js').find({ userId }).select('guildId').lean().catch(() => []),
+    ]);
+    const ids = [...new Set([...a, ...b, ...c].map((x) => x.guildId).filter((g) => g && client.guilds.cache.has(g)))];
+    const out = [];
+    for (const id of ids.slice(0, 50)) {
+        const member = await client.guilds.cache.get(id).members.fetch(userId).catch(() => null);
+        if (member && !member.user.bot) out.push(member);
+    }
+    return out;
+}
+async function premioBase(member, premio) {
+    const guildId = member.guild.id;
+    if (premio.oro > 0) await require('./economia.js').en(guildId).darOro(member.id, premio.oro).catch((e) => console.error('Votos · oro:', e.message));
+    const inc = {};
+    if (premio.cofre) inc[`tickets.${premio.cofre}`] = 1;
+    if (premio.epico) inc[`tickets.${premio.epico}`] = (inc[`tickets.${premio.epico}`] || 0) + 1;
+    if (Object.keys(inc).length) await require('../models/ColeccionMascotas.js').updateOne({ guildId, userId: member.id }, { $inc: inc }, { upsert: true }).catch(() => {});
+    await require('./pase.js').registrar(guildId, member.id, [['voto', 1]], { logros: false }).catch(() => {});
+}
+
+// Extras de un servidor con «Crecimiento → Votos» activo: oro de más, rol temporal, XP y gracias en su canal.
 async function premiarEnServidor(client, cfg, userId, oro, proximo) {
     const v = cfg.crecimiento?.votos;
     const guild = client.guilds.cache.get(cfg.guildId);
@@ -61,9 +103,9 @@ async function premiarEnServidor(client, cfg, userId, oro, proximo) {
     if (!member || member.user.bot) return false;
 
     const extras = [];
-    // 1.30.0: el oro es de cada servidor: el del voto (y el extra que ponga este servidor) se da AQUÍ.
-    const oroExtra = Math.max(0, Math.min(100000, v.oroExtra || 0));
-    if (oro + oroExtra > 0) await require('./economia.js').en(guild.id).darOro(userId, oro + oroExtra).catch((e) => console.error('Votos · oro:', e.message));
+    // El oro base del voto ya lo da premioBase; aquí solo el extra de este servidor (con tope).
+    const oroExtra = require('./limites.js').topeOro('crecimiento.votos.oroExtra', v.oroExtra);
+    if (oroExtra > 0) await require('./economia.js').en(guild.id).darOro(userId, oroExtra).catch((e) => console.error('Votos · oro:', e.message));
     // El rol se comprueba también ahora: si alguien le añadió permisos de staff, no se da.
     const rolVoto = v.rolId ? guild.roles.cache.get(v.rolId) : null;
     if (rolVoto && require('./permisos.js').errorRolPeligroso(rolVoto)) {
@@ -105,19 +147,41 @@ async function procesarVoto(client, { userId, finde, prueba }) {
     if (await Voto.exists({ userId, fecha: { $gt: hace } })) return { estado: 'repetido' };
 
     const oro = ORO_POR_VOTO() * (finde ? 2 : 1);
+    const ahora = new Date();
+    const primeroDelDia = !(await Voto.exists({ userId, fecha: { $gte: new Date(diaUTC(ahora) * 86400000) } }));
     await Voto.create({ userId, finde, oro });
+    const racha = await rachaVotos(userId, ahora);
+    const premio = premioVoto({ oro, primeroDelDia, racha });
 
     const proximo = new Date(Date.now() + HORAS_ENTRE_VOTOS * 3600 * 1000);
-    const cfgs = await ServidorConfig.find({ 'crecimiento.votos.activo': true });
+    const miembros = await servidoresDe(client, userId).catch(() => []);
+    for (const m of miembros) await premioBase(m, premio).catch((e) => console.error('Votos · premio:', e.message));
+    const cfgs = miembros.length ? await ServidorConfig.find({ guildId: { $in: miembros.map((m) => m.guild.id) }, 'crecimiento.votos.activo': true }) : [];
     let servidores = 0;
     for (const cfg of cfgs) {
         if (await premiarEnServidor(client, cfg, userId, oro, proximo).catch((e) => { console.error('Votos · servidor:', e.message); return false; })) servidores++;
     }
+    // Gracias por privado con lo que ha ganado (solo si juega en algún servidor).
+    if (miembros.length) await agradecer(client, userId, premio, racha, miembros.length).catch(() => {});
     // Liga Sokyo: cada voto suma puntos a los servidores de la Liga donde esté quien vota.
     await require('./liga.js').alVotar(client, userId).catch((e) => console.error('Votos · Liga:', e.message));
     // «Recordarme votar»: el aviso sale cuando se pueda volver a votar.
     await RecordatorioVoto.updateOne({ userId, activo: true }, { $set: { proximoAviso: proximo } }).catch(() => {});
-    return { estado: 'ok', oro, servidores };
+    return { estado: 'ok', oro, servidores, premiados: miembros.length, racha, premio };
+}
+
+async function agradecer(client, userId, premio, racha, n) {
+    const user = await client.users.fetch(userId).catch(() => null);
+    if (!user) return;
+    const idioma = await require('./preferencias.js').idiomaMiembro(userId, {}).catch(() => 'en');
+    const cosas = [`🪙 **${premio.oro}**`];
+    if (premio.cofre) cosas.push(t(idioma, '📦 un **cofre básico** gratis', '📦 a free **basic chest**'));
+    if (premio.epico) cosas.push(t(idioma, '💜 un **cofre épico** por tu racha', '💜 an **epic chest** for your streak'));
+    const donde = n === 1 ? t(idioma, 'en tu servidor', 'on your server') : t(idioma, `en cada uno de tus ${n} servidores`, `on each of your ${n} servers`);
+    const siguiente = 7 - (racha % 7 || 7);
+    await user.send(t(idioma,
+        `🗳️ **¡Gracias por votar!** Has ganado ${cosas.join(' + ')} ${donde}. Racha: **${racha} ${racha === 1 ? 'día' : 'días'}**${siguiente ? ` · cofre épico en ${siguiente} ${siguiente === 1 ? 'día' : 'días'}` : ''}.\n-# Abre los cofres con \`/jugar pase\`. Puedes volver a votar en 12 h.`,
+        `🗳️ **Thanks for voting!** You got ${cosas.join(' + ')} ${donde}. Streak: **${racha} day${racha === 1 ? '' : 's'}**${siguiente ? ` · epic chest in ${siguiente} day${siguiente === 1 ? '' : 's'}` : ''}.\n-# Open the chests with \`/games pass\`. You can vote again in 12 h.`)).catch(() => {});
 }
 
 // /votar recordar: activa o quita el aviso. Si ya puede votar, el primero sale enseguida.
@@ -177,7 +241,7 @@ async function resumenServidor(guild) {
 }
 
 module.exports = {
-    HORAS_ENTRE_VOTOS, ORO_POR_VOTO, urlVoto, urlFicha, webhookConfigurado,
+    HORAS_ENTRE_VOTOS, ORO_POR_VOTO, premioVoto, rachaVotos, urlVoto, urlFicha, webhookConfigurado,
     autorizacionValida, leerVoto, estadoVoto, rellenar, procesarVoto, publicarEstadisticas, resumenServidor,
     ponerRecordatorio, tieneRecordatorio, avisarRecordatorios,
 };

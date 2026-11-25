@@ -10,7 +10,7 @@ const P = require('./compisNucleo.js');
 
 const XP_NIVEL = 100;
 const NIVEL_MAX = 50;
-const XP = { cuidar: 5, expedicion: 15, carta: 10, granja: 10, cofre: 20, sobre: 20, casino: 3, mision: 10, misionSemanal: 50, hito: 40, serie: 40, logro: 25, combate: 8, victoria: 12, torre: 10, jefe: 10, minijuego: 4, diarioLogin: 15 };
+const XP = { cuidar: 5, expedicion: 15, carta: 10, granja: 10, cofre: 20, sobre: 20, casino: 3, mision: 10, misionSemanal: 50, hito: 40, serie: 40, logro: 25, combate: 8, victoria: 12, torre: 10, jefe: 10, minijuego: 4, diarioLogin: 15, voto: 25 };
 const TOPE_CASINO_DIA = 25; // partidas del casino que dan XP al día
 const ORO_EXTRA = 75;       // cada nivel por encima del máximo (prestigio)
 
