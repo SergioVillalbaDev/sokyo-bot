@@ -88,8 +88,15 @@ async function vendidos(guildId, ids) {
 }
 
 // Productos a la venta con lo que queda de cada uno (para Discord, la web y el panel).
-async function catalogo(guildId, cfg) {
+// En Free solo se venden los primeros (limites.tiendaProductos): si un servidor deja Pro, la tienda sigue
+// abierta con lo de arriba del todo.
+function aLaVenta(cfg) {
     const lista = (cfg?.tienda?.productos || []).filter((p) => p.activo !== false);
+    return lista.slice(0, require('./limites.js').limite(cfg, 'tiendaProductos'));
+}
+
+async function catalogo(guildId, cfg) {
+    const lista = aLaVenta(cfg);
     const conStock = lista.filter((p) => typeof p.stock === 'number').map((p) => p.id);
     const v = await vendidos(guildId, conStock);
     return lista.map((p) => ({ ...(p.toObject ? p.toObject() : p), quedan: typeof p.stock === 'number' ? Math.max(0, p.stock - (v[p.id] || 0)) : null }));
@@ -105,7 +112,7 @@ function comprar(guild, member, productoId, idioma = 'es') {
     return enFila(guild.id, async () => {
         const cfg = await ServidorConfig.findOne({ guildId: guild.id }).lean();
         if (!cfg?.tienda?.activo) return { ok: false, error: t(idioma, 'La tienda de este servidor está cerrada.', 'This server’s shop is closed.') };
-        const producto = (cfg.tienda.productos || []).find((p) => p.id === productoId && p.activo !== false);
+        const producto = aLaVenta(cfg).find((p) => p.id === productoId);
         if (!producto) return { ok: false, error: t(idioma, 'Ese producto ya no está a la venta.', 'That product is no longer for sale.') };
         const rol = guild.roles.cache.get(producto.rolId);
         const malRol = errorRol(guild, rol, cfg, idioma);
