@@ -797,7 +797,8 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             const cfg = (await cfgDe(guild.id)).toObject();
             const canal = guild.channels.cache.get(String((req.body && req.body.canalId) || cfg.casino.canalId || ''));
             if (!canal || !canal.isTextBased()) return res.status(400).json({ error: 'Elige un canal donde publicarlo' });
-            await canal.send({ ...require('../../utils/casinoAyuda.js').guiaGeneral(cfg, cfg), allowedMentions: { parse: [] } });
+            const { attachments, ...guia } = await require('../../utils/casinoAyuda.js').guiaGeneral(require('../../utils/i18n.js').t(cfg, 'es', 'en'), cfg, { canalId: canal.id, guildId: canal.guild?.id });
+            await canal.send({ ...guia, allowedMentions: { parse: [] } });
             res.json({ success: true });
         } catch (e) { console.error('POST casino/guia:', e.message); res.status(400).json({ error: e.message || 'No se pudo publicar el mensaje' }); }
     });

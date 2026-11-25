@@ -73,7 +73,11 @@ module.exports = {
         const idioma = await idiomaInteraccion(interaction, cfg);
         const sub = interaction.options.getSubcommand();
         const privado = (content) => interaction.reply({ content, flags: 64 });
-        if (sub === 'help') return interaction.reply({ ...require('../utils/casinoAyuda.js').guiaGeneral(idioma, cfg), flags: 64 });
+        if (sub === 'help') {
+            // 1.34.1: la guía lleva imagen; se avisa antes a Discord para no pasar de sus 3 s.
+            await interaction.deferReply({ flags: 64 });
+            return interaction.editReply(await require('../utils/casinoAyuda.js').guiaGeneral(idioma, cfg, { canalId: interaction.channelId, guildId: interaction.guildId }));
+        }
         if (sub === 'pause') {
             const hasta = await casino.pausa(interaction.guildId, interaction.user.id, interaction.options.getInteger('days'));
             return privado(t(idioma, `🧘 Hecho. No podrás jugar en el casino hasta <t:${Math.floor(hasta / 1000)}:F>. Cuídate 💛`, `🧘 Done. You can’t play at the casino until <t:${Math.floor(hasta / 1000)}:F>. Take care 💛`));

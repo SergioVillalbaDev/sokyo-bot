@@ -296,10 +296,91 @@ async function tarjetaRanking(d) {
     return c.toBuffer('image/png');
 }
 
+// ---------------------------------------------------------------------------
+// 🎰 Guía del casino (1.34.1): el mapa con todos los juegos de un vistazo.
+// d = { titulo, sub, pasos: [texto×3], grupos: [{ titulo, juegos: [{ emoji, nombre, facil, apagado }] }],
+//       pie: [texto…], textos: { facil } }
+// ---------------------------------------------------------------------------
+function tarjetaGuiaCasino(d) {
+    if (!listo()) return null;
+    const W = 920; const COLS = 6; const TW = 138; const TH = 104; const GAP = 10;
+    const filasDe = (n) => Math.ceil(n / COLS);
+    const altoGrupos = d.grupos.reduce((a, g) => a + 46 + filasDe(g.juegos.length) * (TH + GAP), 0);
+    const H = 196 + altoGrupos + 70;
+    const { c, ctx } = A.lienzo(W, H);
+    fondo(ctx, W, H, '#3b0710', '#0b1026', '#f59e0b');
+    // Luces de cabecera
+    for (let i = 0; i < 3; i++) {
+        const x = (W / 4) * (i + 1);
+        const g = ctx.createRadialGradient(x, 30, 5, x, 30, 260);
+        g.addColorStop(0, ['#f472b655', '#facc1544', '#38bdf844'][i]); g.addColorStop(1, '#00000000');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, 200);
+    }
+    texto(ctx, d.titulo, W / 2, 64, { tam: 44, alin: 'center', peso: '900', sombra: '#f472b6' });
+    if (d.sub) texto(ctx, d.sub, W / 2, 94, { tam: 16, alin: 'center', color: '#fde68a' });
+    // Tres pasos
+    const pw = 270; const px0 = (W - (3 * pw + 2 * 22)) / 2;
+    d.pasos.forEach((p, i) => {
+        const x = px0 + i * (pw + 22); const y = 116;
+        R(ctx, x, y, pw, 52, 26); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(253,230,138,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + 26, y + 26, 16, 0, Math.PI * 2); ctx.fillStyle = '#f59e0b'; ctx.fill();
+        texto(ctx, String(i + 1), x + 26, y + 27, { tam: 18, alin: 'center', base: 'middle', peso: '900', color: '#1c1917' });
+        texto(ctx, p, x + 52, y + 27, { tam: 16, base: 'middle', max: pw - 62 });
+        if (i < 2) texto(ctx, '›', x + pw + 11, y + 27, { tam: 26, alin: 'center', base: 'middle', color: '#fde68a' });
+    });
+    // Grupos de juegos
+    let y = 196;
+    for (const g of d.grupos) {
+        texto(ctx, g.titulo, 30, y + 26, { tam: 17, color: '#fde68a' });
+        ctx.fillStyle = 'rgba(253,230,138,0.25)'; ctx.fillRect(30 + ctx.measureText(g.titulo).width + 14, y + 20, W - 60 - ctx.measureText(g.titulo).width - 14, 1.5);
+        y += 46;
+        const x0 = (W - (COLS * TW + (COLS - 1) * GAP)) / 2;
+        g.juegos.forEach((j, i) => {
+            const x = x0 + (i % COLS) * (TW + GAP); const yy = y + Math.floor(i / COLS) * (TH + GAP);
+            R(ctx, x, yy, TW, TH, 16);
+            ctx.fillStyle = j.apagado ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.08)'; ctx.fill();
+            ctx.strokeStyle = j.facil && !j.apagado ? '#4ade80' : 'rgba(255,255,255,0.14)'; ctx.lineWidth = j.facil && !j.apagado ? 2.5 : 1.2; ctx.stroke();
+            ctx.globalAlpha = j.apagado ? 0.3 : 1;
+            texto(ctx, j.emoji, x + TW / 2, yy + 40, { tam: 38, alin: 'center', base: 'middle', peso: 'normal' });
+            texto(ctx, j.nombre, x + TW / 2, yy + 84, { tam: 14, alin: 'center', max: TW - 10 });
+            ctx.globalAlpha = 1;
+            if (j.apagado) texto(ctx, '🚫', x + TW - 12, yy + 16, { tam: 16, alin: 'right', base: 'middle', peso: 'normal' });
+            else if (j.facil) {
+                R(ctx, x + 6, yy + 6, 58, 20, 10); ctx.fillStyle = '#16a34a'; ctx.fill();
+                texto(ctx, d.textos?.facil || 'fácil', x + 35, yy + 17, { tam: 11, alin: 'center', base: 'middle', peso: '900' });
+            }
+        });
+        y += filasDe(g.juegos.length) * (TH + GAP);
+    }
+    // Pie con lo importante
+    R(ctx, 24, H - 58, W - 48, 40, 20); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+    texto(ctx, d.pie.join('   ·   '), W / 2, H - 37, { tam: 15, alin: 'center', base: 'middle', color: '#fef3c7', max: W - 80 });
+    return c.toBuffer('image/png');
+}
+
+// Icono de un juego para la ficha de la guía: el emoji grande en un cuadrado con brillo.
+const iconos = new Map();
+function iconoJuego(emoji, color = '#f59e0b') {
+    if (!listo()) return null;
+    const clave = `${emoji}|${color}`;
+    if (iconos.has(clave)) return iconos.get(clave);
+    const T = 160;
+    const { c, ctx } = A.lienzo(T, T);
+    const g = ctx.createRadialGradient(T / 2, T / 3, 10, T / 2, T / 2, T * 0.75);
+    g.addColorStop(0, `${color}cc`); g.addColorStop(1, '#0b1026');
+    R(ctx, 0, 0, T, T, 34); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 4; R(ctx, 2, 2, T - 4, T - 4, 32); ctx.stroke();
+    texto(ctx, emoji, T / 2, T / 2 + 4, { tam: 86, alin: 'center', base: 'middle', peso: 'normal' });
+    const b = c.toBuffer('image/png');
+    iconos.set(clave, b);
+    return b;
+}
+
 // Si algo falla al pintar, null: la vista vuelve al texto (en /diario el oro ya está dado, así que nunca debe romper la respuesta).
 const seguro = (fn) => (...a) => { try { return fn(...a); } catch (e) { console.error(`Arte (${fn.name}):`, e.message); return null; } };
 const seguroAsync = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { console.error(`Arte (${fn.name}):`, e.message); return null; } };
 module.exports = {
     tarjetaGranja: seguroAsync(tarjetaGranja), tarjetaPase: seguro(tarjetaPase), tarjetaLogros: seguro(tarjetaLogros),
-    tarjetaDiario: seguro(tarjetaDiario), tarjetaRanking: seguroAsync(tarjetaRanking), chipMision, barra, anillo, texto,
+    tarjetaDiario: seguro(tarjetaDiario), tarjetaRanking: seguroAsync(tarjetaRanking), tarjetaGuiaCasino: seguro(tarjetaGuiaCasino), iconoJuego: seguro(iconoJuego), chipMision, barra, anillo, texto,
 };

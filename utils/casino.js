@@ -33,9 +33,9 @@ const JUEGOS = {
     hilo: { emoji: '🔼', es: 'Mayor o menor', en: 'Higher or lower' },
     rasca: { emoji: '🎟️', es: 'Rasca y gana', en: 'Scratch card' },
     plinko: { emoji: '🔻', es: 'Plinko', en: 'Plinko' },             // 1.32.0
-    rueda: { emoji: '🎡', es: 'Rueda de la fortuna', en: 'Wheel of fortune' }, // 1.32.0
+    rueda: { emoji: '🛞', es: 'Rueda de la fortuna', en: 'Wheel of fortune' }, // 1.32.0 (1.34.1: su propio icono, no el de la ruleta)
     dados: { emoji: '🎲', es: 'Dados', en: 'Dice' },                  // 1.33.0: sic bo
-    baccarat: { emoji: '🂠', es: 'Baccarat', en: 'Baccarat' },         // 1.33.0
+    baccarat: { emoji: '🎴', es: 'Baccarat', en: 'Baccarat' },         // 1.33.0 (1.34.1: 🂠 no es un emoji para Discord y rompía los menús)
     bingo: { emoji: '🎱', es: 'Bingo', en: 'Bingo' },                  // 1.33.0: para todo el canal
     poker: { emoji: '♠️', es: 'Póker', en: 'Poker' },                 // 1.33.0: Texas Hold'em, 2-6 personas
 };
@@ -1013,11 +1013,16 @@ async function pausa(guildId, userId, dias) {
 async function manejar(interaction, client) {
     const id = interaction.customId || '';
     if (!id.startsWith('cas_')) return false;
-    if (interaction.isStringSelectMenu() && id === 'cas_guia') {
+    // Guía (1.34.1): elegir un juego en el menú o volver a «Todos los juegos».
+    if ((interaction.isStringSelectMenu() && id === 'cas_guia') || (interaction.isButton() && id === 'cas_guiav')) {
         const { getConfigCached } = require('./config.js');
         const { idiomaInteraccion } = require('./preferencias.js');
+        const G = require('./casinoAyuda.js');
         const cfg = await getConfigCached(interaction.guildId).catch(() => null);
-        await interaction.update(require('./casinoAyuda.js').guiaJuego(interaction.values[0], await idiomaInteraccion(interaction, cfg), cfg));
+        const idioma = await idiomaInteraccion(interaction, cfg);
+        const donde = { canalId: interaction.channelId, guildId: interaction.guildId };
+        const v = id === 'cas_guia' ? await G.guiaJuego(interaction.values[0], idioma, cfg, donde) : await G.guiaGeneral(idioma, cfg, donde);
+        await G.manejarGuia(interaction, v);
         return true;
     }
     if (interaction.isButton() && id.startsWith('cas_bj:')) { await botonBlackjack(interaction, client); return true; }
