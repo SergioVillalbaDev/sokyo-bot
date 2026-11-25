@@ -91,11 +91,16 @@ function jugarBanca(mano, mazo) {
     while (puntos(m).total < 17) m.push(mazo.pop());
     return m;
 }
-// Resultado y multiplicador (lo que se cobra sobre lo apostado).
-function resultadoBlackjack(jugador, banca) {
+// 1.33.0: se puede dividir con dos cartas del mismo valor (una vez). Tras dividir, 21 con dos cartas no es blackjack.
+const puedeDividir = (mano) => mano.length === 2 && valorCarta(mano[0]) === valorCarta(mano[1]);
+// Seguro: si la banca enseña un As, puedes asegurar la mitad de tu apuesta; paga 2 a 1 si tiene blackjack.
+const ofreceSeguro = (banca, jugador) => banca[0].startsWith('A') && !esBlackjack(jugador);
+const pagoSeguro = (banca) => (esBlackjack(banca) ? 3 : 0); // lo que se cobra sobre lo asegurado (vuelve lo puesto + 2 a 1)
+// Resultado y multiplicador (lo que se cobra sobre lo apostado). `dividida`: la mano viene de dividir.
+function resultadoBlackjack(jugador, banca, dividida = false) {
     const pj = puntos(jugador).total; const pb = puntos(banca).total;
     if (pj > 21) return { res: 'pasa', mult: 0 };
-    if (esBlackjack(jugador) && !esBlackjack(banca)) return { res: 'blackjack', mult: 2.5 };
+    if (esBlackjack(jugador) && !dividida && !esBlackjack(banca)) return { res: 'blackjack', mult: 2.5 };
     if (esBlackjack(banca) && !esBlackjack(jugador)) return { res: 'pierde', mult: 0 };
     if (pb > 21) return { res: 'gana', mult: 2 };
     if (pj > pb) return { res: 'gana', mult: 2 };
@@ -347,7 +352,7 @@ module.exports = {
     azarSeguro,
     SIMBOLOS, simbolo, simboloAlAzar, pagoTragaperras, tirarTragaperras,
     ROJOS, ORDEN_RUEDA, colorNumero, APUESTAS_RULETA, pagoRuleta, girarRuleta,
-    PALOS, baraja, valorCarta, puntos, esBlackjack, jugarBanca, resultadoBlackjack,
+    PALOS, baraja, valorCarta, puntos, esBlackjack, jugarBanca, resultadoBlackjack, puedeDividir, ofreceSeguro, pagoSeguro,
     CRASH_VENTAJA, puntoCrash, multCrash, segundosHasta,
     CASILLAS, colocarMinas, multMinas,
     MONEDA_PAGO, DUELO_COMISION, lanzarMoneda,

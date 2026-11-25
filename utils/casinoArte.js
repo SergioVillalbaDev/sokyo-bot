@@ -391,7 +391,7 @@ function carta(ctx, x, y, c, oculta = false) {
 // Pinta la mesa en `ctx`. anim (1.31.1, para el GIF de la banca): { volteo: 0..1 de la carta
 // tapada, entra: 0..1 de la última carta de la banca, huecos: cartas de la banca al final (para
 // que la fila no se recoloque a saltos), puntos: los puntos que se enseñan de la banca }.
-function pintarMesa(ctx, W, H, { jugador, banca, ocultar = true, textos = {}, resultado = null, anim = null }) {
+function pintarMesa(ctx, W, H, { jugador, jugador2 = null, activa = null, banca, ocultar = true, textos = {}, resultado = null, anim = null }) {
     const g = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W / 1.4);
     g.addColorStop(0, '#15803d'); g.addColorStop(1, '#052e16');
     redondeado(ctx, 0, 0, W, H, 26); ctx.fillStyle = g; ctx.fill();
@@ -426,11 +426,24 @@ function pintarMesa(ctx, W, H, { jugador, banca, ocultar = true, textos = {}, re
         });
     };
     fila(banca, 28, ocultar, anim?.huecos || banca.length, true);
-    fila(jugador, 236, false);
     ctx.fillStyle = '#fef3c7'; ctx.font = `bold 18px ${FUENTE}`; ctx.textAlign = 'left';
     const pb = anim?.puntos != null ? String(anim.puntos) : ocultar ? `${C.valorCarta(banca[0])} + ?` : String(C.puntos(banca).total);
     ctx.fillText(`${textos.banca || 'Banca'}: ${pb}`, 24, 30 + 6);
-    ctx.fillText(`${textos.tu || 'Tú'}: ${C.puntos(jugador).total}`, 24, 236 + 6);
+    if (jugador2) {
+        // 1.33.0: mano dividida. Dos manos más juntas, una a cada lado; la que se juega, con marco.
+        const mano = (m, cx, n) => {
+            const paso = 34; const ancho = (m.length - 1) * paso + 72; const x0 = cx - ancho / 2;
+            if (activa === n) { ctx.save(); ctx.strokeStyle = '#facc15'; ctx.lineWidth = 3; redondeado(ctx, x0 - 8, 228, ancho + 16, 124, 12); ctx.stroke(); ctx.restore(); }
+            m.forEach((cc, i) => carta(ctx, x0 + i * paso, 236, cc, false));
+            ctx.fillStyle = '#fef3c7'; ctx.font = `bold 16px ${FUENTE}`; ctx.textAlign = 'center';
+            ctx.fillText(`${textos.mano || 'Mano'} ${n + 1}: ${C.puntos(m).total}`, cx, 222);
+        };
+        mano(jugador, W / 4, 0); mano(jugador2, (W * 3) / 4, 1);
+    } else {
+        fila(jugador, 236, false);
+        ctx.fillStyle = '#fef3c7'; ctx.font = `bold 18px ${FUENTE}`; ctx.textAlign = 'left';
+        ctx.fillText(`${textos.tu || 'Tú'}: ${C.puntos(jugador).total}`, 24, 236 + 6);
+    }
     // Al acabar: la pastilla con lo ganado/perdido y, encima, la palabra clave (BLACKJACK, EMPATE…).
     if (resultado) {
         if (resultado.titulo) {
@@ -451,12 +464,12 @@ function mesaBlackjack(opc) {
 // 1.31.1: el final de la mano en UN GIF (antes, una edición del mensaje por carta: la imagen
 // saltaba cada vez). La banca destapa su carta, roba las que le tocan y sale el resultado.
 // bancaInicial: sus 2 cartas; banca: todas las del final; destapar: false si ya se veían.
-async function gifBlackjack({ jugador, bancaInicial, banca, textos = {}, resultado = null, destapar = true }) {
+async function gifBlackjack({ jugador, jugador2 = null, bancaInicial, banca, textos = {}, resultado = null, destapar = true }) {
     if (!listo()) return null;
     const W = 640; const H = 380;
     const frames = [];
     const huecos = banca.length;
-    const foto = (opc, delay) => { const { ctx } = lienzo(W, H); pintarMesa(ctx, W, H, { jugador, textos, ...opc, anim: { huecos, ...opc.anim } }); frames.push({ ctx, delay }); };
+    const foto = (opc, delay) => { const { ctx } = lienzo(W, H); pintarMesa(ctx, W, H, { jugador, jugador2, textos, ...opc, anim: { huecos, ...opc.anim } }); frames.push({ ctx, delay }); };
     foto({ banca: bancaInicial, ocultar: destapar, anim: { puntos: destapar ? `${C.valorCarta(bancaInicial[0])} + ?` : C.puntos(bancaInicial).total } }, 350);
     if (destapar) {
         for (let k = 1; k <= 10; k++) foto({ banca: bancaInicial, ocultar: false, anim: { volteo: k / 10, puntos: k < 5 ? `${C.valorCarta(bancaInicial[0])} + ?` : C.puntos(bancaInicial).total } }, 35);

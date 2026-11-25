@@ -266,9 +266,11 @@ function limpiarPartidas(client = null) {
         if (p.caduca >= ahora) continue;
         partidas.delete(k);
         if (p.tipo === 'bj') {
-            const banca = C.jugarBanca(p.banca, p.mazo);
-            const apuesta = p.apuesta * (p.doblada ? 2 : 1);
-            cobrarJugada(client, p.cfg, { ...p.jugada.toObject(), apuesta }, Math.floor(apuesta * C.resultadoBlackjack(p.jugador, banca).mult), { abandonada: true }).catch(() => {});
+            // Abandonada: se planta (y sin seguro si no lo eligió); se cobran todas las manos y el seguro.
+            p.banca = C.jugarBanca(p.banca, p.mazo);
+            const cobro = cobroBlackjack(p);
+            JugadaCasino.updateOne({ _id: p.jugada._id }, { $set: { apuesta: cobro.apuesta } }).catch(() => {});
+            cobrarJugada(client, p.cfg, { ...p.jugada.toObject(), apuesta: cobro.apuesta }, cobro.premio, { abandonada: true }).catch(() => {});
         } else if (p.tipo === 'minas') {
             cobrarJugada(client, p.cfg, p.jugada, Math.floor(p.apuesta * C.multMinas(p.minas, p.abiertas.length)), { abandonada: true }).catch(() => {});
         } else if (p.tipo === 'hilo') {
@@ -280,17 +282,30 @@ function limpiarPartidas(client = null) {
 }
 const barrerPartidas = (client) => limpiarPartidas(client);
 
+// 1.33.0: dividir (dos manos que se juegan una detrás de otra, `p.manos`) y seguro (si la banca enseña un As).
+const manosDe = (p) => p.manos || [p.jugador];
+const apuestaTotal = (p) => (p.manos ? p.apuestas.reduce((a, b) => a + b, 0) : p.apuesta * (p.doblada ? 2 : 1)) + (p.seguro || 0);
 function vistaBlackjack(p, idioma, { fin = null, ocultar = true } = {}) {
-    const png = A.mesaBlackjack({ jugador: p.jugador, banca: p.banca, ocultar, resultado: fin?.resultado || null, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You'), lema: t(idioma, 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', 'BLACKJACK PAYS 3 TO 2 · DEALER STANDS ON 17') } });
+    const dividida = !!p.manos;
+    const png = A.mesaBlackjack({ jugador: manosDe(p)[0], jugador2: dividida ? p.manos[1] : null, activa: dividida && !fin ? p.mano : null, banca: p.banca, ocultar, resultado: fin?.resultado || null, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You'), mano: t(idioma, 'Mano', 'Hand'), lema: t(idioma, 'BLACKJACK PAGA 3 A 2 · LA BANCA SE PLANTA EN 17', 'BLACKJACK PAYS 3 TO 2 · DEALER STANDS ON 17') } });
     const e = new EmbedBuilder().setColor(fin ? (fin.mult > 1 ? '#16a34a' : fin.mult === 1 ? '#a16207' : '#7f1d1d') : '#14532d')
-        .setTitle(t(idioma, `🃏 Blackjack · 🪙 ${fmt(p.apuesta * (p.doblada ? 2 : 1), idioma)}`, `🃏 Blackjack · 🪙 ${fmt(p.apuesta * (p.doblada ? 2 : 1), idioma)}`));
+        .setTitle(t(idioma, `🃏 Blackjack · 🪙 ${fmt(apuestaTotal(p), idioma)}`, `🃏 Blackjack · 🪙 ${fmt(apuestaTotal(p), idioma)}`));
     // 1.31.0: con la mesa dibujada (puntos y resultado incluidos) sobra el texto.
     if (png) e.setImage('attachment://mesa.png');
-    else e.setDescription(fin ? fin.texto : t(idioma, `Tienes **${C.puntos(p.jugador).total}**. ¿Pides otra carta o te plantas?`, `You have **${C.puntos(p.jugador).total}**. Hit or stand?`));
-    const botones = fin ? [] : [new ActionRowBuilder().addComponents(
+    if (!fin && p.fase === 'seguro') e.setDescription(t(idioma, `🛡️ La banca enseña un **As**. ¿Quieres **seguro**? Cuesta 🪙 ${fmt(Math.floor(p.apuesta / 2), idioma)} y paga 2 a 1 si la banca tiene blackjack.`, `🛡️ The dealer shows an **Ace**. Want **insurance**? It costs 🪙 ${fmt(Math.floor(p.apuesta / 2), idioma)} and pays 2 to 1 if the dealer has blackjack.`));
+    else if (!fin && dividida) e.setDescription(t(idioma, `✂️ Mano dividida: juegas la **mano ${p.mano + 1}**.`, `✂️ Split hand: playing **hand ${p.mano + 1}**.`));
+    else if (!png) e.setDescription(fin ? fin.texto : t(idioma, `Tienes **${C.puntos(p.jugador).total}**. ¿Pides otra carta o te plantas?`, `You have **${C.puntos(p.jugador).total}**. Hit or stand?`));
+    const actual = manosDe(p)[p.mano || 0];
+    const puedeDoblar = actual.length === 2 && !(p.manos ? p.dobladas[p.mano] : p.doblada);
+    const puedeDividir = !p.manos && C.puedeDividir(p.jugador);
+    const botones = fin ? [] : p.fase === 'seguro' ? [new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`cas_bj:${p.id}:seguro`).setLabel(t(idioma, `Seguro (🪙 ${fmt(Math.floor(p.apuesta / 2), idioma)})`, `Insurance (🪙 ${fmt(Math.floor(p.apuesta / 2), idioma)})`)).setEmoji('🛡️').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`cas_bj:${p.id}:sinseguro`).setLabel(t(idioma, 'Sin seguro', 'No insurance')).setStyle(ButtonStyle.Secondary),
+    )] : [new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`cas_bj:${p.id}:pedir`).setLabel(t(idioma, 'Pedir', 'Hit')).setEmoji('➕').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(`cas_bj:${p.id}:plantarse`).setLabel(t(idioma, 'Plantarse', 'Stand')).setEmoji('✋').setStyle(ButtonStyle.Secondary),
-        ...(p.jugador.length === 2 && !p.doblada ? [new ButtonBuilder().setCustomId(`cas_bj:${p.id}:doblar`).setLabel(t(idioma, `Doblar (🪙 ${p.apuesta})`, `Double (🪙 ${p.apuesta})`)).setEmoji('💰').setStyle(ButtonStyle.Success)] : []),
+        ...(puedeDoblar ? [new ButtonBuilder().setCustomId(`cas_bj:${p.id}:doblar`).setLabel(t(idioma, `Doblar (🪙 ${p.apuesta})`, `Double (🪙 ${p.apuesta})`)).setEmoji('💰').setStyle(ButtonStyle.Success)] : []),
+        ...(puedeDividir ? [new ButtonBuilder().setCustomId(`cas_bj:${p.id}:dividir`).setLabel(t(idioma, `Dividir (🪙 ${p.apuesta})`, `Split (🪙 ${p.apuesta})`)).setEmoji('✂️').setStyle(ButtonStyle.Success)] : []),
     )];
     return { embeds: [e], files: png ? [new AttachmentBuilder(png, { name: 'mesa.png' })] : [], components: botones, attachments: [] };
 }
@@ -300,8 +315,14 @@ async function blackjack({ interaction, client, cfg, idioma, cantidad }) {
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     limpiarPartidas(client);
     const mazo = C.baraja();
-    const p = { id: nuevoId(), tipo: 'bj', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, mazo, jugador: [mazo.pop(), mazo.pop()], banca: [mazo.pop(), mazo.pop()], doblada: false, caduca: Date.now() + 10 * 60000, cfg, idioma };
+    const p = { id: nuevoId(), tipo: 'bj', userId: interaction.user.id, jugada: a.jugada, apuesta: a.jugada.apuesta, mazo, jugador: [mazo.pop(), mazo.pop()], banca: [mazo.pop(), mazo.pop()], doblada: false, caduca: Date.now() + 10 * 60000, cfg, idioma };
     partidas.set(p.id, p);
+    // Con un As de la banca se ofrece el seguro ANTES de mirar si tiene blackjack.
+    if (C.ofreceSeguro(p.banca, p.jugador)) {
+        p.fase = 'seguro';
+        await interaction.editReply(vistaBlackjack(p, idioma));
+        return { ok: true };
+    }
     if (C.esBlackjack(p.jugador) || C.esBlackjack(p.banca)) {
         await interaction.editReply(vistaBlackjack(p, idioma, { ocultar: false }));
         await terminarBlackjack(interaction, client, p, true);
@@ -311,22 +332,34 @@ async function blackjack({ interaction, client, cfg, idioma, cantidad }) {
     return { ok: true };
 }
 
+// Cuánto se cobra de cada mano (y del seguro) con la banca ya jugada.
+function cobroBlackjack(p) {
+    const manos = manosDe(p);
+    const res = manos.map((m, i) => {
+        const r = C.resultadoBlackjack(m, p.banca, !!p.manos);
+        const ap = p.manos ? p.apuestas[i] : p.apuesta * (p.doblada ? 2 : 1);
+        return { ...r, apuesta: ap, premio: Math.floor(ap * r.mult) };
+    });
+    const seguro = p.seguro ? Math.floor(p.seguro * C.pagoSeguro(p.banca)) : 0;
+    return { res, seguro, premio: res.reduce((a, r) => a + r.premio, 0) + seguro, apuesta: apuestaTotal(p) };
+}
+
 async function terminarBlackjack(interaction, client, p, yaEditado = false) {
     partidas.delete(p.id);
     const idioma = p.idioma;
     // 1.31.1: la banca juega entera aquí y se enseña en UN GIF (destapa, roba y resultado).
-    // Antes era una edición del mensaje por carta y la imagen saltaba en cada una.
     const bancaInicial = [...p.banca];
-    if (C.puntos(p.jugador).total <= 21 && !C.esBlackjack(p.jugador)) {
+    if (manosDe(p).some((m) => C.puntos(m).total <= 21 && !(C.esBlackjack(m) && !p.manos))) {
         while (C.puntos(p.banca).total < 17) p.banca.push(p.mazo.pop());
     }
-    const r = C.resultadoBlackjack(p.jugador, p.banca);
-    const apuesta = p.apuesta * (p.doblada ? 2 : 1);
-    const premio = Math.floor(apuesta * r.mult);
+    const cobro = cobroBlackjack(p);
+    const r = p.manos ? { res: cobro.premio > cobro.apuesta ? 'gana' : cobro.premio === cobro.apuesta ? 'empate' : 'pierde', mult: cobro.apuesta ? cobro.premio / cobro.apuesta : 0 } : cobro.res[0];
+    const apuesta = cobro.apuesta;
+    const premio = cobro.premio;
     const jugada = p.jugada;
     jugada.apuesta = apuesta;
-    if (p.doblada) await JugadaCasino.updateOne({ _id: jugada._id }, { $set: { apuesta } });
-    const { vuelta } = await cobrarJugada(client, p.cfg, jugada, premio, { jugador: p.jugador, banca: p.banca, res: r.res });
+    if (apuesta !== p.apuesta) await JugadaCasino.updateOne({ _id: jugada._id }, { $set: { apuesta } });
+    const { vuelta } = await cobrarJugada(client, p.cfg, jugada, premio, { jugador: p.jugador, manos: p.manos || null, banca: p.banca, res: r.res, seguro: p.seguro || 0 });
     const saldo = await saldoDe(p.jugada.guildId, p.userId);
     const textos = {
         blackjack: t(idioma, `🂡 **¡BLACKJACK!** Ganas **🪙 ${fmt(premio, idioma)}**`, `🂡 **BLACKJACK!** You win **🪙 ${fmt(premio, idioma)}**`),
@@ -336,13 +369,16 @@ async function terminarBlackjack(interaction, client, p, yaEditado = false) {
         pierde: t(idioma, `😞 Gana la banca. Pierdes **🪙 ${fmt(apuesta, idioma)}**.`, `😞 Dealer wins. You lose **🪙 ${fmt(apuesta, idioma)}**.`),
     };
     const titulos = { blackjack: 'BLACKJACK!', gana: t(idioma, '¡GANAS!', 'YOU WIN!'), empate: t(idioma, 'EMPATE', 'PUSH'), pasa: t(idioma, 'TE PASAS', 'BUST'), pierde: t(idioma, 'GANA LA BANCA', 'DEALER WINS') };
-    const resultado = { premio, apuesta, idioma, titulo: titulos[r.res], saldo, vuelta };
-    const v = vistaBlackjack(p, idioma, { ocultar: false, fin: { mult: r.mult, resultado, texto: `${t(idioma, 'Banca', 'Dealer')} **${C.puntos(p.banca).total}** · ${t(idioma, 'Tú', 'You')} **${C.puntos(p.jugador).total}**\n\n${textos[r.res]}` } });
-    const gif = await A.gifBlackjack({ jugador: p.jugador, bancaInicial, banca: p.banca, resultado, destapar: !yaEditado, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You') } }).catch(() => null);
+    const nombreRes = { blackjack: 'BJ', gana: t(idioma, 'gana', 'win'), empate: t(idioma, 'empate', 'push'), pasa: t(idioma, 'se pasa', 'bust'), pierde: t(idioma, 'pierde', 'lose') };
+    const detalleManos = p.manos ? cobro.res.map((x2, i) => `${t(idioma, 'Mano', 'Hand')} ${i + 1}: ${nombreRes[x2.res]}`).join(' · ') : '';
+    const detalleSeguro = p.seguro ? (cobro.seguro ? t(idioma, `🛡️ El seguro paga 🪙 ${fmt(cobro.seguro, idioma)}`, `🛡️ Insurance pays 🪙 ${fmt(cobro.seguro, idioma)}`) : t(idioma, '🛡️ Seguro perdido', '🛡️ Insurance lost')) : '';
+    const resultado = { premio, apuesta, idioma, titulo: p.manos ? detalleManos.toUpperCase() : titulos[r.res], saldo, vuelta };
+    const v = vistaBlackjack(p, idioma, { ocultar: false, fin: { mult: r.mult, resultado, texto: [`${t(idioma, 'Banca', 'Dealer')} **${C.puntos(p.banca).total}** · ${t(idioma, 'Tú', 'You')} **${manosDe(p).map((m) => C.puntos(m).total).join(' / ')}**`, '', p.manos ? `${detalleManos}\n${masMenos(premio, apuesta, idioma)}` : textos[r.res], detalleSeguro].filter(Boolean).join('\n') } });
+    const gif = await A.gifBlackjack({ jugador: manosDe(p)[0], jugador2: p.manos ? p.manos[1] : null, bancaInicial, banca: p.banca, resultado, destapar: !yaEditado, textos: { banca: t(idioma, 'Banca', 'Dealer'), tu: t(idioma, 'Tú', 'You'), mano: t(idioma, 'Mano', 'Hand') } }).catch(() => null);
     if (gif) {
         // Color neutro: si cambiara ya, se sabría el resultado antes de que la banca destape.
         v.embeds[0].setImage('attachment://mesa.gif').setColor('#14532d')
-            .setDescription(oculto(`${titulos[r.res]} (${C.puntos(p.banca).total}-${C.puntos(p.jugador).total})  ${masMenos(premio, apuesta, idioma)} · 🪙 ${fmt(saldo, idioma)}`));
+            .setDescription(oculto(`${p.manos ? detalleManos : titulos[r.res]} (${C.puntos(p.banca).total}-${manosDe(p).map((m) => C.puntos(m).total).join('/')})  ${masMenos(premio, apuesta, idioma)} · 🪙 ${fmt(saldo, idioma)}${detalleSeguro ? `\n${detalleSeguro}` : ''}`));
         v.files = [new AttachmentBuilder(gif, { name: 'mesa.gif' })];
     } else {
         v.embeds[0].setFooter({ text: pieSaldo(idioma, saldo, vuelta) });
@@ -351,6 +387,15 @@ async function terminarBlackjack(interaction, client, p, yaEditado = false) {
     await interaction.editReply(v).catch(() => {});
 }
 
+// Pasa a la siguiente mano (si está dividida) o termina.
+async function siguienteMano(interaction, client, p, idioma) {
+    if (p.manos && p.mano < p.manos.length - 1) {
+        p.mano += 1;
+        if (C.puntos(p.manos[p.mano]).total >= 21) return siguienteMano(interaction, client, p, idioma);
+        return interaction.editReply(vistaBlackjack(p, idioma));
+    }
+    return terminarBlackjack(interaction, client, p);
+}
 async function botonBlackjack(interaction, client) {
     const [, id, accion] = interaction.customId.split(':');
     const p = partidas.get(id);
@@ -361,21 +406,47 @@ async function botonBlackjack(interaction, client) {
     if (p.ocupada) return interaction.deferUpdate().catch(() => {});
     p.ocupada = true;
     await interaction.deferUpdate();
+    const eco = require('./economia.js').en(p.jugada.guildId);
     try {
-        if (accion === 'doblar') {
-            if (p.jugador.length !== 2 || p.doblada) return;
-            const saldo = await require('./economia.js').en(p.jugada.guildId).cobrar(p.userId, p.apuesta);
-            if (saldo === null) { await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${p.apuesta} para doblar.`, `You don’t have 🪙 ${p.apuesta} to double.`), flags: 64 }); return; }
-            p.doblada = true;
-            p.jugador.push(p.mazo.pop());
-            return await terminarBlackjack(interaction, client, p);
-        }
-        if (accion === 'pedir') {
-            p.jugador.push(p.mazo.pop());
-            if (C.puntos(p.jugador).total >= 21) return await terminarBlackjack(interaction, client, p);
+        if (p.fase === 'seguro') {
+            if (accion !== 'seguro' && accion !== 'sinseguro') return;
+            if (accion === 'seguro') {
+                const coste = Math.floor(p.apuesta / 2);
+                if (coste > 0 && (await eco.cobrar(p.userId, coste)) === null) await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${coste} para el seguro: sigues sin él.`, `You don’t have 🪙 ${coste} for insurance: playing without it.`), flags: 64 });
+                else p.seguro = coste;
+            }
+            p.fase = 'juega';
+            // Ahora sí se mira si la banca tiene blackjack.
+            if (C.esBlackjack(p.banca) || C.esBlackjack(p.jugador)) return await terminarBlackjack(interaction, client, p);
             return await interaction.editReply(vistaBlackjack(p, idioma));
         }
-        return await terminarBlackjack(interaction, client, p);
+        const mano = manosDe(p)[p.mano || 0];
+        if (accion === 'dividir') {
+            if (p.manos || !C.puedeDividir(p.jugador)) return;
+            if ((await eco.cobrar(p.userId, p.apuesta)) === null) { await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${p.apuesta} para dividir.`, `You don’t have 🪙 ${p.apuesta} to split.`), flags: 64 }); return; }
+            const ases = p.jugador[0].startsWith('A');
+            p.manos = [[p.jugador[0], p.mazo.pop()], [p.jugador[1], p.mazo.pop()]];
+            p.jugador = p.manos[0];
+            p.apuestas = [p.apuesta, p.apuesta]; p.dobladas = [false, false]; p.mano = 0;
+            // Ases divididos: una sola carta cada uno y se plantan solos.
+            if (ases) return await terminarBlackjack(interaction, client, p);
+            if (C.puntos(p.manos[0]).total >= 21) return await siguienteMano(interaction, client, p, idioma);
+            return await interaction.editReply(vistaBlackjack(p, idioma));
+        }
+        if (accion === 'doblar') {
+            const yaDoblada = p.manos ? p.dobladas[p.mano] : p.doblada;
+            if (mano.length !== 2 || yaDoblada) return;
+            if ((await eco.cobrar(p.userId, p.apuesta)) === null) { await interaction.followUp({ content: t(idioma, `No tienes 🪙 ${p.apuesta} para doblar.`, `You don’t have 🪙 ${p.apuesta} to double.`), flags: 64 }); return; }
+            if (p.manos) { p.dobladas[p.mano] = true; p.apuestas[p.mano] = p.apuesta * 2; } else p.doblada = true;
+            mano.push(p.mazo.pop());
+            return await siguienteMano(interaction, client, p, idioma);
+        }
+        if (accion === 'pedir') {
+            mano.push(p.mazo.pop());
+            if (C.puntos(mano).total >= 21) return await siguienteMano(interaction, client, p, idioma);
+            return await interaction.editReply(vistaBlackjack(p, idioma));
+        }
+        return await siguienteMano(interaction, client, p, idioma);
     } finally { p.ocupada = false; }
 }
 

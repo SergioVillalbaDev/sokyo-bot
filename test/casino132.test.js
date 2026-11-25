@@ -62,3 +62,27 @@ test('juego responsable: avisa a las 10 seguidas sin ganar, una vez por racha', 
     assert.strictEqual(C.tocaAviso({ rachaPerdidas: 20, avisoRacha: 10 }), true);
     assert.strictEqual(C.tocaAviso({}), false);
 });
+
+// 1.33.0: blackjack con dividir y seguro.
+test('blackjack: dividir solo con dos cartas del mismo valor', () => {
+    const C = require('../utils/casinoNucleo.js');
+    assert.equal(C.puedeDividir(['8♠', '8♥']), true);
+    assert.equal(C.puedeDividir(['K♠', 'Q♥']), true); // las dos valen 10
+    assert.equal(C.puedeDividir(['8♠', '9♥']), false);
+    assert.equal(C.puedeDividir(['8♠', '8♥', '2♣']), false);
+});
+
+test('blackjack: seguro con As de la banca y paga 2 a 1 solo con blackjack', () => {
+    const C = require('../utils/casinoNucleo.js');
+    assert.equal(C.ofreceSeguro(['A♠', '5♥'], ['9♣', '7♦']), true);
+    assert.equal(C.ofreceSeguro(['K♠', 'A♥'], ['9♣', '7♦']), false);
+    assert.equal(C.ofreceSeguro(['A♠', '5♥'], ['A♣', 'K♦']), false);
+    assert.equal(C.pagoSeguro(['A♠', 'K♥']), 3); // se devuelve lo pagado + 2 a 1
+    assert.equal(C.pagoSeguro(['A♠', '5♥']), 0);
+});
+
+test('blackjack: 21 con dos cartas tras dividir no es blackjack (paga 1 a 1)', () => {
+    const C = require('../utils/casinoNucleo.js');
+    assert.equal(C.resultadoBlackjack(['A♠', 'K♥'], ['10♣', '8♦']).mult, 2.5);
+    assert.equal(C.resultadoBlackjack(['A♠', 'K♥'], ['10♣', '8♦'], true).mult, 2);
+});
