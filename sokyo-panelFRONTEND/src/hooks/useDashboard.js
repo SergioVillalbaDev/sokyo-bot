@@ -30,7 +30,13 @@ export function useDashboard() {
   useEffect(() => { sessionStorage.removeItem('sokyoPestanaTrasLogin'); }, []);
 
   // Servidor (guild) seleccionado en el panel + lista de servidores del bot.
-  const [guildId, setGuildIdState] = useState(() => localStorage.getItem('sokyoGuild') || '');
+  // 2.0.0: /panel?servidor=<id> (enlace del mensaje de entrada del bot) abre directamente ese servidor.
+  const [guildId, setGuildIdState] = useState(() => {
+    const pedido = new URLSearchParams(window.location.search).get('servidor') || sessionStorage.getItem('sokyoGuildTrasLogin');
+    sessionStorage.removeItem('sokyoGuildTrasLogin');
+    if (pedido && /^\d{17,20}$/.test(pedido)) { localStorage.setItem('sokyoGuild', pedido); return pedido; }
+    return localStorage.getItem('sokyoGuild') || '';
+  });
   const [servidores, setServidores] = useState([]);
   // Modal "elige servidor": se muestra al entrar si hay varios y aún no se eligió
   // uno en ESTE dispositivo (localStorage es por navegador, de ahí la confusión).
@@ -1646,7 +1652,10 @@ export function useDashboard() {
   }, [temasPremium, theme]);
 
   useEffect(() => {
-    if (guildId || servidores.length === 0) return;
+    if (servidores.length === 0) return;
+    // Un servidor guardado (o pedido por enlace) al que ya no tiene acceso: se vuelve a elegir.
+    if (guildId && !servidores.some((s) => s.id === guildId)) { setGuildId(''); return; }
+    if (guildId) return;
     // Un solo servidor: entrar directo. Varios: preguntar cuál gestionar.
     if (servidores.length === 1) setGuildId(servidores[0].id);
     else setMostrarSelectorServidor(true);

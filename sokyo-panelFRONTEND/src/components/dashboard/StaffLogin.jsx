@@ -1,9 +1,10 @@
 // Pantalla de login del staff (OAuth de Discord con state=staff).
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LogIn, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { LogIn, AlertTriangle, ArrowLeft, CircleUserRound, Plus, ShieldCheck } from 'lucide-react';
 import { API_URL } from '../../lib/api';
 import LanguageSwitcher from '../LanguageSwitcher';
+import { inviteUrl } from '../../lib/landingConfig';
 
 export default function StaffLogin({ error }) {
   const { t } = useTranslation();
@@ -14,6 +15,40 @@ export default function StaffLogin({ error }) {
   const mensajeError = error === 'denegado' ? t('dashboard.auth.errDenied')
     : error === 'nostaff' ? t('dashboard.auth.errNoStaff')
     : error ? t('dashboard.auth.errOauth') : '';
+
+  // 2.0.0: entró con Discord pero no gestiona ningún servidor con Sokyo. No es un error: le
+  // explicamos quién entra aquí y le damos sus dos caminos (su web «Mi cuenta» o añadir el bot).
+  if (error === 'nostaff') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg p-4 text-fg">
+        <a href="/" className="absolute left-5 top-5 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-fg">
+          <ArrowLeft size={16} /> {t('dashboard.auth.back')}
+        </a>
+        <div className="absolute right-5 top-5"><LanguageSwitcher /></div>
+        <div className="w-full max-w-md rounded-3xl border border-line bg-card p-8 shadow-soft">
+          <img src="/assets/logo-160.webp" alt="Sokyo" width="56" height="56" className="mx-auto h-14 w-14 rounded-full object-cover" />
+          <h1 className="mt-5 text-center text-2xl font-extrabold tracking-tight text-fg">{t('dashboard.auth.noStaffTitle')}</h1>
+          <p className="mt-2 text-center text-sm text-muted">{t('dashboard.auth.noStaffDesc')}</p>
+          <div className="mt-5 rounded-2xl border border-line bg-bg p-4 text-sm text-fg">
+            <p className="flex items-center gap-2 font-semibold"><ShieldCheck size={16} className="text-brand" /> {t('dashboard.auth.whoTitle')}</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+              <li>{t('dashboard.auth.who1')}</li>
+              <li>{t('dashboard.auth.who2')}</li>
+              <li>{t('dashboard.auth.who3')}</li>
+            </ul>
+          </div>
+          <a href="/cuenta" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-base font-semibold text-white shadow-lg transition-transform hover:scale-[1.02]">
+            <CircleUserRound size={18} /> {t('dashboard.auth.goAccount')}
+          </a>
+          <p className="mt-1.5 text-center text-xs text-muted">{t('dashboard.auth.goAccountHint')}</p>
+          <a href={inviteUrl} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-line px-6 py-3 text-sm font-semibold text-fg transition-colors hover:bg-elevated">
+            <Plus size={16} /> {t('dashboard.auth.addBot')}
+          </a>
+          <a href={`${API_URL}/api/auth/discord?state=staff`} className="mt-3 block text-center text-xs text-muted underline-offset-2 hover:underline">{t('dashboard.auth.tryOther')}</a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-4 text-fg">

@@ -1,6 +1,6 @@
 const { Events, ChannelType, PermissionsBitField } = require('discord.js');
 const ServidorConfig = require('../models/ServidorConfig.js');
-const { construirBienvenida, cargarMensajeEntrada } = require('../utils/onboarding.js');
+const { construirBienvenida, construirSaludoPublico, cargarMensajeEntrada } = require('../utils/onboarding.js');
 const { cargarInvitaciones } = require('../utils/invitaciones.js');
 
 module.exports = {
@@ -9,7 +9,9 @@ module.exports = {
         try {
             // 1. Crear la configuración del servidor si aún no existe.
             let config = await ServidorConfig.findOne({ guildId: guild.id });
-            if (!config) config = await ServidorConfig.create({ guildId: guild.id });
+            // 2.0.0: un servidor nuevo habla el idioma de su comunidad desde el primer mensaje
+            // (Discord dice el idioma del servidor: es-ES, es-419…). Se cambia con /idioma o en el panel.
+            if (!config) config = await ServidorConfig.create({ guildId: guild.id, idioma: /^es/i.test(guild.preferredLocale || '') ? 'es' : 'en' });
             // Si vuelve a un servidor con el seguimiento de invitaciones activo.
             if (config.crecimiento?.invitaciones?.activo) cargarInvitaciones(guild).catch(() => {});
             // 1.34.0: sus comandos (solo los de lo que tenga activo).
@@ -42,15 +44,17 @@ module.exports = {
                     } catch { /* el dueño tiene los MD cerrados */ }
                 }
 
-                // 3. En un canal (el del sistema, o el primero donde el bot pueda escribir):
-                //    siempre, solo si no le llegó por privado («respaldo») o nunca.
-                if (entrada.alCanal === 'siempre' || (entrada.alCanal === 'respaldo' && !llegoAlDueno)) {
-                    const yo = guild.members.me;
-                    const puedeEscribir = (c) => c.type === ChannelType.GuildText && c.permissionsFor(yo)?.has(PermissionsBitField.Flags.SendMessages);
-                    const canal = (guild.systemChannel && puedeEscribir(guild.systemChannel))
-                        ? guild.systemChannel
-                        : guild.channels.cache.find(puedeEscribir);
-                    if (canal) await canal.send(bienvenida).catch(() => {});
+                // 3. En el servidor (canal del sistema o el primero donde pueda escribir), 2.0.0: SIEMPRE un
+                //    saludo corto para todos (qué es Sokyo, /menu, /ayuda, «Mi cuenta»). La configuración va
+                //    también aquí si no llegó por privado («respaldo») o si los propietarios lo quieren («siempre»).
+                const yo = guild.members.me;
+                const puedeEscribir = (c) => c.type === ChannelType.GuildText && c.permissionsFor(yo)?.has([PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks]);
+                const canal = (guild.systemChannel && puedeEscribir(guild.systemChannel))
+                    ? guild.systemChannel
+                    : guild.channels.cache.filter(puedeEscribir).sort((x, y) => x.rawPosition - y.rawPosition).first();
+                if (canal) {
+                    await canal.send(construirSaludoPublico(guild, config)).catch(() => {});
+                    if (entrada.alCanal === 'siempre' || (entrada.alCanal === 'respaldo' && !llegoAlDueno)) await canal.send(bienvenida).catch(() => {});
                 }
             }
 
