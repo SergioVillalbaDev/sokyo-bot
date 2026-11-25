@@ -3,7 +3,6 @@ const ActividadUsuario = require('../../models/ActividadUsuario.js');
 const RegistroMensaje = require('../../models/RegistroMensaje.js');
 const Ticket = require('../../models/Ticket.js');
 const Mensaje = require('../../models/Mensaje.js');
-const Item = require('../../models/Item.js');
 const economia = require('../../utils/economia.js');
 const { progreso } = require('../../utils/niveles.js');
 const { contarActivas } = require('../../utils/invitaciones.js');
@@ -137,13 +136,6 @@ async function ticketsAbiertos(uid, client) {
     });
 }
 
-// Objetos de la mochila que siguen existiendo (igual que la cuenta de la tienda).
-async function contarObjetos(inventario = []) {
-    if (!inventario.length) return 0;
-    const vivos = new Set((await Item.find({ _id: { $in: inventario.map((e) => e.item) } }).select('_id').lean()).map((i) => String(i._id)));
-    return inventario.reduce((a, e) => a + (vivos.has(String(e.item)) ? (e.cantidad || 0) : 0), 0);
-}
-
 module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
     const router = express.Router();
 
@@ -151,11 +143,11 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
         try {
             const uid = req.usuario.id;
             const tz = zonaValida(req.query.tz) || 'Europe/Madrid';
-            // 1.30.0: el oro, el diario y la mochila son del servidor elegido (?guildId=).
+            // 1.30.0: el oro y el diario son del servidor elegido (?guildId=).
             const SP = require('../../utils/servidorPortal.js');
             const gid = await SP.elegir(client, uid, req.query.guildId);
             const [u, actividades, total, abiertos, recientes, actividad, esPremium, servidoresOro] = await Promise.all([
-                gid ? economia.en(gid).obtenerUsuario(uid) : { balance: 0, inventory: [] },
+                gid ? economia.en(gid).obtenerUsuario(uid) : { balance: 0 },
                 ActividadUsuario.find({ userId: uid }).select('guildId xp mensajesTotal ultimoMensajeFecha retoRacha').lean(),
                 Ticket.countDocuments({ creadorId: uid }),
                 Ticket.countDocuments({ creadorId: uid, estado: { $ne: 'Cerrado' } }),
@@ -164,17 +156,13 @@ module.exports = ({ portalAuth, client, usuarioEsPremium }) => {
                 usuarioEsPremium(uid).catch(() => false),
                 SP.servidoresDe(client, uid),
             ]);
-            const [servidores, objetos] = await Promise.all([servidoresDe(uid, client, actividades), contarObjetos(u.inventory)]);
-            const boost = u.boostXp && u.boostXp.expiraEn && new Date(u.boostXp.expiraEn) > new Date() && (u.boostXp.multiplicador || 1) > 1
-                ? { multiplicador: u.boostXp.multiplicador, expiraEn: u.boostXp.expiraEn } : null;
+            const servidores = await servidoresDe(uid, client, actividades);
 
             res.json({
                 usuario: { id: uid, username: req.usuario.username, avatar: req.usuario.avatar, esPremium },
                 oro: u.balance || 0,
                 servidorOro: gid,
                 servidoresOro,
-                objetos,
-                boost,
                 daily: estadoDaily(u),
                 totales: {
                     mensajes: actividades.reduce((a, x) => a + (x.mensajesTotal || 0), 0),

@@ -8,7 +8,7 @@ import { Coins, Loader2, TrendingDown, Gift, Users, Gamepad2, ArrowRight } from 
 import { apiFetch, procesarRespuesta } from '../../../lib/api';
 
 const card = 'rounded-3xl border border-line bg-card p-5 shadow-soft';
-const SECCIONES = [['com-casino', '🎰'], ['com-compis', '🐾'], ['com-mascota', '🐉'], ['com-clanes', '🛡️'], ['com-bromas', '😜'], ['crec-liga', '🏅']];
+const SECCIONES = [['com-tienda', '🛒'], ['com-casino', '🎰'], ['com-compis', '🐾'], ['com-mascota', '🐉'], ['com-clanes', '🛡️'], ['com-bromas', '😜'], ['crec-liga', '🏅']];
 
 function Cifra({ icono: Icono, valor, etiqueta, ayuda }) {
   return (

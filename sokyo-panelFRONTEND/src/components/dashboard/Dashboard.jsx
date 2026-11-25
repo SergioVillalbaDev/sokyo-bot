@@ -87,6 +87,7 @@ const CARGAR_VISTA = {
   SalonFamaView: () => import('./views/SalonFamaView'),
   GruposView: () => import('./views/GruposView'),
   ClanesView: () => import('./views/ClanesView'),
+  TiendaView: () => import('./views/TiendaView'),
   ConfesionesView: () => import('./views/ConfesionesView'),
   AusenteView: () => import('./views/AusenteView'),
   MensajesFijosView: () => import('./views/MensajesFijosView'),
@@ -387,6 +388,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'com-salon') return <V.SalonFamaView dash={dash} />;
     if (activeTab === 'com-grupos') return <V.GruposView dash={dash} />;
     if (activeTab === 'com-clanes') return <V.ClanesView dash={dash} />;
+    if (activeTab === 'com-tienda') return <V.TiendaView dash={dash} />;
     if (activeTab === 'com-confesiones') return <V.ConfesionesView dash={dash} />;
     if (activeTab === 'prod-ausente') return <V.AusenteView dash={dash} />;
     if (activeTab === 'prod-fijos') return <V.MensajesFijosView dash={dash} />;

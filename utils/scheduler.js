@@ -20,8 +20,6 @@ const { barrerInvitaciones } = require('./invitaciones.js');
 const { barrerBumps } = require('./bump.js');
 const { revisarDirectos } = require('./directos.js');
 const { t } = require('./i18n.js');
-const PerfilEmpleo = require('../models/PerfilEmpleo.js');
-const { ejecutarBusquedaEmpleo, enviarResumenSemanalEmpleo } = require('./busquedaEmpleo.js');
 
 // Carpeta de imágenes subidas (para adjuntar embeds con imagen propia).
 const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
@@ -242,52 +240,6 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     });
     setTimeout(tickResumen, 45 * 1000);
     setInterval(tickResumen, 30 * 60 * 1000);
-
-    // Búsqueda de empleo automática (solo OWNER_IDS, ver slash/cv.js): cada 30 min
-    // mira qué propietarios tienen el barrido diario activo, ha llegado su hora
-    // (UTC) y no se ha ejecutado hoy. El lock enEjecucion (en ejecutarBusquedaEmpleo)
-    // evita que coincida con una búsqueda manual en curso.
-    const tickBusquedaEmpleo = conGuardiaDeReentrancia('busquedaEmpleo', async () => {
-        try {
-            const hoy = new Date().toISOString().slice(0, 10);
-            const horaAhora = new Date().getUTCHours();
-            const perfiles = await PerfilEmpleo.find({ 'busquedaAuto.activo': true }).select('discordId busquedaAuto');
-            for (const perfil of perfiles) {
-                const ba = perfil.busquedaAuto || {};
-                if (ba.lastDia === hoy) continue;
-                if (horaAhora < (ba.hora ?? 9)) continue;
-                try {
-                    await ejecutarBusquedaEmpleo(client, { discordId: perfil.discordId, puesto: ba.puesto, ubicacion: ba.ubicacion });
-                } catch (e) { console.error(`Búsqueda de empleo diaria (${perfil.discordId}):`, e.message); }
-                await PerfilEmpleo.updateOne({ discordId: perfil.discordId }, { $set: { 'busquedaAuto.lastDia': hoy } });
-            }
-        } catch (e) { console.error('Barrido de búsqueda de empleo:', e.message); }
-    });
-    setTimeout(tickBusquedaEmpleo, 60 * 1000);
-    setInterval(tickBusquedaEmpleo, 30 * 60 * 1000);
-
-    // Resumen semanal de búsqueda de empleo: los lunes, a la misma hora que el
-    // barrido diario, aunque esa semana no haya salido ninguna oferta nueva
-    // (el aviso diario ya cubre cada ejecución individual; este es el agregado).
-    const tickResumenSemanalEmpleo = conGuardiaDeReentrancia('resumenSemanalEmpleo', async () => {
-        try {
-            const hoy = new Date().toISOString().slice(0, 10);
-            const horaAhora = new Date().getUTCHours();
-            const esLunes = new Date().getUTCDay() === 1;
-            if (!esLunes) return;
-            const perfiles = await PerfilEmpleo.find({ 'busquedaAuto.activo': true }).select('discordId busquedaAuto');
-            for (const perfil of perfiles) {
-                const ba = perfil.busquedaAuto || {};
-                if (ba.lastSemana === hoy) continue;
-                if (horaAhora < (ba.hora ?? 9)) continue;
-                try { await enviarResumenSemanalEmpleo(client, perfil.discordId); }
-                catch (e) { console.error(`Resumen semanal de empleo (${perfil.discordId}):`, e.message); }
-                await PerfilEmpleo.updateOne({ discordId: perfil.discordId }, { $set: { 'busquedaAuto.lastSemana': hoy } });
-            }
-        } catch (e) { console.error('Barrido de resumen semanal de empleo:', e.message); }
-    });
-    setTimeout(tickResumenSemanalEmpleo, 75 * 1000);
-    setInterval(tickResumenSemanalEmpleo, 30 * 60 * 1000);
 }
 
 module.exports = { iniciarProgramador, enviarAnunciosPendientes, enviarRecordatoriosPendientes };

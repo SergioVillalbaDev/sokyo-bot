@@ -18,6 +18,7 @@ import {
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
   Stethoscope, FileClock, Cake, ClipboardCheck, Star, Shield, MessageSquareHeart, Moon, Pin, Hash, Dices,
   Vote, Handshake, Trophy, Award, Laugh, PawPrint, Medal, Coins, Heart, LifeBuoy,
+  ShoppingBag,
 } from 'lucide-react';
 
 export const navSections = [
@@ -99,6 +100,7 @@ export const navGroups = [
       { tab: 'com-mascota', icon: PawPrint, kw: 'mascota pet tamagotchi huevo dragon zorro cuidar alimentar oro combates criatura egg creature feed' },
       { tab: 'com-compis', icon: Heart, kw: 'compañeros compi companion tamagotchi personajes anime cuidar expediciones misiones racha coleccion cofres fotos propios characters care expeditions missions streak' },
       { tab: 'com-casino', icon: Coins, kw: 'casino tragaperras slots ruleta roulette blackjack crash minas mines apuestas gambling bote jackpot cofres lootbox mascotas carrera duelo coinflip moneda' },
+      { tab: 'com-tienda', icon: ShoppingBag, area: 'roles', kw: 'tienda shop roles colores comprar oro vender vip titulo colour color buy sell' },
       { tab: 'com-economia', icon: Coins, kw: 'economia economy oro gold resumen juegos casino cofres ricos top circulacion' },
       { tab: 'com-bromas', icon: Laugh, kw: 'bromas broma apodo payaso loro reaccion escudo oro gastar pranks prank nickname clown parrot shield gold' },
     ],
@@ -217,7 +219,7 @@ export const esBasico = (tab) => BASICOS.has(tab);
 export const OBJETIVOS = {
   moderar: { emoji: '🛡️', tabs: ['tickets-gestion', 'tickets-usuarios', 'tickets-config', 'mod-miembros', 'mod-centro', 'mod-automod', 'mod-reportes', 'mod-registro', 'mod-tipos', 'seg-verificacion', 'logs-todos', 'roles-gestion', 'roles-autorol', 'roles-paneles', 'config-acceso', 'seg-backup', 'config-diagnostico', 'datos-staff'] },
   crecer: { emoji: '🚀', tabs: ['prod-bienvenidas', 'crec-invitaciones', 'crec-bump', 'crec-pagina', 'crec-directos', 'crec-contadores', 'crec-votos', 'crec-red', 'crec-liga', 'prod-anuncios', 'com-sorteos', 'com-eventos', 'com-presentaciones', 'datos-analitica', 'datos-resumen', 'datos-uso'] },
-  divertir: { emoji: '🎉', tabs: ['config-niveles', 'com-dinamicas', 'com-grupos', 'com-clanes', 'com-salon', 'com-confesiones', 'com-temporadas', 'com-mascota', 'com-compis', 'com-casino', 'com-economia', 'com-bromas', 'musica', 'voz-temporal', 'com-sugerencias', 'com-encuestas', 'com-cumpleanos', 'crec-liga'] },
+  divertir: { emoji: '🎉', tabs: ['config-niveles', 'com-dinamicas', 'com-grupos', 'com-clanes', 'com-salon', 'com-confesiones', 'com-temporadas', 'com-mascota', 'com-compis', 'com-casino', 'com-tienda', 'com-economia', 'com-bromas', 'musica', 'voz-temporal', 'com-sugerencias', 'com-encuestas', 'com-cumpleanos', 'crec-liga'] },
 };
 export function gruposVisibles(permisos, esOwner, { sencillo = false, extra = null, objetivo = null } = {}) {
   const deObjetivo = objetivo && OBJETIVOS[objetivo] ? new Set(OBJETIVOS[objetivo].tabs) : null;

@@ -64,7 +64,7 @@ function textoTema(tema, idioma, cfg) {
             '4️⃣ **Misiones** del día y de la semana, **logros** y el **pase** (`/jugar pase`).',
             '5️⃣ El casino, si te sale bien (¡y si no, también se pierde!).',
             '',
-            '**¿En qué se gasta?** Cofres de mascotas, sobres de cartas, bromas, la Liga… Mira cuánto tienes con `/inventario` o con el botón 🪙 del casino.',
+            '**¿En qué se gasta?** Cofres de mascotas, sobres de cartas, la casa, bromas y los roles de la `/tienda` del servidor. Mira cuánto tienes con `/diario` o con el botón 🪙 del casino.',
         ],
         mascotas: [
             '🐾 **Cada persona tiene sus propias mascotas en este servidor.** En cada servidor se empieza de cero: aquí compites con la gente de aquí.',
@@ -153,7 +153,7 @@ function textoTema(tema, idioma, cfg) {
             '4️⃣ Daily and weekly **missions**, **achievements** and the **pass** (`/games pass`).',
             '5️⃣ The casino, if it goes well (and if not, you lose some!).',
             '',
-            '**What’s it for?** Pet chests, card packs, pranks, the League… See how much you have with `/inventory` or the 🪙 button in the casino.',
+            '**What’s it for?** Pet chests, card packs, the house, pranks and the roles in the server `/shop`. See how much you have with `/daily` or the 🪙 button in the casino.',
         ],
         mascotas: [
             '🐾 **Everyone has their own pets on this server.** Every server starts from zero: here you compete with the people here.',

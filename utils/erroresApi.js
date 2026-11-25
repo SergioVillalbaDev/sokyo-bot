@@ -30,6 +30,7 @@ const EN = {
     'Sokyo no está en este servidor': 'Sokyo isn’t on this server',
     'Esta función está apagada en este servidor': 'This feature is off on this server',
     'Servidor no encontrado': 'Server not found',
+    'No estás en ese servidor.': 'You aren’t on that server.',
     'Servidor no encontrado.': 'Server not found.',
     'No se pudo guardar': 'Couldn’t save',
     'Error del servidor': 'Server error',

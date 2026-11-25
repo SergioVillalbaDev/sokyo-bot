@@ -68,7 +68,7 @@ describe('direcciones de "Mi cuenta"', () => {
         assert.strictEqual(cuenta.urlCuenta(), 'https://dashboard.sokyo.studio/cuenta');
         assert.strictEqual(cuenta.urlCuenta('inicio'), 'https://dashboard.sokyo.studio/cuenta');
         assert.strictEqual(cuenta.urlCuenta('tienda'), 'https://dashboard.sokyo.studio/cuenta#tienda');
-        assert.strictEqual(cuenta.urlCuenta('tienda', 'mochila'), 'https://dashboard.sokyo.studio/cuenta#tienda/mochila');
+        assert.strictEqual(cuenta.urlCuenta('tickets', '123'), 'https://dashboard.sokyo.studio/cuenta#tickets/123');
         assert.strictEqual(cuenta.urlCuenta('tickets', '987654321098765432'), 'https://dashboard.sokyo.studio/cuenta#tickets/987654321098765432');
         assert.strictEqual(cuenta.urlCuenta('nada'), 'https://dashboard.sokyo.studio/cuenta');
     });

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LogIn, AlertTriangle, ArrowLeft, Ticket as TicketIcon, Palette, Music as MusicIcon, Home, LogOut,
-  ShoppingBag, Bell, Settings, Search, Zap, Check, Gift, Globe, Backpack, CornerDownLeft, Sparkles, LayoutDashboard, BellRing,
+  ShoppingBag, Bell, Settings, Search, Zap, Check, Gift, Globe, CornerDownLeft, Sparkles, LayoutDashboard, BellRing,
 } from 'lucide-react';
 import InicioPortal from './components/portal/InicioPortal';
 import TicketsPortal from './components/portal/TicketsPortal';
@@ -137,7 +137,7 @@ function Portal() {
     setToken(''); setUsuario(null); setResumen(null);
   }, []);
 
-  // irA('tickets', canalId) abre ese ticket; irA('tienda', 'mochila') esa pestaña.
+  // irA('tickets', canalId) abre ese ticket.
   const irA = useCallback((vista, extra = null) => {
     setPaleta(false);
     window.location.hash = extra ? `${vista}/${encodeURIComponent(extra)}` : vista;
@@ -229,7 +229,7 @@ function Portal() {
   } else if (vista === 'tickets') {
     contenido = <TicketsPortal portalFetch={portalFetch} usuario={usuario} ticketId={ticket} irA={irA} avisar={avisar} nuevas={nuevas} onLeido={releerVistos} />;
   } else if (vista === 'tienda') {
-    contenido = <TiendaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} onOro={alCambiarOro} pestanaInicial={sub} guildId={servidorOro} servidores={resumen?.servidoresOro || []} onCambiarServidor={cambiarServidor} />;
+    contenido = <TiendaPortal portalFetch={portalFetch} avisar={avisar} onOro={alCambiarOro} guildId={servidorOro} servidores={resumen?.servidoresOro || []} onCambiarServidor={cambiarServidor} />;
   } else if (vista === 'tarjeta') {
     contenido = <TarjetaPortal portalFetch={portalFetch} usuario={usuario} avisar={avisar} />;
   } else if (vista === 'ajustes') {
@@ -453,7 +453,6 @@ function Paleta({ irA, onCerrar, onDaily, onLogout }) {
     { id: 'inicio', icono: Home, texto: t('portal.palette.home'), hacer: () => irA('inicio') },
     { id: 'tickets', icono: TicketIcon, texto: t('portal.palette.tickets'), hacer: () => irA('tickets') },
     { id: 'tienda', icono: ShoppingBag, texto: t('portal.palette.shop'), hacer: () => irA('tienda') },
-    { id: 'mochila', icono: Backpack, texto: t('portal.palette.bag'), hacer: () => irA('tienda', 'mochila') },
     { id: 'musica', icono: MusicIcon, texto: t('portal.palette.music'), hacer: () => irA('musica') },
     { id: 'tarjeta', icono: Palette, texto: t('portal.palette.card'), hacer: () => irA('tarjeta') },
     { id: 'ajustes', icono: BellRing, texto: t('portal.palette.ajustes'), hacer: () => irA('ajustes') },

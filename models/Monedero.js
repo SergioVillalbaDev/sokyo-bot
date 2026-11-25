@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Economía POR SERVIDOR (1.30.0): el oro, la mochila, el diario y el boost de XP de cada persona
+// Economía POR SERVIDOR (1.30.0): el oro y el diario de cada persona
 // en cada servidor. Todos empiezan de 0 en cada servidor. (El antiguo models/Usuario.js, global,
 // se queda sin tocar como archivo: ya no se usa para el oro.) Lógica en utils/economia.js.
 const InventarioItemSchema = new mongoose.Schema({

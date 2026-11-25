@@ -877,6 +877,25 @@ const ServidorConfigSchema = new mongoose.Schema({
         apuestas: { type: Boolean, default: true },         // permitir apostar oro en los retos
         apuestaMax: { type: Number, default: 5000 },
     },
+    // Tienda del servidor (2.0.0, utils/tiendaServidor.js): roles cosméticos que los admins ponen a la
+    // venta por oro desde el panel. Nunca roles con permisos de staff (se comprueba al guardar y al comprar).
+    tienda: {
+        activo: { type: Boolean, default: false },
+        productos: {
+            type: [new mongoose.Schema({
+                id: { type: String, required: true },              // corto y fijo (lo llevan los botones)
+                nombre: { type: String, required: true, maxlength: 60 },
+                descripcion: { type: String, default: '', maxlength: 150 },
+                emoji: { type: String, default: '🎁', maxlength: 16 },
+                rolId: { type: String, required: true },
+                horas: { type: Number, default: 0, min: 0, max: 2160 }, // 0 = para siempre
+                precio: { type: Number, required: true, min: 1, max: 10000000 },
+                stock: { type: Number, default: null, min: 0 },     // null = sin límite
+                activo: { type: Boolean, default: true },
+            }, { _id: false })],
+            default: [],
+        },
+    },
     // Mascota del servidor (1.14.0). El estado de la mascota está en models/Mascota.js.
     mascota: {
         activo: { type: Boolean, default: false },

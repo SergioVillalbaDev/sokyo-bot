@@ -17,7 +17,7 @@ export function marcarSorteosVistos(ids) {
   return todos;
 }
 
-// "#tickets/123" -> { vista: 'tickets', ticket: '123' }; "#tienda/mochila" -> sub 'mochila'.
+// "#tickets/123" -> { vista: 'tickets', ticket: '123' }.
 export function leerHash(hash = window.location.hash) {
   const [v, extra] = hash.replace(/^#/, '').split('/');
   const vista = VISTAS.includes(v) ? v : 'inicio';
@@ -66,28 +66,6 @@ export function respuestasNuevas(resumen, vistos = leerVistos()) {
   const lista = resumen?.tickets?.recientes || [];
   return lista.filter((tk) => tk.ultimo && !tk.ultimo.mio
     && (!vistos[tk.canalId] || new Date(tk.ultimo.fecha) > new Date(vistos[tk.canalId])));
-}
-
-// Rarezas de la tienda: color propio (el brillo de cada carta).
-export const RAREZAS = {
-  legendario: { color: '#f5b942' },
-  epico: { color: '#c084fc' },
-  raro: { color: '#38bdf8' },
-  comun: { color: '#2dd4bf' },
-};
-export const rareza = (r) => RAREZAS[r] || RAREZAS.comun;
-export const ICONO_TIPO = { consumible: '🧪', equipo: '🛡️', material: '💎' };
-
-// Precio con la oferta relámpago aplicada si sigue activa (mismo criterio que el bot).
-export function precioEfectivo(item, ahora = Date.now()) {
-  const o = item.oferta;
-  const activa = !!(o && o.porcentaje > 0 && o.expiraEn && new Date(o.expiraEn).getTime() > ahora);
-  return {
-    precio: activa ? Math.max(0, Math.round(item.precio * (1 - o.porcentaje / 100))) : item.precio,
-    oferta: activa,
-    porcentaje: activa ? o.porcentaje : 0,
-    expiraEn: activa ? o.expiraEn : null,
-  };
 }
 
 // Escala "bonita" para el eje de la gráfica: 4, 5, 10, 20, 50, 100…

@@ -1,46 +1,20 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, InteractionContextType } = require('discord.js');
-const Item = require('../models/Item.js');
-const economia = require('../utils/economia.js');
-const { t } = require('../utils/i18n.js');
-const { botonWeb } = require('../utils/cuenta.js');
+const { SlashCommandBuilder, InteractionContextType } = require('discord.js');
+const tienda = require('../utils/tiendaServidor.js');
 const ES = (v) => ({ 'es-ES': v, 'es-419': v }); // nombres y textos en español
 
+// /tienda (2.0.0): la tienda de ESTE servidor. Los admins ponen roles cosméticos a la venta
+// desde el panel (Diversión → Tienda del servidor) y aquí se compran con el oro de este servidor.
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('shop')
         .setNameLocalizations(ES('tienda'))
-        .setDescription('Open the Sokyo shop and buy items with your gold')
-        .setDescriptionLocalizations(ES('Abrir la tienda y comprar objetos con tu oro'))
+        .setDescription('This server’s shop: special roles you can buy with your gold')
+        .setDescriptionLocalizations(ES('La tienda del servidor: roles especiales que compras con tu oro'))
         .setContexts(InteractionContextType.Guild),
 
     async execute(interaction, client, cfg) {
-        const items = await Item.find({ activo: true }).sort({ precio: 1 }).limit(25); // Discord: máx 25 opciones
-        if (!items.length) return interaction.reply({ content: t(cfg, '🛒 La tienda está vacía por ahora.', '🛒 The shop is empty for now.'), flags: 64 });
-
-        const embed = new EmbedBuilder()
-            .setColor('#c9a227')
-            .setTitle(t(cfg, '🏪 Tienda Sokyo', '🏪 Sokyo Shop'))
-            .setDescription(t(cfg, 'Elige un artículo del menú de abajo para comprarlo al instante.', 'Pick an item from the menu below to buy it instantly.'))
-            .addFields(items.map(i => {
-                const pe = economia.precioEfectivo(i);
-                const precioTxt = pe.oferta ? `~~🪙 ${i.precio}~~ → 🪙 ${pe.precio} **(-${pe.porcentaje}%)**` : `🪙 ${pe.precio}`;
-                return {
-                    name: `${i.nombre} — ${precioTxt}`,
-                    value: `${i.descripcion || t(cfg, 'Sin descripción', 'No description')} · *(${i.tipo})*`,
-                };
-            }));
-
-        const menu = new StringSelectMenuBuilder()
-            .setCustomId('tienda_comprar')
-            .setPlaceholder(t(cfg, 'Selecciona un artículo para comprar...', 'Select an item to buy...'))
-            .addOptions(items.map(i => ({
-                label: `${i.nombre} (${economia.precioEfectivo(i).precio} ${t(cfg, 'oro', 'gold')})`.slice(0, 100),
-                description: (i.descripcion || i.tipo).slice(0, 100),
-                value: i._id.toString(), // el MISMO _id que usa la web
-            })));
-
-        // En la web la tienda se ve con imágenes, ofertas y la mochila al lado.
-        const web = new ActionRowBuilder().addComponents(botonWeb(cfg, 'tienda', t(cfg, 'Ver la tienda en la web', 'See the shop on the web')));
-        await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu), web], flags: 64 });
+        const idioma = cfg?.idioma || 'en';
+        const v = await tienda.vista(interaction.guild, cfg, interaction.member, idioma);
+        await interaction.reply({ ...v, flags: 64, allowedMentions: { parse: [] } });
     },
 };
