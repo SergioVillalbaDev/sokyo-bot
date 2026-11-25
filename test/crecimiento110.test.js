@@ -25,7 +25,7 @@ describe('temporadas', () => {
     it('los premios siempre son 3 enteros válidos', () => {
         assert.deepStrictEqual(temporadas.oroPodio([500, '200', -5, 9]), [500, 200, 0]);
         assert.deepStrictEqual(temporadas.oroPodio(null), [0, 0, 0]);
-        assert.deepStrictEqual(temporadas.oroPodio([1e12]), [10000000, 0, 0]);
+        assert.deepStrictEqual(temporadas.oroPodio([1e12]), [5000, 0, 0]);
     });
 });
 
@@ -153,17 +153,37 @@ describe('votos de top.gg', () => {
         assert.strictEqual(votos.leerVoto({ user: 'abc' }), null);
         assert.strictEqual(votos.leerVoto(null), null);
     });
-    it('un voto da oro (el doble en fin de semana) y se apunta', async () => {
-        const r = await votos.procesarVoto({ guilds: { cache: new Collection() } }, { userId: '1', finde: false });
-        assert.deepStrictEqual(r, { estado: 'ok', oro: 300, servidores: 0 });
-        // Sin servidores con premios por votar no hay dónde darlo (el oro es de cada servidor).
-        assert.deepStrictEqual(oro, []);
-        // Con uno donde está quien vota: el oro del voto (doble en finde) y el extra del servidor, allí.
-        ServidorConfig.find = async () => [{ guildId: 'G1', crecimiento: { votos: { activo: true, oroExtra: 50 } } }];
-        const guild = { id: 'G1', members: { fetch: async () => ({ user: { bot: false }, roles: { add: async () => {} } }) }, roles: { cache: new Collection() }, channels: { cache: new Collection() } };
-        await votos.procesarVoto({ guilds: { cache: new Collection([['G1', guild]]) } }, { userId: '2', finde: true }).catch(() => {});
-        assert.deepStrictEqual(oro, [['G1', '2', 650]]);
-        assert.strictEqual(creados.length, 2);
+    it('un voto premia en cada servidor donde juega (oro, cofre del día y racha) y se apunta', async () => {
+        const Monedero = require('../models/Monedero.js');
+        const Act = require('../models/ActividadUsuario.js');
+        const Col = require('../models/ColeccionMascotas.js');
+        const pase = require('../utils/pase.js');
+        const o2 = { mf: Monedero.find, af: Act.find, cf: Col.find, cu: Col.updateOne, vf: Voto.find, reg: pase.registrar };
+        const tickets = [];
+        const vacio = () => ({ select: () => ({ lean: async () => [] }) });
+        Monedero.find = (q) => ({ select: () => ({ lean: async () => (q.discordId === '2' ? [{ guildId: 'G1' }] : []) }) });
+        Act.find = vacio; Col.find = vacio;
+        Col.updateOne = async (_f, u) => { tickets.push(u.$inc); };
+        Voto.find = () => ({ select: () => ({ lean: async () => creados.map(() => ({ fecha: new Date() })) }) });
+        pase.registrar = async () => [];
+        try {
+            // Sin servidores donde juegue: el voto se apunta pero no hay dónde dar oro (el oro es de cada servidor).
+            const r = await votos.procesarVoto({ guilds: { cache: new Collection() } }, { userId: '1', finde: false });
+            assert.strictEqual(r.estado, 'ok'); assert.strictEqual(r.oro, 300); assert.strictEqual(r.premiados, 0);
+            assert.deepStrictEqual(oro, []);
+            // Juega en G1 (y G1 tiene «Votos» con 50 de extra): oro doble en finde + extra, y cofre básico del día.
+            ServidorConfig.find = async () => [{ guildId: 'G1', crecimiento: { votos: { activo: true, oroExtra: 50 } } }];
+            const guild = { id: 'G1', members: { fetch: async () => ({ id: '2', guild: { id: 'G1' }, user: { bot: false }, roles: { add: async () => {} } }) }, roles: { cache: new Collection() }, channels: { cache: new Collection() } };
+            await votos.procesarVoto({ guilds: { cache: new Collection([['G1', guild]]) } }, { userId: '2', finde: true });
+            assert.deepStrictEqual(oro, [['G1', '2', 600], ['G1', '2', 50]]);
+            assert.deepStrictEqual(tickets, [{ 'tickets.cofre_basico': 1 }]);
+            assert.strictEqual(creados.length, 2);
+        } finally { Object.assign(Monedero, { find: o2.mf }); Act.find = o2.af; Col.find = o2.cf; Col.updateOne = o2.cu; Voto.find = o2.vf; pase.registrar = o2.reg; }
+    });
+    it('el premio: cofre con el primer voto del día y épico cada 7 días seguidos', () => {
+        assert.deepStrictEqual(votos.premioVoto({ oro: 300, primeroDelDia: false, racha: 7 }), { oro: 300, cofre: null, epico: null });
+        assert.deepStrictEqual(votos.premioVoto({ oro: 300, primeroDelDia: true, racha: 3 }), { oro: 300, cofre: 'cofre_basico', epico: null });
+        assert.deepStrictEqual(votos.premioVoto({ oro: 600, primeroDelDia: true, racha: 14 }), { oro: 600, cofre: 'cofre_basico', epico: 'cofre_epico' });
     });
     it('los reintentos de top.gg y los votos de prueba no premian', async () => {
         existe = true;

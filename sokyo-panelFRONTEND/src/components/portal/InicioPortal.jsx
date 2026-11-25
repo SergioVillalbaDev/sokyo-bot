@@ -82,7 +82,7 @@ export default function InicioPortal({ resumen, usuario, error, onReintentar, ir
           aviso={nuevas}
         />
         <Acceso icono={ShoppingBag} color="#fbbf24" titulo={t('portal.nav.shop')} onClick={() => irA('tienda')} retraso=".14s"
-          texto={t('portal.home.tileShop', { gold: fmtNum(resumen.oro, idioma), count: resumen.objetos })} />
+          texto={t('portal.home.tileShop', { gold: fmtNum(resumen.oro, idioma) })} />
         <Acceso icono={MusicIcon} color="#ec4899" titulo={t('portal.nav.music')} onClick={() => irA('musica')} retraso=".18s"
           texto={t('portal.home.tileMusic')} />
         <Acceso icono={Palette} color="#a855f7" titulo={t('portal.nav.card')} onClick={() => irA('tarjeta')} retraso=".22s"
@@ -91,7 +91,7 @@ export default function InicioPortal({ resumen, usuario, error, onReintentar, ir
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <Servidores servidores={resumen.servidores} idioma={idioma} className="gx-sube lg:col-span-8" />
-        <Extras resumen={resumen} idioma={idioma} irA={irA} ahora={ahora} className="gx-sube lg:col-span-4" />
+        <Extras resumen={resumen} idioma={idioma} irA={irA} className="gx-sube lg:col-span-4" />
       </div>
     </div>
   );
@@ -234,10 +234,9 @@ function Servidores({ servidores = [], idioma, className = '' }) {
   );
 }
 
-// Columna lateral: mochila, boost de XP y tickets abiertos.
-function Extras({ resumen, idioma, irA, ahora, className = '' }) {
+// Columna lateral: oro de este servidor y tickets abiertos.
+function Extras({ resumen, idioma, irA, className = '' }) {
   const { t } = useTranslation();
-  const boostMin = resumen.boost ? Math.max(1, Math.round((new Date(resumen.boost.expiraEn).getTime() - ahora) / 60000)) : 0;
   return (
     <div className={`flex flex-col gap-4 ${className}`} style={{ animationDelay: '.3s' }}>
       <Tarjeta className="p-5">
@@ -246,14 +245,9 @@ function Extras({ resumen, idioma, irA, ahora, className = '' }) {
           <span className="gx-orbe h-11 w-11 text-lg" style={{ '--orbe': '#f59e0b' }}>🪙</span>
           <div>
             <div className="text-2xl font-extrabold text-fg">{fmtNum(resumen.oro, idioma)}</div>
-            <div className="text-xs text-muted">{t('portal.home.items', { count: resumen.objetos })}</div>
+            <div className="text-xs text-muted">{t('portal.home.goldHere')}</div>
           </div>
         </div>
-        {resumen.boost && (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-[rgb(var(--gx-tinta)/.04)] px-3 py-2 text-xs text-fg">
-            <Zap size={14} className="text-amber-300" /> {t('portal.home.boost', { x: resumen.boost.multiplicador, time: boostMin })}
-          </div>
-        )}
         <button onClick={() => irA('tienda')} className="gx-btn mt-3 w-full">{t('portal.home.openBag')}</button>
       </Tarjeta>
 

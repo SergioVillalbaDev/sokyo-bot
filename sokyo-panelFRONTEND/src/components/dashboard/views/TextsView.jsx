@@ -13,7 +13,7 @@ const GUIA = [
     ['resume', 's'], ['skip', 's'], ['stop', 's'], ['volume', 's'], ['247', 's'], ['filter', 's'],
   ] },
   { cat: 'economy', icon: '🪙', cmds: [
-    ['daily', 's'], ['shop', 's'], ['inventory', 's'], ['use', 's'], ['givegold', 's'], ['rich', 's'], ['system', 's'],
+    ['daily', 's'], ['shop', 's'], ['rich', 's'], ['vote', 's'], ['system', 's'],
   ] },
   { cat: 'levels', icon: '📈', cmds: [['level', 's'], ['ranking', 'p'], ['xp', 'p']] },
   { cat: 'moderation', icon: '🛡️', cmds: [
@@ -22,7 +22,7 @@ const GUIA = [
   ] },
   { cat: 'utility', icon: '🧰', cmds: [
     ['ping', 'p'], ['user', 'p'], ['activity', 'p'], ['role', 'p'], ['remind', 'p'],
-    ['emoji', 'p'], ['sticker', 'p'], ['dice', 'p'], ['setup', 'p'], ['sokyo', 'p'], ['sokyolanguage', 'p'],
+    ['emoji', 'p'], ['sticker', 'p'], ['setup', 'p'], ['sokyo', 'p'], ['sokyolanguage', 'p'],
   ] },
 ];
 

@@ -101,7 +101,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             }
             if (b.hora !== undefined) set['cumpleanos.hora'] = entero(b.hora, 0, 23, 9);
             if (b.mensaje !== undefined) set['cumpleanos.mensaje'] = texto(b.mensaje, 1000).trim() || cfg.cumpleanos.mensaje;
-            if (b.oro !== undefined) set['cumpleanos.oro'] = entero(b.oro, 0, 1000000, 0);
+            if (b.oro !== undefined) set['cumpleanos.oro'] = require('../../utils/limites.js').topeOro('cumpleanos.oro', b.oro);
             if (b.xp !== undefined) set['cumpleanos.xp'] = entero(b.xp, 0, 100000, 0);
             const nueva = await guardar(guild.id, set);
             res.json({ success: true, config: nueva.cumpleanos });
@@ -231,9 +231,9 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             if (!ponerCanal(set, 'clanes.canalId', guild, b.canalId, res)) return;
             if (b.maxMiembros !== undefined) set['clanes.maxMiembros'] = entero(b.maxMiembros, 2, 100, 10);
             if (b.costeCrear !== undefined) set['clanes.costeCrear'] = entero(b.costeCrear, 0, 1000000, 0);
-            if (b.premioOro !== undefined) set['clanes.premioOro'] = entero(b.premioOro, 0, 1000000, 100);
+            if (b.premioOro !== undefined) set['clanes.premioOro'] = require('../../utils/limites.js').topeOro('clanes.premioOro', b.premioOro);
             if (b.premioXp !== undefined) set['clanes.premioXp'] = entero(b.premioXp, 0, 100000, 0);
-            if (b.premioGuerra !== undefined) set['clanes.premioGuerra'] = entero(b.premioGuerra, 0, 1000000, 150);
+            if (b.premioGuerra !== undefined) set['clanes.premioGuerra'] = require('../../utils/limites.js').topeOro('clanes.premioGuerra', b.premioGuerra);
             const nueva = await guardar(guild.id, set);
             res.json({ success: true, config: nueva.clanes });
         } catch (e) { console.error('PUT clanes:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
@@ -899,7 +899,7 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             const ColeccionMascotas = require('../../models/ColeccionMascotas.js');
             const duenos = await Promise.all(lista.map((c) => ColeccionMascotas.countDocuments({ guildId: guild.id, 'mascotas.id': `s:${guild.id}:${c.cid}` })));
             const cfg = await cfgDe(guild.id);
-            res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: MAX_COMPIS, ...resumen,
+            res.json({ lista: lista.map((c, i) => ({ ...formaCompi(c), duenos: duenos[i] })), max: Math.min(MAX_COMPIS, require('../../utils/limites.js').limite(cfg, 'compisPropios')), ...resumen,
                 anime: { activo: !!cfg.compis?.anime, fuera: cfg.compis?.animeFuera || [], total: KC.ANIME.size, cofres: cfg.casino?.activo && cfg.casino?.cofres !== false } });
         } catch (e) { console.error('GET compis:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
     });
@@ -907,6 +907,8 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
         try {
             const guild = guildDe(req, res); if (!guild) return;
             if (await CompaneroServidor.countDocuments({ guildId: guild.id }) >= MAX_COMPIS) return res.status(400).json({ error: 'Ya tienes 100 compañeros propios: borra alguno antes' });
+            const topeFree = require('../../utils/limites.js').limite(await cfgDe(guild.id), 'compisPropios');
+            if (await CompaneroServidor.countDocuments({ guildId: guild.id }) >= topeFree) return res.status(402).json({ error: 'Con el plan Free puedes tener 5 mascotas propias. Con Pro, hasta 100.', codigo: 'pro', tope: topeFree });
             const r = camposCompi({ rareza: 'rara', ...(req.body || {}) }, true);
             if (r.error) return res.status(400).json({ error: r.error });
             if (!r.set.imagenBuffer) return res.status(400).json({ error: 'Sube una foto para tu compañero' });
@@ -972,6 +974,53 @@ module.exports = ({ client, exigeArea, tieneAreaAcceso }) => {
             KC.olvidarPersonalizado(id);
             res.json({ success: true, borrado: true });
         } catch (e) { console.error('DELETE compis:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+
+    // ============================ TIENDA DEL SERVIDOR (2.0.0) ============================
+    // Roles cosméticos a la venta por oro (utils/tiendaServidor.js). Poner o cambiar productos
+    // reparte roles: pide el área «roles» y que quien los pone pueda dar esos roles él mismo.
+    router.get(ruta('tienda'), exigeArea('roles'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const cfg = await cfgDe(guild.id);
+            const tienda = require('../../utils/tiendaServidor.js');
+            const CompraTienda = require('../../models/CompraTienda.js');
+            const idioma = String(req.get('x-sokyo-lang') || cfg.idioma || 'es').slice(0, 2);
+            const lista = await tienda.catalogo(guild.id, cfg.toObject());
+            const ultimas = await CompraTienda.find({ guildId: guild.id, devuelta: false }).sort({ createdAt: -1 }).limit(15).lean();
+            const desde = new Date(Date.now() - 30 * 86400000);
+            const [mes] = await CompraTienda.aggregate([{ $match: { guildId: guild.id, devuelta: false, createdAt: { $gte: desde } } }, { $group: { _id: null, n: { $sum: 1 }, oro: { $sum: '$precio' } } }]);
+            const quedan = Object.fromEntries(lista.map((p) => [p.id, p.quedan]));
+            res.json({
+                config: { activo: !!cfg.tienda?.activo, productos: (cfg.tienda?.productos || []).map((p) => ({ ...(p.toObject ? p.toObject() : p), quedan: quedan[p.id] ?? null })) },
+                avisos: (cfg.tienda?.productos || []).map((p) => ({ id: p.id, error: tienda.errorRol(guild, guild.roles.cache.get(p.rolId), cfg, idioma) })).filter((a) => a.error),
+                mes: { compras: mes?.n || 0, oro: mes?.oro || 0 },
+                ultimas: await Promise.all(ultimas.map(async (c) => ({ ...(await usuario(guild, c.userId)), producto: c.nombre, precio: c.precio, fecha: c.createdAt }))),
+            });
+        } catch (e) { console.error('GET tienda:', e.message); res.status(500).json({ error: 'Fallo interno' }); }
+    });
+    router.put(ruta('tienda'), exigeArea('roles'), async (req, res) => {
+        try {
+            const guild = guildDe(req, res); if (!guild) return;
+            const b = req.body || {};
+            const cfg = await cfgDe(guild.id);
+            const idioma = String(req.get('x-sokyo-lang') || cfg.idioma || 'es').slice(0, 2);
+            const set = {};
+            if (b.activo !== undefined) set['tienda.activo'] = !!b.activo;
+            if (b.productos !== undefined) {
+                // Los productos a medias (sin nombre o sin rol) se quedan en el panel hasta que estén completos.
+                const completos = (Array.isArray(b.productos) ? b.productos : []).filter((p) => p && String(p.nombre || '').trim() && p.rolId && Number(p.precio) > 0);
+                const tope = require('../../utils/limites.js').limite(cfg, 'tiendaProductos');
+                if (completos.length > tope) return res.status(402).json({ error: 'Con el plan Free la tienda tiene hasta 3 productos. Con Pro, hasta 25.', codigo: 'pro', tope });
+                const r = require('../../utils/tiendaServidor.js').validarProductos(guild, cfg, completos, idioma);
+                if (r.error) return res.status(400).json({ error: r.error });
+                const err = await errorRolesNuevos(client, req.staff, guild.id, r.productos.map((p) => p.rolId), (cfg.tienda?.productos || []).map((p) => p.rolId));
+                if (err) return res.status(403).json({ error: err });
+                set['tienda.productos'] = r.productos;
+            }
+            const nueva = await guardar(guild.id, set);
+            res.json({ success: true, config: { activo: !!nueva.tienda?.activo, productos: nueva.tienda?.productos || [] } });
+        } catch (e) { console.error('PUT tienda:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
     });
 
     return router;

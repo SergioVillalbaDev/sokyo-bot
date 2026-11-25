@@ -85,7 +85,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             if (b.mensaje !== undefined) set['crecimiento.invitaciones.mensaje'] = texto(b.mensaje, 500).trim() || actual.mensaje;
             if (b.horasConfirmacion !== undefined) set['crecimiento.invitaciones.horasConfirmacion'] = entero(b.horasConfirmacion, 0, 168, 24);
             if (b.diasCuentaMin !== undefined) set['crecimiento.invitaciones.diasCuentaMin'] = entero(b.diasCuentaMin, 0, 365, 7);
-            if (b.oroPorInvitacion !== undefined) set['crecimiento.invitaciones.oroPorInvitacion'] = entero(b.oroPorInvitacion, 0, 10000, 50);
+            if (b.oroPorInvitacion !== undefined) set['crecimiento.invitaciones.oroPorInvitacion'] = require('../utils/limites.js').topeOro('crecimiento.invitaciones.oroPorInvitacion', b.oroPorInvitacion);
             if (b.xpPorInvitacion !== undefined) set['crecimiento.invitaciones.xpPorInvitacion'] = entero(b.xpPorInvitacion, 0, 100000, 0);
             if (Array.isArray(b.recompensas)) {
                 const vistos = new Set();
@@ -149,7 +149,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             const rol = rolDe(guild, b.rolId);
             if (rol === false) return res.status(400).json({ error: 'Ese rol no existe o no se puede mencionar' });
             if (rol !== undefined) set['crecimiento.bump.rolId'] = rol;
-            if (b.oroPorBump !== undefined) set['crecimiento.bump.oroPorBump'] = entero(b.oroPorBump, 0, 10000, 25);
+            if (b.oroPorBump !== undefined) set['crecimiento.bump.oroPorBump'] = require('../utils/limites.js').topeOro('crecimiento.bump.oroPorBump', b.oroPorBump);
             if (b.mensajeRecordatorio !== undefined) set['crecimiento.bump.mensajeRecordatorio'] = texto(b.mensajeRecordatorio, 500).trim() || actual.mensajeRecordatorio;
             if (b.mensajeGracias !== undefined) set['crecimiento.bump.mensajeGracias'] = texto(b.mensajeGracias, 500).trim() || actual.mensajeGracias;
             const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after' });
@@ -355,7 +355,7 @@ module.exports = function montarRutasCrecimiento(app, client, { exigeArea }) {
             if (b.horasRol !== undefined) set['crecimiento.votos.horasRol'] = entero(b.horasRol, 1, 168, 12);
             if (b.xp !== undefined) set['crecimiento.votos.xp'] = entero(b.xp, 0, 100000, 0);
             if (b.mensaje !== undefined) set['crecimiento.votos.mensaje'] = texto(b.mensaje, 800).trim() || actual.mensaje;
-            if (b.oroExtra !== undefined) set['crecimiento.votos.oroExtra'] = entero(b.oroExtra, 0, 100000, 0);
+            if (b.oroExtra !== undefined) set['crecimiento.votos.oroExtra'] = require('../utils/limites.js').topeOro('crecimiento.votos.oroExtra', b.oroExtra);
             if (b.mencionar !== undefined) set['crecimiento.votos.mencionar'] = !!b.mencionar;
             const nueva = await ServidorConfig.findOneAndUpdate({ guildId: guild.id }, { $set: set }, { returnDocument: 'after' });
             res.json({ success: true, config: nueva.crecimiento.votos });

@@ -275,7 +275,7 @@ export default function EventosView({ dash }) {
               <span className="block text-xs text-muted">{t('dashboard.eventos_v.prizeHint')}</span>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <label className="block"><span className="mb-1 block text-xs text-muted">{t('dashboard.eventos_v.prizeGold')}</span>
-                  <input type="number" min={0} max={100000} value={premioOro} onChange={(e) => setPremioOro(e.target.value)} className={input} /></label>
+                  <input type="number" min={0} max={1000} value={premioOro} onChange={(e) => setPremioOro(e.target.value)} className={input} /></label>
                 <label className="block"><span className="mb-1 block text-xs text-muted">{t('dashboard.eventos_v.prizeXp')}</span>
                   <input type="number" min={0} max={100000} value={premioXp} onChange={(e) => setPremioXp(e.target.value)} className={input} /></label>
               </div>

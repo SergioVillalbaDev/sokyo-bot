@@ -1,7 +1,7 @@
 // Quién puede entrar al panel y a qué partes: la MISMA regla que utils/accesoPanel.js del
 // bot (calcularAcceso). Aquí se recalcula al momento mientras se cambian los roles en
 // Configuración → Acceso al panel, antes de guardar. Si cambias una, cambia la otra.
-export const AREAS = ['tickets', 'moderacion', 'entrada', 'roles', 'crecimiento', 'musica', 'mensajes', 'datos', 'logs', 'config', 'cuenta'];
+export const AREAS = ['tickets', 'moderacion', 'entrada', 'roles', 'comunidad', 'crecimiento', 'musica', 'mensajes', 'datos', 'logs', 'config', 'cuenta'];
 
 // `concesion`: acceso dado a esa persona { areas, moderar, expiraEn } (1.13.0) o null.
 export const concesionVigente = (c, ahora = Date.now()) => !!(c && (!c.expiraEn || new Date(c.expiraEn).getTime() > ahora));

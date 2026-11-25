@@ -125,12 +125,11 @@ describe('crearSlashDesdePrefijo', () => {
         } finally { rol.execute = original; }
         assert.deepStrictEqual(visto, ['create', 'Equipo Rojo']);
     });
-    it('un comando real (dado) responde por la interacción', async () => {
-        const cmd = require('../slash/dado.js');
+    it('un comando real (ping) responde por la interacción', async () => {
+        const cmd = require('../slash/ping.js');
         const i = interaccion();
-        await cmd.execute(i, {}, null);
-        assert.strictEqual(i.llamadas[0][0], 'reply');
-        assert.match(JSON.stringify(i.llamadas[0][1]), /🎲/);
+        await cmd.execute(i, { ws: { ping: 42 } }, null);
+        assert.ok(['reply', 'deferReply'].includes(i.llamadas[0][0]));
     });
 });
 

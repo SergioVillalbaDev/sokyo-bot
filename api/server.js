@@ -369,6 +369,37 @@ module.exports = (client) => {
         votos.procesarVoto(client, voto).catch((e) => console.error('top.gg · voto:', e.message));
     });
 
+    // --- 2.0.0: ÁREA del panel por ruta (utils/areasRutas.js). Cada petición del staff (no los
+    // propietarios ni la clave de soporte) a una ruta con área exige tener esa área en ese servidor,
+    // aunque llame a la API a mano. El servidor sale de la ruta/query/cuerpo, del recurso por id
+    // (sorteo, anuncio…) o del canal (tickets por canalId).
+    app.use('/api', async (req, res, next) => {
+        if (!req.staff || req.staff.owner || req.staff.soporte) return next();
+        const AR = require('../utils/areasRutas.js');
+        const regla = AR.areaDeRuta(req.method, req.path);
+        if (!regla) return next();
+        let guildId = AR.guildDeRuta(req);
+        if (!guildId && regla.modelo) {
+            const id = AR.idDeRuta(req.path);
+            if (id) {
+                const doc = await require(`../models/${regla.modelo}.js`).findById(id).select('guildId').lean().catch(() => null);
+                if (!doc) return res.status(404).json({ error: 'No encontrado' });
+                guildId = doc.guildId;
+            }
+        }
+        if (!guildId) {
+            const sf = (req.path.match(/\/(\d{17,20})(?:\/|$)/) || [])[1];
+            const canal = sf && client.channels.cache.get(sf);
+            if (canal?.guildId) guildId = canal.guildId;
+        }
+        // Sin servidor concreto (listas de todos los suyos): solo si tiene esa área en todos.
+        const servidores = guildId ? [guildId] : (req.staff.guilds || []);
+        for (const g of servidores) {
+            if (!(await tieneAreaAcceso(req, g, regla.area))) return res.status(403).json({ error: 'No tienes acceso a esta sección del panel', codigo: 'area', area: regla.area });
+        }
+        return next();
+    });
+
     // --- Historial de cambios del panel: apunta lo que cambia cada guardado ---
     app.use('/api', require('../utils/historialCambios.js').middlewareHistorial());
 
@@ -1093,7 +1124,7 @@ module.exports = (client) => {
     // lista vacía = visible para todos; con roles = solo quien tenga uno de ellos.
     // Debe cubrir TODOS los grupos del nav (incluida 'cuenta' = facturación) para
     // que se puedan restringir; si falta uno, ese grupo sería visible para todos.
-    const AREAS = ['cuenta', 'datos', 'entrada', 'crecimiento', 'musica', 'tickets', 'roles', 'moderacion', 'logs', 'mensajes', 'config'];
+    const AREAS = require('../utils/accesoPanel.js').AREAS;
     app.get('/api/mis-permisos', async (req, res) => {
         try {
             const todo = () => res.json({ areas: Object.fromEntries(AREAS.map((a) => [a, true])) });

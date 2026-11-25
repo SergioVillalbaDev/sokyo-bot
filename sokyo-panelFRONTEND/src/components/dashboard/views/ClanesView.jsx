@@ -46,14 +46,14 @@ export default function ClanesView({ dash }) {
             <Numero value={form.costeCrear ?? 0} onChange={set('costeCrear')} max={1000000} />
           </Campo>
           <div className="grid grid-cols-2 gap-3">
-            <Campo etiqueta={t('dashboard.clanes_v.prizeGold')}><Numero value={form.premioOro ?? 100} onChange={set('premioOro')} max={1000000} /></Campo>
+            <Campo etiqueta={t('dashboard.clanes_v.prizeGold')}><Numero value={form.premioOro ?? 100} onChange={set('premioOro')} max={1000} /></Campo>
             <Campo etiqueta={t('dashboard.clanes_v.prizeXp')}><Numero value={form.premioXp ?? 0} onChange={set('premioXp')} max={100000} /></Campo>
           </div>
         </div>
         <p className="mt-3 text-xs text-muted">{t('dashboard.clanes_v.prizeHint')}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Campo etiqueta={t('dashboard.clanes_v.warPrize')} ayuda={t('dashboard.clanes_v.warHint')}>
-            <Numero value={form.premioGuerra ?? 150} onChange={set('premioGuerra')} max={1000000} />
+            <Numero value={form.premioGuerra ?? 150} onChange={set('premioGuerra')} max={2000} />
           </Campo>
         </div>
         <div className="mt-5"><BotonGuardar estado={estado} onClick={guardar} autoguardado={autoguardado} /></div>

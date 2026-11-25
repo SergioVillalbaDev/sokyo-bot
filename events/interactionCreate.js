@@ -225,90 +225,8 @@ module.exports = {
         // --- Grupos, confesiones, solicitudes, ayuda antes del ticket y tickets por privado ---
         if (await require('../utils/interaccionesComunidad.js').manejar(interaction, client)) return;
 
-        // --- TIENDA: compra al elegir en el menú (reutiliza la MISMA lógica que la web) ---
-        if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_comprar') {
-            const cfgTienda = await getConfigCached(interaction.guildId).catch(() => null);
-            const economia = require('../utils/economia.js');
-            const r = await economia.en(interaction.guildId).comprarItem(interaction.user.id, interaction.values[0], 1, cfgTienda || 'en');
-            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
-            return interaction.reply({
-                content: t(cfgTienda, `✅ Has comprado **${r.item.nombre}** por 🪙 ${r.coste}. Te quedan **${r.balance}** de oro.`, `✅ You bought **${r.item.nombre}** for 🪙 ${r.coste}. You have **${r.balance}** gold left.`),
-                flags: 64,
-            });
-        }
-
-        // --- USAR: aplica el efecto del objeto elegido en /usar ---
-        if (interaction.isStringSelectMenu() && interaction.customId === 'usar_objeto') {
-            const economia = require('../utils/economia.js');
-            const RolTemporal = require('../models/RolTemporal.js');
-            // El efecto de ROL se aplica aquí porque tenemos servidor + miembro.
-            const ctx = {
-                aplicarRol: async (rolId, durMin) => {
-                    if (!rolId || !interaction.guild) return false;
-                    const rol = interaction.guild.roles.cache.get(rolId);
-                    if (!rol) return false;
-
-                    // Un ítem de la tienda (creable por cualquier usuario logueado) NUNCA puede
-                    // convertirse en una vía para auto-concederse permisos o el rol de staff.
-                    const PERMISOS_PROHIBIDOS = [
-                        PermissionsBitField.Flags.Administrator,
-                        PermissionsBitField.Flags.ManageGuild,
-                        PermissionsBitField.Flags.ManageRoles,
-                        PermissionsBitField.Flags.ManageChannels,
-                        PermissionsBitField.Flags.BanMembers,
-                        PermissionsBitField.Flags.KickMembers,
-                        PermissionsBitField.Flags.ModerateMembers,
-                        PermissionsBitField.Flags.ManageWebhooks,
-                        PermissionsBitField.Flags.ManageMessages,
-                    ];
-                    if (PERMISOS_PROHIBIDOS.some((p) => rol.permissions.has(p))) {
-                        console.warn(`🚨 Rol vía ítem: ${interaction.user.tag} intentó auto-concederse el rol peligroso "${rol.name}" (${rolId}) en ${interaction.guild.id}`);
-                        return false;
-                    }
-                    const cfg = await ServidorConfig.findOne({ guildId: interaction.guild.id });
-                    const rolesSensibles = new Set([
-                        cfg?.rolStaffId,
-                        ...(cfg?.rolesModeracion || []),
-                        ...(cfg?.rolesPanelAcceso || []),
-                    ].filter(Boolean));
-                    if (rolesSensibles.has(rolId)) {
-                        console.warn(`🚨 Rol vía ítem: ${interaction.user.tag} intentó auto-concederse el rol de staff "${rol.name}" en ${interaction.guild.id}`);
-                        return false;
-                    }
-
-                    try {
-                        await interaction.member.roles.add(rolId);
-                        if (durMin > 0) {
-                            await RolTemporal.create({
-                                guildId: interaction.guild.id, userId: interaction.user.id,
-                                roleId: rolId, expiraEn: new Date(Date.now() + durMin * 60000),
-                            });
-                        }
-                        return true;
-                    } catch { return false; }
-                },
-            };
-            const cfgUsar = await getConfigCached(interaction.guildId).catch(() => null);
-            ctx.idioma = cfgUsar || 'en';
-            const r = await economia.en(interaction.guildId).usarItem(interaction.user.id, interaction.values[0], ctx);
-            if (!r.ok) return interaction.reply({ content: `❌ ${r.error}`, flags: 64 });
-
-            const ef = r.efecto;
-            if (ef.tipo === 'caja') {
-                const COLOR = { comun: '#2dd4bf', raro: '#38bdf8', epico: '#c084fc', legendario: '#f5b942' };
-                const p = r.premio;
-                const embed = new EmbedBuilder()
-                    .setColor(COLOR[p.rareza] || '#f5b942')
-                    .setTitle(t(cfgUsar, '🎁 ¡Caja abierta!', '🎁 Box opened!'))
-                    .setDescription(t(cfgUsar, `Has abierto **${r.item.nombre}** y has conseguido…\n\n✨ **${p.nombre}** *(${p.rareza})*`, `You opened **${r.item.nombre}** and got…\n\n✨ **${p.nombre}** *(${p.rareza})*`))
-                    .setThumbnail(p.imageUrl || null);
-                return interaction.reply({ embeds: [embed], flags: 64 });
-            }
-            const msg = ef.tipo === 'xpBoost'
-                ? t(cfgUsar, `✨ Has usado **${r.item.nombre}**: XP **x${ef.multiplicador}** durante **${ef.duracionMin} min**! 📈`, `✨ You used **${r.item.nombre}**: XP **x${ef.multiplicador}** for **${ef.duracionMin} min**! 📈`)
-                : t(cfgUsar, `✨ Has usado **${r.item.nombre}**: rol activado durante **${ef.duracionMin} min**. 🎭`, `✨ You used **${r.item.nombre}**: role activated for **${ef.duracionMin} min**. 🎭`);
-            return interaction.reply({ content: msg, flags: 64 });
-        }
+        // --- TIENDA DEL SERVIDOR (2.0.0): menú y confirmar compra (tnd_*) ---
+        if (await require('../utils/tiendaServidor.js').manejar(interaction)) return;
 
         // --- SISTEMA DE ROLES: paneles de autoasignación (se gestionan aparte) ---
         // --- MI CUENTA: botón «Abrir mi cuenta» de los mensajes públicos ---
@@ -328,11 +246,6 @@ module.exports = {
         // --- MÚSICA: botones del panel (⏯️ ⏭️ ⏹️ 🔀 🔉 🔊) ---
         if (interaction.isButton() && interaction.customId.startsWith('music_')) {
             return require('../utils/musica.js').manejarBotonMusica(interaction, client);
-        }
-
-        // --- BÚSQUEDA DE EMPLEO: botón "marcar como aplicada" (solo OWNER_IDS) ---
-        if (interaction.isButton() && interaction.customId.startsWith('empleo:')) {
-            return require('../utils/empleoInteracciones.js').manejarBotonEmpleo(interaction);
         }
 
         // --- VOZ TEMPORAL: panel de control (botones / modales / selección de usuario) ---

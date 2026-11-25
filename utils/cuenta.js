@@ -25,7 +25,7 @@ function origenApi() {
 }
 
 // Dirección corta y fácil de recordar de la web de cada usuario. Con `extra`
-// lleva a algo concreto: urlCuenta('tickets', canalId), urlCuenta('tienda', 'mochila').
+// lleva a algo concreto: urlCuenta('tickets', canalId), urlCuenta('tienda').
 function urlCuenta(vista = null, extra = null) {
     const base = (process.env.FRONTEND_URL || origenApi()).replace(/\/+$/, '');
     if (!vista || !VISTAS.includes(vista) || (vista === 'inicio' && !extra)) return `${base}/cuenta`;
@@ -71,8 +71,8 @@ function mensajeAcceso(user, idioma, vista = 'inicio') {
         .setColor('#a855f7')
         .setAuthor({ name: t(idioma, 'Tu cuenta Sokyo', 'Your Sokyo account'), iconURL: typeof user.displayAvatarURL === 'function' ? user.displayAvatarURL() : undefined })
         .setDescription(t(idioma,
-            'Pulsa el botón y entrarás **directamente**, sin contraseñas.\n\n🏠 Tu resumen · 🎫 Tickets · 🛒 Tienda y mochila · 🎵 Música · 🎨 Tarjeta de nivel',
-            'Press the button and you’ll go in **straight away**, no passwords.\n\n🏠 Your overview · 🎫 Tickets · 🛒 Shop and bag · 🎵 Music · 🎨 Level card'))
+            'Pulsa el botón y entrarás **directamente**, sin contraseñas.\n\n🏠 Tu resumen · 🎫 Tickets · 🛒 Tienda del servidor · 🎵 Música · 🎨 Tarjeta de nivel',
+            'Press the button and you’ll go in **straight away**, no passwords.\n\n🏠 Your overview · 🎫 Tickets · 🛒 Server shop · 🎵 Music · 🎨 Level card'))
         .setFooter({ text: t(idioma,
             `Solo tú ves este botón y caduca en 15 minutos · Cuando quieras: ${web}`,
             `Only you can see this button and it expires in 15 minutes · Any time: ${web}`) });
@@ -83,7 +83,7 @@ function mensajeAcceso(user, idioma, vista = 'inicio') {
 }
 
 // Botón de enlace normal (sin sesión) a una pantalla de la web, para añadirlo
-// debajo de otros mensajes del bot (tienda, mochila, tickets…).
+// debajo de otros mensajes del bot (tienda, tickets…).
 function botonWeb(cfg, vista, etiqueta = null, extra = null) {
     return new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
@@ -126,12 +126,12 @@ function embedCuentaDefecto(cfg) {
         descripcion: t(cfg,
             'Cada miembro tiene **su propia web** con lo suyo de este servidor:\n\n'
             + '🎫 **Tus tickets** · habla con el staff también desde el móvil\n'
-            + '🛒 **Tienda y mochila** · gasta tu oro y usa tus objetos\n'
+            + '🛒 **Tienda del servidor** · roles especiales con tu oro\n'
             + '🎵 **Música** · pon canciones en tu canal de voz\n'
             + '🎨 **Tu tarjeta de nivel** · cámbiale el estilo a tu gusto',
             'Every member gets **their own web page** with everything of theirs on this server:\n\n'
             + '🎫 **Your tickets** · talk to the staff, from your phone too\n'
-            + '🛒 **Shop and bag** · spend your gold and use your items\n'
+            + '🛒 **Server shop** · special roles with your gold\n'
             + '🎵 **Music** · play songs in your voice channel\n'
             + '🎨 **Your level card** · style it the way you like'),
         campos: [

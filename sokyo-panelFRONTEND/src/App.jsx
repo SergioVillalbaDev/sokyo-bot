@@ -67,6 +67,9 @@ function App() {
     if (!irAlLogin) return;
     const pestana = window.location.hash.match(/^#dashboard\/([\w-]+)/);
     if (pestana) sessionStorage.setItem('sokyoPestanaTrasLogin', pestana[1]);
+    // 2.0.0: /panel?servidor=<id> (lo manda el bot al entrar en un servidor) abre ese servidor tras el login.
+    const servidor = new URLSearchParams(window.location.search).get('servidor');
+    if (servidor && /^\d{17,20}$/.test(servidor)) sessionStorage.setItem('sokyoGuildTrasLogin', servidor);
     window.location.href = `${API_URL}/api/auth/discord?state=staff`;
   }, [irAlLogin]);
 

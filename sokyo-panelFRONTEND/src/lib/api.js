@@ -90,6 +90,10 @@ export const procesarRespuesta = async (res) => {
       throw new Error(msg || 'La VITE_API_KEY del panel no coincide con la API_KEY del bot.');
     throw new Error(msg || '401 No autorizado.');
   }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status; // 403 = esa parte del panel no es de esta persona (no es un fallo de conexión)
+    throw err;
+  }
   return res.json();
 };

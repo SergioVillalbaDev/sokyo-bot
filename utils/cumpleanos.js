@@ -18,13 +18,38 @@ const fechaValida = (dia, mes) => Number.isInteger(dia) && Number.isInteger(mes)
 const textoFecha = (dia, mes, idioma) => (t(idioma, 'es', 'en') === 'es' ? `${dia} de ${MESES.es[mes - 1]}` : `${MESES.en[mes - 1]} ${dia}`);
 const esBisiesto = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 
+// 2.0.0: la fecha se puede corregir el mismo día que se pone; después, solo cada 180 días.
+// Antes, cambiarla a «hoy» cada día daba el regalo de oro a diario. Borrarla no reinicia la espera.
+const DIA_MS = 86400000;
+const CAMBIO_LIBRE_MS = DIA_MS;
+const ESPERA_CAMBIO_MS = 180 * DIA_MS;
+function puedeCambiar(doc, dia, mes, ahora = Date.now()) {
+    if (!doc || !doc.fijadoEn) return { ok: true };
+    if (doc.dia === dia && doc.mes === mes) return { ok: true };
+    const desde = ahora - new Date(doc.fijadoEn).getTime();
+    if (desde < CAMBIO_LIBRE_MS || desde >= ESPERA_CAMBIO_MS) return { ok: true };
+    return { ok: false, motivo: 'espera', hasta: new Date(new Date(doc.fijadoEn).getTime() + ESPERA_CAMBIO_MS) };
+}
 async function guardarCumple(userId, dia, mes) {
     dia = parseInt(dia, 10); mes = parseInt(mes, 10);
     if (!fechaValida(dia, mes)) return { ok: false, error: 'fecha' };
-    await Cumpleanos.findOneAndUpdate({ userId }, { $set: { dia, mes } }, { upsert: true });
+    const doc = await Cumpleanos.findOne({ userId }).lean();
+    const p = puedeCambiar(doc, dia, mes);
+    if (!p.ok) return p;
+    const nuevo = !doc || !doc.fijadoEn || Date.now() - new Date(doc.fijadoEn).getTime() >= ESPERA_CAMBIO_MS;
+    await Cumpleanos.findOneAndUpdate({ userId }, { $set: { dia, mes, ...(nuevo ? { fijadoEn: new Date() } : {}) } }, { upsert: true });
     return { ok: true, dia, mes };
 }
-const borrarCumple = (userId) => Cumpleanos.deleteOne({ userId });
+const borrarCumple = (userId) => Cumpleanos.updateOne({ userId }, { $set: { dia: null, mes: null } });
+
+// ¿Puede llevarse el regalo de este servidor? Uno al año como mucho (apunta la fecha si sí).
+async function apuntarPremio(userId, guildId, ahora = new Date()) {
+    const r = await Cumpleanos.updateOne(
+        { userId, $or: [{ [`premios.${guildId}`]: { $exists: false } }, { [`premios.${guildId}`]: { $lte: new Date(ahora.getTime() - 300 * DIA_MS) } }] },
+        { $set: { [`premios.${guildId}`]: ahora } },
+    ).catch(() => null);
+    return !!r?.modifiedCount;
+}
 const cumpleDe = (userId) => Cumpleanos.findOne({ userId }).lean();
 
 // Días que faltan para el próximo cumpleaños (0 = hoy), en UTC.
@@ -69,7 +94,7 @@ async function proximos(guild, limite = 10) {
     const ids = [...guild.members.cache.keys()];
     const todos = [];
     for (let i = 0; i < ids.length; i += 5000) {
-        todos.push(...await Cumpleanos.find({ userId: { $in: ids.slice(i, i + 5000) } }).select('userId dia mes').lean());
+        todos.push(...await Cumpleanos.find({ userId: { $in: ids.slice(i, i + 5000) }, dia: { $ne: null } }).select('userId dia mes').lean());
     }
     const miembros = guild.members.cache;
     return todos
@@ -113,7 +138,9 @@ async function felicitarServidor(client, guild, cfg, cumpleaneros) {
             const ok = await m.roles.add(rol, t(cfg, 'Cumpleaños', 'Birthday')).then(() => true).catch(() => false);
             if (ok) await RolTemporal.create({ guildId: guild.id, userId: m.id, roleId: rol.id, expiraEn: new Date(Date.now() + 24 * 3600 * 1000) }).catch(() => {});
         }
-        if (c.oro > 0 || (c.xp > 0 && cfg.nivelesActivo)) await darRecompensa(guild, m, { oro: c.oro, xp: cfg.nivelesActivo ? c.xp : 0 }, cfg, canal).catch(() => {});
+        if ((c.oro > 0 || (c.xp > 0 && cfg.nivelesActivo)) && await apuntarPremio(m.id, guild.id)) {
+            await darRecompensa(guild, m, { oro: require('./limites.js').topeOro('cumpleanos.oro', c.oro), xp: cfg.nivelesActivo ? c.xp : 0 }, cfg, canal).catch(() => {});
+        }
     }
     return miembros.length;
 }
@@ -138,4 +165,4 @@ async function barrerCumpleanos(client) {
     }
 }
 
-module.exports = { guardarCumple, borrarCumple, cumpleDe, proximos, diasHasta, cumplenHoy, felicitarServidor, barrerCumpleanos, fechaValida, textoFecha, rellenar };
+module.exports = { puedeCambiar, apuntarPremio, guardarCumple, borrarCumple, cumpleDe, proximos, diasHasta, cumplenHoy, felicitarServidor, barrerCumpleanos, fechaValida, textoFecha, rellenar };

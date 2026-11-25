@@ -15,7 +15,7 @@ module.exports = {
             .addChoices(
                 { name: 'Overview', name_localizations: { 'es-ES': 'Resumen', 'es-419': 'Resumen' }, value: 'inicio' },
                 { name: 'My tickets', name_localizations: { 'es-ES': 'Mis tickets', 'es-419': 'Mis tickets' }, value: 'tickets' },
-                { name: 'Shop and bag', name_localizations: { 'es-ES': 'Tienda y mochila', 'es-419': 'Tienda y mochila' }, value: 'tienda' },
+                { name: 'Server shop', name_localizations: { 'es-ES': 'Tienda del servidor', 'es-419': 'Tienda del servidor' }, value: 'tienda' },
                 { name: 'Music', name_localizations: { 'es-ES': 'Música', 'es-419': 'Música' }, value: 'musica' },
                 { name: 'Level card', name_localizations: { 'es-ES': 'Tarjeta de nivel', 'es-419': 'Tarjeta de nivel' }, value: 'tarjeta' },
             )),

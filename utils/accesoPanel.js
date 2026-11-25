@@ -6,7 +6,7 @@
 // cámbialo también allí.
 const { PermissionsBitField } = require('discord.js');
 
-const AREAS = ['tickets', 'moderacion', 'entrada', 'roles', 'crecimiento', 'musica', 'mensajes', 'datos', 'logs', 'config', 'cuenta'];
+const AREAS = ['tickets', 'moderacion', 'entrada', 'roles', 'comunidad', 'crecimiento', 'musica', 'mensajes', 'datos', 'logs', 'config', 'cuenta'];
 const F = PermissionsBitField.Flags;
 
 // `m`: { roles: [ids], admin, gestionarCanales, moderarNativo, duenoServidor, propietarioBot }.

@@ -30,7 +30,13 @@ export function useDashboard() {
   useEffect(() => { sessionStorage.removeItem('sokyoPestanaTrasLogin'); }, []);
 
   // Servidor (guild) seleccionado en el panel + lista de servidores del bot.
-  const [guildId, setGuildIdState] = useState(() => localStorage.getItem('sokyoGuild') || '');
+  // 2.0.0: /panel?servidor=<id> (enlace del mensaje de entrada del bot) abre directamente ese servidor.
+  const [guildId, setGuildIdState] = useState(() => {
+    const pedido = new URLSearchParams(window.location.search).get('servidor') || sessionStorage.getItem('sokyoGuildTrasLogin');
+    sessionStorage.removeItem('sokyoGuildTrasLogin');
+    if (pedido && /^\d{17,20}$/.test(pedido)) { localStorage.setItem('sokyoGuild', pedido); return pedido; }
+    return localStorage.getItem('sokyoGuild') || '';
+  });
   const [servidores, setServidores] = useState([]);
   // Modal "elige servidor": se muestra al entrar si hay varios y aún no se eligió
   // uno en ESTE dispositivo (localStorage es por navegador, de ahí la confusión).
@@ -185,6 +191,8 @@ export function useDashboard() {
   };
 
   const reportarError = (contexto) => (err) => {
+    // 403: a esta persona no le han dado esa parte del panel. No es un fallo: se queda vacío, sin banner.
+    if (err && err.status === 403) return;
     console.error(`Error ${contexto}:`, err);
     if (err && err.code === 'session_invalid') {
       setSesionCaducada(true);
@@ -1644,7 +1652,10 @@ export function useDashboard() {
   }, [temasPremium, theme]);
 
   useEffect(() => {
-    if (guildId || servidores.length === 0) return;
+    if (servidores.length === 0) return;
+    // Un servidor guardado (o pedido por enlace) al que ya no tiene acceso: se vuelve a elegir.
+    if (guildId && !servidores.some((s) => s.id === guildId)) { setGuildId(''); return; }
+    if (guildId) return;
     // Un solo servidor: entrar directo. Varios: preguntar cuál gestionar.
     if (servidores.length === 1) setGuildId(servidores[0].id);
     else setMostrarSelectorServidor(true);
@@ -1698,7 +1709,7 @@ export function useDashboard() {
     else if (activeTab === 'crec-contadores') { cargarConfiguracion(); cargarCategorias(); }
     else if (activeTab.startsWith('crec-')) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     // 1.9.0: las secciones nuevas eligen canales, roles o categorías del servidor.
-    else if (['com-cumpleanos', 'com-solicitudes', 'com-salon', 'com-clanes', 'com-confesiones'].includes(activeTab)) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
+    else if (['com-cumpleanos', 'com-solicitudes', 'com-salon', 'com-clanes', 'com-confesiones', 'com-tienda'].includes(activeTab)) { cargarConfiguracion(); cargarCanales(); cargarRoles(); }
     else if (activeTab === 'com-grupos') { cargarConfiguracion(); cargarCanales(); cargarCategorias(); }
     else if (activeTab === 'prod-ausente' || activeTab === 'prod-fijos') { cargarConfiguracion(); cargarCanales(); }
     else if (activeTab === 'voz-temporal') { cargarConfiguracion(); cargarCanales(); cargarCanalesVoz(); cargarCategorias(); cargarVozActivos(); }
@@ -1788,6 +1799,7 @@ export function useDashboard() {
       'crec-votos': b(c.crecimiento && c.crecimiento.votos && c.crecimiento.votos.activo),
       'com-mascota': b(c.mascota && c.mascota.activo),
       'com-casino': b(c.casino && c.casino.activo),
+      'com-tienda': b(c.tienda && c.tienda.activo),
       'com-compis': b(c.casino && c.casino.activo && c.casino.cofres !== false),
       'com-bromas': b(c.bromas && c.bromas.activo),
       'crec-liga': b(c.liga && c.liga.activo),

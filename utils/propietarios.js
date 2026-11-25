@@ -1,5 +1,5 @@
 // Propietarios del bot: pueden con todo (todos los servidores en el panel,
-// planes, /sistema, búsqueda de empleo…). Son los de OWNER_IDS del .env más
+// planes, /sistema…). Son los de OWNER_IDS del .env más
 // los fijados aquí, que no dependen del .env de cada máquina.
 const FIJOS = [
     '1433388927233953902',

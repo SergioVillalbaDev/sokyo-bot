@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, InteractionContextType, AttachmentBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, InteractionContextType, AttachmentBuilder } = require('discord.js');
 const economia = require('../utils/economia.js');
 const { t } = require('../utils/i18n.js');
 const { botonWeb } = require('../utils/cuenta.js');
@@ -44,6 +44,7 @@ module.exports = {
         // 1.32.0: evento de temporada, regalo por racha y lo que suba del pase.
         const P = require('../utils/pase.js');
         const extra = [
+            r.extraClan ? t(cfg, `🛡️ **Tu clan ganó la semana:** +🪙 ${r.extraClan}`, `🛡️ **Your clan won the week:** +🪙 ${r.extraClan}`) : '',
             r.extraEvento ? t(cfg, `${r.evento.emoji} **${r.evento.es}:** +🪙 ${r.extraEvento}`, `${r.evento.emoji} **${r.evento.en}:** +🪙 ${r.extraEvento}`) : '',
             r.regalo ? t(cfg, `🎁 **¡Regalo por ${r.racha} días seguidos!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} Un ${P.NOMBRE_TICKET?.[r.regalo]?.[1] || 'ticket'} gratis (en \`/jugar pase\`).`, `🎁 **${r.racha}-day streak gift!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} A free ${P.NOMBRE_TICKET?.[r.regalo]?.[2] || 'ticket'} (in \`/games pass\`).`) : '',
             !r.regalo ? (() => { const sig = [3, 7, 14, 21, 30].find((d) => d > r.racha); return sig ? t(cfg, `🎁 Próximo regalo a los **${sig} días** de racha.`, `🎁 Next gift at a **${sig}-day** streak.`) : ''; })() : '',
@@ -52,7 +53,11 @@ module.exports = {
         if (extra.length) embed.setDescription([embed.data.description, ...extra].filter(Boolean).join('\n'));
         if (png) { embed.setFields([]).setFooter(null).setImage('attachment://diario.png'); embed.setDescription(extra.join('\n') || null); }
         // Desde «Mi cuenta» también se puede reclamar con un clic.
-        const web = new ActionRowBuilder().addComponents(botonWeb(cfg, 'inicio', t(cfg, 'Mi cuenta', 'My account')));
+        // 2.0.0: lo siguiente que más da cada día es votar (oro + cofre gratis).
+        const web = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(require('../utils/votos.js').urlVoto(client.user.id)).setEmoji('🗳️').setLabel(t(cfg, 'Votar: +oro y cofre gratis', 'Vote: +gold and free chest')),
+            botonWeb(cfg, 'inicio', t(cfg, 'Mi cuenta', 'My account')),
+        );
         await interaction.reply({ embeds: [embed], components: [web], files: png ? [new AttachmentBuilder(png, { name: 'diario.png' })] : [] });
     },
 };

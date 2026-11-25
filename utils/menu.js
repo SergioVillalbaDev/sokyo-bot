@@ -28,7 +28,7 @@ const ACCIONES = {
     combates: [['retar', '⚔️', 'Retar a alguien', 'Challenge someone', 'fight', 'challenge', {}, 'miembro', 'nivel5'], ['torre', '🗼', 'Subir la torre', 'Climb the tower', 'fight', 'tower', {}, null, 'nivel5'],
         ['jefe', '🐉', 'Jefe de la semana', 'Weekly boss', 'fight', 'boss', {}, null, 'conMascota'], ['mazo', '🃏', 'Mi mazo', 'My deck', 'fight', 'deck', {}, null, 'nivel5'], ['perfil', '🏅', 'Mi rango', 'My rank', 'fight', 'profile', {}, null, 'nivel5']],
     pase: [['pase', '🎟️', 'Mi pase', 'My pass', 'pass', null, {}, null, 'base'], ['perfil', '🪪', 'Mi perfil', 'My profile', 'profile', null, {}, null, 'base']],
-    oro: [['diario', '🪙', 'Oro diario', 'Daily gold', 'daily', null, {}, null, 'base'], ['tienda', '🛒', 'Tienda', 'Shop', 'shop', null, {}, null, 'base'], ['inventario', '🎒', 'Mi mochila', 'My bag', 'inventory', null, {}, null, 'base']],
+    oro: [['diario', '🪙', 'Oro diario', 'Daily gold', 'daily', null, {}, null, 'base'], ['votar', '🗳️', 'Votar: oro y cofre gratis', 'Vote: gold and free chest', 'vote', null, {}, null, 'base'], ['tienda', '🛒', 'Tienda del servidor', 'Server shop', 'shop', null, {}, null, 'base'], ['ricos', '💰', 'Los más ricos', 'Richest', 'rich', null, {}, null, 'base']],
     mascotas: [['ver', '🐾', 'Ver mi mascota', 'See my pet', 'companion', null, {}, null, 'conMascota'], ['granja', '🧺', 'Mi granja', 'My farm', 'farm', null, {}, null, 'conMascota'],
         ['expedicion', '🧭', 'Expedición en grupo', 'Group expedition', 'expedition', null, {}, { opcion: 'destination', valores: DESTINOS }, 'conMascota'],
         ['casa', '🏠', 'Mi casa', 'My house', 'house', null, {}, null, 'tresMascotas'], ['guarderia', '🥚', 'Guardería', 'Nursery', 'nursery', null, {}, null, 'nivel10']],

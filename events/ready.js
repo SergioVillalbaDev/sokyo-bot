@@ -28,6 +28,8 @@ module.exports = {
             () => ({ name: '🎧 Lofi & Bangers', type: ActivityType.Listening }),
             () => ({ name: '🎉 Giveaways & Polls', type: ActivityType.Watching }),
             () => ({ name: '🤖 5 Bots, 1 Brain', type: ActivityType.Watching }),
+            () => ({ name: '🐾 Pets, Cards & Battles', type: ActivityType.Playing }),
+            () => ({ name: '🎰 /menu · /help', type: ActivityType.Playing }),
         ];
         let presenciaIdx = 0;
         const rotarPresencia = () => {
@@ -36,6 +38,9 @@ module.exports = {
         };
         rotarPresencia();
         setInterval(rotarPresencia, 25000);
+
+        // 2.0.0: la descripción del bot en Discord, al día con lo que hace (utils/descripcionBot.js).
+        require('../utils/descripcionBot.js').ponerDescripcion(client).catch((e) => console.error('Descripción del bot:', e.message));
 
         // Textos de fábrica de cada servidor en su idioma (p. ej. "Abrir un ticket" en español).
         esperarMongo().then(adaptarTodos).catch((e) => console.error('Adaptar textos al idioma:', e.message));
@@ -55,6 +60,8 @@ module.exports = {
             require('../utils/migrarCartas.js').migrar().then((n) => { if (n) console.log(`🃏 ${n} colecciones: personajes anime pasados a cartas`); }),
             // 1.30.0: colecciones por servidor (quita el índice viejo de una por persona).
             require('../utils/migrarPorServidor.js').migrar().then((q) => { if (q) console.log('🗂️ Colecciones por servidor: índice viejo quitado'); }),
+            // 2.0.0: los premios en oro que pone cada servidor, al tope (utils/limites.js TOPES_ORO).
+            require('../utils/limites.js').recortarPremios(),
         ])).catch((e) => console.error('Cargar ausentes / mensajes fijos / grupos:', e.message));
 
         // 1.34.0: cada servidor, solo los comandos de lo que tiene activo (y la guía automática al día).

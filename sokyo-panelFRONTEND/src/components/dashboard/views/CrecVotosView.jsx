@@ -70,7 +70,7 @@ export default function CrecVotosView({ dash }) {
           </Campo>
           <Campo etiqueta={t('dashboard.votos_v.hours')}><Numero value={form.horasRol ?? 12} onChange={set('horasRol')} min={1} max={168} /></Campo>
           <Campo etiqueta={t('dashboard.votos_v.xp')}><Numero value={form.xp ?? 0} onChange={set('xp')} max={100000} disabled={!datos.nivelesActivo} /></Campo>
-          <Campo etiqueta={t('dashboard.votos_v.extraGold')} ayuda={t('dashboard.votos_v.extraGoldHint')}><Numero value={form.oroExtra ?? 0} onChange={set('oroExtra')} max={100000} /></Campo>
+          <Campo etiqueta={t('dashboard.votos_v.extraGold')} ayuda={t('dashboard.votos_v.extraGoldHint')}><Numero value={form.oroExtra ?? 0} onChange={set('oroExtra')} max={1000} /></Campo>
           <div className="self-end">
             <FilaInterruptor titulo={t('dashboard.votos_v.mention')} desc={t('dashboard.votos_v.mentionHint')}>
               <Toggle checked={form.mencionar !== false} onChange={set('mencionar')} />

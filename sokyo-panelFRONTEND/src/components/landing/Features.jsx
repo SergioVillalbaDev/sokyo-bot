@@ -3,13 +3,14 @@
 import { useTranslation } from 'react-i18next';
 import {
   Ticket, ShieldCheck, TrendingUp, Coins, Music, CircleUserRound, LayoutDashboard, DoorOpen, Rocket,
-  ArrowRight, Smartphone, Search, Palette, Ban,
+  ArrowRight, Smartphone, Search, Palette, Ban, Gamepad2,
 } from 'lucide-react';
 import { prioridadBar } from '../../lib/landingConfig';
 import Revelar from './Revelar';
 
 const META = {
   tickets: { Icono: Ticket, color: '#60a5fa', clase: 'md:col-span-2 md:row-span-2' },
+  juegos: { Icono: Gamepad2, color: '#22c55e', clase: 'md:col-span-3 lg:col-span-4' },
   moderacion: { Icono: ShieldCheck, color: '#f87171' },
   niveles: { Icono: TrendingUp, color: '#a855f7' },
   economia: { Icono: Coins, color: '#fbbf24' },
@@ -19,7 +20,7 @@ const META = {
   entrada: { Icono: DoorOpen, color: '#34d399', clase: 'lg:col-span-2' },
   crecimiento: { Icono: Rocket, color: '#fb923c', clase: 'lg:col-span-2' },
 };
-const ORDEN = ['tickets', 'moderacion', 'niveles', 'economia', 'musica', 'portal', 'panel', 'entrada', 'crecimiento'];
+const ORDEN = ['juegos', 'tickets', 'moderacion', 'niveles', 'economia', 'musica', 'portal', 'panel', 'entrada', 'crecimiento'];
 
 // Una tarjeta. Revelar fuera y la tarjeta dentro (sus transiciones no se pisan).
 function Tile({ id, items, retraso, children }) {
@@ -111,6 +112,17 @@ export default function Features() {
         <span className="lx-chip"><Palette size={13} className="text-violet-300" /> {muestras.temas}</span>
         <span className="lx-chip"><Smartphone size={13} className="text-emerald-300" /> {muestras.app}</span>
       </div>
+    ),
+    juegos: (
+      <>
+        <div className="mt-5 flex flex-wrap items-end gap-3" aria-hidden="true">
+          {['dragon', 'zorro', 'gato', 'buho', 'ballena-brillante', 'celestial'].map((s, i) => (
+            <img key={s} src={`/sprites/${s}.webp`} alt="" width="72" height="72" loading="lazy" decoding="async"
+              className="h-14 w-14 object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,.35)] sm:h-[72px] sm:w-[72px]" style={{ transform: `translateY(${i % 2 ? 6 : 0}px)` }} />
+          ))}
+        </div>
+        <Chips lista={muestras.juegos} />
+      </>
     ),
     entrada: <Chips lista={muestras.entrada} />,
     crecimiento: <Chips lista={muestras.crecimiento} />,

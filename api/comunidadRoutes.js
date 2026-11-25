@@ -171,7 +171,7 @@ module.exports = function montarRutasComunidad(app, client) {
         }
         if (b.lugar !== undefined) out.lugar = String(b.lugar || '').slice(0, 100);
         if (b.duracionMin !== undefined) out.duracionMin = Math.max(15, Math.min(1440, parseInt(b.duracionMin, 10) || 60));
-        if (b.premioOro !== undefined) out.premioOro = Math.max(0, Math.min(100000, parseInt(b.premioOro, 10) || 0));
+        if (b.premioOro !== undefined) out.premioOro = require('../utils/limites.js').topeOro('evento.premioOro', b.premioOro);
         if (b.premioXp !== undefined) out.premioXp = Math.max(0, Math.min(100000, parseInt(b.premioXp, 10) || 0));
         return out;
     };
@@ -484,13 +484,13 @@ module.exports = function montarRutasComunidad(app, client) {
     // proxima, encontrada…— se omiten a propósito para que el panel no los pise).
     //   bool: activo/flags · int: [min,max,def] · str: texto (o null) · strArr / numArr.
     const DINAMICAS_CAMPOS = {
-        qotd: { activo: 'bool', canalId: 'str', hora: [0, 23, 12], xp: [0, 100000, 50], oro: [0, 1000000, 0], mencionRolId: 'str', preguntas: 'strArr' },
-        gota: { activo: 'bool', canalId: 'str', cadaMin: [1, 10080, 120], ventanaSeg: [5, 3600, 60], xp: [0, 100000, 75], oro: [0, 1000000, 0], emoji: 'str' },
+        qotd: { activo: 'bool', canalId: 'str', hora: [0, 23, 12], xp: [0, 100000, 50], oro: [0, 300, 0], mencionRolId: 'str', preguntas: 'strArr' },
+        gota: { activo: 'bool', canalId: 'str', cadaMin: [1, 10080, 120], ventanaSeg: [5, 3600, 60], xp: [0, 100000, 75], oro: [0, 300, 0], emoji: 'str' },
         contador: { activo: 'bool', canalId: 'str', repetirUsuario: 'bool', xp: [0, 100000, 1], borrarErrores: 'bool' },
-        trivia: { activo: 'bool', canalId: 'str', hora: [0, 23, 18], xp: [0, 100000, 30], oro: [0, 1000000, 0], segundos: [5, 600, 30] },
-        reto: { activo: 'bool', canalId: 'str', objetivo: [1, 100000, 20], xp: [0, 100000, 40], oro: [0, 1000000, 0], avisarCanalId: 'str' },
-        tesoro: { activo: 'bool', canalId: 'str', palabra: 'str', xp: [0, 100000, 60], oro: [0, 1000000, 0], unaVez: 'bool' },
-        miembroSemana: { activo: 'bool', canalId: 'str', rolId: 'str', dia: [0, 6, 1], hora: [0, 23, 12], xp: [0, 100000, 200], oro: [0, 1000000, 0] },
+        trivia: { activo: 'bool', canalId: 'str', hora: [0, 23, 18], xp: [0, 100000, 30], oro: [0, 300, 0], segundos: [5, 600, 30] },
+        reto: { activo: 'bool', canalId: 'str', objetivo: [1, 100000, 20], xp: [0, 100000, 40], oro: [0, 500, 0], avisarCanalId: 'str' },
+        tesoro: { activo: 'bool', canalId: 'str', palabra: 'str', xp: [0, 100000, 60], oro: [0, 500, 0], unaVez: 'bool' },
+        miembroSemana: { activo: 'bool', canalId: 'str', rolId: 'str', dia: [0, 6, 1], hora: [0, 23, 12], xp: [0, 100000, 200], oro: [0, 2000, 0] },
         logros: { activo: 'bool', canalId: 'str', hitosMiembros: 'numArr', hitosNivel: 'numArr' },
     };
 

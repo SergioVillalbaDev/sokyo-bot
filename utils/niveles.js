@@ -7,7 +7,6 @@ const ActividadUsuario = require('../models/ActividadUsuario.js');
 const TarjetaPersonal = require('../models/TarjetaPersonal.js');
 const { generarTarjeta, generarTarjetaAnimada, ESTILOS, fondoEsGif } = require('./rankCard.js');
 const { disenoDe, opcionesDeDiseno } = require('./catalogoTarjetas.js');
-const economia = require('./economia.js'); // para el boost de XP comprado en la tienda
 const { t, resolverIdioma } = require('./i18n.js');
 
 // Opciones de tarjeta personalizada del usuario.
@@ -107,9 +106,6 @@ function multiplicadorDe(member, cfg) {
 // Núcleo: suma `ganada` XP a un miembro, detecta subida de nivel y actúa.
 async function aplicarXp(guild, member, ganada, cfg, canalFallback) {
     const dif = cfg.dificultad || 1;
-    // Boost de XP comprado en la tienda (objeto con efecto xpBoost). Global por usuario.
-    const boost = await economia.en(guild.id).multiplicadorBoost(member.id);
-    if (boost > 1) ganada = Math.round(ganada * boost);
     // Ventaja de la mascota del servidor (+5 % / +10 % / +15 % para todos).
     const extraMascota = cfg.mascota?.activo ? require('./mascota.js').bonusXpServidor(guild.id) : 0;
     if (extraMascota > 0) ganada = Math.round(ganada * (1 + extraMascota));
