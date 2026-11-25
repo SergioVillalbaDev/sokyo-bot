@@ -69,6 +69,10 @@ async function reclamarDaily(guildId, discordId) {
     const extraCompa = compa?.diario > 0 ? Math.round(total * compa.diario) : 0;
     total += extraCompa;
     // 1.32.0: evento de temporada (más oro) y regalos por racha (tickets de sobres/cofres gratis).
+    // 2.0.0: el clan campeón de la semana pasada cobra un 15 % más.
+    const campeon = await require('../models/Clan.js').exists({ guildId, miembros: discordId, campeonHasta: { $gt: ahora } }).catch(() => null);
+    const extraClan = campeon ? Math.round((base + bonus + jackpot) * 0.15) : 0;
+    total += extraClan;
     const evento = require('./eventos.js').eventoActivo(ahora.getTime());
     const extraEvento = evento ? Math.round((base + bonus + jackpot) * evento.bonusDiario) : 0;
     total += extraEvento;
@@ -91,7 +95,7 @@ async function reclamarDaily(guildId, discordId) {
     if (!actualizado) return { ok: false, esperaHoras: HORAS_DAILY }; // otra petición ganó la carrera justo antes
     if (regalo) await require('../models/ColeccionMascotas.js').updateOne({ guildId, userId: discordId }, { $inc: { [`tickets.${regalo}`]: 1 } }, { upsert: true }).catch(() => {});
     const delPase = await require('./pase.js').registrar(guildId, discordId, [['diarioLogin', 1]]).catch(() => []);
-    return { ok: true, total, racha, jackpot, extraCompa, extraEvento, evento, regalo, delPase, balance: actualizado.balance };
+    return { ok: true, total, racha, jackpot, extraCompa, extraClan, extraEvento, evento, regalo, delPase, balance: actualizado.balance };
 }
 
 // Ranking de los usuarios con más oro.

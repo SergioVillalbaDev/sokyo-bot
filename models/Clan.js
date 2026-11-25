@@ -20,6 +20,8 @@ const ClanSchema = new mongoose.Schema({
     copaSemana: { type: String, default: null },
     guerraCerrada: { type: String, default: null },
     guerraCombates: { type: Number, default: 0 },
+    // 2.0.0: el clan que gana la semana cobra +15 % en /diario durante la semana siguiente.
+    campeonHasta: { type: Date, default: null },
     creadoFecha: { type: Date, default: Date.now },
 });
 

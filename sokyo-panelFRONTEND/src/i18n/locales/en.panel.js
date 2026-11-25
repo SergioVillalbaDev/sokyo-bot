@@ -630,7 +630,7 @@ export default {
       },
       'com-clanes': {
         title: '🛡️ Clans',
-        desc: 'Members found clans with /clan create and join with /clan join. Every XP they earn chatting adds points to their clan; on Monday the one with the most wins and its members get the prize.',
+        desc: 'Members found clans with /clan create and join with /clan join. Every XP they earn chatting adds points to their clan; on Monday the one with the most wins: its members get the prize and +15% gold from /daily all week. Every Monday each clan also gets a rival in the clan war.',
       },
       'com-tienda': {
         title: '🛒 Server shop',

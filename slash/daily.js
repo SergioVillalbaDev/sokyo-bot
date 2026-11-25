@@ -44,6 +44,7 @@ module.exports = {
         // 1.32.0: evento de temporada, regalo por racha y lo que suba del pase.
         const P = require('../utils/pase.js');
         const extra = [
+            r.extraClan ? t(cfg, `🛡️ **Tu clan ganó la semana:** +🪙 ${r.extraClan}`, `🛡️ **Your clan won the week:** +🪙 ${r.extraClan}`) : '',
             r.extraEvento ? t(cfg, `${r.evento.emoji} **${r.evento.es}:** +🪙 ${r.extraEvento}`, `${r.evento.emoji} **${r.evento.en}:** +🪙 ${r.extraEvento}`) : '',
             r.regalo ? t(cfg, `🎁 **¡Regalo por ${r.racha} días seguidos!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} Un ${P.NOMBRE_TICKET?.[r.regalo]?.[1] || 'ticket'} gratis (en \`/jugar pase\`).`, `🎁 **${r.racha}-day streak gift!** ${P.NOMBRE_TICKET?.[r.regalo]?.[0] || '🎫'} A free ${P.NOMBRE_TICKET?.[r.regalo]?.[2] || 'ticket'} (in \`/games pass\`).`) : '',
             !r.regalo ? (() => { const sig = [3, 7, 14, 21, 30].find((d) => d > r.racha); return sig ? t(cfg, `🎁 Próximo regalo a los **${sig} días** de racha.`, `🎁 Next gift at a **${sig}-day** streak.`) : ''; })() : '',

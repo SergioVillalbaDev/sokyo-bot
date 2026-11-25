@@ -126,7 +126,7 @@ async function cerrarSemana(client, cfg, semanaCerrada) {
         if (canal?.isTextBased()) await canal.send({ content: [t(cfg, '⚔️ **Guerras de clanes de la semana**', '⚔️ **This week’s clan wars**'), ...guerras].join('\n').slice(0, 2000), allowedMentions: { parse: [] } }).catch(() => {});
     }
     if (ganador) {
-        await Clan.updateOne({ _id: ganador._id }, { $inc: { victorias: 1 } });
+        await Clan.updateOne({ _id: ganador._id }, { $inc: { victorias: 1 }, $set: { campeonHasta: new Date(Date.now() + 7 * 86400000) } });
         const guild = client.guilds.cache.get(cfg.guildId);
         const { darRecompensa } = require('./dinamicas.js');
         for (const uid of ganador.miembros) {
@@ -139,8 +139,8 @@ async function cerrarSemana(client, cfg, semanaCerrada) {
             const premio = [c.premioOro > 0 ? `🪙 ${c.premioOro}` : '', c.premioXp > 0 && cfg.nivelesActivo ? `✨ ${c.premioXp} XP` : ''].filter(Boolean).join(' + ');
             await canal.send({
                 content: t(cfg,
-                    `🏆 **${ganador.emoji} ${ganador.nombre}** gana la semana con **${ganador.puntosSemana.toLocaleString('es-ES')}** puntos.${premio ? ` Cada miembro se lleva ${premio}.` : ''} ¡Enhorabuena! ${ganador.miembros.map((m) => `<@${m}>`).join(' ')}`,
-                    `🏆 **${ganador.emoji} ${ganador.nombre}** wins the week with **${ganador.puntosSemana.toLocaleString('en-US')}** points.${premio ? ` Each member gets ${premio}.` : ''} Congrats! ${ganador.miembros.map((m) => `<@${m}>`).join(' ')}`).slice(0, 2000),
+                    `🏆 **${ganador.emoji} ${ganador.nombre}** gana la semana con **${ganador.puntosSemana.toLocaleString('es-ES')}** puntos.${premio ? ` Cada miembro se lleva ${premio}.` : ''} Y toda la semana, **+15 % de oro en \`/diario\`**. ¡Enhorabuena! ${ganador.miembros.map((m) => `<@${m}>`).join(' ')}`,
+                    `🏆 **${ganador.emoji} ${ganador.nombre}** wins the week with **${ganador.puntosSemana.toLocaleString('en-US')}** points.${premio ? ` Each member gets ${premio}.` : ''} And all week, **+15% gold from \`/daily\`**. Congrats! ${ganador.miembros.map((m) => `<@${m}>`).join(' ')}`).slice(0, 2000),
                 embeds: [embedRanking(top, cfg, t(cfg, `🛡️ Clasificación final · ${semanaCerrada}`, `🛡️ Final standings · ${semanaCerrada}`)), ...(guerras.length ? [new EmbedBuilder().setColor('#b91c1c').setTitle(t(cfg, '⚔️ Guerras de clanes', '⚔️ Clan wars')).setDescription(guerras.join('\n').slice(0, 4000))] : [])],
                 allowedMentions: { users: ganador.miembros.slice(0, 50) },
             }).catch(() => {});

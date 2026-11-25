@@ -630,7 +630,7 @@ export default {
       },
       'com-clanes': {
         title: '🛡️ Clanes',
-        desc: 'Los miembros fundan clanes con /clan crear y se unen con /clan unirme. Cada XP que ganan hablando suma puntos para su clan; el lunes gana el que más tiene y sus miembros se llevan el premio.',
+        desc: 'Los miembros fundan clanes con /clan crear y se unen con /clan unirme. Cada XP que ganan hablando suma puntos para su clan; el lunes gana el que más tiene: sus miembros se llevan el premio y +15 % de oro en /diario toda la semana. Además, cada lunes el clan tiene un rival en la guerra de clanes.',
       },
       'com-tienda': {
         title: '🛒 Tienda del servidor',
