@@ -239,6 +239,41 @@ function interactuar(m, id, ahora = Date.now(), azar = Math.random) {
     return { ...nuevo, afinidad: conAfinidad(m, x.afinidad), oro, recuerdo, cds: { ...(m.cds || {}), [id]: new Date(ahora) }, humor: humor(nuevo) };
 }
 
+// 2.2.0: TRUCOS. Se aprenden al subir de nivel de afinidad y se hacen con una animación en la
+// tarjeta. Cada truco alegra y da afinidad una vez cada TRUCO_ESPERA_H horas; antes de eso se puede
+// repetir para presumir (sin premio ni gasto).
+const TRUCOS = {
+    saltar: { emoji: '🦘', nivel: 1, alegria: 8, afinidad: 3, es: 'Saltar', en: 'Jump' },
+    vuelta: { emoji: '🌀', nivel: 3, alegria: 9, afinidad: 3, es: 'Dar una vuelta', en: 'Spin around' },
+    bailar: { emoji: '💃', nivel: 6, alegria: 10, afinidad: 4, es: 'Bailar', en: 'Dance' },
+    saludar: { emoji: '👋', nivel: 9, alegria: 10, afinidad: 4, es: 'Saludar', en: 'Wave hello' },
+    voltereta: { emoji: '🤸', nivel: 12, alegria: 12, afinidad: 5, es: 'Voltereta', en: 'Somersault' },
+    dormido: { emoji: '😴', nivel: 15, alegria: 12, afinidad: 5, es: 'Hacerse el dormido', en: 'Play dead' },
+    magia: { emoji: '🎩', nivel: 20, alegria: 14, afinidad: 6, es: 'Truco de magia', en: 'Magic trick' },
+    final: { emoji: '🌟', nivel: 25, alegria: 16, afinidad: 7, es: 'Gran final', en: 'Grand finale' },
+};
+const TRUCO_ESPERA_H = 6;
+const TRUCO_ENERGIA = 5;
+const trucosDe = (m) => Object.keys(TRUCOS).filter((id) => TRUCOS[id].nivel <= nivel(m.afinidad || 0));
+// Trucos que se aprenden al pasar de un nivel a otro.
+const trucosNuevos = (antes, despues) => Object.keys(TRUCOS).filter((id) => TRUCOS[id].nivel > antes && TRUCOS[id].nivel <= despues);
+function faltaTruco(m, id, ahora = Date.now()) {
+    const ult = m.cds && m.cds[`truco:${id}`] ? new Date(m.cds[`truco:${id}`]).getTime() : 0;
+    return Math.max(0, Math.ceil((ult + TRUCO_ESPERA_H * 60 * MIN - ahora) / MIN));
+}
+function hacerTruco(m, id, ahora = Date.now()) {
+    const x = TRUCOS[id];
+    if (!x) return { fallo: 'accion' };
+    if (nivel(m.afinidad || 0) < x.nivel) return { fallo: 'nivelTruco', nivel: x.nivel };
+    if (expedicionActiva(m, ahora)) return { fallo: 'fuera' };
+    const e = estado(m, ahora);
+    const min = faltaTruco(m, id, ahora);
+    if (min) return { ...e, premio: false, min, afinidad: 0, cds: m.cds, humor: humor(e) };
+    if (e.energia < TRUCO_ENERGIA) return { fallo: 'energia', e };
+    const nuevo = { ...e, alegria: lim(e.alegria + x.alegria), energia: lim(e.energia - TRUCO_ENERGIA) };
+    return { ...nuevo, premio: true, min: 0, afinidad: conAfinidad(m, x.afinidad), cds: { ...(m.cds || {}), [`truco:${id}`]: new Date(ahora) }, humor: humor(nuevo) };
+}
+
 // Poder del día: uno por persona cada 20 h, según la rareza del compañero.
 const PODER_ESPERA_H = 20;
 const PODERES = [
@@ -542,6 +577,7 @@ function rarezaCria(a, b, azar = Math.random) {
 const probBrillanteCria = (a, b) => (a.variante === 'brillante' || b.variante === 'brillante' ? CRIA.brillantePadre : CRIA.brillante);
 
 module.exports = {
+    TRUCOS, TRUCO_ESPERA_H, TRUCO_ENERGIA, trucosDe, trucosNuevos, faltaTruco, hacerTruco,
     GRUPO,
     CRIA, motivoNoCria, rarezaPadre, costeCria, rarezaCria, probBrillanteCria,
     PERSONALIDADES, persDe, COMIDAS, gustosDe, comer, extraPers, huella, EVENTOS_EXP, PROB_EVENTO_EXP, eventoExpedicion,

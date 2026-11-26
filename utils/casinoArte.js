@@ -97,51 +97,81 @@ const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) =>
 // (la carrera, el blackjack) bloqueaba el bot varios segundos y otros comandos no llegaban a tiempo.
 const ceder = () => new Promise((r) => setImmediate(r));
 async function aGif(frames, W, H, { repetir = false, tramado = 7 } = {}) {
-    const { GIFEncoder, quantize, applyPalette } = gifLib;
+    const { GIFEncoder, quantize } = gifLib;
     const fila = new Float32Array(16);
     for (let k = 0; k < 16; k++) fila[k] = BAYER4[k] * tramado * 2;
+    // 2.2.0: el tramado ya no se aplica a cada fotograma entero; se suma al buscar el color de los
+    // píxeles que hay que escribir (el primer fotograma y los que cambian).
+    const N = W * H;
+    const tram = new Float32Array(N);
+    if (tramado > 0) for (let y = 0, p = 0; y < H; y++) { const by = (y & 3) * 4; for (let x = 0; x < W; x++, p++) tram[p] = fila[by + (x & 3)]; }
     const datos = [];
     for (let n = 0; n < frames.length; n++) {
-        const d = frames[n].ctx.getImageData(0, 0, W, H).data;
+        datos.push(frames[n].ctx.getImageData(0, 0, W, H).data);
         frames[n].ctx = null; // el lienzo ya no hace falta: se suelta la memoria
-        if (tramado > 0) {
-            for (let y = 0, i = 0; y < H; y++) {
-                const by = (y & 3) * 4;
-                for (let x = 0; x < W; x++, i += 4) {
-                    const o = fila[by + (x & 3)];
-                    d[i] += o; d[i + 1] += o; d[i + 2] += o; // Uint8ClampedArray: se recorta solo a 0..255
-                }
-            }
-        }
-        datos.push(d);
         if (n % 4 === 3) await ceder();
     }
-    // Paleta común: de una muestra de hasta 10 fotogramas repartidos (siempre el primero y el último).
-    const nMuestra = Math.min(datos.length, 10);
+    // Paleta común: de una muestra de hasta 12 fotogramas repartidos (siempre el primero y el último).
+    // 2.2.0: de cada uno, uno de cada 3 píxeles (la paleta sale igual y tarda un tercio).
+    const nMuestra = Math.min(datos.length, 12);
     const elegidos = [...new Set([...Array(nMuestra)].map((_, k) => Math.round((k * (datos.length - 1)) / Math.max(1, nMuestra - 1))))];
-    const muestra = new Uint8Array(elegidos.length * W * H * 4);
-    elegidos.forEach((k, j) => muestra.set(datos[k], j * W * H * 4));
-    const paleta = quantize(muestra, 255);
+    const PASO = 3; const porFotograma = Math.ceil((W * H) / PASO);
+    const muestra = new Uint8Array(elegidos.length * porFotograma * 4);
+    let m = 0;
+    for (const k of elegidos) {
+        const d = datos[k];
+        for (let p = 0; p < W * H; p += PASO) { const o = p * 4; muestra[m++] = d[o]; muestra[m++] = d[o + 1]; muestra[m++] = d[o + 2]; muestra[m++] = d[o + 3]; }
+    }
+    const paleta = quantize(muestra.subarray(0, m), 255);
     await ceder();
     const TRANSP = paleta.length; // índice libre: «este píxel no cambia»
     const paletaGif = [...paleta, [0, 0, 0]];
     const gif = GIFEncoder();
-    let previo = null;
+    // 2.2.0: de un fotograma al siguiente solo se buscan en la paleta los píxeles que han cambiado
+    // (el tramado es fijo, así que lo que no se mueve queda idéntico). Va varias veces más rápido.
+    let previo = null; let previoRaw = null;
+    const cambiados = new Uint32Array(N);
+    const buscar = mapeador(paleta);
     for (let i = 0; i < datos.length; i++) {
-        const index = applyPalette(datos[i], paleta);
+        const raw = datos[i];
         datos[i] = null;
         if (!previo) {
-            gif.writeFrame(index, W, H, { palette: paletaGif, delay: frames[i].delay, repeat: repetir ? 0 : -1, dispose: 1 });
+            const a = new Uint32Array(raw.buffer, raw.byteOffset, N);
+            previo = new Uint8Array(N);
+            for (let p = 0; p < N; p++) previo[p] = buscar(a[p], tram[p]);
+            gif.writeFrame(previo, W, H, { palette: paletaGif, delay: frames[i].delay, repeat: repetir ? 0 : -1, dispose: 1 });
         } else {
-            const delta = new Uint8Array(index.length);
-            for (let p = 0; p < index.length; p++) delta[p] = index[p] === previo[p] ? TRANSP : index[p];
+            const a = new Uint32Array(raw.buffer, raw.byteOffset, N); const b = new Uint32Array(previoRaw.buffer, previoRaw.byteOffset, N);
+            let n = 0;
+            for (let p = 0; p < N; p++) if (a[p] !== b[p]) cambiados[n++] = p;
+            const delta = new Uint8Array(N).fill(TRANSP);
+            for (let j = 0; j < n; j++) { const p = cambiados[j]; const v = buscar(a[p], tram[p]); if (v !== previo[p]) { delta[p] = v; previo[p] = v; } }
             gif.writeFrame(delta, W, H, { delay: frames[i].delay, transparent: true, transparentIndex: TRANSP, dispose: 1 });
         }
-        previo = index;
+        previoRaw = raw;
         if (i % 3 === 2) await ceder();
     }
     gif.finish();
     return Buffer.from(gif.bytes());
+}
+// Busca en la paleta con una tabla que dura toda la animación (gifenc la rehace en cada
+// fotograma): clave rgb565 → índice del color más cercano. Devuelve índices para un Uint32Array.
+function mapeador(paleta) {
+    const tabla = new Int16Array(65536).fill(-1);
+    const pr = paleta.map((c) => c[0]); const pg = paleta.map((c) => c[1]); const pb = paleta.map((c) => c[2]);
+    const cercano = (r, g, b) => {
+        let k = 0; let min = Infinity;
+        for (let i = 0; i < pr.length; i++) { const dr = r - pr[i]; const dg = g - pg[i]; const db = b - pb[i]; const d = dr * dr + dg * dg + db * db; if (d < min) { min = d; k = i; } }
+        return k;
+    };
+    const tope = (v) => (v <= 0 ? 0 : v >= 255 ? 255 : Math.round(v));
+    return (color, o = 0) => {
+        const r = tope((color & 255) + o); const g = tope(((color >> 8) & 255) + o); const b = tope(((color >> 16) & 255) + o);
+        const clave = ((r << 8) & 0xf800) | ((g << 3) & 0x07e0) | (b >> 3);
+        let v = tabla[clave];
+        if (v < 0) { v = cercano(r, g, b); tabla[clave] = v; }
+        return v;
+    };
 }
 function lienzo(W, H) { const c = canvasLib.createCanvas(W, H); return { c, ctx: c.getContext('2d') }; }
 function redondeado(ctx, x, y, w, h, r) {

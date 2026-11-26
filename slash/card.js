@@ -8,7 +8,7 @@ const { t } = require('../utils/i18n.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
 
-// /jugar carta abrir · album · ver · usar · probabilidades (1.24.0). Las cartas de anime salen en sobres
+// /jugar carta diaria · guia · abrir · album · ver · usar · probabilidades (1.24.0; diaria y guía, 2.2.0). Las cartas de anime salen en sobres
 // y se usan sobre tu mascota. Lógica en utils/cartas.js y utils/cartasNucleo.js.
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,6 +17,8 @@ module.exports = {
         .setDescription('Anime cards: open packs and use them to power up your pet')
         .setDescriptionLocalizations(ES('Cartas de anime: abre sobres y úsalas para potenciar a tu mascota'))
         .setContexts(InteractionContextType.Guild)
+        .addSubcommand((s) => s.setName('daily').setNameLocalizations(ES('diaria')).setDescription('Your free card for today').setDescriptionLocalizations(ES('Tu carta gratis de hoy')))
+        .addSubcommand((s) => s.setName('guide').setNameLocalizations(ES('guia')).setDescription('How cards work and how to get them').setDescriptionLocalizations(ES('Cómo funcionan las cartas y cómo se consiguen')))
         .addSubcommand((s) => s.setName('open').setNameLocalizations(ES('abrir')).setDescription('Open a pack of 3 cards').setDescriptionLocalizations(ES('Abre un sobre de 3 cartas'))
             .addStringOption((o) => o.setName('pack').setNameLocalizations(ES('sobre')).setDescription('Which pack').setDescriptionLocalizations(ES('Qué sobre')).setRequired(true)
                 .addChoices(...Object.entries(S.SOBRES).map(([id, s]) => ({ name: `${s.emoji} ${s.en} · ${s.precio}`, name_localizations: ES(`${s.emoji} ${s.es} · ${s.precio}`), value: id })))))
@@ -66,7 +68,17 @@ module.exports = {
     async execute(interaction, client, cfg) {
         const idioma = await idiomaInteraccion(interaction, cfg);
         const sub = interaction.options.getSubcommand();
-        if (sub === 'odds') return interaction.reply({ embeds: [cartas.embedProbabilidades(idioma)], flags: 64 });
+        if (sub === 'odds') return interaction.reply({ embeds: [cartas.embedProbabilidades(idioma)], components: [cartas.botonesCartas(idioma, { gratis: false, sobre: true, album: true })], flags: 64 });
+        if (sub === 'guide') {
+            await interaction.deferReply({ flags: 64 });
+            return interaction.editReply(await cartas.guia(interaction, cfg, idioma));
+        }
+        if (sub === 'daily') {
+            await interaction.deferReply();
+            const r = await cartas.cartaDiaria({ interaction, cfg, idioma });
+            if (r.error) { await interaction.deleteReply().catch(() => {}); return interaction.followUp({ content: r.error, flags: 64 }); }
+            return interaction.editReply(r.msg);
+        }
         if (sub === 'album') {
             const otro = interaction.options.getUser('member');
             await interaction.deferReply();
