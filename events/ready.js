@@ -41,6 +41,8 @@ module.exports = {
 
         // 2.0.0: la descripción del bot en Discord, al día con lo que hace (utils/descripcionBot.js).
         require('../utils/descripcionBot.js').ponerDescripcion(client).catch((e) => console.error('Descripción del bot:', e.message));
+        // 2.3.1: enlace de instalación (botón «Añadir app» en el perfil del bot).
+        require('../utils/invitar.js').ponerInstalacion(client).catch((e) => console.error('Instalación del bot:', e.message));
 
         // Textos de fábrica de cada servidor en su idioma (p. ej. "Abrir un ticket" en español).
         esperarMongo().then(adaptarTodos).catch((e) => console.error('Adaptar textos al idioma:', e.message));
