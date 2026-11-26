@@ -73,6 +73,7 @@ def cmd_panel(args, cfg):
     subprocess.run([sys.executable, "-m", "streamlit", "run", str(RAIZ / "bot" / "panel.py"),
                     "--server.headless", "false" if not args.sin_navegador else "true",
                     "--browser.gatherUsageStats", "false", "--client.toolbarMode", "minimal",
+                    "--server.address", "localhost",  # solo accesible desde tu ordenador
                     "--theme.primaryColor", "#2563eb"], check=False)
 
 
