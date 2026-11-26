@@ -1,0 +1,9 @@
+# Librerías que necesita el bot. Se instalan con:  pip install -r requirements.txt
+ccxt>=4.5        # Conecta con exchanges (Binance, Kraken...) para operar en testnet o en real
+pandas>=2.2      # Tablas de datos: las velas de precio se guardan como tablas
+numpy>=1.26      # Cálculos numéricos (lo usa pandas por dentro)
+PyYAML>=6.0      # Lee el archivo de configuración config.yaml
+python-dotenv>=1.0  # Lee las claves secretas del archivo .env
+requests>=2.31   # Descarga datos de internet y envía avisos a Telegram
+matplotlib>=3.8  # Dibuja los gráficos del backtest
+pytest>=8.0      # Ejecuta las pruebas automáticas (tests/)
