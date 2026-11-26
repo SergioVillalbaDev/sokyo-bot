@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.2.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.3.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -365,6 +365,13 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.3.0 **Menús de Discord a un clic** (tests en `test/menuHoy.test.js`): `/menu` tiene «📅 Hoy» (`menu.lineasHoy`, con
+  `estadoJugador().hoy`: diario, carta, casino, voto, cuidar; ✅/⬜ y `<t:…:R>`), botones `menu:hoy:<diario|carta|granja|todo>`
+  (`botonesHoy`, `hacerHoy`, `recogibles`) que lo hacen y REPINTAN el menú en su sitio con el resultado arriba (`vistaMenu(…, {
+  resultado })`; en tu menú privado `deferUpdate`, desde otro mensaje se abre uno privado). Respeta lo desbloqueado
+  (`e.abiertas`). La tirada del casino fuera de su canal es un enlace al canal. `/diario` añade una fila con lo que queda de
+  hoy + «Mi menú». Zonas: la acción principal de cada módulo es un botón. `menu:abrir`/`menu:mapa` cambian el mismo mensaje.
+  Los avisos llevan `tipo` (diario/granja/carta) para no repetir lo de «Hoy». `cartas.cartaDiaria({ sinGif })` y `linea`.
 - 2.2.0 **Mascotas, combates y cartas a lo grande** (tests en `test/mascotas220.test.js`):
   - **Combates** (`utils/combateArte.js` rehecho): clase `Escena` (fondo precalculado `fondoArena`, poses por fotograma,
     barra de vida «fantasma», paneles con nivel y elemento) y secuencias `golpe` (preparación, embestida con estela, impacto con

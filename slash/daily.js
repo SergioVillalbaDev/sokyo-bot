@@ -61,6 +61,18 @@ module.exports = {
             new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(require('../utils/votos.js').urlVoto(client.user.id)).setEmoji('🗳️').setLabel(t(cfg, 'Votar: +oro y cofre gratis', 'Vote: +gold and free chest')),
             botonWeb(cfg, 'inicio', t(cfg, 'Mi cuenta', 'My account')),
         );
+        // 2.3.0: primero la respuesta (Discord da 3 s) y luego, en la misma, lo que te queda de hoy (carta gratis,
+        // granja, tirada del casino, tu mascota) y tu menú, a un clic.
         await interaction.reply({ embeds: [embed], components: [web], files: png ? [new AttachmentBuilder(png, { name: 'diario.png' })] : [] });
+        try {
+            const M = require('../utils/menu.js');
+            const idioma = t(cfg, 'es', 'en');
+            const est = await M.estadoJugador(interaction.guildId, interaction.user.id, cfg || {});
+            const resto = M.botonesHoy(est, interaction.user.id, idioma, { excluir: ['diario', 'voto'], canalId: interaction.channelId }).slice(0, 4);
+            resto.push(new ButtonBuilder().setCustomId(`menu:abrir:${interaction.user.id}`).setEmoji('🏠').setStyle(ButtonStyle.Secondary).setLabel(t(cfg, 'Mi menú', 'My menu')));
+            const quedan = M.lineasHoy(est, idioma).lineas.filter((l) => l.startsWith('⬜') && !l.includes('🗳️'));
+            if (quedan.length) embed.setDescription([embed.data.description, t(cfg, `📅 **Te queda hoy:** ${quedan.map((l) => l.slice(2).split(' · ')[0]).join(' · ')}`, `📅 **Still to do today:** ${quedan.map((l) => l.slice(2).split(' · ')[0]).join(' · ')}`)].filter(Boolean).join('\n'));
+            await interaction.editReply({ embeds: [embed], components: [web, new ActionRowBuilder().addComponents(resto)] });
+        } catch (err) { console.warn('diario (hoy):', err.message); }
     },
 };
