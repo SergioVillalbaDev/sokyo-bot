@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.4.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.5.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -365,6 +365,34 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.5.0 **Una sola ventana** (tests en `test/ventana.test.js`; el simulador cuenta ahora «Comodidad: mensajes privados nuevos
+  al pulsar dentro de un mensaje privado», que antes eran 29 y ahora 0):
+  - **`utils/ventana.js`** (`preparar`, llamado en `events/interactionCreate.js` justo después de `navegacion.envolver`): solo en
+    lo de jugar (`familiaDe`: módulos de `navegacion.moduloDe` + menú, tienda, ayuda, preferencias, recordatorios; el staff no
+    se toca, ni la entrada al servidor ni «Abrir mi cuenta», `EXCLUIDOS`). En un botón/menú/formulario de un mensaje PRIVADO:
+    `reply` privado con vista → `update` del mismo mensaje (`llenar`: lo que no dice va vacío, `attachments: []`); `deferReply`
+    privado → `deferUpdate` (solo el PRIMER `editReply` vacía la vista: el crash en directo no pierde su GIF); un texto suelto
+    (reply/followUp/editReply sin embed, imagen ni botones, o un ❌ con su ❔) sale como **aviso encima** (`content`) sin
+    borrar la vista y se quita al pulsar otra cosa (`notas`); `deleteReply()` tras un deferReply convertido no borra tu
+    ventana. Desde un mensaje público o un comando: una ventana privada nueva **borra la anterior de la misma función**
+    en ese canal (`registro`, clave `usuario:canal:función`, si es de hace <14 min) y el último aviso suelto (`avisos`);
+    nunca con una partida a medias en ese servidor (`registrarEnMarcha`, lo usa el casino con `partidas`). Para mandar algo
+    aparte a propósito: `{ aparte: true }`. Ayudantes: `responderJuego(interaction, { privado })` (en tu ventana o en tu
+    propio mensaje público → `deferUpdate` + `primerContenidoLimpio`; en tu ventana los followUp van privados) y
+    `falloJuego(interaction, modo, texto)`; los usan cofres (`cof_otro`, `cof_diez`), cartas (`crt_otro`, `crt_diaria`) y
+    los tickets del pase (`pse:tk`).
+  - **Casino**: las partidas solo para ti valen en cualquier canal si se juegan en privado (`esPrivado` = `__casinoPrivado`
+    o mensaje privado; `canalJuego` le pasa `canalId: null` a `apostar`). `JUEGOS_GRUPO` (duelo, carrera, póker, bingo, y
+    cohete/mesa por `cas_lb`) siguen pidiendo el canal del casino (`fueraDelCasino`; el texto `fallo: 'canal'` lo explica).
+    `/casino <juego>` fuera del canal (o lanzado desde una ventana privada, p. ej. `/menu`) se juega en privado (`SOLOS` en
+    `slash/casino.js`). `jugarRepetir`: en tu ventana → ahí; «Otra vez» en tu propia partida pública ya acabada → en ese mismo
+    mensaje (`interactionMetadata.user`); fuera del canal → privado. `filaOtraVez` = «🔁 Otra vez» + «🎲 Cambiar apuesta o juego»
+    (`cas_mesa:<juego>[:extra]` → la mesa). La mesa (`casinoLobby.mesa` → `conJuegos`) lleva arriba el desplegable de juegos
+    (`filaJuegos`, el mismo `cas_lob` del lobby, con el juego abierto marcado) y abajo «Otra cantidad · Mi oro · Tirada gratis».
+    Tirada gratis: privada (`filaSeguir` → «Seguir jugando»). `cas_lb:abrir` = el casino entero en tu ventana (lo usa
+    `/empezar`, antes un enlace al canal). Guía: «Probar» en cualquier canal para los juegos solo para ti.
+  - Tienda: «Ahora no» y el resultado de la compra vuelven a la lista en el mismo mensaje (`deVuelta`).
+  - Simulador: el «pensando…» de un `deferReply` privado ya sale privado (antes lo que se pulsaba ahí parecía público).
 - 2.4.0 **Premium claro y sin pagar para ganar** (test `test/premium240.test.js`): **Perfil del bot por servidor**
   (`utils/perfilBot.js`, `api/routes/perfilBot.js`: `GET/PUT /api/config/:g/perfil-bot`, área config; panel Configuración →
   `config-perfil-bot`, `PerfilBotView.jsx`, textos `perfilBot_v`): apodo gratis; foto, banner y «Sobre mí» de Pro (PATCH
@@ -384,7 +412,7 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   `estadoJugador().hoy`: diario, carta, casino, voto, cuidar; ✅/⬜ y `<t:…:R>`), botones `menu:hoy:<diario|carta|granja|todo>`
   (`botonesHoy`, `hacerHoy`, `recogibles`) que lo hacen y REPINTAN el menú en su sitio con el resultado arriba (`vistaMenu(…, {
   resultado })`; en tu menú privado `deferUpdate`, desde otro mensaje se abre uno privado). Respeta lo desbloqueado
-  (`e.abiertas`). La tirada del casino fuera de su canal es un enlace al canal. `/diario` añade una fila con lo que queda de
+  (`e.abiertas`). La tirada del casino se juega en cualquier canal (desde 2.5.0, en privado; antes era un enlace al canal). `/diario` añade una fila con lo que queda de
   hoy + «Mi menú». Zonas: la acción principal de cada módulo es un botón. `menu:abrir`/`menu:mapa` cambian el mismo mensaje.
   Los avisos llevan `tipo` (diario/granja/carta) para no repetir lo de «Hoy». `cartas.cartaDiaria({ sinGif })` y `linea`.
 - 2.2.0 **Mascotas, combates y cartas a lo grande** (tests en `test/mascotas220.test.js`):

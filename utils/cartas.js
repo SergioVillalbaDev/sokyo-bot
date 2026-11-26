@@ -416,16 +416,18 @@ async function manejar(interaction) {
     const { idiomaInteraccion } = require('./preferencias.js');
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
+    // 2.5.0: en tu ventana o en tu propio sobre, el siguiente sale en ese mismo mensaje (utils/ventana.js).
+    const V = require('./ventana.js');
     if (interaction.isButton() && id.startsWith('crt_otro:')) {
-        await interaction.deferReply();
+        const modo = await V.responderJuego(interaction);
         const r = await abrir({ interaction, cfg, idioma, sobre: id.split(':')[1] });
-        if (r.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }); }
+        if (r.error) await V.falloJuego(interaction, modo, `❌ ${r.error}`);
         return true;
     }
     if (interaction.isButton() && id === 'crt_diaria') {
-        await interaction.deferReply();
+        const modo = await V.responderJuego(interaction);
         const r = await cartaDiaria({ interaction, cfg, idioma });
-        if (r.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: r.error, flags: 64 }); return true; }
+        if (r.error) { await V.falloJuego(interaction, modo, r.error); return true; }
         await interaction.editReply(r.msg);
         return true;
     }
