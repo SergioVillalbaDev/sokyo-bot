@@ -158,6 +158,9 @@ module.exports = {
                 new ButtonBuilder().setCustomId('menu:abrir:').setEmoji('🏠').setLabel(t(cfg, 'Abrir mi menú', 'Open my menu')).setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId('menu:ayuda:').setEmoji('❔').setLabel(t(cfg, '¿Qué puedo hacer?', 'What can I do?')).setStyle(ButtonStyle.Secondary),
                 botonAbrirCuenta(cfg));
+            // 2.3.1: y añadirlo a otro servidor.
+            const inv = require('../utils/invitar.js').urlInvitar({ clientId: client.user.id });
+            if (inv && fila.components.length < 5) fila.addComponents(new ButtonBuilder().setURL(inv).setEmoji('➕').setLabel(t(cfg, 'Añadir a mi servidor', 'Add to my server')).setStyle(ButtonStyle.Link));
             await message.reply({ embeds: [embed], components: [fila], allowedMentions: { repliedUser: false } }).catch(() => {});
             return;
         }

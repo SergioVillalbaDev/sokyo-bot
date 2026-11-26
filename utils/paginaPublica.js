@@ -42,7 +42,7 @@ function urlBase(req) {
     return req ? `${req.protocol}://${req.get('host')}` : env.replace(/\/+$/, '');
 }
 
-const urlInvitarBot = () => (process.env.DISCORD_CLIENT_ID
+const urlInvitarBot = () => require('./invitar.js').urlInvitar() || (process.env.DISCORD_CLIENT_ID
     ? `https://discord.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&permissions=8&scope=bot+applications.commands`
     : '/');
 

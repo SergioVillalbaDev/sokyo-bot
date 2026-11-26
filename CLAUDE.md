@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.3.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.3.1.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -365,6 +365,12 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.3.1 **Invitar al bot** (`utils/invitar.js`, test `test/invitar.test.js`): `urlInvitar({ guildId, clientId })` (permisos
+  `PERMISOS_INVITACION`, por defecto 8 como la web) y `ponerInstalacion(client)` al arrancar (`events/ready.js`): pone
+  `install_params` + `integration_types_config['0']` para que el PERFIL del bot tenga «Añadir app» (no toca la instalación de
+  usuario ni un `custom_install_url`; `INSTALACION_AUTOMATICA=no` lo apaga). `/api/health` → `instalacion` ({ publico, enlace,
+  error }): si `publico` es false, hay que activar «Public Bot» en el portal de Discord (no se puede por API). `/invitar` =
+  `slash/invite.js` (global, también por privado), botón ➕ en `/ayuda` y al mencionar al bot.
 - 2.3.0 **Menús de Discord a un clic** (tests en `test/menuHoy.test.js`): `/menu` tiene «📅 Hoy» (`menu.lineasHoy`, con
   `estadoJugador().hoy`: diario, carta, casino, voto, cuidar; ✅/⬜ y `<t:…:R>`), botones `menu:hoy:<diario|carta|granja|todo>`
   (`botonesHoy`, `hacerHoy`, `recogibles`) que lo hacen y REPINTAN el menú en su sitio con el resultado arriba (`vistaMenu(…, {

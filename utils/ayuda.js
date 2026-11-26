@@ -62,6 +62,9 @@ function mensajeAyuda(idioma, prefijo = '!', { categoria = null, cfg = null } = 
         botonPanel(idioma, tab || null, tab ? t(idioma, 'Configurarlo en el panel', 'Set it up in the panel') : t(idioma, 'Panel de control', 'Control panel'))];
     const web = require('./ayudaWeb.js').enlace(null, idioma);
     if (web) botones.push(new ButtonBuilder().setURL(web).setEmoji('🌐').setLabel(t(idioma, 'Guía en la web', 'Web guide')).setStyle(ButtonStyle.Link));
+    // 2.3.1: añadir Sokyo a otro servidor.
+    const inv = require('./invitar.js').urlInvitar();
+    if (inv && botones.length < 5) botones.push(new ButtonBuilder().setURL(inv).setEmoji('➕').setLabel(t(idioma, 'Añadir a otro servidor', 'Add to another server')).setStyle(ButtonStyle.Link));
     filas.push(new ActionRowBuilder().addComponents(botones));
     return { embeds: [embed], components: filas };
 }

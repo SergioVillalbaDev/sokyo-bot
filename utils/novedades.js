@@ -6,6 +6,9 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '2.3.1': [
+        { tab: 'inicio', es: '➕ **Añadir Sokyo es más fácil**: el perfil del bot en Discord ya tiene el botón **«Añadir app»**, hay un comando nuevo **`/invitar`** (también por privado) y el botón «Añadir a mi servidor» sale al mencionar al bot y en `/ayuda`.', en: '➕ **Adding Sokyo is easier**: the bot’s Discord profile now has the **“Add App”** button, there’s a new **`/invite`** command (also in DMs) and an “Add to my server” button when you mention the bot and in `/help`.' },
+    ],
     '2.3.0': [
         { tab: 'inicio', es: '📅 **`/menu` con «Hoy»**: arriba ves todo lo que puedes coger cada día (oro diario, carta gratis, tirada gratis del casino, granja, cuidar a tu mascota, jefe y votar) con ✅ o ⬜ y cuándo vuelve cada cosa.', en: '📅 **`/menu` with “Today”**: at the top you see everything you can grab each day (daily gold, free card, free casino spin, farm, caring for your pet, boss and voting) with ✅ or ⬜ and when each one comes back.' },
         { tab: 'inicio', es: '⚡ **Un clic y listo**: «Recoger todo» coge a la vez el oro diario, la carta gratis y la granja, y el menú se actualiza en su sitio con lo que has ganado. Antes «Reclamar diario» te mandaba a otra pantalla.', en: '⚡ **One click and done**: “Collect all” grabs your daily gold, free card and farm at once, and the menu updates in place with what you got. Before, “Claim daily” sent you to another screen.' },

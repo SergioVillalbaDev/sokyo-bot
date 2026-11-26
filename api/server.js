@@ -185,6 +185,8 @@ module.exports = (client) => {
             discord: discordOk ? 'up' : 'down',
             // Servidor de música: si está encendido y su versión (Discord exige 4.2+).
             musica: musicaSalud(),
+            // 2.3.1: ¿se puede añadir el bot desde su perfil? (publico = «Public Bot» en el portal de Discord)
+            instalacion: (() => { const e = require('../utils/invitar.js').estado; return { publico: e.publico, enlace: e.enlace, error: e.error }; })(),
             ts: new Date().toISOString(),
         });
     });

@@ -149,14 +149,14 @@ const MODULOS = [
         pasos: { es: ['`/configurar` para encender o apagar funciones desde Discord.', '`/setup-rapido` deja el bot listo con unas preguntas.'], en: ['`/configure` to turn features on or off from Discord.', '`/quicksetup` gets the bot ready with a few questions.'] } },
     // ---------------- ✨ Lo básico ----------------
     { id: 'basico', emoji: '✨', zona: 'basico', es: 'Lo básico', en: 'The basics', tab: null,
-        activo: activoSi(() => true), comandos: ['menu', 'start', 'help', 'account', 'preferences', 'remind', 'reminders', 'Translate'],
+        activo: activoSi(() => true), comandos: ['menu', 'start', 'help', 'account', 'preferences', 'remind', 'reminders', 'Translate', 'invite'],
         frase: { es: 'Tu menú, la guía para empezar, tu cuenta y tus preferencias.', en: 'Your menu, the getting-started guide, your account and your preferences.' },
         pasos: { es: ['`/menu`: todo lo tuyo y a dónde ir, con botones.', '`/empezar`: si no sabes por dónde empezar.', '`/preferencias`: idioma y qué avisos quieres.'],
             en: ['`/menu`: all your stuff and where to go, with buttons.', '`/start`: if you don’t know where to begin.', '`/preferences`: language and which notices you want.'] } },
 ];
 
 // Comandos que van en TODOS los sitios (también por privado): se registran globales. El resto, por servidor.
-const GLOBALES = new Set(['account', 'preferences', 'remind', 'reminders', 'help', 'Translate']);
+const GLOBALES = new Set(['account', 'preferences', 'remind', 'reminders', 'help', 'Translate', 'invite']);
 
 const modulo = (id) => MODULOS.find((m) => m.id === id) || null;
 const nombre = (m, idioma) => t(idioma, m.es, m.en);
