@@ -204,4 +204,4 @@ async function manejar(interaction) {
     return true;
 }
 
-module.exports = { premiarHitos, textoHitos, semanal, textoSemana, recoger, vistaGranja, vistaAlbum, manejar, datosGranja, textoAyuda };
+module.exports = { FALLOS, premiarHitos, textoHitos, semanal, textoSemana, recoger, vistaGranja, vistaAlbum, manejar, datosGranja, textoAyuda };

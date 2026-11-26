@@ -140,7 +140,7 @@ function botonesCartas(idioma, { gratis = true, guia = true, album = true, sobre
     if (guia) b.push(new ButtonBuilder().setCustomId('crt_guia').setEmoji('📖').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Cómo funcionan', 'How they work')));
     return new ActionRowBuilder().addComponents(b);
 }
-async function cartaDiaria({ interaction, cfg, idioma }) {
+async function cartaDiaria({ interaction, cfg, idioma, sinGif = false }) {
     if (!activas(cfg)) return { error: textoApagadas(idioma) };
     const guildId = interaction.guildId; const userId = interaction.user.id;
     const dia = diaUTC();
@@ -162,7 +162,7 @@ async function cartaDiaria({ interaction, cfg, idioma }) {
     const economia = require('./economia.js').en(guildId);
     const oro = (r.carta.quitada ? r.carta.devuelto : 0) + r.series.reduce((a, n) => a + n.oro, 0);
     if (oro) await economia.darOro(userId, oro);
-    const gif = await require('./cartasArte.js').gifSobre('normal', [r.carta], { idioma, color: '#16a34a', emoji: '🎁', nombre: t(idioma, 'CARTA GRATIS', 'FREE CARD'), sub: t(idioma, 'DE HOY · 1 CARTA', 'TODAY · 1 CARD') }).catch((e) => { console.error('GIF carta gratis:', e.message); return null; });
+    const gif = sinGif ? null : await require('./cartasArte.js').gifSobre('normal', [r.carta], { idioma, color: '#16a34a', emoji: '🎁', nombre: t(idioma, 'CARTA GRATIS', 'FREE CARD'), sub: t(idioma, 'DE HOY · 1 CARTA', 'TODAY · 1 CARD') }).catch((e) => { console.error('GIF carta gratis:', e.message); return null; });
     const c = r.carta; const d = c.id ? K.def(c.id) : null;
     const linea = c.quitada ? t(idioma, `🪙 Era de una serie desactivada aquí → **+${c.devuelto}** de oro`, `🪙 It was from a series turned off here → **+${c.devuelto}** gold`)
         : `${rz(c.rareza, idioma)} · **${t(idioma, d.es, d.en || d.es)}** — ${d.serie} ${c.nuevo ? '🆕' : c.polvo ? t(idioma, `(5★: +✨ ${c.polvo} de polvo)`, `(5★: +✨ ${c.polvo} dust)`) : `★${c.estrellas}`}${c.holo ? ' 🌈' : ''}`;
@@ -173,7 +173,7 @@ async function cartaDiaria({ interaction, cfg, idioma }) {
             t(idioma, '-# Vuelve mañana a por otra. Más cartas: sobres con oro (`/jugar carta abrir`), el pase, la torre y el jefe.', '-# Come back tomorrow for another. More cards: packs with gold (`/games card open`), the pass, the tower and the boss.'),
         ].filter(Boolean).join('\n'));
     if (gif) e.setImage('attachment://carta.gif');
-    return { ok: true, msg: { embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'carta.gif' })] : [], components: [botonesCartas(idioma, { gratis: false, sobre: true })], allowedMentions: { parse: [] } } };
+    return { ok: true, linea: `🎁 ${t(idioma, 'Carta gratis', 'Free card')}: ${linea}`, msg: { embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'carta.gif' })] : [], components: [botonesCartas(idioma, { gratis: false, sobre: true })], allowedMentions: { parse: [] } } };
 }
 // Guía: qué son, cómo se consiguen y para qué sirven (imagen + texto corto con los comandos).
 async function guia(interaction, cfg, idioma) {
