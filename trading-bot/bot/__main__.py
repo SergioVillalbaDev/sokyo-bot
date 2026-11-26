@@ -1,5 +1,6 @@
 """Punto de entrada: los comandos que escribes en la terminal.
 
+  python -m bot panel                 Abre el panel web en el navegador (lo más cómodo)
   python -m bot backtest              Prueba la estrategia con datos desde 2020
   python -m bot backtest --robustez   ...y además comprueba si el resultado es estable
   python -m bot simular               Bot en directo con dinero ficticio (sin cuenta)
@@ -21,22 +22,24 @@ from .config import RAIZ, cargar_config
 def cmd_backtest(args, cfg):
     from .backtest import ejecutar_backtest, prueba_de_robustez
     from .datos import obtener_historial
-    from .informe import guardar_informe, resumen_consola
+    from .consola import consola, mostrar_backtest
+    from .informe import guardar_informe
 
     desde = args.desde or cfg.backtest.desde
-    print(f"Descargando/actualizando velas de {cfg.mercado.simbolo} {cfg.mercado.temporalidad} desde {desde}...")
-    velas = obtener_historial(cfg.mercado.simbolo, cfg.mercado.temporalidad, desde)
+    with consola.status(f"Descargando/actualizando velas de {cfg.mercado.simbolo} {cfg.mercado.temporalidad} desde {desde}..."):
+        velas = obtener_historial(cfg.mercado.simbolo, cfg.mercado.temporalidad, desde)
     if args.hasta:
         velas = velas[velas.index < args.hasta]
-    print(f"{len(velas)} velas cargadas ({velas.index[0]:%Y-%m-%d} → {velas.index[-1]:%Y-%m-%d}).")
+    consola.print(f"[dim]{len(velas)} velas cargadas ({velas.index[0]:%Y-%m-%d} → {velas.index[-1]:%Y-%m-%d}).[/]")
     resultado = ejecutar_backtest(velas, cfg)
     robustez = None
     if args.robustez:
-        print("Ejecutando prueba de robustez (unos 30 backtests)...")
-        robustez = prueba_de_robustez(velas, cfg)
-    print(resumen_consola(resultado, cfg))
+        with consola.status("Ejecutando prueba de robustez (unos 30 backtests)..."):
+            robustez = prueba_de_robustez(velas, cfg)
+    mostrar_backtest(resultado, cfg)
     carpeta = guardar_informe(resultado, cfg, robustez)
-    print(f"\nInforme completo, gráfico y operaciones en: {carpeta.relative_to(RAIZ)}/")
+    consola.print(f"\n📁 Informe completo, gráfico y operaciones en: [bold]{carpeta.relative_to(RAIZ)}/[/]")
+    consola.print("💡 Para verlo con gráficos interactivos: [bold]python -m bot panel[/] → Laboratorio")
 
 
 def _trader(cfg, modo):
@@ -52,8 +55,9 @@ def cmd_directo(args, cfg):
         print(f"    Usará como máximo {cfg.riesgo.capital_inicial:g} € (riesgo.capital_inicial).")
     trader = _trader(cfg, modo)
     if args.una_vez:
+        from .consola import mostrar_estado
         trader.paso()
-        print(trader.resumen())
+        mostrar_estado(trader)
         return
     print("Bot en marcha. Pulsa Ctrl+C para pararlo (el estado se guarda solo).")
     try:
@@ -63,8 +67,18 @@ def cmd_directo(args, cfg):
         print("\nBot parado. Estado guardado.")
 
 
+def cmd_panel(args, cfg):
+    import subprocess
+    print("Abriendo el panel en el navegador: http://localhost:8501  (Ctrl+C para cerrarlo)")
+    subprocess.run([sys.executable, "-m", "streamlit", "run", str(RAIZ / "bot" / "panel.py"),
+                    "--server.headless", "false" if not args.sin_navegador else "true",
+                    "--browser.gatherUsageStats", "false", "--client.toolbarMode", "minimal",
+                    "--theme.primaryColor", "#2563eb"], check=False)
+
+
 def cmd_estado(args, cfg):
-    print(_trader(cfg, args.modo).resumen())
+    from .consola import mostrar_estado
+    mostrar_estado(_trader(cfg, args.modo))
 
 
 def cmd_reiniciar(args, cfg):
@@ -98,6 +112,10 @@ def main(argv=None):
         s = sub.add_parser(modo, help=ayuda)
         s.add_argument("--una-vez", action="store_true", help="Hacer una sola revisión y salir (útil con cron)")
         s.set_defaults(func=cmd_directo)
+
+    pn = sub.add_parser("panel", help="Abrir el panel web en el navegador")
+    pn.add_argument("--sin-navegador", action="store_true", help="No abrir el navegador automáticamente")
+    pn.set_defaults(func=cmd_panel)
 
     for nombre, func, ayuda in [("estado", cmd_estado, "Ver cómo va el bot"),
                                 ("reiniciar", cmd_reiniciar, "Empezar de cero un modo")]:

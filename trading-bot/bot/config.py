@@ -113,3 +113,40 @@ def cargar_config(ruta: str | Path | None = None) -> Config:
     )
     cfg.validar()
     return cfg
+
+
+def guardar_cambios(cambios: dict[str, dict], ruta: str | Path | None = None) -> None:
+    """Escribe valores nuevos en config.yaml SIN borrar los comentarios.
+
+    `cambios` es {seccion: {clave: valor}}. Se valida antes de guardar.
+    """
+    ruta = Path(ruta) if ruta else RAIZ / "config.yaml"
+    lineas = ruta.read_text(encoding="utf-8").splitlines()
+    seccion = None
+    pendientes = {s: dict(v) for s, v in cambios.items()}
+    for i, linea in enumerate(lineas):
+        limpia = linea.split("#", 1)[0].rstrip()
+        if not limpia:
+            continue
+        if not linea.startswith(" ") and limpia.endswith(":"):
+            seccion = limpia[:-1].strip()
+            continue
+        if seccion in pendientes and ":" in limpia:
+            clave = limpia.split(":", 1)[0].strip()
+            if clave in pendientes[seccion]:
+                valor = pendientes[seccion].pop(clave)
+                sangria = linea[: len(linea) - len(linea.lstrip())]
+                texto = f'"{valor}"' if isinstance(valor, str) and clave == "desde" else valor
+                lineas[i] = f"{sangria}{clave}: {texto}"
+    nuevo = "\n".join(lineas) + "\n"
+    # Validar cargando una copia temporal antes de sobrescribir
+    temporal = ruta.with_suffix(".tmp.yaml")
+    temporal.write_text(nuevo, encoding="utf-8")
+    try:
+        cargar_config(temporal)
+    finally:
+        temporal.unlink(missing_ok=True)
+    faltan = {s: v for s, v in pendientes.items() if v}
+    if faltan:
+        raise ValueError(f"No se encontraron estas opciones en config.yaml: {faltan}")
+    ruta.write_text(nuevo, encoding="utf-8")

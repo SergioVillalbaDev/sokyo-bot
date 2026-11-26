@@ -20,9 +20,21 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 python -m pytest -q tests          # comprobar que todo funciona
-python -m bot backtest             # probar la estrategia con datos desde 2020
-python -m bot simular              # bot en directo con dinero ficticio
+python -m bot panel                # 👈 abre el panel en el navegador
+python -m bot simular              # (en otra terminal) bot en directo con dinero ficticio
 ```
+
+## El panel
+
+`python -m bot panel` abre una web en tu ordenador (http://localhost:8501) con:
+
+- **Inicio**: precio, tendencia y **qué está pensando el bot** explicado con frases, además de tu checklist de aprendizaje.
+- **Bot en directo**: saldo, posición, stop-loss en el gráfico, diario de operaciones y log. Se actualiza solo cada minuto.
+- **Laboratorio**: cambia las medias, el stop o el riesgo con controles deslizantes y mira al momento qué habría pasado desde 2020.
+- **Configuración**: cambia los ajustes sin tocar archivos.
+- **Aprender**: toda la documentación dentro del panel.
+
+![Panel](docs/img/panel-laboratorio.png)
 
 ## Resultado del backtest (2020-2026, 20 €)
 
@@ -56,6 +68,7 @@ El bot gana **mucho menos** que comprar y mantener, pero con caídas **mucho men
 
 | Comando | Qué hace |
 |---|---|
+| `python -m bot panel` | Abre el panel web en el navegador |
 | `python -m bot backtest [--robustez] [--desde AAAA-MM-DD] [--hasta AAAA-MM-DD]` | Backtest con informe, gráfico y semáforo de fiabilidad |
 | `python -m bot simular` | En directo, dinero ficticio, sin cuenta |
 | `python -m bot testnet` | En directo en el testnet de Binance |

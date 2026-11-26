@@ -88,7 +88,7 @@ pip install -r requirements.txt
 python -m pytest -q tests
 ```
 
-Debe terminar con algo como `23 passed`. Son pruebas automáticas que comprueban que la estrategia, el riesgo y el backtest hacen lo que deben.
+Debe terminar con algo como `26 passed`. Son pruebas automáticas que comprueban que la estrategia, el riesgo y el backtest hacen lo que deben.
 
 ### 6. Tu primer backtest
 
@@ -98,13 +98,30 @@ python -m bot backtest
 
 La primera vez tarda medio minuto (descarga ~7 años de precios de BTC). Verás un resumen en pantalla y se creará una carpeta en `resultados/` con un informe, un gráfico y la lista de operaciones. En [05-backtesting.md](05-backtesting.md) se explica cómo leerlo.
 
-### 7. El bot en directo con dinero ficticio
+### 7. Abrir el panel
+
+```bash
+python -m bot panel
+```
+
+Se abre una web en tu navegador (http://localhost:8501). Solo funciona en tu ordenador; nadie más puede verla. Desde ahí puedes:
+
+- ver **qué está pensando el bot** ahora mismo, explicado con frases,
+- experimentar en el **Laboratorio** moviendo controles (medias, stop, riesgo...) y ver al momento qué habría pasado,
+- cambiar la **Configuración** sin tocar archivos,
+- leer esta documentación y marcar tu progreso.
+
+Para cerrarlo: `Ctrl + C` en la terminal.
+
+### 8. El bot en directo con dinero ficticio
+
+Abre **otra** terminal (con el entorno virtual activado) y escribe:
 
 ```bash
 python -m bot simular
 ```
 
-Se queda funcionando y escribe lo que hace. Para pararlo: `Ctrl + C`. Para ver cómo va desde otra terminal: `python -m bot estado simular`.
+Se queda funcionando y escribe lo que hace. Para pararlo: `Ctrl + C`. Lo verás en el panel, en la página **Bot en directo**, o con `python -m bot estado simular`.
 
 ---
 
@@ -112,6 +129,7 @@ Se queda funcionando y escribe lo que hace. Para pararlo: `Ctrl + C`. Para ver c
 
 | Comando | Qué hace |
 |---|---|
+| `python -m bot panel` | Abre el panel web en el navegador |
 | `python -m bot backtest` | Prueba la estrategia con datos desde 2020 |
 | `python -m bot backtest --robustez` | Igual, y además prueba muchas variantes para ver si el resultado es estable |
 | `python -m bot backtest --desde 2022-01-01 --hasta 2024-01-01` | Backtest de un periodo concreto |

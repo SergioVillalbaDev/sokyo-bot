@@ -26,10 +26,13 @@ def configurar_log(modo: str) -> logging.Logger:
     log = logging.getLogger("bot")
     log.setLevel(logging.INFO)
     if not log.handlers:
-        formato = logging.Formatter("%(asctime)s  %(levelname)-7s %(message)s", "%Y-%m-%d %H:%M:%S")
-        for h in (logging.StreamHandler(), logging.FileHandler(CARPETA / f"bot_{modo}.log", encoding="utf-8")):
-            h.setFormatter(formato)
-            log.addHandler(h)
+        from rich.logging import RichHandler
+
+        pantalla = RichHandler(show_path=False, markup=False, log_time_format="%d/%m %H:%M:%S")
+        log.addHandler(pantalla)
+        archivo = logging.FileHandler(CARPETA / f"bot_{modo}.log", encoding="utf-8")
+        archivo.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-7s %(message)s", "%Y-%m-%d %H:%M:%S"))
+        log.addHandler(archivo)
     return log
 
 

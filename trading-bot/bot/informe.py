@@ -36,16 +36,16 @@ def semaforo(m: dict, cfg: Config) -> list[tuple[str, str, str]]:
     n = m["operaciones"]
     fila(n >= 100, n >= 30, f"Número de operaciones: {n}",
          "Con menos de 30 el resultado puede ser pura suerte; a partir de 100 es más fiable.")
-    fila(m["anos"] >= 5, m["anos"] >= 3, f"Años probados: {m['anos']:g}",
+    fila(m["anos"] >= 5, m["anos"] >= 3, f"Años probados: {str(m['anos']).replace('.', ',')}",
          "Hay que probar varios tipos de mercado (subidas, caídas, laterales). Mínimo recomendado: 5 años.")
     esp = m["esperanza_por_operacion_pct"]
     fila(esp > 0.3, esp > 0, f"Esperanza por operación: {_pct(esp)}",
          "Lo que se gana de media en cada operación, contando las perdedoras. Si es negativa, la estrategia pierde dinero.")
     fb = m["factor_beneficio"]
-    fila(fb is not None and fb >= 1.5, fb is not None and fb > 1.0, f"Factor de beneficio: {fb if fb is not None else '—'}",
+    fila(fb is not None and fb >= 1.5, fb is not None and fb > 1.0, f"Factor de beneficio: {str(fb).replace('.', ',') if fb is not None else '—'}",
          "Euros ganados ÷ euros perdidos. Por encima de 1 gana; por encima de 1,5 es bastante sólido.")
     dd = m["max_drawdown_pct"]
-    fila(dd < 20, dd < cfg.riesgo.drawdown_maximo_pct, f"Peor caída (drawdown): {dd:.1f} %",
+    fila(dd < 20, dd < cfg.riesgo.drawdown_maximo_pct, f"Peor caída (drawdown): {dd:.1f} %".replace(".", ","),
          "La mayor caída desde un máximo. Pregúntate si aguantarías ver tu cuenta así sin apagar el bot.")
     anos_pos = sum(1 for v in m["rentabilidad_por_ano_pct"].values() if v > 0)
     total_anos = len(m["rentabilidad_por_ano_pct"])
@@ -56,41 +56,6 @@ def semaforo(m: dict, cfg: Config) -> list[tuple[str, str, str]]:
          "Si simplemente comprar BTC y olvidarse rinde más, el bot tiene que justificarse por otra cosa "
          "(por ejemplo, caídas mucho menores).")
     return filas
-
-
-def resumen_consola(r: ResultadoBacktest, cfg: Config) -> str:
-    m = r.metricas
-    e = cfg.estrategia
-    filtro = f", filtro EMA {e.ema_filtro}" if e.ema_filtro else ""
-    lineas = [
-        "",
-        "═" * 64,
-        f" BACKTEST {cfg.mercado.simbolo} {cfg.mercado.temporalidad}  ·  EMA {e.ema_rapida}/{e.ema_lenta}{filtro}"
-        f"  ·  stop {cfg.riesgo.stop_loss_pct:g} %",
-        f" Del {m['desde']} al {m['hasta']} ({m['anos']:g} años)",
-        "═" * 64,
-        f" Capital inicial ............ {_eur(m['capital_inicial'])}",
-        f" Capital final .............. {_eur(m['capital_final'])}   ({_pct(m['rentabilidad_total_pct'])})",
-        f"   de ello, apartado (x2) ... {_eur(m['apartado_eur'])}",
-        f" Rentabilidad media anual ... {_pct(m['rentabilidad_anual_pct'])}",
-        f" Peor caída (drawdown) ...... {m['max_drawdown_pct']:.1f} %",
-        f" Operaciones ................ {m['operaciones']}  ({m['ganadoras']} ganadoras, {m['perdedoras']} perdedoras,"
-        f" acierto {m['tasa_acierto_pct']:.0f} %)",
-        f" Ganancia media / pérdida media  {_pct(m['ganancia_media_pct'])} / {_pct(m['perdida_media_pct'])}",
-        f" Tiempo con BTC comprado .... {m['tiempo_en_mercado_pct']:.0f} %",
-        f" Comisiones pagadas ......... {_eur(m['comisiones_pagadas_eur'])}",
-        "─" * 64,
-        f" Comprar y mantener BTC ..... {_eur(m['comprar_y_mantener_final'])}   ({_pct(m['comprar_y_mantener_pct'])}),"
-        f" peor caída {m['comprar_y_mantener_max_drawdown_pct']:.0f} %",
-        "─" * 64,
-        " Por año: " + "  ".join(f"{a}: {_pct(v)}" for a, v in m["rentabilidad_por_ano_pct"].items()),
-        "─" * 64,
-        " ¿Es fiable este resultado?",
-    ]
-    for estado, titulo, _ in semaforo(m, cfg):
-        lineas.append(f"  {estado} {titulo}")
-    lineas.append("═" * 64)
-    return "\n".join(lineas)
 
 
 def dibujar(r: ResultadoBacktest, cfg: Config, ruta: Path) -> None:

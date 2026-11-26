@@ -17,6 +17,10 @@ trading-bot/
 │   ├── cuenta.py        ← saldo, posición abierta, comisiones
 │   ├── backtest.py      ← simulación con datos del pasado
 │   ├── informe.py       ← informe, gráfico y semáforo del backtest
+│   ├── analisis.py      ← "qué está pensando el bot", traducido a frases
+│   ├── panel.py         ← el panel web (python -m bot panel)
+│   ├── graficos.py      ← gráficos interactivos del panel
+│   ├── consola.py       ← colores y tablas en la terminal
 │   ├── broker.py        ← ejecuta órdenes (simuladas o en Binance)
 │   ├── trader.py        ← el bucle en directo
 │   └── registro.py      ← log, diario de operaciones y Telegram
