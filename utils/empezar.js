@@ -301,8 +301,8 @@ function vistaTema(tema, userId, idioma, cfg) {
         granja: [b(`grj:abrir:${userId}`, '🧺', 'Mi granja', 'My farm')],
         cartas: cfg?.compis?.anime ? [b('crt_otro:normal', '🃏', 'Abrir un sobre (🪙 300)', 'Open a pack (🪙 300)')] : [],
         casino: cfg?.casino?.activo ? [b('cas_lb:guia', '📖', 'Guía de todos los juegos', 'Guide to every game'),
-            // 1.34.1: y un enlace directo al canal del casino (donde de verdad se juega).
-            ...(cfg.casino.canalId && cfg.guildId ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(`https://discord.com/channels/${cfg.guildId}/${cfg.casino.canalId}`).setEmoji('🎰').setLabel(t(idioma, 'Ir al casino', 'Go to the casino'))] : [])] : [],
+            // 2.5.0: el casino se abre aquí mismo, en tu ventana (antes era un enlace al canal del casino).
+            b('cas_lb:abrir', '🎰', 'Abrir el casino', 'Open the casino')] : [],
         pase: [b(`pse:abrir:${userId}`, '🎟️', 'Mi pase', 'My pass')],
         rutina: [b(`emp:diario:${userId}`, '🪙', 'Empezar: oro gratis', 'Start: free gold')],
     }[tema] || [];

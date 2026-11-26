@@ -2,7 +2,9 @@
 // animado (luces, bote), los últimos premios gordos, los que más ganan y un
 // desplegable con TODOS los juegos. Al elegir uno se abre (solo para ti) su «mesa»:
 // cómo se juega, lo que paga, tu oro y fichas para apostar de un toque (o «Otra
-// cantidad»). La partida sale en el canal para que todos la vean.
+// cantidad»). 2.5.0: la partida se juega AHÍ MISMO, en tu mesa (un solo mensaje que cambia:
+// «Otra vez», «Cambiar apuesta o juego», el desplegable de juegos arriba…). Las partidas con
+// más gente (carrera, ruleta en mesa, cohete, bingo, póker, duelo) salen en el canal para todos.
 // Se publica desde el panel (Diversión → Casino) o al activar el casino con el setup,
 // y se pone al día solo cada pocos minutos (bote, premios). Botones: cas_lob, cas_lb:*,
 // cas_lx:*, cas_lm:*, cas_ldu:*, cas_lp:*; las fichas reutilizan cas_rep (utils/casino.js).
@@ -73,6 +75,30 @@ async function datosLobby(guildId) {
     return { bote: bote?.bote ?? 1000, ultimoGanador: bote?.ultimoGanadorId || null, ultimoPremio: bote?.ultimoPremio || 0, grandes, top };
 }
 
+// El desplegable con todos los juegos (el del lobby y el de arriba de tu mesa, con el juego que tienes abierto).
+function filaJuegos(cfg, idioma, actual = null) {
+    const c = cfg?.casino || {};
+    const J = casino().JUEGOS;
+    const op = (value, emoji, label, description) => ({ value, emoji, label, description, default: value === actual });
+    const menu = new StringSelectMenuBuilder().setCustomId('cas_lob').setPlaceholder(t(idioma, '🎲 Elige un juego…', '🎲 Pick a game…'))
+        .addOptions([
+            ...juegosActivos(cfg).map((j) => op(j, J[j].emoji, t(idioma, J[j].es, J[j].en), `${casino().JUEGOS_GRUPO.has(j) ? '👥 ' : ''}${t(idioma, ...RESUMEN[j])}`.slice(0, 100))),
+            ...(c.cofres !== false ? [op('cofres', '🎁', t(idioma, 'Cofres de mascotas', 'Pet chests'), t(idioma, 'Mascotas con habilidades exclusivas (hay una divina)', 'Pets with exclusive abilities (there’s a divine one)'))] : []),
+            ...(cfg?.compis?.anime ? [op('cartas', '🃏', t(idioma, 'Sobres de cartas de anime', 'Anime card packs'), t(idioma, '3 cartas por sobre: técnicas de combate y poderes', '3 cards per pack: battle techniques and powers'))] : []),
+            ...(c.juegos?.crash !== false ? [op('cohete', '🚀', t(idioma, 'Cohete del canal (todos)', 'Channel rocket (everyone)'), t(idioma, '👥 Un crash para todos: retírate antes que nadie', '👥 One crash for all: cash out before it blows'))] : []),
+            ...(c.juegos?.ruleta !== false ? [op('mesaruleta', '🎡', t(idioma, 'Ruleta en mesa (todo el canal)', 'Table roulette (whole channel)'), t(idioma, '👥 Una tirada para todos: 30 s para apostar', '👥 One spin for everyone: 30 s to bet'))] : []),
+            ...(c.juegos?.loteria !== false ? [op('loteria', '🎟️', t(idioma, 'Lotería de la semana', 'Weekly lottery'), t(idioma, 'Boletos de 🪙 100 · sorteo el domingo', '🪙 100 tickets · Sunday draw'))] : []),
+            op('numeros', '📈', t(idioma, 'Mis números', 'My numbers'), t(idioma, 'Cómo te ha ido, con gráfica', 'How you’ve done, with a chart')),
+        ].slice(0, 25));
+    return new ActionRowBuilder().addComponents(menu);
+}
+// Pone el desplegable de juegos encima de una vista de tu mesa (si cabe: deja sitio a la fila «🏠 Menú · ❔»).
+function conJuegos(v, cfg, idioma, actual = null) {
+    const comps = v.components || [];
+    if (comps.length >= 4) return v;
+    return { ...v, components: [filaJuegos(cfg, idioma, actual), ...comps] };
+}
+
 async function mensajeLobby(guild, cfg, { conCartel = true } = {}) {
     const idioma = cfg?.idioma || 'es';
     const c = cfg?.casino || {};
@@ -82,8 +108,8 @@ async function mensajeLobby(guild, cfg, { conCartel = true } = {}) {
     const e = new EmbedBuilder().setColor('#f59e0b')
         .setTitle(t(idioma, '🎰 Bienvenido al casino', '🎰 Welcome to the casino'))
         .setDescription(t(idioma,
-            `Elige un juego en el desplegable de abajo: se abre tu mesa (solo la ves tú), pones la apuesta con una ficha y la partida sale aquí para que todos la vean.\n🎁 Cada día tienes **una tirada gratis**. Apuestas de 🪙 ${fmt(c.apuestaMin ?? 10, idioma)} a 🪙 ${fmt(c.apuestaMax ?? 5000, idioma)}.`,
-            `Pick a game from the menu below: your table opens (only you see it), you bet with a chip and the game shows here for everyone.\n🎁 You get **one free spin** every day. Bets from 🪙 ${fmt(c.apuestaMin ?? 10, idioma)} to 🪙 ${fmt(c.apuestaMax ?? 5000, idioma)}.`))
+            `Elige un juego en el desplegable de abajo: se abre **tu mesa** (solo la ves tú) y juegas **ahí mismo**, en ese mismo mensaje: otra vez, cambiar de apuesta o de juego, sin ir a ningún sitio ni llenar el canal.\n👥 Las partidas con más gente (carrera, ruleta en mesa, cohete, bingo, póker) salen aquí para todos.\n🎁 Cada día tienes **una tirada gratis**. Apuestas de 🪙 ${fmt(c.apuestaMin ?? 10, idioma)} a 🪙 ${fmt(c.apuestaMax ?? 5000, idioma)}.`,
+            `Pick a game from the menu below: **your table** opens (only you see it) and you play **right there**, in that same message: again, change your bet or game, without going anywhere or filling the channel.\n👥 Games with other people (race, table roulette, rocket, bingo, poker) show here for everyone.\n🎁 You get **one free spin** every day. Bets from 🪙 ${fmt(c.apuestaMin ?? 10, idioma)} to 🪙 ${fmt(c.apuestaMax ?? 5000, idioma)}.`))
         .addFields(
             { name: t(idioma, '💎 Bote de la tragaperras', '💎 Slots jackpot'), value: `**🪙 ${fmt(d.bote, idioma)}**${d.ultimoGanador ? t(idioma, `\nÚltimo: <@${d.ultimoGanador}> (🪙 ${fmt(d.ultimoPremio, idioma)})`, `\nLast: <@${d.ultimoGanador}> (🪙 ${fmt(d.ultimoPremio, idioma)})`) : ''}`, inline: true },
             { name: t(idioma, '🏆 Los que más ganan', '🏆 Top winners'), value: d.top.map((p, i) => `${['🥇', '🥈', '🥉'][i]} <@${p.userId}> ${p.neto >= 0 ? '+' : ''}🪙 ${fmt(p.neto, idioma)}`).join('\n') || t(idioma, 'Aún nadie… ¿serás tú?', 'Nobody yet… will it be you?'), inline: true },
@@ -99,16 +125,6 @@ async function mensajeLobby(guild, cfg, { conCartel = true } = {}) {
         }).catch(() => null);
         if (gif) { files.push(new AttachmentBuilder(gif, { name: 'casino.gif' })); e.setImage('attachment://casino.gif'); }
     }
-    const menu = new StringSelectMenuBuilder().setCustomId('cas_lob').setPlaceholder(t(idioma, '🎲 Elige un juego…', '🎲 Pick a game…'))
-        .addOptions([
-            ...activos.map((j) => ({ value: j, emoji: J[j].emoji, label: t(idioma, J[j].es, J[j].en), description: t(idioma, ...RESUMEN[j]) })),
-            ...(c.cofres !== false ? [{ value: 'cofres', emoji: '🎁', label: t(idioma, 'Cofres de mascotas', 'Pet chests'), description: t(idioma, 'Mascotas con habilidades exclusivas (hay una divina)', 'Pets with exclusive abilities (there’s a divine one)') }] : []),
-            ...(cfg?.compis?.anime ? [{ value: 'cartas', emoji: '🃏', label: t(idioma, 'Sobres de cartas de anime', 'Anime card packs'), description: t(idioma, '3 cartas por sobre: técnicas de combate y poderes', '3 cards per pack: battle techniques and powers') }] : []),
-            ...(c.juegos?.crash !== false ? [{ value: 'cohete', emoji: '🚀', label: t(idioma, 'Cohete del canal (todos)', 'Channel rocket (everyone)'), description: t(idioma, 'Un crash para todos: retírate antes que nadie', 'One crash for all: cash out before it blows') }] : []),
-            ...(c.juegos?.ruleta !== false ? [{ value: 'mesaruleta', emoji: '🎡', label: t(idioma, 'Ruleta en mesa (todo el canal)', 'Table roulette (whole channel)'), description: t(idioma, 'Una tirada para todos: 30 s para apostar', 'One spin for everyone: 30 s to bet') }] : []),
-            ...(c.juegos?.loteria !== false ? [{ value: 'loteria', emoji: '🎟️', label: t(idioma, 'Lotería de la semana', 'Weekly lottery'), description: t(idioma, 'Boletos de 🪙 100 · sorteo el domingo', '🪙 100 tickets · Sunday draw') }] : []),
-            { value: 'numeros', emoji: '📈', label: t(idioma, 'Mis números', 'My numbers'), description: t(idioma, 'Cómo te ha ido, con gráfica', 'How you’ve done, with a chart') },
-        ]);
     const botones = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('cas_lb:diaria').setEmoji('🎁').setLabel(t(idioma, 'Tirada gratis', 'Free spin')).setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('cas_lb:mio').setEmoji('💰').setLabel(t(idioma, 'Mi oro', 'My gold')).setStyle(ButtonStyle.Primary),
@@ -116,7 +132,7 @@ async function mensajeLobby(guild, cfg, { conCartel = true } = {}) {
         new ButtonBuilder().setCustomId('cas_lb:guia').setEmoji('📖').setLabel(t(idioma, 'Cómo se juega', 'How to play')).setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('emp:abrir').setEmoji('👋').setLabel(t(idioma, '¿Nuevo? Empieza aquí', 'New? Start here')).setStyle(ButtonStyle.Success),
     );
-    return { embeds: [e], files, components: [new ActionRowBuilder().addComponents(menu), botones], allowedMentions: { parse: [] } };
+    return { embeds: [e], files, components: [filaJuegos(cfg, idioma), botones], allowedMentions: { parse: [] } };
 }
 
 // Publica (o vuelve a publicar) el lobby en el canal del casino y lo fija.
@@ -164,7 +180,12 @@ async function refrescar(client) {
 // ---------------------------------------------------------------------------
 // La mesa de cada juego (solo para quien la abre)
 // ---------------------------------------------------------------------------
-async function mesa(juego, { cfg, idioma, guildId, userId, cantidad = null, extra = null }) {
+// 2.5.0: toda vista de la mesa lleva arriba el desplegable de juegos (cambias de juego sin salir de tu ventana).
+async function mesa(juego, opciones) {
+    const v = await mesaSola(juego, opciones);
+    return conJuegos(v, opciones.cfg, opciones.idioma, juego);
+}
+async function mesaSola(juego, { cfg, idioma, guildId, userId, cantidad = null, extra = null }) {
     const c = cfg?.casino || {};
     const min = c.apuestaMin ?? 10; const max = c.apuestaMax ?? 5000;
     const saldo = (await require('./economia.js').en(guildId || cfg?.guildId).obtenerUsuario(userId)).balance;
@@ -240,7 +261,15 @@ async function mesa(juego, { cfg, idioma, guildId, userId, cantidad = null, extr
     const ex = extra ? `:${extra}` : '';
     filas.push(new ActionRowBuilder().addComponents(fichas(min, max).map((f) => new ButtonBuilder()
         .setCustomId(`cas_rep:${juego}:${f}${ex}`).setStyle(f > saldo ? ButtonStyle.Secondary : ButtonStyle.Success).setDisabled(f > saldo).setLabel(`🪙 ${fmt(f, idioma)}`))));
-    filas.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`cas_lm:${juego}${ex}`).setEmoji('✏️').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Otra cantidad', 'Other amount'))));
+    const grupo = casino().JUEGOS_GRUPO.has(juego);
+    filas.push(new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`cas_lm:${juego}${ex}`).setEmoji('✏️').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Otra cantidad', 'Other amount')),
+        new ButtonBuilder().setCustomId('cas_lb:mio').setEmoji('💰').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi oro', 'My gold')),
+        new ButtonBuilder().setCustomId('cas_lb:diaria').setEmoji('🎁').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Tirada gratis', 'Free spin')),
+    ));
+    if (!e.data.description) e.setDescription(grupo
+        ? t(idioma, '👥 Se abre en el canal del casino para que se apunte quien quiera.', '👥 It opens in the casino channel so anyone can join.')
+        : t(idioma, '👤 Pulsa una ficha y juegas aquí mismo: solo lo ves tú.', '👤 Tap a chip and you play right here: only you see it.'));
     return { embeds: [e], components: filas };
 }
 
@@ -261,7 +290,7 @@ async function miOro(interaction, cfg, idioma) {
             ...(p.pausaHasta && new Date(p.pausaHasta) > new Date() ? [{ name: '🧘', value: t(idioma, `Estás en pausa hasta <t:${Math.floor(new Date(p.pausaHasta) / 1000)}:f>.`, `You’re on a break until <t:${Math.floor(new Date(p.pausaHasta) / 1000)}:f>.`) }] : []),
         )
         .setFooter({ text: t(idioma, 'Más oro: /diario cada día, votar por el bot, hablar, misiones de /compi… Si te estás pasando, tómate un descanso 💛', 'More gold: /daily every day, voting for the bot, chatting, /companion missions… If it’s getting too much, take a break 💛') });
-    return { embeds: [e], components: [new ActionRowBuilder().addComponents(
+    return { embeds: [e], components: [filaJuegos(cfg, idioma), new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('cas_lp:1').setEmoji('🧘').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Descanso de 1 día', '1-day break')),
         new ButtonBuilder().setCustomId('cas_lp:7').setEmoji('🧘').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Descanso de 7 días', '7-day break')),
     )] };
@@ -272,7 +301,7 @@ async function miOro(interaction, cfg, idioma) {
 // ---------------------------------------------------------------------------
 async function manejar(interaction, client) {
     const id = interaction.customId || '';
-    if (!/^cas_(lob|lb:|lx:|lm:|ldu:|lp:)/.test(id)) return false;
+    if (!/^cas_(lob|lb:|lx:|lm:|ldu:|lp:|mesa:)/.test(id)) return false;
     const { getConfigCached } = require('./config.js');
     const { idiomaInteraccion } = require('./preferencias.js');
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
@@ -280,9 +309,16 @@ async function manejar(interaction, client) {
     const userId = interaction.user.id;
     if (!cfg?.casino?.activo) { await interaction.reply({ content: t(idioma, '🎰 El casino está cerrado ahora mismo.', '🎰 The casino is closed right now.'), flags: 64 }); return true; }
 
+    // Desde el lobby se abre tu mesa (solo para ti; sustituye a la que tuvieras abierta en este canal). Desde tu
+    // mesa, el mismo desplegable cambia de juego en ese mismo mensaje (utils/ventana.js convierte la respuesta).
     if (interaction.isStringSelectMenu() && id === 'cas_lob') {
         await interaction.reply({ ...(await mesa(interaction.values[0], { cfg, idioma, guildId: interaction.guildId, userId })), flags: 64 });
-        // El desplegable del lobby vuelve a «Elige un juego…» para el siguiente.
+        return true;
+    }
+    // «Cambiar apuesta o juego» de un resultado: vuelve a la mesa de ese juego (con la opción que llevabas).
+    if (interaction.isButton() && id.startsWith('cas_mesa:')) {
+        const [, juego, extra = null] = id.split(':');
+        await interaction.reply({ ...(await mesa(juego, { cfg, idioma, guildId: interaction.guildId, userId, extra })), flags: 64 });
         return true;
     }
     if (interaction.isStringSelectMenu() && id.startsWith('cas_lx:')) {
@@ -294,6 +330,8 @@ async function manejar(interaction, client) {
     if (interaction.isUserSelectMenu() && id.startsWith('cas_ldu:')) {
         const cantidad = parseInt(id.split(':')[1], 10);
         const rival = interaction.users.first();
+        // El reto es público: fuera del canal del casino, un aviso en tu mesa (sin dejar un mensaje a medias en el canal).
+        if (casino().fueraDelCasino(cfg, interaction.channelId)) { await interaction.reply({ content: casino().textoFallo({ fallo: 'canal' }, idioma, cfg.casino), flags: 64 }); return true; }
         await interaction.deferReply();
         const r = await casino().duelo({ interaction, client, cfg, idioma, cantidad, rival });
         if (r?.error) await interaction.editReply({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}` });
@@ -324,11 +362,18 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_lb:')) {
         const que = id.split(':')[1];
         if (que === 'mio') { await interaction.reply({ ...(await miOro(interaction, cfg, idioma)), flags: 64 }); return true; }
-        if (que === 'ranking') { await interaction.reply({ embeds: [await casino().embedBote(interaction.guild, idioma, userId)], flags: 64 }); return true; }
+        // 2.5.0: el casino entero (como /casino menu) en tu ventana, desde cualquier canal (p. ej. desde /empezar).
+        if (que === 'abrir') { await interaction.deferReply({ flags: 64 }); await interaction.editReply(await mensajeLobby(interaction.guild, { ...cfg, idioma }, { conCartel: true })); return true; }
+        if (que === 'ranking') { await interaction.reply({ embeds: [await casino().embedBote(interaction.guild, idioma, userId)], components: [filaJuegos(cfg, idioma)], flags: 64 }); return true; }
         if (que === 'guia') { await interaction.reply({ ...(await ayuda().guiaGeneral(idioma, cfg, { canalId: interaction.channelId, guildId: interaction.guildId })), flags: 64 }); return true; }
         if (que === 'coleccion') { await interaction.deferReply({ flags: 64 }); await interaction.editReply(await require('./cofres.js').verColeccion(interaction, idioma)); return true; }
         if (que === 'diaria' || que === 'carrera' || que === 'mesaruleta' || que === 'cohete') {
-            await interaction.deferReply();
+            // 2.5.0: la tirada gratis es tuya: se juega en privado (en tu mesa si la pulsas ahí). Las de grupo, en el
+            // canal del casino; desde otro canal, un aviso (sin abrir nada a medias).
+            const grupo = que !== 'diaria';
+            if (grupo && casino().fueraDelCasino(cfg, interaction.channelId)) { await interaction.reply({ content: casino().textoFallo({ fallo: 'canal' }, idioma, cfg.casino), flags: 64 }); return true; }
+            if (grupo) await interaction.deferReply();
+            else { interaction.__casinoPrivado = true; await interaction.deferReply({ flags: 64 }); }
             const X = require('./casinoExtra.js');
             const r = que === 'diaria' ? await casino().diaria({ interaction, client, cfg, idioma }) : que === 'carrera' ? await casino().carrera({ interaction, client, cfg, idioma }) : que === 'cohete' ? await X.cohete({ interaction, client, cfg, idioma }) : await X.mesa({ interaction, client, cfg, idioma });
             if (r?.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 }); }
@@ -338,4 +383,4 @@ async function manejar(interaction, client) {
     return false;
 }
 
-module.exports = { mensajeLobby, publicar, refrescar, mesa, miOro, manejar, fichas, OPCIONES, RESUMEN };
+module.exports = { mensajeLobby, publicar, refrescar, mesa, miOro, manejar, fichas, filaJuegos, conJuegos, OPCIONES, RESUMEN };

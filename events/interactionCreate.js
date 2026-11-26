@@ -177,6 +177,8 @@ module.exports = {
     async execute(interaction, client) {
         // 1.34.0: fila «🏠 Menú · ❔» en los mensajes de juegos/mascotas/comunidad y contar qué se usa.
         await require('../utils/navegacion.js').envolver(interaction).catch((e) => console.warn('Navegación:', e.message));
+        // 2.5.0: lo que solo ves tú cambia en su mismo mensaje (y una ventana nueva sustituye a la anterior).
+        try { require('../utils/ventana.js').preparar(interaction); } catch (e) { console.warn('Ventana:', e.message); }
 
         // --- SLASH COMMANDS ---
         if (interaction.isChatInputCommand()) {

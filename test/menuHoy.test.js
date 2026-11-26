@@ -42,9 +42,10 @@ describe('menú: Hoy', () => {
         const e = base({ granja: { oro: 0 } }); e.hoy.carta.listo = false;
         assert.ok(ids(M.botonesHoy(e, 'U', 'es')).includes('menu:hoy:diario:U'));
     });
-    it('fuera del canal del casino, la tirada lleva al casino', () => {
+    it('fuera del canal del casino, la tirada se juega ahí mismo (2.5.0: en privado, sin ir al casino)', () => {
         const b = M.botonesHoy(base(), 'U', 'es', { canalId: 'OTRO' });
-        assert.ok(ids(b).includes('https://discord.com/channels/G/CAS'));
+        assert.ok(ids(b).includes('menu:a:casino:diaria:U'));
+        assert.ok(!ids(b).includes('https://discord.com/channels/G/CAS'));
     });
     it('no enseña lo que aún no tiene desbloqueado', () => {
         const e = base({ abiertas: new Set(['base']) });

@@ -4,6 +4,8 @@ const { idiomaInteraccion } = require('../utils/preferencias.js');
 const { t } = require('../utils/i18n.js');
 
 const ES = (v) => ({ 'es-ES': v, 'es-419': v });
+// Subcomandos que juega una sola persona (los demás, con más gente, van en el canal del casino).
+const SOLOS = new Set(['slots', 'roulette', 'blackjack', 'crash', 'mines', 'coinflip', 'higherlower', 'scratch', 'daily', 'plinko', 'wheel', 'dice', 'baccarat']);
 const cantidad = (o) => o.setName('bet').setNameLocalizations(ES('apuesta')).setDescription('How much gold').setDescriptionLocalizations(ES('Cuánto oro')).setRequired(true).setMinValue(1).setMaxValue(10000000);
 
 // /casino ayuda · tragaperras · ruleta · blackjack · crash · minas · moneda · duelo · carrera · diaria · bote · pausa
@@ -96,7 +98,11 @@ module.exports = {
             if (r?.error) { await interaction.deleteReply().catch(() => {}); return interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 }); }
             return undefined;
         }
-        await interaction.deferReply();
+        // 2.5.0: los juegos solo para ti, fuera del canal del casino (o lanzados desde tu ventana privada, p. ej. /menu),
+        // se juegan en privado ahí mismo en vez de mandarte al canal. En el canal del casino, a la vista de todos.
+        const enPrivado = SOLOS.has(sub) && (casino.fueraDelCasino(cfg, interaction.channelId) || !!interaction.message?.flags?.has?.(64));
+        if (enPrivado) interaction.__casinoPrivado = true;
+        await interaction.deferReply(enPrivado ? { flags: 64 } : undefined);
         const base = { interaction, client, cfg, idioma, cantidad: interaction.options.getInteger('bet') };
         let r;
         if (sub === 'slots') r = await casino.tragaperras(base);

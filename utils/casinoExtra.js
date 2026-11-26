@@ -20,7 +20,7 @@ const RIESGOS = { bajo: ['🟢', 'Bajo', 'Low'], medio: ['🟠', 'Medio', 'Mediu
 async function plinko({ interaction, client, cfg, idioma, cantidad, riesgo = 'bajo' }) {
     if (!C.PLINKO[riesgo]) riesgo = 'bajo';
     const K = casino();
-    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'plinko', cantidad });
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: K.canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'plinko', cantidad });
     if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
     const tiro = C.tirarPlinko(riesgo);
     const premio = Math.floor(a.jugada.apuesta * tiro.mult);
@@ -43,7 +43,7 @@ const COLORES_RUEDA = Object.fromEntries(C.RUEDA.map((r) => [r.n, r.color]));
 async function rueda({ interaction, client, cfg, idioma, cantidad, numero = 1 }) {
     if (!C.RUEDA.some((r) => r.n === numero)) numero = 1;
     const K = casino();
-    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'rueda', cantidad });
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: K.canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'rueda', cantidad });
     if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
     const giro = C.girarRueda();
     const mult = C.pagoRueda(numero, giro.numero);
@@ -74,7 +74,7 @@ async function dados({ interaction, client, cfg, idioma, cantidad, apuesta = 'gr
     if (!C.APUESTAS_DADOS.includes(apuesta)) apuesta = 'grande';
     if (apuesta === 'numero' && !(numero >= 1 && numero <= 6)) return { error: t(idioma, 'Para apostar a un número, elige cuál en «numero» (1-6).', 'To bet on a number, pick it in “number” (1-6).') };
     const K = casino();
-    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'dados', cantidad });
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: K.canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'dados', cantidad });
     if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
     const tirada = C.tirarDados();
     const mult = C.pagoDados(apuesta, numero, tirada);
@@ -100,7 +100,7 @@ const NOMBRES_BACCARAT = { jugador: ['🔵', 'Jugador', 'Player', '×2'], banca:
 async function baccarat({ interaction, client, cfg, idioma, cantidad, apuesta = 'jugador' }) {
     if (!C.APUESTAS_BACCARAT[apuesta]) apuesta = 'jugador';
     const K = casino();
-    const a = await K.apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'baccarat', cantidad });
+    const a = await K.apostar({ guildId: interaction.guildId, canalId: K.canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'baccarat', cantidad });
     if (a.fallo) return { error: K.textoFallo(a, idioma, cfg.casino) };
     const r = C.repartirBaccarat(C.baraja(undefined, 8));
     const mult = C.pagoBaccarat(apuesta, r.ganador);
@@ -629,7 +629,8 @@ async function manejar(interaction, client) {
     if (interaction.isButton() && id.startsWith('cas_lot:')) {
         const r = await comprarBoletos(interaction.guildId, interaction.user.id, parseInt(id.split(':')[1], 10) || 1, cfg, idioma);
         if (r.error) { await interaction.reply({ content: `❌ ${r.error}`, flags: 64 }); return true; }
-        await interaction.reply({ ...vistaLoteria(r.l, interaction.user.id, idioma), content: r.texto, flags: 64 });
+        // En tu mesa se queda en el mismo mensaje (utils/ventana.js), con el desplegable de juegos arriba.
+        await interaction.reply({ ...require('./casinoLobby.js').conJuegos(vistaLoteria(r.l, interaction.user.id, idioma), cfg, idioma, 'loteria'), content: r.texto, flags: 64 });
         return true;
     }
     if (interaction.isButton() && id === 'cas_st') { await interaction.deferReply({ flags: 64 }); await interaction.editReply(await estadisticas(interaction.guildId, interaction.user.id, idioma)); return true; }

@@ -174,11 +174,13 @@ async function manejar(interaction, client) {
         if (owner !== userId) { await interaction.reply({ content: t(idioma, 'Esos tickets no son tuyos. Mira los tuyos con `/jugar pase`.', 'Those tickets aren’t yours. See yours with `/games pass`.'), flags: 64 }); return true; }
         const def = X.TICKETS[partes[2]];
         if (!def) return false;
-        await interaction.deferReply();
+        // 2.5.0: desde tu pase (privado) se abre ahí mismo; desde un mensaje tuyo, en ese mensaje (utils/ventana.js).
+        const V = require('./ventana.js');
+        const modo = await V.responderJuego(interaction);
         const r = def.tipo === 'sobre'
             ? await require('./cartas.js').abrir({ interaction, cfg, idioma, sobre: def.id, ticket: partes[2] })
             : await require('./cofres.js').abrir({ interaction, client, cfg, idioma, cofre: def.id, ticket: partes[2] });
-        if (r?.error) await interaction.editReply({ content: `❌ ${r.error}` });
+        if (r?.error) await V.falloJuego(interaction, modo, `❌ ${r.error}`);
         return true;
     }
     // «abrir», sin dueño o de otra persona: el tuyo, solo para ti.

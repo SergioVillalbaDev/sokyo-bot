@@ -47,7 +47,8 @@ function textoFallo(f, idioma, cfgC = {}) {
     switch (f.fallo) {
         case 'apagado': return t(idioma, '🎰 El casino no está activado en este servidor.', '🎰 The casino isn’t turned on on this server.');
         case 'juego': return t(idioma, 'Ese juego está desactivado en este servidor.', 'That game is turned off on this server.');
-        case 'canal': return t(idioma, `🎰 Aquí no se juega: ve a <#${cfgC.canalId}>.`, `🎰 Not here: head to <#${cfgC.canalId}>.`);
+        // 2.5.0: solo las partidas con más gente piden el canal del casino (las tuyas se juegan en privado donde estés).
+        case 'canal': return t(idioma, `👥 Las partidas con más gente se juegan en <#${cfgC.canalId}>, para que todos puedan apuntarse. Los juegos solo para ti puedes jugarlos aquí mismo con \`/casino menu\`.`, `👥 Games with other people are played in <#${cfgC.canalId}>, so everyone can join. Games just for you can be played right here with \`/casino menu\`.`);
         case 'pausa': return t(idioma, '🧘 Te has tomado un descanso del casino. Vuelve cuando acabe.', '🧘 You’re taking a break from the casino. Come back when it ends.');
         case 'min': return t(idioma, `La apuesta mínima es 🪙 ${f.min}.`, `The minimum bet is 🪙 ${f.min}.`);
         case 'max': return t(idioma, `La apuesta máxima es 🪙 ${f.max}.`, `The maximum bet is 🪙 ${f.max}.`);
@@ -57,6 +58,14 @@ function textoFallo(f, idioma, cfgC = {}) {
         default: return '❌';
     }
 }
+
+// 2.5.0: una partida «solo para ti» que se juega en privado (en tu ventana, o con /casino fuera de su canal) vale en
+// cualquier canal: no ensucia nada. Las públicas siguen pidiendo el canal del casino si el servidor tiene uno.
+const esPrivado = (interaction) => !!(interaction?.__casinoPrivado || interaction?.message?.flags?.has?.(64));
+const canalJuego = (interaction) => (esPrivado(interaction) ? null : interaction.channelId);
+// Los que se juegan con más gente (en el canal, a la vista de todos).
+const JUEGOS_GRUPO = new Set(['duelo', 'carrera', 'poker', 'bingo']);
+const fueraDelCasino = (cfg, canalId) => !!(cfg?.casino?.canalId && canalId && cfg.casino.canalId !== canalId);
 
 // Comprueba todo, cobra y apunta la jugada. Devuelve { jugada, saldo } o { fallo }.
 async function apostar({ guildId, canalId, userId, cfg, juego, cantidad }) {
@@ -135,9 +144,16 @@ async function devolverPendientes() {
     return pendientes.length;
 }
 
+// 2.5.0: «Otra vez» juega en el mismo mensaje y «Cambiar apuesta» vuelve a la mesa de ese juego (sin mensajes nuevos).
 const filaOtraVez = (juego, cantidad, idioma, extra = '') => new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`cas_rep:${juego}:${cantidad}${extra ? `:${extra}` : ''}`).setEmoji('🔁').setStyle(ButtonStyle.Secondary)
-        .setLabel(t(idioma, `Otra vez (🪙 ${cantidad})`, `Again (🪙 ${cantidad})`)));
+    new ButtonBuilder().setCustomId(`cas_rep:${juego}:${cantidad}${extra ? `:${extra}` : ''}`).setEmoji('🔁').setStyle(ButtonStyle.Success)
+        .setLabel(t(idioma, `Otra vez (🪙 ${cantidad})`, `Again (🪙 ${cantidad})`)),
+    new ButtonBuilder().setCustomId(`cas_mesa:${juego}${extra ? `:${extra}` : ''}`).setEmoji('🎲').setStyle(ButtonStyle.Secondary)
+        .setLabel(t(idioma, 'Cambiar apuesta o juego', 'Change bet or game')));
+
+// Tras la tirada gratis (no hay «otra vez» gratis): seguir jugando desde la mesa de ese juego.
+const filaSeguir = (juego, idioma) => new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`cas_mesa:${juego}`).setEmoji('🎲').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Seguir jugando', 'Keep playing')));
 
 // 1.31.0: el pie solo dice tu oro (y lo que te devuelve el compañero); el resultado ya va en la imagen.
 const pieSaldo = (idioma, saldo, vuelta = 0) => t(idioma, `🪙 ${fmt(saldo, idioma)}${vuelta ? ` · 🐾 +${vuelta}` : ''} · /casino pausa`, `🪙 ${fmt(saldo, idioma)}${vuelta ? ` · 🐾 +${vuelta}` : ''} · /casino pause`);
@@ -168,7 +184,7 @@ async function tragaperras({ interaction, client, cfg, idioma, cantidad, gratis 
     if (gratis) {
         jugada = await JugadaCasino.create({ guildId, userId, juego: 'tragaperras', apuesta: 0 });
     } else {
-        const a = await apostar({ guildId, canalId: interaction.channelId, userId, cfg, juego: 'tragaperras', cantidad });
+        const a = await apostar({ guildId, canalId: canalJuego(interaction), userId, cfg, juego: 'tragaperras', cantidad });
         if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
         jugada = a.jugada;
     }
@@ -203,7 +219,7 @@ async function tragaperras({ interaction, client, cfg, idioma, cantidad, gratis 
                     : t(idioma, '💨 Esta vez no… ¡la próxima!', '💨 Not this time… next one!');
         e.setColor(premio > base ? '#16a34a' : '#7f1d1d').setDescription(`${simb}\n\n${texto}`).setFooter({ text: pieSaldo(idioma, saldo, vuelta) });
     }
-    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'tragaperras.gif' })] : [], components: gratis ? [] : [filaOtraVez('tragaperras', base, idioma)], allowedMentions: { parse: [] } });
+    await interaction.editReply({ embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'tragaperras.gif' })] : [], components: [gratis ? filaSeguir('tragaperras', idioma) : filaOtraVez('tragaperras', base, idioma)], allowedMentions: { parse: [] } });
     anunciarDespues(gif ? 3400 : 0, client, cfg, { ...jugada.toObject(), apuesta: Math.max(1, base) }, premio, r.bote ? t(cfg, ' 💎💎💎 ¡BOTE!', ' 💎💎💎 JACKPOT!') : '');
     return { ok: true, premio, r };
 }
@@ -219,7 +235,7 @@ const NOMBRE_APUESTA = {
 async function ruleta({ interaction, client, cfg, idioma, cantidad, apuesta, numero }) {
     if (!C.APUESTAS_RULETA.includes(apuesta)) return { error: t(idioma, 'Esa apuesta no existe.', 'That bet doesn’t exist.') };
     if (apuesta === 'numero' && !(numero >= 0 && numero <= 36)) return { error: t(idioma, 'Elige un número del 0 al 36.', 'Pick a number from 0 to 36.') };
-    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'ruleta', cantidad });
+    const a = await apostar({ guildId: interaction.guildId, canalId: canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'ruleta', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     const sale = C.girarRuleta();
     const mult = C.pagoRuleta(apuesta, numero, sale);
@@ -250,7 +266,7 @@ async function ruleta({ interaction, client, cfg, idioma, cantidad, apuesta, num
 // 🪙 Cara o cruz
 // ---------------------------------------------------------------------------
 async function moneda({ interaction, client, cfg, idioma, cantidad, lado }) {
-    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'moneda', cantidad });
+    const a = await apostar({ guildId: interaction.guildId, canalId: canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'moneda', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     const sale = C.lanzarMoneda();
     const premio = sale === lado ? Math.floor(cantidad * C.MONEDA_PAGO) : 0;
@@ -326,7 +342,7 @@ function vistaBlackjack(p, idioma, { fin = null, ocultar = true } = {}) {
 }
 
 async function blackjack({ interaction, client, cfg, idioma, cantidad }) {
-    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'blackjack', cantidad });
+    const a = await apostar({ guildId: interaction.guildId, canalId: canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'blackjack', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     limpiarPartidas(client);
     const mazo = C.baraja();
@@ -517,7 +533,7 @@ function editarEnFila(p, vista) {
 }
 const editarCrash = editarEnFila;
 async function crash({ interaction, client, cfg, idioma, cantidad, auto = null }) {
-    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'crash', cantidad });
+    const a = await apostar({ guildId: interaction.guildId, canalId: canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'crash', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     limpiarPartidas(client);
     const p = { id: nuevoId(), tipo: 'crash', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, punto: C.puntoCrash(), inicio: Date.now() + 1500, auto: auto && auto >= 1.01 ? Math.round(auto * 100) / 100 : null, terminado: false, caduca: Date.now() + 5 * 60000, cfg, idioma, interaction };
@@ -612,7 +628,7 @@ function vistaMinas(p, idioma, estado = 'juega') {
 }
 async function minas({ interaction, client, cfg, idioma, cantidad, numMinas = 3 }) {
     numMinas = Math.max(1, Math.min(10, parseInt(numMinas, 10) || 3));
-    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'minas', cantidad });
+    const a = await apostar({ guildId: interaction.guildId, canalId: canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'minas', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     limpiarPartidas(client);
     const p = { id: nuevoId(), tipo: 'minas', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, minas: numMinas, posMinas: C.colocarMinas(numMinas), abiertas: [], caduca: Date.now() + 15 * 60000, cfg, idioma };
@@ -687,7 +703,7 @@ function vistaHilo(p, idioma, estado = 'juega', ultimo = null) {
     return { embeds: [e], components: comps, files: png ? [new AttachmentBuilder(png, { name: 'hilo.png' })] : [], attachments: [] };
 }
 async function hilo({ interaction, client, cfg, idioma, cantidad }) {
-    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'hilo', cantidad });
+    const a = await apostar({ guildId: interaction.guildId, canalId: canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'hilo', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     limpiarPartidas(client);
     const p = { id: nuevoId(), tipo: 'hilo', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, actual: C.cartaHilo(), historial: [], mult: 1, aciertos: 0, caduca: Date.now() + 15 * 60000, cfg, idioma };
@@ -757,7 +773,7 @@ function vistaRasca(p, idioma, fin = false) {
     return { embeds: [e], components: filas };
 }
 async function rasca({ interaction, client, cfg, idioma, cantidad }) {
-    const a = await apostar({ guildId: interaction.guildId, canalId: interaction.channelId, userId: interaction.user.id, cfg, juego: 'rasca', cantidad });
+    const a = await apostar({ guildId: interaction.guildId, canalId: canalJuego(interaction), userId: interaction.user.id, cfg, juego: 'rasca', cantidad });
     if (a.fallo) return { error: textoFallo(a, idioma, cfg.casino) };
     limpiarPartidas(client);
     const p = { id: nuevoId(), tipo: 'rasca', userId: interaction.user.id, jugada: a.jugada, apuesta: cantidad, boleto: C.boletoRasca(), rascadas: [], caduca: Date.now() + 15 * 60000, cfg, idioma };
@@ -974,7 +990,7 @@ async function modalCarrera(interaction, client) {
 async function diaria({ interaction, client, cfg, idioma }) {
     const c = cfg?.casino;
     if (!c?.activo) return { error: textoFallo({ fallo: 'apagado' }, idioma) };
-    if (c.canalId && c.canalId !== interaction.channelId) return { error: textoFallo({ fallo: 'canal' }, idioma, c) };
+    if (!esPrivado(interaction) && fueraDelCasino(cfg, interaction.channelId)) return { error: textoFallo({ fallo: 'canal' }, idioma, c) };
     const hace = new Date(Date.now() - 20 * 3600000);
     await PerfilCasino.updateOne({ guildId: interaction.guildId, userId: interaction.user.id }, { $setOnInsert: { jugadas: 0 } }, { upsert: true });
     const r = await PerfilCasino.findOneAndUpdate({ guildId: interaction.guildId, userId: interaction.user.id, $or: [{ ultimaDiaria: null }, { ultimaDiaria: { $lt: hace } }] }, { $set: { ultimaDiaria: new Date() } });
@@ -1010,6 +1026,12 @@ async function pausa(guildId, userId, dias) {
 // ---------------------------------------------------------------------------
 // Botones (cas_*)
 // ---------------------------------------------------------------------------
+// 2.5.0: con una partida a medias (blackjack, minas, crash…) no se borra tu ventana al abrir otra (utils/ventana.js).
+require('./ventana.js').registrarEnMarcha((userId, guildId) => {
+    for (const p of partidas.values()) if (p.userId === userId && !p.terminado && (!guildId || p.jugada?.guildId === guildId)) return true;
+    return false;
+});
+
 async function manejar(interaction, client) {
     const id = interaction.customId || '';
     if (!id.startsWith('cas_')) return false;
@@ -1048,9 +1070,25 @@ async function manejar(interaction, client) {
     return require('./casinoLobby.js').manejar(interaction, client);
 }
 
-// Juega `juego` con `cantidad` (y su opción) en un mensaje nuevo en el canal.
+// Juega `juego` con `cantidad` (y su opción). 2.5.0, sin mensajes de más:
+// - desde tu ventana (la mesa, un resultado privado, la guía…): en esa misma ventana, solo para ti;
+// - «Otra vez» en tu propia partida pública ya acabada: en ese mismo mensaje;
+// - fuera del canal del casino: en privado (una ventana nueva); en el canal, a la vista de todos (como siempre).
+// Las partidas con más gente (póker, bingo) se abren siempre en el canal del casino.
 async function jugarRepetir(interaction, client, cfg, idioma, juego, cantidad, extra = '') {
-    await interaction.deferReply();
+    const msg = interaction.message;
+    const enVentana = !!msg?.flags?.has?.(64);
+    const grupo = JUEGOS_GRUPO.has(juego);
+    const fuera = fueraDelCasino(cfg, interaction.channelId);
+    const autor = msg?.interactionMetadata?.user?.id || msg?.interaction?.user?.id || null;
+    const mia = !!msg && !enVentana && autor === interaction.user.id && !grupo;
+    if (grupo && fuera) { await interaction.reply({ content: textoFallo({ fallo: 'canal' }, idioma, cfg.casino), flags: 64 }); return { ok: false, fuera: true }; }
+    let enSitio = false;
+    if (!grupo && (enVentana || mia)) { await interaction.deferUpdate(); enSitio = true; if (enVentana) interaction.__casinoPrivado = true; }
+    else if (!grupo && fuera) { await interaction.deferReply({ flags: 64 }); interaction.__casinoPrivado = true; }
+    else await interaction.deferReply();
+    // Cada juego pinta su primer resultado como si fuera un mensaje nuevo: se vacía lo anterior esa primera vez.
+    if (enSitio) require('./ventana.js').primerContenidoLimpio(interaction);
     const base = { interaction, client, cfg, idioma, cantidad };
     let r;
     if (juego === 'tragaperras') r = await tragaperras(base);
@@ -1069,8 +1107,9 @@ async function jugarRepetir(interaction, client, cfg, idioma, juego, cantidad, e
     else if (juego === 'baccarat') r = await require('./casinoExtra.js').baccarat({ ...base, apuesta: extra || 'jugador' });
     else r = { error: t(idioma, 'Ese juego no se puede repetir así.', 'That game can’t be replayed like this.') };
     if (r?.error) {
-        // El error solo lo ve quien juega (no ensucia el canal).
-        await interaction.deleteReply().catch(() => {});
+        // El error solo lo ve quien juega (no ensucia el canal). Si se jugaba en el mismo mensaje, ese se queda
+        // como estaba (en tu ventana, el aviso sale encima: utils/ventana.js).
+        if (!enSitio) await interaction.deleteReply().catch(() => {});
         await interaction.followUp({ content: `${/^\p{Extended_Pictographic}/u.test(r.error) ? '' : '❌ '}${r.error}`, flags: 64 }).catch(() => {});
     }
     return r;
@@ -1102,7 +1141,7 @@ async function resumenServidor(client, guildId) {
 }
 
 module.exports = {
-    filaOtraVez, pieSaldo, saldoDe, oculto, masMenos, anunciarDespues, editarEnFila, fmt,
+    filaOtraVez, pieSaldo, saldoDe, esPrivado, canalJuego, fueraDelCasino, JUEGOS_GRUPO, oculto, masMenos, anunciarDespues, editarEnFila, fmt,
     JUEGOS, BOTE_INICIAL, apostar, cobrarJugada, devolverJugada, sumarApuesta, devolverPendientes, textoFallo, barrerPartidas,
     tragaperras, ruleta, moneda, blackjack, crash, minas, hilo, rasca, duelo, carrera, diaria, embedBote, pausa, manejar, resumenServidor, jugarRepetir,
     _partidas: partidas, _carreras: carreras, _duelos: duelos, _correr: correr, retirarCrash, _editarEnFila: editarEnFila,

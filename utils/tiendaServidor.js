@@ -201,13 +201,16 @@ async function manejar(interaction) {
         await interaction.reply({ content: t(idioma, `${p.emoji} **${p.nombre}**: el rol <@&${p.rolId}> ${duracion(p.horas, idioma)}. ¿Lo compras?`, `${p.emoji} **${p.nombre}**: the <@&${p.rolId}> role ${duracion(p.horas, idioma)}. Buy it?`), components: [fila], flags: 64, allowedMentions: { parse: [] } });
         return true;
     }
-    if (id === 'tnd_no') { await interaction.update({ content: t(idioma, 'Vale, sin compras. 👍', 'Okay, nothing bought. 👍'), components: [] }); return true; }
+    // 2.5.0: «Ahora no» y el resultado de la compra vuelven a la tienda en el mismo mensaje, con lo que ha pasado
+    // arriba (antes se quedaba en un mensaje sin botones y había que escribir /tienda otra vez).
+    const deVuelta = async (texto) => ({ ...(await vista(interaction.guild, cfg, interaction.member, idioma)), content: texto, allowedMentions: { parse: [] } });
+    if (id === 'tnd_no') { await interaction.deferUpdate(); await interaction.editReply(await deVuelta(t(idioma, 'Vale, sin compras. 👍', 'Okay, nothing bought. 👍'))); return true; }
     if (id.startsWith('tnd_ok:')) {
         await interaction.deferUpdate();
         const r = await comprar(interaction.guild, interaction.member, id.split(':')[1], idioma);
-        if (!r.ok) { await interaction.editReply({ content: `❌ ${r.error}`, components: [] }); return true; }
+        if (!r.ok) { await interaction.editReply(await deVuelta(`❌ ${r.error}`)); return true; }
         const cuando = r.hasta ? t(idioma, ` hasta <t:${Math.floor(r.hasta.getTime() / 1000)}:f>`, ` until <t:${Math.floor(r.hasta.getTime() / 1000)}:f>`) : t(idioma, ' para siempre', ' forever');
-        await interaction.editReply({ content: t(idioma, `✅ ¡Hecho! ${r.extendido ? 'Has alargado' : 'Ya tienes'} <@&${r.rol.id}>${cuando}. Te quedan 🪙 ${fmt(r.saldo, idioma)}.`, `✅ Done! ${r.extendido ? 'You extended' : 'You now have'} <@&${r.rol.id}>${cuando}. You have 🪙 ${fmt(r.saldo, idioma)} left.`), components: [], allowedMentions: { parse: [] } });
+        await interaction.editReply(await deVuelta(t(idioma, `✅ ¡Hecho! ${r.extendido ? 'Has alargado' : 'Ya tienes'} <@&${r.rol.id}>${cuando}. Te quedan 🪙 ${fmt(r.saldo, idioma)}.`, `✅ Done! ${r.extendido ? 'You extended' : 'You now have'} <@&${r.rol.id}>${cuando}. You have 🪙 ${fmt(r.saldo, idioma)} left.`)));
         return true;
     }
     return false;

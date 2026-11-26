@@ -310,16 +310,18 @@ async function manejar(interaction, client) {
     const { idiomaInteraccion } = require('./preferencias.js');
     const cfg = await getConfigCached(interaction.guildId).catch(() => null);
     const idioma = await idiomaInteraccion(interaction, cfg);
+    // 2.5.0: «Abrir otro» en tu ventana o en tu propio cofre abre en ese mismo mensaje (utils/ventana.js).
+    const V = require('./ventana.js');
     if (interaction.isButton() && id.startsWith('cof_diez:')) {
-        await interaction.deferReply();
+        const modo = await V.responderJuego(interaction);
         const r = await abrirDiez({ interaction, cfg, idioma, cofre: id.split(':')[1] });
-        if (r.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }); }
+        if (r.error) await V.falloJuego(interaction, modo, `❌ ${r.error}`);
         return true;
     }
     if (interaction.isButton() && id.startsWith('cof_otro:')) {
-        await interaction.deferReply();
+        const modo = await V.responderJuego(interaction);
         const r = await abrir({ interaction, client, cfg, idioma, cofre: id.split(':')[1] });
-        if (r.error) await interaction.editReply({ content: `❌ ${r.error}` });
+        if (r.error) await V.falloJuego(interaction, modo, `❌ ${r.error}`);
         return true;
     }
     if ((interaction.isButton() && id.startsWith('cof_eq:')) || (interaction.isStringSelectMenu() && id === 'cof_sel')) {

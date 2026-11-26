@@ -206,15 +206,17 @@ async function guiaGeneral(idioma, cfg, { canalId = null, guildId = null } = {})
         .setDescription([
             t(idioma, 'Elige un juego en el menú: verás **cómo se juega**, **lo que paga** y un botón para **probarlo**.', 'Pick a game in the menu: you’ll see **how it works**, **what it pays** and a button to **try it**.'),
             t(idioma, '¿Nuevo? Empieza por los marcados como **FÁCIL** ⭐.', 'New? Start with the ones marked **EASY** ⭐.'),
-            c.canalId ? t(idioma, `📍 Se juega en <#${c.canalId}>.`, `📍 Played in <#${c.canalId}>.`) : '',
+            t(idioma, '👤 Los juegos solo para ti se juegan aquí mismo, en este mensaje (solo lo ves tú).', '👤 Games just for you are played right here, in this message (only you see it).'),
+            c.canalId ? t(idioma, `👥 Los de con más gente, en <#${c.canalId}>.`, `👥 Games with others, in <#${c.canalId}>.`) : '',
             c.activo ? '' : t(idioma, '🔒 El casino está cerrado ahora mismo en este servidor.', '🔒 The casino is closed on this server right now.'),
         ].filter(Boolean).join('\n'));
     if (png) e.setImage('attachment://guia-casino.png');
     else e.addFields({ name: t(idioma, '🎲 Los juegos', '🎲 The games'), value: juegos.filter((x) => !x.apagado).map((x) => `${x.emoji} ${x.nombre}`).join(' · ').slice(0, 1024) });
     const botones = [];
     if (c.activo) {
-        if (enCanal(cfg, canalId)) botones.push(new ButtonBuilder().setCustomId('cas_lb:diaria').setEmoji('🎁').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Tirada gratis', 'Free spin')));
-        else { const l = enlaceCanal(cfg, guildId, idioma); if (l) botones.push(l); }
+        // 2.5.0: la tirada gratis es tuya: se juega en privado desde cualquier canal.
+        botones.push(new ButtonBuilder().setCustomId('cas_lb:diaria').setEmoji('🎁').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Tirada gratis', 'Free spin')));
+        if (!enCanal(cfg, canalId)) { const l = enlaceCanal(cfg, guildId, idioma); if (l) botones.push(l); }
         botones.push(new ButtonBuilder().setCustomId('cas_lb:mio').setEmoji('💰').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi oro', 'My gold')));
     }
     const filas = [menuJuegos(idioma, cfg)];
@@ -256,13 +258,14 @@ async function guiaJuego(juego, idioma, cfg, { canalId = null, guildId = null } 
             { name: t(idioma, '✍️ Escríbelo así', '✍️ Type it like this'), value: `\`${t(idioma, g.ej[0], g.ej[1]).split('   ')[0]}\``.slice(0, 1024) },
         );
     if (icono) e.setThumbnail('attachment://icono.png');
-    // Botones que de verdad funcionan aquí: jugar solo en el canal del casino (si no, ir allí).
+    // Botones que de verdad funcionan aquí. 2.5.0: los juegos solo para ti se prueban en cualquier canal (en privado);
+    // los de grupo se abren en el canal del casino (desde otro, el enlace para ir).
     const botones = [];
     if (c.activo && !off && juego === 'loteria') {
         // Los boletos se compran desde cualquier canal (la respuesta es privada).
         botones.push(new ButtonBuilder().setCustomId('cas_lot:1').setEmoji('🎫').setStyle(ButtonStyle.Success).setLabel(t(idioma, `Comprar 1 boleto (🪙 ${fmt(C.PRECIO_BOLETO, idioma)})`, `Buy 1 ticket (🪙 ${fmt(C.PRECIO_BOLETO, idioma)})`)));
     } else if (c.activo && !off) {
-        if (enCanal(cfg, canalId)) {
+        if (!g.grupo || enCanal(cfg, canalId)) {
             const min = c.apuestaMin ?? 10;
             if (g.probar !== null && g.probar !== undefined) botones.push(new ButtonBuilder().setCustomId(`cas_rep:${juego}:${min}${g.probar ? `:${g.probar}` : ''}`).setStyle(ButtonStyle.Success).setEmoji('▶️').setLabel(t(idioma, `Probar con 🪙 ${fmt(min, idioma)}`, `Try it with 🪙 ${fmt(min, idioma)}`)));
             else if (g.abrir) botones.push(new ButtonBuilder().setCustomId(`cas_lb:${g.abrir}`).setStyle(ButtonStyle.Success).setEmoji(g.emoji).setLabel(t(idioma, 'Abrir ahora', 'Start now')));

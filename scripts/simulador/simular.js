@@ -24,6 +24,9 @@ const MAX = Number(process.env.SIM_MAX || 4000);
 const PROFUNDIDAD = Number(process.env.SIM_PROF || 6);
 const LENTO_MS = 3000;
 const fallos = [];
+// 2.5.0 (comodidad): mensajes privados NUEVOS que salen al pulsar algo que ya era privado (lo que obliga a bajar a
+// buscar qué ha puesto). Con utils/ventana.js deberían ser solo los que se mandan aparte a propósito.
+const ventanasNuevas = [];
 let actual = '';
 const fallo = (tipo, txt) => fallos.push({ tipo, donde: actual, txt: String(txt).slice(0, 400) });
 
@@ -73,7 +76,8 @@ function interaccionBase(sim, { usuario, canal, tipo }) {
     };
     i.deferReply = async (o) => {
         if (i.replied || i.deferred) { fallo('responde dos veces', 'deferReply() después de responder'); throw new Error('InteractionAlreadyReplied'); }
-        marcar(); i.deferred = true; i.ephemeral = !!(o?.flags & 64 || o?.ephemeral); i._mensaje = nuevo({ content: '…', __permitirVacio: true }); return i._mensaje;
+        // 2.5.0: el mensaje «pensando…» ya es privado si lo pide (antes salía público y lo que se pulsaba en él no se veía como privado).
+        marcar(); i.deferred = true; i.ephemeral = !!(o?.flags & 64 || o?.ephemeral); i._mensaje = nuevo({ content: '…', __permitirVacio: true, flags: i.ephemeral ? 64 : 0 }); return i._mensaje;
     };
     i.editReply = async (p) => {
         if (!i.replied && !i.deferred) { fallo('edita sin responder', 'editReply() sin reply/defer'); throw Object.assign(new Error('The reply to this interaction has not been sent or deferred.'), { code: 'InteractionNotReplied' }); }
@@ -88,7 +92,7 @@ function interaccionBase(sim, { usuario, canal, tipo }) {
     i.deleteReply = async () => { if (!i.replied && !i.deferred) fallo('borra sin responder', 'deleteReply()'); };
     i.followUp = async (p) => {
         if (!i.replied && !i.deferred) { fallo('followUp sin responder', 'followUp() antes de reply'); throw new Error('InteractionNotReplied'); }
-        revisarSalida(p, 'followUp'); return nuevo(p);
+        revisarSalida(p, 'followUp'); const m = nuevo(p); m._followUp = true; return m;
     };
     i.showModal = async (m) => {
         if (i.replied || i.deferred) { fallo('responde dos veces', 'showModal() después de responder'); throw new Error('InteractionAlreadyReplied'); }
@@ -299,6 +303,10 @@ async function main() {
             i.deferred = true;
         };
         await ejecutar(i, `${c.type === 2 ? 'botón' : 'menú'} ${c.custom_id}${c.label ? ` («${c.label}»)` : ''}`);
+        if (t.mensaje.flags?.has?.(64)) {
+            // «Abrir mi cuenta» sale aparte a propósito (utils/ventana.js, EXCLUIDOS).
+            if (!/^cuenta:abrir/.test(c.custom_id)) for (const m of i._salidas) if (m !== t.mensaje && m.flags?.has?.(64)) ventanasNuevas.push(`${actual}${m._followUp ? ' (followUp)' : ''}: ${(m.content || m.embeds?.[0]?.title || '').slice(0, 60)}`);
+        }
         encolar(i, t.nivel, t.actor);
     }
     // Ediciones en directo que llegaron después (crash, carrera…)
@@ -312,6 +320,7 @@ async function main() {
     const lineas = [`Interacciones: ${hechas} · comandos: ${lista.length} · fallos: ${fallos.length} (${grupos.size} distintos)`, '',
         `Comandos: ${lista.map((j) => j.name).join(', ')}`, `Botones/menús por prefijo: ${[...porPrefijo.entries()].map(([k, n]) => `${k}×${n}`).join(' ')}`, ''];
     for (const [k, donde] of [...grupos.entries()].sort((a, b) => b[1].length - a[1].length)) lineas.push(`■ ${k}\n   en ${[...new Set(donde)].slice(0, 6).join(' · ')}${donde.length > 6 ? ` … (${donde.length})` : ''}`);
+    lineas.push('', `Comodidad: mensajes privados nuevos al pulsar dentro de un mensaje privado: ${ventanasNuevas.length}`, ...ventanasNuevas.map((x) => `   · ${x}`));
     fs.writeFileSync(path.join(__dirname, 'informe.txt'), lineas.join('\n'));
     process.stdout.write(`${lineas.slice(0, 1).join('')}\n`);
     await mongoose.disconnect().catch(() => {});

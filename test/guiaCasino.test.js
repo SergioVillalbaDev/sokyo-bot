@@ -24,11 +24,11 @@ function revisar(p) {
     return filas.flatMap((f) => f.components).filter((c) => c.type === 2);
 }
 
-test('portada: en el canal del casino se juega; fuera, se ofrece ir a él', async () => {
+test('portada: la tirada se juega en cualquier canal (en privado); fuera, además, el enlace al canal del casino', async () => {
     const dentro = revisar(await G.guiaGeneral('es', cfg, { canalId: 'casino1', guildId: 'g1' }));
     assert.ok(dentro.some((b) => b.custom_id === 'cas_lb:diaria'));
     const fuera = revisar(await G.guiaGeneral('en', cfg, { canalId: 'otro', guildId: 'g1' }));
-    assert.ok(!fuera.some((b) => b.custom_id === 'cas_lb:diaria'), 'fuera del casino no hay tirada (daría error)');
+    assert.ok(fuera.some((b) => b.custom_id === 'cas_lb:diaria'), '2.5.0: fuera del casino la tirada también vale (en privado)');
     assert.ok(fuera.some((b) => b.style === 5 && b.url === 'https://discord.com/channels/g1/casino1'));
     const cerrado = revisar(await G.guiaGeneral('es', { casino: { activo: false } }, {}));
     assert.equal(cerrado.length, 0, 'casino cerrado: nada que pulsar que dé error');
@@ -43,8 +43,10 @@ test('cada juego tiene su ficha y sus botones llevan a algo que existe', async (
             if (x.custom_id?.startsWith('cas_rep:')) assert.ok(casino.JUEGOS[x.custom_id.split(':')[1]], `${j}: «Probar» a un juego que no existe`);
             if (x.custom_id?.startsWith('cas_lb:')) assert.ok(['carrera', 'cohete', 'mesaruleta', 'diaria', 'mio'].includes(x.custom_id.split(':')[1]), `${j}: botón del lobby desconocido`);
         }
+        // 2.5.0: fuera del canal del casino, los juegos solo para ti se prueban igual (en privado); los de grupo, no.
         const fuera = revisar(await G.guiaJuego(j, 'es', cfg, { canalId: 'otro', guildId: 'g1' }));
-        assert.ok(!fuera.some((x) => x.custom_id?.startsWith('cas_rep:') || /^cas_lb:(carrera|cohete|mesaruleta)$/.test(x.custom_id || '')), `${j}: fuera del casino no se juega desde la guía`);
+        if (G.GUIA[j]?.grupo) assert.ok(!fuera.some((x) => x.custom_id?.startsWith('cas_rep:') || /^cas_lb:(carrera|cohete|mesaruleta)$/.test(x.custom_id || '')), `${j}: una partida de grupo no se abre fuera del casino`);
+        else if (G.GUIA[j] && G.GUIA[j].probar != null) assert.ok(fuera.some((x) => x.custom_id?.startsWith('cas_rep:')), `${j}: un juego solo para ti se prueba desde cualquier canal`);
     }
 });
 

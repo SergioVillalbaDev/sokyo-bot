@@ -177,9 +177,8 @@ function botonesHoy(e, userId, idioma, { excluir = [], clientId = null, canalId 
         if (rec.includes('granja')) l.push(b(`menu:hoy:granja:${userId}`, '🧺', `Granja (🪙 ${fmt(e.granja.oro, idioma)})`, `Farm (🪙 ${fmt(e.granja.oro, idioma)})`));
     }
     if (h.casino?.listo && e.abiertas?.has('primerDiario') && !excluir.includes('casino')) {
-        // La tirada solo se juega en el canal del casino: desde otro canal, el botón te lleva allí.
-        if (h.casino.canalId && canalId && h.casino.canalId !== canalId) l.push(new ButtonBuilder().setURL(`https://discord.com/channels/${h.casino.guildId}/${h.casino.canalId}`).setEmoji('🎰').setStyle(ButtonStyle.Link).setLabel(t(idioma, 'Tirada gratis (ir al casino)', 'Free spin (go to casino)')));
-        else l.push(b(`menu:a:casino:diaria:${userId}`, '🎰', 'Tirada gratis', 'Free spin', ButtonStyle.Primary));
+        // 2.5.0: la tirada se juega en cualquier canal, en privado y en el mismo mensaje del menú (sin ir al casino).
+        l.push(b(`menu:a:casino:diaria:${userId}`, '🎰', 'Tirada gratis', 'Free spin', ButtonStyle.Primary));
     }
     if (h.cuidar?.listo && e.equipada && e.equipada.humor !== 'fuera' && !excluir.includes('cuidar')) l.push(b(`cmp:ver:${userId}:${e.equipada.id}`, e.equipada.emoji || '🐾', `Cuidar a ${String(e.equipada.nombre).slice(0, 20)}`, `Care for ${String(e.equipada.nombreEn).slice(0, 20)}`, ButtonStyle.Primary));
     if (h.voto?.listo && clientId && !excluir.includes('voto')) l.push(new ButtonBuilder().setURL(require('./votos.js').urlVoto(clientId)).setEmoji('🗳️').setStyle(ButtonStyle.Link).setLabel(t(idioma, 'Votar', 'Vote')));
