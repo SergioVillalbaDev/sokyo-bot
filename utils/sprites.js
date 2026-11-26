@@ -145,9 +145,11 @@ function ojo(ctx, x, y, s, { iris = '#5b3a1e', humor = 'normal', parpadeo = fals
     }
     ctx.restore();
 }
+// 2.2.0: los bebés tienen los ojos más grandes (y los jóvenes, algo); lo pone dibujar() según la etapa.
+let escalaOjos = 1;
 function ojos(ctx, x, y, sep, s, op = {}) {
-    ojo(ctx, x - sep, y, s, { ...op, lado: 1 });
-    ojo(ctx, x + sep, y, s, { ...op, lado: -1 });
+    ojo(ctx, x - sep, y, s * escalaOjos, { ...op, lado: 1 });
+    ojo(ctx, x + sep, y, s * escalaOjos, { ...op, lado: -1 });
 }
 function boca(ctx, x, y, s, humor = 'normal', { tipo = 'normal', colmillo = false } = {}) {
     ctx.save();
@@ -392,8 +394,8 @@ function chibi(ctx, d, o) {
     const c = d.c;
     const resp = Math.sin(t * PI2);
     const bebe = o.etapa === 0;
-    const cab = bebe ? 1.08 : 1; // los bebés, más cabezones
-    const cuerpo = bebe ? 0.82 : o.etapa === 1 ? 0.92 : 1;
+    const cab = bebe ? 1.12 : o.etapa === 1 ? 1.03 : 1; // los bebés, más cabezones
+    const cuerpo = bebe ? 0.78 : o.etapa === 1 ? 0.92 : 1;
     const cy = 176; const hy = 108 + resp * 1.6;
     ctx._piel = c.piel;
     // Detrás: cola, alas, caparazón, púas, melena
@@ -858,6 +860,45 @@ function etapaDe(nivel = 1) { return nivel >= ETAPAS[2].desde ? 2 : nivel >= ETA
 // Qué humor de dibujo corresponde al humor de compisNucleo.
 const HUMOR_DIBUJO = { feliz: 'feliz', normal: 'normal', hambre: 'hambre', cansado: 'cansado', aburrido: 'aburrido', fuera: 'normal', enfermo: 'enfermo', dormido: 'dormido', enfadado: 'enfadado' };
 
+// Rareza del compañero (para el aura y el contorno). Los jefes y la mascota del servidor no tienen.
+function rarezaDe(id) {
+    try {
+        const K = require('./cofresNucleo.js');
+        const r = K.COMPANEROS[id]?.rareza;
+        return r ? K.RAREZAS[r] : null;
+    } catch { return null; }
+}
+// Capa del tamaño real al que se está dibujando (si el lienzo está escalado, la capa también).
+function lienzoCapa(ctx) {
+    if (!canvasLib || typeof ctx.getTransform !== 'function') return null;
+    const m = ctx.getTransform();
+    const res = Math.max(0.5, Math.min(4, Math.hypot(m.a, m.b) || 1));
+    const lado = Math.round(TAM * res);
+    const c = canvasLib.createCanvas(lado, lado);
+    const cx = c.getContext('2d');
+    cx.scale(res, res);
+    return { c, ctx: cx, res, lado };
+}
+// Acabado (2.2.0): luz de borde arriba a la izquierda, sombra suave abajo a la derecha y un
+// contorno fino del color de su rareza para que se lea bien sobre fondos oscuros.
+function acabado(ctx, capa, colorRareza) {
+    const { c, res, lado } = capa;
+    const borde = (color, dx, dy, a) => {
+        const t2 = canvasLib.createCanvas(lado, lado); const x = t2.getContext('2d');
+        x.drawImage(c, 0, 0);
+        x.globalCompositeOperation = 'source-in'; x.fillStyle = color; x.fillRect(0, 0, lado, lado);
+        x.globalCompositeOperation = 'destination-out'; x.drawImage(c, dx * res, dy * res);
+        const cc = c.getContext('2d');
+        cc.save(); cc.setTransform(1, 0, 0, 1, 0, 0); cc.globalAlpha = a; cc.globalCompositeOperation = 'source-atop'; cc.drawImage(t2, 0, 0); cc.restore();
+    };
+    borde('#ffffff', 3, 4, 0.38);
+    borde('#1e1b4b', -4, -5, 0.22);
+    ctx.save();
+    if (colorRareza) { ctx.shadowColor = alfa(colorRareza, 0.75); ctx.shadowBlur = 7 * res; }
+    ctx.drawImage(c, 0, 0, TAM, TAM);
+    ctx.restore();
+}
+
 // Dibuja en `ctx` (de TAM×TAM). Devuelve false si no hay diseño.
 function dibujar(ctx, id, { etapa = 2, humor = 'normal', t = 0, parpadeo = false, variante = null, aura = true, sombra = true, acc = null } = {}) {
     let d = diseno(id);
@@ -879,18 +920,33 @@ function dibujar(ctx, id, { etapa = 2, humor = 'normal', t = 0, parpadeo = false
         g.addColorStop(0, 'rgba(2,6,23,0.35)'); g.addColorStop(1, 'rgba(2,6,23,0)');
         ctx.fillStyle = g; elipse(ctx, 128, 236, 72, 13); ctx.fill();
     }
-    // Las etapas: el bebé es más pequeño (y se dibuja más abajo, sobre el suelo).
-    const k = etapa === 0 ? 0.8 : etapa === 1 ? 0.9 : 1;
-    ctx.translate(128, 240); ctx.scale(k, k); ctx.translate(-128, -240);
+    // Aura suave del color de su rareza detrás (2.2.0): de adulto se nota más.
+    const rz = rarezaDe(id);
+    if (aura && rz && rz.orden >= 1) {
+        const a = (0.10 + rz.orden * 0.035) * (etapa === 2 ? 1.25 : etapa === 1 ? 0.9 : 0.6) * (0.85 + 0.15 * Math.sin(t * PI2));
+        const g = ctx.createRadialGradient(128, 140, 10, 128, 140, 120);
+        g.addColorStop(0, alfa(rz.color, Math.min(0.5, a))); g.addColorStop(1, alfa(rz.color, 0));
+        ctx.fillStyle = g; ctx.fillRect(0, 0, TAM, TAM);
+    }
+    // El cuerpo se pinta en una capa aparte para darle el acabado (luz de borde, sombra y contorno).
+    const capa = lienzoCapa(ctx);
+    const c2 = capa ? capa.ctx : ctx;
+    // Las etapas (2.2.0, se notan más): el bebé es pequeño y cabezón con ojos enormes; el adulto, más grande.
+    const k = etapa === 0 ? 0.74 : etapa === 1 ? 0.88 : 1;
+    c2.save();
+    c2.translate(128, 240); c2.scale(k, k); c2.translate(-128, -240);
     const o = { s: 1, t, humor: h, parpadeo, etapa };
     const f = { chibi, ave, acuatico, pulpo, insecto, golem, robot, fantasma, humano }[d.forma];
-    f(ctx, d, o);
+    escalaOjos = etapa === 0 ? 1.2 : etapa === 1 ? 1.07 : 1;
+    try { f(c2, d, o); } finally { escalaOjos = 1; }
     // Accesorio (el de la cabeza va un poco hundido para que «se apoye»)
     if (acc && ACCESORIOS[acc]) {
         const [ax, ay] = (ANCLAS[d.forma] || ANCLAS.chibi)[ACCESORIOS[acc].slot];
         const anchoForma = { chibi: 128, ave: 140, pulpo: 140, golem: 110, acuatico: 150, humano: 130, robot: 130, fantasma: 130, insecto: 90 }[d.forma] || 120;
-        dibujarAccesorio(ctx, acc, ax, ay + (ACCESORIOS[acc].slot === 'cabeza' ? 10 : 0), anchoForma * (etapa === 0 ? 1.08 : 1), t);
+        dibujarAccesorio(c2, acc, ax, ay + (ACCESORIOS[acc].slot === 'cabeza' ? 10 : 0), anchoForma * (etapa === 0 ? 1.08 : 1), t);
     }
+    c2.restore();
+    if (capa) acabado(ctx, capa, rz ? rz.color : null);
     // Detalles de humor (zzz, gotita, nota de enfermo)
     if (h === 'dormido' || h === 'cansado') {
         ctx.fillStyle = '#e0e7ff'; ctx.strokeStyle = '#312e81'; ctx.lineWidth = 3; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'left';
@@ -916,10 +972,12 @@ const cache = new Map();
 const MAX_CACHE = 160; // ~40 MB como mucho (cada dibujo de 256×256 son ~260 KB)
 function imagen(id, op = {}) {
     if (!canvasLib || !tiene(id)) return null;
-    const clave = `${id}|${op.etapa ?? 2}|${op.humor || 'normal'}|${Math.round((op.t || 0) * 16)}|${op.parpadeo ? 1 : 0}|${op.variante || ''}|${op.aura === false ? 0 : 1}|${op.acc || ''}`;
+    const res = Math.max(1, Math.min(3, op.res || 1)); // 2.2.0: más resolución donde se ve grande (cartas)
+    const clave = `${id}|${op.etapa ?? 2}|${op.humor || 'normal'}|${Math.round((op.t || 0) * 16)}|${op.parpadeo ? 1 : 0}|${op.variante || ''}|${op.aura === false ? 0 : 1}|${op.acc || ''}|${res}|${op.sombra === false ? 0 : 1}`;
     if (cache.has(clave)) { const v = cache.get(clave); cache.delete(clave); cache.set(clave, v); return v; }
-    const c = canvasLib.createCanvas(TAM, TAM);
+    const c = canvasLib.createCanvas(Math.round(TAM * res), Math.round(TAM * res));
     const ctx = c.getContext('2d');
+    if (res !== 1) ctx.scale(res, res);
     try { dibujar(ctx, id, op); } catch (e) { console.warn('sprites:', id, e.message); return null; }
     c._sprite = true; // casinoArte.pintarCompanero lo dibuja algo más grande (el dibujo deja margen)
     cache.set(clave, c);

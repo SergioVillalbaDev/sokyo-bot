@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.1.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.2.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -365,6 +365,33 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.2.0 **Mascotas, combates y cartas a lo grande** (tests en `test/mascotas220.test.js`):
+  - **Combates** (`utils/combateArte.js` rehecho): clase `Escena` (fondo precalculado `fondoArena`, poses por fotograma,
+    barra de vida «fantasma», paneles con nivel y elemento) y secuencias `golpe` (preparación, embestida con estela, impacto con
+    destello blanco y número que salta), `presentacion` del especial y ataque propio por elemento (`proyectil`, `rayo`, `roca`,
+    `impacto`), `aparecerCarta` (la carta sale al lado, se gira y lanza su técnica), `defensa` (escudo hexagonal), `finRonda`
+    (quemadura, maldición, regeneración, confusión, congelado) y `finCombate` (K.O. o ¡TIEMPO!, el ganador salta, confeti). El
+    destello del golpe tiñe SOLO al luchador (`capaLuchador`: capas blanca/roja/hielo); antes pintaba un cuadrado rojo.
+    `gifRonda(c, antes, ev, { inicio, titulo, ganadorNombre })`: `inicio` = «RONDA n» del principio. El golpe final al jefe
+    también hace K.O. Los dibujos de combate van sin la sombra del sprite (`sombra: false`, la pone la arena).
+  - **GIF más rápido** (`casinoArte.aGif`, lo usan todos): paleta de una muestra de 1 de cada 3 píxeles, tabla rgb565 →
+    color que dura toda la animación (`mapeador`) y el tramado solo en los píxeles que cambian. Un combate de 34 fotogramas
+    tarda lo que antes uno de 18.
+  - **Dibujos** (`utils/sprites.js`): capa aparte con `acabado` (luz de borde, sombra suave y contorno del color de la rareza,
+    `rarezaDe`), aura de la rareza detrás y etapas que se notan (bebé 0,74 y ojos ×1,2; joven 0,88). `imagen(id, { res })` da
+    más resolución. `public/sprites` regenerados.
+  - **Cartas** (`utils/cartasArte.js`): carta con marco metálico (`metal`), nombre arriba, serie sobre la foto, poder,
+    técnica y número de colección (`NUMERO`); dorso con emblema «SOKYO»; sobre metalizado que se rasga, cartas en abanico,
+    presagio de color para épica o mejor y rayos/destello al girar las legendarias. `guia()` (PNG con las partes de la carta,
+    cómo se consiguen y para qué sirven).
+  - **Carta gratis diaria** (`cartasNucleo.cartaGratis`, `cartas.cartaDiaria`, `ColeccionMascotas.cartaGratis` = día UTC):
+    una carta con las probabilidades del sobre normal; no toca la piedad. `/jugar carta diaria` y `/jugar carta guia`
+    (`slash/card.js`), botones `crt_diaria` y `crt_guia` (`botonesCartas`), acción en `/menu` y aviso «carta gratis» en
+    `menu.avisos`.
+  - **Trucos** (`compisNucleo.TRUCOS`, `hacerTruco`, `trucosDe`, `trucosNuevos`, `faltaTruco`; esperas en `m.cds['truco:<id>']`):
+    se aprenden por nivel de afinidad (aviso al subir), premio una vez cada `TRUCO_ESPERA_H` y si no, solo presumir.
+    `/compi` → «Más cosas que hacer» → 🎪 Trucos (`selectorTrucos`, menú `cmp_tru:<dueño>:<msgId>:<mascota>`); la tarjeta pública
+    se reedita con la animación (`compisArte.poseTruco`, efecto `truco:<id>`).
 - 2.1.0 **Probado a fondo y pulido para el lanzamiento**:
   - **Simulador de Discord** (ver *Cómo se ha probado*): 582 interacciones, 60 comandos, 0 fallos.
   - **Cofre de bienvenida**: el primer `/diario` de cada persona trae `cofre_basico` (si hay cofres), con botón

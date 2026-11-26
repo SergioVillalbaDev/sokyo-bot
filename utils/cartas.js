@@ -10,6 +10,8 @@ const S = require('./cartasNucleo.js');
 const { t } = require('./i18n.js');
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+// 2.2.0: «solo si el álbum sigue igual» (también para documentos viejos sin el campo `cartas`).
+const filtroAlbum = (col) => (Array.isArray(col?.cartas) ? { cartas: col.cartas } : { cartas: { $in: [null, []] } });
 const fmt = (n, idioma) => Math.round(n || 0).toLocaleString(t(idioma, 'es-ES', 'en-US'));
 const rz = (r, idioma) => `${K.RAREZAS[r].emoji} ${t(idioma, K.RAREZAS[r].es, K.RAREZAS[r].en)}`;
 const activas = (cfg) => !!cfg?.compis?.anime;
@@ -45,7 +47,7 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
         // ¿Completa alguna serie? Premio una sola vez (1.25.0).
         const nuevas = S.nuevasSeries(cartas, col.seriesCompletas || []);
         const holos = x.cartas.filter((y) => y.id && y.holo).map((y) => y.id);
-        const hecho = await ColeccionMascotas.updateOne({ _id: col._id, sobresAbiertos: col.sobresAbiertos || 0 },
+        const hecho = await ColeccionMascotas.updateOne({ _id: col._id, sobresAbiertos: col.sobresAbiertos || 0, ...filtroAlbum(col) },
             { $set: { cartas, sinEpicaCartas: x.sinEpica, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { sobresAbiertos: 1, gastadoSobres: def.precio, polvo: x.polvo || 0 }, ...(holos.length ? { $addToSet: { holos: { $each: holos } } } : {}) });
         if (hecho.modifiedCount) r = { ...x, series: nuevas };
     }
@@ -119,9 +121,104 @@ async function abrir({ interaction, cfg, idioma, sobre, ticket = null }) {
     return { ok: true, r };
 }
 
+// ---------------------------------------------------------------------------
+// 2.2.0: carta gratis de cada día y guía de las cartas
+// ---------------------------------------------------------------------------
+const diaUTC = (ahora = Date.now()) => new Date(ahora).toISOString().slice(0, 10);
+// Cuánto falta para la siguiente carta gratis (se renueva a las 00:00 UTC).
+function faltaGratis(col, ahora = Date.now()) {
+    if (!col || col.cartaGratis !== diaUTC(ahora)) return 0;
+    const manana = Date.parse(`${diaUTC(ahora)}T00:00:00Z`) + 86400000;
+    return Math.max(0, manana - ahora);
+}
+const textoHoras = (ms, idioma) => { const h = Math.floor(ms / 3600000); const m = Math.ceil((ms % 3600000) / 60000); return h ? t(idioma, `${h} h ${m} min`, `${h}h ${m}m`) : t(idioma, `${m} min`, `${m} min`); };
+function botonesCartas(idioma, { gratis = true, guia = true, album = true, sobre = false } = {}) {
+    const b = [];
+    if (gratis) b.push(new ButtonBuilder().setCustomId('crt_diaria').setEmoji('🎁').setStyle(ButtonStyle.Success).setLabel(t(idioma, 'Carta gratis de hoy', 'Today’s free card')));
+    if (sobre) b.push(new ButtonBuilder().setCustomId('crt_otro:normal').setEmoji('🃏').setStyle(ButtonStyle.Primary).setLabel(t(idioma, `Abrir un sobre (🪙 ${fmt(S.SOBRES.normal.precio, idioma)})`, `Open a pack (🪙 ${fmt(S.SOBRES.normal.precio, idioma)})`)));
+    if (album) b.push(new ButtonBuilder().setCustomId('crt_album').setEmoji('📚').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi álbum', 'My album')));
+    if (guia) b.push(new ButtonBuilder().setCustomId('crt_guia').setEmoji('📖').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Cómo funcionan', 'How they work')));
+    return new ActionRowBuilder().addComponents(b);
+}
+async function cartaDiaria({ interaction, cfg, idioma }) {
+    if (!activas(cfg)) return { error: textoApagadas(idioma) };
+    const guildId = interaction.guildId; const userId = interaction.user.id;
+    const dia = diaUTC();
+    const quitados = require('./cofres.js').quitadosDe(cfg);
+    const destacada = S.serieDestacada(require('./combateNucleo.js').semanaDe());
+    let r = null; let col = null;
+    for (let intento = 0; intento < 5 && !r; intento++) {
+        col = await ColeccionMascotas.findOneAndUpdate({ guildId, userId }, { $setOnInsert: { guildId, userId } }, { upsert: true, returnDocument: 'after' }).lean();
+        const x = S.cartaGratis(col, dia, undefined, quitados, destacada);
+        if (x.fallo === 'hoy') return { error: t(idioma, `🎁 Ya has cogido tu carta gratis de hoy. La siguiente, en **${textoHoras(faltaGratis(col), idioma)}**.`, `🎁 You already took today’s free card. Next one in **${textoHoras(faltaGratis(col), idioma)}**.`), yaHoy: true };
+        if (x.fallo) return { error: t(idioma, 'Ahora mismo no hay cartas.', 'No cards right now.') };
+        const nuevas = x.carta.id ? S.nuevasSeries(x.cartas, col.seriesCompletas || []) : [];
+        // Solo si nadie ha tocado el álbum a la vez y no la ha cogido ya hoy.
+        const hecho = await ColeccionMascotas.updateOne({ _id: col._id, cartaGratis: { $ne: dia }, ...filtroAlbum(col) },
+            { $set: { cartas: x.cartas, cartaGratis: dia, seriesCompletas: [...(col.seriesCompletas || []), ...nuevas.map((n) => n.serie)] }, $inc: { polvo: x.polvo || 0 }, ...(x.carta.holo && x.carta.id ? { $addToSet: { holos: x.carta.id } } : {}) });
+        if (hecho.modifiedCount) r = { ...x, series: nuevas };
+    }
+    if (!r) return { error: t(idioma, 'Prueba otra vez.', 'Try again.') };
+    const economia = require('./economia.js').en(guildId);
+    const oro = (r.carta.quitada ? r.carta.devuelto : 0) + r.series.reduce((a, n) => a + n.oro, 0);
+    if (oro) await economia.darOro(userId, oro);
+    const gif = await require('./cartasArte.js').gifSobre('normal', [r.carta], { idioma, color: '#16a34a', emoji: '🎁', nombre: t(idioma, 'CARTA GRATIS', 'FREE CARD'), sub: t(idioma, 'DE HOY · 1 CARTA', 'TODAY · 1 CARD') }).catch((e) => { console.error('GIF carta gratis:', e.message); return null; });
+    const c = r.carta; const d = c.id ? K.def(c.id) : null;
+    const linea = c.quitada ? t(idioma, `🪙 Era de una serie desactivada aquí → **+${c.devuelto}** de oro`, `🪙 It was from a series turned off here → **+${c.devuelto}** gold`)
+        : `${rz(c.rareza, idioma)} · **${t(idioma, d.es, d.en || d.es)}** — ${d.serie} ${c.nuevo ? '🆕' : c.polvo ? t(idioma, `(5★: +✨ ${c.polvo} de polvo)`, `(5★: +✨ ${c.polvo} dust)`) : `★${c.estrellas}`}${c.holo ? ' 🌈' : ''}`;
+    const e = new EmbedBuilder().setColor('#16a34a').setTitle(t(idioma, '🎁 Tu carta gratis de hoy', '🎁 Your free card for today'))
+        .setDescription([
+            gif ? `||${linea}||` : linea,
+            ...r.series.map((n) => t(idioma, `📚 **¡Colección completa: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} y sus ${n.cartas} cartas son un 25 % más fuertes.`, `📚 **Collection complete: ${n.serie}!** +🪙 ${fmt(n.oro, idioma)} and its ${n.cartas} cards are 25% stronger.`)),
+            t(idioma, '-# Vuelve mañana a por otra. Más cartas: sobres con oro (`/jugar carta abrir`), el pase, la torre y el jefe.', '-# Come back tomorrow for another. More cards: packs with gold (`/games card open`), the pass, the tower and the boss.'),
+        ].filter(Boolean).join('\n'));
+    if (gif) e.setImage('attachment://carta.gif');
+    return { ok: true, msg: { embeds: [e], files: gif ? [new AttachmentBuilder(gif, { name: 'carta.gif' })] : [], components: [botonesCartas(idioma, { gratis: false, sobre: true })], allowedMentions: { parse: [] } } };
+}
+// Guía: qué son, cómo se consiguen y para qué sirven (imagen + texto corto con los comandos).
+async function guia(interaction, cfg, idioma) {
+    const col = interaction.guildId ? await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: interaction.user.id }).select('cartaGratis cartas sinEpicaCartas').lean() : null;
+    const falta = faltaGratis(col);
+    const png = await require('./cartasArte.js').guia({
+        idioma,
+        titulo: t(idioma, '🃏 Cartas de anime · cómo funcionan', '🃏 Anime cards · how they work'),
+        partes: [
+            [t(idioma, '★ Estrellas', '★ Stars'), t(idioma, 'Cada repetida sube una (hasta 5).', 'Each duplicate adds one (up to 5).'), t(idioma, 'Más estrellas, carta más fuerte.', 'More stars, stronger card.')],
+            [t(idioma, '📺 Serie', '📺 Series'), t(idioma, 'Completa una serie entera:', 'Complete a whole series:'), t(idioma, 'oro y +25 % de fuerza.', 'gold and +25% power.')],
+            [t(idioma, '✨ Poder', '✨ Power'), t(idioma, 'Úsala en tu mascota (/compi → 🃏).', 'Use it on your pet (/companion → 🃏).'), t(idioma, `${S.CARTAS_DIA} al día · recarga en ${S.ESPERA_CARTA_H} h.`, `${S.CARTAS_DIA} a day · recharges in ${S.ESPERA_CARTA_H}h.`)],
+            [t(idioma, '⚔ Técnica', '⚔ Technique'), t(idioma, 'Llévala en tu mazo de combate', 'Put it in your battle deck'), t(idioma, `(hasta ${require('./combateNucleo.js').MAZO_MAX}): una vez por combate.`, `(up to ${require('./combateNucleo.js').MAZO_MAX}): once per battle.`)],
+        ],
+        fuentes: { titulo: t(idioma, 'CÓMO SE CONSIGUEN', 'HOW TO GET THEM'), lista: [
+            ['🎁', t(idioma, 'Una carta gratis cada día', 'A free card every day')],
+            ['🃏', t(idioma, `Sobres con oro: ${Object.values(S.SOBRES).map((x) => fmt(x.precio, idioma)).join(' · ')}`, `Packs with gold: ${Object.values(S.SOBRES).map((x) => fmt(x.precio, idioma)).join(' · ')}`)],
+            ['🎟️', t(idioma, 'Pase: un sobre cada 5 niveles', 'Pass: a pack every 5 levels')],
+            ['🗼', t(idioma, 'Torre de combate: cada 5 pisos', 'Battle tower: every 5 floors')],
+            ['🐉', t(idioma, 'Jefe de la semana: sobres de premio', 'Weekly boss: reward packs')],
+            ['🔥', t(idioma, 'Racha de /diario: días 3 y 14', '/daily streak: days 3 and 14')],
+            ['🪄', t(idioma, 'Créala con polvo de repetidas', 'Craft it with dust from duplicates')],
+            ['🔁', t(idioma, 'Intercambios, regalos y mercado', 'Trades, gifts and the market')],
+        ] },
+        usos: { titulo: t(idioma, 'PARA QUÉ SIRVEN', 'WHAT THEY’RE FOR'), lista: [
+            ['🐾', t(idioma, 'Potencian tu mascota', 'Power up your pet'), t(idioma, 'XP, oro, energía, expediciones…', 'XP, gold, energy, expeditions…')],
+            ['⚔️', t(idioma, 'Técnicas de combate', 'Battle techniques'), t(idioma, 'Golpes, curas, escudos, hielo…', 'Hits, heals, shields, freeze…')],
+            ['📚', t(idioma, 'Colecciones', 'Collections'), t(idioma, 'Premio y +25 % al completar', 'Reward and +25% when complete')],
+        ] },
+    }).catch((e) => { console.error('Guía cartas:', e.message); return null; });
+    const e = new EmbedBuilder().setColor('#8b5cf6').setTitle(t(idioma, '📖 Cartas de anime: cómo funcionan', '📖 Anime cards: how they work'))
+        .setDescription([
+            t(idioma, `Son **${K.ANIME.size} personajes** de anime para coleccionar. Cada carta tiene un **poder** para tu mascota y una **técnica** para los combates.`, `**${K.ANIME.size} anime characters** to collect. Each card has a **power** for your pet and a **technique** for battles.`),
+            t(idioma, '**🎁 Gratis cada día:** `/jugar carta diaria` · **🃏 Sobres:** `/jugar carta abrir` (3 cartas; cada 8 sin épica, la siguiente es segura).', '**🎁 Free every day:** `/games card daily` · **🃏 Packs:** `/games card open` (3 cards; after 8 without an epic, the next one is guaranteed).'),
+            t(idioma, '**Usarlas:** `/compi` → 🃏 Cartas, o `/jugar carta usar` · **Mazo de combate:** `/jugar combate mazo`.', '**Use them:** `/companion` → 🃏 Cards, or `/games card use` · **Battle deck:** `/games fight deck`.'),
+            t(idioma, '**Repetidas:** suben ★. Con 5 ★ dan polvo: desencanta las que sobren (`/jugar carta desencantar`) y **crea la que quieras** (`/jugar carta crear`). También puedes `/jugar carta intercambiar`, regalar o vender en `/jugar mercado`.', '**Duplicates:** add ★. At 5 ★ they give dust: disenchant spares (`/games card disenchant`) and **craft any card** (`/games card craft`). You can also `/games card trade`, gift or sell in `/games market`.'),
+            activas(cfg) ? (falta ? t(idioma, `🎁 Tu próxima carta gratis: en **${textoHoras(falta, idioma)}**.`, `🎁 Your next free card: in **${textoHoras(falta, idioma)}**.`) : t(idioma, '🎁 **¡Tu carta gratis de hoy te está esperando!**', '🎁 **Today’s free card is waiting for you!**')) : textoApagadas(idioma),
+        ].join('\n\n'));
+    if (png) e.setImage('attachment://guia-cartas.png');
+    return { embeds: [e], files: png ? [new AttachmentBuilder(png, { name: 'guia-cartas.png' })] : [], components: activas(cfg) ? [botonesCartas(idioma, { gratis: !falta, guia: false, sobre: true })] : [], allowedMentions: { parse: [] } };
+}
+
 async function verAlbum(interaction, idioma, usuario = null) {
     const quien = usuario || interaction.user;
-    const col = (await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: quien.id }).select('cartas sobresAbiertos seriesCompletas').lean()) || { cartas: [] };
+    const col = (await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: quien.id }).select('cartas sobresAbiertos seriesCompletas cartaGratis').lean()) || { cartas: [] };
     const cartas = col.cartas || [];
     const porRareza = {}; for (const c of cartas) { const r = K.def(c.id).rareza; porRareza[r] = (porRareza[r] || 0) + 1; }
     const png = await require('./cartasArte.js').album(cartas, { titulo: t(idioma, `Álbum de ${quien.username} · ${cartas.length}/${K.ANIME.size}`, `${quien.username}’s album · ${cartas.length}/${K.ANIME.size}`), idioma }).catch(() => null);
@@ -129,7 +226,7 @@ async function verAlbum(interaction, idioma, usuario = null) {
         .setDescription([
             t(idioma, `**${cartas.length}** de ${K.ANIME.size} cartas · ${col.sobresAbiertos || 0} sobres abiertos`, `**${cartas.length}** of ${K.ANIME.size} cards · ${col.sobresAbiertos || 0} packs opened`),
             Object.keys(K.RAREZAS).filter((r) => porRareza[r]).map((r) => `${rz(r, idioma)} ${porRareza[r]}`).join(' · '),
-            cartas.length ? '' : t(idioma, 'Consigue cartas con `/jugar carta abrir`.', 'Get cards with `/games card open`.'),
+            cartas.length ? '' : t(idioma, 'Consigue cartas gratis cada día con `/jugar carta diaria` o en sobres con `/jugar carta abrir`.', 'Get a free card every day with `/games card daily` or packs with `/games card open`.'),
             (col.seriesCompletas || []).length ? t(idioma, `📚 Colecciones completas (${col.seriesCompletas.length}): ${col.seriesCompletas.slice(0, 8).join(', ')}${col.seriesCompletas.length > 8 ? '…' : ''}`, `📚 Complete collections (${col.seriesCompletas.length}): ${col.seriesCompletas.slice(0, 8).join(', ')}${col.seriesCompletas.length > 8 ? '…' : ''}`) : '',
         ].filter(Boolean).join('\n'));
     const prog = S.progresoSeries(cartas, 6);
@@ -141,6 +238,7 @@ async function verAlbum(interaction, idioma, usuario = null) {
         comps.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId('crt_ver').setPlaceholder(t(idioma, '🔍 Ver una carta…', '🔍 See a card…'))
             .addOptions(mejores.map((c) => ({ value: c.id, label: `${K.def(c.id).es} ${'★'.repeat(c.estrellas || 1)}`.slice(0, 100), description: `${t(idioma, K.RAREZAS[K.def(c.id).rareza].es, K.RAREZAS[K.def(c.id).rareza].en)} · ${K.def(c.id).serie}`.slice(0, 100) })))));
     }
+    if (!usuario) comps.push(botonesCartas(idioma, { album: false, gratis: !faltaGratis(col), sobre: !cartas.length || !!faltaGratis(col) }));
     return { embeds: [e], files: png ? [new AttachmentBuilder(png, { name: 'album.png' })] : [], components: comps, allowedMentions: { parse: [] } };
 }
 
@@ -186,14 +284,21 @@ async function regalar(interaction, idioma, destino, id) {
     if (!yo || !(yo.cartas || []).some((c) => c.id === id)) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
     const hoy = yo.regalosHoy?.dia === dia ? yo.regalosHoy.n || 0 : 0;
     if (hoy >= S.REGALOS_DIA) return { error: t(idioma, `Ya has regalado ${S.REGALOS_DIA} cartas hoy. Mañana más.`, `You’ve already gifted ${S.REGALOS_DIA} cards today. More tomorrow.`) };
-    const suyo = await ColeccionMascotas.findOneAndUpdate({ guildId: interaction.guildId, userId: destino.id }, { $setOnInsert: { guildId: interaction.guildId, userId: destino.id } }, { upsert: true, returnDocument: 'after' }).lean();
+    let suyo = await ColeccionMascotas.findOneAndUpdate({ guildId: interaction.guildId, userId: destino.id }, { $setOnInsert: { guildId: interaction.guildId, userId: destino.id } }, { upsert: true, returnDocument: 'after' }).lean();
     const r = S.regalar(yo.cartas, suyo.cartas || [], id);
     if (r.fallo) return { error: t(idioma, 'No tienes esa carta.', 'You don’t have that card.') };
     // Solo si mis cartas no han cambiado a la vez (evita regalar dos veces la misma copia).
     const yoOk = await ColeccionMascotas.updateOne({ _id: yo._id, cartas: yo.cartas }, { $set: { cartas: r.de, regalosHoy: { dia, n: hoy + 1 } } });
     if (!yoOk.modifiedCount) return { error: t(idioma, 'Prueba otra vez.', 'Try again.') };
-    const nuevas = S.nuevasSeries(r.a, suyo.seriesCompletas || []);
-    await ColeccionMascotas.updateOne({ _id: suyo._id }, { $set: { cartas: r.a, seriesCompletas: [...(suyo.seriesCompletas || []), ...nuevas.map((n) => n.serie)] } });
+    // Al que recibe, solo si su álbum no ha cambiado a la vez (si cambia, se vuelve a calcular con el nuevo).
+    let nuevas = []; let destinoR = r;
+    for (let intento = 0; intento < 5; intento++) {
+        if (intento) { suyo = await ColeccionMascotas.findById(suyo._id).lean(); destinoR = S.regalar(yo.cartas, suyo.cartas || [], id); }
+        nuevas = S.nuevasSeries(destinoR.a, suyo.seriesCompletas || []);
+        const ok = await ColeccionMascotas.updateOne({ _id: suyo._id, ...filtroAlbum(suyo) }, { $set: { cartas: destinoR.a, seriesCompletas: [...(suyo.seriesCompletas || []), ...nuevas.map((n) => n.serie)] } });
+        if (ok.modifiedCount) break;
+    }
+    r.devuelto = destinoR.devuelto; r.nueva = destinoR.nueva;
     const oro = r.devuelto + nuevas.reduce((a, n) => a + n.oro, 0);
     if (oro) await require('./economia.js').en(interaction.guildId).darOro(destino.id, oro);
     const d = K.def(id);
@@ -317,6 +422,18 @@ async function manejar(interaction) {
         if (r.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: `❌ ${r.error}`, flags: 64 }); }
         return true;
     }
+    if (interaction.isButton() && id === 'crt_diaria') {
+        await interaction.deferReply();
+        const r = await cartaDiaria({ interaction, cfg, idioma });
+        if (r.error) { await interaction.deleteReply().catch(() => {}); await interaction.followUp({ content: r.error, flags: 64 }); return true; }
+        await interaction.editReply(r.msg);
+        return true;
+    }
+    if (interaction.isButton() && id === 'crt_guia') {
+        await interaction.deferReply({ flags: 64 });
+        await interaction.editReply(await guia(interaction, cfg, idioma));
+        return true;
+    }
     if (interaction.isButton() && id === 'crt_album') {
         await interaction.deferReply({ flags: 64 });
         await interaction.editReply(await verAlbum(interaction, idioma));
@@ -342,4 +459,4 @@ async function manejar(interaction) {
     return false;
 }
 
-module.exports = { textoPiedad, textoDestacada, desencantar, crear, proponerIntercambio, resolverIntercambio, ofertas, mostrar, regalar, abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };
+module.exports = { cartaDiaria, guia, faltaGratis, botonesCartas, textoPiedad, textoDestacada, desencantar, crear, proponerIntercambio, resolverIntercambio, ofertas, mostrar, regalar, abrir, verAlbum, verCarta, embedProbabilidades, manejar, activas, textoApagadas };

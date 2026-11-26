@@ -209,6 +209,27 @@ function intercambiar(cartasA = [], cartasB = [], idA, idB) {
     return { a: r2.a, b: r2.de, polvoA: r2.devuelto ? POLVO[K.def(idB).rareza] : 0, polvoB: r1.devuelto ? POLVO[K.def(idA).rareza] : 0 };
 }
 
+// 2.2.0: una carta gratis cada día (con las probabilidades del sobre normal, una sola carta; no
+// cuenta para la piedad). Si sale una de una serie quitada, oro; repetida al máximo, polvo.
+const CARTA_GRATIS_ORO_QUITADA = 40;
+function cartaGratis(col, dia, azar = require('./casinoNucleo.js').azarSeguro, quitados = null, destacada = null) {
+    if (col.cartaGratis === dia) return { fallo: 'hoy' };
+    let rareza = rarezaAlAzar('normal', azar);
+    let id = cartaAlAzar(rareza, azar, destacada);
+    while (!id && K.RAREZAS[rareza].orden > 0) { rareza = ORDEN[K.RAREZAS[rareza].orden - 1]; id = cartaAlAzar(rareza, azar, destacada); }
+    if (!id) return { fallo: 'vacio' };
+    const holo = azar() < PROB_HOLO;
+    if (quitados && quitados.has(id)) return { carta: { id: null, rareza, quitada: true, nuevo: false, estrellas: 0, devuelto: CARTA_GRATIS_ORO_QUITADA }, cartas: col.cartas || [], polvo: 0 };
+    const cartas = [...(col.cartas || [])].map((c) => ({ ...c }));
+    const ya = cartas.find((c) => c.id === id);
+    let estrellas = 1; let polvo = 0;
+    if (ya) {
+        if ((ya.estrellas || 1) >= MAX_ESTRELLAS) { estrellas = MAX_ESTRELLAS; polvo = POLVO[rareza]; } else { estrellas = (ya.estrellas || 1) + 1; ya.estrellas = estrellas; }
+    } else cartas.push({ id, estrellas: 1, primera: new Date() });
+    return { carta: { id, rareza, nuevo: !ya, estrellas, devuelto: 0, polvo, holo }, cartas, polvo };
+}
+
 module.exports = {
+    CARTA_GRATIS_ORO_QUITADA, cartaGratis,
     SERIE_DESTACADA_X, serieDestacada,
     PROB_HOLO, POLVO, COSTE_CREAR, INTERCAMBIOS_DIA, desencantar, crear, intercambiar, PREMIO_SERIE, SINERGIA, REGALOS_DIA, series, seriesCompletas, nuevasSeries, progresoSeries, regalar, CAMBIO_QUITADA, SOBRES, CARTAS_POR_SOBRE, PIEDAD, MAX_ESTRELLAS, DEVOLUCION, CARTAS_DIA, ESPERA_CARTA_H, rarezaAlAzar, cartaAlAzar, abrirSobre, limiteDia, faltaCarta, usarCarta };

@@ -216,7 +216,7 @@ async function resolver(p, { porTiempo = false } = {}) {
         p.elecciones = {};
         const log = textoRonda(p, ev, p.idioma);
         if (p.c.fin) return await terminar(p, log, { antes, ev });
-        const gif = await require('./combateArte.js').gifRonda(p.c, antes, ev, { titulo: `${t(p.idioma, 'RONDA', 'ROUND')} ${p.c.ronda + 1}`, idioma: p.idioma }).catch((e) => { console.warn('GIF ronda:', e.message); return null; });
+        const gif = await require('./combateArte.js').gifRonda(p.c, antes, ev, { inicio: `${t(p.idioma, 'RONDA', 'ROUND')} ${p.c.ronda}`, titulo: `${t(p.idioma, 'RONDA', 'ROUND')} ${p.c.ronda + 1}`, idioma: p.idioma }).catch((e) => { console.warn('GIF ronda:', e.message); return null; });
         const e = embedPartida(p, p.idioma, { log: `${log}${porTiempo ? `\n${t(p.idioma, '*⌛ Se acabó el tiempo: jugó por ti la IA.*', '*⌛ Time’s up: the AI played for you.*')}` : ''}` });
         if (gif) e.setImage('attachment://ronda.gif');
         p.embed = e;
@@ -248,7 +248,7 @@ async function terminar(p, log, anim) {
     if (p.tipo === 'practica') botonesFin.push(new ButtonBuilder().setCustomId(`cbt_otra:${p.jugadores.a}`).setEmoji('🎯').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Otra práctica', 'Practice again')));
     botonesFin.push(new ButtonBuilder().setCustomId(`cbt_perfil:${p.jugadores.a}`).setEmoji('📊').setStyle(ButtonStyle.Secondary).setLabel(t(idioma, 'Mi perfil', 'My profile')));
     const CA = require('./combateArte.js');
-    const img = anim ? await CA.gifRonda(p.c, anim.antes, anim.ev, { idioma, ganadorNombre: p.c[g].nombre }).catch(() => null) : await CA.arena(p.c, { titulo: '', ganador: p.c[g].nombre }).catch(() => null);
+    const img = anim ? await CA.gifRonda(p.c, anim.antes, anim.ev, { idioma, inicio: `${t(idioma, 'RONDA', 'ROUND')} ${p.c.ronda}`, ganadorNombre: p.c[g].nombre }).catch(() => null) : await CA.arena(p.c, { titulo: '', ganador: p.c[g].nombre }).catch(() => null);
     const nombre = anim ? 'final.gif' : 'final.png';
     const e = embedPartida(p, idioma, { log: lineas.filter(Boolean).join('\n'), fin: true });
     if (img) e.setImage(`attachment://${nombre}`);

@@ -41,6 +41,10 @@ const elegir = (col, compId) => {
 // Hace una acción (ver, comer, jugar, mimar, hablar, exp:<tipo>) y lo guarda todo.
 // Devuelve { col, m, mensajes, efecto, frase, fallo }.
 // 1.30.0: todo es de la persona EN ESTE SERVIDOR (guildId obligatorio).
+// 2.2.0: repetir un truco sin premio (para presumir) se puede una vez por minuto y persona: cada uno
+// dibuja una animación y edita el mensaje, y en la Raspberry Pi eso cuesta.
+const PRESUMIR_MS = 60000;
+const presumido = new Map();
 async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '', ahora = Date.now(), bromas = false, expGrupo = null } = {}) {
     if (!guildId) throw new Error('mascotas sin servidor');
     return enCola(`${guildId}:${userId}`, async () => {
@@ -94,6 +98,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
         let frase = null; let fallo = null; let falloMin = 0; let falloRareza = 0;
         let semAcc = null; // misión semanal que cuenta (1.28.0)
         let misJuego = 0; // 1.32.0: minijuegos (XP del pase)
+        let soloPresume = false; // 2.2.0: truco repetido sin premio (no cuenta como cuidado)
         if (que === 'comer' || que === 'jugar' || que === 'mimar') {
             const r = P.cuidar(m, que, ahora);
             if (r.fallo) fallo = r.fallo;
@@ -184,6 +189,28 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
                 }
                 if (r.humor === 'feliz') sumarMision('feliz');
             }
+        } else if (que.startsWith('truco:')) {
+            // 2.2.0: un truco (saltar, bailar, voltereta…). Con premio una vez cada pocas horas; si no, solo presume.
+            const id = que.slice(6);
+            const r = P.hacerTruco(m, id, ahora);
+            const ultimo = presumido.get(`${guildId}:${userId}`) || 0;
+            if (r.fallo) { fallo = r.fallo; if (r.nivel) falloRareza = r.nivel; }
+            else if (!r.premio && ahora - ultimo < PRESUMIR_MS) { fallo = 'presumir'; falloMin = Math.ceil((PRESUMIR_MS - (ahora - ultimo)) / 60000); }
+            else {
+                if (!r.premio) { soloPresume = true; presumido.set(`${guildId}:${userId}`, ahora); if (presumido.size > 5000) presumido.delete(presumido.keys().next().value); }
+                const x = P.TRUCOS[id];
+                Object.assign(m, { hambre: r.hambre, alegria: r.alegria, energia: r.energia, actualizado: new Date(ahora), cds: r.cds });
+                efecto = `truco:${id}`;
+                frase = P.frase(m, 'jugar', { idioma, dueno, ahora });
+                if (r.premio) {
+                    m.afinidad = (m.afinidad || 0) + r.afinidad;
+                    m.cuidados = (m.cuidados || 0) + 1;
+                    semAcc = 'cuidar';
+                    sumarMision('jugar');
+                    if (r.humor === 'feliz') sumarMision('feliz');
+                    mensajes.push(t(idioma, `${x.emoji} **¡${x.es}!** 💖 +${x.alegria} de alegría · 💞 +${r.afinidad} de afinidad`, `${x.emoji} **${x.en}!** 💖 +${x.alegria} joy · 💞 +${r.afinidad} affinity`));
+                } else mensajes.push(t(idioma, `${x.emoji} **¡${x.es}!** Le sale genial (el premio de este truco vuelve en ${tiempo(r.min * 60000, idioma)}).`, `${x.emoji} **${x.en}!** Nailed it (this trick’s reward comes back in ${tiempo(r.min * 60000, idioma)}).`));
+            }
         } else if (que === 'poder' || que.startsWith('carta:')) {
             // Poder del día de la mascota o una carta de anime usada en ella (1.24.0).
             const esCarta = que.startsWith('carta:');
@@ -265,7 +292,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
         }
         if (!frase && !fallo && !P.expedicionActiva(m, ahora)) frase = P.frase(m, que === 'ver' ? 'hablar' : 'saludo', { idioma, dueno, ahora });
         // Racha: cualquier cuidado cuenta (ver no).
-        const cuida = !fallo && que !== 'ver';
+        const cuida = !fallo && que !== 'ver' && !soloPresume;
         if (cuida) {
             const r = P.avanzarRacha(col, dia);
             if (r.nueva) {
@@ -280,9 +307,10 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
         }
         const nivelDespues = P.nivel(m.afinidad || 0);
         if (nivelDespues > nivelAntes) {
-            mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); efecto = 'nivel';
+            mensajes.push(t(idioma, `⭐ **¡Sube a nivel ${nivelDespues} de afinidad!** Sus ventajas mejoran un poco.`, `⭐ **Affinity level ${nivelDespues}!** Its perks get a little better.`)); if (!String(efecto).startsWith('truco:')) efecto = 'nivel';
             // 1.34.0: el siguiente paso, justo cuando se abre (mismas etapas que utils/progreso.js).
             if (nivelAntes < 5 && nivelDespues >= 5) mensajes.push(t(idioma, '👉 ¡Ya puede **pelear**! Prueba la torre o reta a alguien: `/jugar combate torre`.', '👉 It can **fight** now! Try the tower or challenge someone: `/games fight tower`.'));
+            for (const tr of P.trucosNuevos(nivelAntes, nivelDespues)) mensajes.push(t(idioma, `🎪 **¡Ha aprendido un truco: ${P.TRUCOS[tr].emoji} ${P.TRUCOS[tr].es}!** Pruébalo en «Más cosas que hacer» → 🎪 Trucos.`, `🎪 **It learned a trick: ${P.TRUCOS[tr].emoji} ${P.TRUCOS[tr].en}!** Try it in “More things to do” → 🎪 Tricks.`));
             if (nivelAntes < P.CRIA.nivel && nivelDespues >= P.CRIA.nivel) mensajes.push(t(idioma, '👉 ¡Ya puede ir a la **guardería**! Con otra de nivel 10 tendrá un huevo: `/mascotas guarderia`.', '👉 It can go to the **nursery** now! With another level-10 pet it’ll have an egg: `/pets nursery`.'));
         }
         // 1.32.0: al llegar a los niveles 10 y 20 evoluciona (bebé → joven → adulto) y cambia su dibujo.
@@ -290,7 +318,7 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
         if (SPR.etapaDe(nivelDespues) > SPR.etapaDe(nivelAntes) && SPR.tiene(m.id)) {
             const et = SPR.ETAPAS[SPR.etapaDe(nivelDespues)];
             mensajes.push(t(idioma, `🌟 **¡${nombreDe(m, idioma)} ha evolucionado!** Ahora es **${et.es}**: más grande y con su forma nueva.`, `🌟 **${nombreDe(m, idioma)} evolved!** It’s now **${et.en}**: bigger and in its new form.`));
-            efecto = 'evolucion';
+            if (!String(efecto).startsWith('truco:')) efecto = 'evolucion';
         }
         // Guardar (solo lo que cambia).
         for (const k of ['hambre', 'alegria', 'energia', 'actualizado', 'afinidad', 'ultMimo', 'exp', 'recuerdos', 'cuidados', 'cds', 'botinX', 'acc', 'gustos']) {
@@ -311,6 +339,8 @@ async function accion(guildId, userId, compId, que, { idioma = 'es', dueno = '',
 const FALLOS = {
     sin: ['Aún no tienes compañeros. Consigue el primero abriendo un cofre con `/jugar cofre abrir`. ¿Perdido? `/empezar` te guía paso a paso.', 'You don’t have companions yet. Get your first one by opening a chest with `/games chest open`. Lost? `/start` guides you step by step.'],
     fuera: ['Está de expedición. Vuelve cuando termine.', 'It’s on an expedition. Come back when it’s done.'],
+    presumir: ['Dale un respiro: puedes volver a presumir de truco en {min}.', 'Give it a breather: you can show off a trick again in {min}.'],
+    nivelTruco: ['Aún no sabe ese truco: lo aprende al nivel {n} de afinidad.', 'It doesn’t know that trick yet: it learns it at affinity level {n}.'],
     energia: ['Está muy cansado para eso. Deja que descanse un rato (la energía se recupera sola).', 'Too tired for that. Let it rest a while (energy comes back on its own).'],
     lleno: ['¡Está llenísimo! Prueba a jugar con él.', 'It’s completely full! Try playing with it.'],
     tope: [`Ya ha hecho ${P.EXPEDICIONES_DIA} expediciones hoy. Mañana más.`, `It already went on ${P.EXPEDICIONES_DIA} expeditions today. More tomorrow.`],
@@ -460,6 +490,7 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         const g = P.gustosDe(m); const sabe = m.gustos || {};
         const ops = [
             // 1.34.0: todo lo de tus mascotas, a mano desde aquí (lo mismo que /mascotas …).
+            { value: 'trucos', emoji: '🎪', label: t(idioma, `Trucos (${P.trucosDe(m).length}/${Object.keys(P.TRUCOS).length})`, `Tricks (${P.trucosDe(m).length}/${Object.keys(P.TRUCOS).length})`), description: t(idioma, 'Que salte, baile, haga una voltereta… ¡y presuma!', 'Make it jump, dance, somersault… and show off!') },
             { value: 'ir:granja', emoji: '🧺', label: t(idioma, 'Mi granja', 'My farm'), description: t(idioma, 'Tus mascotas producen oro solas: recógelo', 'Your pets make gold on their own: collect it') },
             { value: 'ir:casa', emoji: '🏠', label: t(idioma, 'Mi casa', 'My house'), description: t(idioma, 'Decórala: cuanto más cómoda, más produce la granja', 'Decorate it: the comfier, the more the farm makes') },
             { value: 'ir:expedicion', emoji: '🗺️', label: t(idioma, 'Expedición en grupo', 'Group expedition'), description: t(idioma, 'Todo el canal junto: más gente, más oro', 'The whole channel together: more people, more gold') },
@@ -494,6 +525,28 @@ async function vista({ ownerId, duenoNombre, idioma, res, ajeno = false, cfg = n
         ...(cfg?.compis?.anime ? [new ButtonBuilder().setCustomId(cid('cartas')).setEmoji('🃏').setLabel(t(idioma, `Cartas (${(col.cartas || []).length})`, `Cards (${(col.cartas || []).length})`)).setStyle(ButtonStyle.Primary)] : []),
     ));
     return { embeds: [emb], files, components: filas, attachments: [], allowedMentions: { parse: [] } };
+}
+
+// 2.2.0: los trucos que sabe (y los que aprenderá). Lo ve solo su dueño; el truco se ve en la tarjeta de todos.
+function selectorTrucos(m, ownerId, msgId, idioma) {
+    const ahora = Date.now();
+    const nv = P.nivel(m.afinidad || 0);
+    const sabe = P.trucosDe(m);
+    const lineas = Object.entries(P.TRUCOS).map(([id, x]) => {
+        if (x.nivel > nv) return t(idioma, `🔒 ${x.emoji} ${x.es} — nivel ${x.nivel}`, `🔒 ${x.emoji} ${x.en} — level ${x.nivel}`);
+        const f = P.faltaTruco(m, id, ahora);
+        return f ? t(idioma, `✅ ${x.emoji} **${x.es}** · premio en ${tiempo(f * 60000, idioma)}`, `✅ ${x.emoji} **${x.en}** · reward in ${tiempo(f * 60000, idioma)}`)
+            : t(idioma, `✅ ${x.emoji} **${x.es}** · 💖 +${x.alegria} · 💞 +${x.afinidad}`, `✅ ${x.emoji} **${x.en}** · 💖 +${x.alegria} · 💞 +${x.afinidad}`);
+    });
+    const e = new EmbedBuilder().setColor('#ec4899').setTitle(t(idioma, `🎪 Trucos de ${corto(m, idioma)}`, `🎪 ${corto(m, idioma)}’s tricks`))
+        .setDescription([
+            t(idioma, `Aprende trucos nuevos al subir de **nivel de afinidad** (ahora: ${nv}). Cada truco gasta ⚡${P.TRUCO_ENERGIA} y da premio una vez cada ${P.TRUCO_ESPERA_H} h; entre medias puedes repetirlo para presumir.`, `It learns new tricks as its **affinity level** goes up (now: ${nv}). Each trick uses ⚡${P.TRUCO_ENERGIA} and gives a reward once every ${P.TRUCO_ESPERA_H}h; in between you can repeat it to show off.`),
+            '', ...lineas,
+        ].join('\n'));
+    const comps = [new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId(`cmp_tru:${ownerId}:${msgId || '0'}:${m.id}`)
+        .setPlaceholder(t(idioma, '🎪 Elige un truco…', '🎪 Pick a trick…'))
+        .addOptions(sabe.map((id) => { const x = P.TRUCOS[id]; const f = P.faltaTruco(m, id, ahora); return { value: id, emoji: x.emoji, label: t(idioma, x.es, x.en), description: (f ? t(idioma, `Sin premio hasta dentro de ${tiempo(f * 60000, idioma)}`, `No reward for ${tiempo(f * 60000, idioma)}`) : t(idioma, `+${x.alegria} alegría · +${x.afinidad} afinidad`, `+${x.alegria} joy · +${x.afinidad} affinity`)).slice(0, 100) }; })))];
+    return { embeds: [e], components: comps, flags: 64 };
 }
 
 // Elegir qué carta usar en la mascota (1.24.0). Lo ve solo su dueño.
@@ -542,8 +595,9 @@ async function manejar(interaction) {
     else if (partes[0] === 'cmp_int') {
         owner = partes[1]; comp = partes.slice(2).join(':');
         const v = interaction.values[0];
-        que = v.startsWith('ir:') ? v : v === 'guarderia' ? 'guarderia' : v.startsWith('comida:') ? v : v.startsWith('mj:') ? `jugar_mj:${v.slice(3)}` : `int:${v}`;
+        que = v.startsWith('ir:') ? v : v === 'guarderia' || v === 'trucos' ? v : v.startsWith('comida:') ? v : v.startsWith('mj:') ? `jugar_mj:${v.slice(3)}` : `int:${v}`;
     }
+    else if (partes[0] === 'cmp_tru') { owner = partes[1]; comp = partes.slice(3).join(':'); que = `truco:${interaction.values[0]}`; }
     else if (partes[0] === 'cmp_mj') { owner = partes[1]; que = 'mj_elegir'; }
     else if (partes[0] === 'cmp_arm') { owner = partes[1]; comp = partes.slice(3).join(':'); que = 'armario_elegir'; }
     else if (partes[0] === 'cmp_apodo') { owner = partes[1]; comp = partes.slice(2).join(':'); que = 'apodo_guardar'; }
@@ -569,6 +623,35 @@ async function manejar(interaction) {
         const m = elegir(col, comp);
         if (!m) { await interaction.reply({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
         await interaction.reply(selectorCartas(col, m, owner, interaction.message?.id, idioma));
+        return true;
+    }
+    if (que === 'trucos') {
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
+        const m = elegir(col, comp);
+        if (!m) { await interaction.reply({ content: textoFallo('sin', idioma), flags: 64 }); return true; }
+        await interaction.reply(selectorTrucos(m, owner, interaction.message?.id, idioma));
+        return true;
+    }
+    if (partes[0] === 'cmp_tru') {
+        // El truco se ve en la tarjeta pública de /compi (todos lo ven); aquí, qué ha pasado.
+        await interaction.deferUpdate();
+        const nombre = interaction.user.displayName || interaction.user.username;
+        const res = await accion(interaction.guildId, owner, comp, que, { idioma, dueno: nombre, bromas: !!cfg?.bromas?.activo });
+        const msgId = partes[2];
+        let editado = false;
+        if (!res.fallo && msgId && msgId !== '0') {
+            const original = await interaction.channel?.messages.fetch(msgId).catch(() => null);
+            if (original) editado = !!(await original.edit(await vista({ ownerId: owner, duenoNombre: nombre, idioma, res, cfg })).catch(() => null));
+        }
+        if (!res.fallo && !editado) {
+            // Sin la tarjeta original (borrada o en otro canal): se enseña aquí mismo, para todos.
+            await interaction.followUp({ ...(await vista({ ownerId: owner, duenoNombre: nombre, idioma, res, cfg })) }).catch(() => {});
+        }
+        const col = await ColeccionMascotas.findOne({ guildId: interaction.guildId, userId: owner }).lean();
+        const sel = selectorTrucos(elegir(col, comp) || res.m, owner, msgId, idioma);
+        const resumen = res.fallo ? `⚠️ ${textoFallo(res.fallo, idioma, res.falloMin, res.falloRareza)}` : (res.mensajes || []).join('\n');
+        sel.embeds[0].setDescription(`${resumen}\n\n${sel.embeds[0].data.description || ''}`.slice(0, 4000));
+        await interaction.editReply({ embeds: sel.embeds, components: sel.components });
         return true;
     }
     if (partes[0] === 'cmp_crt') {

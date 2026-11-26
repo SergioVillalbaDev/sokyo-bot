@@ -3051,7 +3051,7 @@ export default {
         p1: { t: 'Mascotas en cofres', d: 'Con /jugar cofre abrir y oro. Cada mascota tiene su habilidad exclusiva; las repetidas suben estrellas. Cuanto más raras, más cosas saben hacer.' },
         p2: { t: 'Se cuidan con /compi', d: 'Comer, jugar, mimos y hablar. Tienen hambre, alegría y energía, y suben de nivel de afinidad.' },
         p3: { t: 'Se van de expedición', d: 'Paseos de 1 h, aventuras de 4 h o viajes de 8 h: vuelven con oro y recuerdos para coleccionar.' },
-        p4: { t: 'Cartas que las potencian', d: 'Las cartas de anime salen en sobres (/jugar carta abrir) y se usan sobre tu mascota: cada una con su poder. Hasta 3 al día.' },
+        p4: { t: 'Cartas que las potencian', d: 'Las cartas de anime salen en sobres (/jugar carta abrir) y hay una gratis cada día (/jugar carta diaria). Se usan sobre tu mascota (cada una con su poder, hasta 3 al día) y como técnicas en los combates. Guía: /jugar carta guia.' },
         p5: { t: 'Granja', d: 'Sus mejores mascotas producen oro solas mientras no están. Se recoge con /mascotas granja (guarda hasta 12 h).' },
         p6: { t: 'Álbum con premios', d: 'Cuantas más mascotas distintas, más premios: oro y más huecos en la granja. Y misiones cada semana.' },
       },
@@ -3077,7 +3077,7 @@ export default {
       },
       anime: {
         galeria: 'Galería y series', galeriaSub: 'Busca personajes, mira sus poderes y quita las series que no quieras.',
-        titulo: '🃏 Cartas de anime: {{n}} personajes', sub: 'Cartas coleccionables con la imagen de personajes de anime populares. Salen en sobres de 3 cartas (/jugar carta abrir), aparte de los cofres de mascotas. Cada carta tiene un poder según la personalidad del personaje y se usa cuando quieras para potenciar a tu mascota. Cuanto más popular el personaje, más rara la carta.',
+        titulo: '🃏 Cartas de anime: {{n}} personajes', sub: 'Cartas coleccionables con la imagen de personajes de anime populares. Salen en sobres de 3 cartas (/jugar carta abrir) y una gratis cada día (/jugar carta diaria), aparte de los cofres de mascotas. Cada carta tiene un poder según la personalidad del personaje y se usa cuando quieras para potenciar a tu mascota. Cuanto más popular el personaje, más rara la carta.',
         on: 'Activado', off: 'Apagado', sinCofres: 'Los cofres están apagados en este servidor: actívalos en Diversión → Casino y cofres para que salgan.',
         divina: 'La divina secreta', divinaSub: 'La única carta divina. Solo sale en los sobres brillante y legendario, rarísima. Quien la saque saldrá anunciado a lo grande.',
         buscar: 'Buscar personaje, serie o poder…', todas: 'Todas las rarezas', series: 'Series ({{n}}) · quitadas: {{fuera}}',

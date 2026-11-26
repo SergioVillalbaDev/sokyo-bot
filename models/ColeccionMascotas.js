@@ -47,6 +47,7 @@ const ColeccionMascotasSchema = new mongoose.Schema({
     sinEpicaCartas: { type: Number, default: 0 },
     gastadoSobres: { type: Number, default: 0 },
     cartasHoy: { dia: String, n: Number },
+    cartaGratis: { type: String, default: null }, // 2.2.0: día (UTC) en que cogió su carta gratis
     potencia: { valor: Number, hasta: Date, mascota: String },
     // 1.25.0: series del Pack anime completadas (ya premiadas) y regalos de cartas de hoy.
     seriesCompletas: { type: [String], default: [] },

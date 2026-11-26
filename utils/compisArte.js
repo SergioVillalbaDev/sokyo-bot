@@ -45,19 +45,29 @@ async function dibujar(ctx, d, f = 0, total = 1, efecto = null, imgEfecto = null
     ctx.strokeStyle = rz.color; ctx.lineWidth = 4; A.redondeado(ctx, 2, 2, W - 4, HH - 4, 24); ctx.stroke();
     // El compañero: respira (sube y baja) y, si está fuera, sale medio transparente.
     const t = total > 1 ? f / total : 0;
-    const salto = efecto === 'jugar' ? -Math.abs(Math.sin(t * Math.PI * 3)) * 30 : efecto === 'evolucion' ? 0 : (img && img.sprite ? 0 : Math.sin(t * Math.PI * 2) * 4);
+    // 2.2.0: un truco mueve, gira y estira a la mascota (y pinta lo suyo: notas, humo, fuegos…).
+    const truco = efecto && efecto.startsWith('truco:') ? efecto.slice(6) : null;
+    const pose = truco ? poseTruco(truco, total > 1 ? f / (total - 1) : 1) : null;
+    const salto = truco ? 0 : efecto === 'jugar' ? -Math.abs(Math.sin(t * Math.PI * 3)) * 30 : efecto === 'evolucion' ? 0 : (img && img.sprite ? 0 : Math.sin(t * Math.PI * 2) * 4);
     const tam = 210;
     // 1.32.0: si tiene dibujo propio, cada fotograma es un dibujo distinto (respira, parpadea).
-    if (img && img.sprite) img = img.cuadro(f, total);
+    if (img && img.sprite) img = img.cuadro(f, total, pose?.humor);
     if (efecto === 'evolucion' && total > 1) { // destello que crece y se apaga
         const k = Math.sin(Math.min(1, t * 1.6) * Math.PI);
         const g = ctx.createRadialGradient(170, 205, 10, 170, 205, 200);
         g.addColorStop(0, `rgba(255,255,255,${0.95 * k})`); g.addColorStop(0.4, `rgba(253,230,138,${0.6 * k})`); g.addColorStop(1, 'rgba(253,230,138,0)');
         ctx.fillStyle = g; ctx.fillRect(0, 0, 360, H);
     }
+    if (pose?.detras) pose.detras(ctx);
     if (d.fuera) ctx.globalAlpha = 0.35;
-    A.pintarCompanero(ctx, img, d.id, 170 - tam / 2, 205 - tam / 2 + salto, tam, rz.color);
+    if (pose) {
+        ctx.save(); ctx.globalAlpha = pose.alfa ?? 1;
+        ctx.translate(170 + (pose.dx || 0), 205 + (pose.dy || 0)); ctx.rotate(pose.rot || 0); ctx.scale(pose.sx ?? 1, pose.sy ?? 1);
+        if ((pose.alfa ?? 1) > 0.01) A.pintarCompanero(ctx, img, d.id, -tam / 2, -tam / 2, tam, rz.color);
+        ctx.restore();
+    } else A.pintarCompanero(ctx, img, d.id, 170 - tam / 2, 205 - tam / 2 + salto, tam, rz.color);
     ctx.globalAlpha = 1;
+    if (pose?.delante) pose.delante(ctx);
     // Efecto: dibujitos que suben y se desvanecen
     if (imgEfecto && total > 1) {
         for (let i = 0; i < 7; i++) {
@@ -126,7 +136,42 @@ function dibujoPropio(d, efecto) {
     if (!SPR.tiene(d.id)) return null;
     const etapa = SPR.etapaDe(d.nivel || 1);
     const humor = d.fuera ? 'dormido' : efecto && efecto !== 'hablar' && efecto !== 'nivel' ? 'feliz' : (d.humorClave || 'normal');
-    return { sprite: true, cuadro: (f, total) => SPR.imagen(d.id, { etapa, humor, variante: d.variante || null, acc: d.acc || null, t: total > 1 ? (f % 8) / 8 : 0, parpadeo: total > 1 && f % 8 === 6 && humor !== 'feliz' }) };
+    return { sprite: true, cuadro: (f, total, otro = null) => SPR.imagen(d.id, { etapa, humor: otro || humor, variante: d.variante || null, acc: d.acc || null, t: total > 1 ? (f % 8) / 8 : 0, parpadeo: total > 1 && f % 8 === 6 && (otro || humor) !== 'feliz' }) };
+}
+
+// 2.2.0: la postura de cada truco en el instante k (0 → 1). Centro de la mascota: (170, 205).
+const sube = (k) => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
+function nota(ctx, txt, x, y, a, tam = 26, color = '#f9a8d4') { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.font = `bold ${tam}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(15,23,42,0.7)'; ctx.strokeText(txt, x, y); ctx.fillStyle = color; ctx.fillText(txt, x, y); ctx.restore(); }
+function humo(ctx, x, y, k) { ctx.save(); for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2; const r = 20 + sube(k) * 70; ctx.globalAlpha = 0.75 * (1 - k); ctx.fillStyle = i % 2 ? '#e2e8f0' : '#cbd5e1'; ctx.beginPath(); ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.7, 26 - k * 10, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+function destellos(ctx, x, y, k, n = 8, color = '#fde68a') { ctx.save(); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + k * 2; const r = 40 + sube(k) * 90; ctx.globalAlpha = 1 - k; ctx.fillStyle = i % 2 ? '#ffffff' : color; ctx.beginPath(); for (let j = 0; j < 8; j++) { const b = (j * Math.PI) / 4; const rr = j % 2 ? 3 : 9; ctx.lineTo(x + Math.cos(a) * r + Math.cos(b) * rr, y + Math.sin(a) * r + Math.sin(b) * rr); } ctx.closePath(); ctx.fill(); } ctx.restore(); }
+function poseTruco(id, k) {
+    const PI = Math.PI;
+    if (id === 'saltar') { const ph = (k * 2) % 1; const aire = Math.sin(ph * PI); return { dy: -aire * 55, sy: aire < 0.15 ? 0.9 : 1.04, sx: aire < 0.15 ? 1.08 : 0.97 }; }
+    if (id === 'vuelta') return { sx: Math.cos(k * PI * 4) || 0.02, dy: -Math.sin(k * PI) * 22, delante: (ctx) => destellos(ctx, 170, 205, k, 6, '#a5f3fc') };
+    if (id === 'bailar') return { dx: Math.sin(k * PI * 4) * 30, rot: Math.sin(k * PI * 8) * 0.18, dy: -Math.abs(Math.sin(k * PI * 8)) * 12,
+        delante: (ctx) => { for (let i = 0; i < 4; i++) { const q = (k * 1.6 + i / 4) % 1; nota(ctx, i % 2 ? '♪' : '♫', 70 + i * 66 + Math.sin(q * 6) * 10, 300 - q * 230, 1 - q, 30); } } };
+    if (id === 'saludar') return { rot: Math.sin(k * PI * 6) * 0.12, dy: -Math.abs(Math.sin(k * PI * 6)) * 8,
+        delante: (ctx) => { nota(ctx, '👋', 262 + Math.sin(k * PI * 6) * 8, 150, 1, 40, '#ffffff'); for (let i = 0; i < 3; i++) { const q = (k + i / 3) % 1; nota(ctx, '💖', 110 + i * 60, 260 - q * 180, 1 - q, 22, '#ffffff'); } } };
+    if (id === 'voltereta') return { dy: -Math.sin(k * PI) * 75, rot: sube(k) * PI * 2, sy: k > 0.9 ? 0.92 : 1,
+        detras: (ctx) => { if (k > 0.15 && k < 0.85) { ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(170, 205 - Math.sin(k * PI) * 75, 110, k * PI * 2 - 1.2, k * PI * 2); ctx.stroke(); ctx.restore(); } } };
+    if (id === 'dormido') {
+        if (k < 0.22) return { rot: -sube(k / 0.22) * 1.45, dy: sube(k / 0.22) * 30 };
+        if (k < 0.78) return { rot: -1.45, dy: 30, humor: 'dormido', delante: (ctx) => { for (let i = 0; i < 3; i++) { const q = ((k - 0.22) * 2 + i / 3) % 1; nota(ctx, 'z', 230 + q * 40, 190 - q * 110, 1 - q, 20 + i * 6, '#e0e7ff'); } } };
+        const q = (k - 0.78) / 0.22; return { rot: -1.45 * (1 - sube(q)), dy: 30 * (1 - sube(q)) - Math.sin(q * PI) * 40, delante: (ctx) => destellos(ctx, 170, 180, q, 8) };
+    }
+    if (id === 'magia') {
+        const sombrero = (ctx, y) => nota(ctx, '🎩', 170, y, 1, 54, '#ffffff');
+        if (k < 0.3) return { rot: Math.sin(k * PI * 6) * 0.05, delante: (ctx) => { nota(ctx, '🪄', 268, 170 + Math.sin(k * 20) * 6, 1, 40, '#ffffff'); destellos(ctx, 270, 160, (k * 3) % 1, 5); } };
+        if (k < 0.42) { const q = (k - 0.3) / 0.12; return { alfa: 1 - q, sx: 1 - q * 0.4, sy: 1 + q * 0.2, delante: (ctx) => humo(ctx, 170, 220, q) }; }
+        if (k < 0.7) { const q = (k - 0.42) / 0.28; return { alfa: 0, delante: (ctx) => { sombrero(ctx, 300 - Math.abs(Math.sin(q * PI * 3)) * 26); nota(ctx, '❓', 240, 160 + Math.sin(q * 10) * 4, 1, 30, '#ffffff'); } }; }
+        if (k < 0.82) { const q = (k - 0.7) / 0.12; return { alfa: q, sy: 0.7 + q * 0.3, dy: (1 - q) * 30, delante: (ctx) => humo(ctx, 170, 220, q) }; }
+        const q = (k - 0.82) / 0.18; return { dy: -Math.sin(q * PI) * 30, delante: (ctx) => { destellos(ctx, 170, 200, q, 10); nota(ctx, '✨', 120, 120, 1 - q, 34, '#ffffff'); nota(ctx, '✨', 230, 110, 1 - q, 28, '#ffffff'); } };
+    }
+    if (id === 'final') {
+        const fuegos = (ctx) => { const cols = ['#f472b6', '#facc15', '#4ade80', '#60a5fa', '#a78bfa']; for (let b = 0; b < 3; b++) { const q = (k * 2.2 + b / 3) % 1; const cx = 70 + b * 110; const cy = 90 + (b % 2) * 50; ctx.save(); for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; const r = sube(q) * 60; ctx.globalAlpha = 1 - q; ctx.fillStyle = cols[(i + b) % cols.length]; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r + q * q * 20, 4.5 * (1 - q * 0.6), 0, Math.PI * 2); ctx.fill(); } ctx.restore(); } };
+        return { dy: -Math.abs(Math.sin(k * PI * 2)) * 55, sx: Math.cos(k * PI * 4) || 0.02, rot: Math.sin(k * PI * 2) * 0.1, detras: fuegos, delante: (ctx) => { if (k > 0.85) nota(ctx, '🌟', 170, 95, (k - 0.85) / 0.15, 46, '#ffffff'); } };
+    }
+    return {};
 }
 
 async function tarjeta(d, efecto = null) {
@@ -135,6 +180,16 @@ async function tarjeta(d, efecto = null) {
     const img = propio || await A.imagenCompanero(d.id);
     const imgEfecto = efecto && EFECTOS[efecto] ? await A.imagen(EFECTOS[efecto]) : null;
     const HH = d.extra ? H + FRANJA : H;
+    // 2.2.0: un truco: unos 1,7 s de animación y se queda en la última postura.
+    if (efecto && efecto.startsWith('truco:')) {
+        const TOTAL = 30; const frames = [];
+        for (let f = 0; f < TOTAL; f++) {
+            const { ctx } = A.lienzo(W, HH);
+            await dibujar(ctx, d, f, TOTAL, efecto, null, img);
+            frames.push({ ctx, delay: f === TOTAL - 1 ? 6000 : 55 });
+        }
+        return { buffer: await A.aGif(frames, W, HH), nombre: 'compi.gif' };
+    }
     // Con dibujo propio, la tarjeta se mueve siempre (respira y parpadea, en bucle).
     if (propio && !imgEfecto) {
         const frames = [];

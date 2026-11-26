@@ -3046,7 +3046,7 @@ export default {
         p1: { t: 'Pets from chests', d: 'With /games chest open and gold. Each pet has its own exclusive ability; duplicates add stars. The rarer, the more they can do.' },
         p2: { t: 'Look after them with /companion', d: 'Feed, play, cuddle and talk. They get hungry, happy and tired, and level up their affinity.' },
         p3: { t: 'They go on expeditions', d: '1 h walks, 4 h adventures or 8 h trips: they come back with gold and souvenirs to collect.' },
-        p4: { t: 'Cards that power them up', d: 'Anime cards come in packs (/games card open) and are used on your pet: each with its own power. Up to 3 a day.' },
+        p4: { t: 'Cards that power them up', d: 'Anime cards come in packs (/games card open) and there’s a free one every day (/games card daily). They’re used on your pet (each with its own power, up to 3 a day) and as battle techniques. Guide: /games card guide.' },
         p5: { t: 'Farm', d: 'Their best pets make gold on their own while they’re away. Collect it with /pets farm (holds up to 12 h).' },
         p6: { t: 'Album with rewards', d: 'The more different pets, the more rewards: gold and more farm slots. Plus missions every week.' },
       },
@@ -3072,7 +3072,7 @@ export default {
       },
       anime: {
         galeria: 'Gallery and series', galeriaSub: 'Search characters, see their powers and remove series you don’t want.',
-        titulo: '🃏 Anime cards: {{n}} characters', sub: 'Collectible cards with pictures of popular anime characters. They come in packs of 3 (/games card open), separate from pet chests. Each card has a power based on the character’s personality and is used whenever you want to power up your pet. The more popular the character, the rarer the card.',
+        titulo: '🃏 Anime cards: {{n}} characters', sub: 'Collectible cards with pictures of popular anime characters. They come in packs of 3 (/games card open) and one free every day (/games card daily), separate from pet chests. Each card has a power based on the character’s personality and is used whenever you want to power up your pet. The more popular the character, the rarer the card.',
         on: 'On', off: 'Off', sinCofres: 'Chests are off on this server: turn them on in Fun → Casino & chests so they can drop.',
         divina: 'The secret divine', divinaSub: 'The only divine card. It only drops from shiny and legendary packs, ultra rare. Whoever pulls her gets a big announcement.',
         buscar: 'Search character, series or power…', todas: 'All rarities', series: 'Series ({{n}}) · removed: {{fuera}}',

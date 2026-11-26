@@ -23,7 +23,7 @@ const ACCIONES = {
         ['numeros', '📈', 'Mis números', 'My numbers', 'casino', 'stats', {}, null, 'primerDiario']],
     cofres: [['abrir', '📦', 'Abrir un cofre básico', 'Open a basic chest', 'chest', 'open', { type: 'basico' }, null, 'primerDiario'], ['coleccion', '📚', 'Mi colección', 'My collection', 'chest', 'collection', {}, null, 'primerDiario'],
         ['prob', '🎲', 'Probabilidades', 'Odds', 'chest', 'odds', {}, null, 'primerDiario']],
-    cartas: [['sobre', '🃏', 'Abrir un sobre', 'Open a pack', 'card', 'open', { pack: 'normal' }, null, 'dosDias'], ['album', '📖', 'Mi álbum', 'My album', 'card', 'album', {}, null, 'dosDias'],
+    cartas: [['gratis', '🎁', 'Carta gratis de hoy', 'Today’s free card', 'card', 'daily', {}, null, 'dosDias'], ['sobre', '🃏', 'Abrir un sobre', 'Open a pack', 'card', 'open', { pack: 'normal' }, null, 'dosDias'], ['album', '📖', 'Mi álbum', 'My album', 'card', 'album', {}, null, 'dosDias'],
         ['mercado', '🛒', 'Ver el mercado', 'Browse the market', 'market', 'browse', {}, null, 'dosDias']],
     combates: [['retar', '⚔️', 'Retar a alguien', 'Challenge someone', 'fight', 'challenge', {}, 'miembro', 'nivel5'], ['torre', '🗼', 'Subir la torre', 'Climb the tower', 'fight', 'tower', {}, null, 'nivel5'],
         ['jefe', '🐉', 'Jefe de la semana', 'Weekly boss', 'fight', 'boss', {}, null, 'conMascota'], ['mazo', '🃏', 'Mi mazo', 'My deck', 'fight', 'deck', {}, null, 'nivel5'], ['perfil', '🏅', 'Mi rango', 'My rank', 'fight', 'profile', {}, null, 'nivel5']],
@@ -77,6 +77,7 @@ async function estadoJugador(guildId, userId, cfg, ahora = Date.now()) {
     const datos = PR.datosDe(u, col);
     return {
         oro: u.balance || 0, racha: u.rachaDaily || 0, diarioListo, mascotas: ms.length,
+        cartaGratis: C.modulo('cartas').activo(cfg) && col?.cartaGratis !== new Date(ahora).toISOString().slice(0, 10), // 2.2.0
         equipada: eq ? { id: eq.id, nombre: eq.apodo || K.def(eq.id)?.es, nombreEn: eq.apodo || K.def(eq.id)?.en, emoji: K.def(eq.id)?.emoji, nivel: P.nivel(eq.afinidad || 0), humor: P.expedicionActiva(eq, ahora) ? 'fuera' : P.humor(P.estado(eq, ahora)), estado: P.estado(eq, ahora) } : null,
         granja: granja && !granja.nueva ? { oro: granja.oro, lleno: granja.lleno, porHora: granja.porHora } : granja ? { nueva: true } : null,
         huevos, vuelta: vuelta.map((m) => m.id), fuera: fuera.map((m) => ({ id: m.id, hasta: m.exp.hasta })),
@@ -98,6 +99,7 @@ function avisos(e, userId, idioma) {
     if (e.vuelta.length) { const d = K.def(e.vuelta[0]); l.push({ texto: t(idioma, `🧭 **${d.es}** ha vuelto de su expedición.`, `🧭 **${d.en}** is back from its expedition.`), boton: b(`cmp:ver:${userId}:${e.vuelta[0]}`, '🧭', 'Recoger lo que trae', 'Collect its loot') }); }
     if (e.equipada && e.equipada.humor !== 'fuera' && ((e.equipada.estado.hambre ?? 80) < 30 || e.equipada.humor === 'enfermo')) l.push({ texto: t(idioma, `🍖 **${e.equipada.nombre}** tiene hambre.`, `🍖 **${e.equipada.nombreEn}** is hungry.`), boton: b(`cmp:ver:${userId}:${e.equipada.id}`, '🍖', 'Cuidarla', 'Care for it', ButtonStyle.Primary) });
     if (e.jefe && e.jefe.quedan > 0 && e.abiertas.has('conMascota')) l.push({ texto: t(idioma, `🐉 Te quedan **${e.jefe.quedan} ataques** al jefe de la semana.`, `🐉 You have **${e.jefe.quedan} attacks** left on the weekly boss.`), boton: b(`cbt_jefe:${e.jefe.semana}`, '⚔️', 'Atacar al jefe', 'Attack the boss', ButtonStyle.Danger) });
+    if (e.cartaGratis && e.abiertas.has('dosDias')) l.push({ texto: t(idioma, '🎁 Tu **carta gratis** de hoy te espera.', '🎁 Your **free card** for today is waiting.'), boton: b('crt_diaria', '🎁', 'Carta gratis', 'Free card') });
     if (e.pase.tickets > 0) l.push({ texto: t(idioma, `🎟️ Tienes **${e.pase.tickets} ${e.pase.tickets === 1 ? 'ticket gratis' : 'tickets gratis'}**.`, `🎟️ You have **${e.pase.tickets} free ticket${e.pase.tickets === 1 ? '' : 's'}**.`), boton: b(`pse:ver:${userId}`, '🎟️', 'Usar tickets', 'Use tickets', ButtonStyle.Primary) });
     return l;
 }
