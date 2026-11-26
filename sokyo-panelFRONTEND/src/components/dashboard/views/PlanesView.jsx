@@ -197,6 +197,7 @@ export default function PlanesView({ dash }) {
       )}
 
       <p className="text-sm text-muted">{t('dashboard.planes_v.intro')}</p>
+      <div className="flex items-start gap-2.5 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-fg"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-400" /> <span>{t('dashboard.planes_v.promesa')}</span></div>
 
       {/* Conmutador mensual / anual */}
       <div data-help="planes-intervalo" className="flex items-center justify-center gap-1 rounded-2xl border border-line bg-elevated p-1 w-fit mx-auto">

@@ -115,6 +115,7 @@ export default {
         'funciones': 'Feature hub',
         'cuenta-plan': 'Plan & billing',
         'config-app': 'Mobile app',
+        'config-perfil-bot': 'Bot profile',
         'datos-analitica': 'Analytics',
         'datos-resumen': 'Daily report',
         'crec-invitaciones': 'Invites',
@@ -193,6 +194,7 @@ export default {
       inicio: { title: 'Home', subtitle: 'Overview of your support system.' },
       'cuenta-plan': { title: 'Plan & billing', subtitle: 'Upgrade and unlock the full power of Sokyo.' },
       'config-app': { title: 'Mobile app', subtitle: 'The whole panel on your phone, on Android and iPhone.' },
+      'config-perfil-bot': { title: 'Bot profile', subtitle: 'Sokyo’s name, picture, banner and description on your server.' },
       'datos-analitica': { title: 'Analytics', subtitle: 'Ticket metrics: volume, urgencies, reasons and satisfaction.' },
       'datos-resumen': { title: 'Daily report', subtitle: 'Get your server stats by direct message every day.' },
       musica: { title: 'Music player', subtitle: 'Configure the player and control what is playing live.' },
@@ -1163,9 +1165,24 @@ export default {
     error: {
       detail: 'The bot may be restarting (it takes less than a minute) or your connection may be failing. Wait a moment and reload the page.',
     },
+    perfilBot_v: {
+      intro: 'This is how Sokyo looks on your server. Changes only show here: on other servers the bot stays the same.',
+      titulo: 'Your bot, your brand', previa: 'What your members will see',
+      apodo: 'Name on the server (nickname)', apodoAyuda: 'Free. Empty = “{{nombre}}”.',
+      foto: 'Picture', fotoAyuda: 'PNG, JPG, GIF or WebP up to {{mb}} MB. Square works best.',
+      banner: 'Banner', bannerAyuda: 'The wide image at the top of the profile (up to {{mb}} MB). Landscape works best (about 600 × 240).',
+      bio: 'Description (“About me”)', bioAyuda: 'Up to {{n}} characters.', bioPh: 'For example: Nebula Gaming’s official bot 💜 Type /menu to start.',
+      subir: 'Upload image', volverSokyo: 'Back to Sokyo’s', quitarBanner: 'Remove banner',
+      sobreMi: 'About me', bioVacia: 'No description yet.',
+      nota: 'Discord only lets you change the bot’s profile every couple of minutes. If the server stops being Pro, the picture, banner and description go back to Sokyo’s on their own (the name stays).',
+      proHint: 'The bot’s picture, banner and description are part of Sokyo Pro: your community will see your bot, with your brand. The name is free.',
+      errorCargar: 'Couldn’t load the bot profile.', errorGuardar: 'Couldn’t save. Try again in a moment.',
+      errImagen: { tipo: 'That’s not an image.', grande: 'The image is larger than {{mb}} MB.', leer: 'Couldn’t read the file.', vacio: 'You didn’t pick a file.' },
+    },
     planes_v: {
       thisServer: 'this server',
       intro: 'Start free and upgrade when your community takes off. Cancel anytime.',
+      promesa: '🤝 Our promise: Pro belongs to the server, not to each player. Nobody can buy gold, chests, cards or advantages: in the games everyone plays by the same rules.',
       currentPlan: 'Your current plan',
       renews: 'Renews on {{date}}',
       cancels: 'Cancels on {{date}} (you keep access until then)',
@@ -1185,11 +1202,11 @@ export default {
       tiers: {
         free: {
           name: 'Free', desc: 'For communities just getting started.',
-          features: ['Tickets, moderation, welcomes & roles', 'Pets, cards, battles & casino in full', 'Web panel + My account for your members', 'Server shop (3 products)', 'Includes Sokyo branding'],
+          features: ['Tickets, moderation, welcomes & roles', 'Pets, cards, battles & casino in full (no pay-to-win)', 'Web panel + My account for your members', 'Server shop (3 products)', 'Includes Sokyo branding'],
         },
         pro: {
           name: 'Sokyo Pro', desc: 'For servers that mean business.',
-          features: ['Everything in Free', 'AI moderation & full security', 'No Sokyo branding', 'Shop with 25 products & 100 custom pets', '24/7 music, transcripts & analytics', 'Animated cards, premium themes & priority support'],
+          features: ['Everything in Free', '🎨 The bot with your brand: its picture, banner & description on your server', 'AI moderation & full security', 'No Sokyo branding', 'Shop with 25 products & 100 custom pets', '24/7 music, transcripts & analytics', 'Animated cards, premium themes & priority support'],
         },
         agency: {
           name: 'Sokyo Agency', desc: 'For those managing several servers.',

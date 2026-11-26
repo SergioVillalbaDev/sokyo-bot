@@ -4,6 +4,13 @@
 // test/erroresApi.test.js comprueba que TODOS los errores fijos del código tienen aquí su
 // traducción: si añades un `error: '…'` nuevo, añádelo también aquí.
 const EN = {
+    // 2.4.0: perfil del bot en el servidor
+    'El bot no está en ese servidor.': 'The bot isn’t on that server.',
+    'La foto, el banner y la descripción del bot son de Sokyo Pro.': 'The bot’s picture, banner and description are part of Sokyo Pro.',
+    'Discord solo deja cambiar el perfil del bot cada poco: espera un par de minutos.': 'Discord only lets you change the bot’s profile every so often: wait a couple of minutes.',
+    'La imagen pesa más de 8 MB.': 'The image is larger than 8 MB.',
+    'Al bot le falta el permiso «Cambiar apodo» en este servidor.': 'The bot is missing the “Change Nickname” permission on this server.',
+    'Discord pide esperar un poco antes de volver a cambiar el perfil.': 'Discord asks to wait a bit before changing the profile again.',
     'Ese canal no vale.': 'That channel won’t work.',
     'El bot no puede escribir en ese canal.': 'The bot can’t write in that channel.',
     'No se ha podido publicar.': 'It couldn’t be posted.',

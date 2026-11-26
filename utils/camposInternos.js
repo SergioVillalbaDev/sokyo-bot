@@ -13,6 +13,7 @@ const RAICES_INTERNAS = new Set([
     'iaUsos', 'iaMesRef', 'esPremium', 'plan', 'premiumHasta', 'premiumCancelaAlFinal',
     'stripeCustomerId', 'stripeSubscriptionId', 'soporteCompradorId', 'trialUsado',
     'comandosServidor', // 1.34.0: lo que el bot ha registrado en el servidor
+    'perfilBot',        // 2.4.0: el perfil del bot en el servidor se cambia en Discord al guardarlo (no se deshace ni se copia)
 ]);
 // Rutas concretas: dónde está publicado el mensaje de «Mi cuenta» es del bot, pero
 // cómo es (texto, embed, botones; 1.9.12) es un ajuste más (se deshace y se copia).

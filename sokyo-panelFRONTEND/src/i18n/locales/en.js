@@ -336,19 +336,19 @@ export default {
       subtitle: 'Every server starts with a 7-day Pro trial. Keep Free forever or upgrade when you take off.',
       recommended: 'Recommended',
       trialNote: '✨ Every new server gets 7 days of Pro, free — no card required.',
-      reassurance: 'Cancel anytime, no lock-in and no fine print. Your data is always yours.',
+      reassurance: 'Cancel anytime, no lock-in and no fine print. Your data is always yours. And no pay-to-win: in the games everyone plays the same.',
       tiers: {
         free: {
           name: 'Free', price: '€0', period: 'forever',
           desc: 'Perfect for small communities getting started.',
           cta: 'Start free',
-          features: ['Tickets, moderation, welcomes & roles', 'Pets, cards, battles & casino in full', 'Web panel + My account for your members', 'Levels, music & season pass', 'Server shop (3 products)', 'Includes Sokyo branding'],
+          features: ['Tickets, moderation, welcomes & roles', 'Pets, cards, battles & casino in full (no pay-to-win)', 'Web panel + My account for your members', 'Levels, music & season pass', 'Server shop (3 products)', 'Includes Sokyo branding'],
         },
         pro: {
           name: 'Sokyo Pro', price: '€7', period: '/mo',
           desc: 'For servers that mean business.',
           cta: 'Upgrade to Pro',
-          features: ['Everything in Free', 'AI moderation & full security', 'No Sokyo branding (white-label)', 'Shop with 25 products & 100 custom pets', '24/7 music & filters', 'Unlimited panels, FAQs & announcements', 'Stats, daily report & transcripts', 'Animated cards, premium themes & priority support'],
+          features: ['Everything in Free', '🎨 The bot with your brand: its picture, banner & description on your server', 'AI moderation & full security', 'No Sokyo branding (white-label)', 'Shop with 25 products & 100 custom pets', '24/7 music & filters', 'Unlimited panels, FAQs & announcements', 'Stats, daily report & transcripts', 'Animated cards, premium themes & priority support'],
         },
         agency: {
           name: 'Sokyo Agency', price: '€25', period: '/mo',

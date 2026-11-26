@@ -215,6 +215,15 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     setTimeout(tickPremium, 20 * 1000);
     setInterval(tickPremium, 60 * 60 * 1000);
 
+    // 2.4.0: el perfil del bot vuelve al de Sokyo en los servidores que ya no son Pro (cada hora),
+    // y la copia de seguridad de la base de datos una vez al día (mira cada hora si toca).
+    const tickPerfilYCopia = conGuardiaDeReentrancia('perfil-copia', async () => {
+        try { const n = await require('./perfilBot.js').quitarSinPro(client); if (n) console.log(`🎨 Perfil del bot devuelto al de Sokyo en ${n} servidor(es) sin Pro.`); } catch (e) { console.error('Perfil del bot:', e.message); }
+        try { await require('./copiaAuto.js').hacerCopia(); } catch (e) { console.error('Copia automática:', e.message); }
+    });
+    setTimeout(tickPerfilYCopia, 10 * 60 * 1000);
+    setInterval(tickPerfilYCopia, 60 * 60 * 1000);
+
     // Foto diaria de cada servidor: primera a los 30s, luego cada 6h (upsert por día).
     const tickSnapshot = conGuardiaDeReentrancia('snapshot', async () => {
         try { await snapshotDiario(client); } catch (e) { console.error('Snapshot diario:', e.message); }

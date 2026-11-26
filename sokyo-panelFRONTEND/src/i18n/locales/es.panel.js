@@ -115,6 +115,7 @@ export default {
         'funciones': 'Centro de funciones',
         'cuenta-plan': 'Plan y facturación',
         'config-app': 'App móvil',
+        'config-perfil-bot': 'Perfil del bot',
         'datos-analitica': 'Analítica',
         'datos-resumen': 'Parte diario',
         'crec-invitaciones': 'Invitaciones',
@@ -193,6 +194,7 @@ export default {
       inicio: { title: 'Inicio', subtitle: 'Resumen de tu sistema de soporte.' },
       'cuenta-plan': { title: 'Plan y facturación', subtitle: 'Sube de plan y desbloquea todo el potencial de Sokyo.' },
       'config-app': { title: 'App móvil', subtitle: 'Todo el panel en tu teléfono, en Android y en iPhone.' },
+      'config-perfil-bot': { title: 'Perfil del bot', subtitle: 'El nombre, la foto, el banner y la descripción de Sokyo en tu servidor.' },
       'datos-analitica': { title: 'Analítica', subtitle: 'Métricas de tus tickets: volumen, urgencias, motivos y satisfacción.' },
       'datos-resumen': { title: 'Parte diario', subtitle: 'Recibe cada día las estadísticas de tu servidor por mensaje directo.' },
       musica: { title: 'Reproductor de música', subtitle: 'Configura el reproductor y controla en directo lo que suena.' },
@@ -1163,9 +1165,24 @@ export default {
     error: {
       detail: 'Puede que el bot se esté reiniciando (tarda menos de un minuto) o que falle tu conexión. Espera un momento y recarga la página.',
     },
+    perfilBot_v: {
+      intro: 'Así se ve Sokyo en tu servidor. Los cambios solo se ven aquí: en los demás servidores el bot sigue igual.',
+      titulo: 'Tu bot, con tu marca', previa: 'Así lo verán tus miembros',
+      apodo: 'Nombre en el servidor (apodo)', apodoAyuda: 'Gratis. Vacío = «{{nombre}}».',
+      foto: 'Foto', fotoAyuda: 'PNG, JPG, GIF o WebP de hasta {{mb}} MB. Mejor cuadrada.',
+      banner: 'Banner', bannerAyuda: 'La imagen ancha de arriba del perfil (hasta {{mb}} MB). Mejor apaisada (unos 600 × 240).',
+      bio: 'Descripción («Sobre mí»)', bioAyuda: 'Hasta {{n}} letras.', bioPh: 'Por ejemplo: El bot oficial de Nébula Gaming 💜 Escribe /menu para empezar.',
+      subir: 'Subir imagen', volverSokyo: 'Volver a la de Sokyo', quitarBanner: 'Quitar banner',
+      sobreMi: 'Sobre mí', bioVacia: 'Sin descripción todavía.',
+      nota: 'Discord solo deja cambiar el perfil del bot cada un par de minutos. Si el servidor deja de ser Pro, la foto, el banner y la descripción vuelven solos a los de Sokyo (el nombre se queda).',
+      proHint: 'La foto, el banner y la descripción del bot son de Sokyo Pro: tu comunidad verá a tu bot, con tu marca. El nombre es gratis.',
+      errorCargar: 'No se ha podido cargar el perfil del bot.', errorGuardar: 'No se ha podido guardar. Prueba otra vez en un momento.',
+      errImagen: { tipo: 'Eso no es una imagen.', grande: 'La imagen pesa más de {{mb}} MB.', leer: 'No se ha podido leer el archivo.', vacio: 'No has elegido ningún archivo.' },
+    },
     planes_v: {
       thisServer: 'este servidor',
       intro: 'Empieza gratis y sube de plan cuando tu comunidad despegue. Cancela cuando quieras.',
+      promesa: '🤝 Nuestra promesa: Pro es del servidor, no de cada jugador. Nadie puede comprar oro, cofres, cartas ni ventajas: en los juegos todos juegan con las mismas reglas.',
       currentPlan: 'Tu plan actual',
       renews: 'Se renueva el {{date}}',
       cancels: 'Se cancela el {{date}} (seguirás con acceso hasta entonces)',
@@ -1185,11 +1202,11 @@ export default {
       tiers: {
         free: {
           name: 'Free', desc: 'Para comunidades que empiezan.',
-          features: ['Tickets, moderación, bienvenidas y roles', 'Mascotas, cartas, combates y casino completos', 'Panel web + Mi cuenta para tus miembros', 'Tienda del servidor (3 productos)', 'Incluye la marca Sokyo'],
+          features: ['Tickets, moderación, bienvenidas y roles', 'Mascotas, cartas, combates y casino completos (sin pagar para ganar)', 'Panel web + Mi cuenta para tus miembros', 'Tienda del servidor (3 productos)', 'Incluye la marca Sokyo'],
         },
         pro: {
           name: 'Sokyo Pro', desc: 'Para servidores que van en serio.',
-          features: ['Todo lo del plan Free', 'Moderación con IA y seguridad al completo', 'Sin la marca Sokyo', 'Tienda con 25 productos y 100 mascotas propias', 'Música 24/7, transcripciones y estadísticas', 'Tarjetas animadas, temas premium y soporte prioritario'],
+          features: ['Todo lo del plan Free', '🎨 El bot con tu marca: su foto, banner y descripción en tu servidor', 'Moderación con IA y seguridad al completo', 'Sin la marca Sokyo', 'Tienda con 25 productos y 100 mascotas propias', 'Música 24/7, transcripciones y estadísticas', 'Tarjetas animadas, temas premium y soporte prioritario'],
         },
         agency: {
           name: 'Sokyo Agencia', desc: 'Para quien gestiona varios servidores.',

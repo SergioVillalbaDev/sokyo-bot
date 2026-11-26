@@ -187,6 +187,8 @@ module.exports = (client) => {
             musica: musicaSalud(),
             // 2.3.1: ¿se puede añadir el bot desde su perfil? (publico = «Public Bot» en el portal de Discord)
             instalacion: (() => { const e = require('../utils/invitar.js').estado; return { publico: e.publico, enlace: e.enlace, error: e.error }; })(),
+            // 2.4.0: última copia de seguridad automática (fecha) y si la última falló.
+            copia: require('../utils/copiaAuto.js').resumen(),
             ts: new Date().toISOString(),
         });
     });
@@ -600,6 +602,7 @@ module.exports = (client) => {
     app.use('/api', require('./routes/modulos.js')({ client, exigeArea, tieneAreaAcceso }));
     // 1.34.0: catálogo de funciones, economía, uso y canal «Cómo funciona» (todo del catálogo).
     app.use('/api', require('./routes/experiencia.js')({ client, exigeArea, idiomaPanel }));
+    app.use('/api', require('./routes/perfilBot.js')({ client, exigeArea }));
     // Acceso de soporte (1.23.0): solo con su clave o un propietario del bot.
     app.use('/api/soporte', (req, res, next) => (req.staff?.soporte || req.staff?.owner ? next() : res.status(403).json({ error: 'Solo el propietario del bot puede hacer esto.' })));
     app.use('/api', require('./routes/soporte.js')({ client }));
