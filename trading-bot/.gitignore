@@ -1,0 +1,8 @@
+# Nunca subas tus claves a GitHub
+.env
+# Archivos que genera el bot al funcionar (se recrean solos)
+datos/
+resultados/
+estado/
+__pycache__/
+.pytest_cache/

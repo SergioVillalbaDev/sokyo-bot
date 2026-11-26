@@ -1,0 +1,68 @@
+# ═════════════════════════════════════════════════════════════
+#  CONFIGURACIÓN DEL BOT
+#  Todo lo que el bot hace se decide aquí. Cambia un número,
+#  vuelve a lanzar el backtest y mira qué pasa: así se aprende.
+#  Cada opción está explicada en docs/03-estrategia.md y
+#  docs/04-gestion-del-riesgo.md
+# ═════════════════════════════════════════════════════════════
+
+mercado:
+  # Par que se opera: comprar BTC pagando con EUR.
+  simbolo: BTC/EUR
+  # Duración de cada vela. "4h" = cada vela resume 4 horas de precio.
+  # Otras opciones: 1h, 1d. Cuanto más corta, más operaciones y más comisiones.
+  temporalidad: 4h
+  # El testnet de Binance (dinero ficticio) casi no tiene pares en EUR,
+  # así que allí se usa BTC/USDT. USDT es un "dólar digital" (1 USDT ≈ 1 $).
+  simbolo_testnet: BTC/USDT
+
+estrategia:
+  # Cruce de medias móviles exponenciales (EMA).
+  # Compra cuando la rápida cruza POR ENCIMA de la lenta (empieza tendencia alcista)
+  # y vende cuando cruza POR DEBAJO (la tendencia se acaba).
+  ema_rapida: 20
+  ema_lenta: 50
+  # Filtro de tendencia de fondo: solo compra si el precio está por encima
+  # de la EMA de 200 velas (mercado alcista a largo plazo). 0 = desactivado.
+  ema_filtro: 200
+
+riesgo:
+  # Dinero con el que empieza el bot (en EUR).
+  capital_inicial: 20
+  # Cuánto puedes perder como máximo en UNA operación, en % del capital.
+  # 2 = si salta el stop-loss pierdes como mucho el 2 % (0,40 € de 20 €).
+  riesgo_por_operacion_pct: 2
+  # Stop-loss: si el precio cae este % desde la compra, se vende para cortar la pérdida.
+  stop_loss_pct: 5
+  # Tope de cuánto capital se mete en una sola compra (100 = todo).
+  max_posicion_pct: 100
+  # Mínimo que acepta el exchange por orden (Binance ≈ 5 €). Por debajo no se opera.
+  orden_minima_eur: 5
+
+  # --- Frenos de emergencia (circuit breakers) ---
+  # Si en un mismo día se pierde más de este %, el bot no abre nada más hasta mañana.
+  perdida_maxima_diaria_pct: 4
+  # Tras este número de operaciones perdedoras seguidas, el bot descansa.
+  racha_perdedora_maxima: 3
+  horas_de_pausa: 48
+  # Si el capital cae este % desde el inicio, el bot se APAGA y te avisa.
+  drawdown_maximo_pct: 30
+
+  # --- Tu regla: al duplicar, se aparta lo invertido ---
+  # Cuando el capital llega a capital_inicial × 2, el bot aparta
+  # los 20 € iniciales y sigue operando solo con las ganancias.
+  objetivo_multiplicador: 2
+
+costes:
+  # Comisión del exchange por cada compra o venta (Binance spot ≈ 0,1 %).
+  comision_pct: 0.1
+  # Deslizamiento (slippage): diferencia entre el precio que ves y el que te dan.
+  slippage_pct: 0.05
+
+ejecucion:
+  # Cada cuántos segundos mira el precio para vigilar el stop-loss (modos simular/testnet/real).
+  intervalo_revision_segundos: 60
+
+backtest:
+  # Desde qué fecha se descargan datos para probar la estrategia.
+  desde: "2020-01-01"
