@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.3.1.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.4.0.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -365,6 +365,15 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.4.0 **Premium claro y sin pagar para ganar** (test `test/premium240.test.js`): **Perfil del bot por servidor**
+  (`utils/perfilBot.js`, `api/routes/perfilBot.js`: `GET/PUT /api/config/:g/perfil-bot`, área config; panel Configuración →
+  `config-perfil-bot`, `PerfilBotView.jsx`, textos `perfilBot_v`): apodo gratis; foto, banner y «Sobre mí» de Pro (PATCH
+  `/guilds/:id/members/@me`), un cambio cada 2 min por servidor, `ServidorConfig.perfilBot` (interno) y `quitarSinPro` cada
+  hora (vuelve al de Sokyo si deja de ser Pro). **`/premium`** (`slash/premium.js`, módulo básico): plan del servidor, Free vs
+  Pro y la promesa «nada de pagar para ganar» (también en «Mi plan», `planes_v.promesa`, y en los precios de la web). **Copia
+  automática** (`utils/copiaAuto.js`): lanza `scripts/backup.js` una vez al día si no hay copia de <20 h (`BACKUP_AUTOMATICO=no`
+  la apaga); `/api/health` → `copia`. **Regla**: Pro nunca da oro, cofres, cartas ni ventajas a un jugador; lo de pago es del
+  servidor (marca, límites de gestión, IA, música 24/7, estadísticas, cosmética).
 - 2.3.1 **Invitar al bot** (`utils/invitar.js`, test `test/invitar.test.js`): `urlInvitar({ guildId, clientId })` (permisos
   `PERMISOS_INVITACION`, por defecto 8 como la web) y `ponerInstalacion(client)` al arrancar (`events/ready.js`): pone
   `install_params` + `integration_types_config['0']` para que el PERFIL del bot tenga «Añadir app» (no toca la instalación de

@@ -336,19 +336,19 @@ export default {
       subtitle: 'Cada servidor empieza con 7 días de Pro gratis. Quédate en Free para siempre o sube cuando despegues.',
       recommended: 'Recomendado',
       trialNote: '✨ Cada servidor nuevo recibe 7 días de Pro gratis, sin tarjeta.',
-      reassurance: 'Cancela cuando quieras, sin permanencia ni letra pequeña. Tus datos siempre son tuyos.',
+      reassurance: 'Cancela cuando quieras, sin permanencia ni letra pequeña. Tus datos siempre son tuyos. Y nada de pagar para ganar: en los juegos todos juegan igual.',
       tiers: {
         free: {
           name: 'Free', price: '0€', period: 'para siempre',
           desc: 'Perfecto para comunidades pequeñas que empiezan.',
           cta: 'Empezar gratis',
-          features: ['Tickets, moderación, bienvenidas y roles', 'Mascotas, cartas, combates y casino completos', 'Panel web + Mi cuenta para tus miembros', 'Niveles, música y pase de temporada', 'Tienda del servidor (3 productos)', 'Incluye la marca Sokyo'],
+          features: ['Tickets, moderación, bienvenidas y roles', 'Mascotas, cartas, combates y casino completos (sin pagar para ganar)', 'Panel web + Mi cuenta para tus miembros', 'Niveles, música y pase de temporada', 'Tienda del servidor (3 productos)', 'Incluye la marca Sokyo'],
         },
         pro: {
           name: 'Sokyo Pro', price: '7€', period: '/mes',
           desc: 'Para servidores que van en serio.',
           cta: 'Subir a Pro',
-          features: ['Todo lo del plan Free', 'Moderación con IA y seguridad al completo', 'Sin la marca Sokyo (marca blanca)', 'Tienda con 25 productos y 100 mascotas propias', 'Música 24/7 y filtros', 'Paneles, FAQs y anuncios ilimitados', 'Estadísticas, parte diario y transcripciones', 'Tarjetas animadas, temas premium y soporte prioritario'],
+          features: ['Todo lo del plan Free', '🎨 El bot con tu marca: su foto, banner y descripción en tu servidor', 'Moderación con IA y seguridad al completo', 'Sin la marca Sokyo (marca blanca)', 'Tienda con 25 productos y 100 mascotas propias', 'Música 24/7 y filtros', 'Paneles, FAQs y anuncios ilimitados', 'Estadísticas, parte diario y transcripciones', 'Tarjetas animadas, temas premium y soporte prioritario'],
         },
         agency: {
           name: 'Sokyo Agencia', price: '25€', period: '/mes',

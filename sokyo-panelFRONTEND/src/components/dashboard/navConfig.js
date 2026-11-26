@@ -18,7 +18,7 @@ import {
   BarChart3, Mail, ScrollText, Settings, FolderTree, Smile, KeyRound, Type, DatabaseBackup, Crown, Smartphone, CircleUserRound,
   Stethoscope, FileClock, Cake, ClipboardCheck, Star, Shield, MessageSquareHeart, Moon, Pin, Hash, Dices,
   Vote, Handshake, Trophy, Award, Laugh, PawPrint, Medal, Coins, Heart, LifeBuoy,
-  ShoppingBag,
+  ShoppingBag, Palette,
 } from 'lucide-react';
 
 export const navSections = [
@@ -162,6 +162,7 @@ export const navGroups = [
       { tab: 'config-canales', icon: FolderTree, area: 'config', kw: 'canales categorias crear canal voz texto foro channels categories' },
       { tab: 'config-expresiones', icon: Smile, area: 'config', kw: 'emojis stickers expresiones' },
       { tab: 'config-acceso', icon: KeyRound, area: 'config', kw: 'acceso permisos staff quien entra al panel roles del panel access permissions' },
+      { tab: 'config-perfil-bot', icon: Palette, area: 'config', premium: true, kw: 'perfil del bot foto avatar banner descripcion bio apodo nombre marca blanca personalizar bot profile picture avatar banner bio nickname branding white label' },
       { tab: 'config-textos', icon: Type, area: 'config', kw: 'comandos prefijo idioma textos marca blanca commands prefix language' },
       { tab: 'config-cambios', icon: FileClock, area: 'config', kw: 'historial de cambios quien cambio deshacer volver atras restaurar como estaba auditoria change history undo revert who changed' },
       { tab: 'seg-backup', icon: DatabaseBackup, area: 'config', premium: true, kw: 'copia de seguridad backup exportar importar' },

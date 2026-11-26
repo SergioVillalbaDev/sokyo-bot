@@ -79,6 +79,7 @@ const CARGAR_VISTA = {
   CrecPaginaView: () => import('./views/CrecPaginaView'),
   CrecDirectosView: () => import('./views/CrecDirectosView'),
   AppMovilView: () => import('./views/AppMovilView'),
+  PerfilBotView: () => import('./views/PerfilBotView'),
   MiCuentaView: () => import('./views/MiCuentaView'),
   DiagnosticoView: () => import('./views/DiagnosticoView'),
   CambiosView: () => import('./views/CambiosView'),
@@ -381,6 +382,7 @@ export default function Dashboard({ onExitToLanding, onLogout, onRelogin }) {
     if (activeTab === 'datos-analitica') return <V.AnaliticaView dash={dash} />;
     if (activeTab === 'datos-resumen') return <V.ResumenView dash={dash} />;
     if (activeTab === 'config-app') return <V.AppMovilView />;
+    if (activeTab === 'config-perfil-bot') return <V.PerfilBotView dash={dash} />;
     if (activeTab === 'config-diagnostico') return <V.DiagnosticoView dash={dash} />;
     if (activeTab === 'config-cambios') return <V.CambiosView dash={dash} />;
     if (activeTab === 'com-cumpleanos') return <V.CumpleanosView dash={dash} />;

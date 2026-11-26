@@ -6,6 +6,12 @@
 // Cada novedad: un texto (solo en español) o { es, en, tab } — `tab` es la
 // sección del panel donde está (navConfig.js), para el botón «Ver».
 const NOVEDADES = {
+    '2.4.0': [
+        { tab: 'config-perfil-bot', es: '🎨 **El bot con tu marca** (Pro): cambia la foto, el banner y la descripción de Sokyo solo en tu servidor, con vista previa como en Discord. El nombre se puede cambiar gratis. Panel → Configuración → Perfil del bot.', en: '🎨 **The bot with your brand** (Pro): change Sokyo’s picture, banner and description on your server only, with a Discord-style preview. The name can be changed for free. Panel → Settings → Bot profile.' },
+        { tab: 'cuenta-plan', es: '⭐ **`/premium`**: qué plan tiene el servidor, qué es gratis y qué añade Pro, en Discord. Y nuestra promesa, ahora escrita en todas partes: **nada de pagar para ganar**. Pro es del servidor; en los juegos todos juegan con las mismas reglas.', en: '⭐ **`/premium`**: what plan the server has, what’s free and what Pro adds, right in Discord. And our promise, now written everywhere: **no pay-to-win**. Pro belongs to the server; in the games everyone plays by the same rules.' },
+        { tab: 'inicio', es: '💾 **Copia de seguridad diaria automática** de todos los datos del bot, para que nada se pierda aunque falle el servidor.', en: '💾 **Automatic daily backup** of all the bot’s data, so nothing is lost even if the server fails.' },
+        { tab: 'inicio', es: '🧪 Repaso completo antes de abrir al público: 62 comandos y casi 600 botones probados sin un solo fallo, y los servidores reales revisados uno a uno.', en: '🧪 Full review before opening to the public: 62 commands and almost 600 buttons tested without a single error, and the real servers checked one by one.' },
+    ],
     '2.3.1': [
         { tab: 'inicio', es: '➕ **Añadir Sokyo es más fácil**: el perfil del bot en Discord ya tiene el botón **«Añadir app»**, hay un comando nuevo **`/invitar`** (también por privado) y el botón «Añadir a mi servidor» sale al mencionar al bot y en `/ayuda`.', en: '➕ **Adding Sokyo is easier**: the bot’s Discord profile now has the **“Add App”** button, there’s a new **`/invite`** command (also in DMs) and an “Add to my server” button when you mention the bot and in `/help`.' },
     ],

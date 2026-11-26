@@ -40,6 +40,15 @@ const ServidorConfigSchema = new mongoose.Schema({
     prefijo: { type: String, default: '!' },                                           // prefijo de comandos
     idioma: { type: String, enum: ['en', 'es'], default: 'en' },                       // idioma de los mensajes del bot en Discord
     ultimaVersionAnunciada: { type: String, default: null },                          // última versión avisada con "Bot actualizado"
+    // 2.4.0: el perfil del bot EN ESTE SERVIDOR (utils/perfilBot.js). El apodo vale en Free; foto, banner y
+    // descripción son de Pro y se quitan solos si el servidor deja de serlo. Lo lleva el bot: interno.
+    perfilBot: {
+        apodo: { type: String, default: null },
+        avatar: { type: Boolean, default: false },
+        banner: { type: Boolean, default: false },
+        bio: { type: String, default: null },
+        actualizado: { type: Date, default: null },
+    },
     panelCuenta: {                                                                     // mensaje fijo «Mi cuenta» (/panel-cuenta o el panel web)
         canalId: { type: String, default: null },
         mensajeId: { type: String, default: null },

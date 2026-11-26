@@ -50,6 +50,7 @@ const REGLAS = [
     // ---- Servidor y ajustes
     [ESCRIBIR, /^\/servidor\/(emojis|stickers)(\/|$)/, 'config'],
     [ESCRIBIR, /^\/config\/[^/]+\/modulos\/organizar-canales$/, 'config'],
+    [TODOS, /^\/config\/[^/]+\/perfil-bot$/, 'config'], // 2.4.0: perfil del bot en el servidor
     // ---- Plan y facturación
     [ESCRIBIR, /^\/billing\/(checkout|portal)$/, 'cuenta'],
 ];
