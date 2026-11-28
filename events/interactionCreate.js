@@ -338,8 +338,26 @@ module.exports = {
             }
         }
 
+        // 2.5.2: los botones de configurar del mensaje de entrada (idioma, publicar el panel de tickets) solo para quien
+        // gestiona ese servidor: ese mensaje también sale en un canal público (y con !setup), y cualquiera podía
+        // cambiar el idioma de todo el bot.
+        const puedeConfigurar = async (guildId) => {
+            const g = client.guilds.cache.get(guildId);
+            if (!g) return false;
+            if (g.ownerId === interaction.user.id || require('../utils/propietarios.js').OWNER_IDS.has(interaction.user.id)) return true;
+            const m = await g.members.fetch(interaction.user.id).catch(() => null);
+            return !!m?.permissions?.has(PermissionsBitField.Flags.ManageGuild);
+        };
+        const sinPermisoSetup = async (guildId) => {
+            if (await puedeConfigurar(guildId)) return false;
+            const cfgNo = await getConfigCached(guildId).catch(() => null);
+            await interaction.reply({ content: t(cfgNo, '🔒 Esto solo lo puede tocar quien gestiona el servidor.', '🔒 Only people who manage the server can use this.'), flags: 64 }).catch(() => {});
+            return true;
+        };
+
         if (interaction.isButton() && interaction.customId.startsWith('setup_lang:')) {
             const [, lang, guildId] = interaction.customId.split(':');
+            if (await sinPermisoSetup(guildId)) return;
             try {
                 const { construirBienvenida } = require('../utils/onboarding.js');
                 // El botón de idioma del asistente de bienvenida fija también el idioma
@@ -357,6 +375,7 @@ module.exports = {
 
         if (interaction.isButton() && interaction.customId.startsWith('setup_publicar:')) {
             const guildId = interaction.customId.split(':')[1];
+            if (await sinPermisoSetup(guildId)) return;
             const cfgPub = await getConfigCached(guildId).catch(() => null);
             const menu = new ChannelSelectMenuBuilder()
                 .setCustomId(`setup_canal:${guildId}`)
@@ -372,6 +391,7 @@ module.exports = {
 
         if (interaction.isChannelSelectMenu() && interaction.customId.startsWith('setup_canal:')) {
             const guildId = interaction.customId.split(':')[1];
+            if (await sinPermisoSetup(guildId)) return;
             const cfgCanal = await getConfigCached(guildId).catch(() => null);
             try {
                 await interaction.deferUpdate();
@@ -476,15 +496,21 @@ module.exports = {
 
                 const staffAvatar = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
 
-                if (!ticket.participantes) ticket.participantes = [];
-                if (!ticket.participantes.some(p => p.id === interaction.user.id)) {
-                    ticket.participantes.push({ id: interaction.user.id, username: interaction.user.username, avatar: staffAvatar, rol: 'Staff' });
+                // 2.5.2: se reserva de una vez (dos del staff pulsando a la vez ya no se lo quedan los dos).
+                const reservado = await Ticket.findOneAndUpdate(
+                    { _id: ticket._id, $or: [{ asignadoA: null }, { asignadoA: { $exists: false } }, { asignadoA: '' }] },
+                    { $set: { asignadoA: interaction.user.id, asignadoNombre: interaction.user.username, ultimaInteractStaff: new Date() } },
+                    { returnDocument: 'after' },
+                );
+                if (!reservado) {
+                    const ahora = await Ticket.findById(ticket._id).select('asignadoNombre').lean().catch(() => null);
+                    return await interaction.reply({ content: t(configStaff, `⚠️ Este ticket ya lo está atendiendo **${ahora?.asignadoNombre || '?'}**.`, `⚠️ This ticket is already being handled by **${ahora?.asignadoNombre || '?'}**.`), flags: 64 });
                 }
-
-                ticket.asignadoA = interaction.user.id;
-                ticket.asignadoNombre = interaction.user.username;
-                ticket.ultimaInteractStaff = new Date();
-                await ticket.save();
+                if (!(reservado.participantes || []).some((p) => p.id === interaction.user.id)) {
+                    await Ticket.updateOne({ _id: ticket._id, 'participantes.id': { $ne: interaction.user.id } }, { $push: { participantes: { id: interaction.user.id, username: interaction.user.username, avatar: staffAvatar, rol: 'Staff' } } });
+                }
+                const ticketFinal = await Ticket.findById(ticket._id);
+                Object.assign(ticket, { asignadoA: ticketFinal.asignadoA, asignadoNombre: ticketFinal.asignadoNombre, participantes: ticketFinal.participantes });
 
                 await registrarLogTicket(client, ticket, '🙋 Ticket claimed', '#3498db', interaction.user.username);
 
@@ -538,11 +564,13 @@ module.exports = {
             }
 
             if (interaction.customId.startsWith('csat_')) {
-                const cfgCsat = await getConfigCached(interaction.guildId).catch(() => null);
                 const partes = interaction.customId.split('_');
-                const valoracion = parseInt(partes[1]);
+                const valoracion = Math.min(5, Math.max(1, parseInt(partes[1], 10) || 0));
+                // Llega por privado (sin servidor): el idioma es el del servidor del ticket.
+                let cfgCsat = await getConfigCached(interaction.guildId).catch(() => null);
                 try {
                     const ticket = await Ticket.findOneAndUpdate({ canalId: partes[2] }, { valoracionCSAT: valoracion }, { returnDocument: 'after' });
+                    if (!cfgCsat && ticket?.guildId) cfgCsat = await getConfigCached(ticket.guildId).catch(() => null);
                     if (ticket) await registrarLogTicket(client, ticket, `⭐ Ticket rated (${valoracion}/5)`, '#f1c40f', ticket.creadorNombre);
                     const embedGracias = new EmbedBuilder().setColor('#2ecc71').setTitle(t(cfgCsat, '💖 ¡Gracias por tu opinión!', '💖 Thanks for your feedback!')).setDescription(t(cfgCsat, `Has valorado el soporte recibido con **${valoracion} estrellas**.`, `You rated the support you received with **${valoracion} stars**.`));
                     await interaction.update({ embeds: [embedGracias], components: [] });
@@ -557,7 +585,9 @@ module.exports = {
             const canal = interaction.channel;
 
             try {
-                await canal.permissionOverwrites.edit(userIdToAdd, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
+                // `type: 1` (miembro): sin él, discord.js lo busca en caché y falla si no está.
+                const okPermisos = await canal.permissionOverwrites.edit(userIdToAdd, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true }, { type: 1 }).then(() => true).catch((e) => { console.warn('Añadir al ticket:', e.message); return false; });
+                if (!okPermisos) return await interaction.update({ content: t(cfgAddSel, '❌ No he podido darle acceso al ticket (me falta el permiso «Gestionar canales» o «Gestionar permisos» aquí).', '❌ I couldn’t give them access to the ticket (I’m missing “Manage channels” or “Manage permissions” here).'), components: [] }).catch(() => {});
                 await interaction.update({ content: t(cfgAddSel, '✅ Permisos concedidos.', '✅ Permissions granted.'), components: [] });
                 await canal.send({ content: t(cfgAddSel, `👋 <@${userIdToAdd}> se ha añadido a la conversación por <@${interaction.user.id}>.`, `👋 <@${userIdToAdd}> was added to the conversation by <@${interaction.user.id}>.`) });
 
@@ -572,7 +602,10 @@ module.exports = {
                         await ticket.save();
                     }
                 }
-            } catch (error) { console.error(error); }
+            } catch (error) {
+                console.error(error);
+                if (!interaction.replied && !interaction.deferred) await interaction.reply({ content: t(cfgAddSel, '❌ Algo ha ido mal.', '❌ Something went wrong.'), flags: 64 }).catch(() => {});
+            }
         }
 
         // --- MENÚ DESPLEGABLE A MODAL ---

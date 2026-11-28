@@ -140,18 +140,19 @@ async function crearCanalTemporalInterno(member, gen, vcfg) {
     // Permisos: el dueño manda en su canal; @everyone según los ajustes/preferencias.
     const overwrites = [
         {
-            id: member.id,
+            id: member.id, type: 1,
             allow: [Flags.Connect, Flags.ViewChannel, Flags.Speak, Flags.Stream, Flags.MoveMembers],
         },
-        { id: me.id, allow: [Flags.Connect, Flags.ViewChannel, Flags.ManageChannels, Flags.MoveMembers] },
+        { id: me.id, type: 1, allow: [Flags.Connect, Flags.ViewChannel, Flags.ManageChannels, Flags.MoveMembers] },
     ];
     const denyEveryone = [];
     if (bloqueado) denyEveryone.push(Flags.Connect);
     if (oculto) denyEveryone.push(Flags.ViewChannel);
-    if (denyEveryone.length) overwrites.push({ id: guild.id, deny: denyEveryone });
-    // PRO: invitados y vetados recordados del usuario.
-    for (const uid of (pref?.permitidos || [])) overwrites.push({ id: uid, allow: [Flags.Connect, Flags.ViewChannel] });
-    for (const uid of (pref?.bloqueados || [])) overwrites.push({ id: uid, deny: [Flags.Connect] });
+    if (denyEveryone.length) overwrites.push({ id: guild.id, type: 0, deny: denyEveryone });
+    // PRO: invitados y vetados recordados del usuario. Cada permiso lleva `type` (1 = miembro): sin él, discord.js
+    // busca a la persona en caché y, si no está, Discord no crea la sala.
+    for (const uid of (pref?.permitidos || [])) overwrites.push({ id: uid, type: 1, allow: [Flags.Connect, Flags.ViewChannel] });
+    for (const uid of (pref?.bloqueados || [])) overwrites.push({ id: uid, type: 1, deny: [Flags.Connect] });
 
     const canal = await guild.channels.create({
         name: nombre,
@@ -431,9 +432,12 @@ async function reclamar(interaction) {
     const duenoPresente = ctx.canal.members.has(ctx.doc.ownerId);
     if (duenoPresente && !ctx.esAdmin) return reply(interaction, t(cfg, '⛔ No puedes reclamarlo: el dueño sigue dentro.', '⛔ You can’t claim it: the owner is still inside.'));
 
+    const anterior = ctx.doc.ownerId;
     await ctx.canal.permissionOverwrites.edit(interaction.member.id, {
         Connect: true, ViewChannel: true, Speak: true, MoveMembers: true,
-    }).catch(() => {});
+    }, { type: 1 }).catch(() => {});
+    // El dueño de antes ya no puede mover ni echar a nadie (sigue pudiendo entrar).
+    if (anterior && anterior !== interaction.member.id) await ctx.canal.permissionOverwrites.edit(anterior, { MoveMembers: null, Stream: null }, { type: 1 }).catch(() => {});
     ctx.doc.ownerId = interaction.member.id; await ctx.doc.save();
     return reply(interaction, t(cfg, '👑 ¡Ahora eres el dueño de este canal!', '👑 You’re now the owner of this channel!'));
 }
@@ -496,9 +500,14 @@ async function manejarSelectUsuario(interaction) {
     const ctx = await contextoMiembro(interaction);
     if (ctx.error) return interaction.update({ content: ctx.error, components: [] }).catch(() => {});
     const objetivoId = interaction.values[0];
+    // Un bot no puede ser dueño de la sala, y a Sokyo no se le echa (perdería el control de la sala).
+    const objetivo = interaction.users?.get?.(objetivoId) || interaction.client.users.cache.get(objetivoId);
+    if (objetivoId === interaction.client.user.id || (objetivo?.bot && accion === 'transferir')) {
+        return interaction.update({ content: t(cfg, '🤖 Elige a una persona (no un bot).', '🤖 Pick a person (not a bot).'), components: [] }).catch(() => {});
+    }
 
     if (accion === 'invitar') {
-        await ctx.canal.permissionOverwrites.edit(objetivoId, { Connect: true, ViewChannel: true }).catch(() => {});
+        await ctx.canal.permissionOverwrites.edit(objetivoId, { Connect: true, ViewChannel: true }, { type: 1 }).catch(() => {});
         if (!ctx.doc.permitidos.includes(objetivoId)) ctx.doc.permitidos.push(objetivoId);
         ctx.doc.bloqueados = ctx.doc.bloqueados.filter((id) => id !== objetivoId);
         await ctx.doc.save();
@@ -507,7 +516,7 @@ async function manejarSelectUsuario(interaction) {
     }
     if (accion === 'expulsar') {
         if (objetivoId === ctx.doc.ownerId) return interaction.update({ content: t(cfg, '⚠️ No puedes expulsarte a ti mismo.', '⚠️ You can’t kick yourself.'), components: [] }).catch(() => {});
-        await ctx.canal.permissionOverwrites.edit(objetivoId, { Connect: false }).catch(() => {});
+        await ctx.canal.permissionOverwrites.edit(objetivoId, { Connect: false }, { type: 1 }).catch(() => {});
         // Si está dentro, desconectarlo.
         const miembro = interaction.guild.members.cache.get(objetivoId);
         if (miembro?.voice?.channelId === ctx.canal.id) await miembro.voice.disconnect().catch(() => {});
@@ -519,9 +528,11 @@ async function manejarSelectUsuario(interaction) {
     }
     if (accion === 'transferir') {
         if (objetivoId === ctx.doc.ownerId) return interaction.update({ content: t(cfg, 'ℹ️ Ya es el dueño.', 'ℹ️ They’re already the owner.'), components: [] }).catch(() => {});
+        const anterior = ctx.doc.ownerId;
         await ctx.canal.permissionOverwrites.edit(objetivoId, {
             Connect: true, ViewChannel: true, Speak: true, MoveMembers: true,
-        }).catch(() => {});
+        }, { type: 1 }).catch(() => {});
+        if (anterior) await ctx.canal.permissionOverwrites.edit(anterior, { MoveMembers: null, Stream: null }, { type: 1 }).catch(() => {});
         ctx.doc.ownerId = objetivoId; await ctx.doc.save();
         return interaction.update({ content: t(cfg, `🔄 Le has cedido el canal a <@${objetivoId}>.`, `🔄 You handed the channel over to <@${objetivoId}>.`), components: [] }).catch(() => {});
     }

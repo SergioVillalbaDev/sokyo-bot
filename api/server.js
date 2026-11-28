@@ -146,7 +146,10 @@ module.exports = (client) => {
         try {
             await billing.procesarEvento(event, client);
         } catch (e) {
+            // 2.5.2: un fallo al guardar (la base de datos no responde un momento…) devuelve 500 para que Stripe lo
+            // reintente; antes se contestaba «recibido» y el pago se quedaba sin activar. Cada evento se puede repetir.
             console.error('🔴 Error procesando webhook de Stripe:', e.message);
+            return res.status(500).json({ received: false });
         }
         res.json({ received: true });
     });
@@ -1861,7 +1864,8 @@ app.get('/api/stats/uso', async (req, res) => {
                 const premiumHasta = (Number.isFinite(dias) && dias > 0)
                     ? new Date(Date.now() + dias * 24 * 60 * 60 * 1000)
                     : null; // null = de por vida
-                await billing.activarPlan(guildId, { plan, premiumHasta, cancelaAlFinal: false });
+                // De por vida: sin suscripción guardada (si no, cancelarla en Stripe le quitaría el plan).
+                await billing.activarPlan(guildId, { plan, premiumHasta, cancelaAlFinal: false, ...(premiumHasta === null ? { stripeSubscriptionId: null } : {}) });
             }
             const config = await ServidorConfig.findOne({ guildId });
             res.json({ success: true, config });
@@ -2875,6 +2879,7 @@ app.get('/api/stats/uso', async (req, res) => {
                 const fecha = new Date(b.fechaEnvio);
                 if (isNaN(fecha.getTime()) || fecha.getTime() < Date.now() - 60000) return res.status(400).json({ error: 'La fecha debe ser futura' });
                 doc.fechaEnvio = fecha;
+                doc.diaMes = null; // el día del mes de los mensuales sale de la fecha nueva
             }
             if (b.repetir !== undefined) doc.repetir = ['no', 'diario', 'semanal', 'mensual'].includes(b.repetir) ? b.repetir : 'no';
             if (b.contenido !== undefined || b.embed !== undefined) {
@@ -3130,8 +3135,11 @@ app.get('/api/stats/uso', async (req, res) => {
             );
             accesoStaff.delete(userId); // que se note ya, sin esperar a la caché
             await require('../utils/accesoPanel.js').alertaSeguridad(client, guild.id, {
-                accion: '🔑 Acceso al panel dado', usuario: miembro.user.username,
-                detalles: `<@${userId}> puede entrar al panel (${areas.join(', ')})${b.moderar ? ' y moderar' : ''}${expiraEn ? ` hasta <t:${Math.floor(expiraEn.getTime() / 1000)}:f>` : ' sin fecha de fin'}. Lo dio ${nombreStaff(req)}.`,
+                accion: ['🔑 Acceso al panel dado', '🔑 Panel access given'], usuario: miembro.user.username,
+                detalles: [
+                    `<@${userId}> puede entrar al panel (${areas.join(', ')})${b.moderar ? ' y moderar' : ''}${expiraEn ? ` hasta <t:${Math.floor(expiraEn.getTime() / 1000)}:f>` : ' sin fecha de fin'}. Lo dio ${nombreStaff(req)}.`,
+                    `<@${userId}> can open the panel (${areas.join(', ')})${b.moderar ? ' and moderate' : ''}${expiraEn ? ` until <t:${Math.floor(expiraEn.getTime() / 1000)}:f>` : ' with no end date'}. Given by ${nombreStaff(req)}.`,
+                ],
                 color: '#22c55e',
             });
             res.json({ success: true });
@@ -3150,8 +3158,8 @@ app.get('/api/stats/uso', async (req, res) => {
             accesoStaff.delete(userId);
             const m = guild.members.cache.get(userId);
             await require('../utils/accesoPanel.js').alertaSeguridad(client, guild.id, {
-                accion: '🚫 Acceso al panel retirado', usuario: m ? m.user.username : userId,
-                detalles: `<@${userId}> ya no puede entrar al panel con el acceso que tenía. Lo quitó ${nombreStaff(req)}.`, color: '#ef4444',
+                accion: ['🚫 Acceso al panel retirado', '🚫 Panel access removed'], usuario: m ? m.user.username : userId,
+                detalles: [`<@${userId}> ya no puede entrar al panel con el acceso que tenía. Lo quitó ${nombreStaff(req)}.`, `<@${userId}> can no longer open the panel with the access they had. Removed by ${nombreStaff(req)}.`], color: '#ef4444',
             });
             res.json({ success: true });
         } catch (error) {
@@ -3182,11 +3190,13 @@ app.get('/api/stats/uso', async (req, res) => {
             const nombres = (ids) => (ids || []).map((id) => guildA?.roles.cache.get(id)?.name || id).join(', ') || '—';
             const igual = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
             const cambiado = [];
-            if (cambios.rolesPanelAcceso && !igual(antes?.rolesPanelAcceso, cambios.rolesPanelAcceso)) cambiado.push(`Entran al panel: ${nombres(cambios.rolesPanelAcceso)}`);
-            if (cambios.rolesModeracion && !igual(antes?.rolesModeracion, cambios.rolesModeracion)) cambiado.push(`Moderan: ${nombres(cambios.rolesModeracion)}`);
+            const cambiadoEn = [];
+            if (cambios.rolesPanelAcceso && !igual(antes?.rolesPanelAcceso, cambios.rolesPanelAcceso)) { cambiado.push(`Entran al panel: ${nombres(cambios.rolesPanelAcceso)}`); cambiadoEn.push(`Can open the panel: ${nombres(cambios.rolesPanelAcceso)}`); }
+            if (cambios.rolesModeracion && !igual(antes?.rolesModeracion, cambios.rolesModeracion)) { cambiado.push(`Moderan: ${nombres(cambios.rolesModeracion)}`); cambiadoEn.push(`Moderate: ${nombres(cambios.rolesModeracion)}`); }
             if (cambiado.length) {
                 await require('../utils/accesoPanel.js').alertaSeguridad(client, req.params.guildId, {
-                    accion: '🛡️ Permisos del panel cambiados', usuario: nombreStaff(req), detalles: `${cambiado.join('\n')}\nLo cambió ${nombreStaff(req)}.`,
+                    accion: ['🛡️ Permisos del panel cambiados', '🛡️ Panel permissions changed'], usuario: nombreStaff(req),
+                    detalles: [`${cambiado.join('\n')}\nLo cambió ${nombreStaff(req)}.`, `${cambiadoEn.join('\n')}\nChanged by ${nombreStaff(req)}.`],
                 });
             }
             res.json({ success: true, config });

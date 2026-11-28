@@ -101,28 +101,26 @@ async function manejarVotoEncuesta(interaction) {
         if (!enc.opciones[idx]) return interaction.reply({ content: t(idioma, '❌ Opción no válida.', '❌ Invalid option.'), flags: 64 });
         const uid = interaction.user.id;
 
-        const yaEnEsta = enc.opciones[idx].votantes.includes(uid);
-        if (yaEnEsta) {
-            // Quitar el voto (toggle).
-            enc.opciones[idx].votantes = enc.opciones[idx].votantes.filter((v) => v !== uid);
-            enc.opciones[idx].votos = Math.max(0, enc.opciones[idx].votos - 1);
-        } else {
-            if (!enc.multiple) {
-                // Voto único: quitar de cualquier otra opción.
-                enc.opciones.forEach((o) => {
-                    if (o.votantes.includes(uid)) {
-                        o.votantes = o.votantes.filter((v) => v !== uid);
-                        o.votos = Math.max(0, o.votos - 1);
-                    }
-                });
-            }
-            enc.opciones[idx].votantes.push(uid);
-            enc.opciones[idx].votos += 1;
-        }
-        await enc.save();
+        // 2.5.2: el voto se cambia de una vez en la base de datos (antes se leía, se cambiaba y se guardaba todo:
+        // con mucha gente votando a la vez se perdían votos o salía «Error al votar»). Pulsar tu opción la quita; en
+        // las de un solo voto, votar otra quita la anterior. Los votos son siempre los votantes de cada opción.
+        const sinMi = (arr) => ({ $filter: { input: { $ifNull: [arr, []] }, cond: { $ne: ['$$this', uid] } } });
+        const nuevas = { $map: { input: { $range: [0, { $size: '$opciones' }] }, as: 'i', in: { $let: {
+            vars: { o: { $arrayElemAt: ['$opciones', '$$i'] } },
+            in: { $let: {
+                vars: { lista: { $cond: [
+                    { $eq: ['$$i', idx] },
+                    { $cond: [{ $in: [uid, { $ifNull: ['$$o.votantes', []] }] }, sinMi('$$o.votantes'), { $concatArrays: [sinMi('$$o.votantes'), [uid]] }] },
+                    { $cond: ['$multiple', { $ifNull: ['$$o.votantes', []] }, sinMi('$$o.votantes')] },
+                ] } },
+                in: { $mergeObjects: ['$$o', { votantes: '$$lista', votos: { $size: '$$lista' } }] },
+            } },
+        } } } };
+        const nueva = await Encuesta.findOneAndUpdate({ _id: enc._id, activa: true }, [{ $set: { opciones: nuevas } }], { returnDocument: 'after', updatePipeline: true });
+        if (!nueva) return interaction.reply({ content: t(idioma, '⏹️ Esta encuesta ya no está activa.', '⏹️ This poll is no longer active.'), flags: 64 });
 
-        const color = await colorDe(enc.guildId);
-        await interaction.update({ embeds: [construirEmbedEncuesta(enc, color, false, idioma)], components: filasEncuesta(enc) }).catch(() => {});
+        const color = await colorDe(nueva.guildId);
+        await interaction.update({ embeds: [construirEmbedEncuesta(nueva, color, false, idioma)], components: filasEncuesta(nueva) }).catch(() => {});
     } catch (e) {
         console.error('Voto encuesta:', e.message);
         if (!interaction.replied) interaction.reply({ content: t(idioma, '❌ Error al votar.', '❌ Error voting.'), flags: 64 }).catch(() => {});
@@ -216,9 +214,9 @@ async function manejarEntradaSorteo(interaction) {
         const uid = interaction.user.id;
 
         if (s.participantes.includes(uid)) {
-            s.participantes = s.participantes.filter((p) => p !== uid);
-            await s.save();
-            await actualizarMensajeSorteo(interaction.client, s).catch(() => {});
+            // De una vez (2.5.2): dos clics a la vez no pueden dejarte dentro dos veces ni pisar a otros.
+            const r = await Sorteo.findOneAndUpdate({ _id: s._id, activo: true }, { $pull: { participantes: uid } }, { returnDocument: 'after' });
+            if (r) await actualizarMensajeSorteo(interaction.client, r).catch(() => {});
             return interaction.reply({ content: t(idioma, '➖ Has salido del sorteo.', '➖ You left the giveaway.'), flags: 64 });
         }
 
@@ -242,9 +240,9 @@ async function manejarEntradaSorteo(interaction) {
             }
         }
 
-        s.participantes.push(uid);
-        await s.save();
-        await actualizarMensajeSorteo(interaction.client, s).catch(() => {});
+        const dentro = await Sorteo.findOneAndUpdate({ _id: s._id, activo: true }, { $addToSet: { participantes: uid } }, { returnDocument: 'after' });
+        if (!dentro) return interaction.reply({ content: t(idioma, '⏹️ Este sorteo ya ha terminado.', '⏹️ This giveaway has already ended.'), flags: 64 });
+        await actualizarMensajeSorteo(interaction.client, dentro).catch(() => {});
         let extra = '';
         if (s.entradasPorInvitacion > 0) {
             const papeletas = await papeletasDe(interaction.guild, s, uid);
@@ -291,7 +289,8 @@ async function papeletasDe(guild, s, uid, miembro = undefined, invitadas = undef
 // Elige `n` ganadores al azar PONDERADO por peso (sin repetir). `pesos` es un
 // mapa userId -> nº de "papeletas" (1 por defecto, más si tiene rol multiplicador).
 function elegirPonderado(lista, n, pesos) {
-    const pool = lista.map((id) => ({ id, peso: Math.max(1, pesos?.[id] || 1) }));
+    // Cada persona una vez (un sorteo viejo podía tener a alguien repetido por un doble clic).
+    const pool = [...new Set(lista)].map((id) => ({ id, peso: Math.max(1, pesos?.[id] || 1) }));
     const out = [];
     while (out.length < n && pool.length) {
         const total = pool.reduce((s, p) => s + p.peso, 0);
@@ -643,17 +642,16 @@ async function manejarVotoSugerencia(interaction) {
         const uid = interaction.user.id;
         const positivo = tipo === 'sug_up';
 
-        // Quitar voto previo del lado contrario.
-        if (positivo) {
-            if (sug.votantes_neg.includes(uid)) { sug.votantes_neg = sug.votantes_neg.filter((v) => v !== uid); sug.votos_neg = Math.max(0, sug.votos_neg - 1); }
-            if (sug.votantes_pos.includes(uid)) { sug.votantes_pos = sug.votantes_pos.filter((v) => v !== uid); sug.votos_pos = Math.max(0, sug.votos_pos - 1); }
-            else { sug.votantes_pos.push(uid); sug.votos_pos += 1; }
-        } else {
-            if (sug.votantes_pos.includes(uid)) { sug.votantes_pos = sug.votantes_pos.filter((v) => v !== uid); sug.votos_pos = Math.max(0, sug.votos_pos - 1); }
-            if (sug.votantes_neg.includes(uid)) { sug.votantes_neg = sug.votantes_neg.filter((v) => v !== uid); sug.votos_neg = Math.max(0, sug.votos_neg - 1); }
-            else { sug.votantes_neg.push(uid); sug.votos_neg += 1; }
-        }
-        await sug.save();
+        // 2.5.2: de una vez en la base de datos (antes se pisaban los votos de quien votaba a la vez). Pulsar tu lado
+        // lo quita; pulsar el otro te cambia de lado.
+        const sinMi = (arr) => ({ $filter: { input: { $ifNull: [arr, []] }, cond: { $ne: ['$$this', uid] } } });
+        const conmuta = (arr) => ({ $cond: [{ $in: [uid, { $ifNull: [arr, []] }] }, sinMi(arr), { $concatArrays: [sinMi(arr), [uid]] }] });
+        const nueva = await Sugerencia.findOneAndUpdate({ _id: sug._id }, [
+            { $set: { votantes_pos: positivo ? conmuta('$votantes_pos') : sinMi('$votantes_pos'), votantes_neg: positivo ? sinMi('$votantes_neg') : conmuta('$votantes_neg') } },
+            { $set: { votos_pos: { $size: '$votantes_pos' }, votos_neg: { $size: '$votantes_neg' } } },
+        ], { returnDocument: 'after', updatePipeline: true });
+        if (!nueva) return interaction.reply({ content: t(idioma, '❌ Esta sugerencia ya no existe.', '❌ This suggestion no longer exists.'), flags: 64 });
+        Object.assign(sug, { votantes_pos: nueva.votantes_pos, votantes_neg: nueva.votantes_neg, votos_pos: nueva.votos_pos, votos_neg: nueva.votos_neg });
         const color = await colorDe(sug.guildId);
         await interaction.update({ embeds: [construirEmbedSugerencia(sug, color, idioma)], components: [filaSugerencia(sug)] }).catch(() => {});
     } catch (e) {

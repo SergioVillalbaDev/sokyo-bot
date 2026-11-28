@@ -38,7 +38,7 @@ async function avisarCambioDeAcceso(antes, despues, client) {
     const ahora = acceso.calcularAcceso(acceso.datosMiembro(despues, { ownerIds: OWNER_IDS }), cfg, c);
     if (ya.acceso === ahora.acceso) return;
     await acceso.alertaSeguridad(client, despues.guild.id, ahora.acceso
-        ? { accion: '🔓 Alguien nuevo puede entrar al panel', usuario: despues.user.username, detalles: `<@${despues.id}> ahora puede entrar al panel de Sokyo por sus roles de Discord.`, color: '#f59e0b' }
-        : { accion: '🔒 Alguien ya no puede entrar al panel', usuario: despues.user.username, detalles: `<@${despues.id}> ha perdido el acceso al panel de Sokyo (le han quitado un rol o un permiso).`, color: '#94a3b8' });
+        ? { accion: t(cfg, '🔓 Alguien nuevo puede entrar al panel', '🔓 Someone new can open the panel'), usuario: despues.user.username, detalles: t(cfg, `<@${despues.id}> ahora puede entrar al panel de Sokyo por sus roles de Discord.`, `<@${despues.id}> can now open the Sokyo panel because of their Discord roles.`), color: '#f59e0b' }
+        : { accion: t(cfg, '🔒 Alguien ya no puede entrar al panel', '🔒 Someone can no longer open the panel'), usuario: despues.user.username, detalles: t(cfg, `<@${despues.id}> ha perdido el acceso al panel de Sokyo (le han quitado un rol o un permiso).`, `<@${despues.id}> lost access to the Sokyo panel (a role or permission was removed).`), color: '#94a3b8' });
 }
 

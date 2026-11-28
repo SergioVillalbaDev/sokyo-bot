@@ -2162,6 +2162,7 @@ export default {
       dmTitle: 'Notify the user by DM', dmHint: 'They get a private message with the type, duration and reason of the sanction.',
     },
     tickets_v: {
+      untitled: 'Untitled ticket',
       openedOn: 'Opened {{fecha}}', closedOn: 'closed {{fecha}}',
       sinResponder_one: '{{count}} ticket is waiting for a staff reply', sinResponder_other: '{{count}} tickets are waiting for a staff reply', verSolo: 'Show only those', verTodos: 'Show all', esperando: 'Waiting for a reply · {{cuando}}',
       empty: 'No active tickets', emptyDesc: 'When a user opens a ticket in Discord, it will appear here.',

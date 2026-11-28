@@ -7,7 +7,8 @@ const { t } = require('../utils/i18n.js');
 module.exports = {
     name: Events.MessageDelete,
     async execute(message, client) {
-        if (message.author?.bot) return;
+        // Por privado no hay registro de servidor (antes se guardaba el mensaje privado en los logs, sin servidor).
+        if (!message.guildId || message.author?.bot) return;
         // Lo borra el bot al convertirlo en confesión: apuntarlo diría quién la escribió.
         if (require('../utils/confesiones.js').esBorradoPorConfesion(message.id)) return;
         try {

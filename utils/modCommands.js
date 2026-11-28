@@ -54,8 +54,8 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
         const extra = duracionMin > 0 ? t(cfg, ` durante ${duracionTexto(duracionMin, cfg)}`, ` for ${duracionTexto(duracionMin, cfg)}`) : '';
         return message.reply({
             content: t(cfg,
-                `⚠️ ¿Seguro que quieres **${etiqueta}** a **${target.username}**${extra}?${motivo ? `\nMotivo: ${motivo}` : ''}`,
-                `⚠️ Are you sure you want to **${etiqueta}** **${target.username}**${extra}?${motivo ? `\nReason: ${motivo}` : ''}`),
+                `⚠️ ¿Seguro que quieres **${etiqueta}** a **${target.username}**${extra}?${motivo ? `\nMotivo: ${motivo.slice(0, 1500)}` : ''}`,
+                `⚠️ Are you sure you want to **${etiqueta}** **${target.username}**${extra}?${motivo ? `\nReason: ${motivo.slice(0, 1500)}` : ''}`),
             components: [new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`conf:${id}`).setStyle(ButtonStyle.Danger).setLabel(t(cfg, `Sí, ${etiqueta}`, `Yes, ${etiqueta}`)),
                 new ButtonBuilder().setCustomId(`conf_no:${id}`).setStyle(ButtonStyle.Secondary).setLabel(t(cfg, 'Cancelar', 'Cancel')),

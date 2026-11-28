@@ -66,6 +66,37 @@ describe('pagos con Stripe', () => {
         assert.strictEqual(guardado.plan, 'free');
     });
 
+    it('2.5.2: cancelar una suscripción solo quita el plan si es la de ese servidor (el de por vida no se toca)', async () => {
+        let filtro = null;
+        const antes = ServidorConfig.findOneAndUpdate;
+        ServidorConfig.findOneAndUpdate = async (f, upd) => { filtro = f; guardado = { ...(guardado || {}), ...upd.$set }; return null; };
+        try {
+            await billing.procesarEvento({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_vieja', metadata: { guildId: 'G1' } } } });
+            assert.deepStrictEqual(filtro.$or[0], { stripeSubscriptionId: 'sub_vieja' });
+            assert.deepStrictEqual(filtro.$or[1], { stripeSubscriptionId: null, premiumHasta: { $ne: null } }, 'de por vida (sin fecha) queda fuera');
+        } finally { ServidorConfig.findOneAndUpdate = antes; }
+    });
+
+    it('2.5.2: renovar una suscripción vieja no le pone fecha a un plan de por vida', async () => {
+        const antes = { fou: ServidorConfig.findOneAndUpdate, ex: ServidorConfig.exists };
+        const llamadas = [];
+        ServidorConfig.findOneAndUpdate = async (f, upd) => { llamadas.push(f); return null; }; // el filtro no encaja: es de por vida
+        ServidorConfig.exists = async () => ({ _id: 'x' });
+        try {
+            await billing.procesarEvento({ type: 'customer.subscription.updated', data: { object: { id: 'sub_vieja', status: 'active', customer: 'cus_1', items: { data: [{ current_period_end: fin }] }, metadata: { guildId: 'G1', plan: 'pro' } } } });
+            assert.strictEqual(llamadas.length, 1, 'no se vuelve a guardar sin el filtro');
+            assert.deepStrictEqual(llamadas[0].$nor, [{ esPremium: true, premiumHasta: null, stripeSubscriptionId: null }]);
+        } finally { ServidorConfig.findOneAndUpdate = antes.fou; ServidorConfig.exists = antes.ex; }
+    });
+
+    it('2.5.2: un pago que aún no se ha cobrado no activa nada', async () => {
+        guardado = null;
+        await billing.procesarEvento({ type: 'checkout.session.completed', data: { object: { mode: 'payment', payment_status: 'unpaid', customer: 'cus_1', metadata: { guildId: 'G1', plan: 'pro' } } } });
+        assert.strictEqual(guardado, null);
+        await billing.procesarEvento({ type: 'checkout.session.async_payment_succeeded', data: { object: { mode: 'payment', payment_status: 'paid', customer: 'cus_1', metadata: { guildId: 'G1', plan: 'pro' } } } });
+        assert.strictEqual(guardado.esPremium, true);
+    });
+
     it('finPeriodo lee la fecha de la suscripción o de sus líneas', () => {
         assert.strictEqual(billing.finPeriodo({ current_period_end: 100 }).getTime(), 100000);
         assert.strictEqual(billing.finPeriodo({ items: { data: [{ current_period_end: 50 }, { current_period_end: 200 }] } }).getTime(), 200000);

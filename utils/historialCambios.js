@@ -128,8 +128,10 @@ function middlewareHistorial() {
 // Lista para la sección «Historial de cambios».
 async function listarCambios(guildId, { limite = 50, antesDe = null } = {}) {
     const filtro = { guildId };
-    if (antesDe) filtro.fecha = { $lt: new Date(antesDe) };
-    return CambioPanel.find(filtro).sort({ fecha: -1 }).limit(Math.min(100, Math.max(1, limite))).lean();
+    // Una fecha que no vale (?antes=abc) se ignora (antes daba un error 500).
+    const antes = antesDe ? new Date(antesDe) : null;
+    if (antes && !Number.isNaN(antes.getTime())) filtro.fecha = { $lt: antes };
+    return CambioPanel.find(filtro).sort({ fecha: -1 }).limit(Math.min(100, Math.max(1, Math.floor(Number(limite)) || 50))).lean();
 }
 
 // Vuelve a dejar los campos de un cambio como estaban. Si alguno ha vuelto a

@@ -39,6 +39,9 @@ function duracionTexto(min, cfg) {
 
 // Aplica una sanción completa. `tipo` puede ser un TipoSancion o un objeto suelto.
 // Devuelve el documento Sancion creado.
+// El motivo que ve Discord (registro de auditoría): como mucho 512 letras o rechaza la sanción entera.
+const razonDiscord = (x) => (x ? String(x).slice(0, 500) : undefined);
+
 async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', pruebas = [], moderador = null }) {
     // Cargamos la config primero (solo necesitamos el guildId) para poder
     // traducir también los mensajes de error que vienen a continuación.
@@ -82,13 +85,13 @@ async function aplicarSancion(client, { guildId, usuarioId, tipo, motivo = '', p
     if (tipo.accion === 'timeout') {
         if (!member) throw new Error(t(cfg, 'El usuario no está en el servidor', 'The user is not in the server'));
         const ms = Math.min((tipo.duracionMin || 0) * 60000 || 60000, MAX_TIMEOUT_MS);
-        await member.timeout(ms, motivo || tipo.nombre);
+        await member.timeout(ms, razonDiscord(motivo || tipo.nombre));
     } else if (tipo.accion === 'expulsion') {
         if (!member) throw new Error(t(cfg, 'El usuario no está en el servidor', 'The user is not in the server'));
-        await member.kick(motivo || tipo.nombre);
+        await member.kick(razonDiscord(motivo || tipo.nombre));
     } else if (tipo.accion === 'ban') {
         await guild.members.ban(usuarioId, {
-            reason: motivo || tipo.nombre,
+            reason: razonDiscord(motivo || tipo.nombre),
             deleteMessageSeconds: Math.min((tipo.borrarMensajesHoras || 0) * 3600, 604800),
         });
     }
@@ -174,12 +177,21 @@ async function revocarSancion(client, sancionId, moderador = null) {
 async function barrerSancionesVencidas(client) {
     const vencidas = await Sancion.find({ accion: 'ban', activa: true, expiraEn: { $ne: null, $lte: new Date() } }).limit(50);
     for (const s of vencidas) {
+        // 2.5.2: solo se da por terminado si se ha quitado de verdad (o ya no estaba, o el bot ya no está en el
+        // servidor). Si Discord no deja (falta el permiso), se reintenta en la siguiente pasada en vez de dejarlo
+        // baneado para siempre sin que nadie lo sepa.
+        let hecho = true;
         try {
             const guild = client.guilds.cache.get(s.guildId);
-            if (guild) await guild.members.unban(s.usuarioId, 'Temporary ban expired').catch(() => {});
-        } catch (e) { console.error('Error desbaneando (expiración):', e.message); }
+            if (guild) {
+                await guild.members.unban(s.usuarioId, 'Temporary ban expired').catch((e) => {
+                    if (e?.code !== 10026) { hecho = false; console.warn(`Ban temporal de ${s.usuarioId} en ${s.guildId}: no se ha podido quitar (${e?.message})`); }
+                });
+            }
+        } catch (e) { hecho = false; console.error('Error desbaneando (expiración):', e.message); }
+        if (!hecho) continue;
         s.activa = false;
-        await s.save();
+        await s.save().catch((e) => console.error('Ban temporal (guardar):', e.message));
     }
 }
 
@@ -195,7 +207,7 @@ async function enviarDM(guild, usuario, tipo, motivo, cfg) {
             { name: t(cfg, 'Tipo', 'Type'), value: tipo.nombre || meta.etiqueta, inline: true },
             ...(tipo.nombre && tipo.nombre !== meta.etiqueta ? [{ name: t(cfg, 'Acción', 'Action'), value: meta.etiqueta, inline: true }] : []),
             ...(tipo.duracionMin ? [{ name: t(cfg, 'Duración', 'Duration'), value: duracionTexto(tipo.duracionMin, cfg), inline: true }] : []),
-            { name: t(cfg, 'Motivo', 'Reason'), value: motivo || t(cfg, '_Sin motivo indicado_', '_No reason given_') },
+            { name: t(cfg, 'Motivo', 'Reason'), value: String(motivo || t(cfg, '_Sin motivo indicado_', '_No reason given_')).slice(0, 1024) },
         )
         .setTimestamp();
     await usuario.send({ embeds: [embed] });
@@ -216,7 +228,7 @@ async function registrarEnCanal(client, guild, sancion) {
             { name: t(cfg, 'Usuario', 'User'), value: `<@${sancion.usuarioId}> (\`${sancion.usuarioId}\`)`, inline: false },
             { name: t(cfg, 'Moderador', 'Moderator'), value: sancion.moderadorTag || 'Web Panel', inline: true },
             { name: t(cfg, 'Duración', 'Duration'), value: duracionTexto(sancion.duracionMin, cfg), inline: true },
-            { name: t(cfg, 'Motivo', 'Reason'), value: sancion.motivo || t(cfg, '_Sin motivo_', '_No reason_') },
+            { name: t(cfg, 'Motivo', 'Reason'), value: String(sancion.motivo || t(cfg, '_Sin motivo_', '_No reason_')).slice(0, 1024) },
         )
         .setFooter({ text: `ID: ${sancion._id}` })
         .setTimestamp(sancion.fecha);

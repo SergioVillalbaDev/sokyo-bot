@@ -43,6 +43,25 @@ setInterval(() => {
     }
 }, 60000).unref();
 
+// El dominio de cada enlace del mensaje (sin «www.»), en minúsculas.
+function dominiosDe(contenido) {
+    const out = [];
+    for (const m of String(contenido || '').matchAll(/(?:https?:\/\/|www\.)[^\s<>]+/gi)) {
+        let u = m[0];
+        if (!/^https?:\/\//i.test(u)) u = `http://${u}`;
+        try { out.push(new URL(u).hostname.toLowerCase().replace(/^www\./, '')); } catch { out.push(''); }
+    }
+    return out;
+}
+// ¿Todos los enlaces son de la lista blanca? (una entrada «youtube.com» vale para «m.youtube.com»; con ruta,
+// «tenor.com/view», se mira solo el dominio).
+function enlacesPermitidos(contenido, lista = []) {
+    const permitidos = (lista || []).map((d) => String(d || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[/?#]/)[0]).filter(Boolean);
+    const dominios = dominiosDe(contenido);
+    if (!dominios.length) return true;
+    return dominios.every((h) => h && permitidos.some((d) => h === d || h.endsWith(`.${d}`)));
+}
+
 // ¿El miembro está exento del automod? Admins, roles de moderación y roles exentos.
 function exento(member, am, cfg) {
     if (!member) return false;
@@ -90,7 +109,7 @@ async function castigar(message, client, regla, am, motivo) {
 }
 
 // Revisa un mensaje. Devuelve true si el automod actuó (borró el mensaje).
-async function revisarMensaje(message, cfg, client) {
+async function revisarMensaje(message, cfg, client, { edicion = false } = {}) {
     const am = cfg && cfg.automod;
     if (!message.guild || !am || !am.activo) return false;
     if ((am.canalesExentos || []).includes(message.channelId)) return false;
@@ -136,16 +155,16 @@ async function revisarMensaje(message, cfg, client) {
 
     // 3. Enlaces externos (con lista blanca de dominios).
     if (am.enlaces?.activo && URL_RE.test(contenido)) {
-        const texto = contenido.toLowerCase();
-        const permitido = (am.enlaces.listaBlanca || []).some((d) => d && texto.includes(d.toLowerCase()));
-        if (!permitido) {
+        // 2.5.2: cada enlace tiene que ser de un dominio permitido (o un subdominio suyo). Antes bastaba con que el
+        // dominio apareciera en cualquier parte del mensaje: «youtube.com https://estafa.ru» pasaba.
+        if (!enlacesPermitidos(contenido, am.enlaces.listaBlanca)) {
             await castigar(message, client, am.enlaces, am, t(cfg, 'No se permiten enlaces', 'Links are not allowed'));
             return true;
         }
     }
 
-    // 4. Menciones masivas.
-    if (am.menciones?.activo) {
+    // 4. Menciones masivas (al editar ya no avisan a nadie: no cuentan).
+    if (am.menciones?.activo && !edicion) {
         const everyone = message.mentions.everyone && am.menciones.bloquearEveryone;
         const total = message.mentions.users.size + message.mentions.roles.size;
         if (everyone || total > (am.menciones.max || 5)) {
@@ -169,8 +188,8 @@ async function revisarMensaje(message, cfg, client) {
         }
     }
 
-    // 6. Anti-spam / flood (ventana deslizante en memoria).
-    if (am.spam?.activo) {
+    // 6. Anti-spam / flood (ventana deslizante en memoria). Una edición no es un mensaje más.
+    if (am.spam?.activo && !edicion) {
         const clave = `${message.guildId}:${message.author.id}`;
         const ahora = Date.now();
         const ventanaMs = (am.spam.enSegundos || 5) * 1000;
@@ -241,4 +260,4 @@ async function enviarAlerta(client, guild, am, payload) {
     await canal.send(payload).catch(() => {});
 }
 
-module.exports = { revisarMensaje, revisarConIA, enviarAlerta, ESTAFA_DEFECTO };
+module.exports = { enlacesPermitidos, revisarMensaje, revisarConIA, enviarAlerta, ESTAFA_DEFECTO };
