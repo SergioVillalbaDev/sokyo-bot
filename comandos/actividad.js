@@ -1,4 +1,5 @@
 const { PermissionsBitField, EmbedBuilder } = require('discord.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const RegistroMensaje = require('../models/RegistroMensaje.js');
 const { getConfigCached } = require('../utils/config.js');
@@ -17,7 +18,7 @@ module.exports = {
             return message.reply(t(cfg, '❌ Necesitas permiso de moderación para ver la actividad.', '❌ You need moderation permission to view activity.'));
         }
 
-        const target = message.mentions.users.first();
+        const target = primeraMencion(message);
         if (!target) return message.reply(t(cfg, '❌ Elige a un usuario. Ej.: `/actividad usuario: @alguien`', '❌ Pick a user. e.g. `/activity user: @someone`'));
 
         const act = await ActividadUsuario.findOne({ guildId: message.guild.id, userId: target.id });

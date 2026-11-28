@@ -6,6 +6,7 @@ const { aplicarSancion, duracionTexto, metaFor } = require('./moderationManager.
 const { getConfigCached } = require('./config.js');
 const { miembroPuedeModerar } = require('./permisos.js');
 const { t } = require('./i18n.js');
+const { primeraMencion } = require('./mencion.js');
 
 // Permiso de Discord requerido para cada acción.
 const PERMISO = { ban: 'BanMembers', expulsion: 'KickMembers', timeout: 'ModerateMembers', aviso: 'ModerateMembers' };
@@ -39,7 +40,7 @@ async function aplicarComando(message, client, { accion, duracionMin = 0, borrar
     }
 
     // 2. Usuario objetivo (por mención).
-    const target = message.mentions.users.first();
+    const target = primeraMencion(message);
     if (!target) {
         const [es, en] = nombre ? EJEMPLO.sancion : (EJEMPLO[accion] || EJEMPLO.aviso);
         return message.reply(t(cfg, `❌ Elige a un usuario. Ej.: \`${es}\``, `❌ Pick a user. e.g. \`${en}\``));

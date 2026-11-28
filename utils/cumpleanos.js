@@ -106,9 +106,9 @@ async function proximos(guild, limite = 10) {
 
 function rellenar(plantilla, member, guild) {
     return String(plantilla || '')
-        .replace(/{mention}/g, `<@${member.id}>`)
-        .replace(/{user}/g, member.displayName || member.user.username)
-        .replace(/{server}/g, guild.name);
+        .replace(/{mention}/g, () => `<@${member.id}>`)
+        .replace(/{user}/g, () => member.displayName || member.user.username)
+        .replace(/{server}/g, () => guild.name);
 }
 
 // Felicita a quien cumple hoy en un servidor. `cfg` es la configuración entera.

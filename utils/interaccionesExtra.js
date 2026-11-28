@@ -149,11 +149,14 @@ async function manejar(interaction, client) {
         const pendiente = tomarPendiente(clave);
         if (!pendiente) { await interaction.update({ content: t(idioma, '⌛ Esto ha caducado. Vuelve a escribir el comando.', '⌛ This expired. Type the command again.'), components: [] }); return true; }
         if (id.startsWith('conf_no:')) { await interaction.update({ content: t(idioma, '👍 Cancelado, no se ha hecho nada.', '👍 Cancelled, nothing was done.'), components: [] }); return true; }
+        // Banear (aviso por privado, registro, canal de logs…) puede pasar de los 3 s que da Discord: se contesta ya
+        // y luego se pone el resultado en el mismo mensaje.
+        await interaction.deferUpdate();
         try {
             const r = await aplicarYContar(client, interaction, idioma, pendiente.datos);
-            await interaction.update(r);
+            await interaction.editReply(r);
         } catch (e) {
-            await interaction.update({ content: `❌ ${e.message}`, components: [] }).catch(() => {});
+            await interaction.editReply({ content: `❌ ${e.message}`, components: [] }).catch(() => {});
         }
         return true;
     }

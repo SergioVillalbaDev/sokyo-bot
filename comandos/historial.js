@@ -1,4 +1,5 @@
 const { PermissionsBitField, EmbedBuilder } = require('discord.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const Sancion = require('../models/Sancion.js');
 const { getConfigCached } = require('../utils/config.js');
 const { miembroPuedeModerar } = require('../utils/permisos.js');
@@ -18,7 +19,7 @@ module.exports = {
             return message.reply(t(cfg, '❌ Necesitas permiso de moderación.', '❌ You need moderation permission.'));
         }
 
-        let userId = message.mentions.users.first()?.id;
+        let userId = primeraMencion(message)?.id;
         if (!userId && /^\d{15,20}$/.test(args[0] || '')) userId = args[0];
         if (!userId) return message.reply(t(cfg, '❌ Elige al usuario o pon su ID. Ej.: `/historial usuario: @alguien`', '❌ Pick the user or give their ID. e.g. `/history user: @someone`'));
 

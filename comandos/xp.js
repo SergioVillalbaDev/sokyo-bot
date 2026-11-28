@@ -1,4 +1,5 @@
 const { PermissionsBitField } = require('discord.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const { getConfigCached } = require('../utils/config.js');
 const { xpTotalParaNivel, nivelDeXp } = require('../utils/niveles.js');
@@ -16,7 +17,7 @@ module.exports = {
         }
 
         const sub = args[0]?.toLowerCase();
-        const target = message.mentions.users.first();
+        const target = primeraMencion(message);
         if (!['add', 'set', 'reset'].includes(sub) || !target) {
             return message.reply(t(cfg, 'Uso: `/xp sumar` · `/xp poner-nivel` · `/xp reiniciar`', 'Usage: `/xp add` · `/xp set` · `/xp reset`'));
         }

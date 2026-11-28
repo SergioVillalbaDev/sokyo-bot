@@ -1,4 +1,5 @@
 const TipoSancion = require('../models/TipoSancion.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const { aplicarComando } = require('../utils/modCommands.js');
 const { t } = require('../utils/i18n.js');
 
@@ -9,7 +10,7 @@ module.exports = {
 
     async execute(message, args, client, cfg) {
         const tipos = await TipoSancion.find({ guildId: message.guild.id }).sort({ orden: 1 });
-        const target = message.mentions.users.first();
+        const target = primeraMencion(message);
 
         // Texto tras quitar la mención: empieza por el nombre del tipo, luego el motivo.
         const rest = args.filter((a) => !/^<@!?\d+>$/.test(a)).join(' ').trim();

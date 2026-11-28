@@ -228,13 +228,13 @@ function siguienteRecompensa(validas, recompensas = []) {
 // Rellena los marcadores de un texto de aviso de invitaciones.
 function rellenar(texto, datos) {
     return String(texto || '')
-        .replace(/{mention}/g, datos.mention || '')
-        .replace(/{user}/g, datos.user || '')
-        .replace(/{inviter}/g, datos.inviter || '')
+        .replace(/{mention}/g, () => datos.mention || '')
+        .replace(/{user}/g, () => datos.user || '')
+        .replace(/{inviter}/g, () => datos.inviter || '')
         .replace(/{inviterName}/g, datos.inviterName || '')
         .replace(/{invitesText}/g, datos.invitesText || String(datos.invites ?? 0))
         .replace(/{invites}/g, String(datos.invites ?? 0))
-        .replace(/{server}/g, datos.server || '');
+        .replace(/{server}/g, () => datos.server || '');
 }
 
 // Aviso en el canal configurado cuando alguien entra.

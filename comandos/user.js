@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const Ticket = require('../models/Ticket.js');
 const { t } = require('../utils/i18n.js');
 
@@ -8,7 +9,7 @@ module.exports = {
     description: 'Show a user’s ticket stats',
     async execute(message, args, client, cfg) {
         // 1. ¿De quién buscamos la info? (El mencionado, o si no hay mención, el que escribe)
-        const targetUser = message.mentions.users.first() || message.author;
+        const targetUser = primeraMencion(message) || message.author;
 
         // Etiqueta de estado interna en inglés (los valores en BD pueden estar en español).
         const estadoLabel = (e) => (e === 'Abierto' || e === 'Open' ? 'Open' : 'Closed');

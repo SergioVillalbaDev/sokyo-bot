@@ -54,10 +54,10 @@ function analizarMensaje(message) {
 // Rellena los marcadores de los textos del bump.
 function rellenar(texto, datos) {
     return String(texto || '')
-        .replace(/{mention}/g, datos.mention || '')
-        .replace(/{user}/g, datos.user || '')
-        .replace(/{next}/g, datos.next || '')
-        .replace(/{server}/g, datos.server || '');
+        .replace(/{mention}/g, () => datos.mention || '')
+        .replace(/{user}/g, () => datos.user || '')
+        .replace(/{next}/g, () => datos.next || '')
+        .replace(/{server}/g, () => datos.server || '');
 }
 
 // Mensaje de DISBOARD visto (messageCreate / messageUpdate).

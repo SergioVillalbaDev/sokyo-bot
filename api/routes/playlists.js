@@ -91,7 +91,15 @@ module.exports = ({ portalAuth, client }) => {
     // Añadir canción a la playlist.
     router.post('/portal/playlists/:id/canciones', portalAuth, async (req, res) => {
         try {
-            const { title, author, uri, artwork, duration, sourceName } = req.body;
+            // Lo que llega se limpia: textos con tope y enlaces http(s) (antes se guardaba tal cual, de cualquier tamaño).
+            const txt = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+            const url = (v) => { const u = txt(v, 1000); return /^https?:\/\//i.test(u) ? u : ''; };
+            const title = txt(req.body?.title, 200);
+            const author = txt(req.body?.author, 200);
+            const uri = url(req.body?.uri);
+            const artwork = url(req.body?.artwork) || null;
+            const duration = Math.max(0, Math.min(Number(req.body?.duration) || 0, 24 * 3600000));
+            const sourceName = txt(req.body?.sourceName, 40) || null;
             if (!title || !uri) return res.status(400).json({ error: 'Faltan datos de la canción.' });
             const p = await Playlist.findOne({ _id: req.params.id, userId: req.usuario.id });
             if (!p) return res.status(404).json({ error: 'Playlist no encontrada.' });

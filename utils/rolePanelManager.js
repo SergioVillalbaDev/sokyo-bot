@@ -150,8 +150,10 @@ async function programarTemporal(panel, member, item) {
     }
 }
 
-// Alterna un rol (botón / reacción). Devuelve: 'añadido' | 'quitado' | 'limite' | 'ya_tiene'.
+// Alterna un rol (botón / reacción). Devuelve: 'añadido' | 'quitado' | 'limite' | 'ya_tiene' | 'fuera' (ya no está en el panel).
 async function toggleRol(member, panel, roleId, { soloAñadir = false } = {}) {
+    // Un botón viejo de un rol que ya se ha quitado del panel no da nada.
+    if (!(panel.items || []).some((i) => i.roleId === roleId)) return 'fuera';
     const tiene = member.roles.cache.has(roleId);
 
     if (tiene && !soloAñadir) {
@@ -182,6 +184,8 @@ async function toggleRol(member, panel, roleId, { soloAñadir = false } = {}) {
 // Aplica la selección de un menú: pone los marcados, quita los desmarcados (del panel).
 async function aplicarSeleccionMenu(member, panel, seleccionados) {
     const idsPanel = panel.items.map((i) => i.roleId);
+    // Solo los roles que siguen en el panel (un menú viejo puede traer alguno que ya se quitó).
+    seleccionados = (seleccionados || []).filter((id) => idsPanel.includes(id));
     const aQuitar = idsPanel.filter((id) => !seleccionados.includes(id) && member.roles.cache.has(id));
     const aPoner = seleccionados.filter((id) => !member.roles.cache.has(id));
 

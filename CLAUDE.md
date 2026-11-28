@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.5.0.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.5.1.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -365,6 +365,14 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.5.1 **Revisión de fallos** (tests en `test/revision251.test.js`): el automod/IA solo se salta con un comando de prefijo
+  REAL (antes bastaba un «!» delante, `events/messageCreate.js`); los comandos con prefijo toman al usuario con
+  `utils/mencion.js` → `primeraMencion` (la primera mención ESCRITA; `mentions.users.first()` incluía a quien se responde);
+  la confirmación de `!ban/!kick` hace `deferUpdate` antes de sancionar; contador de dinámicas con puerta atómica
+  (`numeroActual: num - 1`); XP: espera atómica en `otorgarXp` y `aplicarXp` con `$inc` (antes leía y escribía el total);
+  paneles de roles ignoran roles que ya no están en `panel.items`; `rp_verify` avisa si no puede dar el rol; `finalizarSorteo`
+  se reserva con `activo: true → false` antes de sortear; plantillas con `.replace(re, () => valor)` (un `$` en un nombre o
+  título rompía el texto); canciones de playlists con tipos y tamaños limitados.
 - 2.5.0 **Una sola ventana** (tests en `test/ventana.test.js`; el simulador cuenta ahora «Comodidad: mensajes privados nuevos
   al pulsar dentro de un mensaje privado», que antes eran 29 y ahora 0):
   - **`utils/ventana.js`** (`preparar`, llamado en `events/interactionCreate.js` justo después de `navegacion.envolver`): solo en

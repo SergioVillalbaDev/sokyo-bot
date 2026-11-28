@@ -27,7 +27,8 @@ async function manejarBotonRol(interaction) {
             const rid = panel.items[0]?.roleId;
             if (!rid) return interaction.reply({ content: t(cfg, '❌ Este panel no tiene ningún rol configurado.', '❌ This panel has no role set up.'), flags: 64 });
             if (interaction.member.roles.cache.has(rid)) return interaction.reply({ content: t(cfg, '✅ Ya estás verificado.', '✅ You’re already verified.'), flags: 64 });
-            await interaction.member.roles.add(rid).catch(() => {});
+            const dado = await interaction.member.roles.add(rid).then(() => true).catch(() => false);
+            if (!dado) return interaction.reply({ content: t(cfg, '❌ No he podido darte el rol. Avisa a un admin: el rol de Sokyo tiene que estar por encima del de verificado.', '❌ I couldn’t give you the role. Tell an admin: Sokyo’s role must be above the verified role.'), flags: 64 });
             return interaction.reply({ content: t(cfg, '✅ ¡Verificado! Ya tienes acceso al servidor.', '✅ Verified! You now have access to the server.'), flags: 64 });
         }
 
@@ -37,6 +38,7 @@ async function manejarBotonRol(interaction) {
         const msg = estado === 'añadido' ? t(cfg, `✅ Has conseguido el rol **${nombre}**.`, `✅ You got the **${nombre}** role.`)
             : estado === 'quitado' ? t(cfg, `➖ Se ha quitado el rol **${nombre}**.`, `➖ The **${nombre}** role was removed.`)
             : estado === 'limite' ? t(cfg, '⚠️ Has alcanzado el máximo de roles de este panel.', '⚠️ You’ve reached the maximum number of roles for this panel.')
+            : estado === 'fuera' ? t(cfg, '⌛ Ese rol ya no está en este panel.', '⌛ That role is no longer on this panel.')
             : t(cfg, `Ya tienes **${nombre}**.`, `You already have **${nombre}**.`);
         return interaction.reply({ content: msg, flags: 64 });
     } catch (e) {
