@@ -257,6 +257,8 @@ module.exports = ({ portalAuth }) => {
         try {
             const st = await SpotifyToken.findOne({ userId: req.usuario.id });
             if (!st) return res.status(401).json({ error: 'Conecta tu Spotify primero.' });
+            // El mismo máximo que al crear una a mano (antes importar se lo saltaba).
+            if (await Playlist.countDocuments({ userId: req.usuario.id }) >= 50) return res.status(400).json({ error: 'Máximo 50 playlists por usuario.' });
             const token = await tokenFresco(st);
 
             // Paginación de tracks (50 por petición, hasta 200)
@@ -297,11 +299,13 @@ module.exports = ({ portalAuth }) => {
         try {
             const st = await SpotifyToken.findOne({ userId: req.usuario.id });
             if (!st) return res.status(401).json({ error: 'Conecta tu Spotify primero.' });
+            if (await Playlist.countDocuments({ userId: req.usuario.id }) >= 50) return res.status(400).json({ error: 'Máximo 50 playlists por usuario.' });
+            const spotifyId = encodeURIComponent(String(req.params.spotifyId || ''));
             const token = await tokenFresco(st);
 
             // Información básica de la playlist
             const plInfoRes = await fetch(
-                `https://api.spotify.com/v1/playlists/${req.params.spotifyId}?fields=name,tracks.total`,
+                `https://api.spotify.com/v1/playlists/${spotifyId}?fields=name,tracks.total`,
                 { headers: { Authorization: `Bearer ${token}` } },
             );
             if (!plInfoRes.ok) throw new Error(`playlist-info-${plInfoRes.status}`);
@@ -313,7 +317,7 @@ module.exports = ({ portalAuth }) => {
             const limite = Math.min(plInfo.tracks.total, 200);
             while (tracks.length < limite) {
                 const r = await fetch(
-                    `https://api.spotify.com/v1/playlists/${req.params.spotifyId}/tracks?limit=50&offset=${offset}&fields=items(track(name,artists,duration_ms,album.images,external_urls,uri))`,
+                    `https://api.spotify.com/v1/playlists/${spotifyId}/tracks?limit=50&offset=${offset}&fields=items(track(name,artists,duration_ms,album.images,external_urls,uri))`,
                     { headers: { Authorization: `Bearer ${token}` } },
                 );
                 const data = await r.json();

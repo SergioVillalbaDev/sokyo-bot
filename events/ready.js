@@ -106,6 +106,8 @@ module.exports = {
                     if (!cfg?.nivelesActivo || !cfg.xpVozActivo) continue;
                     for (const vs of guild.voiceStates.cache.values()) {
                         if (!vs.channelId || !vs.member || vs.member.user.bot) continue;
+                        // Ensordecido (por sí mismo o por el staff): no está escuchando a nadie, no suma XP.
+                        if (vs.selfDeaf || vs.serverDeaf) continue;
                         const canal = guild.channels.cache.get(vs.channelId);
                         const humanos = canal ? canal.members.filter((m) => !m.user.bot).size : 0;
                         if (humanos < 2) continue; // no XP si está solo

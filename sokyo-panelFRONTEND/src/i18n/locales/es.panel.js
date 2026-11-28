@@ -2167,6 +2167,7 @@ export default {
       dmTitle: 'Avisar por MD al usuario', dmHint: 'Le llega un mensaje privado con el tipo, la duración y el motivo de la sanción.',
     },
     tickets_v: {
+      untitled: 'Ticket sin título',
       openedOn: 'Abierto el {{fecha}}', closedOn: 'cerrado el {{fecha}}',
       sinResponder_one: '{{count}} ticket espera respuesta del staff', sinResponder_other: '{{count}} tickets esperan respuesta del staff', verSolo: 'Ver solo esos', verTodos: 'Ver todos', esperando: 'Esperando respuesta · {{cuando}}',
       empty: 'No hay tickets activos', emptyDesc: 'Cuando un usuario abra un ticket en Discord, aparecerá aquí.',

@@ -26,12 +26,19 @@ const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 
 // Calcula el siguiente envío de un anuncio recurrente a partir de una fecha.
 // Mensual avanza por CALENDARIO (no 30 días fijos): respeta el día del mes.
-function proximaFecha(desde, repetir) {
+// 2.5.2: un día que el mes no tiene (31 en abril, 30 en febrero) cae en el último del mes, y el mes siguiente vuelve
+// al día elegido (`dia`). Antes, el 31 de enero pasaba al 3 de marzo y se quedaba en el día 3 para siempre.
+function proximaFecha(desde, repetir, dia = null) {
     const d = new Date(desde);
     if (repetir === 'diario') d.setUTCDate(d.getUTCDate() + 1);
     else if (repetir === 'semanal') d.setUTCDate(d.getUTCDate() + 7);
-    else if (repetir === 'mensual') d.setUTCMonth(d.getUTCMonth() + 1);
-    else return null;
+    else if (repetir === 'mensual') {
+        const quiere = dia || d.getUTCDate();
+        const ultimo = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 2, 0)).getUTCDate();
+        d.setUTCDate(1);
+        d.setUTCMonth(d.getUTCMonth() + 1);
+        d.setUTCDate(Math.min(quiere, ultimo));
+    } else return null;
     return d;
 }
 
@@ -52,8 +59,9 @@ async function enviarAnunciosPendientes(client) {
         }
         // Recurrente: avanza la fecha al próximo turno (saltando los perdidos). Si no, lo marca enviado.
         if (['diario', 'semanal', 'mensual'].includes(a.repetir)) {
-            let next = proximaFecha(a.fechaEnvio, a.repetir);
-            while (next && next.getTime() <= Date.now()) next = proximaFecha(next, a.repetir);
+            if (a.repetir === 'mensual' && !a.diaMes) a.diaMes = new Date(a.fechaEnvio).getUTCDate();
+            let next = proximaFecha(a.fechaEnvio, a.repetir, a.diaMes);
+            while (next && next.getTime() <= Date.now()) next = proximaFecha(next, a.repetir, a.diaMes);
             a.fechaEnvio = next;
         } else {
             a.enviado = true;
@@ -251,4 +259,4 @@ function iniciarProgramador(client, intervaloMs = 30 * 1000) {
     setInterval(tickResumen, 30 * 60 * 1000);
 }
 
-module.exports = { iniciarProgramador, enviarAnunciosPendientes, enviarRecordatoriosPendientes };
+module.exports = { proximaFecha, iniciarProgramador, enviarAnunciosPendientes, enviarRecordatoriosPendientes };

@@ -17,7 +17,9 @@ async function revisarAutoCierre(client) {
                 const referencia = (ultimoMsg && ultimoMsg.fecha) || t.fechaCreacion;
                 if (referencia && new Date(referencia).getTime() < limite) {
                     console.log(`⏳ Auto-cierre por inactividad: ticket de ${t.creadorNombre} (${cfg.autoCierreDias}d)`);
-                    await cerrarTicket(client, t.canalId, { autor: 'Sistema (inactividad)', avisarCanal: true });
+                    // Uno que falla (canal borrado a medias, Discord caído…) no para los demás.
+                    await cerrarTicket(client, t.canalId, { autor: 'Sistema (inactividad)', avisarCanal: true })
+                        .catch((e) => console.error(`Auto-cierre del ticket ${t.canalId}:`, e.message));
                 }
             }
         }
@@ -27,9 +29,16 @@ async function revisarAutoCierre(client) {
 }
 
 // Arranca el barrido: una primera pasada a los 30s y luego cada `intervaloMs`.
+// Una pasada a la vez: con muchos tickets puede tardar más de lo que hay entre pasadas.
+let enMarcha = false;
+async function pasada(client) {
+    if (enMarcha) return;
+    enMarcha = true;
+    try { await revisarAutoCierre(client); } finally { enMarcha = false; }
+}
 function iniciarAutoCierre(client, intervaloMs = 60 * 60 * 1000) {
-    setTimeout(() => revisarAutoCierre(client), 30 * 1000);
-    setInterval(() => revisarAutoCierre(client), intervaloMs);
+    setTimeout(() => pasada(client), 30 * 1000);
+    setInterval(() => pasada(client), intervaloMs);
 }
 
 module.exports = { revisarAutoCierre, iniciarAutoCierre };

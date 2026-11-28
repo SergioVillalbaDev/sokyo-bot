@@ -68,8 +68,15 @@ function esCandidato(m, cfg = {}, concesion = null) {
 
 // Alerta de seguridad: queda en «Registro de actividad» (categoría Seguridad) y en el
 // canal de registro de Discord, si hay uno.
+// `accion` y `detalles` pueden ser [español, inglés]: sale el del idioma del servidor (2.5.2; antes siempre en español).
 async function alertaSeguridad(client, guildId, { accion, usuario, detalles, color = '#f59e0b' }) {
     try {
+        if (Array.isArray(accion) || Array.isArray(detalles)) {
+            const cfg = await require('./config.js').getConfigCached(guildId).catch(() => null);
+            const en = require('./i18n.js').t(cfg, 'es', 'en') === 'en';
+            const elegir = (x) => (Array.isArray(x) ? x[en ? 1 : 0] : x);
+            accion = elegir(accion); detalles = elegir(detalles);
+        }
         const Log = require('../models/Log.js');
         const log = await Log.create({ guildId, categoria: 'Seguridad', accion, usuario: usuario || '—', detalles: detalles || '', color });
         if (client) await require('./logsManager.js').enviarLogADiscord(client, log);
@@ -86,8 +93,8 @@ async function barrerConcesiones(client) {
         const guild = client.guilds.cache.get(c.guildId);
         const m = guild ? guild.members.cache.get(c.userId) : null;
         await alertaSeguridad(client, c.guildId, {
-            accion: '⌛ Acceso temporal al panel caducado', usuario: m ? m.user.username : c.userId,
-            detalles: `<@${c.userId}> ya no puede entrar al panel con el acceso que le dieron${c.creadoPorNombre ? ` (lo dio ${c.creadoPorNombre})` : ''}.`, color: '#94a3b8',
+            accion: ['⌛ Acceso temporal al panel caducado', '⌛ Temporary panel access expired'], usuario: m ? m.user.username : c.userId,
+            detalles: [`<@${c.userId}> ya no puede entrar al panel con el acceso que le dieron${c.creadoPorNombre ? ` (lo dio ${c.creadoPorNombre})` : ''}.`, `<@${c.userId}> can no longer open the panel with the access they were given${c.creadoPorNombre ? ` (given by ${c.creadoPorNombre})` : ''}.`], color: '#94a3b8',
         });
     }
 }

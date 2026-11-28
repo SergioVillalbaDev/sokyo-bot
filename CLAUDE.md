@@ -44,7 +44,7 @@ Mantenlo al día cuando cambie algo de lo que pone aquí.
 - **«Bot actualizado»**: `utils/anuncioActualizacion.js` lo manda una vez por
   versión (`version` de `package.json`) al servidor `ANUNCIO_SERVIDOR` (por defecto
   «Tokyto»). Para que salga hay que subir la versión: `npm version X.Y.Z
-  --no-git-tag-version`. **Versión actual: 2.5.1.** El aviso lleva la lista de
+  --no-git-tag-version`. **Versión actual: 2.5.2.** El aviso lleva la lista de
   novedades de `utils/novedades.js`: al subir de versión, apunta ahí lo nuevo (en
   pocas palabras y sin tecnicismos; si no hay entrada, sale el texto genérico o
   `ANUNCIO_MENSAJE`). Desde 1.8.0 cada novedad es `{ es, en, tab }`: también sale en
@@ -365,6 +365,28 @@ rutas de propietario exigen `req.staff.owner` (con la API key sola dan 403).
   móvil. Esos scripts vivían en el scratchpad de la sesión y no están en el repo.
 
 ## Historial reciente (PR a `feature/frontend-redesign`)
+- 2.5.2 **Segunda revisión de fallos** (tests en `test/revision252.test.js` y `test/pagos.test.js`):
+  - Automod: `enlacesPermitidos` mira el DOMINIO de cada enlace (antes bastaba con que el dominio de la lista blanca
+    apareciera en el texto) y `events/messageUpdate.js` pasa lo editado por `revisarMensaje(…, { edicion: true })` (sin
+    spam ni menciones). `messageDelete`/`messageUpdate` ya no registran mensajes privados.
+  - Votos atómicos: encuestas y sugerencias con una actualización por tubería (`updatePipeline`; los votos = tamaño de los
+    votantes), sorteos con `$addToSet`/`$pull` y `elegirPonderado` sin repetidos.
+  - Botones `setup_lang`/`setup_publicar`/`setup_canal` del mensaje de entrada: solo dueño, «Gestionar servidor» o propietarios.
+  - Tickets: «Reclamar» se reserva con `asignadoA: null`; «Añadir usuario» con `type: 1` y avisa si falla; CSAT en el idioma
+    del servidor del ticket; `autoClose` aislado por ticket y sin pasadas solapadas; `abrirTicketDesdeReporte` no duplica.
+  - Moderación: `barrerSancionesVencidas` solo da por terminado un ban temporal si se quitó (o 10026); `razonDiscord`
+    recorta el motivo a 500 (Discord rechaza >512) y los motivos de los embeds a 1024.
+  - Voz temporal: `type` en todos los permisos de personas (la sala no se creaba con invitados fuera de caché); al ceder o
+    reclamar, el dueño anterior pierde `MoveMembers`; no se puede ceder a un bot ni echar a Sokyo. XP de voz: nada si está
+    ensordecido. `comandos/rol.js` usa `primeraMencion`.
+  - Pagos (`utils/billing.js`): `desactivarPlan(…, subId)` solo si el plan es de esa suscripción; `activarPlan({
+    respetarDePorVida })` en los eventos de suscripción; `checkout` sin cobrar (`payment_status`) no activa (sí
+    `checkout.session.async_payment_succeeded`); el webhook devuelve 500 si falla al guardar (Stripe reintenta); dar
+    «de por vida» a mano borra `stripeSubscriptionId`. **En Stripe, suscribir el webhook también a
+    `checkout.session.async_payment_succeeded`** (solo hace falta si se activan métodos de pago que tardan).
+  - Anuncios mensuales: `proximaFecha(desde, 'mensual', diaMes)` + `AnuncioProgramado.diaMes` (29-31 → último del mes).
+  - `alertaSeguridad` acepta `[es, en]`; historial de cambios ignora `?antes=` inválido; Spotify: máximo de 50 playlists
+    también al importar e id escapado.
 - 2.5.1 **Revisión de fallos** (tests en `test/revision251.test.js`): el automod/IA solo se salta con un comando de prefijo
   REAL (antes bastaba un «!» delante, `events/messageCreate.js`); los comandos con prefijo toman al usuario con
   `utils/mencion.js` → `primeraMencion` (la primera mención ESCRITA; `mentions.users.first()` incluía a quien se responde);

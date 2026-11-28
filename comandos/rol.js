@@ -42,7 +42,9 @@ module.exports = {
 
             // --- Asignar o quitar un rol a un usuario ---
             if (subcomando === 'assign' || subcomando === 'remove') {
-                const usuario = message.mentions.members.first();
+                // La primera mención escrita (no a quien se responde: utils/mencion.js).
+                const mencion = require('../utils/mencion.js').primeraMencion(message);
+                const usuario = mencion ? await message.guild.members.fetch(mencion.id).catch(() => null) : null;
                 const rol = message.mentions.roles.first();
                 if (!usuario || !rol) {
                     return message.reply(subcomando === 'assign'

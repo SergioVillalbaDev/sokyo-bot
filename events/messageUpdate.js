@@ -19,17 +19,22 @@ module.exports = {
                 await bump.procesarMensaje(newMessage).catch((e) => console.error('Bump (DISBOARD):', e.message));
                 return;
             }
-            if (newMessage.author?.bot) return;
+            if (newMessage.author?.bot || !newMessage.guildId) return;
             // Discord también emite "update" al cargar la vista previa de un enlace;
             // solo las ediciones reales tienen editedTimestamp.
             if (!newMessage.editedTimestamp) return;
-
-            const cfg = await getConfig(newMessage.guildId);
-            if (!logActivo(cfg, 'mensajesEditados')) return;
-
             // Evita registrar cuando solo se carga un enlace/imagen (mismo contenido).
             // Si el mensaje viejo era partial no tenemos su contenido, así que dejamos pasar.
             if (!oldMessage.partial && oldMessage.content === newMessage.content) return;
+
+            const cfg = await getConfig(newMessage.guildId);
+            // 2.5.2: lo editado pasa también por el automod (antes se escribía «hola» y luego se cambiaba por el enlace).
+            // Sin saber quién es (no está en memoria tras un reinicio) no se sabría si es staff: se pide antes y, si no
+            // llega, no se revisa (mejor eso que borrarle un mensaje a un admin).
+            if (!newMessage.member && newMessage.guild) await newMessage.guild.members.fetch(newMessage.author.id).catch(() => null);
+            const { revisarMensaje } = require('../utils/automod.js');
+            if (newMessage.member && await revisarMensaje(newMessage, cfg, client, { edicion: true }).catch(() => false)) return;
+            if (!logActivo(cfg, 'mensajesEditados')) return;
 
             const viejo = oldMessage.partial ? t(cfg, '*(No está en caché)*', '*(Not cached)*') : (oldMessage.content || t(cfg, '*(Vacío)*', '*(Empty)*'));
             const nuevo = newMessage.content || t(cfg, '*(Vacío)*', '*(Empty)*');

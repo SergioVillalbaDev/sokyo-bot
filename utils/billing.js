@@ -117,6 +117,9 @@ async function consumirIA(guildId, cfg) {
 }
 
 // Activa / renueva un plan en la BD. `premiumHasta === null` = de por vida.
+// 2.5.2: con `respetarDePorVida` (eventos de suscripción) no toca un servidor que ya es de por vida (antes una
+// suscripción vieja que se renovaba le ponía fecha de caducidad al plan pagado para siempre).
+const DE_POR_VIDA = { esPremium: true, premiumHasta: null, stripeSubscriptionId: null };
 async function activarPlan(guildId, datos) {
     const set = { esPremium: true, plan: datos.plan || 'pro' };
     if (datos.premiumHasta !== undefined) set.premiumHasta = datos.premiumHasta;
@@ -124,14 +127,23 @@ async function activarPlan(guildId, datos) {
     if (datos.stripeSubscriptionId !== undefined) set.stripeSubscriptionId = datos.stripeSubscriptionId;
     if (datos.cancelaAlFinal !== undefined) set.premiumCancelaAlFinal = datos.cancelaAlFinal;
     if (datos.compradorId) set.soporteCompradorId = datos.compradorId;
+    if (datos.respetarDePorVida) {
+        const hecho = await ServidorConfig.findOneAndUpdate({ guildId, $nor: [DE_POR_VIDA] }, { $set: set });
+        if (hecho || await ServidorConfig.exists({ guildId })) return; // actualizado, o es de por vida: no se toca
+    }
     await ServidorConfig.findOneAndUpdate({ guildId }, { $set: set }, { upsert: true });
 }
 
 // Devuelve el servidor a Free. `client` (opcional): si se pasa, además quita el
 // acceso al servidor de soporte prioritario a quien lo compró.
-async function desactivarPlan(guildId, client = null) {
+// Con `subId` (eventos de Stripe) solo si el plan es de ESA suscripción: cancelar una suscripción vieja ya no le quita
+// el plan a un servidor que después pagó otra o el de por vida. Sin suscripción guardada pero con fecha (datos viejos),
+// también.
+async function desactivarPlan(guildId, client = null, subId = undefined) {
+    const filtro = subId === undefined ? { guildId }
+        : { guildId, $or: [{ stripeSubscriptionId: subId }, { stripeSubscriptionId: null, premiumHasta: { $ne: null } }] };
     const cfg = await ServidorConfig.findOneAndUpdate(
-        { guildId },
+        filtro,
         { $set: { esPremium: false, plan: 'free', premiumCancelaAlFinal: false, stripeSubscriptionId: null } },
     );
     if (client && cfg && cfg.soporteCompradorId) {
@@ -188,11 +200,14 @@ async function procesarEvento(event, client = null) {
     const obj = event.data.object;
 
     switch (event.type) {
+        case 'checkout.session.async_payment_succeeded':
         case 'checkout.session.completed': {
             const guildId = obj.metadata && obj.metadata.guildId;
             const plan = (obj.metadata && obj.metadata.plan) || 'pro';
             const compradorId = obj.metadata && obj.metadata.compradorId;
             if (!guildId) break;
+            // Pagos que aún no se han cobrado (transferencia, SEPA…): se activa al llegar «async_payment_succeeded».
+            if (obj.payment_status && !['paid', 'no_payment_required'].includes(obj.payment_status)) break;
             if (obj.mode === 'payment') {
                 // Pago único (lifetime): premium de por vida.
                 await activarPlan(guildId, {
@@ -210,7 +225,7 @@ async function procesarEvento(event, client = null) {
                 }
                 await activarPlan(guildId, {
                     plan, premiumHasta: hasta, stripeCustomerId: obj.customer,
-                    stripeSubscriptionId: subId, cancelaAlFinal: false, compradorId,
+                    stripeSubscriptionId: subId, cancelaAlFinal: false, compradorId, respetarDePorVida: true,
                 });
             }
             // Primer pago confirmado: le mandamos el acceso al soporte prioritario.
@@ -236,16 +251,16 @@ async function procesarEvento(event, client = null) {
                     stripeCustomerId: sub.customer,
                     stripeSubscriptionId: sub.id,
                     cancelaAlFinal: !!sub.cancel_at_period_end,
-                    compradorId,
+                    compradorId, respetarDePorVida: true,
                 });
             } else {
-                await desactivarPlan(guildId, client);
+                await desactivarPlan(guildId, client, sub.id);
             }
             break;
         }
         case 'customer.subscription.deleted': {
             const guildId = obj.metadata && obj.metadata.guildId;
-            if (guildId) await desactivarPlan(guildId, client);
+            if (guildId) await desactivarPlan(guildId, client, obj.id);
             break;
         }
         default:

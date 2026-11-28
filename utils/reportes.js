@@ -81,7 +81,14 @@ async function publicarEnStaff(client, cfg, doc) {
 
 // Abre un ticket a raíz de un reporte. Marca el reporte como resuelto y lo enlaza.
 // Devuelve { canalId, reporte } o lanza error.
-async function abrirTicketDesdeReporte(client, reporteId, autorTag) {
+// Dos clics a la vez en «Abrir ticket» esperan al mismo (antes salían dos tickets del mismo reporte).
+const abriendo = new Map();
+function abrirTicketDesdeReporte(client, reporteId, autorTag) {
+    const clave = String(reporteId);
+    if (!abriendo.has(clave)) abriendo.set(clave, abrirTicketReporte(client, reporteId, autorTag).finally(() => abriendo.delete(clave)));
+    return abriendo.get(clave);
+}
+async function abrirTicketReporte(client, reporteId, autorTag) {
     const doc = await Reporte.findById(reporteId);
     if (!doc) throw new Error('Reporte no encontrado');
     if (doc.canalTicketId) return { canalId: doc.canalTicketId, reporte: doc, yaExistia: true };

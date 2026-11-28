@@ -396,7 +396,7 @@ async function manejarBoton(interaction, client) {
         // Si el grupo ya tenía sala (se llenó, alguien salió y vuelve a llenarse), el nuevo también puede entrar.
         if (g.salaVozId) {
             const sala = interaction.guild.channels.cache.get(g.salaVozId);
-            await sala?.permissionOverwrites.edit(uid, { ViewChannel: true, Connect: true, Speak: true }).catch(() => {});
+            await sala?.permissionOverwrites.edit(uid, { ViewChannel: true, Connect: true, Speak: true }, { type: 1 }).catch(() => {});
         }
         if (g.miembros.length >= g.plazas) {
             const lleno = await marcarLleno(interaction.guild, g, cfg);
