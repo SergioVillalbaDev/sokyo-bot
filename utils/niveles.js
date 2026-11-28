@@ -112,18 +112,18 @@ async function aplicarXp(guild, member, ganada, cfg, canalFallback) {
     // Compañero equipado de los cofres (1.16.0): más XP para quien lo lleva.
     const compa = await require('./cofres.js').ventajasUsuario(guild.id, member.id).catch(() => null);
     if (compa?.xp > 0) ganada = Math.round(ganada * (1 + compa.xp));
-    const doc = await ActividadUsuario.findOne({ guildId: guild.id, userId: member.id }).select('xp');
-    const xpVieja = doc?.xp || 0;
-    const xpNueva = xpVieja + ganada;
+    // 2.5.1: se SUMA en la base de datos (antes se leía y se escribía el total: la XP de voz y la de un mensaje a la
+    // vez se pisaban y se perdía una). xpTemporada: lo mismo, para el ranking de la temporada (utils/temporadas.js).
+    const doc = await ActividadUsuario.findOneAndUpdate(
+        { guildId: guild.id, userId: member.id },
+        { $inc: { xp: ganada, xpTemporada: ganada }, $set: { usuarioTag: member.user.username } },
+        { upsert: true, returnDocument: 'after', projection: { xp: 1, nivel: 1 } },
+    );
+    const xpNueva = doc?.xp || ganada;
+    const xpVieja = Math.max(0, xpNueva - ganada);
     const nivelViejo = progreso(xpVieja, dif).nivel;
     const nivelNuevo = progreso(xpNueva, dif).nivel;
-
-    await ActividadUsuario.updateOne(
-        { guildId: guild.id, userId: member.id },
-        // xpTemporada: lo mismo, para el ranking de la temporada (utils/temporadas.js).
-        { $set: { xp: xpNueva, nivel: nivelNuevo, usuarioTag: member.user.username }, $inc: { xpTemporada: ganada } },
-        { upsert: true },
-    );
+    if (doc?.nivel !== nivelNuevo) await ActividadUsuario.updateOne({ guildId: guild.id, userId: member.id, xp: xpNueva }, { $set: { nivel: nivelNuevo } });
 
     if (nivelNuevo > nivelViejo) {
         // Tarjeta de rango (imagen) si está activada.
@@ -153,15 +153,23 @@ async function otorgarXp(message, cfg) {
     if ((cfg.canalesSinXp || []).includes(message.channel.id)) return;
 
     const cd = (cfg.xpCooldownSeg ?? 60) * 1000;
-    const doc = await ActividadUsuario.findOne({ guildId: message.guild.id, userId: member.id }).select('ultimoXp');
-    if (doc?.ultimoXp && Date.now() - new Date(doc.ultimoXp).getTime() < cd) return;
+    // Puerta atómica: con varios mensajes a la vez (pegar 5 líneas seguidas) solo el primero se lleva la XP.
+    const ahora = new Date();
+    const filtro = { guildId: message.guild.id, userId: member.id };
+    const libre = { $or: [{ ultimoXp: null }, { ultimoXp: { $lt: new Date(ahora.getTime() - cd) } }] };
+    let r = await ActividadUsuario.updateOne({ ...filtro, ...libre }, { $set: { ultimoXp: ahora } });
+    if (!r.matchedCount) {
+        // ¿No tiene documento aún? Se crea; si ya existía (en espera u otro mensaje lo acaba de crear), nada.
+        if (await ActividadUsuario.exists(filtro)) return;
+        r = await ActividadUsuario.updateOne(filtro, { $setOnInsert: { ultimoXp: ahora } }, { upsert: true }).catch(() => null);
+        if (!r?.upsertedCount) return;
+    }
 
     const min = cfg.xpMin ?? 15;
     const max = Math.max(min, cfg.xpMax ?? 25);
     const base = min + Math.floor(Math.random() * (max - min + 1));
     const ganada = Math.round(base * multiplicadorDe(member, cfg));
 
-    await ActividadUsuario.updateOne({ guildId: message.guild.id, userId: member.id }, { $set: { ultimoXp: new Date() } }, { upsert: true });
     await aplicarXp(message.guild, member, ganada, cfg, message.channel);
     sumarAlClan(member, ganada, cfg);
 }
@@ -190,9 +198,9 @@ async function anunciar(guild, member, cfg, nivel, canalFallback, tarjeta) {
     const tipo = cfg.anuncioTipo || 'canal';
     if (tipo === 'off') return;
     const texto = (cfg.mensajeSubida || t(cfg, '🎉 {mention} alcanzó el **nivel {level}**!', '🎉 {mention} reached **level {level}**!'))
-        .replace(/{mention}/g, `<@${member.id}>`)
-        .replace(/{user}/g, member.user.username)
-        .replace(/{level}/g, nivel);
+        .replace(/{mention}/g, () => `<@${member.id}>`)
+        .replace(/{user}/g, () => member.user.username)
+        .replace(/{level}/g, () => nivel);
 
     const payload = { content: texto };
     if (tarjeta) payload.files = [tarjeta];

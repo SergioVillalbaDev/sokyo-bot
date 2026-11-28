@@ -1,4 +1,5 @@
 const { PermissionsBitField } = require('discord.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const Sancion = require('../models/Sancion.js');
 const { revocarSancion } = require('../utils/moderationManager.js');
 const { getConfigCached } = require('../utils/config.js');
@@ -17,7 +18,7 @@ module.exports = {
         }
 
         // El usuario está fuera del servidor: por mención o por ID en bruto.
-        let userId = message.mentions.users.first()?.id;
+        let userId = primeraMencion(message)?.id;
         if (!userId && /^\d{15,20}$/.test(args[0] || '')) userId = args[0];
         if (!userId) return message.reply(t(cfg, '❌ Indica a quién o su ID. Ej.: `/desbanear id-usuario: 123456789012345678`', '❌ Say who or give their ID. e.g. `/unban user-id: 123456789012345678`'));
 

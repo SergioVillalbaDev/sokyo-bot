@@ -375,10 +375,10 @@ async function resolverRss(entrada) {
 
 function rellenar(texto, datos) {
     return String(texto || '')
-        .replace(/{streamer}/g, datos.streamer || '')
-        .replace(/{title}/g, datos.title || '')
-        .replace(/{url}/g, datos.url || '')
-        .replace(/{platform}/g, datos.platform || '');
+        .replace(/{streamer}/g, () => datos.streamer || '')
+        .replace(/{title}/g, () => datos.title || '')
+        .replace(/{url}/g, () => datos.url || '')
+        .replace(/{platform}/g, () => datos.platform || '');
 }
 
 // Publica el aviso. `item` = { tipo: 'directo' | 'video' | 'post', titulo, url, miniatura, juego, inicio, resumen }.

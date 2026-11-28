@@ -147,11 +147,29 @@ async function dinContador(message, c, cfg) {
             return true;
         }
 
-        // Número equivocado: se rompe la cuenta y vuelve a empezar.
-        if (num !== esperado) {
-            doc.numeroActual = 0;
-            doc.ultimoUserId = null;
-            await doc.save().catch(() => {});
+        // Número correcto: se apunta SOLO si nadie lo ha contado ya (dos «5» a la vez: el segundo ya no vale).
+        let hecho = null;
+        const nuevoRecord = num > (doc.record || 0);
+        if (num === esperado) {
+            hecho = await Contador.findOneAndUpdate(
+                { _id: doc._id, numeroActual: num - 1, ...(!c.repetirUsuario ? { ultimoUserId: { $ne: message.author.id } } : {}) },
+                { $set: { numeroActual: num, ultimoUserId: message.author.id, ...(nuevoRecord ? { record: num, recordFecha: new Date() } : {}) } },
+                { returnDocument: 'after' },
+            ).catch(() => null);
+            if (!hecho && !c.repetirUsuario) {
+                // ¿Lo ha perdido por repetir (su otro mensaje entró justo antes)? Como «misma persona dos veces».
+                const ahora = await Contador.findById(doc._id).lean().catch(() => null);
+                if (ahora?.ultimoUserId === message.author.id) {
+                    if (c.borrarErrores) await message.delete().catch(() => {});
+                    else await message.react('🚫').catch(() => {});
+                    return true;
+                }
+            }
+        }
+
+        // Número equivocado (o se le han adelantado): se rompe la cuenta y vuelve a empezar.
+        if (!hecho) {
+            await Contador.updateOne({ _id: doc._id }, { $set: { numeroActual: 0, ultimoUserId: null } }).catch(() => {});
             await message.react('❌').catch(() => {});
             const p = payloadMensaje(c.mensajes?.fallo, {
                 color, vars: { user: `<@${message.author.id}>`, numero: esperado, number: esperado },
@@ -161,12 +179,6 @@ async function dinContador(message, c, cfg) {
             return true;
         }
 
-        // Número correcto.
-        doc.numeroActual = num;
-        doc.ultimoUserId = message.author.id;
-        const nuevoRecord = num > (doc.record || 0);
-        if (nuevoRecord) { doc.record = num; doc.recordFecha = new Date(); }
-        await doc.save().catch(() => {});
         await message.react(nuevoRecord ? '🏆' : '✅').catch(() => {});
         // Mensaje de acierto opcional (por defecto vacío -> solo la reacción).
         const pa = payloadMensaje(c.mensajes?.acierto, { color, vars: { user: `<@${message.author.id}>`, numero: num, number: num }, mention: message.author.id });

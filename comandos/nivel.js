@@ -1,4 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder } = require('discord.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const ActividadUsuario = require('../models/ActividadUsuario.js');
 const { progreso, adjuntoTarjeta } = require('../utils/niveles.js');
 const { getConfigCached } = require('../utils/config.js');
@@ -14,7 +15,7 @@ module.exports = {
         const cfg = await getConfigCached(message.guild.id);
         if (!cfg?.nivelesActivo) return message.reply(t(cfg, 'ℹ️ El sistema de niveles no está activado en este servidor.', 'ℹ️ The leveling system isn’t enabled on this server.'));
 
-        const target = message.mentions.users.first() || message.author;
+        const target = primeraMencion(message) || message.author;
         const member = await message.guild.members.fetch(target.id).catch(() => null);
         const dif = cfg.dificultad || 1;
 

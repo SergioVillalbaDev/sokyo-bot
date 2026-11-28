@@ -306,6 +306,12 @@ function elegirPonderado(lista, n, pesos) {
 // Termina un sorteo: elige ganadores, edita el mensaje y los anuncia.
 // reroll=true vuelve a elegir entre los participantes (sorteo ya finalizado).
 async function finalizarSorteo(client, s, { reroll = false } = {}) {
+    // Se cierra lo primero y de forma atómica: si «Terminar» en el panel y el programador llegan a la vez,
+    // solo uno sortea (antes podían salir dos anuncios con ganadores distintos).
+    if (!reroll) {
+        const cerrado = await Sorteo.findOneAndUpdate({ _id: s._id, activo: true }, { $set: { activo: false } }).catch(() => null);
+        if (!cerrado) return;
+    }
     const guild = client.guilds.cache.get(s.guildId);
 
     // Papeletas de cada participante (roles multiplicadores + invitaciones). Quien

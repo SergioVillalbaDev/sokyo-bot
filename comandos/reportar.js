@@ -1,4 +1,5 @@
 const { crearReporte } = require('../utils/reportes.js');
+const { primeraMencion } = require('../utils/mencion.js');
 const { t } = require('../utils/i18n.js');
 
 module.exports = {
@@ -9,7 +10,7 @@ module.exports = {
     async execute(message, args, client, cfg) {
         try {
             // Usuario reportado: por mención, o el autor del mensaje al que se responde.
-            let reportado = message.mentions.users.first() || null;
+            let reportado = primeraMencion(message) || null;
             let mensajeReportado = null;
 
             if (message.reference && message.reference.messageId) {

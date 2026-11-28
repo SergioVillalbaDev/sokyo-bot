@@ -22,13 +22,13 @@ const UPLOADS_DIR = path.join(__dirname, '..', 'api', 'uploads');
 // Sustituye los placeholders en un texto.
 function reemplazar(texto, datos) {
     return String(texto || '')
-        .replace(/{mention}/g, datos.mention)
-        .replace(/{user}/g, datos.user)
-        .replace(/{server}/g, datos.servidor)
-        .replace(/{servidor}/g, datos.servidor)   // alias ES (compatibilidad)
+        .replace(/{mention}/g, () => datos.mention)
+        .replace(/{user}/g, () => datos.user)
+        .replace(/{server}/g, () => datos.servidor)
+        .replace(/{servidor}/g, () => datos.servidor)   // alias ES (compatibilidad)
         .replace(/{members}/g, String(datos.miembros))
         .replace(/{miembros}/g, String(datos.miembros)) // alias ES (compatibilidad)
-        .replace(/{avatar}/g, datos.avatar);
+        .replace(/{avatar}/g, () => datos.avatar);
 }
 
 // Sustituye los placeholders en todos los campos de texto/URL de un embed.

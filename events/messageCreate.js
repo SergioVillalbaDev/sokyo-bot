@@ -7,7 +7,7 @@ const { otorgarXp } = require('../utils/niveles.js');
 const { revisarMensaje, revisarConIA } = require('../utils/automod.js');
 const { revisarAutoRespuestas } = require('../utils/autoRespuestas.js');
 const { marcarParticipacion } = require('../utils/embudo.js');
-const { t, resolverIdioma } = require('../utils/i18n.js');
+const { t } = require('../utils/i18n.js');
 const bump = require('../utils/bump.js');
 
 module.exports = {
@@ -50,7 +50,11 @@ module.exports = {
                 // Los comandos del propio bot (mensaje empieza por el prefijo) no son
                 // contenido a moderar: se excluyen del automod y de la IA de moderación.
                 const prefijoAct = (cfgAct && cfgAct.prefijo) || '!';
-                const esComando = message.content.startsWith(prefijoAct);
+                // Solo si de verdad es un comando del bot: «! enlace» o «!palabrota» no se libran del automod.
+                const esComando = message.content.startsWith(prefijoAct) && (() => {
+                    const nombre = (message.content.slice(prefijoAct.length).trim().split(/ +/)[0] || '').toLowerCase();
+                    return !!nombre && (client.commands.has(nombre) || [...client.commands.values()].some((c) => Array.isArray(c.aliases) && c.aliases.includes(nombre)));
+                })();
                 // Automod primero: si actúa (borra el mensaje), no seguimos con XP ni comandos.
                 if (!esComando && await revisarMensaje(message, cfgAct, client)) return;
                 // Moderación por IA (Pro): no bloquea el flujo; actúa por su cuenta si toca.

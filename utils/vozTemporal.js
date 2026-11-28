@@ -51,7 +51,7 @@ async function guardarPref(guildId, userId, patch) {
 // Rellena la plantilla del nombre. {user} = nombre · {count} = nº de su canal.
 function nombreCanal(plantilla, member, count) {
     return String(plantilla || '🔊 {user}')
-        .replace(/{user}/g, member.displayName || member.user.username)
+        .replace(/{user}/g, () => member.displayName || member.user.username)
         .replace(/{count}/g, String(count))
         .slice(0, 100);
 }
